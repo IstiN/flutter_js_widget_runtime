@@ -1,3 +1,7 @@
+## 0.0.2
+
+- Automated patch bump.
+
 # Changelog
 
 ## 0.0.1
