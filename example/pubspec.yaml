@@ -1,0 +1,30 @@
+name: js_widget_runtime_example
+description: Example app demonstrating js_widget_runtime.
+publish_to: 'none'
+version: 0.1.0
+
+environment:
+  sdk: '>=3.12.0 <4.0.0'
+  flutter: '>=3.19.0'
+
+dependencies:
+  flutter:
+    sdk: flutter
+
+  js_widget_runtime:
+    path: ../
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^6.0.0
+
+flutter:
+  uses-material-design: true
+  assets:
+    - widgets/yolo-hello/
+    - widgets/calculator/
+    - widgets/animation-showcase/
+    - widgets/weather/
+    - widgets/stocks/
+    - widgets/crypto/

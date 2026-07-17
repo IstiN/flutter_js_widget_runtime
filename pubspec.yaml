@@ -1,0 +1,32 @@
+name: js_widget_runtime
+description: Run JavaScript widgets as Flutter widgets using QuickJS (VM) or Web Workers (web).
+version: 0.1.0
+homepage: https://github.com/IstiN/yoloit
+documentation: https://github.com/IstiN/yoloit/tree/main/packages/js_widget_runtime
+
+environment:
+  sdk: '>=3.12.0 <4.0.0'
+  flutter: '>=3.19.0'
+
+dependencies:
+  flutter:
+    sdk: flutter
+
+  flutter_js: ^0.8.7
+  web: ^1.1.1
+  flutter_svg: ^2.3.0
+  flutter_markdown_plus: ^1.0.7
+  path: ^1.9.1
+  path_provider: ^2.1.3
+
+  # Conditional platform helpers; imported only on web.
+  # shared_preferences is used by the web engine for storage fallback.
+  shared_preferences: ^2.5.3
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^6.0.0
+
+flutter:
+  uses-material-design: true
