@@ -153,7 +153,9 @@ class JsWidgetEngine {
   // ── Private ──────────────────────────────────────────────────────────────
 
   void _setupBridges(JavascriptRuntime rt) {
-    _bridge.resolveCallback = (id, value) => _resolveCallback(rt, id, value);
+    _bridge.resolveCallback = _config.resolveCallback ??
+        (id, value) => _resolveCallback(rt, id, value);
+    _config.onResolveReady?.call(_bridge.resolveCallback);
     _bridge.fetchHandler = (id, url, method, headers) async {
       if (_config.fetchHandler != null) {
         await _config.fetchHandler!.call(id, url, method, headers);

@@ -30,7 +30,7 @@ class JsWidgetEngine {
       isDisposed: () => _disposed,
       appDir: config.appDir,
       isPermissionAllowed: config.isPermissionAllowed ?? _allowAll,
-      resolveCallback: (id, value) => _resolveCallback(id, value),
+      resolveCallback: config.resolveCallback ?? (id, value) => _resolveCallback(id, value),
       fetchHandler: (id, url, method, headers) => _handleFetch(id, url, method, headers),
       secretsGetHandler: (id, key) async {
         if (_config.secretsGetHandler != null) {
@@ -106,6 +106,7 @@ class JsWidgetEngine {
         debugPrint('[JsWidgetEngineWeb] worker ready timeout');
       },
     );
+    _config.onResolveReady?.call(_bridge.resolveCallback);
   }
 
   Future<void> callEvent(

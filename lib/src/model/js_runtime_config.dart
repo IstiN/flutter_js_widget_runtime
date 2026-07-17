@@ -30,6 +30,7 @@ class JsRuntimeConfig {
     this.onLog,
     this.isPermissionAllowed,
     this.resolveCallback,
+    this.onResolveReady,
     this.fetchHandler,
     this.secretsGetHandler,
     this.secretsSetHandler,
@@ -67,6 +68,12 @@ class JsRuntimeConfig {
 
   /// Resolve a JS callback promise/reject by id.
   final void Function(String id, dynamic value)? resolveCallback;
+
+  /// Optional callback that receives the engine's active resolver once the
+  /// bridge is wired up. Useful for host handlers that need to settle JS
+  /// promises from custom I/O handlers.
+  final void Function(void Function(String id, dynamic value) resolve)?
+      onResolveReady;
 
   /// Handle `yoloit.fetchJson(url, opts)`.
   final Future<void> Function(
@@ -106,6 +113,8 @@ class JsRuntimeConfig {
     void Function(String message)? onLog,
     JsPermissionChecker? isPermissionAllowed,
     void Function(String id, dynamic value)? resolveCallback,
+    void Function(void Function(String id, dynamic value) resolve)?
+        onResolveReady,
     Future<void> Function(
       String id,
       String url,
@@ -131,6 +140,7 @@ class JsRuntimeConfig {
         onLog: onLog ?? this.onLog,
         isPermissionAllowed: isPermissionAllowed ?? this.isPermissionAllowed,
         resolveCallback: resolveCallback ?? this.resolveCallback,
+        onResolveReady: onResolveReady ?? this.onResolveReady,
         fetchHandler: fetchHandler ?? this.fetchHandler,
         secretsGetHandler: secretsGetHandler ?? this.secretsGetHandler,
         secretsSetHandler: secretsSetHandler ?? this.secretsSetHandler,
