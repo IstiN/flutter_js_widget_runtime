@@ -1,0 +1,9 @@
+{
+  "ignore": [
+    "**/*.g.dart",
+    "**/*.freezed.dart",
+    "**/*.mocks.dart",
+    "**/generated/**",
+    "**/example/**"
+  ]
+}

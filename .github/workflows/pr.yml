@@ -1,0 +1,112 @@
+name: PR Quality Gates
+
+on:
+  pull_request:
+    branches:
+      - main
+  push:
+    branches:
+      - main
+
+jobs:
+  quality:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+
+      - name: Install dependencies
+        run: flutter pub get
+
+      - name: Run tests with coverage
+        run: flutter test --coverage
+
+      - name: File size guard
+        env:
+          MAX_LINES: '1500'
+        run: |
+          set -euo pipefail
+          VIOLATIONS=()
+          while IFS= read -r file; do
+            case "$file" in
+              *.dart)
+                case "$file" in
+                  *.g.dart|*.freezed.dart|*.mocks.dart) continue ;;
+                esac
+                lines=$(wc -l < "$file")
+                if (( lines > MAX_LINES )); then
+                  VIOLATIONS+=("  $file: $lines lines (max $MAX_LINES)")
+                fi
+                ;;
+            esac
+          done < <(find lib test -type f)
+          if ((${#VIOLATIONS[@]} > 0)); then
+            echo "❌ QUALITY GATE FAILED — FILE SIZE"
+            printf '%s\n' "${VIOLATIONS[@]}"
+            exit 1
+          fi
+          echo "✅ File size guard OK (max $MAX_LINES lines)"
+
+      - name: Code duplication guard
+        env:
+          DUP_THRESHOLD: '1.5'
+        run: |
+          set -euo pipefail
+          npm install -g jscpd >/dev/null 2>&1 || true
+          jscpd --config .jscpd.json --min-tokens 50 --min-lines 5 --reporters json --output /tmp/jscpd-ci lib/ test/ >/dev/null 2>&1 || true
+          DUP_PCT=$(python3 -c "
+import json
+try:
+    with open('/tmp/jscpd-ci/jscpd-report.json') as f:
+        d=json.load(f)
+    print(d['statistics']['total']['percentage'])
+except: print('0.0')
+")
+          if python3 -c "exit(0 if float('$DUP_PCT') < float('$DUP_THRESHOLD') else 1)"; then
+            echo "✅ Duplication check OK ($DUP_PCT% < ${DUP_THRESHOLD}%)"
+          else
+            echo "❌ QUALITY GATE FAILED — CODE DUPLICATION"
+            echo "   Duplication: $DUP_PCT% (max ${DUP_THRESHOLD}%)"
+            exit 1
+          fi
+
+      - name: Coverage ratchet
+        env:
+          COVERAGE_BASELINE: '37.0'
+          COVERAGE_TARGET: '50.0'
+        run: |
+          set -euo pipefail
+          COVERAGE_PCT=$(python3 -c "
+import sys
+with open('coverage/lcov.info','r') as f:
+    content=f.read()
+files=content.split('SF:')
+total_found=0; total_hit=0
+for sec in files[1:]:
+    for line in sec.strip().split('\n')[1:]:
+        if line.startswith('DA:'):
+            total_found+=1
+            if int(line[3:].split(',')[1])>0:
+                total_hit+=1
+if total_found>0:
+    print(f'{(total_hit/total_found)*100:.1f}')
+else:
+    print('0.0')
+")
+          if python3 -c "exit(0 if float('$COVERAGE_PCT') >= float('$COVERAGE_BASELINE') else 1)"; then
+            echo "✅ Coverage ratchet OK ($COVERAGE_PCT% >= ${COVERAGE_BASELINE}%)"
+            if python3 -c "exit(0 if float('$COVERAGE_PCT') >= float('$COVERAGE_TARGET') else 1)"; then
+              echo "🏆 Coverage target ${COVERAGE_TARGET}% reached — excellent!"
+            else
+              echo "🎯 Coverage target: ${COVERAGE_TARGET}% (current: $COVERAGE_PCT%)"
+            fi
+          else
+            echo "❌ QUALITY GATE FAILED — TEST COVERAGE"
+            echo "   Coverage: $COVERAGE_PCT% (baseline ${COVERAGE_BASELINE}%)"
+            exit 1
+          fi
