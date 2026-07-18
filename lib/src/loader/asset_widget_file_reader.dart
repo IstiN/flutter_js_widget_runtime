@@ -10,7 +10,7 @@ class AssetWidgetFileReader implements WidgetFileReader {
   final String basePath;
 
   String _resolve(String path) {
-    final normalized = path.replaceAll('//', '/');
+    final normalized = path.replaceAll('//', '/').replaceAll(RegExp('^/'), '');
     if (normalized.startsWith(basePath)) return normalized;
     return '$basePath/$normalized'.replaceAll('//', '/');
   }
@@ -29,9 +29,9 @@ class AssetWidgetFileReader implements WidgetFileReader {
   Future<bool> exists(String path) async {
     final asset = _resolve(path);
     try {
-      await rootBundle.loadString(asset);
+      await rootBundle.load(asset);
       return true;
-    } on FlutterError {
+    } catch (_) {
       return false;
     }
   }

@@ -1,20 +1,22 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:js_widget_runtime/js_widget_runtime.dart';
 
+const _counterManifest = WidgetManifest(
+  id: 'counter',
+  name: 'Counter',
+  description: '',
+  version: '1.0.0',
+  icon: '🔢',
+  allowedCommands: <String>[],
+  networkEnabled: true,
+  widgetPath: 'widgets/counter',
+  isSingleFile: false,
+);
+
 void main() {
   group('WidgetManifest', () {
     test('readJs returns widget.js content', () async {
-      const manifest = WidgetManifest(
-        id: 'counter',
-        name: 'Counter',
-        description: '',
-        version: '1.0.0',
-        icon: '🔢',
-        allowedCommands: [],
-        networkEnabled: true,
-        widgetPath: 'widgets/counter',
-        isSingleFile: false,
-      );
+      const manifest = _counterManifest;
       final reader = MemoryWidgetFileReader({
         'widgets/counter/widget.js': 'yoloit.render({type:"text"});',
       });
@@ -23,17 +25,17 @@ void main() {
     });
 
     test('readJs concatenates files when manifest declares them', () async {
-      const manifest = WidgetManifest(
-        id: 'counter',
-        name: 'Counter',
-        description: '',
-        version: '1.0.0',
-        icon: '🔢',
-        allowedCommands: [],
-        networkEnabled: true,
-        widgetPath: 'widgets/counter',
-        isSingleFile: false,
-        files: ['lib/a.js', 'widget.js'],
+      final manifest = WidgetManifest(
+        id: _counterManifest.id,
+        name: _counterManifest.name,
+        description: _counterManifest.description,
+        version: _counterManifest.version,
+        icon: _counterManifest.icon,
+        allowedCommands: _counterManifest.allowedCommands,
+        networkEnabled: _counterManifest.networkEnabled,
+        widgetPath: _counterManifest.widgetPath,
+        isSingleFile: _counterManifest.isSingleFile,
+        files: const ['lib/a.js', 'widget.js'],
       );
       final reader = MemoryWidgetFileReader({
         'widgets/counter/lib/a.js': '// a',
@@ -44,17 +46,7 @@ void main() {
     });
 
     test('readJs inlines yoloit.include recursively', () async {
-      const manifest = WidgetManifest(
-        id: 'counter',
-        name: 'Counter',
-        description: '',
-        version: '1.0.0',
-        icon: '🔢',
-        allowedCommands: [],
-        networkEnabled: true,
-        widgetPath: 'widgets/counter',
-        isSingleFile: false,
-      );
+      const manifest = _counterManifest;
       final reader = MemoryWidgetFileReader({
         'widgets/counter/widget.js':
             'yoloit.include("lib/a.js"); yoloit.render({});',

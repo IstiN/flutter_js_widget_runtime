@@ -10,21 +10,23 @@ Future<void> defaultVmFetchHandler(
   String url,
   String method,
   Map<String, String> headers,
-  void Function(String id, dynamic value) resolve,
-) async {
+  void Function(String id, dynamic value) resolve, {
+  HttpClient? client,
+}) async {
+  final httpClient = client ?? HttpClient();
   try {
-    final client = HttpClient();
-    final dartReq = await client.openUrl(method, Uri.parse(url));
+    final dartReq = await httpClient.openUrl(method, Uri.parse(url));
     dartReq.headers.set('User-Agent', 'js-widget-runtime/1.0');
     dartReq.headers.set('Accept', 'application/json');
     headers.forEach((k, v) => dartReq.headers.set(k, v));
     final res = await dartReq.close().timeout(const Duration(seconds: 15));
     final body = await res.transform(const Utf8Decoder()).join();
-    client.close();
     final result = jsonDecode(body);
     resolve(id, result);
   } catch (e) {
     resolve(id, {'__error': e.toString()});
+  } finally {
+    if (client == null) httpClient.close();
   }
 }
 

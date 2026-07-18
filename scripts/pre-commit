@@ -49,7 +49,7 @@ fi
 # ═══════════════════════════════════════════════════════════════════════════
 # 2. CODE DUPLICATION GUARD
 # ═══════════════════════════════════════════════════════════════════════════
-DUP_THRESHOLD=1.5
+DUP_THRESHOLD=1.0
 if command -v jscpd >/dev/null 2>&1; then
   echo "🔍 Checking code duplication (threshold: < ${DUP_THRESHOLD}%)..."
   jscpd --config .jscpd.json --min-tokens 50 --min-lines 5 --reporters json --output /tmp/jscpd-precommit lib/ test/ >/dev/null 2>&1 || true
@@ -80,18 +80,30 @@ fi
 # ═══════════════════════════════════════════════════════════════════════════
 # 3. COVERAGE RATCHET
 # ═══════════════════════════════════════════════════════════════════════════
-COVERAGE_BASELINE=37.0
-COVERAGE_TARGET=50.0
+COVERAGE_BASELINE=80.0
+COVERAGE_TARGET=80.0
 
-if [ ! -f coverage/lcov.info ]; then
+echo "🧪 Running tests with coverage..."
+if ! flutter test --coverage --no-pub >/tmp/js_widget_runtime-coverage.log 2>&1; then
   echo ""
   echo "╔═══════════════════════════════════════════════════════════════════════════╗"
-  echo "║  ❌ QUALITY GATE FAILED — NO COVERAGE DATA                                ║"
+  echo "║  ❌ QUALITY GATE FAILED — TESTS                                           ║"
   echo "╚═══════════════════════════════════════════════════════════════════════════╝"
-  echo "   coverage/lcov.info is missing."
-  echo "   Run: flutter test --coverage"
-  echo "   Then stage the updated coverage/lcov.info and retry."
+  tail -n 80 /tmp/js_widget_runtime-coverage.log
   exit 1
+fi
+
+# Exclude platform-specific JS engines and top-level widgets from coverage;
+# they depend on a real JS runtime and are covered by integration tests.
+if command -v lcov >/dev/null 2>&1; then
+  lcov --remove coverage/lcov.info \
+    'lib/src/runtime/js_widget_engine_vm.dart' \
+    'lib/src/runtime/js_widget_engine_web.dart' \
+    'lib/src/widgets/js_widget_app.dart' \
+    'lib/src/widgets/js_widget_demo_menu.dart' \
+    'lib/src/widgets/js_widget_runtime_widget.dart' \
+    --ignore-errors unused \
+    -o coverage/lcov.info
 fi
 
 COVERAGE_PCT=$(python3 -c "
@@ -132,30 +144,7 @@ else
   exit 1
 fi
 
-# ═══════════════════════════════════════════════════════════════════════════
-# 4. TESTS
-# ═══════════════════════════════════════════════════════════════════════════
-echo "🧪 Running tests before commit..."
-TEST_LOG="/tmp/js_widget_runtime-precommit-tests.log"
-rm -f "$TEST_LOG"
-
-if flutter test > "$TEST_LOG" 2>&1; then
-  echo "✅ All tests passed"
-  echo ""
-  echo "╔═══════════════════════════════════════════════════════════════════════════╗"
-  echo "║  ✅ ALL QUALITY GATES PASSED — COMMIT APPROVED                            ║"
-  echo "╚═══════════════════════════════════════════════════════════════════════════╝"
-else
-  echo ""
-  echo "╔═══════════════════════════════════════════════════════════════════════════╗"
-  echo "║  ❌ QUALITY GATE FAILED — TESTS                                           ║"
-  echo "╚═══════════════════════════════════════════════════════════════════════════╝"
-  echo "   Fix failing tests or use --no-verify to skip (NOT recommended)."
-  echo ""
-  echo "   Full test log: $TEST_LOG"
-  echo "   ───────────────────────────────────────────────────────────────────────"
-  grep -E "FAILED|Some tests failed|All tests passed" "$TEST_LOG" || true
-  tail -n 80 "$TEST_LOG"
-  echo "   ───────────────────────────────────────────────────────────────────────"
-  exit 1
-fi
+echo ""
+echo "╔═══════════════════════════════════════════════════════════════════════════╗"
+echo "║  ✅ ALL QUALITY GATES PASSED — COMMIT APPROVED                            ║"
+echo "╚═══════════════════════════════════════════════════════════════════════════╝"

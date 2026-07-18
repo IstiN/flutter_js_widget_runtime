@@ -1,7 +1,27 @@
+import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:js_widget_runtime/js_widget_runtime.dart';
 
 void main() {
+  group('AssetWidgetFileReader', () {
+    const reader = AssetWidgetFileReader('test/assets');
+
+    testWidgets('readString returns asset content', (tester) async {
+      await tester.pumpWidget(const SizedBox.shrink());
+      expect(await reader.readString('hello.txt'), 'hello from asset');
+    });
+
+    testWidgets('readString returns null for missing asset', (tester) async {
+      await tester.pumpWidget(const SizedBox.shrink());
+      expect(await reader.readString('missing.txt'), isNull);
+    });
+
+    testWidgets('exists returns true for existing asset', (tester) async {
+      await tester.pumpWidget(const SizedBox.shrink());
+      expect(await reader.exists('hello.txt'), isTrue);
+    });
+  });
+
   group('MemoryWidgetFileReader', () {
     test('readString returns content for known path', () async {
       final reader = MemoryWidgetFileReader({

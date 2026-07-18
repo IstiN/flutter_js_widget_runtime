@@ -24,7 +24,18 @@ jobs:
         run: flutter pub get
 
       - name: Run tests with coverage
-        run: flutter test --coverage
+        run: flutter test --coverage --no-pub
+
+      - name: Exclude platform-specific code from coverage
+        run: |
+          lcov --remove coverage/lcov.info \
+            'lib/src/runtime/js_widget_engine_vm.dart' \
+            'lib/src/runtime/js_widget_engine_web.dart' \
+            'lib/src/widgets/js_widget_app.dart' \
+            'lib/src/widgets/js_widget_demo_menu.dart' \
+            'lib/src/widgets/js_widget_runtime_widget.dart' \
+            --ignore-errors unused \
+            -o coverage/lcov.info
 
       - name: File size guard
         env:
@@ -54,7 +65,7 @@ jobs:
 
       - name: Code duplication guard
         env:
-          DUP_THRESHOLD: '1.5'
+          DUP_THRESHOLD: '1.0'
         run: |
           set -euo pipefail
           npm install -g jscpd >/dev/null 2>&1 || true
@@ -77,8 +88,8 @@ except: print('0.0')
 
       - name: Coverage ratchet
         env:
-          COVERAGE_BASELINE: '37.0'
-          COVERAGE_TARGET: '50.0'
+          COVERAGE_BASELINE: '80.0'
+          COVERAGE_TARGET: '80.0'
         run: |
           set -euo pipefail
           COVERAGE_PCT=$(python3 -c "

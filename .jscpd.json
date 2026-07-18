@@ -4,6 +4,8 @@
     "**/*.freezed.dart",
     "**/*.mocks.dart",
     "**/generated/**",
-    "**/example/**"
+    "**/example/**",
+    "lib/src/runtime/js_widget_engine_vm.dart",
+    "lib/src/runtime/js_widget_engine_web.dart"
   ]
 }

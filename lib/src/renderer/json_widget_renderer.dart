@@ -320,29 +320,30 @@ class JsonWidgetRenderer {
     );
   }
 
+  void Function(T)? _changeHandler<T>(Map<String, dynamic> m) {
+    final action = m['onChange'] ?? m['onChanged'] ?? m['onTap'];
+    if (action == null) return null;
+    return (T next) => onEvent('$action', <String, dynamic>{'value': next});
+  }
+
   Widget _switchNode(Map<String, dynamic> m) {
     final value = m['value'] as bool? ?? false;
     return Switch(
       value: value,
       activeThumbColor: _color(m['color'] as String?),
-      onChanged: (next) {
-        final action = m['onChange'] ?? m['onChanged'] ?? m['onTap'];
-        if (action == null) return;
-        onEvent('$action', <String, dynamic>{'value': next});
-      },
+      onChanged: _changeHandler<bool>(m),
     );
   }
 
   Widget _checkboxNode(Map<String, dynamic> m) {
     final value = m['value'] as bool? ?? false;
     final label = m['label'] as String?;
+    final handler = _changeHandler<bool>(m);
     final control = Checkbox(
       value: value,
       activeColor: _color(m['color'] as String?),
-      onChanged: (next) {
-        final action = m['onChange'] ?? m['onChanged'] ?? m['onTap'];
-        if (action == null || next == null) return;
-        onEvent('$action', <String, dynamic>{'value': next});
+      onChanged: handler == null ? null : (next) {
+        if (next != null) handler(next);
       },
     );
     if (label == null) return control;
@@ -365,11 +366,7 @@ class JsonWidgetRenderer {
       min: min,
       max: max,
       activeColor: _color(m['color'] as String?),
-      onChanged: (next) {
-        final action = m['onChange'] ?? m['onChanged'] ?? m['onTap'];
-        if (action == null) return;
-        onEvent('$action', <String, dynamic>{'value': next});
-      },
+      onChanged: _changeHandler<double>(m),
     );
   }
 
@@ -653,30 +650,18 @@ class JsonWidgetRenderer {
       style['foregroundColor'] as String? ?? style['color'] as String?,
     );
     if (bg == null && fg == null) return null;
-    if (textButton) {
-      return TextButton.styleFrom(foregroundColor: fg).merge(
-        ButtonStyle(
-          foregroundColor: fg != null ? WidgetStatePropertyAll(fg) : null,
-        ),
-      );
-    }
-    if (outlined) {
-      return OutlinedButton.styleFrom(
-        backgroundColor: bg,
-        foregroundColor: fg,
-      ).merge(
-        ButtonStyle(
-          backgroundColor: bg != null ? WidgetStatePropertyAll(bg) : null,
-          foregroundColor: fg != null ? WidgetStatePropertyAll(fg) : null,
-        ),
-      );
-    }
-    return ElevatedButton.styleFrom(
-      backgroundColor: bg,
-      foregroundColor: fg,
-    ).merge(
+
+    final baseStyle = textButton
+        ? TextButton.styleFrom(foregroundColor: fg)
+        : outlined
+            ? OutlinedButton.styleFrom(backgroundColor: bg, foregroundColor: fg)
+            : ElevatedButton.styleFrom(backgroundColor: bg, foregroundColor: fg);
+
+    return baseStyle.merge(
       ButtonStyle(
-        backgroundColor: bg != null ? WidgetStatePropertyAll(bg) : null,
+        backgroundColor: bg != null && !textButton
+            ? WidgetStatePropertyAll(bg)
+            : null,
         foregroundColor: fg != null ? WidgetStatePropertyAll(fg) : null,
       ),
     );
