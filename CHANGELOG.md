@@ -1,3 +1,7 @@
+## 0.3.1
+
+- Automated patch bump.
+
 ## 0.3.0
 
 - Add `path` node for SVG path stroking with optional progress animation.
