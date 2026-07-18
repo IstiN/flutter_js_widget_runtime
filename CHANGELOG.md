@@ -9,6 +9,10 @@
   - Static 3D transforms (`rotateX`, `rotateY`, `perspective`) on containers.
   - Text shadows and `textTransform` (`uppercase`/`lowercase`).
 
+## 0.1.1
+
+- Automated patch bump.
+
 ## 0.1.0
 
 - **BREAKING CHANGE**: Rename global JS object and channels from `yoloit` to `jsr`.
