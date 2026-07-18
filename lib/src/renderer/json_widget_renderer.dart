@@ -6,6 +6,11 @@ import 'package:flutter_markdown_plus/flutter_markdown_plus.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 
 import 'package:js_widget_runtime/src/renderer/json_widget_theme.dart';
+import 'package:js_widget_runtime/src/renderer/nodes/image_provider_resolver_stub.dart'
+    if (dart.library.io) 'package:js_widget_runtime/src/renderer/nodes/image_provider_resolver_io.dart'
+    if (dart.library.html) 'package:js_widget_runtime/src/renderer/nodes/image_provider_resolver_web.dart';
+import 'package:js_widget_runtime/src/renderer/nodes/js_node_helpers.dart';
+import 'package:js_widget_runtime/src/renderer/nodes/js_path_node.dart';
 import 'package:js_widget_runtime/src/renderer/ui_view_field_registry.dart';
 
 final _jsonWidgetDefaultColors = JsonWidgetTheme.fromAccent(Colors.deepPurple);
@@ -13,15 +18,22 @@ final _jsonWidgetDefaultColors = JsonWidgetTheme.fromAccent(Colors.deepPurple);
 /// Converts a JSON widget tree (produced by JS widgets) into Flutter widgets.
 ///
 /// Supported node types:
-/// Layout:   column, row, stack, center, padding, sizedBox, expanded, flexible, wrap, align
+/// Layout:   column, row, stack, center, padding, sizedBox, expanded, flexible, wrap, align,
+///           absoluteFill
 /// Display:  text, icon, markdown, divider, spacer, image, svg, avatar, chip, badge,
-///           linearProgressIndicator, circularProgressIndicator
+///           linearProgressIndicator, circularProgressIndicator, path
 /// Container: container, card, inkWell, safeArea, scroll, blur
 /// List:     listView, gridView, listTile
 /// Input:    button, textButton, outlinedButton, iconButton, textField,
 ///           switch, checkbox, slider, dropdown
+/// Media:    video, audio (render placeholders unless a custom builder is registered)
 /// Effects:  blur (ImageFilter), clip on container, boxShadows, radial gradients,
-///           rotateX/rotateY/perspective transforms, textShadows, textTransform.
+///           rotateX/rotateY/perspective transforms, textShadows, textTransform,
+///           universal effect props (offsetX/offsetY, scale, rotation, opacity, blur).
+///
+/// Custom builders can be registered via [customBuilders] to render arbitrary
+/// node types. Image loading can be customized via [imageResolver]; if it
+/// returns null the renderer falls back to asset:/file:/http prefixes.
 ///
 /// Node shape:
 /// ```json
@@ -37,6 +49,8 @@ class JsonWidgetRenderer {
     required this.onEvent,
     this.fieldRegistry,
     this.theme,
+    this.imageResolver,
+    this.customBuilders,
   });
 
   /// Called when a user-triggered event fires (e.g. button tap).
@@ -45,6 +59,15 @@ class JsonWidgetRenderer {
 
   /// Optional theme overrides. Defaults to [JsonWidgetTheme.fromAccent].
   final JsonWidgetTheme? theme;
+
+  /// Optional callback that resolves a source string to a custom [ImageProvider].
+  /// If it returns null the renderer falls back to asset:/file:/network logic.
+  final ImageProvider? Function(String source)? imageResolver;
+
+  /// Optional map of custom node builders keyed by node type.
+  /// Each callback receives the build context and the raw node map.
+  final Map<String, Widget Function(BuildContext, Map<String, dynamic>)>?
+      customBuilders;
 
   JsonWidgetTheme get _effectiveTheme => theme ?? _jsonWidgetDefaultColors;
 
@@ -61,7 +84,15 @@ class JsonWidgetRenderer {
     final m = node.cast<String, dynamic>();
     final type = m['type'] as String? ?? '';
 
-    return switch (type) {
+    final custom = customBuilders?[type];
+    if (custom != null) {
+      return _applyUniversalEffects(
+        Builder(builder: (context) => custom(context, m)),
+        m,
+      );
+    }
+
+    final child = switch (type) {
       'column' => _column(m),
       'row' => _row(m),
       'stack' => _stack(m),
@@ -104,10 +135,9 @@ class JsonWidgetRenderer {
       'image' => _image(m),
       'svg' => _svg(m),
       'aspectRatio' => _aspectRatio(m),
-      'opacity' => Opacity(
-        opacity: _double(m['opacity'], 1.0),
-        child: _child(m),
-      ),
+      // `opacity` is now handled by universal effect props; keep the node
+      // type as a thin wrapper so existing JSON trees still work.
+      'opacity' => _child(m) ?? const SizedBox.shrink(),
       'clipRRect' => _clipRRect(m),
       'textField' => _textFieldNode(m),
       'chart' => _chartNode(m),
@@ -121,8 +151,16 @@ class JsonWidgetRenderer {
       // Gesture input
       'gestureDetector' => _gestureDetector(m),
 
+      // New nodes
+      'path' => buildJsPathNode(m),
+      'absoluteFill' || 'fill' => _absoluteFill(m),
+      'video' => _mediaPlaceholder(m, Icons.videocam),
+      'audio' => _mediaPlaceholder(m, Icons.audiotrack),
+
       _ => _unknownType(m),
     };
+
+    return _applyUniversalEffects(child, m);
   }
 
   // ── Layout ────────────────────────────────────────────────────────────────
@@ -157,7 +195,16 @@ class JsonWidgetRenderer {
           }
           return _build(c);
         }).toList();
-    return Stack(alignment: _alignment(m['alignment']), children: children);
+    final fit = switch (m['fit'] as String?) {
+      'expand' => StackFit.expand,
+      'loose' => StackFit.loose,
+      _ => StackFit.loose,
+    };
+    return Stack(
+      alignment: _alignment(m['alignment']),
+      fit: fit,
+      children: children,
+    );
   }
 
   Widget _wrap(Map<String, dynamic> m) => Wrap(
@@ -182,7 +229,8 @@ class JsonWidgetRenderer {
 
   Widget _text(Map<String, dynamic> m) {
     var data = (m['data'] ?? m['text'] ?? '').toString();
-    final style = _textStyle(m['style'] as Map?);
+    final styleMap = m['style'] as Map?;
+    final style = _textStyle(styleMap);
     final align = _textAlign(
       m['textAlign'] as String? ??
           (m['style'] as Map?)?['textAlign'] as String?,
@@ -192,13 +240,22 @@ class JsonWidgetRenderer {
     final textTransform = (m['style'] as Map?)?['textTransform'] as String?;
     if (textTransform == 'uppercase') data = data.toUpperCase();
     if (textTransform == 'lowercase') data = data.toLowerCase();
-    return Text(
+    Widget textWidget = Text(
       data,
       style: style,
       textAlign: align,
       maxLines: maxLines,
       overflow: overflow,
     );
+    final gradient = _gradient(styleMap?['gradient'] as Map?);
+    if (gradient != null) {
+      textWidget = ShaderMask(
+        shaderCallback: (bounds) => gradient.createShader(bounds),
+        blendMode: BlendMode.srcIn,
+        child: textWidget,
+      );
+    }
+    return textWidget;
   }
 
   Widget _icon(Map<String, dynamic> m) {
@@ -425,20 +482,63 @@ class JsonWidgetRenderer {
     );
   }
 
+  Widget _absoluteFill(Map<String, dynamic> m) => Container(
+    constraints: const BoxConstraints.expand(),
+    color: _color(m['color'] as String?),
+    child: _child(m),
+  );
+
+  Widget _mediaPlaceholder(Map<String, dynamic> m, IconData icon) {
+    final label = m['label'] as String? ?? m['text'] as String?;
+    return Container(
+      width: _doubleOrNull(m['width']) ?? 120,
+      height: _doubleOrNull(m['height']) ?? 80,
+      color: _color(m['color'] as String?) ?? Colors.black12,
+      alignment: Alignment.center,
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: _double(m['size'], 32)),
+          if (label != null)
+            Text(label, style: const TextStyle(fontSize: 12)),
+        ],
+      ),
+    );
+  }
+
   Widget _image(Map<String, dynamic> m) {
     final url = m['url'] as String? ?? m['src'] as String? ?? '';
     final w = _doubleOrNull(m['width']);
     final h = _doubleOrNull(m['height']);
     final fit = _boxFit(m['fit'] as String?);
     if (url.isEmpty) return const SizedBox.shrink();
-    return Image.network(
-      url,
+
+    ImageProvider? provider;
+    if (imageResolver != null) {
+      provider = imageResolver!(url);
+    }
+    provider ??= _resolveImageProvider(url);
+
+    if (provider == null) return const SizedBox.shrink();
+
+    return Image(
+      image: provider,
       width: w,
       height: h,
       fit: fit,
       gaplessPlayback: true,
       errorBuilder: (_, __, ___) => Icon(Icons.broken_image, size: w ?? 48),
     );
+  }
+
+  ImageProvider? _resolveImageProvider(String source) {
+    if (source.startsWith('asset:')) {
+      return AssetImage(source.substring(6));
+    }
+    if (source.startsWith('file:')) {
+      return resolveFileImageProvider(source.substring(5));
+    }
+    return NetworkImage(source);
   }
 
   Widget _svg(Map<String, dynamic> m) {
@@ -529,7 +629,6 @@ class JsonWidgetRenderer {
         child = ClipRRect(borderRadius: radius, child: child);
       }
     }
-    child = _applyBlur(child, m['blur']);
     return child;
   }
 
@@ -553,6 +652,49 @@ class JsonWidgetRenderer {
       imageFilter: ImageFilter.blur(sigmaX: sigma, sigmaY: sigma),
       child: child,
     );
+  }
+
+  Widget _applyUniversalEffects(Widget child, Map<String, dynamic> m) {
+    // Flex layout helpers must remain direct children of their parent Flex.
+    if (child is Expanded || child is Flexible || child is Spacer) {
+      return child;
+    }
+
+    Widget result = child;
+    final type = m['type'] as String? ?? '';
+
+    final offsetX = _doubleOrNull(m['offsetX']);
+    final offsetY = _doubleOrNull(m['offsetY']);
+    final scale = _doubleOrNull(m['scale']);
+    final rotation = _doubleOrNull(m['rotation']);
+
+    if (offsetX != null || offsetY != null || scale != null || rotation != null) {
+      final matrix = Matrix4.identity();
+      if (offsetX != null || offsetY != null) {
+        matrix.translateByDouble(offsetX ?? 0.0, offsetY ?? 0.0, 0, 1);
+      }
+      if (scale != null) {
+        matrix.scaleByDouble(scale, scale, 1, 1);
+      }
+      if (rotation != null) {
+        matrix.rotateZ(rotation);
+      }
+      result = Transform(
+        transform: matrix,
+        alignment: Alignment.center,
+        child: result,
+      );
+    }
+
+    result = _applyBlur(result, m['blur']);
+
+    final opacity = _doubleOrNull(m['opacity']);
+    // animatedOpacity handles opacity itself with an animation.
+    if (opacity != null && opacity != 1.0 && type != 'animatedOpacity') {
+      result = Opacity(opacity: opacity.clamp(0.0, 1.0), child: result);
+    }
+
+    return result;
   }
 
   Widget _card(Map<String, dynamic> m) => Card(
@@ -757,13 +899,16 @@ class JsonWidgetRenderer {
 
   TextStyle? _textStyle(Map? style) {
     if (style == null) return null;
+    final isItalic =
+        style['italic'] == true || style['fontStyle'] == 'italic';
     return TextStyle(
       color: _color(style['color'] as String?),
       fontSize: _doubleOrNull(style['fontSize']),
       fontWeight: _fontWeight(style['fontWeight']),
-      fontStyle: style['italic'] == true ? FontStyle.italic : null,
+      fontStyle: isItalic ? FontStyle.italic : null,
       letterSpacing: _doubleOrNull(style['letterSpacing']),
-      height: _doubleOrNull(style['height']),
+      height: _doubleOrNull(style['height']) ??
+          _doubleOrNull(style['lineHeight']),
       shadows: _textShadows(style['textShadows'] as List? ?? style['shadows'] as List?),
     );
   }
@@ -865,42 +1010,7 @@ class JsonWidgetRenderer {
   EdgeInsetsGeometry? _edgeInsetsOrNull(dynamic v) =>
       v == null ? null : _edgeInsets(v);
 
-  Color? _color(String? s) {
-    if (s == null || s.isEmpty) return null;
-    if (s.startsWith('#')) {
-      var hex = s.substring(1);
-      if (hex.length == 3) {
-        hex = hex.split('').map((c) => c + c).join();
-      }
-      if (hex.length == 6) hex = 'FF$hex';
-      return Color(int.parse(hex, radix: 16));
-    }
-    return _namedColor(s);
-  }
-
-  Color? _namedColor(String name) {
-    return switch (name.toLowerCase()) {
-      'transparent' => Colors.transparent,
-      'white' => Colors.white,
-      'black' => Colors.black,
-      'red' => Colors.red,
-      'green' => Colors.green,
-      'blue' => Colors.blue,
-      'yellow' => Colors.yellow,
-      'orange' => Colors.orange,
-      'purple' => Colors.purple,
-      'grey' => Colors.grey,
-      'gray' => Colors.grey,
-      'pink' => Colors.pink,
-      'teal' => Colors.teal,
-      'cyan' => Colors.cyan,
-      'amber' => Colors.amber,
-      'indigo' => Colors.indigo,
-      'lime' => Colors.lime,
-      'brown' => Colors.brown,
-      _ => null,
-    };
-  }
+  Color? _color(String? s) => parseColor(s);
 
   IconData _iconData(String name) =>
       const {
@@ -1065,10 +1175,9 @@ class JsonWidgetRenderer {
     _ => BoxFit.cover,
   };
 
-  double _double(dynamic v, double def) =>
-      v == null ? def : (v as num).toDouble();
+  double _double(dynamic v, double def) => jsDouble(v, def);
 
-  double? _doubleOrNull(dynamic v) => v == null ? null : (v as num).toDouble();
+  double? _doubleOrNull(dynamic v) => jsDoubleOrNull(v);
 
   Widget _textFieldNode(Map<String, dynamic> m) => _TextFieldNode(
     initialValue:

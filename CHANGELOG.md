@@ -1,3 +1,19 @@
+## 0.3.0
+
+- Add `path` node for SVG path stroking with optional progress animation.
+- Add `absoluteFill` node (alias `fill`) for expanded background fills.
+- Add `stack.fit` support (`expand` / `loose`).
+- Add universal effect props (`offsetX`/`offsetY`, `scale`, `rotation`, `opacity`, `blur`) on any node.
+- Text improvements:
+  - `style.gradient` renders text with a gradient via `ShaderMask`.
+  - `style.fontStyle: 'italic'` supported in addition to `italic: true`.
+  - `style.lineHeight` aliases `style.height`.
+- Image improvements:
+  - `asset:` and `file:` source prefixes.
+  - Optional `imageResolver` callback for custom image providers.
+- Add `customBuilders` map for host-defined node types.
+- Add `video` and `audio` placeholder nodes.
+
 ## 0.2.0
 
 - Add `jsr.ease.*` easing helpers (`linear`, `easeIn`, `easeOut`, `easeInOut`, `bounce`, `elastic`, `backIn`, `backOut`).

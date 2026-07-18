@@ -3,6 +3,7 @@ import 'package:flutter_markdown_plus/flutter_markdown_plus.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:js_widget_runtime/js_widget_runtime.dart';
+import 'package:js_widget_runtime/src/renderer/nodes/js_path_node.dart';
 
 void main() {
   group('JsonWidgetRenderer', () {
@@ -703,6 +704,162 @@ void main() {
       expect(find.text('HELLO'), findsOneWidget);
       final text = tester.widget<Text>(find.text('HELLO'));
       expect(text.style?.shadows, isNotNull);
+    });
+
+    testWidgets('path renders CustomPaint and respects progress/color', (tester) async {
+      await tester.pumpWidget(buildTree({
+        'type': 'path',
+        'path': 'M0 0 L10 10',
+        'progress': 0.5,
+        'color': '#FF5733',
+        'strokeWidth': 3,
+        'width': 48,
+        'height': 48,
+      }));
+      final customPaintFinder = find.byWidgetPredicate(
+        (w) => w is CustomPaint && w.painter is JsPathPainter,
+      );
+      expect(customPaintFinder, findsOneWidget);
+      final sizedBox = tester.widget<SizedBox>(find.byType(SizedBox));
+      expect(sizedBox.width, 48);
+      expect(sizedBox.height, 48);
+      final customPaint = tester.widget<CustomPaint>(customPaintFinder);
+      final painter = customPaint.painter! as JsPathPainter;
+      expect(painter.progress, 0.5);
+      expect(painter.color, const Color(0xFFFF5733));
+      expect(painter.strokeWidth, 3);
+    });
+
+    testWidgets('absoluteFill expands and shows child', (tester) async {
+      await tester.pumpWidget(buildTree({
+        'type': 'absoluteFill',
+        'color': '#0000FF',
+        'child': {'type': 'text', 'data': 'filled'},
+      }));
+      expect(find.text('filled'), findsOneWidget);
+      final container = tester.widget<Container>(find.byType(Container));
+      expect(container.constraints, const BoxConstraints.expand());
+      expect(container.color, const Color(0xFF0000FF));
+    });
+
+    testWidgets('fill alias renders absoluteFill', (tester) async {
+      await tester.pumpWidget(buildTree({
+        'type': 'fill',
+        'child': {'type': 'text', 'data': 'alias'},
+      }));
+      expect(find.text('alias'), findsOneWidget);
+      final container = tester.widget<Container>(find.byType(Container));
+      expect(container.constraints, const BoxConstraints.expand());
+    });
+
+    testWidgets('stack.fit expand sets StackFit.expand', (tester) async {
+      await tester.pumpWidget(buildTree({
+        'type': 'stack',
+        'fit': 'expand',
+        'children': [
+          {'type': 'text', 'data': 'expand'},
+        ],
+      }));
+      final stackFinder = find.byWidgetPredicate(
+        (w) => w is Stack && w.fit == StackFit.expand,
+      );
+      expect(stackFinder, findsOneWidget);
+    });
+
+    testWidgets('universal effect props wrap node', (tester) async {
+      await tester.pumpWidget(buildTree({
+        'type': 'text',
+        'data': 'fx',
+        'offsetX': 10,
+        'offsetY': 20,
+        'scale': 1.5,
+        'rotation': 0.5,
+        'opacity': 0.6,
+        'blur': 4,
+      }));
+      final textFinder = find.text('fx');
+      expect(
+        find.ancestor(of: textFinder, matching: find.byType(Transform)),
+        findsOneWidget,
+      );
+      expect(
+        find.ancestor(of: textFinder, matching: find.byType(ImageFiltered)),
+        findsOneWidget,
+      );
+      final opacityFinder = find.ancestor(
+        of: textFinder,
+        matching: find.byType(Opacity),
+      );
+      expect(opacityFinder, findsOneWidget);
+      final opacity = tester.widget<Opacity>(opacityFinder);
+      expect(opacity.opacity, 0.6);
+    });
+
+    testWidgets('text gradient uses ShaderMask', (tester) async {
+      await tester.pumpWidget(buildTree({
+        'type': 'text',
+        'data': 'gradient text',
+        'style': {
+          'gradient': {
+            'colors': ['#ff0000', '#0000ff'],
+          },
+        },
+      }));
+      expect(find.byType(ShaderMask), findsOneWidget);
+      expect(find.text('gradient text'), findsOneWidget);
+    });
+
+    testWidgets('text fontStyle italic and lineHeight', (tester) async {
+      await tester.pumpWidget(buildTree({
+        'type': 'text',
+        'data': 'styled',
+        'style': {
+          'fontStyle': 'italic',
+          'lineHeight': 1.5,
+        },
+      }));
+      final text = tester.widget<Text>(find.text('styled'));
+      expect(text.style?.fontStyle, FontStyle.italic);
+      expect(text.style?.height, 1.5);
+    });
+
+    testWidgets('image with asset prefix renders Image', (tester) async {
+      await tester.pumpWidget(buildTree({
+        'type': 'image',
+        'url': 'asset:test/assets/sample.png',
+      }));
+      final image = tester.widget<Image>(find.byType(Image));
+      expect(image.image, isA<AssetImage>());
+    });
+
+    testWidgets('custom builder for video node', (tester) async {
+      final customRenderer = JsonWidgetRenderer(
+        onEvent: (id, payload) => events.add((id, payload)),
+        customBuilders: {
+          'video': (context, m) =>
+              Text('custom video: ${m['src']}'),
+        },
+      );
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: customRenderer.build({
+              'type': 'video',
+              'src': 'movie.mp4',
+            }),
+          ),
+        ),
+      );
+      expect(find.text('custom video: movie.mp4'), findsOneWidget);
+    });
+
+    testWidgets('unregistered audio node renders placeholder icon', (tester) async {
+      await tester.pumpWidget(buildTree({
+        'type': 'audio',
+        'label': 'My Track',
+      }));
+      expect(find.byType(Icon), findsOneWidget);
+      expect(find.text('My Track'), findsOneWidget);
     });
   });
 }
