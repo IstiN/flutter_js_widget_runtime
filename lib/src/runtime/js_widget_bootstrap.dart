@@ -28,6 +28,18 @@ var requestAnimationFrame = function(fn){ var id=__nid(); __raf_cbs[id]=fn; send
 var cancelAnimationFrame = function(id){ delete __raf_cbs[String(id)]; sendMessage('__jsr_caf', String(id)); };
 
 var jsr = {
+  // Easing helpers for animations and tweening in widget code.
+  ease: {
+    linear: function(t){ return t; },
+    easeIn: function(t){ return t*t; },
+    easeOut: function(t){ return 1-(1-t)*(1-t); },
+    easeInOut: function(t){ return t<0.5?2*t*t:1-Math.pow(-2*t+2,2)/2; },
+    bounce: function(t){ var n=7.5625,d=2.75; if(t<1/d){ return n*t*t; } else if(t<2/d){ t-=1.5/d; return n*t*t+0.75; } else if(t<2.5/d){ t-=2.25/d; return n*t*t+0.9375; } else { t-=2.625/d; return n*t*t+0.984375; } },
+    elastic: function(t){ if(t===0||t===1)return t; var c4=(2*Math.PI)/3; return -Math.pow(2,10*t-10)*Math.sin((t*10-10.75)*c4); },
+    backIn: function(t){ var c1=1.70158,c3=c1+1; return c3*t*t*t-c1*t*t; },
+    backOut: function(t){ var c1=1.70158,c3=c1+1; return 1+c3*Math.pow(t-1,3)+c1*Math.pow(t-1,2); },
+  },
+
   render: function(tree){ sendMessage('__jsr_render', JSON.stringify(tree)); },
 
   setTitle: function(t){ sendMessage('__jsr_set_title', String(t)); },

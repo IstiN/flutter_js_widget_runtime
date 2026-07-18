@@ -1,3 +1,14 @@
+## 0.2.0
+
+- Add `jsr.ease.*` easing helpers (`linear`, `easeIn`, `easeOut`, `easeInOut`, `bounce`, `elastic`, `backIn`, `backOut`).
+- Add renderer effects from YoClip:
+  - Radial gradients (`gradient.type: 'radial'`).
+  - Box shadows (`decoration.shadows`).
+  - Blur node and `blur` property on containers.
+  - `clip: true` on rounded containers.
+  - Static 3D transforms (`rotateX`, `rotateY`, `perspective`) on containers.
+  - Text shadows and `textTransform` (`uppercase`/`lowercase`).
+
 ## 0.1.0
 
 - **BREAKING CHANGE**: Rename global JS object and channels from `yoloit` to `jsr`.

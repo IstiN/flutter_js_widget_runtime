@@ -121,3 +121,45 @@ For exact props, read `lib/src/renderer/json_widget_renderer.dart` and the norma
 - Add the widget id to `example/lib/main.dart` `_widgetIds`.
 - Run the example app: `cd example && flutter run`.
 - For automated tests, render a widget tree through `JsonWidgetRenderer` directly rather than spinning up a real JS engine.
+
+## Advanced Effects (from YoClip)
+
+### Gradients
+
+```json
+{"type": "container", "decoration": {"gradient": {"type": "radial", "colors": ["#ff0000", "#0000ff"], "center": "center", "radius": 0.8}}}
+```
+
+Linear gradients use `"type": "linear"` (default) with `begin`/`end`.
+
+### Shadows
+
+```json
+{"type": "container", "decoration": {"shadows": [{"color": "#000000", "blur": 8, "offsetX": 2, "offsetY": 2}]}}
+```
+
+### Blur
+
+```json
+{"type": "blur", "sigma": 4, "child": {"type": "text", "data": "fuzzy"}}
+```
+
+### Transforms
+
+On a container:
+
+```json
+{"type": "container", "transform": {"scale": 1.5, "rotate": 0.5, "rotateX": 0.3, "rotateY": 0.3, "perspective": 500}}
+```
+
+### Text shadows and transforms
+
+```json
+{"type": "text", "data": "hello", "style": {"textTransform": "uppercase", "textShadows": [{"color": "#000000", "blur": 2}]}}
+```
+
+### Easing helpers
+
+```javascript
+var t = jsr.ease.easeInOut(0.5);
+```

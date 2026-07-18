@@ -55,7 +55,10 @@ Core methods:
 - `jsr.setTitle(title)` — update widget title.
 - `jsr.exportState(obj)` — expose structured state for CLI snapshots.
 - `jsr.showError(msg)` — render a styled error card.
+- `jsr.ease.*` — easing helpers (`linear`, `easeIn`, `easeOut`, `easeInOut`, `bounce`, `elastic`, `backIn`, `backOut`).
 - `setTimeout`, `setInterval`, `requestAnimationFrame`, `console.log` are shimmed.
+
+Renderer effects ported from YoClip: radial gradients, box shadows, blur nodes, `clip: true` on containers, static/3D transforms, text shadows, `textTransform`.
 
 See the dedicated skill in `.agents/skills/js-widget-authoring/SKILL.md` for the full widget authoring guide.
 

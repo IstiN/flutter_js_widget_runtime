@@ -618,5 +618,91 @@ void main() {
         findsNothing,
       );
     });
+
+    testWidgets('container supports radial gradient', (tester) async {
+      await tester.pumpWidget(buildTree({
+        'type': 'container',
+        'width': 100,
+        'height': 100,
+        'decoration': {
+          'gradient': {
+            'type': 'radial',
+            'colors': ['#ff0000', '#0000ff'],
+            'center': 'center',
+            'radius': 0.8,
+          },
+        },
+      }));
+      final container = tester.widget<Container>(find.byType(Container));
+      final decoration = container.decoration as BoxDecoration;
+      expect(decoration.gradient, isA<RadialGradient>());
+    });
+
+    testWidgets('container supports box shadows', (tester) async {
+      await tester.pumpWidget(buildTree({
+        'type': 'container',
+        'width': 100,
+        'height': 100,
+        'decoration': {
+          'color': '#ffffff',
+          'shadows': [
+            {'color': '#000000', 'blur': 8, 'offsetX': 2, 'offsetY': 2},
+          ],
+        },
+      }));
+      final container = tester.widget<Container>(find.byType(Container));
+      final decoration = container.decoration as BoxDecoration;
+      expect(decoration.boxShadow, isNotNull);
+      expect(decoration.boxShadow!.length, 1);
+    });
+
+    testWidgets('container clips child when clip is true', (tester) async {
+      await tester.pumpWidget(buildTree({
+        'type': 'container',
+        'width': 100,
+        'height': 100,
+        'borderRadius': 16,
+        'clip': true,
+        'child': {'type': 'text', 'data': 'clipped'},
+      }));
+      expect(find.byType(ClipRRect), findsOneWidget);
+    });
+
+    testWidgets('container applies static transform', (tester) async {
+      await tester.pumpWidget(buildTree({
+        'type': 'container',
+        'width': 100,
+        'height': 100,
+        'transform': {'scale': 1.5, 'rotate': 0.5},
+      }));
+      final container = tester.widget<Container>(find.byType(Container));
+      expect(container.transform, isNotNull);
+    });
+
+    testWidgets('blur node wraps child in ImageFiltered', (tester) async {
+      await tester.pumpWidget(buildTree({
+        'type': 'blur',
+        'sigma': 4,
+        'child': {'type': 'text', 'data': 'fuzzy'},
+      }));
+      expect(find.byType(ImageFiltered), findsOneWidget);
+      expect(find.text('fuzzy'), findsOneWidget);
+    });
+
+    testWidgets('text supports textShadows and uppercase transform', (tester) async {
+      await tester.pumpWidget(buildTree({
+        'type': 'text',
+        'data': 'hello',
+        'style': {
+          'textTransform': 'uppercase',
+          'textShadows': [
+            {'color': '#000000', 'blur': 2, 'offsetX': 1, 'offsetY': 1},
+          ],
+        },
+      }));
+      expect(find.text('HELLO'), findsOneWidget);
+      final text = tester.widget<Text>(find.text('HELLO'));
+      expect(text.style?.shadows, isNotNull);
+    });
   });
 }

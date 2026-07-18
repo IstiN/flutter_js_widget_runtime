@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:ui' show ImageFilter;
 
 import 'package:flutter/material.dart';
 import 'package:flutter_markdown_plus/flutter_markdown_plus.dart';
@@ -15,10 +16,12 @@ final _jsonWidgetDefaultColors = JsonWidgetTheme.fromAccent(Colors.deepPurple);
 /// Layout:   column, row, stack, center, padding, sizedBox, expanded, flexible, wrap, align
 /// Display:  text, icon, markdown, divider, spacer, image, svg, avatar, chip, badge,
 ///           linearProgressIndicator, circularProgressIndicator
-/// Container: container, card, inkWell, safeArea, scroll
+/// Container: container, card, inkWell, safeArea, scroll, blur
 /// List:     listView, gridView, listTile
 /// Input:    button, textButton, outlinedButton, iconButton, textField,
 ///           switch, checkbox, slider, dropdown
+/// Effects:  blur (ImageFilter), clip on container, boxShadows, radial gradients,
+///           rotateX/rotateY/perspective transforms, textShadows, textTransform.
 ///
 /// Node shape:
 /// ```json
@@ -108,6 +111,7 @@ class JsonWidgetRenderer {
       'clipRRect' => _clipRRect(m),
       'textField' => _textFieldNode(m),
       'chart' => _chartNode(m),
+      'blur' => _applyBlur(_child(m) ?? const SizedBox.shrink(), m['sigma']),
 
       // Animated widgets (implicit animations)
       'animatedContainer' => _animatedContainer(m),
@@ -177,7 +181,7 @@ class JsonWidgetRenderer {
   // ── Display ───────────────────────────────────────────────────────────────
 
   Widget _text(Map<String, dynamic> m) {
-    final data = (m['data'] ?? m['text'] ?? '').toString();
+    var data = (m['data'] ?? m['text'] ?? '').toString();
     final style = _textStyle(m['style'] as Map?);
     final align = _textAlign(
       m['textAlign'] as String? ??
@@ -185,6 +189,9 @@ class JsonWidgetRenderer {
     );
     final maxLines = m['maxLines'] as int?;
     final overflow = _overflow(m['overflow'] as String?);
+    final textTransform = (m['style'] as Map?)?['textTransform'] as String?;
+    if (textTransform == 'uppercase') data = data.toUpperCase();
+    if (textTransform == 'lowercase') data = data.toLowerCase();
     return Text(
       data,
       style: style,
@@ -506,14 +513,45 @@ class JsonWidgetRenderer {
 
   Widget _container(Map<String, dynamic> m) {
     final p = _containerProps(m);
-    return Container(
+    Widget child = Container(
       width: p.width,
       height: p.height,
       padding: p.padding,
       margin: p.margin,
       alignment: p.alignment,
       decoration: p.decoration,
+      transform: _matrix4(m['transform']),
       child: p.child,
+    );
+    if (m['clip'] == true) {
+      final radius = _containerBorderRadius(p.decoration, m['borderRadius']);
+      if (radius != null) {
+        child = ClipRRect(borderRadius: radius, child: child);
+      }
+    }
+    child = _applyBlur(child, m['blur']);
+    return child;
+  }
+
+  BorderRadius? _containerBorderRadius(
+    Decoration? decoration,
+    dynamic borderRadius,
+  ) {
+    if (decoration is BoxDecoration && decoration.borderRadius is BorderRadius) {
+      return decoration.borderRadius as BorderRadius;
+    }
+    final br = _doubleOrNull(borderRadius);
+    if (br != null) return BorderRadius.circular(br);
+    return null;
+  }
+
+  Widget _applyBlur(Widget child, dynamic blur) {
+    if (blur == null) return child;
+    final sigma = _double(blur is num ? blur : (blur as Map?)?['sigma'], 0);
+    if (sigma <= 0) return child;
+    return ImageFiltered(
+      imageFilter: ImageFilter.blur(sigmaX: sigma, sigmaY: sigma),
+      child: child,
     );
   }
 
@@ -726,7 +764,20 @@ class JsonWidgetRenderer {
       fontStyle: style['italic'] == true ? FontStyle.italic : null,
       letterSpacing: _doubleOrNull(style['letterSpacing']),
       height: _doubleOrNull(style['height']),
+      shadows: _textShadows(style['textShadows'] as List? ?? style['shadows'] as List?),
     );
+  }
+
+  List<Shadow>? _textShadows(List? shadows) {
+    if (shadows == null || shadows.isEmpty) return null;
+    return shadows.map((s) {
+      final m = (s as Map).cast<String, dynamic>();
+      return Shadow(
+        color: _color(m['color'] as String?) ?? Colors.black.withAlpha(128),
+        blurRadius: _double(m['blur'], 0),
+        offset: Offset(_double(m['offsetX'], 0), _double(m['offsetY'], 0)),
+      );
+    }).toList();
   }
 
   BoxDecoration _boxDecoration(Map<String, dynamic> d) {
@@ -741,7 +792,21 @@ class JsonWidgetRenderer {
               ? Border.all(color: borderColor, width: borderWidth)
               : null,
       gradient: _gradient(d['gradient'] as Map?),
+      boxShadow: _boxShadows(d['shadows'] as List? ?? d['shadow'] as List?),
     );
+  }
+
+  List<BoxShadow>? _boxShadows(List? shadows) {
+    if (shadows == null || shadows.isEmpty) return null;
+    return shadows.map((s) {
+      final m = (s as Map).cast<String, dynamic>();
+      return BoxShadow(
+        color: _color(m['color'] as String?) ?? Colors.black.withAlpha(128),
+        blurRadius: _double(m['blur'], 4),
+        spreadRadius: _double(m['spread'], 0),
+        offset: Offset(_double(m['offsetX'], 0), _double(m['offsetY'], 0)),
+      );
+    }).toList();
   }
 
   Gradient? _gradient(Map? g) {
@@ -751,10 +816,27 @@ class JsonWidgetRenderer {
             .map((c) => _color(c as String?) ?? Colors.transparent)
             .toList();
     if (colors.isEmpty) return null;
+    final stops =
+        (g['stops'] as List? ?? [])
+            .map((s) => (s as num?)?.toDouble())
+            .whereType<double>()
+            .toList();
+    final type = g['type'] as String? ?? 'linear';
+    if (type == 'radial') {
+      final center = _alignmentGradient(g['center'] as String?);
+      final radius = _double(g['radius'] as num?, 0.5);
+      return RadialGradient(
+        center: center,
+        radius: radius,
+        colors: colors,
+        stops: stops.isEmpty ? null : stops,
+      );
+    }
     return LinearGradient(
       begin: _alignmentGradient(g['begin'] as String?),
       end: _alignmentGradient(g['end'] as String?),
       colors: colors,
+      stops: stops.isEmpty ? null : stops,
     );
   }
 
@@ -1087,11 +1169,20 @@ class JsonWidgetRenderer {
       final tx = _double(m['translateX'], 0);
       final ty = _double(m['translateY'], 0);
       final scale = _double(m['scale'], 1);
-      final rotate = _double(m['rotate'], 0); // radians
-      return Matrix4.identity()
+      final rotate = _double(m['rotate'], 0); // radians around Z
+      final rotateX = _double(m['rotateX'], 0); // radians
+      final rotateY = _double(m['rotateY'], 0); // radians
+      final perspective = _double(m['perspective'], 0);
+      final matrix = Matrix4.identity()
         ..translateByDouble(tx, ty, 0, 1)
-        ..scaleByDouble(scale, scale, 1, 1)
-        ..rotateZ(rotate);
+        ..scaleByDouble(scale, scale, 1, 1);
+      if (perspective > 0) {
+        matrix.setEntry(3, 2, -1 / perspective);
+      }
+      if (rotateX != 0) matrix.rotateX(rotateX);
+      if (rotateY != 0) matrix.rotateY(rotateY);
+      if (rotate != 0) matrix.rotateZ(rotate);
+      return matrix;
     }
     return null;
   }

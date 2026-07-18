@@ -60,8 +60,10 @@ See the `example/` folder for a runnable menu of sample JS apps.
 
 - Cross-platform JS execution (VM + web).
 - Declarative JSON-to-Flutter renderer with layout, input, animation and gesture nodes.
+- Effects ported from YoClip: radial gradients, box shadows, blur, 3D transforms, clip, text shadows.
 - `manifest.json` based app registry with example widgets.
 - Injected I/O handlers so the host controls permissions (network, CLI, secure storage).
+- Host-specific JS APIs via `JsRuntimeConfig.hostBootstrapJs` (e.g., `jsr.yoloit = {...}`).
 - Default in-memory handlers for demo/development use.
 
 ## License
