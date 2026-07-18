@@ -1,3 +1,12 @@
+## 0.1.0
+
+- **BREAKING CHANGE**: Rename global JS object and channels from `yoloit` to `jsr`.
+  - All widgets must use `jsr.render()`, `jsr.onEvent()`, `jsr.fetchJson()`, etc.
+  - All internal bridge channels are now prefixed with `__jsr_` instead of `__yoloit_`.
+- Add `JsRuntimeConfig.hostBootstrapJs` so hosts can inject host-specific APIs (e.g., `jsr.yoloit = {...}`) without polluting the core runtime.
+- Update example widgets and documentation to use the new `jsr` API.
+- Add `AGENTS.md`, `CLAUDE.md`, and agent skills for widget authoring and engine maintenance.
+
 ## 0.0.7
 
 - Automated patch bump.
