@@ -1,0 +1,122 @@
+# Skill: Authoring js_widget_runtime Widgets
+
+Use this skill when creating or modifying JavaScript widgets for `js_widget_runtime`.
+
+## What is a Widget?
+
+A widget is a self-contained JS file plus a `manifest.json`. The runtime injects a global `yoloit` object and expects the widget to call `yoloit.render(tree)` to produce Flutter UI.
+
+## File Structure
+
+```
+example/widgets/my-widget/
+  manifest.json
+  widget.js
+```
+
+## manifest.json
+
+```json
+{
+  "id": "my-widget",
+  "name": "My Widget",
+  "description": "Short description",
+  "version": "1.0.0",
+  "icon": "🚀",
+  "allowedCommands": [],
+  "network": false,
+  "cli": {
+    "summary": "What the widget does",
+    "events": [
+      { "id": "reset", "description": "Reset the widget state" }
+    ],
+    "read": {
+      "state": "yoloit app:state my-widget",
+      "snapshot": "yoloit app:snapshot my-widget"
+    },
+    "examples": [
+      "yoloit app:run my-widget",
+      "yoloit app:execute my-widget reset"
+    ]
+  }
+}
+```
+
+- `id` must match the folder name.
+- `allowedCommands` is host-specific; leave empty unless the host needs it.
+- `network` should be `true` if the widget calls `yoloit.fetchJson`.
+
+## widget.js Boilerplate
+
+```javascript
+(function() {
+  var state = { count: 0 };
+
+  function render() {
+    yoloit.render({
+      type: 'center',
+      child: {
+        type: 'column',
+        mainAxisSize: 'min',
+        crossAxisAlignment: 'center',
+        children: [
+          { type: 'text', data: 'Count: ' + state.count, style: { fontSize: 24 } },
+          { type: 'sizedBox', height: 16 },
+          { type: 'elevatedButton', text: 'Increment', onTap: 'increment' },
+        ],
+      },
+    });
+  }
+
+  function handleEvent(actionId, payload) {
+    if (actionId === 'increment') {
+      state.count++;
+      yoloit.exportState(state);
+      render();
+    }
+  }
+
+  yoloit.onEvent(handleEvent);
+  yoloit.panel.setTitle('Counter');
+  render();
+})();
+```
+
+## Important Rules
+
+1. **ES5-compatible IIFE**. No modules, no arrow functions, no `const`/`let`, no async/await syntax (use Promise chains).
+2. Always wrap widget code in `(function() { ... })();`.
+3. Register events with `yoloit.onEvent(handleEvent)` before the first `render()`.
+4. `yoloit.render(tree)` accepts a JSON UI tree. See supported types below.
+5. Use `yoloit.exportState(obj)` after meaningful state changes so CLI snapshots work.
+6. Network requests require `yoloit.fetchJson(url, opts)`. Handle errors with `.catch()`.
+7. Storage uses Promises: `yoloit.storage.get('key').then(...)` and `yoloit.storage.set('key', value)`.
+8. `requestAnimationFrame` and `setInterval` are shimmed by the engine.
+
+## Supported UI Tree Types
+
+The renderer in `lib/src/renderer/json_widget_renderer.dart` supports types such as:
+
+- Layout: `column`, `row`, `stack`, `wrap`, `expanded`, `flexible`, `padding`, `sizedBox`, `center`, `align`, `safeArea`, `scroll`, `listView`, `gridView`, `aspectRatio`, `opacity`, `clipRRect`, `animatedContainer`, `animatedOpacity`, `animatedPositioned`
+- Material: `text`, `button`, `textButton`, `outlinedButton`, `elevatedButton`, `iconButton`, `chip`, `card`, `listTile`, `badge`, `circleAvatar`, `linearProgressIndicator`, `circularProgressIndicator`, `divider`, `spacer`
+- Input: `textField`, `switch`, `checkbox`, `slider`, `dropdown`
+- Media: `image`, `svg`, `markdown`
+- Gestures: `gestureDetector`, `inkWell`
+- Custom: `chart`
+
+For exact props, read `lib/src/renderer/json_widget_renderer.dart` and the normalizer in `lib/src/renderer/ui_view_tree_normalizer.dart`.
+
+## Event Payloads
+
+- `onTap`, `onPressed` → payload is usually `{}`.
+- `textField` `onChange` / `onSubmit` → payload `{ value: '...' }`.
+- `slider` `onChanged` → payload `{ value: 0.5 }`.
+- `switch`, `checkbox` `onChanged` → payload `{ value: true }`.
+- `dropdown` `onChanged` → payload `{ value: 'selected' }`.
+- `gestureDetector` `onPanUpdate` → payload `{ dx, dy }`; `onPanStart`/`onPanEnd` → `{}`.
+
+## Testing Widgets
+
+- Add the widget id to `example/lib/main.dart` `_widgetIds`.
+- Run the example app: `cd example && flutter run`.
+- For automated tests, render a widget tree through `JsonWidgetRenderer` directly rather than spinning up a real JS engine.
