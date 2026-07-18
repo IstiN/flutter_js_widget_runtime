@@ -17,6 +17,7 @@ void main() {
       expect(config.appDir, isNull);
       expect(config.initialTheme, isA<Map<String, dynamic>>());
       expect(config.initialStorage, isEmpty);
+      expect(config.hostBootstrapJs, isNull);
     });
 
     test('copyWith overrides values', () {
@@ -25,12 +26,14 @@ void main() {
         appDir: '/tmp/widgets',
         initialTheme: const {'isDark': false},
         initialStorage: const {'k': 'v'},
+        hostBootstrapJs: 'jsr.yoloit = {};',
         onLog: (msg) {},
       );
       expect(config.widgetId, 'w1');
       expect(config.appDir, '/tmp/widgets');
       expect(config.initialTheme['isDark'], false);
       expect(config.initialStorage['k'], 'v');
+      expect(config.hostBootstrapJs, 'jsr.yoloit = {};');
       expect(config.onLog, isNotNull);
     });
 

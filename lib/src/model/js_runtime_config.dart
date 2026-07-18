@@ -9,6 +9,9 @@ typedef JsPermissionChecker = bool Function(String capability);
 /// All I/O is opt-in via callbacks. The package provides default in-memory
 /// implementations, but a host like YoLoIT can override them to wire in real
 /// permissions, secure storage, CLI execution, etc.
+///
+/// Host-specific JS APIs can be injected via [hostBootstrapJs]. For example,
+/// a host may evaluate `jsr.yoloit = { ... }` before the widget code runs.
 @immutable
 class JsRuntimeConfig {
   const JsRuntimeConfig({
@@ -24,6 +27,7 @@ class JsRuntimeConfig {
       'muted': '#64748b',
     },
     this.initialStorage = const {},
+    this.hostBootstrapJs,
     required this.onRender,
     required this.onSetTitle,
     required this.onStorageUpdate,
@@ -42,19 +46,23 @@ class JsRuntimeConfig {
 
   final String widgetId;
 
-  /// Base directory used by `yoloit.loadAsset(path)`.
+  /// Base directory used by `jsr.loadAsset(path)`.
   final String? appDir;
 
-  /// Initial theme map injected into `yoloit.theme`.
+  /// Initial theme map injected into `jsr.theme`.
   final Map<String, dynamic> initialTheme;
 
   /// Initial storage snapshot.
   final Map<String, dynamic> initialStorage;
 
-  /// Called when JS calls `yoloit.render(tree)`.
+  /// Optional JS evaluated after the bootstrap and before the widget code.
+  /// Use this to inject host-specific APIs such as `jsr.yoloit = {...}`.
+  final String? hostBootstrapJs;
+
+  /// Called when JS calls `jsr.render(tree)`.
   final void Function(Map<String, dynamic> tree) onRender;
 
-  /// Called when JS calls `yoloit.panel.setTitle(title)`.
+  /// Called when JS calls `jsr.panel.setTitle(title)`.
   final void Function(String title) onSetTitle;
 
   /// Called when JS updates storage.
@@ -75,7 +83,7 @@ class JsRuntimeConfig {
   final void Function(void Function(String id, dynamic value) resolve)?
       onResolveReady;
 
-  /// Handle `yoloit.fetchJson(url, opts)`.
+  /// Handle `jsr.fetchJson(url, opts)`.
   final Future<void> Function(
     String id,
     String url,
@@ -83,17 +91,17 @@ class JsRuntimeConfig {
     Map<String, String> headers,
   )? fetchHandler;
 
-  /// Handle `yoloit.secrets.get(key)`.
+  /// Handle `jsr.secrets.get(key)`.
   final Future<void> Function(String id, String key)? secretsGetHandler;
 
-  /// Handle `yoloit.secrets.set(key, value)`.
+  /// Handle `jsr.secrets.set(key, value)`.
   final Future<void> Function(String id, String key, dynamic value)?
       secretsSetHandler;
 
-  /// Handle `yoloit.loadAsset(path)`.
+  /// Handle `jsr.loadAsset(path)`.
   final Future<void> Function(String id, String path)? loadAssetHandler;
 
-  /// Handle `yoloit.exec(cmd)`.
+  /// Handle `jsr.exec(cmd)`.
   final Future<void> Function(String id, String cmd)? execHandler;
 
   /// Dart-backed interval tick.
@@ -107,6 +115,7 @@ class JsRuntimeConfig {
     String? appDir,
     Map<String, dynamic>? initialTheme,
     Map<String, dynamic>? initialStorage,
+    String? hostBootstrapJs,
     void Function(Map<String, dynamic> tree)? onRender,
     void Function(String title)? onSetTitle,
     void Function(Map<String, dynamic> storage)? onStorageUpdate,
@@ -134,6 +143,7 @@ class JsRuntimeConfig {
         appDir: appDir ?? this.appDir,
         initialTheme: initialTheme ?? this.initialTheme,
         initialStorage: initialStorage ?? this.initialStorage,
+        hostBootstrapJs: hostBootstrapJs ?? this.hostBootstrapJs,
         onRender: onRender ?? this.onRender,
         onSetTitle: onSetTitle ?? this.onSetTitle,
         onStorageUpdate: onStorageUpdate ?? this.onStorageUpdate,

@@ -11,7 +11,7 @@ typedef JsPermissionChecker = bool Function(String capability);
 /// Callback used by the bridge to return async values to the JS runtime.
 typedef JsResolveCallback = void Function(String id, dynamic value);
 
-/// Callback for an HTTP request initiated by `yoloit.fetchJson`.
+/// Callback for an HTTP request initiated by `jsr.fetchJson`.
 typedef JsFetchHandler = Future<void> Function(
   String id,
   String url,
@@ -19,20 +19,20 @@ typedef JsFetchHandler = Future<void> Function(
   Map<String, String> headers,
 );
 
-/// Callback for `yoloit.secrets.get(key)`.
+/// Callback for `jsr.secrets.get(key)`.
 typedef JsSecretsReadHandler = Future<void> Function(String id, String key);
 
-/// Callback for `yoloit.secrets.set(key, value)`.
+/// Callback for `jsr.secrets.set(key, value)`.
 typedef JsSecretsWriteHandler = Future<void> Function(
   String id,
   String key,
   dynamic value,
 );
 
-/// Callback for `yoloit.loadAsset(path)`.
+/// Callback for `jsr.loadAsset(path)`.
 typedef JsLoadAssetHandler = Future<void> Function(String id, String path);
 
-/// Callback for `yoloit.exec(cmd)`.
+/// Callback for `jsr.exec(cmd)`.
 typedef JsExecHandler = Future<void> Function(String id, String cmd);
 
 /// Callback invoked when a Dart-backed interval fires.
@@ -44,7 +44,7 @@ typedef JsRafTickHandler = void Function(String id, int elapsedMs);
 /// Shared bridge logic for the JS widget engine.
 ///
 /// Both the VM ([flutter_js]) and web (Worker/iframe) engines use this class
-/// to handle the `yoloit.*` API surface: render, storage, timers, secrets,
+/// to handle the `jsr.*` API surface: render, storage, timers, secrets,
 /// fetch, exec, exportState and event completion. Platform-specific I/O
 /// (network, secure storage, file system, process execution) is injected via
 /// callbacks so the bridge stays testable on any platform.
@@ -95,51 +95,51 @@ class JsWidgetBridge {
   final Map<String, bool> _rafCallbacks = {};
   Completer<void>? _eventCompleter;
 
-  /// Last structured state exported via `yoloit.exportState(...)`.
+  /// Last structured state exported via `jsr.exportState(...)`.
   Map<String, dynamic>? get exportedState =>
       _exportedState == null ? null : Map<String, dynamic>.from(_exportedState!);
 
   /// Returns the JS snippet used to update the widget theme.
   static String updateThemeJs(Map<String, dynamic> colors) {
-    return 'yoloit.theme=${jsonEncode(colors)};'
-        'if(yoloit._onThemeChange){try{yoloit._onThemeChange(yoloit.theme);}catch(e){}}';
+    return 'jsr.theme=${jsonEncode(colors)};'
+        'if(jsr._onThemeChange){try{jsr._onThemeChange(jsr.theme);}catch(e){}}';
   }
 
   /// Dispatches a message coming from the JS runtime.
   Future<void> dispatch(String channel, dynamic payload) async {
     if (isDisposed()) return;
     switch (channel) {
-      case '__yoloit_render':
+      case '__jsr_render':
         _handleRender(payload);
-      case '__yoloit_fetch':
+      case '__jsr_fetch':
         await _handleFetch(payload);
-      case '__yoloit_storage_get':
+      case '__jsr_storage_get':
         _handleStorageGet(payload);
-      case '__yoloit_storage_set':
+      case '__jsr_storage_set':
         _handleStorageSet(payload);
-      case '__yoloit_set_title':
+      case '__jsr_set_title':
         _handleSetTitle(payload);
-      case '__yoloit_event_done':
+      case '__jsr_event_done':
         _handleEventDone(payload);
-      case '__yoloit_export_state':
+      case '__jsr_export_state':
         _handleExportState(payload);
-      case '__yoloit_log':
+      case '__jsr_log':
         _handleLog(payload);
-      case '__yoloit_set_interval':
+      case '__jsr_set_interval':
         _handleSetInterval(payload);
-      case '__yoloit_clear_interval':
+      case '__jsr_clear_interval':
         _handleClearInterval(payload);
-      case '__yoloit_raf':
+      case '__jsr_raf':
         _handleRaf(payload);
-      case '__yoloit_caf':
+      case '__jsr_caf':
         _handleCaf(payload);
-      case '__yoloit_secrets_get':
+      case '__jsr_secrets_get':
         await _handleSecretsGet(payload);
-      case '__yoloit_secrets_set':
+      case '__jsr_secrets_set':
         await _handleSecretsSet(payload);
-      case '__yoloit_load_asset':
+      case '__jsr_load_asset':
         await _handleLoadAsset(payload);
-      case '__yoloit_exec':
+      case '__jsr_exec':
         await _handleExec(payload);
     }
   }

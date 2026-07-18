@@ -41,20 +41,20 @@ scripts/
 
 ## JS Widget API
 
-Each widget is an IIFE that receives a global `yoloit` object.
+Each widget is an IIFE that receives a global `jsr` object.
 
 Core methods:
 
-- `yoloit.render(tree)` — render a JSON UI tree.
-- `yoloit.onEvent(handler)` — register `handleEvent(actionId, payload)`.
-- `yoloit.fetchJson(url, opts)` — async HTTP (requires `fetch` permission).
-- `yoloit.storage.get(key)` / `yoloit.storage.set(key, val)` — persistent storage.
-- `yoloit.secrets.get(key)` / `yoloit.secrets.set(key, val)` — secure storage.
-- `yoloit.exec(cmd)` — run a shell command (host-dependent).
-- `yoloit.loadAsset(path)` — load an asset file as string.
-- `yoloit.panel.setTitle(title)` — update panel/window title.
-- `yoloit.exportState(obj)` — expose structured state for CLI snapshots.
-- `yoloit.showError(msg)` — render a styled error card.
+- `jsr.render(tree)` — render a JSON UI tree.
+- `jsr.onEvent(handler)` — register `handleEvent(actionId, payload)`.
+- `jsr.fetchJson(url, opts)` — async HTTP (requires `fetch` permission).
+- `jsr.storage.get(key)` / `jsr.storage.set(key, val)` — persistent storage.
+- `jsr.secrets.get(key)` / `jsr.secrets.set(key, val)` — secure storage.
+- `jsr.exec(cmd)` — run a shell command (host-dependent).
+- `jsr.loadAsset(path)` — load an asset file as string.
+- `jsr.setTitle(title)` — update widget title.
+- `jsr.exportState(obj)` — expose structured state for CLI snapshots.
+- `jsr.showError(msg)` — render a styled error card.
 - `setTimeout`, `setInterval`, `requestAnimationFrame`, `console.log` are shimmed.
 
 See the dedicated skill in `.agents/skills/js-widget-authoring/SKILL.md` for the full widget authoring guide.
@@ -62,9 +62,10 @@ See the dedicated skill in `.agents/skills/js-widget-authoring/SKILL.md` for the
 ## Engine Architecture
 
 - `JsWidgetEngine` is a conditional export: VM on native, Web on `dart.library.html`.
-- `JsWidgetBridge` is platform-agnostic and dispatches `__yoloit_*` channels.
-- `kJsWidgetBootstrap` defines the JS runtime API. Any new `yoloit.*` API must be added here and wired through `JsWidgetBridge` and both VM/Web engines.
+- `JsWidgetBridge` is platform-agnostic and dispatches `__jsr_*` channels.
+- `kJsWidgetBootstrap` defines the JS runtime API. Any new `jsr.*` API must be added here and wired through `JsWidgetBridge` and both VM/Web engines.
 - Engine handlers are injected via `JsRuntimeConfig`. The package provides defaults, but hosts override them for real permissions, storage, networking, etc.
+- Host-specific JS APIs (e.g., `jsr.yoloit`) are injected via `JsRuntimeConfig.hostBootstrapJs`. Do not add host concepts into the core bootstrap.
 
 See the dedicated skill in `.agents/skills/js-widget-engine/SKILL.md` for how to extend the engine.
 

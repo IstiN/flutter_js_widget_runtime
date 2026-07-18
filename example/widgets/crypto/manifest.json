@@ -17,13 +17,13 @@
       }
     ],
     "read": {
-      "state": "yoloit app:state crypto — prices[] with usd and change24h",
-      "snapshot": "yoloit app:snapshot crypto"
+      "state": "jsr app:state crypto — prices[] with usd and change24h",
+      "snapshot": "jsr app:snapshot crypto"
     },
     "examples": [
-      "yoloit app:run crypto",
-      "yoloit app:state crypto",
-      "yoloit app:execute crypto refresh"
+      "jsr app:run crypto",
+      "jsr app:state crypto",
+      "jsr app:execute crypto refresh"
     ]
   }
 }

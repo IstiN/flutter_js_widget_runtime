@@ -1,6 +1,6 @@
 # Skill: Maintaining the js_widget_runtime Engine
 
-Use this skill when modifying the JS runtime, bridge, engine handlers, or adding new `yoloit.*` API surface.
+Use this skill when modifying the JS runtime, bridge, engine handlers, or adding new `jsr.*` API surface.
 
 ## Engine Layers
 
@@ -18,12 +18,12 @@ Platform engine:
   Web: JsWidgetEngine → web.Worker         (lib/src/runtime/js_widget_engine_web.dart)
 ```
 
-## Adding a New yoloit.* API
+## Adding a New jsr.* API
 
 Follow these steps in order:
 
 1. **Add the JS API in `kJsWidgetBootstrap`** (`lib/src/runtime/js_widget_bootstrap.dart`).
-   - Use `sendMessage('__yoloit_<name>', JSON.stringify(args))`.
+   - Use `sendMessage('__jsr_<name>', JSON.stringify(args))`.
    - If async, store a callback in `__cbs[id]` and resolve later.
 
 2. **Add a bridge channel constant** in `JsWidgetEngine._bridgeChannels` (both VM and Web files).
@@ -57,16 +57,40 @@ Follow these steps in order:
 
 ## Engine Lifecycle
 
-- `JsWidgetEngine.run(widgetJs)` starts the runtime, evaluates bootstrap + widget JS.
+- `JsWidgetEngine.run(widgetJs)` starts the runtime, evaluates bootstrap + optional host bootstrap + widget JS.
 - `JsWidgetEngine.callEvent(actionId, payload)` invokes the widget's `handleEvent`.
-- `JsWidgetEngine.updateTheme(colors)` pushes new theme values into `yoloit.theme`.
+- `JsWidgetEngine.updateTheme(colors)` pushes new theme values into `jsr.theme`.
 - `JsWidgetEngine.dispose()` cancels timers, terminates the worker / JS runtime.
+
+## Host-Specific Extensions
+
+Do not add host-specific APIs (e.g., YoLoIT panels, boards, CLI commands) into the core bootstrap. Instead, use `JsRuntimeConfig.hostBootstrapJs` to inject them before the widget runs.
+
+Example for a YoLoIT host:
+
+```dart
+JsRuntimeConfig(
+  hostBootstrapJs: r'''
+jsr.yoloit = {
+  panel: {
+    setTitle: function(t) { jsr.setTitle(t); },
+  },
+  board: {
+    getPanels: function() { return jsr.exec('yoloit board:list'); },
+  },
+};
+''',
+  // ... other handlers
+)
+```
+
+Widgets that depend on the host extension can then call `jsr.yoloit.panel.setTitle('...')` or `jsr.yoloit.board.getPanels()`.
 
 ## Important Notes
 
 - Keep `JsWidgetBridge` platform-agnostic. Never import `dart:io` or `dart:html` there.
 - VM engine uses `rt.evaluate()` and `rt.executePendingJob()` after every JS call.
-- Web engine uses prefixed string messages (`__yoloit__`) via `postMessage`.
+- Web engine uses prefixed string messages (`__jsr__`) via `postMessage`.
 - The bootstrap is shared verbatim between VM and Web; do not use platform-specific globals inside it other than `sendMessage`, which both engines provide.
 - Permission capabilities are: `fetch`, `storage`, `secrets`, `exec`. Reuse these before adding new ones.
 

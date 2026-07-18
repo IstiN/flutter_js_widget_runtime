@@ -13,13 +13,13 @@
       { "id": "toggle_theme", "description": "Toggle light/dark demo colors" }
     ],
     "read": {
-      "state": "yoloit app:state yolo-hello",
-      "snapshot": "yoloit app:snapshot yolo-hello"
+      "state": "jsr app:state yolo-hello",
+      "snapshot": "jsr app:snapshot yolo-hello"
     },
     "examples": [
-      "yoloit app:run yolo-hello",
-      "yoloit app:execute yolo-hello tap_hello",
-      "yoloit app:state yolo-hello"
+      "jsr app:run yolo-hello",
+      "jsr app:execute yolo-hello tap_hello",
+      "jsr app:state yolo-hello"
     ]
   }
 }

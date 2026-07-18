@@ -18,10 +18,10 @@ void main() {
     test('readJs returns widget.js content', () async {
       const manifest = _counterManifest;
       final reader = MemoryWidgetFileReader({
-        'widgets/counter/widget.js': 'yoloit.render({type:"text"});',
+        'widgets/counter/widget.js': 'jsr.render({type:"text"});',
       });
       final js = await manifest.readJs(reader: reader);
-      expect(js, 'yoloit.render({type:"text"});');
+      expect(js, 'jsr.render({type:"text"});');
     });
 
     test('readJs concatenates files when manifest declares them', () async {
@@ -45,15 +45,15 @@ void main() {
       expect(js, '// a\n// main');
     });
 
-    test('readJs inlines yoloit.include recursively', () async {
+    test('readJs inlines jsr.include recursively', () async {
       const manifest = _counterManifest;
       final reader = MemoryWidgetFileReader({
         'widgets/counter/widget.js':
-            'yoloit.include("lib/a.js"); yoloit.render({});',
+            'jsr.include("lib/a.js"); jsr.render({});',
         'widgets/counter/lib/a.js': '// included',
       });
       final js = await manifest.readJs(reader: reader);
-      expect(js, '// included; yoloit.render({});');
+      expect(js, '// included; jsr.render({});');
     });
 
     test('fromStorage returns null when widget.js is missing', () async {

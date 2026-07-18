@@ -2,18 +2,18 @@ import 'dart:convert';
 
 /// Wire format used by the web JS widget engine.
 ///
-/// Messages are JSON strings prefixed with `__yoloit__` so that the host and
-/// the iframe can safely ignore unrelated postMessage traffic.
+/// Messages are JSON strings prefixed with `__jsr__` so that the host and
+/// the worker can safely ignore unrelated postMessage traffic.
 class JsWidgetMessage {
   JsWidgetMessage({required this.channel, required this.payload});
 
   final String channel;
   final dynamic payload;
 
-  static const _prefix = '__yoloit__';
+  static const _prefix = '__jsr__';
 
   /// Decodes a raw incoming string. Returns null when the string is not a
-  /// yoloit message.
+  /// jsr message.
   static JsWidgetMessage? tryParse(String raw) {
     if (!raw.startsWith(_prefix)) return null;
     final json = raw.substring(_prefix.length);

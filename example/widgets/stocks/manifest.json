@@ -25,13 +25,13 @@
       }
     ],
     "read": {
-      "state": "yoloit app:state stocks — quotes[] with price and changePct",
-      "snapshot": "yoloit app:snapshot stocks"
+      "state": "jsr app:state stocks — quotes[] with price and changePct",
+      "snapshot": "jsr app:snapshot stocks"
     },
     "examples": [
-      "yoloit app:run stocks",
-      "yoloit app:execute stocks apply_symbols '{\"value\":\"AAPL,TSLA\"}'",
-      "yoloit app:state stocks"
+      "jsr app:run stocks",
+      "jsr app:execute stocks apply_symbols '{\"value\":\"AAPL,TSLA\"}'",
+      "jsr app:state stocks"
     ]
   }
 }

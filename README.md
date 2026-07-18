@@ -21,7 +21,7 @@ class DemoPage extends StatelessWidget {
     return JsWidgetRuntime(
       jsSource: r'''
 (function() {
-  yoloit.render({
+  jsr.render({
     type: 'center',
     child: {
       type: 'column',
@@ -37,9 +37,9 @@ class DemoPage extends StatelessWidget {
       ],
     },
   });
-  yoloit.onEvent(function(actionId, payload) {
+  jsr.onEvent(function(actionId, payload) {
     if (actionId === 'tap') {
-      yoloit.panel.setTitle('Tapped!');
+      jsr.setTitle('Tapped!');
     }
   });
 })();

@@ -19,14 +19,14 @@
       }
     ],
     "read": {
-      "state": "yoloit app:state calculator — expression, preview, display",
-      "snapshot": "yoloit app:snapshot calculator"
+      "state": "jsr app:state calculator — expression, preview, display",
+      "snapshot": "jsr app:snapshot calculator"
     },
     "examples": [
-      "yoloit app:run calculator",
-      "yoloit app:execute calculator btn_5",
-      "yoloit app:execute calculator btn_+",
-      "yoloit app:state calculator"
+      "jsr app:run calculator",
+      "jsr app:execute calculator btn_5",
+      "jsr app:execute calculator btn_+",
+      "jsr app:state calculator"
     ]
   }
 }

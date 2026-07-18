@@ -11,7 +11,7 @@ import 'package:js_widget_runtime/src/runtime/js_widget_bridge.dart';
 
 /// Headless JS widget engine backed by `flutter_js` (QuickJS / JavascriptCore).
 ///
-/// Runs a widget's JS code and exposes the `yoloit.*` API surface. All I/O is
+/// Runs a widget's JS code and exposes the `jsr.*` API surface. All I/O is
 /// injected via [JsRuntimeConfig] so the host controls permissions and
 /// implementations.
 class JsWidgetEngine {
@@ -59,7 +59,7 @@ class JsWidgetEngine {
   List<Map<String, dynamic>> peekLogs() =>
       List<Map<String, dynamic>>.from(_consoleLogs);
 
-  /// Last structured state exported via `yoloit.exportState(...)`.
+  /// Last structured state exported via `jsr.exportState(...)`.
   Map<String, dynamic>? get exportedState => _bridge.exportedState;
 
   /// Push updated theme colors into the running JS widget.
@@ -94,12 +94,14 @@ class JsWidgetEngine {
       }
       updateTheme(_config.initialTheme);
 
+      final hostBootstrap = _config.hostBootstrapJs ?? '';
       final code = '''
 (function() {
   try {
+    $hostBootstrap
     $widgetJs
   } catch(e) {
-    yoloit.showError('Widget error: ' + (e.message || String(e)));
+    jsr.showError('Widget error: ' + (e.message || String(e)));
   }
 })();
 ''';
@@ -128,15 +130,15 @@ class JsWidgetEngine {
     await _bridge.callEvent(() {
       rt.evaluate(
         '(function(){'
-        'var __h=yoloit._handler||(typeof handleEvent==="function"?handleEvent:null);'
-        'if(!__h){sendMessage("__yoloit_event_done","{}");return;}'
+        'var __h=jsr._handler||(typeof handleEvent==="function"?handleEvent:null);'
+        'if(!__h){sendMessage("__jsr_event_done","{}");return;}'
         'try{'
         'var __r=__h($encodedAction,$encodedPayload);'
         'if(__r&&typeof __r.then==="function"){'
-        '__r.then(function(){sendMessage("__yoloit_event_done","{}");},'
-        'function(e){sendMessage("__yoloit_event_done",JSON.stringify({error:e.message||String(e)}));});'
-        '}else{sendMessage("__yoloit_event_done","{}");}'
-        '}catch(e){sendMessage("__yoloit_event_done",JSON.stringify({error:e.message||String(e)}));}'
+        '__r.then(function(){sendMessage("__jsr_event_done","{}");},'
+        'function(e){sendMessage("__jsr_event_done",JSON.stringify({error:e.message||String(e)}));});'
+        '}else{sendMessage("__jsr_event_done","{}");}'
+        '}catch(e){sendMessage("__jsr_event_done",JSON.stringify({error:e.message||String(e)}));}'
         '})();',
       );
       rt.executePendingJob();
@@ -208,22 +210,22 @@ class JsWidgetEngine {
   }
 
   static const List<String> _bridgeChannels = [
-    '__yoloit_render',
-    '__yoloit_fetch',
-    '__yoloit_storage_get',
-    '__yoloit_storage_set',
-    '__yoloit_set_title',
-    '__yoloit_event_done',
-    '__yoloit_export_state',
-    '__yoloit_log',
-    '__yoloit_set_interval',
-    '__yoloit_clear_interval',
-    '__yoloit_raf',
-    '__yoloit_caf',
-    '__yoloit_secrets_get',
-    '__yoloit_secrets_set',
-    '__yoloit_load_asset',
-    '__yoloit_exec',
+    '__jsr_render',
+    '__jsr_fetch',
+    '__jsr_storage_get',
+    '__jsr_storage_set',
+    '__jsr_set_title',
+    '__jsr_event_done',
+    '__jsr_export_state',
+    '__jsr_log',
+    '__jsr_set_interval',
+    '__jsr_clear_interval',
+    '__jsr_raf',
+    '__jsr_caf',
+    '__jsr_secrets_get',
+    '__jsr_secrets_set',
+    '__jsr_load_asset',
+    '__jsr_exec',
   ];
 
   void _handleLog(String msg) {

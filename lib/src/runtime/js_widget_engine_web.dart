@@ -48,9 +48,9 @@ class JsWidgetEngine {
         }
       },
       execHandler: (id, cmd) => _handleExec(id, cmd),
-      intervalTickHandler: (id) => _postToWorker('__yoloit_interval_tick', id),
+      intervalTickHandler: (id) => _postToWorker('__jsr_interval_tick', id),
       rafTickHandler: (id, elapsedMs) => _postToWorker(
-        '__yoloit_raf_tick',
+        '__jsr_raf_tick',
         {'id': id, 'elapsed': elapsedMs},
       ),
       initialStorage: config.initialStorage,
@@ -121,14 +121,14 @@ class JsWidgetEngine {
     if (_disposed || _worker == null) return;
     await _bridge.callEvent(() {
       _postToWorker(
-        '__yoloit_call_event',
+        '__jsr_call_event',
         {'actionId': actionId, 'payload': payload ?? {}},
       );
     });
   }
 
   void updateTheme(Map<String, dynamic> colors) =>
-      _postToWorker('__yoloit_updateTheme', colors);
+      _postToWorker('__jsr_updateTheme', colors);
 
   Future<void> dispose() async {
     _disposed = true;
@@ -153,7 +153,7 @@ class JsWidgetEngine {
     final raw = (data as JSString).toDart;
     final message = JsWidgetMessage.tryParse(raw);
     if (message == null) return;
-    if (message.channel == '__yoloit_ready') {
+    if (message.channel == '__jsr_ready') {
       _readyCompleter?.complete();
       return;
     }
@@ -190,7 +190,7 @@ class JsWidgetEngine {
 
   void _resolveCallback(String id, dynamic value) {
     if (_disposed) return;
-    _postToWorker('__yoloit_resolve', {'id': id, 'value': value});
+    _postToWorker('__jsr_resolve', {'id': id, 'value': value});
   }
 
   void _postToWorker(String channel, dynamic payload) {
@@ -202,50 +202,53 @@ class JsWidgetEngine {
 
   String _buildWorkerScript(String widgetJs, Map<String, dynamic> initialTheme) {
     final escapedJs = widgetJs.replaceAll('</script>', '<\\/script>');
+    final escapedHostBootstrap = (_config.hostBootstrapJs ?? '')
+        .replaceAll('</script>', '<\\/script>');
     final themeJson = jsonEncode(initialTheme);
     return '''
 function sendMessage(channel, jsonString) {
-  self.postMessage('__yoloit__' + JSON.stringify({channel: channel, payload: jsonString}));
+  self.postMessage('__jsr__' + JSON.stringify({channel: channel, payload: jsonString}));
 }
 self.onmessage = function(e){
   var data = e.data;
-  if (typeof data !== 'string' || !data.startsWith('__yoloit__')) return;
-  var msg = JSON.parse(data.slice('__yoloit__'.length));
-  if (msg.channel === '__yoloit_call_event') {
+  if (typeof data !== 'string' || !data.startsWith('__jsr__')) return;
+  var msg = JSON.parse(data.slice('__jsr__'.length));
+  if (msg.channel === '__jsr_call_event') {
     var actionId = msg.payload.actionId;
     var payload = msg.payload.payload;
-    var __h = yoloit._handler || (typeof handleEvent === 'function' ? handleEvent : null);
-    if (!__h) { sendMessage('__yoloit_event_done', '{}'); return; }
+    var __h = jsr._handler || (typeof handleEvent === 'function' ? handleEvent : null);
+    if (!__h) { sendMessage('__jsr_event_done', '{}'); return; }
     try {
       var __r = __h(actionId, payload);
       if (__r && typeof __r.then === 'function') {
-        __r.then(function(){ sendMessage('__yoloit_event_done', '{}'); },
-                 function(e){ sendMessage('__yoloit_event_done', JSON.stringify({error: e.message || String(e)})); });
+        __r.then(function(){ sendMessage('__jsr_event_done', '{}'); },
+                 function(e){ sendMessage('__jsr_event_done', JSON.stringify({error: e.message || String(e)})); });
       } else {
-        sendMessage('__yoloit_event_done', '{}');
+        sendMessage('__jsr_event_done', '{}');
       }
     } catch(e) {
-      sendMessage('__yoloit_event_done', JSON.stringify({error: e.message || String(e)}));
+      sendMessage('__jsr_event_done', JSON.stringify({error: e.message || String(e)}));
     }
-  } else if (msg.channel === '__yoloit_updateTheme') {
-    yoloit.theme = msg.payload;
-    if (yoloit._onThemeChange) { try { yoloit._onThemeChange(yoloit.theme); } catch(e) {} }
-  } else if (msg.channel === '__yoloit_interval_tick') {
+  } else if (msg.channel === '__jsr_updateTheme') {
+    jsr.theme = msg.payload;
+    if (jsr._onThemeChange) { try { jsr._onThemeChange(jsr.theme); } catch(e) {} }
+  } else if (msg.channel === '__jsr_interval_tick') {
     if (__iv_cbs[msg.payload]) __iv_cbs[msg.payload]();
-  } else if (msg.channel === '__yoloit_raf_tick') {
+  } else if (msg.channel === '__jsr_raf_tick') {
     if (__raf_cbs[msg.payload.id]) __raf_cbs[msg.payload.id](msg.payload.elapsed);
-  } else if (msg.channel === '__yoloit_resolve') {
+  } else if (msg.channel === '__jsr_resolve') {
     if (__cbs[msg.payload.id]) { __cbs[msg.payload.id](msg.payload.value); delete __cbs[msg.payload.id]; }
   }
 };
 $kJsWidgetBootstrap
-yoloit.theme = $themeJson;
+jsr.theme = $themeJson;
 try {
+  $escapedHostBootstrap
   $escapedJs
 } catch(e) {
-  yoloit.showError('Widget error: ' + (e.message || String(e)));
+  jsr.showError('Widget error: ' + (e.message || String(e)));
 }
-sendMessage('__yoloit_ready', '{}');
+sendMessage('__jsr_ready', '{}');
 ''';
   }
 }

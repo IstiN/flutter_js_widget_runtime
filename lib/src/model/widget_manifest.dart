@@ -34,7 +34,7 @@ class WidgetManifest {
   /// Emoji or short label used as the icon.
   final String icon;
 
-  /// CLI commands this widget is allowed to call via `window.yoloit.cli()`.
+  /// CLI commands this widget is allowed to call via `window.jsr.cli()`.
   /// Empty list means no CLI access. Use ["*"] to allow all (dev only).
   final List<String> allowedCommands;
 
@@ -74,7 +74,7 @@ class WidgetManifest {
   /// If [files] is set, reads each file in order and concatenates them.
   /// Otherwise falls back to reading widget.js.
   /// After assembling, runs the [_preprocessIncludes] pass which inlines
-  /// `yoloit.include('path')` calls with the referenced file contents.
+  /// `jsr.include('path')` calls with the referenced file contents.
   Future<String?> readJs({required WidgetFileReader reader}) async {
     final base = widgetPath;
     late final String js;
@@ -87,7 +87,7 @@ class WidgetManifest {
         if (content != null) {
           parts.add(content);
         } else {
-          parts.add('/* yoloit.include: file not found: $filename */');
+          parts.add('/* jsr.include: file not found: $filename */');
         }
       }
       js = parts.join('\n');
@@ -100,10 +100,10 @@ class WidgetManifest {
     return _preprocessIncludes(js, appDir, 0, reader);
   }
 
-  /// Recursively inlines `yoloit.include('path')` calls (up to [_maxIncludeDepth]).
+  /// Recursively inlines `jsr.include('path')` calls (up to [_maxIncludeDepth]).
   static const int _maxIncludeDepth = 5;
   static final RegExp _includeRegex = RegExp(
-    r'''yoloit\.include\(\s*['"]([^'"]+)['"]\s*\)''',
+    r'''jsr\.include\(\s*['"]([^'"]+)['"]\s*\)''',
   );
 
   static Future<String> _preprocessIncludes(
@@ -128,7 +128,7 @@ class WidgetManifest {
           await _preprocessIncludes(content, subDir, depth + 1, reader),
         );
       } else {
-        buffer.write('/* yoloit.include: file not found: $relPath */');
+        buffer.write('/* jsr.include: file not found: $relPath */');
       }
       last = match.end;
     }

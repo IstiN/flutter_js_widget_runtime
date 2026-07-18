@@ -4,7 +4,7 @@ Use this skill when creating or modifying JavaScript widgets for `js_widget_runt
 
 ## What is a Widget?
 
-A widget is a self-contained JS file plus a `manifest.json`. The runtime injects a global `yoloit` object and expects the widget to call `yoloit.render(tree)` to produce Flutter UI.
+A widget is a self-contained JS file plus a `manifest.json`. The runtime injects a global `jsr` object and expects the widget to call `jsr.render(tree)` to produce Flutter UI.
 
 ## File Structure
 
@@ -31,12 +31,12 @@ example/widgets/my-widget/
       { "id": "reset", "description": "Reset the widget state" }
     ],
     "read": {
-      "state": "yoloit app:state my-widget",
-      "snapshot": "yoloit app:snapshot my-widget"
+      "state": "jsr app:state my-widget",
+      "snapshot": "jsr app:snapshot my-widget"
     },
     "examples": [
-      "yoloit app:run my-widget",
-      "yoloit app:execute my-widget reset"
+      "jsr app:run my-widget",
+      "jsr app:execute my-widget reset"
     ]
   }
 }
@@ -44,7 +44,7 @@ example/widgets/my-widget/
 
 - `id` must match the folder name.
 - `allowedCommands` is host-specific; leave empty unless the host needs it.
-- `network` should be `true` if the widget calls `yoloit.fetchJson`.
+- `network` should be `true` if the widget calls `jsr.fetchJson`.
 
 ## widget.js Boilerplate
 
@@ -53,7 +53,7 @@ example/widgets/my-widget/
   var state = { count: 0 };
 
   function render() {
-    yoloit.render({
+    jsr.render({
       type: 'center',
       child: {
         type: 'column',
@@ -71,13 +71,13 @@ example/widgets/my-widget/
   function handleEvent(actionId, payload) {
     if (actionId === 'increment') {
       state.count++;
-      yoloit.exportState(state);
+      jsr.exportState(state);
       render();
     }
   }
 
-  yoloit.onEvent(handleEvent);
-  yoloit.panel.setTitle('Counter');
+  jsr.onEvent(handleEvent);
+  jsr.setTitle('Counter');
   render();
 })();
 ```
@@ -86,12 +86,13 @@ example/widgets/my-widget/
 
 1. **ES5-compatible IIFE**. No modules, no arrow functions, no `const`/`let`, no async/await syntax (use Promise chains).
 2. Always wrap widget code in `(function() { ... })();`.
-3. Register events with `yoloit.onEvent(handleEvent)` before the first `render()`.
-4. `yoloit.render(tree)` accepts a JSON UI tree. See supported types below.
-5. Use `yoloit.exportState(obj)` after meaningful state changes so CLI snapshots work.
-6. Network requests require `yoloit.fetchJson(url, opts)`. Handle errors with `.catch()`.
-7. Storage uses Promises: `yoloit.storage.get('key').then(...)` and `yoloit.storage.set('key', value)`.
+3. Register events with `jsr.onEvent(handleEvent)` before the first `render()`.
+4. `jsr.render(tree)` accepts a JSON UI tree. See supported types below.
+5. Use `jsr.exportState(obj)` after meaningful state changes so CLI snapshots work.
+6. Network requests require `jsr.fetchJson(url, opts)`. Handle errors with `.catch()`.
+7. Storage uses Promises: `jsr.storage.get('key').then(...)` and `jsr.storage.set('key', value)`.
 8. `requestAnimationFrame` and `setInterval` are shimmed by the engine.
+9. Use only the core `jsr.*` API in reusable widgets. Host-specific extensions (e.g., `jsr.yoloit`) must be clearly documented as host-dependent.
 
 ## Supported UI Tree Types
 

@@ -27,14 +27,14 @@
       }
     ],
     "read": {
-      "state": "yoloit app:state weather — tempC, city, humidity, windKmph",
-      "snapshot": "yoloit app:snapshot weather — full render JSON tree"
+      "state": "jsr app:state weather — tempC, city, humidity, windKmph",
+      "snapshot": "jsr app:snapshot weather — full render JSON tree"
     },
     "examples": [
-      "yoloit app:run weather",
-      "yoloit app:execute weather set_city '{\"city\":\"Moscow\"}'",
-      "yoloit app:execute weather submit_city '{\"value\":\"Moscow\"}'",
-      "yoloit app:state weather"
+      "jsr app:run weather",
+      "jsr app:execute weather set_city '{\"city\":\"Moscow\"}'",
+      "jsr app:execute weather submit_city '{\"value\":\"Moscow\"}'",
+      "jsr app:state weather"
     ]
   }
 }

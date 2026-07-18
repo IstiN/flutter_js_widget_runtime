@@ -13,12 +13,12 @@
       { "id": "play", "description": "Replay current demo animation" }
     ],
     "read": {
-      "state": "yoloit app:state animation-showcase",
-      "snapshot": "yoloit app:snapshot animation-showcase"
+      "state": "jsr app:state animation-showcase",
+      "snapshot": "jsr app:snapshot animation-showcase"
     },
     "examples": [
-      "yoloit app:run animation-showcase",
-      "yoloit app:snapshot animation-showcase"
+      "jsr app:run animation-showcase",
+      "jsr app:snapshot animation-showcase"
     ]
   }
 }

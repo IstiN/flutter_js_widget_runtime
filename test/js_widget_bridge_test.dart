@@ -42,24 +42,24 @@ void main() {
     });
 
     test('dispatches render channel', () async {
-      await bridge.dispatch('__yoloit_render', '{"type":"text","data":"hi"}');
+      await bridge.dispatch('__jsr_render', '{"type":"text","data":"hi"}');
       expect(renders.length, 1);
       expect(renders.first['data'], 'hi');
     });
 
     test('dispatches set title', () async {
-      await bridge.dispatch('__yoloit_set_title', 'My title');
+      await bridge.dispatch('__jsr_set_title', 'My title');
       expect(titles, ['My title']);
     });
 
     test('dispatches storage get/set', () async {
-      await bridge.dispatch('__yoloit_storage_get', '{"id":"g1","key":"existing"}');
+      await bridge.dispatch('__jsr_storage_get', '{"id":"g1","key":"existing"}');
       expect(resolved['g1'], 'value');
 
-      await bridge.dispatch('__yoloit_storage_set', '{"key":"new","value":"x"}');
+      await bridge.dispatch('__jsr_storage_set', '{"key":"new","value":"x"}');
       expect(storageUpdates.last['new'], 'x');
 
-      await bridge.dispatch('__yoloit_storage_get', '{"id":"g2","key":"new"}');
+      await bridge.dispatch('__jsr_storage_get', '{"id":"g2","key":"new"}');
       expect(resolved['g2'], 'x');
     });
 
@@ -82,61 +82,61 @@ void main() {
         rafTickHandler: (_, __) {},
         initialStorage: const {},
       );
-      await denied.dispatch('__yoloit_storage_get', '{"id":"g1","key":"k"}');
+      await denied.dispatch('__jsr_storage_get', '{"id":"g1","key":"k"}');
       expect(resolved['g1'], contains('__error'));
       denied.dispose();
     });
 
     test('dispatches fetch channel', () async {
-      await bridge.dispatch('__yoloit_fetch', '{"id":"f1","url":"/api"}');
+      await bridge.dispatch('__jsr_fetch', '{"id":"f1","url":"/api"}');
       expect(resolved['f1'], {'url': '/api', 'method': 'GET'});
     });
 
     test('dispatches secrets get/set', () async {
-      await bridge.dispatch('__yoloit_secrets_get', '{"id":"s1","key":"token"}');
+      await bridge.dispatch('__jsr_secrets_get', '{"id":"s1","key":"token"}');
       expect(resolved['s1'], 'secret:token');
-      await bridge.dispatch('__yoloit_secrets_set', '{"id":"s2","key":"token","value":"v"}');
+      await bridge.dispatch('__jsr_secrets_set', '{"id":"s2","key":"token","value":"v"}');
       expect(resolved['s2'], true);
     });
 
     test('dispatches load asset', () async {
-      await bridge.dispatch('__yoloit_load_asset', '{"id":"a1","path":"widget.js"}');
+      await bridge.dispatch('__jsr_load_asset', '{"id":"a1","path":"widget.js"}');
       expect(resolved['a1'], 'asset:widget.js');
     });
 
     test('dispatches exec', () async {
-      await bridge.dispatch('__yoloit_exec', '{"id":"e1","cmd":"ls"}');
+      await bridge.dispatch('__jsr_exec', '{"id":"e1","cmd":"ls"}');
       expect(resolved['e1'], {'cmd': 'ls'});
     });
 
     test('dispatches log channel', () async {
-      await bridge.dispatch('__yoloit_log', 'hello');
+      await bridge.dispatch('__jsr_log', 'hello');
       expect(logs, ['hello']);
     });
 
     test('dispatches export state', () async {
-      await bridge.dispatch('__yoloit_export_state', '{"counter":1}');
+      await bridge.dispatch('__jsr_export_state', '{"counter":1}');
       expect(bridge.exportedState, {'counter': 1});
     });
 
     test('updateThemeJs generates valid JS snippet', () {
       final js = JsWidgetBridge.updateThemeJs(const {'accent': '#fff'});
-      expect(js, contains('yoloit.theme='));
+      expect(js, contains('jsr.theme='));
       expect(js, contains('#fff'));
     });
 
     test('callEvent completes when event done is signaled', () async {
       final future = bridge.callEvent(() {});
-      await bridge.dispatch('__yoloit_event_done', '{}');
+      await bridge.dispatch('__jsr_event_done', '{}');
       await future;
       expect(future, completes);
     });
 
     test('interval fires through handler', () async {
-      await bridge.dispatch('__yoloit_set_interval', '{"id":"i1","ms":10}');
+      await bridge.dispatch('__jsr_set_interval', '{"id":"i1","ms":10}');
       await Future<void>.delayed(const Duration(milliseconds: 40));
       expect(resolved['i1'], 'tick');
-      bridge.dispatch('__yoloit_clear_interval', 'i1');
+      bridge.dispatch('__jsr_clear_interval', 'i1');
     });
 
     test('dispose cancels intervals and tickers', () {
