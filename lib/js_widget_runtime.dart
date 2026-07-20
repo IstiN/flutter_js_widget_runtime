@@ -9,6 +9,7 @@ export 'src/renderer/json_widget_renderer.dart' show JsonWidgetRenderer;
 export 'src/renderer/json_widget_theme.dart' show JsonWidgetTheme;
 export 'src/renderer/ui_view_bindings.dart' show UiViewBindings;
 export 'src/renderer/ui_view_field_registry.dart' show UiViewFieldRegistry;
+export 'src/renderer/ui_view_tree_normalizer.dart' show UiViewTreeNormalizer;
 export 'src/runtime/js_widget_engine.dart' show JsWidgetEngine;
 export 'src/runtime/js_widget_bridge.dart'
     show

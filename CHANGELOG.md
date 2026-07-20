@@ -1,3 +1,7 @@
+## 0.3.2
+
+- Export `UiViewTreeNormalizer` from the public API so hosts can reuse the same React/HTML-style node-name aliases.
+
 ## 0.3.1
 
 - Automated patch bump.
