@@ -1,3 +1,18 @@
+## 0.4.0
+
+- Add pluggable JS engine backend:
+  - New `JsWidgetEngineBackend` interface.
+  - `JsRuntimeConfig.backend` lets hosts use a custom engine (e.g. QuickJS FFI).
+  - Default backends remain `flutter_js` on VM and Web Worker on web.
+- Add host-provided media support for `video`/`audio` nodes:
+  - `JsMediaHost`, `JsVideoController`, `JsAudioController` interfaces.
+  - `JsonWidgetRenderer.mediaHost` wires real players while the core package
+    stays free of heavy native media dependencies.
+- Add `ExternalAssetResolver` and `JsonWidgetRenderer.externalAssetResolver`
+  for `external:<id>` image sources.
+- Add dynamic font loading via `JsFontResolver`, `JsFontLoader`, and the
+  `fontFamily` text style prop.
+
 ## 0.3.2
 
 - Export `UiViewTreeNormalizer` from the public API so hosts can reuse the same React/HTML-style node-name aliases.

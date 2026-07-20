@@ -1,11 +1,18 @@
 import 'dart:async';
+import 'dart:typed_data';
 import 'dart:ui' show ImageFilter;
 
 import 'package:flutter/material.dart';
 import 'package:flutter_markdown_plus/flutter_markdown_plus.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 
+import 'package:js_widget_runtime/src/renderer/external_asset_resolver.dart';
+import 'package:js_widget_runtime/src/renderer/font/js_font_loader.dart';
+import 'package:js_widget_runtime/src/renderer/font/js_font_resolver.dart';
 import 'package:js_widget_runtime/src/renderer/json_widget_theme.dart';
+import 'package:js_widget_runtime/src/renderer/media/js_audio_widget.dart';
+import 'package:js_widget_runtime/src/renderer/media/js_media_host.dart';
+import 'package:js_widget_runtime/src/renderer/media/js_video_widget.dart';
 import 'package:js_widget_runtime/src/renderer/nodes/image_provider_resolver_stub.dart'
     if (dart.library.io) 'package:js_widget_runtime/src/renderer/nodes/image_provider_resolver_io.dart'
     if (dart.library.html) 'package:js_widget_runtime/src/renderer/nodes/image_provider_resolver_web.dart';
@@ -51,6 +58,9 @@ class JsonWidgetRenderer {
     this.theme,
     this.imageResolver,
     this.customBuilders,
+    this.mediaHost,
+    this.externalAssetResolver,
+    this.fontResolver,
   });
 
   /// Called when a user-triggered event fires (e.g. button tap).
@@ -68,6 +78,16 @@ class JsonWidgetRenderer {
   /// Each callback receives the build context and the raw node map.
   final Map<String, Widget Function(BuildContext, Map<String, dynamic>)>?
       customBuilders;
+
+  /// Optional host-provided media factory. When set, `video`/`audio` nodes
+  /// render real players; otherwise they render placeholder icons.
+  final JsMediaHost? mediaHost;
+
+  /// Optional resolver for `external:<id>` asset sources.
+  final ExternalAssetResolver? externalAssetResolver;
+
+  /// Optional resolver that loads raw font bytes for a `fontFamily` name.
+  final JsFontResolver? fontResolver;
 
   JsonWidgetTheme get _effectiveTheme => theme ?? _jsonWidgetDefaultColors;
 
@@ -154,8 +174,8 @@ class JsonWidgetRenderer {
       // New nodes
       'path' => buildJsPathNode(m),
       'absoluteFill' || 'fill' => _absoluteFill(m),
-      'video' => _mediaPlaceholder(m, Icons.videocam),
-      'audio' => _mediaPlaceholder(m, Icons.audiotrack),
+      'video' => _video(m),
+      'audio' => _audio(m),
 
       _ => _unknownType(m),
     };
@@ -255,6 +275,21 @@ class JsonWidgetRenderer {
         child: textWidget,
       );
     }
+
+    final family = style?.fontFamily;
+    final fontResolver = this.fontResolver;
+    if (family != null && family.isNotEmpty && fontResolver != null) {
+      return FutureBuilder<Uint8List>(
+        future: fontResolver(family),
+        builder: (context, snapshot) {
+          if (snapshot.hasData) {
+            unawaited(JsFontLoader.loadFont(family, snapshot.data!));
+          }
+          return textWidget;
+        },
+      );
+    }
+
     return textWidget;
   }
 
@@ -513,6 +548,10 @@ class JsonWidgetRenderer {
     final fit = _boxFit(m['fit'] as String?);
     if (url.isEmpty) return const SizedBox.shrink();
 
+    if (url.startsWith('external:')) {
+      return _externalImage(url.substring(9), w, h, fit);
+    }
+
     ImageProvider? provider;
     if (imageResolver != null) {
       provider = imageResolver!(url);
@@ -521,15 +560,43 @@ class JsonWidgetRenderer {
 
     if (provider == null) return const SizedBox.shrink();
 
-    return Image(
-      image: provider,
-      width: w,
-      height: h,
-      fit: fit,
-      gaplessPlayback: true,
-      errorBuilder: (_, __, ___) => Icon(Icons.broken_image, size: w ?? 48),
+    return _imageWidget(provider, w, h, fit);
+  }
+
+  Widget _externalImage(String id, double? w, double? h, BoxFit fit) {
+    final resolver = externalAssetResolver;
+    if (resolver == null) {
+      return Icon(Icons.broken_image, size: w ?? 48);
+    }
+    return FutureBuilder<Uint8List?>(
+      future: resolver.resolve(id),
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return SizedBox(width: w, height: h, child: const LinearProgressIndicator());
+        }
+        final bytes = snapshot.data;
+        if (bytes == null || bytes.isEmpty) {
+          return Icon(Icons.broken_image, size: w ?? 48);
+        }
+        return _imageWidget(MemoryImage(bytes), w, h, fit);
+      },
     );
   }
+
+  Widget _imageWidget(
+    ImageProvider provider,
+    double? w,
+    double? h,
+    BoxFit fit,
+  ) =>
+      Image(
+        image: provider,
+        width: w,
+        height: h,
+        fit: fit,
+        gaplessPlayback: true,
+        errorBuilder: (_, __, ___) => Icon(Icons.broken_image, size: w ?? 48),
+      );
 
   ImageProvider? _resolveImageProvider(String source) {
     if (source.startsWith('asset:')) {
@@ -539,6 +606,18 @@ class JsonWidgetRenderer {
       return resolveFileImageProvider(source.substring(5));
     }
     return NetworkImage(source);
+  }
+
+  Widget _video(Map<String, dynamic> m) {
+    final host = mediaHost;
+    if (host == null) return _mediaPlaceholder(m, Icons.videocam);
+    return JsVideoWidget(host: host, node: m);
+  }
+
+  Widget _audio(Map<String, dynamic> m) {
+    final host = mediaHost;
+    if (host == null) return _mediaPlaceholder(m, Icons.audiotrack);
+    return JsAudioWidget(host: host, node: m);
   }
 
   Widget _svg(Map<String, dynamic> m) {
@@ -906,6 +985,7 @@ class JsonWidgetRenderer {
       fontSize: _doubleOrNull(style['fontSize']),
       fontWeight: _fontWeight(style['fontWeight']),
       fontStyle: isItalic ? FontStyle.italic : null,
+      fontFamily: style['fontFamily'] as String?,
       letterSpacing: _doubleOrNull(style['letterSpacing']),
       height: _doubleOrNull(style['height']) ??
           _doubleOrNull(style['lineHeight']),

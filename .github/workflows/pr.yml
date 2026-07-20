@@ -35,8 +35,8 @@ jobs:
       - name: Exclude platform-specific code from coverage
         run: |
           lcov --remove coverage/lcov.info \
-            'lib/src/runtime/js_widget_engine_vm.dart' \
-            'lib/src/runtime/js_widget_engine_web.dart' \
+            'lib/src/runtime/js_widget_engine_flutter_js.dart' \
+            'lib/src/runtime/js_widget_engine_web_worker.dart' \
             'lib/src/widgets/js_widget_app.dart' \
             'lib/src/widgets/js_widget_demo_menu.dart' \
             'lib/src/widgets/js_widget_runtime_widget.dart' \

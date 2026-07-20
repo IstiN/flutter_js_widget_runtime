@@ -8,16 +8,12 @@ import 'package:js_widget_runtime/src/defaults/vm_default_handlers.dart';
 import 'package:js_widget_runtime/src/model/js_runtime_config.dart';
 import 'package:js_widget_runtime/src/runtime/js_widget_bootstrap.dart';
 import 'package:js_widget_runtime/src/runtime/js_widget_bridge.dart';
+import 'package:js_widget_runtime/src/runtime/js_widget_engine_backend.dart';
 
-/// Headless JS widget engine backed by `flutter_js` (QuickJS / JavascriptCore).
-///
-/// Runs a widget's JS code and exposes the `jsr.*` API surface. All I/O is
-/// injected via [JsRuntimeConfig] so the host controls permissions and
-/// implementations.
-class JsWidgetEngine {
-  JsWidgetEngine({
-    required JsRuntimeConfig config,
-  }) : _config = config {
+/// VM JS engine backend backed by `flutter_js` (QuickJS / JavascriptCore).
+class FlutterJsWidgetEngineBackend implements JsWidgetEngineBackend {
+  FlutterJsWidgetEngineBackend({required JsRuntimeConfig config})
+    : _config = config {
     _bridge = JsWidgetBridge(
       widgetId: config.widgetId,
       onRender: config.onRender,
@@ -48,21 +44,26 @@ class JsWidgetEngine {
   final List<Map<String, dynamic>> _consoleLogs = [];
   static const int _maxLogs = 200;
 
-  /// Return and clear the accumulated console.log buffer.
+  @override
+  Future<void> init() async {
+    // Initialization happens lazily in [run].
+  }
+
+  @override
   List<Map<String, dynamic>> flushLogs() {
     final logs = List<Map<String, dynamic>>.from(_consoleLogs);
     _consoleLogs.clear();
     return logs;
   }
 
-  /// Return a copy of the console.log buffer without clearing it.
+  @override
   List<Map<String, dynamic>> peekLogs() =>
       List<Map<String, dynamic>>.from(_consoleLogs);
 
-  /// Last structured state exported via `jsr.exportState(...)`.
+  @override
   Map<String, dynamic>? get exportedState => _bridge.exportedState;
 
-  /// Push updated theme colors into the running JS widget.
+  @override
   void updateTheme(Map<String, dynamic> colors) {
     final rt = _runtime;
     if (rt == null || _disposed) return;
@@ -70,31 +71,36 @@ class JsWidgetEngine {
       rt.evaluate(JsWidgetBridge.updateThemeJs(colors));
       rt.executePendingJob();
     } catch (e) {
-      debugPrint('[JsWidgetEngine] updateTheme error: $e');
+      debugPrint('[FlutterJsWidgetEngineBackend] updateTheme error: $e');
     }
   }
 
-  Future<void> run(String widgetJs) async {
+  @override
+  Future<void> run(
+    String widgetJs, {
+    String? hostBootstrapJs,
+    Map<String, dynamic> initialTheme = const {},
+  }) async {
     await dispose();
     _disposed = false;
     _consoleLogs.clear();
 
     try {
-      // Always use getJavascriptRuntime. The host's flutter_js patch (if any)
-      // handles multi-instance isolation.
       final runtime = getJavascriptRuntime();
       runtime.enableHandlePromises();
       _runtime = runtime;
-      debugPrint('[JsWidgetEngine] starting ${runtime.runtimeType}');
+      debugPrint('[FlutterJsWidgetEngineBackend] starting ${runtime.runtimeType}');
       _setupBridges(runtime);
 
       final bootstrapResult = runtime.evaluate(kJsWidgetBootstrap);
       if (bootstrapResult.isError) {
-        debugPrint('[JsWidgetEngine] bootstrap error: ${bootstrapResult.stringResult}');
+        debugPrint(
+          '[FlutterJsWidgetEngineBackend] bootstrap error: ${bootstrapResult.stringResult}',
+        );
       }
-      updateTheme(_config.initialTheme);
+      updateTheme(initialTheme);
 
-      final hostBootstrap = _config.hostBootstrapJs ?? '';
+      final hostBootstrap = hostBootstrapJs ?? '';
       final code = '''
 (function() {
   try {
@@ -105,20 +111,24 @@ class JsWidgetEngine {
   }
 })();
 ''';
-      debugPrint('[JsWidgetEngine] evaluating widget code...');
+      debugPrint('[FlutterJsWidgetEngineBackend] evaluating widget code...');
       final result = runtime.evaluate(code);
       if (result.isError) {
-        debugPrint('[JsWidgetEngine] widget eval error: ${result.stringResult}');
+        debugPrint(
+          '[FlutterJsWidgetEngineBackend] widget eval error: ${result.stringResult}',
+        );
       }
       runtime.executePendingJob();
-      debugPrint('[JsWidgetEngine] widget code done, uiTree set: $_disposed');
+      debugPrint(
+        '[FlutterJsWidgetEngineBackend] widget code done, uiTree set: $_disposed',
+      );
     } catch (e) {
-      debugPrint('[JsWidgetEngine] startup error: $e');
+      debugPrint('[FlutterJsWidgetEngineBackend] startup error: $e');
       rethrow;
     }
   }
 
-  /// Call the JS `handleEvent(actionId, payload)` function.
+  @override
   Future<void> callEvent(
     String actionId, [
     Map<String, dynamic>? payload,
@@ -145,6 +155,7 @@ class JsWidgetEngine {
     });
   }
 
+  @override
   Future<void> dispose() async {
     _disposed = true;
     _bridge.dispose();
@@ -249,7 +260,7 @@ class JsWidgetEngine {
       );
       rt.executePendingJob();
     } catch (e) {
-      debugPrint('[JsWidgetEngine] RAF tick error: $e');
+      debugPrint('[FlutterJsWidgetEngineBackend] RAF tick error: $e');
     }
   }
 
@@ -261,7 +272,7 @@ class JsWidgetEngine {
       );
       rt.executePendingJob();
     } catch (e) {
-      debugPrint('[JsWidgetEngine] resolve callback error: $e');
+      debugPrint('[FlutterJsWidgetEngineBackend] resolve callback error: $e');
     }
   }
 }

@@ -8,19 +8,15 @@ import 'package:web/web.dart' as web;
 import 'package:js_widget_runtime/src/model/js_runtime_config.dart';
 import 'package:js_widget_runtime/src/runtime/js_widget_bootstrap.dart';
 import 'package:js_widget_runtime/src/runtime/js_widget_bridge.dart';
+import 'package:js_widget_runtime/src/runtime/js_widget_engine_backend.dart';
 import 'package:js_widget_runtime/src/runtime/js_widget_engine_message.dart';
 import 'package:js_widget_runtime/src/defaults/web_default_handlers.dart';
 
-/// Web JS widget engine backed by a dedicated [web.Worker].
-///
-/// The worker is created from an inline Blob URL so it stays same-origin. The
-/// Dart side and the worker communicate via prefixed [JsWidgetMessage] strings
-/// over `postMessage`. All I/O is injected via [JsRuntimeConfig].
-class JsWidgetEngine {
-  JsWidgetEngine({
-    required JsRuntimeConfig config,
-  }) : _config = config,
-       _consoleLogs = [] {
+/// Web JS engine backend backed by a dedicated [web.Worker].
+class WebWorkerJsWidgetEngineBackend implements JsWidgetEngineBackend {
+  WebWorkerJsWidgetEngineBackend({required JsRuntimeConfig config})
+    : _config = config,
+      _consoleLogs = [] {
     _bridge = JsWidgetBridge(
       widgetId: config.widgetId,
       onRender: config.onRender,
@@ -30,8 +26,14 @@ class JsWidgetEngine {
       isDisposed: () => _disposed,
       appDir: config.appDir,
       isPermissionAllowed: config.isPermissionAllowed ?? _allowAll,
-      resolveCallback: config.resolveCallback ?? (id, value) => _resolveCallback(id, value),
-      fetchHandler: (id, url, method, headers) => _handleFetch(id, url, method, headers),
+      resolveCallback:
+          config.resolveCallback ?? (id, value) => _resolveCallback(id, value),
+      fetchHandler: (id, url, method, headers) => _handleFetch(
+        id,
+        url,
+        method,
+        headers,
+      ),
       secretsGetHandler: (id, key) async {
         if (_config.secretsGetHandler != null) {
           await _config.secretsGetHandler!.call(id, key);
@@ -69,24 +71,37 @@ class JsWidgetEngine {
   static const int _maxLogs = 200;
   String? _blobUrl;
 
+  @override
+  Future<void> init() async {
+    // Initialization happens lazily in [run].
+  }
+
+  @override
   List<Map<String, dynamic>> flushLogs() {
     final logs = List<Map<String, dynamic>>.from(_consoleLogs);
     _consoleLogs.clear();
     return logs;
   }
 
+  @override
   List<Map<String, dynamic>> peekLogs() =>
       List<Map<String, dynamic>>.from(_consoleLogs);
 
+  @override
   Map<String, dynamic>? get exportedState => _bridge.exportedState;
 
-  Future<void> run(String widgetJs) async {
+  @override
+  Future<void> run(
+    String widgetJs, {
+    String? hostBootstrapJs,
+    Map<String, dynamic> initialTheme = const {},
+  }) async {
     await dispose();
     _disposed = false;
     _consoleLogs.clear();
     _readyCompleter = Completer<void>();
 
-    final script = _buildWorkerScript(widgetJs, _config.initialTheme);
+    final script = _buildWorkerScript(widgetJs, initialTheme, hostBootstrapJs);
     final blob = web.Blob(
       [script.toJS].toJS,
       web.BlobPropertyBag(type: 'application/javascript'),
@@ -103,12 +118,13 @@ class JsWidgetEngine {
     await _readyCompleter!.future.timeout(
       const Duration(seconds: 5),
       onTimeout: () {
-        debugPrint('[JsWidgetEngineWeb] worker ready timeout');
+        debugPrint('[WebWorkerJsWidgetEngineBackend] worker ready timeout');
       },
     );
     _config.onResolveReady?.call(_bridge.resolveCallback);
   }
 
+  @override
   Future<void> callEvent(
     String actionId, [
     Map<String, dynamic>? payload,
@@ -127,9 +143,11 @@ class JsWidgetEngine {
     });
   }
 
+  @override
   void updateTheme(Map<String, dynamic> colors) =>
       _postToWorker('__jsr_updateTheme', colors);
 
+  @override
   Future<void> dispose() async {
     _disposed = true;
     _bridge.dispose();
@@ -177,7 +195,13 @@ class JsWidgetEngine {
       await _config.fetchHandler!.call(id, url, method, headers);
       return;
     }
-    await defaultWebFetchHandler(id, url, method, headers, _bridge.resolveCallback);
+    await defaultWebFetchHandler(
+      id,
+      url,
+      method,
+      headers,
+      _bridge.resolveCallback,
+    );
   }
 
   Future<void> _handleExec(String id, String cmd) async {
@@ -200,9 +224,13 @@ class JsWidgetEngine {
     worker.postMessage(message.toJS);
   }
 
-  String _buildWorkerScript(String widgetJs, Map<String, dynamic> initialTheme) {
+  String _buildWorkerScript(
+    String widgetJs,
+    Map<String, dynamic> initialTheme, [
+    String? hostBootstrapJs,
+  ]) {
     final escapedJs = widgetJs.replaceAll('</script>', '<\\/script>');
-    final escapedHostBootstrap = (_config.hostBootstrapJs ?? '')
+    final escapedHostBootstrap = (hostBootstrapJs ?? '')
         .replaceAll('</script>', '<\\/script>');
     final themeJson = jsonEncode(initialTheme);
     return '''

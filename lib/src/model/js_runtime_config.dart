@@ -1,5 +1,7 @@
 import 'package:flutter/foundation.dart';
 
+import 'package:js_widget_runtime/src/runtime/js_widget_engine_backend.dart';
+
 /// Callback invoked to check whether a capability is allowed.
 /// Capabilities: 'fetch', 'storage', 'secrets', 'exec'.
 typedef JsPermissionChecker = bool Function(String capability);
@@ -42,6 +44,7 @@ class JsRuntimeConfig {
     this.execHandler,
     this.intervalTickHandler,
     this.rafTickHandler,
+    this.backend,
   });
 
   final String widgetId;
@@ -110,6 +113,10 @@ class JsRuntimeConfig {
   /// Dart-backed animation frame tick.
   final void Function(String id, int elapsedMs)? rafTickHandler;
 
+  /// Optional JS engine backend. When omitted, the engine uses the platform
+  /// default (`flutter_js` on VM, Web Worker on web).
+  final JsWidgetEngineBackend? backend;
+
   JsRuntimeConfig copyWith({
     String? widgetId,
     String? appDir,
@@ -137,6 +144,7 @@ class JsRuntimeConfig {
     Future<void> Function(String id, String cmd)? execHandler,
     void Function(String id)? intervalTickHandler,
     void Function(String id, int elapsedMs)? rafTickHandler,
+    JsWidgetEngineBackend? backend,
   }) =>
       JsRuntimeConfig(
         widgetId: widgetId ?? this.widgetId,
@@ -158,5 +166,6 @@ class JsRuntimeConfig {
         execHandler: execHandler ?? this.execHandler,
         intervalTickHandler: intervalTickHandler ?? this.intervalTickHandler,
         rafTickHandler: rafTickHandler ?? this.rafTickHandler,
+        backend: backend ?? this.backend,
       );
 }

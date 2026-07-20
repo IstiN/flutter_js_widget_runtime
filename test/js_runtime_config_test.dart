@@ -18,6 +18,7 @@ void main() {
       expect(config.initialTheme, isA<Map<String, dynamic>>());
       expect(config.initialStorage, isEmpty);
       expect(config.hostBootstrapJs, isNull);
+      expect(config.backend, isNull);
     });
 
     test('copyWith overrides values', () {

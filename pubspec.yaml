@@ -1,6 +1,6 @@
 name: js_widget_runtime
 description: Run JavaScript widgets as Flutter widgets using QuickJS (VM) or Web Workers (web).
-version: 0.3.2
+version: 0.4.0
 homepage: https://github.com/IstiN/flutter_js_widget_runtime
 documentation: https://github.com/IstiN/flutter_js_widget_runtime/tree/main
 
