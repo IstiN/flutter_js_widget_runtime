@@ -3,6 +3,7 @@ import 'dart:typed_data';
 import 'dart:ui' show ImageFilter;
 
 import 'package:flutter/material.dart';
+import 'package:flutter_map/flutter_map.dart' show TileProvider;
 import 'package:flutter_markdown_plus/flutter_markdown_plus.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 
@@ -16,6 +17,7 @@ import 'package:js_widget_runtime/src/renderer/media/js_video_widget.dart';
 import 'package:js_widget_runtime/src/renderer/nodes/image_provider_resolver_stub.dart'
     if (dart.library.io) 'package:js_widget_runtime/src/renderer/nodes/image_provider_resolver_io.dart'
     if (dart.library.html) 'package:js_widget_runtime/src/renderer/nodes/image_provider_resolver_web.dart';
+import 'package:js_widget_runtime/src/renderer/nodes/js_map_node.dart';
 import 'package:js_widget_runtime/src/renderer/nodes/js_node_helpers.dart';
 import 'package:js_widget_runtime/src/renderer/nodes/js_path_node.dart';
 import 'package:js_widget_runtime/src/renderer/ui_view_field_registry.dart';
@@ -33,6 +35,7 @@ final _jsonWidgetDefaultColors = JsonWidgetTheme.fromAccent(Colors.deepPurple);
 /// List:     listView, gridView, listTile
 /// Input:    button, textButton, outlinedButton, iconButton, textField,
 ///           switch, checkbox, slider, dropdown
+/// Map:      map (OSM tiles via flutter_map, markers, polylines)
 /// Media:    video, audio (render placeholders unless a custom builder is registered)
 /// Effects:  blur (ImageFilter), clip on container, boxShadows, radial gradients,
 ///           rotateX/rotateY/perspective transforms, textShadows, textTransform,
@@ -61,6 +64,7 @@ class JsonWidgetRenderer {
     this.mediaHost,
     this.externalAssetResolver,
     this.fontResolver,
+    this.mapTileProvider,
   });
 
   /// Called when a user-triggered event fires (e.g. button tap).
@@ -88,6 +92,11 @@ class JsonWidgetRenderer {
 
   /// Optional resolver that loads raw font bytes for a `fontFamily` name.
   final JsFontResolver? fontResolver;
+
+  /// Optional tile provider for `map` nodes. Tests inject an in-memory
+  /// provider so tile loading never hits the network; null uses the default
+  /// OSM network provider.
+  final TileProvider? mapTileProvider;
 
   JsonWidgetTheme get _effectiveTheme => theme ?? _jsonWidgetDefaultColors;
 
@@ -173,6 +182,7 @@ class JsonWidgetRenderer {
 
       // New nodes
       'path' => buildJsPathNode(m),
+      'map' => buildJsMapNode(m, onEvent, tileProvider: mapTileProvider),
       'absoluteFill' || 'fill' => _absoluteFill(m),
       'video' => _video(m),
       'audio' => _audio(m),

@@ -56,6 +56,21 @@ class DemoPage extends StatelessWidget {
 
 See the `example/` folder for a runnable menu of sample JS apps.
 
+## Renderer nodes
+
+The JSON tree supports these node types:
+
+| Category | Nodes |
+| --- | --- |
+| Layout | `column`, `row`, `stack`, `center`, `padding`, `sizedBox`, `expanded`, `flexible`, `wrap`, `align`, `absoluteFill` |
+| Display | `text`, `icon`, `markdown`, `divider`, `spacer`, `image`, `svg`, `avatar`, `chip`, `badge`, `path`, progress indicators |
+| Container | `container`, `card`, `inkWell`, `safeArea`, `scroll`, `blur` |
+| List | `listView`, `gridView`, `listTile` |
+| Input | `button`, `textButton`, `outlinedButton`, `iconButton`, `textField`, `switch`, `checkbox`, `slider`, `dropdown` |
+| Map | `map` — OpenStreetMap via [flutter_map](https://pub.dev/packages/flutter_map) (no API key). Props: `center {lat, lng}`, `zoom`, `markers [{id, lat, lng, label?, color?}]`, `polylines [{points, color?, width?}]`, `fitBounds`; events: `onTap` (`{lat, lng}`), `onMarkerTap` (`{id}`) |
+| Media | `video`, `audio` (host-provided via `JsMediaHost`) |
+| Gestures | `gestureDetector` |
+
 ## Features
 
 - Cross-platform JS execution (VM + web).

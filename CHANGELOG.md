@@ -1,3 +1,14 @@
+## 0.4.5
+
+- Add a `map` node to the JSON renderer, built on `flutter_map` + `latlong2`
+  with OpenStreetMap tiles (no API key). Props: `center {lat, lng}`, `zoom`,
+  `markers [{id, lat, lng, label?, color?}]`, `polylines [{points, color?,
+  width?}]`, and `fitBounds` (`true` to fit all markers/polylines, or an
+  explicit `[[lat, lng], [lat, lng]]` corner list). Events route through the
+  standard bridge: `onTap` fires with `{lat, lng}` and `onMarkerTap` with
+  `{id}`. `JsonWidgetRenderer.mapTileProvider` lets hosts/tests inject a
+  custom `TileProvider` so tile loading never has to hit the network.
+
 ## 0.4.4
 
 - Automated patch bump.
