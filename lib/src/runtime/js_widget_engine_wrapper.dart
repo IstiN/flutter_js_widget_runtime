@@ -1,7 +1,7 @@
 import 'package:js_widget_runtime/src/model/js_runtime_config.dart';
 import 'package:js_widget_runtime/src/runtime/js_widget_engine_backend.dart';
-import 'package:js_widget_runtime/src/runtime/js_widget_engine_flutter_js.dart'
-    if (dart.library.html) 'package:js_widget_runtime/src/runtime/js_widget_engine_web_worker.dart';
+import 'package:js_widget_runtime/src/runtime/js_widget_engine_default.dart'
+    if (dart.library.html) 'package:js_widget_runtime/src/runtime/js_widget_engine_default_web.dart';
 
 /// Entry point for running a JS widget.
 ///
@@ -60,5 +60,5 @@ class JsWidgetEngine {
 JsWidgetEngineBackend _defaultBackend(JsRuntimeConfig config) {
   // The conditional import above resolves to FlutterJsWidgetEngineBackend on
   // VM platforms and WebWorkerJsWidgetEngineBackend on the web.
-  return FlutterJsWidgetEngineBackend(config: config);
+  return createDefaultJsWidgetEngineBackend(config);
 }

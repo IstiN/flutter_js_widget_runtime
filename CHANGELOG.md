@@ -1,3 +1,12 @@
+## 0.4.2
+
+- Fix web compilation of `JsWidgetEngine`: `_defaultBackend` referenced
+  `FlutterJsWidgetEngineBackend` unconditionally, but the conditional import
+  resolves to the Web Worker backend on the web, so any web build importing
+  the wrapper failed with "Method not found: 'FlutterJsWidgetEngineBackend'".
+  The platform pick now lives in a factory behind its own conditional import
+  (`js_widget_engine_default.dart` / `js_widget_engine_default_web.dart`).
+
 ## 0.4.1
 
 - Fix `JsWidgetBridge.callEvent` for rapid-fire gestures: concurrent events
