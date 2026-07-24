@@ -77,7 +77,7 @@ class JsonWidgetRenderer {
   /// Optional map of custom node builders keyed by node type.
   /// Each callback receives the build context and the raw node map.
   final Map<String, Widget Function(BuildContext, Map<String, dynamic>)>?
-      customBuilders;
+  customBuilders;
 
   /// Optional host-provided media factory. When set, `video`/`audio` nodes
   /// render real players; otherwise they render placeholder icons.
@@ -200,21 +200,20 @@ class JsonWidgetRenderer {
   );
 
   Widget _stack(Map<String, dynamic> m) {
-    final children =
-        (m['children'] as List? ?? []).map((c) {
-          final cm = (c as Map?)?.cast<String, dynamic>() ?? {};
-          if (cm['positioned'] != null) {
-            final p = (cm['positioned'] as Map).cast<String, dynamic>();
-            return Positioned(
-              left: _doubleOrNull(p['left']),
-              top: _doubleOrNull(p['top']),
-              right: _doubleOrNull(p['right']),
-              bottom: _doubleOrNull(p['bottom']),
-              child: _build(cm['child'] ?? cm),
-            );
-          }
-          return _build(c);
-        }).toList();
+    final children = (m['children'] as List? ?? []).map((c) {
+      final cm = (c as Map?)?.cast<String, dynamic>() ?? {};
+      if (cm['positioned'] != null) {
+        final p = (cm['positioned'] as Map).cast<String, dynamic>();
+        return Positioned(
+          left: _doubleOrNull(p['left']),
+          top: _doubleOrNull(p['top']),
+          right: _doubleOrNull(p['right']),
+          bottom: _doubleOrNull(p['bottom']),
+          child: _build(cm['child'] ?? cm),
+        );
+      }
+      return _build(c);
+    }).toList();
     final fit = switch (m['fit'] as String?) {
       'expand' => StackFit.expand,
       'loose' => StackFit.loose,
@@ -400,10 +399,9 @@ class JsonWidgetRenderer {
     final label = (m['label'] ?? m['data'] ?? m['text'] ?? '').toString();
     return ActionChip(
       label: Text(label),
-      avatar:
-          m['icon'] is String
-              ? Icon(_iconData(m['icon'] as String), size: 16)
-              : null,
+      avatar: m['icon'] is String
+          ? Icon(_iconData(m['icon'] as String), size: 16)
+          : null,
       onPressed: _tapHandler(m['onTap'], m['payload']) ?? () {},
     );
   }
@@ -441,9 +439,11 @@ class JsonWidgetRenderer {
     final control = Checkbox(
       value: value,
       activeColor: _color(m['color'] as String?),
-      onChanged: handler == null ? null : (next) {
-        if (next != null) handler(next);
-      },
+      onChanged: handler == null
+          ? null
+          : (next) {
+              if (next != null) handler(next);
+            },
     );
     if (label == null) return control;
     return Row(
@@ -475,7 +475,9 @@ class JsonWidgetRenderer {
     final value = (m['value'] ?? items.first.value)?.toString();
     return DropdownButton<String>(
       isExpanded: m['expanded'] as bool? ?? true,
-      value: items.any((item) => item.value == value) ? value : items.first.value,
+      value: items.any((item) => item.value == value)
+          ? value
+          : items.first.value,
       items: items,
       onChanged: (next) {
         final action = m['onChange'] ?? m['onChanged'] ?? m['onTap'];
@@ -486,14 +488,16 @@ class JsonWidgetRenderer {
   }
 
   List<DropdownMenuItem<String>> _dropdownItems(Map<String, dynamic> m) {
-    final raw = m['items'] as List? ?? m['options'] as List? ?? const <dynamic>[];
+    final raw =
+        m['items'] as List? ?? m['options'] as List? ?? const <dynamic>[];
     return raw.map((item) {
       if (item is String) {
         return DropdownMenuItem<String>(value: item, child: Text(item));
       }
       if (item is Map) {
         final map = item.cast<String, dynamic>();
-        final value = (map['value'] ?? map['id'] ?? map['label'] ?? '').toString();
+        final value = (map['value'] ?? map['id'] ?? map['label'] ?? '')
+            .toString();
         final label = (map['label'] ?? map['text'] ?? value).toString();
         return DropdownMenuItem<String>(value: value, child: Text(label));
       }
@@ -534,8 +538,7 @@ class JsonWidgetRenderer {
         mainAxisSize: MainAxisSize.min,
         children: [
           Icon(icon, size: _double(m['size'], 32)),
-          if (label != null)
-            Text(label, style: const TextStyle(fontSize: 12)),
+          if (label != null) Text(label, style: const TextStyle(fontSize: 12)),
         ],
       ),
     );
@@ -572,7 +575,11 @@ class JsonWidgetRenderer {
       future: resolver.resolve(id),
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
-          return SizedBox(width: w, height: h, child: const LinearProgressIndicator());
+          return SizedBox(
+            width: w,
+            height: h,
+            child: const LinearProgressIndicator(),
+          );
         }
         final bytes = snapshot.data;
         if (bytes == null || bytes.isEmpty) {
@@ -588,15 +595,14 @@ class JsonWidgetRenderer {
     double? w,
     double? h,
     BoxFit fit,
-  ) =>
-      Image(
-        image: provider,
-        width: w,
-        height: h,
-        fit: fit,
-        gaplessPlayback: true,
-        errorBuilder: (_, __, ___) => Icon(Icons.broken_image, size: w ?? 48),
-      );
+  ) => Image(
+    image: provider,
+    width: w,
+    height: h,
+    fit: fit,
+    gaplessPlayback: true,
+    errorBuilder: (_, __, ___) => Icon(Icons.broken_image, size: w ?? 48),
+  );
 
   ImageProvider? _resolveImageProvider(String source) {
     if (source.startsWith('asset:')) {
@@ -640,10 +646,9 @@ class JsonWidgetRenderer {
       fit: fit,
       width: w,
       height: h,
-      colorFilter:
-          tint == null
-              ? null
-              : ColorFilter.mode(tint, BlendMode.srcIn),
+      colorFilter: tint == null
+          ? null
+          : ColorFilter.mode(tint, BlendMode.srcIn),
     );
     if (w != null || h != null) {
       picture = SizedBox(width: w, height: h, child: picture);
@@ -655,10 +660,7 @@ class JsonWidgetRenderer {
     final trimmed = raw.trim();
     if (trimmed.startsWith('<')) return trimmed;
 
-    final fill =
-        m['fill'] as String? ??
-        m['color'] as String? ??
-        '#FF5733';
+    final fill = m['fill'] as String? ?? m['color'] as String? ?? '#FF5733';
     final viewBox = m['viewBox'] as String? ?? '0 0 100 100';
     return '<svg xmlns="http://www.w3.org/2000/svg" viewBox="$viewBox">'
         '<path d="$trimmed" fill="$fill"/></svg>';
@@ -671,16 +673,23 @@ class JsonWidgetRenderer {
     if (deco != null) {
       return _boxDecoration(deco.cast<String, dynamic>());
     }
-    final bg =
-        m['backgroundColor'] as String? ??
-        m['color'] as String?;
+    final bg = m['backgroundColor'] as String? ?? m['color'] as String?;
     if (bg != null) {
       return BoxDecoration(color: _color(bg));
     }
     return null;
   }
 
-  ({double? width, double? height, EdgeInsetsGeometry? padding, EdgeInsetsGeometry? margin, Alignment? alignment, Decoration? decoration, Widget? child}) _containerProps(Map<String, dynamic> m) => (
+  ({
+    double? width,
+    double? height,
+    EdgeInsetsGeometry? padding,
+    EdgeInsetsGeometry? margin,
+    Alignment? alignment,
+    Decoration? decoration,
+    Widget? child,
+  })
+  _containerProps(Map<String, dynamic> m) => (
     width: _doubleOrNull(m['width']),
     height: _doubleOrNull(m['height']),
     padding: _edgeInsetsOrNull(m['padding']),
@@ -715,12 +724,11 @@ class JsonWidgetRenderer {
     Decoration? decoration,
     dynamic borderRadius,
   ) {
-    if (decoration is BoxDecoration && decoration.borderRadius is BorderRadius) {
+    if (decoration is BoxDecoration &&
+        decoration.borderRadius is BorderRadius) {
       return decoration.borderRadius as BorderRadius;
     }
-    final br = _doubleOrNull(borderRadius);
-    if (br != null) return BorderRadius.circular(br);
-    return null;
+    return jsBorderRadius(borderRadius);
   }
 
   Widget _applyBlur(Widget child, dynamic blur) {
@@ -747,7 +755,10 @@ class JsonWidgetRenderer {
     final scale = _doubleOrNull(m['scale']);
     final rotation = _doubleOrNull(m['rotation']);
 
-    if (offsetX != null || offsetY != null || scale != null || rotation != null) {
+    if (offsetX != null ||
+        offsetY != null ||
+        scale != null ||
+        rotation != null) {
       final matrix = Matrix4.identity();
       if (offsetX != null || offsetY != null) {
         matrix.translateByDouble(offsetX ?? 0.0, offsetY ?? 0.0, 0, 1);
@@ -781,19 +792,20 @@ class JsonWidgetRenderer {
     margin: _edgeInsetsOrNull(m['margin']) ?? EdgeInsets.zero,
     color: _color(m['color'] as String?),
     shape: RoundedRectangleBorder(
-      borderRadius: BorderRadius.circular(_double(m['borderRadius'], 8)),
+      borderRadius:
+          jsBorderRadius(m['borderRadius']) ?? BorderRadius.circular(8),
     ),
     child: _child(m),
   );
 
   Widget _inkWell(Map<String, dynamic> m) => InkWell(
     onTap: _tapHandler(m['onTap'], m['payload']),
-    borderRadius: BorderRadius.circular(_double(m['borderRadius'], 8)),
+    borderRadius: jsBorderRadius(m['borderRadius']) ?? BorderRadius.circular(8),
     child: _child(m),
   );
 
   Widget _clipRRect(Map<String, dynamic> m) => ClipRRect(
-    borderRadius: BorderRadius.circular(_double(m['borderRadius'], 8)),
+    borderRadius: jsBorderRadius(m['borderRadius']) ?? BorderRadius.circular(8),
     child: _child(m),
   );
 
@@ -809,10 +821,9 @@ class JsonWidgetRenderer {
     return ListView.builder(
       shrinkWrap: shrink,
       reverse: reverse,
-      physics:
-          shrink
-              ? const NeverScrollableScrollPhysics()
-              : const AlwaysScrollableScrollPhysics(),
+      physics: shrink
+          ? const NeverScrollableScrollPhysics()
+          : const AlwaysScrollableScrollPhysics(),
       padding: _edgeInsetsOrNull(m['padding']),
       itemCount: items.length,
       itemBuilder: (_, i) => _build(items[i]),
@@ -847,8 +858,8 @@ class JsonWidgetRenderer {
       style: _materialButtonStyle(
         m['style'] is Map
             ? Map<String, dynamic>.from(
-              (m['style'] as Map).cast<String, dynamic>(),
-            )
+                (m['style'] as Map).cast<String, dynamic>(),
+              )
             : null,
       ),
       child: label,
@@ -861,8 +872,8 @@ class JsonWidgetRenderer {
       style: _materialButtonStyle(
         m['style'] is Map
             ? Map<String, dynamic>.from(
-              (m['style'] as Map).cast<String, dynamic>(),
-            )
+                (m['style'] as Map).cast<String, dynamic>(),
+              )
             : null,
         textButton: true,
       ),
@@ -871,22 +882,20 @@ class JsonWidgetRenderer {
   }
 
   Widget _outlinedButton(Map<String, dynamic> m) {
-    final style =
-        m['style'] is Map
-            ? Map<String, dynamic>.from(
-              (m['style'] as Map).cast<String, dynamic>(),
-            )
-            : null;
+    final style = m['style'] is Map
+        ? Map<String, dynamic>.from((m['style'] as Map).cast<String, dynamic>())
+        : null;
     final border = _color(style?['borderColor'] as String?);
     final base = _materialButtonStyle(style, outlined: true);
     return OutlinedButton(
       onPressed: _tapHandler(_buttonActionId(m), m['payload']),
-      style:
-          border != null
-              ? (base ?? const ButtonStyle()).merge(
-                ButtonStyle(side: WidgetStatePropertyAll(BorderSide(color: border))),
-              )
-              : base,
+      style: border != null
+          ? (base ?? const ButtonStyle()).merge(
+              ButtonStyle(
+                side: WidgetStatePropertyAll(BorderSide(color: border)),
+              ),
+            )
+          : base,
       child: _buttonLabel(m),
     );
   }
@@ -913,8 +922,8 @@ class JsonWidgetRenderer {
     final baseStyle = textButton
         ? TextButton.styleFrom(foregroundColor: fg)
         : outlined
-            ? OutlinedButton.styleFrom(backgroundColor: bg, foregroundColor: fg)
-            : ElevatedButton.styleFrom(backgroundColor: bg, foregroundColor: fg);
+        ? OutlinedButton.styleFrom(backgroundColor: bg, foregroundColor: fg)
+        : ElevatedButton.styleFrom(backgroundColor: bg, foregroundColor: fg);
 
     return baseStyle.merge(
       ButtonStyle(
@@ -969,8 +978,9 @@ class JsonWidgetRenderer {
   VoidCallback? _tapHandler(dynamic actionId, dynamic payload) {
     if (actionId == null) return null;
     final id = actionId.toString();
-    final p =
-        payload is Map ? payload.cast<String, dynamic>() : <String, dynamic>{};
+    final p = payload is Map
+        ? payload.cast<String, dynamic>()
+        : <String, dynamic>{};
     return () => onEvent(id, p);
   }
 
@@ -978,8 +988,7 @@ class JsonWidgetRenderer {
 
   TextStyle? _textStyle(Map? style) {
     if (style == null) return null;
-    final isItalic =
-        style['italic'] == true || style['fontStyle'] == 'italic';
+    final isItalic = style['italic'] == true || style['fontStyle'] == 'italic';
     return TextStyle(
       color: _color(style['color'] as String?),
       fontSize: _doubleOrNull(style['fontSize']),
@@ -987,9 +996,11 @@ class JsonWidgetRenderer {
       fontStyle: isItalic ? FontStyle.italic : null,
       fontFamily: style['fontFamily'] as String?,
       letterSpacing: _doubleOrNull(style['letterSpacing']),
-      height: _doubleOrNull(style['height']) ??
-          _doubleOrNull(style['lineHeight']),
-      shadows: _textShadows(style['textShadows'] as List? ?? style['shadows'] as List?),
+      height:
+          _doubleOrNull(style['height']) ?? _doubleOrNull(style['lineHeight']),
+      shadows: _textShadows(
+        style['textShadows'] as List? ?? style['shadows'] as List?,
+      ),
     );
   }
 
@@ -1006,16 +1017,15 @@ class JsonWidgetRenderer {
   }
 
   BoxDecoration _boxDecoration(Map<String, dynamic> d) {
-    final br = _doubleOrNull(d['borderRadius']);
+    final br = jsBorderRadius(d['borderRadius']);
     final borderColor = _color(d['borderColor'] as String?);
     final borderWidth = _double(d['borderWidth'], 1);
     return BoxDecoration(
       color: _color(d['color'] as String?),
-      borderRadius: br != null ? BorderRadius.circular(br) : null,
-      border:
-          borderColor != null
-              ? Border.all(color: borderColor, width: borderWidth)
-              : null,
+      borderRadius: br,
+      border: borderColor != null
+          ? Border.all(color: borderColor, width: borderWidth)
+          : null,
       gradient: _gradient(d['gradient'] as Map?),
       boxShadow: _boxShadows(d['shadows'] as List? ?? d['shadow'] as List?),
     );
@@ -1036,16 +1046,14 @@ class JsonWidgetRenderer {
 
   Gradient? _gradient(Map? g) {
     if (g == null) return null;
-    final colors =
-        (g['colors'] as List? ?? [])
-            .map((c) => _color(c as String?) ?? Colors.transparent)
-            .toList();
+    final colors = (g['colors'] as List? ?? [])
+        .map((c) => _color(c as String?) ?? Colors.transparent)
+        .toList();
     if (colors.isEmpty) return null;
-    final stops =
-        (g['stops'] as List? ?? [])
-            .map((s) => (s as num?)?.toDouble())
-            .whereType<double>()
-            .toList();
+    final stops = (g['stops'] as List? ?? [])
+        .map((s) => (s as num?)?.toDouble())
+        .whereType<double>()
+        .toList();
     final type = g['type'] as String? ?? 'linear';
     if (type == 'radial') {
       final center = _alignmentGradient(g['center'] as String?);
@@ -1260,8 +1268,7 @@ class JsonWidgetRenderer {
   double? _doubleOrNull(dynamic v) => jsDoubleOrNull(v);
 
   Widget _textFieldNode(Map<String, dynamic> m) => _TextFieldNode(
-    initialValue:
-        m['initialValue'] as String? ?? m['value'] as String? ?? '',
+    initialValue: m['initialValue'] as String? ?? m['value'] as String? ?? '',
     hint: m['hint'] as String? ?? '',
     storageKey:
         m['storageKey'] as String? ??
@@ -1387,43 +1394,38 @@ class JsonWidgetRenderer {
     return GestureDetector(
       behavior: HitTestBehavior.opaque,
       onTap: m['onTap'] != null ? () => fire(m['onTap'] as String, {}) : null,
-      onTapDown:
-          m['onTapDown'] != null
-              ? (d) => fire(m['onTapDown'] as String, {
-                'x': d.localPosition.dx,
-                'y': d.localPosition.dy,
-              })
-              : null,
-      onTapUp:
-          m['onTapUp'] != null
-              ? (d) => fire(m['onTapUp'] as String, {
-                'x': d.localPosition.dx,
-                'y': d.localPosition.dy,
-              })
-              : null,
-      onPanStart:
-          m['onPanStart'] != null
-              ? (d) => fire(m['onPanStart'] as String, {
-                'x': d.localPosition.dx,
-                'y': d.localPosition.dy,
-              })
-              : null,
-      onPanUpdate:
-          m['onPanUpdate'] != null
-              ? (d) => fire(m['onPanUpdate'] as String, {
-                'x': d.localPosition.dx,
-                'y': d.localPosition.dy,
-                'dx': d.delta.dx,
-                'dy': d.delta.dy,
-              })
-              : null,
-      onPanEnd:
-          m['onPanEnd'] != null
-              ? (d) => fire(m['onPanEnd'] as String, {
-                'velocityX': d.velocity.pixelsPerSecond.dx,
-                'velocityY': d.velocity.pixelsPerSecond.dy,
-              })
-              : null,
+      onTapDown: m['onTapDown'] != null
+          ? (d) => fire(m['onTapDown'] as String, {
+              'x': d.localPosition.dx,
+              'y': d.localPosition.dy,
+            })
+          : null,
+      onTapUp: m['onTapUp'] != null
+          ? (d) => fire(m['onTapUp'] as String, {
+              'x': d.localPosition.dx,
+              'y': d.localPosition.dy,
+            })
+          : null,
+      onPanStart: m['onPanStart'] != null
+          ? (d) => fire(m['onPanStart'] as String, {
+              'x': d.localPosition.dx,
+              'y': d.localPosition.dy,
+            })
+          : null,
+      onPanUpdate: m['onPanUpdate'] != null
+          ? (d) => fire(m['onPanUpdate'] as String, {
+              'x': d.localPosition.dx,
+              'y': d.localPosition.dy,
+              'dx': d.delta.dx,
+              'dy': d.delta.dy,
+            })
+          : null,
+      onPanEnd: m['onPanEnd'] != null
+          ? (d) => fire(m['onPanEnd'] as String, {
+              'velocityX': d.velocity.pixelsPerSecond.dx,
+              'velocityY': d.velocity.pixelsPerSecond.dy,
+            })
+          : null,
       child: child,
     );
   }
@@ -1523,11 +1525,9 @@ class _TextFieldNodeState extends State<_TextFieldNode> {
       controller: _ctrl,
       focusNode: _focusNode,
       obscureText: widget.obscure,
-      style: widget.style ?? TextStyle(color: colorScheme.onSurface, fontSize: 14),
-      decoration: appInputDecoration(
-        context: context,
-        hintText: widget.hint,
-      ),
+      style:
+          widget.style ?? TextStyle(color: colorScheme.onSurface, fontSize: 14),
+      decoration: appInputDecoration(context: context, hintText: widget.hint),
       onSubmitted: (val) {
         _emitChange(val);
         final action = widget.onSubmit;
@@ -1577,12 +1577,11 @@ class _SparklinePainter extends CustomPainter {
       path.cubicTo(cpx, toY(prev), cpx, toY(curr), x, toY(curr));
     }
 
-    final linePaint =
-        Paint()
-          ..color = color
-          ..strokeWidth = 2.0
-          ..style = PaintingStyle.stroke
-          ..strokeCap = StrokeCap.round;
+    final linePaint = Paint()
+      ..color = color
+      ..strokeWidth = 2.0
+      ..style = PaintingStyle.stroke
+      ..strokeCap = StrokeCap.round;
     canvas.drawPath(path, linePaint);
 
     if (fill) {

@@ -10,6 +10,13 @@
   the wrapper failed with "Method not found: 'FlutterJsWidgetEngineBackend'".
   The platform pick now lives in a factory behind its own conditional import
   (`js_widget_engine_default.dart` / `js_widget_engine_default_web.dart`).
+- Renderer no longer crashes on malformed numeric props from generated
+  widgets: `jsDouble`/`jsDoubleOrNull` now parse numeric strings, take the
+  first numeric element of a list, and fall back instead of throwing a cast
+  error (e.g. `borderRadius: [14, 14, 0, 0]` previously killed the whole
+  render tree). `borderRadius` in decorations, cards, inkWell and clipRRect
+  also accepts CSS-style corner lists (`[all]`, `[tl-br, tr-bl]`,
+  `[tl, tr-bl, br]`, `[tl, tr, br, bl]`) via the new `jsBorderRadius`.
 
 ## 0.4.1
 
