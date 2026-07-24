@@ -1,3 +1,7 @@
+## 0.4.3
+
+- Automated patch bump.
+
 ## 0.4.2
 
 - Fix web compilation of `JsWidgetEngine`: `_defaultBackend` referenced
