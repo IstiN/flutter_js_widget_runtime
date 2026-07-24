@@ -1,3 +1,7 @@
+## 0.4.4
+
+- Automated patch bump.
+
 ## 0.4.3
 
 - Renderer no longer crashes on malformed numeric props from generated
