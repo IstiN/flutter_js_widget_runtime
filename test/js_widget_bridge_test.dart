@@ -53,7 +53,10 @@ void main() {
     });
 
     test('dispatches storage get/set', () async {
-      await bridge.dispatch('__jsr_storage_get', '{"id":"g1","key":"existing"}');
+      await bridge.dispatch(
+        '__jsr_storage_get',
+        '{"id":"g1","key":"existing"}',
+      );
       expect(resolved['g1'], 'value');
 
       await bridge.dispatch('__jsr_storage_set', '{"key":"new","value":"x"}');
@@ -95,12 +98,18 @@ void main() {
     test('dispatches secrets get/set', () async {
       await bridge.dispatch('__jsr_secrets_get', '{"id":"s1","key":"token"}');
       expect(resolved['s1'], 'secret:token');
-      await bridge.dispatch('__jsr_secrets_set', '{"id":"s2","key":"token","value":"v"}');
+      await bridge.dispatch(
+        '__jsr_secrets_set',
+        '{"id":"s2","key":"token","value":"v"}',
+      );
       expect(resolved['s2'], true);
     });
 
     test('dispatches load asset', () async {
-      await bridge.dispatch('__jsr_load_asset', '{"id":"a1","path":"widget.js"}');
+      await bridge.dispatch(
+        '__jsr_load_asset',
+        '{"id":"a1","path":"widget.js"}',
+      );
       expect(resolved['a1'], 'asset:widget.js');
     });
 
@@ -130,6 +139,50 @@ void main() {
       await bridge.dispatch('__jsr_event_done', '{}');
       await future;
       expect(future, completes);
+    });
+
+    test('rapid-fire callEvents serialize and never crash', () async {
+      // Regression: tap-down/tap-up/tap fire three callEvents back to back.
+      // A stale done used to complete the next completer early, and the
+      // following callEvent crashed with "Future already completed".
+      final order = <int>[];
+      final futures = [
+        for (var i = 0; i < 5; i++) bridge.callEvent(() => order.add(i)),
+      ];
+      await pumpEventQueue();
+      // Sends are queued: only the first has run so far.
+      expect(order, [0]);
+      for (var i = 1; i < 5; i++) {
+        await bridge.dispatch('__jsr_event_done', '{}');
+        await pumpEventQueue();
+        // After each done the next queued send runs, in order.
+        expect(order, [for (var j = 0; j <= i; j++) j]);
+      }
+      await bridge.dispatch('__jsr_event_done', '{}');
+      await Future.wait(futures);
+      // The bridge stays healthy afterwards.
+      final again = bridge.callEvent(() {});
+      await bridge.dispatch('__jsr_event_done', '{}');
+      await again;
+      expect(again, completes);
+    });
+
+    test('a stray done with nothing pending is ignored', () async {
+      final first = bridge.callEvent(() {});
+      await bridge.dispatch('__jsr_event_done', '{}');
+      await first;
+      // A duplicated done arriving while nothing is pending must not
+      // poison the next event (take-and-null in _handleEventDone).
+      await bridge.dispatch('__jsr_event_done', '{}');
+      final second = bridge.callEvent(() {});
+      await pumpEventQueue();
+      var completed = false;
+      second.then((_) => completed = true).ignore();
+      await Future<void>.delayed(const Duration(milliseconds: 20));
+      expect(completed, isFalse);
+      await bridge.dispatch('__jsr_event_done', '{}');
+      await second;
+      expect(completed, isTrue);
     });
 
     test('interval fires through handler', () async {

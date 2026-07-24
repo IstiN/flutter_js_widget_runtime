@@ -12,22 +12,20 @@ typedef JsPermissionChecker = bool Function(String capability);
 typedef JsResolveCallback = void Function(String id, dynamic value);
 
 /// Callback for an HTTP request initiated by `jsr.fetchJson`.
-typedef JsFetchHandler = Future<void> Function(
-  String id,
-  String url,
-  String method,
-  Map<String, String> headers,
-);
+typedef JsFetchHandler =
+    Future<void> Function(
+      String id,
+      String url,
+      String method,
+      Map<String, String> headers,
+    );
 
 /// Callback for `jsr.secrets.get(key)`.
 typedef JsSecretsReadHandler = Future<void> Function(String id, String key);
 
 /// Callback for `jsr.secrets.set(key, value)`.
-typedef JsSecretsWriteHandler = Future<void> Function(
-  String id,
-  String key,
-  dynamic value,
-);
+typedef JsSecretsWriteHandler =
+    Future<void> Function(String id, String key, dynamic value);
 
 /// Callback for `jsr.loadAsset(path)`.
 typedef JsLoadAssetHandler = Future<void> Function(String id, String path);
@@ -96,8 +94,9 @@ class JsWidgetBridge {
   Completer<void>? _eventCompleter;
 
   /// Last structured state exported via `jsr.exportState(...)`.
-  Map<String, dynamic>? get exportedState =>
-      _exportedState == null ? null : Map<String, dynamic>.from(_exportedState!);
+  Map<String, dynamic>? get exportedState => _exportedState == null
+      ? null
+      : Map<String, dynamic>.from(_exportedState!);
 
   /// Returns the JS snippet used to update the widget theme.
   static String updateThemeJs(Map<String, dynamic> colors) {
@@ -144,20 +143,51 @@ class JsWidgetBridge {
     }
   }
 
+  /// Serializes [callEvent] invocations so rapid-fire gestures (tap-down,
+  /// tap-up, tap) complete in order. Previously a stale `__jsr_event_done`
+  /// completed the *next* event's completer early and the following
+  /// callEvent crashed with "Future already completed", wedging the bridge
+  /// for every subsequent event (dead buttons in gesture-heavy widgets).
+  bool _eventInFlight = false;
+  Future<void> _eventChain = Future<void>.value();
+
   /// Runs [send] and waits until the JS event handler signals completion.
-  Future<void> callEvent(void Function() send) async {
+  ///
+  /// The idle path starts synchronously (async functions run up to the first
+  /// await inline), so a done signaled right after callEvent still finds its
+  /// completer; subsequent events queue behind [_eventChain].
+  Future<void> callEvent(void Function() send) {
+    if (!_eventInFlight) {
+      _eventInFlight = true;
+      final future = _runEvent(send);
+      _eventChain = future.catchError((_) {});
+      return future;
+    }
+    final future = _eventChain.then((_) {
+      _eventInFlight = true;
+      return _runEvent(send);
+    });
+    // Keep the queue alive even if one event fails or times out.
+    _eventChain = future.catchError((_) {});
+    return future;
+  }
+
+  Future<void> _runEvent(void Function() send) async {
     final completer = Completer<void>();
-    _eventCompleter?.complete();
     _eventCompleter = completer;
-    send();
-    await completer.future.timeout(
-      const Duration(seconds: 30),
-      onTimeout: () {
-        debugPrint('[JsWidgetBridge] callEvent timeout');
-      },
-    );
-    if (identical(_eventCompleter, completer)) {
-      _eventCompleter = null;
+    try {
+      send();
+      await completer.future.timeout(
+        const Duration(seconds: 30),
+        onTimeout: () {
+          debugPrint('[JsWidgetBridge] callEvent timeout');
+        },
+      );
+    } finally {
+      if (identical(_eventCompleter, completer)) {
+        _eventCompleter = null;
+      }
+      _eventInFlight = false;
     }
   }
 
@@ -170,8 +200,11 @@ class JsWidgetBridge {
     _rafTicker?.dispose();
     _rafTicker = null;
     _rafCallbacks.clear();
-    _eventCompleter?.complete();
+    final pending = _eventCompleter;
     _eventCompleter = null;
+    if (pending != null && !pending.isCompleted) {
+      pending.complete();
+    }
   }
 
   Map<String, dynamic> _parseArgs(dynamic args) => (args is Map)
@@ -235,16 +268,18 @@ class JsWidgetBridge {
     } catch (_) {}
     final pending = _eventCompleter;
     if (pending != null && !pending.isCompleted) {
+      // Take-and-null: a stray or duplicated done must never complete a
+      // later event's completer.
+      _eventCompleter = null;
       pending.complete();
     }
   }
 
   void _handleExportState(dynamic args) {
     try {
-      _exportedState =
-          args is Map
-              ? Map<String, dynamic>.from(args)
-              : Map<String, dynamic>.from(_parseArgs(args));
+      _exportedState = args is Map
+          ? Map<String, dynamic>.from(args)
+          : Map<String, dynamic>.from(_parseArgs(args));
     } catch (_) {
       _exportedState = null;
     }

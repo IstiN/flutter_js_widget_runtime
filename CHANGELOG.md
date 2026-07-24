@@ -1,3 +1,13 @@
+## 0.4.1
+
+- Fix `JsWidgetBridge.callEvent` for rapid-fire gestures: concurrent events
+  (tap-down / tap-up / tap) raced on a single completer, so a stale
+  `__jsr_event_done` completed the next event early and the following
+  callEvent crashed with "Future already completed", permanently wedging
+  event delivery (dead buttons in gesture-heavy widgets). Events are now
+  serialized through an internal queue, and `__jsr_event_done` handling is
+  take-and-null so stray/duplicate dones are ignored.
+
 ## 0.4.0
 
 - Add pluggable JS engine backend:
