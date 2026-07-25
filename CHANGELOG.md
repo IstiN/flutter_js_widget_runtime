@@ -1,3 +1,11 @@
+## 0.4.11
+
+- Chore: split `json_widget_renderer.dart` (~1900 lines) into `part` files
+  under `lib/src/renderer/nodes/` (`js_layout_nodes.dart`,
+  `js_text_nodes.dart`, `js_input_nodes.dart`) via private extensions, so
+  every source file is back under the 1500-line PR gate. Pure refactor — no
+  behavior or public API changes.
+
 ## 0.4.10
 
 - Add a pure-Dart software 3D pipeline to the `scene3d` node: when the node
