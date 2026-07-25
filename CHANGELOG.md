@@ -1,3 +1,15 @@
+## 0.4.7
+
+- Fix and extend the `chart` node. It now reads its values from the
+  documented `data` prop (`points` remains as a backwards-compatible alias),
+  so apps passing `data` no longer render an empty box. New props:
+  `fillColor` (hex with alpha allowed, e.g. `#22c55e33`; falls back to the
+  line color at ~20% alpha), `strokeWidth` (default 2), and `chartType` —
+  `'line'` (default, the existing sparkline) or `'bar'` (equal-width bars
+  with rounded tops and a baseline). Follows the renderer's input tolerance:
+  unknown `chartType` falls back to `'line'`, non-numeric `data` entries are
+  skipped, empty data renders nothing.
+
 ## 0.4.6
 
 - Add transition animation nodes to the JSON renderer. `entrance` plays a

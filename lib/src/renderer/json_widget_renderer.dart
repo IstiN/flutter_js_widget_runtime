@@ -1306,20 +1306,75 @@ class JsonWidgetRenderer {
     onEvent: onEvent,
   );
 
+  /// Renders a `chart` node — a sparkline or simple bar chart.
+  ///
+  /// Props:
+  /// - `data` (list of numbers): values to plot; `points` is accepted as a
+  ///   backwards-compatible alias. Non-numeric entries are skipped; empty
+  ///   data renders nothing.
+  /// - `chartType`: `'line'` (default, smooth sparkline) or `'bar'`
+  ///   (equal-width bars with rounded tops and a baseline). Unknown values
+  ///   fall back to `'line'`.
+  /// - `color` (hex string): line/bar stroke color, default `#4ade80`.
+  /// - `fillColor` (hex string, alpha allowed, e.g. `#22c55e33`): fill under
+  ///   the line / bar fill; falls back to [color] at ~20% alpha. For line
+  ///   charts, `fill: true` also enables the fill.
+  /// - `strokeWidth` (number): line stroke / bar outline width, default 2.
+  /// - `height` (number): chart height, default 60.
+  ///
+  /// JS examples:
+  /// ```js
+  /// jsr.render({
+  ///   type: 'chart',
+  ///   chartType: 'line',
+  ///   data: [1.2, 2.5, 1.8, 3.1, 2.7],
+  ///   color: '#22c55e',
+  ///   fillColor: '#22c55e33',
+  ///   strokeWidth: 2,
+  ///   height: 60,
+  /// });
+  ///
+  /// jsr.render({
+  ///   type: 'chart',
+  ///   chartType: 'bar',
+  ///   data: [4, 7, 3, 8, 5],
+  ///   color: '#60a5fa',
+  ///   fillColor: '#60a5fa66',
+  ///   height: 80,
+  /// });
+  /// ```
   Widget _chartNode(Map<String, dynamic> m) {
-    final rawPoints = m['points'] as List?;
-    if (rawPoints == null || rawPoints.isEmpty) return const SizedBox.shrink();
-    final points = rawPoints.map((v) => (v as num).toDouble()).toList();
+    final rawData = m['data'] as List? ?? m['points'] as List?;
+    final points = rawData == null
+        ? const <double>[]
+        : rawData.map(jsDoubleOrNull).whereType<double>().toList();
+    if (points.isEmpty) return const SizedBox.shrink();
     final color =
         _color(m['color'] as String? ?? '#4ade80') ?? Colors.greenAccent;
+    final fillColor = _color(m['fillColor'] as String?);
+    final strokeWidth = _double(m['strokeWidth'], 2.0);
     final height = _double(m['height'], 60.0);
     final fill = m['fill'] == true;
     final onTap = m['onTap'] as String?;
+    final CustomPainter painter = m['chartType'] == 'bar'
+        ? _BarChartPainter(
+            points: points,
+            color: color,
+            fillColor: fillColor,
+            strokeWidth: strokeWidth,
+          )
+        : _SparklinePainter(
+            points: points,
+            color: color,
+            fillColor: fillColor,
+            strokeWidth: strokeWidth,
+            fill: fill,
+          );
     Widget chart = SizedBox(
       height: height,
       child: CustomPaint(
         isComplex: true,
-        painter: _SparklinePainter(points: points, color: color, fill: fill),
+        painter: painter,
         size: Size.infinite,
       ),
     );
@@ -1558,10 +1613,14 @@ class _SparklinePainter extends CustomPainter {
   const _SparklinePainter({
     required this.points,
     required this.color,
+    required this.fillColor,
+    required this.strokeWidth,
     required this.fill,
   });
   final List<double> points;
   final Color color;
+  final Color? fillColor;
+  final double strokeWidth;
   final bool fill;
 
   @override
@@ -1589,14 +1648,7 @@ class _SparklinePainter extends CustomPainter {
       path.cubicTo(cpx, toY(prev), cpx, toY(curr), x, toY(curr));
     }
 
-    final linePaint = Paint()
-      ..color = color
-      ..strokeWidth = 2.0
-      ..style = PaintingStyle.stroke
-      ..strokeCap = StrokeCap.round;
-    canvas.drawPath(path, linePaint);
-
-    if (fill) {
+    if (fill || fillColor != null) {
       final fillPath = Path()..addPath(path, Offset.zero);
       fillPath.lineTo(size.width, size.height);
       fillPath.lineTo(0, size.height);
@@ -1604,13 +1656,104 @@ class _SparklinePainter extends CustomPainter {
       canvas.drawPath(
         fillPath,
         Paint()
-          ..color = color.withAlpha(40)
+          ..color = fillColor ?? color.withAlpha(51)
           ..style = PaintingStyle.fill,
       );
     }
+
+    final linePaint = Paint()
+      ..color = color
+      ..strokeWidth = strokeWidth
+      ..style = PaintingStyle.stroke
+      ..strokeCap = StrokeCap.round;
+    canvas.drawPath(path, linePaint);
   }
 
   @override
   bool shouldRepaint(_SparklinePainter old) =>
-      old.points != points || old.color != color || old.fill != fill;
+      old.points != points ||
+      old.color != color ||
+      old.fillColor != fillColor ||
+      old.strokeWidth != strokeWidth ||
+      old.fill != fill;
+}
+
+class _BarChartPainter extends CustomPainter {
+  const _BarChartPainter({
+    required this.points,
+    required this.color,
+    required this.fillColor,
+    required this.strokeWidth,
+  });
+  final List<double> points;
+  final Color color;
+  final Color? fillColor;
+  final double strokeWidth;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    if (points.isEmpty) return;
+    final minVal = points.reduce((a, b) => a < b ? a : b);
+    final maxVal = points.reduce((a, b) => a > b ? a : b);
+    final lo = minVal < 0 ? minVal : 0.0;
+    final hi = maxVal > 0 ? maxVal : 0.0;
+    final range = (hi - lo).abs();
+    final effectiveRange = range < 0.0001 ? 1.0 : range;
+
+    const topPad = 0.05;
+    const bottomPad = 0.05;
+    double toY(double v) =>
+        size.height -
+        ((v - lo) / effectiveRange) * size.height * (1 - topPad - bottomPad) -
+        size.height * bottomPad;
+
+    final slot = size.width / points.length;
+    final barWidth = slot * 0.7;
+    const radius = Radius.circular(3);
+
+    final fillPaint = Paint()
+      ..color = fillColor ?? color.withAlpha(51)
+      ..style = PaintingStyle.fill;
+    final strokePaint = Paint()
+      ..color = color
+      ..strokeWidth = strokeWidth
+      ..style = PaintingStyle.stroke;
+
+    final baselineY = toY(0);
+    for (int i = 0; i < points.length; i++) {
+      final left = i * slot + (slot - barWidth) / 2;
+      final y = toY(points[i]);
+      final rect = Rect.fromLTRB(
+        left,
+        y < baselineY ? y : baselineY,
+        left + barWidth,
+        y < baselineY ? baselineY : y,
+      );
+      if (rect.height < 0.5) continue;
+      final rrect = y < baselineY
+          ? RRect.fromRectAndCorners(rect, topLeft: radius, topRight: radius)
+          : RRect.fromRectAndCorners(
+              rect,
+              bottomLeft: radius,
+              bottomRight: radius,
+            );
+      canvas.drawRRect(rrect, fillPaint);
+      canvas.drawRRect(rrect, strokePaint);
+    }
+
+    canvas.drawLine(
+      Offset(0, baselineY),
+      Offset(size.width, baselineY),
+      Paint()
+        ..color = color.withAlpha(60)
+        ..strokeWidth = 1,
+    );
+  }
+
+  @override
+  bool shouldRepaint(_BarChartPainter old) =>
+      old.points != points ||
+      old.color != color ||
+      old.fillColor != fillColor ||
+      old.strokeWidth != strokeWidth;
 }

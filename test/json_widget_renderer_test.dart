@@ -539,6 +539,106 @@ void main() {
       );
     });
 
+    testWidgets('chart renders CustomPaint from data prop', (tester) async {
+      await tester.pumpWidget(
+        buildTree({
+          'type': 'chart',
+          'data': [1.2, 2.5, 1.8, 3.1],
+          'height': 80,
+        }),
+      );
+      expect(
+        find.byWidgetPredicate(
+          (w) => w is CustomPaint && w.size == Size.infinite,
+        ),
+        findsOneWidget,
+      );
+    });
+
+    testWidgets('chart accepts strokeWidth and fillColor', (tester) async {
+      await tester.pumpWidget(
+        buildTree({
+          'type': 'chart',
+          'data': [1.2, 2.5, 1.8, 3.1],
+          'color': '#22c55e',
+          'fillColor': '#22c55e33',
+          'strokeWidth': 3,
+        }),
+      );
+      expect(
+        find.byWidgetPredicate(
+          (w) => w is CustomPaint && w.size == Size.infinite,
+        ),
+        findsOneWidget,
+      );
+    });
+
+    testWidgets('chart bar type renders CustomPaint', (tester) async {
+      await tester.pumpWidget(
+        buildTree({
+          'type': 'chart',
+          'chartType': 'bar',
+          'data': [4, -2, 7, 3, 8],
+          'color': '#60a5fa',
+          'fillColor': '#60a5fa66',
+          'strokeWidth': 2,
+          'height': 80,
+        }),
+      );
+      expect(
+        find.byWidgetPredicate(
+          (w) => w is CustomPaint && w.size == Size.infinite,
+        ),
+        findsOneWidget,
+      );
+    });
+
+    testWidgets('chart unknown chartType falls back to line', (tester) async {
+      await tester.pumpWidget(
+        buildTree({
+          'type': 'chart',
+          'chartType': 'pie',
+          'data': [1, 2, 3],
+        }),
+      );
+      expect(
+        find.byWidgetPredicate(
+          (w) => w is CustomPaint && w.size == Size.infinite,
+        ),
+        findsOneWidget,
+      );
+    });
+
+    testWidgets('chart skips malformed data entries', (tester) async {
+      await tester.pumpWidget(
+        buildTree({
+          'type': 'chart',
+          'data': [1, 'bad', null, 3],
+        }),
+      );
+      expect(
+        find.byWidgetPredicate(
+          (w) => w is CustomPaint && w.size == Size.infinite,
+        ),
+        findsOneWidget,
+      );
+    });
+
+    testWidgets('chart with garbage data is empty', (tester) async {
+      await tester.pumpWidget(
+        buildTree({
+          'type': 'chart',
+          'data': ['bad', null, {}],
+        }),
+      );
+      expect(
+        find.byWidgetPredicate(
+          (w) => w is CustomPaint && w.size == Size.infinite,
+        ),
+        findsNothing,
+      );
+    });
+
     testWidgets('textField fires onSubmit and onChange', (tester) async {
       await tester.pumpWidget(
         buildTree({
