@@ -204,5 +204,12 @@ class UiViewTreeNormalizer {
     'Divider': 'divider',
     'Spacer': 'spacer',
     'Icon': 'icon',
+    'Scene3d': 'scene3d',
+    'scene3d': 'scene3d',
+    'scene3D': 'scene3d',
+    '3d': 'scene3d',
+    'model3d': 'scene3d',
+    'model': 'scene3d',
+    'glb': 'scene3d',
   };
 }

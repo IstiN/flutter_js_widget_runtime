@@ -56,9 +56,16 @@ Core methods:
 - `jsr.exportState(obj)` — expose structured state for CLI snapshots.
 - `jsr.showError(msg)` — render a styled error card.
 - `jsr.ease.*` — easing helpers (`linear`, `easeIn`, `easeOut`, `easeInOut`, `bounce`, `elastic`, `backIn`, `backOut`).
+- `jsr.scene3d.*` — create/update/destroy 3D scenes, load GLB/GLTF models, set transforms, play animations, control camera and lights. Requires the host to provide a `Js3dHost`.
 - `setTimeout`, `setInterval`, `requestAnimationFrame`, `console.log` are shimmed.
 
 Renderer effects ported from YoClip: radial gradients, box shadows, blur nodes, `clip: true` on containers, static/3D transforms, text shadows, `textTransform`.
+
+## 3D Support
+
+- Add a `scene3d` node to the JSON tree and a `Js3dHost` to `JsRuntimeConfig.js3dHost`.
+- `Js3dHost` is an abstraction; concrete engines live in host apps (e.g., `flutter_3d_controller`, Flame 3D, three_dart).
+- Example integration: `example/lib/flutter_3d_controller_host.dart` and `example/widgets/3d-viewer/`.
 
 See the dedicated skill in `.agents/skills/js-widget-authoring/SKILL.md` for the full widget authoring guide.
 

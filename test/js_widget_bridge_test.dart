@@ -1,5 +1,32 @@
+import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:js_widget_runtime/src/renderer/nodes/js_3d_host.dart';
 import 'package:js_widget_runtime/src/runtime/js_widget_bridge.dart';
+
+JsWidgetBridge _makeBridge({
+  required Map<String, dynamic> resolved,
+  Js3dHost? host,
+  bool allowPermissions = true,
+}) =>
+    JsWidgetBridge(
+      widgetId: 'test',
+      onRender: (_) {},
+      onSetTitle: (_) {},
+      onStorageUpdate: (_) {},
+      onLog: (_) {},
+      isDisposed: () => false,
+      isPermissionAllowed: allowPermissions ? (_) => true : (_) => false,
+      resolveCallback: (id, value) => resolved[id] = value,
+      fetchHandler: (_, __, ___, ____) async {},
+      secretsGetHandler: (_, __) async {},
+      secretsSetHandler: (_, __, ___) async {},
+      loadAssetHandler: (_, __) async {},
+      execHandler: (_, __) async {},
+      intervalTickHandler: (_) {},
+      rafTickHandler: (_, __) => {},
+      js3dHost: host,
+      initialStorage: const {},
+    );
 
 void main() {
   group('JsWidgetBridge', () {
@@ -67,23 +94,9 @@ void main() {
     });
 
     test('storage is denied when permission checker rejects', () async {
-      final denied = JsWidgetBridge(
-        widgetId: 'test',
-        onRender: (_) {},
-        onSetTitle: (_) {},
-        onStorageUpdate: (_) {},
-        onLog: (_) {},
-        isDisposed: () => false,
-        isPermissionAllowed: (_) => false,
-        resolveCallback: (id, value) => resolved[id] = value,
-        fetchHandler: (_, __, ___, ____) async {},
-        secretsGetHandler: (_, __) async {},
-        secretsSetHandler: (_, __, ___) async {},
-        loadAssetHandler: (_, __) async {},
-        execHandler: (_, __) async {},
-        intervalTickHandler: (_) {},
-        rafTickHandler: (_, __) {},
-        initialStorage: const {},
+      final denied = _makeBridge(
+        resolved: resolved,
+        allowPermissions: false,
       );
       await denied.dispatch('__jsr_storage_get', '{"id":"g1","key":"k"}');
       expect(resolved['g1'], contains('__error'));
@@ -196,5 +209,111 @@ void main() {
       bridge.dispose();
       expect(bridge.exportedState, isNull);
     });
+
+    group('scene3d', () {
+      late List<Js3dCommand> commands;
+      late _Test3dHost host;
+      late JsWidgetBridge sceneBridge;
+
+      setUp(() {
+        commands = [];
+        host = _Test3dHost(commands.add);
+        sceneBridge = _makeBridge(resolved: {}, host: host);
+      });
+
+      tearDown(() {
+        sceneBridge.dispose();
+      });
+
+      test('create initializes a controller', () async {
+        await sceneBridge.dispatch(
+          '__jsr_scene3d_command',
+          '{"kind":"create","sceneId":"s1","payload":{"camera":{}}}',
+        );
+        expect(commands, isEmpty);
+        expect(host.controllers, contains('s1'));
+      });
+
+      test('addModel forwards command to controller', () async {
+        await sceneBridge.dispatch(
+          '__jsr_scene3d_command',
+          '{"kind":"create","sceneId":"s1","payload":{}}',
+        );
+        await sceneBridge.dispatch(
+          '__jsr_scene3d_command',
+          '{"kind":"addModel","sceneId":"s1","payload":{"modelId":"m1","src":"a.glb"}}',
+        );
+        expect(commands.length, 1);
+        expect(commands.first.kind, 'addModel');
+        expect(commands.first.modelId, 'm1');
+        expect(commands.first.payload?['src'], 'a.glb');
+      });
+
+      test('destroy disposes controller', () async {
+        await sceneBridge.dispatch(
+          '__jsr_scene3d_command',
+          '{"kind":"create","sceneId":"s1","payload":{}}',
+        );
+        final controller = host.controllers['s1'];
+        expect(controller, isNotNull);
+        expect(controller!.disposed, isFalse);
+        await sceneBridge.dispatch(
+          '__jsr_scene3d_command',
+          '{"kind":"destroy","sceneId":"s1"}',
+        );
+        expect(controller.disposed, isTrue);
+      });
+
+      test('command without host is ignored', () async {
+        final noHost = _makeBridge(resolved: {});
+        await noHost.dispatch(
+          '__jsr_scene3d_command',
+          '{"kind":"create","sceneId":"s1","payload":{}}',
+        );
+        noHost.dispose();
+      });
+    });
   });
+}
+
+class _Test3dController extends Js3dController {
+  _Test3dController(this.onApply);
+  final void Function(Js3dCommand) onApply;
+  bool disposed = false;
+
+  @override
+  void apply(Js3dCommand command) {
+    onApply(command);
+    notifyListeners();
+  }
+
+  @override
+  void dispose() {
+    disposed = true;
+    super.dispose();
+  }
+}
+
+class _Test3dHost extends Js3dHost {
+  _Test3dHost(this.onCommand);
+  final void Function(Js3dCommand) onCommand;
+  final Map<String, _Test3dController> controllers = {};
+
+  @override
+  Js3dController createController(
+    String sceneId,
+    Map<String, dynamic> config,
+  ) {
+    final c = _Test3dController(onCommand);
+    controllers[sceneId] = c;
+    return c;
+  }
+
+  @override
+  Widget build(
+    BuildContext context,
+    Js3dController controller,
+    Map<String, dynamic> config,
+  ) =>
+      const SizedBox.shrink();
 }

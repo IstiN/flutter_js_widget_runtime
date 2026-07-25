@@ -31,6 +31,7 @@ class FlutterJsWidgetEngineBackend implements JsWidgetEngineBackend {
       execHandler: (id, cmd) async {},
       intervalTickHandler: (id) {},
       rafTickHandler: (id, elapsedMs) {},
+      js3dHost: config.js3dHost,
       initialStorage: config.initialStorage,
     );
   }
@@ -237,6 +238,7 @@ class FlutterJsWidgetEngineBackend implements JsWidgetEngineBackend {
     '__jsr_secrets_set',
     '__jsr_load_asset',
     '__jsr_exec',
+    '__jsr_scene3d_command',
   ];
 
   void _handleLog(String msg) {

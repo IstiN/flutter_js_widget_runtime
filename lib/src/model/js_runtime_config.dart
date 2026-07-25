@@ -1,5 +1,6 @@
 import 'package:flutter/foundation.dart';
 
+import 'package:js_widget_runtime/src/renderer/nodes/js_3d_host.dart';
 import 'package:js_widget_runtime/src/runtime/js_widget_engine_backend.dart';
 
 /// Callback invoked to check whether a capability is allowed.
@@ -45,6 +46,7 @@ class JsRuntimeConfig {
     this.intervalTickHandler,
     this.rafTickHandler,
     this.backend,
+    this.js3dHost,
   });
 
   final String widgetId;
@@ -117,6 +119,9 @@ class JsRuntimeConfig {
   /// default (`flutter_js` on VM, Web Worker on web).
   final JsWidgetEngineBackend? backend;
 
+  /// Optional host-provided 3D engine factory for `scene3d` nodes.
+  final Js3dHost? js3dHost;
+
   JsRuntimeConfig copyWith({
     String? widgetId,
     String? appDir,
@@ -145,6 +150,7 @@ class JsRuntimeConfig {
     void Function(String id)? intervalTickHandler,
     void Function(String id, int elapsedMs)? rafTickHandler,
     JsWidgetEngineBackend? backend,
+    Js3dHost? js3dHost,
   }) =>
       JsRuntimeConfig(
         widgetId: widgetId ?? this.widgetId,
@@ -167,5 +173,6 @@ class JsRuntimeConfig {
         intervalTickHandler: intervalTickHandler ?? this.intervalTickHandler,
         rafTickHandler: rafTickHandler ?? this.rafTickHandler,
         backend: backend ?? this.backend,
+        js3dHost: js3dHost ?? this.js3dHost,
       );
 }

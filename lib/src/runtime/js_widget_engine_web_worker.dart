@@ -55,6 +55,7 @@ class WebWorkerJsWidgetEngineBackend implements JsWidgetEngineBackend {
         '__jsr_raf_tick',
         {'id': id, 'elapsed': elapsedMs},
       ),
+      js3dHost: config.js3dHost,
       initialStorage: config.initialStorage,
     );
   }

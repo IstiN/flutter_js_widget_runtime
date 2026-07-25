@@ -102,6 +102,7 @@ The renderer in `lib/src/renderer/json_widget_renderer.dart` supports types such
 - Material: `text`, `button`, `textButton`, `outlinedButton`, `elevatedButton`, `iconButton`, `chip`, `card`, `listTile`, `badge`, `circleAvatar`, `linearProgressIndicator`, `circularProgressIndicator`, `divider`, `spacer`
 - Input: `textField`, `switch`, `checkbox`, `slider`, `dropdown`
 - Media: `image`, `svg`, `markdown`
+- 3D: `scene3d` (host-provided engine; see `jsr.scene3d` API below)
 - Gestures: `gestureDetector`, `inkWell`
 - Custom: `chart`
 
@@ -163,3 +164,52 @@ On a container:
 ```javascript
 var t = jsr.ease.easeInOut(0.5);
 ```
+
+## 3D Scenes (`scene3d`)
+
+The `scene3d` node renders a host-provided 3D engine. It is only functional
+when the host app supplies a `Js3dHost` (e.g., via `flutter_3d_controller`,
+Flame 3D, or three_dart).
+
+```json
+{"type": "scene3d", "id": "main", "width": 320, "height": 320}
+```
+
+### JS API
+
+```javascript
+jsr.scene3d.create('main', {
+  camera: { position: [0, 2, 5], target: [0, 0, 0] },
+  lights: [{ type: 'ambient', color: '#ffffff', intensity: 0.5 }]
+});
+
+jsr.scene3d.addModel('main', {
+  id: 'player',
+  src: 'assets/player.glb' // or a public GLB URL
+});
+
+jsr.scene3d.removeModel('main', 'player');
+
+jsr.scene3d.setTransform('main', 'player', {
+  position: [1, 0, 0],
+  rotation: [0, 45, 0],
+  scale: [1.5, 1.5, 1.5]
+});
+
+jsr.scene3d.playAnimation('main', 'player', 'run');
+jsr.scene3d.stopAnimation('main', 'player');
+
+jsr.scene3d.setCamera('main', {
+  position: [0, 5, 10],
+  target: [0, 0, 0]
+});
+
+jsr.scene3d.setLight('main', { type: 'directional', color: '#ffffff' });
+
+jsr.scene3d.destroy('main');
+```
+
+- `src` accepts asset paths, `file://` URLs, or network URLs depending on the
+  host engine.
+- Keep 3D widget logic behind feature detection where possible, because hosts
+  are not required to provide a `Js3dHost`.

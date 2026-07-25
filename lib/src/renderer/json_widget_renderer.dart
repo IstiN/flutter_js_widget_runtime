@@ -17,10 +17,12 @@ import 'package:js_widget_runtime/src/renderer/media/js_video_widget.dart';
 import 'package:js_widget_runtime/src/renderer/nodes/image_provider_resolver_stub.dart'
     if (dart.library.io) 'package:js_widget_runtime/src/renderer/nodes/image_provider_resolver_io.dart'
     if (dart.library.html) 'package:js_widget_runtime/src/renderer/nodes/image_provider_resolver_web.dart';
+import 'package:js_widget_runtime/src/renderer/nodes/js_3d_host.dart';
 import 'package:js_widget_runtime/src/renderer/nodes/js_animation_nodes.dart';
 import 'package:js_widget_runtime/src/renderer/nodes/js_map_node.dart';
 import 'package:js_widget_runtime/src/renderer/nodes/js_node_helpers.dart';
 import 'package:js_widget_runtime/src/renderer/nodes/js_path_node.dart';
+import 'package:js_widget_runtime/src/renderer/nodes/js_scene3d_node.dart';
 import 'package:js_widget_runtime/src/renderer/ui_view_field_registry.dart';
 
 final _jsonWidgetDefaultColors = JsonWidgetTheme.fromAccent(Colors.deepPurple);
@@ -41,6 +43,7 @@ final _jsonWidgetDefaultColors = JsonWidgetTheme.fromAccent(Colors.deepPurple);
 ///           entrance (one-shot mount animation, staggered via `delay`),
 ///           animatedSwitcher (view transition on `switchKey` change)
 /// Media:    video, audio (render placeholders unless a custom builder is registered)
+/// 3D:       scene3d (host-provided 3D engine; GLB/GLTF models, camera, lights)
 /// Effects:  blur (ImageFilter), clip on container, boxShadows, radial gradients,
 ///           rotateX/rotateY/perspective transforms, textShadows, textTransform,
 ///           universal effect props (offsetX/offsetY, scale, rotation, opacity, blur).
@@ -66,6 +69,7 @@ class JsonWidgetRenderer {
     this.imageResolver,
     this.customBuilders,
     this.mediaHost,
+    this.js3dHost,
     this.externalAssetResolver,
     this.fontResolver,
     this.mapTileProvider,
@@ -90,6 +94,11 @@ class JsonWidgetRenderer {
   /// Optional host-provided media factory. When set, `video`/`audio` nodes
   /// render real players; otherwise they render placeholder icons.
   final JsMediaHost? mediaHost;
+
+  /// Optional host-provided 3D engine factory. When set, `scene3d` nodes render
+  /// real 3D scenes (GLB/GLTF models, cameras, lights); otherwise they render a
+  /// placeholder icon.
+  final Js3dHost? js3dHost;
 
   /// Optional resolver for `external:<id>` asset sources.
   final ExternalAssetResolver? externalAssetResolver;
@@ -207,6 +216,7 @@ class JsonWidgetRenderer {
       'absoluteFill' || 'fill' => _absoluteFill(m),
       'video' => _video(m),
       'audio' => _audio(m),
+      'scene3d' => _scene3d(m),
 
       _ => _unknownType(m),
     };
@@ -558,8 +568,12 @@ class JsonWidgetRenderer {
     child: _child(m),
   );
 
-  Widget _mediaPlaceholder(Map<String, dynamic> m, IconData icon) {
-    final label = m['label'] as String? ?? m['text'] as String?;
+  Widget _mediaPlaceholder(
+    Map<String, dynamic> m,
+    IconData icon, {
+    String? label,
+  }) {
+    final effectiveLabel = label ?? m['label'] as String? ?? m['text'] as String?;
     return Container(
       width: _doubleOrNull(m['width']) ?? 120,
       height: _doubleOrNull(m['height']) ?? 80,
@@ -569,7 +583,8 @@ class JsonWidgetRenderer {
         mainAxisSize: MainAxisSize.min,
         children: [
           Icon(icon, size: _double(m['size'], 32)),
-          if (label != null) Text(label, style: const TextStyle(fontSize: 12)),
+          if (effectiveLabel != null)
+            Text(effectiveLabel, style: const TextStyle(fontSize: 12)),
         ],
       ),
     );
@@ -655,6 +670,19 @@ class JsonWidgetRenderer {
     final host = mediaHost;
     if (host == null) return _mediaPlaceholder(m, Icons.audiotrack);
     return JsAudioWidget(host: host, node: m);
+  }
+
+  Widget _scene3d(Map<String, dynamic> m) {
+    final host = js3dHost;
+    final sceneId = m['id'] as String? ?? 'default';
+    if (host == null) {
+      return _mediaPlaceholder(m, Icons.view_in_ar, label: '3D scene');
+    }
+    return JsScene3dNode(
+      sceneId: sceneId,
+      host: host,
+      config: Map<String, dynamic>.from(m),
+    );
   }
 
   Widget _svg(Map<String, dynamic> m) {

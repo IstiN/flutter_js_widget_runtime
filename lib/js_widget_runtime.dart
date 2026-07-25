@@ -10,6 +10,8 @@ export 'src/renderer/external_asset_resolver.dart' show ExternalAssetResolver;
 export 'src/renderer/font/js_font_loader.dart' show JsFontLoader;
 export 'src/renderer/font/js_font_resolver.dart' show JsFontResolver;
 export 'src/renderer/json_widget_theme.dart' show JsonWidgetTheme;
+export 'src/renderer/nodes/js_3d_host.dart'
+    show Js3dHost, Js3dController, Js3dCommand;
 export 'src/renderer/media/js_media_controller.dart'
     show JsMediaController, JsVideoController, JsAudioController;
 export 'src/renderer/media/js_media_host.dart' show JsMediaHost;

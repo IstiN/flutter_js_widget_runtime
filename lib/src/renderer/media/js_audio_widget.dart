@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import 'package:js_widget_runtime/src/renderer/media/js_media_controller.dart';
 import 'package:js_widget_runtime/src/renderer/media/js_media_controller_mixin.dart';
+import 'package:js_widget_runtime/src/renderer/media/js_media_controls.dart';
 import 'package:js_widget_runtime/src/renderer/media/js_media_host.dart';
 
 /// Host-provided audio widget rendered for `type: 'audio'` nodes when a
@@ -50,10 +51,6 @@ class _JsAudioWidgetState extends State<JsAudioWidget>
       return const Center(child: Icon(Icons.audiotrack_outlined));
     }
 
-    final progress = duration.inMilliseconds > 0
-        ? (position.inMilliseconds / duration.inMilliseconds).clamp(0.0, 1.0)
-        : 0.0;
-
     return Padding(
       padding: const EdgeInsets.all(12),
       child: Column(
@@ -71,27 +68,12 @@ class _JsAudioWidgetState extends State<JsAudioWidget>
                 ),
               ),
             ),
-          Row(
-            children: <Widget>[
-              IconButton(
-                onPressed: toggle,
-                icon: Icon(isPlaying ? Icons.pause : Icons.play_arrow),
-              ),
-              Expanded(
-                child: Slider(
-                  value: progress.toDouble(),
-                  onChanged: seek,
-                ),
-              ),
-              SizedBox(
-                width: 72,
-                child: Text(
-                  '${JsMediaControllerMixin.format(position)} / ${JsMediaControllerMixin.format(duration)}',
-                  style: const TextStyle(fontSize: 11),
-                  textAlign: TextAlign.end,
-                ),
-              ),
-            ],
+          JsMediaTransportControls(
+            isPlaying: isPlaying,
+            position: position,
+            duration: duration,
+            onToggle: toggle,
+            onSeek: seek,
           ),
         ],
       ),

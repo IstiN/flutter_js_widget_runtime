@@ -1,3 +1,17 @@
+## 0.4.9
+
+- Add 3D scene support via the new `scene3d` renderer node and
+  `jsr.scene3d.*` JS API. The runtime provides a `Js3dHost` abstraction so
+  host apps can plug in any engine (Flame 3D, three_dart,
+  `flutter_3d_controller`, etc.).
+- Supported JS commands: `create`, `destroy`, `addModel`, `removeModel`,
+  `setTransform`, `playAnimation`, `stopAnimation`, `setCamera`, `setLight`.
+- The node accepts `id`, `width`, `height`, `camera`, `lights` and renders a
+  placeholder when no `Js3dHost` is registered.
+- Add a `3d-viewer` example widget using `flutter_3d_controller` to load and
+  display GLB models.
+- Add bridge and renderer tests for scene lifecycle and command forwarding.
+
 ## 0.4.8
 
 - Add a `textArea` node to the JSON renderer: a multiline text input built

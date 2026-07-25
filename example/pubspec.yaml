@@ -13,6 +13,7 @@ dependencies:
 
   js_widget_runtime:
     path: ../
+  flutter_3d_controller: ^2.3.0
 
 dev_dependencies:
   flutter_test:
@@ -28,3 +29,4 @@ flutter:
     - widgets/weather/
     - widgets/stocks/
     - widgets/crypto/
+    - widgets/3d-viewer/

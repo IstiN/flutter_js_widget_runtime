@@ -132,6 +132,44 @@ var jsr = {
       __cbs[id] = function(v) { resolve(v); };
       sendMessage('__jsr_load_asset', JSON.stringify({id: id, path: path}));
     });
+  },
+
+  // 3D scene API. The host provides the actual engine via Js3dHost.
+  scene3d: {
+    _send: function(kind, sceneId, payload) {
+      sendMessage('__jsr_scene3d_command', JSON.stringify({
+        kind: kind,
+        sceneId: sceneId,
+        payload: payload || {}
+      }));
+    },
+    create: function(sceneId, config) {
+      this._send('create', sceneId, config);
+    },
+    destroy: function(sceneId) {
+      this._send('destroy', sceneId);
+    },
+    addModel: function(sceneId, options) {
+      this._send('addModel', sceneId, options);
+    },
+    removeModel: function(sceneId, modelId) {
+      this._send('removeModel', sceneId, {modelId: modelId});
+    },
+    setTransform: function(sceneId, modelId, transform) {
+      this._send('setTransform', sceneId, {modelId: modelId, transform: transform});
+    },
+    playAnimation: function(sceneId, modelId, animationName) {
+      this._send('playAnimation', sceneId, {modelId: modelId, animationName: animationName});
+    },
+    stopAnimation: function(sceneId, modelId) {
+      this._send('stopAnimation', sceneId, {modelId: modelId});
+    },
+    setCamera: function(sceneId, camera) {
+      this._send('setCamera', sceneId, camera);
+    },
+    setLight: function(sceneId, light) {
+      this._send('setLight', sceneId, light);
+    }
   }
 };
 ''';

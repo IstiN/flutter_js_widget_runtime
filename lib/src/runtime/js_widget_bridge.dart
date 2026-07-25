@@ -4,6 +4,8 @@ import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/scheduler.dart';
 
+import 'package:js_widget_runtime/src/renderer/nodes/js_3d_host.dart';
+
 /// Callback invoked to check whether a capability is allowed.
 /// Capabilities: 'fetch', 'storage', 'secrets', 'exec'.
 typedef JsPermissionChecker = bool Function(String capability);
@@ -64,6 +66,7 @@ class JsWidgetBridge {
     required this.execHandler,
     required this.intervalTickHandler,
     required this.rafTickHandler,
+    this.js3dHost,
     required Map<String, dynamic> initialStorage,
   }) : _storage = Map<String, dynamic>.from(initialStorage);
 
@@ -85,8 +88,10 @@ class JsWidgetBridge {
   JsExecHandler execHandler;
   JsIntervalTickHandler intervalTickHandler;
   JsRafTickHandler rafTickHandler;
+  Js3dHost? js3dHost;
 
   final Map<String, dynamic> _storage;
+  final Map<String, Js3dController> _sceneControllers = {};
   Map<String, dynamic>? _exportedState;
   final Map<String, Timer> _intervals = {};
   Ticker? _rafTicker;
@@ -140,6 +145,8 @@ class JsWidgetBridge {
         await _handleLoadAsset(payload);
       case '__jsr_exec':
         await _handleExec(payload);
+      case '__jsr_scene3d_command':
+        _handleScene3dCommand(payload);
     }
   }
 
@@ -191,7 +198,7 @@ class JsWidgetBridge {
     }
   }
 
-  /// Releases all timers and tickers owned by the bridge.
+  /// Releases all timers, tickers and 3D scene controllers owned by the bridge.
   void dispose() {
     for (final t in _intervals.values) {
       t.cancel();
@@ -200,6 +207,10 @@ class JsWidgetBridge {
     _rafTicker?.dispose();
     _rafTicker = null;
     _rafCallbacks.clear();
+    for (final controller in _sceneControllers.values) {
+      controller.dispose();
+    }
+    _sceneControllers.clear();
     final pending = _eventCompleter;
     _eventCompleter = null;
     if (pending != null && !pending.isCompleted) {
@@ -355,6 +366,53 @@ class JsWidgetBridge {
     final id = req['id'] as String;
     final cmd = req['cmd'] as String? ?? '';
     await execHandler(id, cmd);
+  }
+
+  void _handleScene3dCommand(dynamic args) {
+    final host = js3dHost;
+    if (host == null) {
+      debugPrint('[JsWidgetBridge] scene3d command ignored: no Js3dHost set');
+      return;
+    }
+    final req = _parseArgs(args);
+    final kind = req['kind'] as String? ?? '';
+    final sceneId = req['sceneId'] as String? ?? '';
+    if (sceneId.isEmpty) {
+      debugPrint('[JsWidgetBridge] scene3d command ignored: missing sceneId');
+      return;
+    }
+
+    switch (kind) {
+      case 'create':
+        _sceneControllers[sceneId]?.dispose();
+        _sceneControllers[sceneId] = host.createController(
+          sceneId,
+          (req['payload'] as Map? ?? {}).cast<String, dynamic>(),
+        );
+      case 'destroy':
+        _sceneControllers.remove(sceneId)?.dispose();
+      case 'addModel':
+      case 'removeModel':
+      case 'setTransform':
+      case 'playAnimation':
+      case 'stopAnimation':
+      case 'setCamera':
+      case 'setLight':
+        final payload = (req['payload'] as Map? ?? {}).cast<String, dynamic>();
+        final controller = _sceneControllers[sceneId];
+        if (controller != null) {
+          controller.apply(
+            Js3dCommand(
+              kind: kind,
+              sceneId: sceneId,
+              modelId: payload['modelId'] as String?,
+              payload: payload,
+            ),
+          );
+        }
+      default:
+        debugPrint('[JsWidgetBridge] unknown scene3d command: $kind');
+    }
   }
 
   void _ensureRafTicker() {

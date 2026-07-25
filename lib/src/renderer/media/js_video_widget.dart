@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import 'package:js_widget_runtime/src/renderer/media/js_media_controller.dart';
 import 'package:js_widget_runtime/src/renderer/media/js_media_controller_mixin.dart';
+import 'package:js_widget_runtime/src/renderer/media/js_media_controls.dart';
 import 'package:js_widget_runtime/src/renderer/media/js_media_host.dart';
 
 /// Host-provided video widget rendered for `type: 'video'` nodes when a
@@ -111,39 +112,15 @@ class _JsVideoWidgetState extends State<JsVideoWidget>
     return surface;
   }
 
-  Widget _buildControls() {
-    final progress = duration.inMilliseconds > 0
-        ? (position.inMilliseconds / duration.inMilliseconds).clamp(0.0, 1.0)
-        : 0.0;
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-      child: Row(
-        children: <Widget>[
-          IconButton(
-            icon: Icon(isPlaying ? Icons.pause : Icons.play_arrow),
-            onPressed: toggle,
-            iconSize: 20,
-            padding: EdgeInsets.zero,
-            constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
-          ),
-          Expanded(
-            child: Slider(
-              value: progress.toDouble(),
-              onChanged: seek,
-            ),
-          ),
-          SizedBox(
-            width: 72,
-            child: Text(
-              '${JsMediaControllerMixin.format(position)} / ${JsMediaControllerMixin.format(duration)}',
-              style: const TextStyle(fontSize: 11),
-              textAlign: TextAlign.end,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
+  Widget _buildControls() => JsMediaTransportControls(
+        isPlaying: isPlaying,
+        position: position,
+        duration: duration,
+        onToggle: toggle,
+        onSeek: seek,
+        iconSize: 20,
+        constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
+      );
 
   static BoxFit _parseBoxFit(String? value) => switch (value) {
         'cover' => BoxFit.cover,
