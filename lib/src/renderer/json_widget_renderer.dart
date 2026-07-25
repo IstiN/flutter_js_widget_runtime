@@ -119,9 +119,15 @@ class JsonWidgetRenderer {
 
     final custom = customBuilders?[type];
     if (custom != null) {
-      return _applyUniversalEffects(
-        Builder(builder: (context) => custom(context, m)),
-        m,
+      // Apply universal effects *inside* the deferred Builder so that custom
+      // builders have a chance to consume (and strip) the same props first.
+      // This avoids a double application of offsetX/Y, scale, rotation,
+      // opacity and blur when the custom builder already handles them.
+      return Builder(
+        builder: (context) {
+          final built = custom(context, m);
+          return _applyUniversalEffects(built, m);
+        },
       );
     }
 
