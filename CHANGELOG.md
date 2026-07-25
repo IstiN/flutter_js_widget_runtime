@@ -1,3 +1,18 @@
+## 0.4.6
+
+- Add transition animation nodes to the JSON renderer. `entrance` plays a
+  one-shot mount animation (`animation`: `fade`, `slideUp`, `slideDown`,
+  `slideLeft`, `slideRight`, `scale`, `fadeScale`; `delay` ms for staggered
+  list entrances, `duration`, `curve`) — implemented over
+  `TweenAnimationBuilder` with an `Interval` curve, so no timers are ever
+  scheduled. `animatedSwitcher` wraps Flutter's `AnimatedSwitcher`: when
+  `switchKey` changes between renders the old child animates out and the new
+  one in (`animation`: `fade`, `slideLeft`, `slideRight`, `slideUp`,
+  `scale`, `fadeScale`), keyed via `ValueKey(switchKey)`. Both follow the
+  renderer's input tolerance: unknown variants fall back to `fade`, numeric
+  strings parse, garbage never crashes. The curve parser is now shared as
+  `jsCurve` in `js_node_helpers.dart`.
+
 ## 0.4.5
 
 - Add a `map` node to the JSON renderer, built on `flutter_map` + `latlong2`

@@ -41,6 +41,23 @@ Color? _parseNamedColor(String name) {
   };
 }
 
+/// Parses a curve name into a Flutter [Curve].
+///
+/// Unknown or null values fall back to [Curves.easeInOut].
+Curve jsCurve(String? v) => switch (v) {
+  'linear' => Curves.linear,
+  'easeIn' => Curves.easeIn,
+  'easeOut' => Curves.easeOut,
+  'easeInOut' => Curves.easeInOut,
+  'bounce' => Curves.bounceOut,
+  'bounceIn' => Curves.bounceIn,
+  'elastic' => Curves.elasticOut,
+  'elasticIn' => Curves.elasticIn,
+  'decelerate' => Curves.decelerate,
+  'fastOutSlowIn' => Curves.fastOutSlowIn,
+  _ => Curves.easeInOut,
+};
+
 /// Converts [v] to a [double], falling back to [def] when null.
 ///
 /// Tolerant of LLM-generated input: numeric strings are parsed, a list

@@ -17,6 +17,7 @@ import 'package:js_widget_runtime/src/renderer/media/js_video_widget.dart';
 import 'package:js_widget_runtime/src/renderer/nodes/image_provider_resolver_stub.dart'
     if (dart.library.io) 'package:js_widget_runtime/src/renderer/nodes/image_provider_resolver_io.dart'
     if (dart.library.html) 'package:js_widget_runtime/src/renderer/nodes/image_provider_resolver_web.dart';
+import 'package:js_widget_runtime/src/renderer/nodes/js_animation_nodes.dart';
 import 'package:js_widget_runtime/src/renderer/nodes/js_map_node.dart';
 import 'package:js_widget_runtime/src/renderer/nodes/js_node_helpers.dart';
 import 'package:js_widget_runtime/src/renderer/nodes/js_path_node.dart';
@@ -36,6 +37,9 @@ final _jsonWidgetDefaultColors = JsonWidgetTheme.fromAccent(Colors.deepPurple);
 /// Input:    button, textButton, outlinedButton, iconButton, textField,
 ///           switch, checkbox, slider, dropdown
 /// Map:      map (OSM tiles via flutter_map, markers, polylines)
+/// Animation: animatedContainer/animatedOpacity/animatedPositioned (implicit),
+///           entrance (one-shot mount animation, staggered via `delay`),
+///           animatedSwitcher (view transition on `switchKey` change)
 /// Media:    video, audio (render placeholders unless a custom builder is registered)
 /// Effects:  blur (ImageFilter), clip on container, boxShadows, radial gradients,
 ///           rotateX/rotateY/perspective transforms, textShadows, textTransform,
@@ -176,6 +180,16 @@ class JsonWidgetRenderer {
       'animatedContainer' => _animatedContainer(m),
       'animatedOpacity' => _animatedOpacity(m),
       'animatedPositioned' => _animatedPositioned(m),
+
+      // Transition animations (mount + view switching)
+      'entrance' => buildJsEntranceNode(
+        m,
+        _child(m) ?? const SizedBox.shrink(),
+      ),
+      'animatedSwitcher' => buildJsAnimatedSwitcherNode(
+        m,
+        _child(m) ?? const SizedBox.shrink(),
+      ),
 
       // Gesture input
       'gestureDetector' => _gestureDetector(m),
@@ -1354,19 +1368,7 @@ class JsonWidgetRenderer {
     child: _child(m) ?? const SizedBox.shrink(),
   );
 
-  Curve _curve(String? v) => switch (v) {
-    'linear' => Curves.linear,
-    'easeIn' => Curves.easeIn,
-    'easeOut' => Curves.easeOut,
-    'easeInOut' => Curves.easeInOut,
-    'bounce' => Curves.bounceOut,
-    'bounceIn' => Curves.bounceIn,
-    'elastic' => Curves.elasticOut,
-    'elasticIn' => Curves.elasticIn,
-    'decelerate' => Curves.decelerate,
-    'fastOutSlowIn' => Curves.fastOutSlowIn,
-    _ => Curves.easeInOut,
-  };
+  Curve _curve(String? v) => jsCurve(v);
 
   Matrix4? _matrix4(dynamic v) {
     if (v == null) return null;
