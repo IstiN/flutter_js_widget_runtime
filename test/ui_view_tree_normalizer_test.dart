@@ -66,6 +66,19 @@ void main() {
       expect(result['onChange'], 'changed');
     });
 
+    test('normalizes textarea alias with textField-style props', () {
+      final result = UiViewTreeNormalizer.normalize({
+        'type': 'textarea',
+        'placeholder': 'hint',
+        'value': 'v',
+        'onChanged': 'changed',
+      });
+      expect(result['type'], 'textArea');
+      expect(result['hint'], 'hint');
+      expect(result['initialValue'], 'v');
+      expect(result['onChange'], 'changed');
+    });
+
     test('normalizes image aliases', () {
       final result = UiViewTreeNormalizer.normalize({
         'type': 'img',

@@ -35,7 +35,7 @@ final _jsonWidgetDefaultColors = JsonWidgetTheme.fromAccent(Colors.deepPurple);
 /// Container: container, card, inkWell, safeArea, scroll, blur
 /// List:     listView, gridView, listTile
 /// Input:    button, textButton, outlinedButton, iconButton, textField,
-///           switch, checkbox, slider, dropdown
+///           textArea, switch, checkbox, slider, dropdown
 /// Map:      map (OSM tiles via flutter_map, markers, polylines)
 /// Animation: animatedContainer/animatedOpacity/animatedPositioned (implicit),
 ///           entrance (one-shot mount animation, staggered via `delay`),
@@ -179,6 +179,7 @@ class JsonWidgetRenderer {
       'opacity' => _child(m) ?? const SizedBox.shrink(),
       'clipRRect' => _clipRRect(m),
       'textField' => _textFieldNode(m),
+      'textArea' => _textAreaNode(m),
       'chart' => _chartNode(m),
       'blur' => _applyBlur(_child(m) ?? const SizedBox.shrink(), m['sigma']),
 
@@ -844,28 +845,91 @@ class JsonWidgetRenderer {
 
   // ── Lists ─────────────────────────────────────────────────────────────────
 
+  /// Parses a `physics` prop into [ScrollPhysics].
+  ///
+  /// Accepted values: `'never'` (not user-scrollable), `'always'`
+  /// (scrollable even when content fits), `'platform'` (Flutter default for
+  /// the current platform). Unknown values fall back to [def].
+  ScrollPhysics? _scrollPhysics(dynamic v, ScrollPhysics? def) =>
+      switch (v is String ? v : null) {
+        'never' => const NeverScrollableScrollPhysics(),
+        'always' => const AlwaysScrollableScrollPhysics(),
+        'platform' => null,
+        _ => def,
+      };
+
+  /// Renders a `listView` node.
+  ///
+  /// Props:
+  /// - `children` (list): items to lay out lazily.
+  /// - `shrinkWrap` (bool): size to content, default `true`.
+  /// - `physics`: `'never'`, `'always'`, or `'platform'`; default `'always'`
+  ///   so a bounded listView (e.g. inside a fixed-height `sizedBox`) always
+  ///   scrolls. Set `shrinkWrap: false` when the list lives in a bounded
+  ///   parent.
+  /// - `reverse` (bool), `padding`.
+  ///
+  /// JS example:
+  /// ```js
+  /// jsr.render({
+  ///   type: 'sizedBox',
+  ///   height: 200,
+  ///   child: {
+  ///     type: 'listView',
+  ///     shrinkWrap: false,
+  ///     children: items.map(function (s) {
+  ///       return {type: 'text', data: s};
+  ///     }),
+  ///   },
+  /// });
+  /// ```
   Widget _listView(Map<String, dynamic> m) {
     final items = m['children'] as List? ?? [];
-    final shrink = m['shrinkWrap'] as bool? ?? true;
-    final reverse = m['reverse'] as bool? ?? false;
+    final shrink = jsBool(m['shrinkWrap'], true);
+    final reverse = jsBool(m['reverse'], false);
     return ListView.builder(
       shrinkWrap: shrink,
       reverse: reverse,
-      physics: shrink
-          ? const NeverScrollableScrollPhysics()
-          : const AlwaysScrollableScrollPhysics(),
+      physics: _scrollPhysics(
+        m['physics'],
+        const AlwaysScrollableScrollPhysics(),
+      ),
       padding: _edgeInsetsOrNull(m['padding']),
       itemCount: items.length,
       itemBuilder: (_, i) => _build(items[i]),
     );
   }
 
+  /// Renders a `gridView` node.
+  ///
+  /// Props:
+  /// - `children` (list): cells to lay out lazily.
+  /// - `crossAxisCount` (number): columns, default 2.
+  /// - `shrinkWrap` (bool): size to content, default `true` (back-compat).
+  /// - `physics`: `'never'` (default, back-compat), `'always'`, or
+  ///   `'platform'`. Set `shrinkWrap: false` plus a scrollable physics when
+  ///   the grid lives in a bounded parent.
+  /// - `crossAxisSpacing`, `mainAxisSpacing`, `childAspectRatio`, `padding`.
+  ///
+  /// JS example:
+  /// ```js
+  /// jsr.render({
+  ///   type: 'gridView',
+  ///   crossAxisCount: 3,
+  ///   shrinkWrap: false,
+  ///   physics: 'platform',
+  ///   children: tiles,
+  /// });
+  /// ```
   Widget _gridView(Map<String, dynamic> m) {
     final items = m['children'] as List? ?? [];
     final cols = _int(m['crossAxisCount'], 2);
     return GridView.builder(
-      shrinkWrap: true,
-      physics: const NeverScrollableScrollPhysics(),
+      shrinkWrap: jsBool(m['shrinkWrap'], true),
+      physics: _scrollPhysics(
+        m['physics'],
+        const NeverScrollableScrollPhysics(),
+      ),
       padding: _edgeInsetsOrNull(m['padding']),
       gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
         crossAxisCount: cols,
@@ -1297,7 +1361,15 @@ class JsonWidgetRenderer {
 
   double? _doubleOrNull(dynamic v) => jsDoubleOrNull(v);
 
-  Widget _textFieldNode(Map<String, dynamic> m) => _TextFieldNode(
+  Widget _textFieldNode(Map<String, dynamic> m) =>
+      _textInputNode(m, obscure: m['obscure'] == true);
+
+  Widget _textInputNode(
+    Map<String, dynamic> m, {
+    bool obscure = false,
+    int? minLines,
+    int? maxLines,
+  }) => _TextFieldNode(
     initialValue: m['initialValue'] as String? ?? m['value'] as String? ?? '',
     hint: m['hint'] as String? ?? '',
     storageKey:
@@ -1308,9 +1380,52 @@ class JsonWidgetRenderer {
     onSubmit: m['onSubmit'] as String?,
     onChange: m['onChange'] as String? ?? m['onChanged'] as String?,
     style: _textStyle(m['style'] as Map?),
-    obscure: m['obscure'] == true,
+    obscure: obscure,
+    minLines: minLines,
+    maxLines: maxLines,
     onEvent: onEvent,
   );
+
+  /// Renders a `textArea` node — a multiline text input that grows from
+  /// `minLines` up to `maxLines` visible lines and then scrolls internally.
+  ///
+  /// Props:
+  /// - `value` / `initialValue` (string): initial text, default `''`.
+  /// - `hint` (string): placeholder text.
+  /// - `minLines` (number): minimum visible lines, default 3.
+  /// - `maxLines` (number): maximum visible lines before the field scrolls
+  ///   internally, default 8.
+  /// - `onChange` (action id): fired per keystroke with `{value}`, exactly
+  ///   like `textField`.
+  /// - `onSubmit` (action id, optional): shows a `done` keyboard action and
+  ///   fires with `{value}` when pressed; without it Enter inserts a
+  ///   newline.
+  /// - `storageKey` / `id` / `name`: registers the live value with the field
+  ///   registry under this key.
+  ///
+  /// Follows the renderer's input tolerance: `minLines`/`maxLines` accept
+  /// numeric strings, garbage falls back to the defaults, and `maxLines` is
+  /// clamped to at least `minLines`.
+  ///
+  /// JS example:
+  /// ```js
+  /// jsr.render({
+  ///   type: 'textArea',
+  ///   id: 'notes',
+  ///   hint: 'Write something…',
+  ///   value: draft,
+  ///   minLines: 4,
+  ///   maxLines: 10,
+  ///   onChange: 'notes_changed',
+  ///   onSubmit: 'notes_done',
+  /// });
+  /// ```
+  Widget _textAreaNode(Map<String, dynamic> m) {
+    final minLines = jsDoubleOrNull(m['minLines'])?.toInt() ?? 3;
+    final maxLinesRaw = jsDoubleOrNull(m['maxLines'])?.toInt() ?? 8;
+    final maxLines = maxLinesRaw < minLines ? minLines : maxLinesRaw;
+    return _textInputNode(m, minLines: minLines, maxLines: maxLines);
+  }
 
   /// Renders a `chart` node — a sparkline or simple bar chart.
   ///
@@ -1517,6 +1632,8 @@ class _TextFieldNode extends StatefulWidget {
     required this.style,
     required this.obscure,
     required this.onEvent,
+    this.minLines,
+    this.maxLines,
   });
 
   final String initialValue;
@@ -1527,6 +1644,11 @@ class _TextFieldNode extends StatefulWidget {
   final String? onChange;
   final TextStyle? style;
   final bool obscure;
+
+  /// Visible line bounds for multiline fields (`textArea`). Both null keeps
+  /// the classic single-line `textField` behavior.
+  final int? minLines;
+  final int? maxLines;
   final void Function(String actionId, Map<String, dynamic> payload) onEvent;
 
   @override
@@ -1594,10 +1716,20 @@ class _TextFieldNodeState extends State<_TextFieldNode> {
   @override
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
+    final maxLines = widget.obscure ? 1 : widget.maxLines;
+    final multiline = maxLines != null && maxLines != 1;
     return TextField(
       controller: _ctrl,
       focusNode: _focusNode,
       obscureText: widget.obscure,
+      minLines: widget.minLines,
+      maxLines: maxLines,
+      keyboardType: multiline ? TextInputType.multiline : null,
+      textInputAction: !multiline
+          ? null
+          : widget.onSubmit != null
+          ? TextInputAction.done
+          : TextInputAction.newline,
       style:
           widget.style ?? TextStyle(color: colorScheme.onSurface, fontSize: 14),
       decoration: appInputDecoration(context: context, hintText: widget.hint),

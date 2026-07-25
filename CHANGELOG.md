@@ -1,3 +1,25 @@
+## 0.4.8
+
+- Add a `textArea` node to the JSON renderer: a multiline text input built
+  on the same field machinery as `textField`. Props: `value` /
+  `initialValue`, `hint`, `minLines` (default 3), `maxLines` (default 8,
+  clamped to at least `minLines`; the field grows to `maxLines` then
+  scrolls internally), `onChange` (fires per keystroke with `{value}`,
+  exactly like `textField`), and an optional `onSubmit` (shows a `done`
+  keyboard action and fires with `{value}`; without it Enter inserts a
+  newline). `storageKey` / `id` / `name` register the live value with the
+  field registry. The tree normalizer aliases `textarea` / `TextArea` and
+  applies the same prop aliases (`placeholder`, `value`, `onChanged`) as
+  `textField`.
+- Make `listView` / `gridView` scrolling configurable. Both accept
+  `shrinkWrap` (bool, default `true`) and `physics` (`'never'` / `'always'`
+  / `'platform'`). Defaults: `listView` is always scrollable; `gridView`
+  keeps its previous `shrinkWrap: true` + non-scrollable behavior for
+  backwards compatibility. Previously `gridView` was hardcoded to
+  `shrinkWrap: true` + `NeverScrollableScrollPhysics`. Follows the
+  renderer's input tolerance: `shrinkWrap` accepts `'true'`/`'false'`
+  strings and numbers, unknown `physics` values fall back to the defaults.
+
 ## 0.4.7
 
 - Fix and extend the `chart` node. It now reads its values from the

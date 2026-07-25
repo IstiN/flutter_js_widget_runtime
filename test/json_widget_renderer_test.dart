@@ -1109,5 +1109,240 @@ void main() {
       expect(find.byType(Icon), findsOneWidget);
       expect(find.text('My Track'), findsOneWidget);
     });
+
+    // ── textArea ────────────────────────────────────────────────────────────
+
+    testWidgets('textArea renders multiline with default line bounds', (
+      tester,
+    ) async {
+      await tester.pumpWidget(
+        buildTree({'type': 'textArea', 'hint': 'notes', 'value': 'draft'}),
+      );
+      final field = tester.widget<TextField>(find.byType(TextField));
+      expect(field.minLines, 3);
+      expect(field.maxLines, 8);
+      expect(field.keyboardType, TextInputType.multiline);
+      expect(field.textInputAction, TextInputAction.newline);
+      expect(field.controller?.text, 'draft');
+    });
+
+    testWidgets('textArea honors minLines/maxLines and clamps max >= min', (
+      tester,
+    ) async {
+      await tester.pumpWidget(
+        buildTree({
+          'type': 'column',
+          'children': [
+            {'type': 'textArea', 'minLines': 4, 'maxLines': 10},
+            {'type': 'textArea', 'minLines': 6, 'maxLines': 2},
+          ],
+        }),
+      );
+      final fields = tester.widgetList<TextField>(find.byType(TextField));
+      expect(fields.first.minLines, 4);
+      expect(fields.first.maxLines, 10);
+      expect(fields.last.minLines, 6);
+      expect(fields.last.maxLines, 6);
+    });
+
+    testWidgets('textArea tolerates numeric strings and garbage', (
+      tester,
+    ) async {
+      await tester.pumpWidget(
+        buildTree({
+          'type': 'column',
+          'children': [
+            {'type': 'textArea', 'minLines': '5', 'maxLines': '12'},
+            {
+              'type': 'textArea',
+              'minLines': {'bad': true},
+              'maxLines': 'oops',
+            },
+          ],
+        }),
+      );
+      final fields = tester.widgetList<TextField>(find.byType(TextField));
+      expect(fields.first.minLines, 5);
+      expect(fields.first.maxLines, 12);
+      expect(fields.last.minLines, 3);
+      expect(fields.last.maxLines, 8);
+    });
+
+    testWidgets('textArea fires onChange per keystroke with value', (
+      tester,
+    ) async {
+      await tester.pumpWidget(
+        buildTree({'type': 'textArea', 'id': 'body', 'onChange': 'edited'}),
+      );
+      await tester.enterText(find.byType(TextField), 'line one\nline two');
+      await tester.pump();
+      final change = events.firstWhere((e) => e.$1 == 'edited');
+      expect(change.$2['value'], 'line one\nline two');
+      final fieldEvent = events.firstWhere((e) => e.$1 == '_field');
+      expect(fieldEvent.$2['key'], 'body');
+      expect(fieldEvent.$2['value'], 'line one\nline two');
+    });
+
+    testWidgets('textArea with onSubmit uses done action and fires it', (
+      tester,
+    ) async {
+      await tester.pumpWidget(
+        buildTree({'type': 'textArea', 'onSubmit': 'submitted'}),
+      );
+      final field = tester.widget<TextField>(find.byType(TextField));
+      expect(field.textInputAction, TextInputAction.done);
+      await tester.enterText(find.byType(TextField), 'multi\nline');
+      await tester.testTextInput.receiveAction(TextInputAction.done);
+      await tester.pump();
+      final submit = events.firstWhere((e) => e.$1 == 'submitted');
+      expect(submit.$2['value'], 'multi\nline');
+    });
+
+    // ── listView / gridView scrolling ───────────────────────────────────────
+
+    testWidgets('listView defaults to always-scrollable physics', (
+      tester,
+    ) async {
+      await tester.pumpWidget(
+        buildTree({
+          'type': 'listView',
+          'children': [
+            {'type': 'text', 'data': 'a'},
+          ],
+        }),
+      );
+      final list = tester.widget<ListView>(find.byType(ListView));
+      expect(list.shrinkWrap, isTrue);
+      expect(list.physics, isA<AlwaysScrollableScrollPhysics>());
+    });
+
+    testWidgets('listView physics never disables scrolling', (tester) async {
+      await tester.pumpWidget(
+        buildTree({
+          'type': 'sizedBox',
+          'height': 200,
+          'child': {
+            'type': 'listView',
+            'shrinkWrap': false,
+            'physics': 'never',
+            'children': [
+              for (var i = 0; i < 50; i++) {'type': 'text', 'data': 'item $i'},
+            ],
+          },
+        }),
+      );
+      final list = tester.widget<ListView>(find.byType(ListView));
+      expect(list.physics, isA<NeverScrollableScrollPhysics>());
+    });
+
+    testWidgets('bounded listView with 50 items drag-scrolls to last item', (
+      tester,
+    ) async {
+      await tester.pumpWidget(
+        buildTree({
+          'type': 'sizedBox',
+          'height': 200,
+          'child': {
+            'type': 'listView',
+            'shrinkWrap': false,
+            'children': [
+              for (var i = 0; i < 50; i++) {'type': 'text', 'data': 'item $i'},
+            ],
+          },
+        }),
+      );
+      expect(find.text('item 0'), findsOneWidget);
+      expect(find.text('item 49'), findsNothing);
+      await tester.drag(find.byType(ListView), const Offset(0, -2000));
+      await tester.pumpAndSettle();
+      expect(find.text('item 49'), findsOneWidget);
+    });
+
+    testWidgets('gridView defaults stay back-compat (shrinkWrap + never)', (
+      tester,
+    ) async {
+      await tester.pumpWidget(
+        buildTree({
+          'type': 'gridView',
+          'children': [
+            {'type': 'text', 'data': 'a'},
+          ],
+        }),
+      );
+      final grid = tester.widget<GridView>(find.byType(GridView));
+      expect(grid.shrinkWrap, isTrue);
+      expect(grid.physics, isA<NeverScrollableScrollPhysics>());
+    });
+
+    testWidgets('gridView shrinkWrap and physics props are configurable', (
+      tester,
+    ) async {
+      await tester.pumpWidget(
+        buildTree({
+          'type': 'sizedBox',
+          'height': 200,
+          'child': {
+            'type': 'gridView',
+            'shrinkWrap': false,
+            'physics': 'always',
+            'children': [
+              for (var i = 0; i < 40; i++) {'type': 'text', 'data': 'cell $i'},
+            ],
+          },
+        }),
+      );
+      final grid = tester.widget<GridView>(find.byType(GridView));
+      expect(grid.shrinkWrap, isFalse);
+      expect(grid.physics, isA<AlwaysScrollableScrollPhysics>());
+      expect(find.text('cell 0'), findsOneWidget);
+      expect(find.text('cell 39'), findsNothing);
+      await tester.drag(find.byType(GridView), const Offset(0, -10000));
+      await tester.pumpAndSettle();
+      expect(find.text('cell 39'), findsOneWidget);
+    });
+
+    testWidgets('listView and gridView tolerate string/number bool props', (
+      tester,
+    ) async {
+      await tester.pumpWidget(
+        buildTree({
+          'type': 'column',
+          'children': [
+            {
+              'type': 'sizedBox',
+              'height': 200,
+              'child': {
+                'type': 'listView',
+                'shrinkWrap': 'false',
+                'children': [
+                  {'type': 'text', 'data': 'a'},
+                ],
+              },
+            },
+            {
+              'type': 'sizedBox',
+              'height': 200,
+              'child': {
+                'type': 'gridView',
+                'shrinkWrap': 0,
+                'physics': 'platform',
+                'children': [
+                  {'type': 'text', 'data': 'b'},
+                ],
+              },
+            },
+          ],
+        }),
+      );
+      expect(
+        tester.widget<ListView>(find.byType(ListView)).shrinkWrap,
+        isFalse,
+      );
+      final grid = tester.widget<GridView>(find.byType(GridView));
+      expect(grid.shrinkWrap, isFalse);
+      // 'platform' passes physics: null through; the framework then applies
+      // its own default (AlwaysScrollable for a primary vertical view).
+      expect(grid.physics, isNot(isA<NeverScrollableScrollPhysics>()));
+    });
   });
 }

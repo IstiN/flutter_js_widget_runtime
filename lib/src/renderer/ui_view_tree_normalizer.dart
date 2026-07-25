@@ -24,20 +24,17 @@ class UiViewTreeNormalizer {
     }
 
     if (out['children'] is List) {
-      out['children'] =
-          (out['children'] as List)
-              .map((child) {
-                if (child is Map) {
-                  return _normalizeNode(
-                    Map<String, dynamic>.from(child.cast<String, dynamic>()),
-                  );
-                }
-                if (child is String) {
-                  return <String, dynamic>{'type': 'text', 'data': child};
-                }
-                return child;
-              })
-              .toList();
+      out['children'] = (out['children'] as List).map((child) {
+        if (child is Map) {
+          return _normalizeNode(
+            Map<String, dynamic>.from(child.cast<String, dynamic>()),
+          );
+        }
+        if (child is String) {
+          return <String, dynamic>{'type': 'text', 'data': child};
+        }
+        return child;
+      }).toList();
     }
 
     if (out['child'] is Map) {
@@ -59,9 +56,7 @@ class UiViewTreeNormalizer {
     if (out['content'] != null && out['data'] == null) {
       out['data'] = out.remove('content');
     }
-    if (out['label'] != null &&
-        out['data'] == null &&
-        out['type'] == 'text') {
+    if (out['label'] != null && out['data'] == null && out['type'] == 'text') {
       out['data'] = out['label'];
     }
 
@@ -79,9 +74,7 @@ class UiViewTreeNormalizer {
       }
     }
 
-    if (type == 'button' ||
-        type == 'textButton' ||
-        type == 'outlinedButton') {
+    if (type == 'button' || type == 'textButton' || type == 'outlinedButton') {
       if (out['title'] != null && out['data'] == null) {
         out['data'] = out.remove('title');
       }
@@ -90,8 +83,8 @@ class UiViewTreeNormalizer {
       }
     }
 
-    if (type == 'textField' || type == 'input') {
-      out['type'] = 'textField';
+    if (type == 'textField' || type == 'input' || type == 'textArea') {
+      out['type'] = type == 'textArea' ? 'textArea' : 'textField';
       if (out['placeholder'] != null && out['hint'] == null) {
         out['hint'] = out.remove('placeholder');
       }
@@ -188,6 +181,8 @@ class UiViewTreeNormalizer {
     'TextInput': 'textField',
     'textInput': 'textField',
     'input': 'textField',
+    'TextArea': 'textArea',
+    'textarea': 'textArea',
     'Switch': 'switch',
     'Checkbox': 'checkbox',
     'Slider': 'slider',

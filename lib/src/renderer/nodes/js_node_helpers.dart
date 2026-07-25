@@ -82,6 +82,23 @@ double? jsDoubleOrNull(dynamic v) {
   return null;
 }
 
+/// Converts [v] to a [bool], falling back to [def] when null.
+///
+/// Tolerant of LLM-generated input: `'true'`/`'false'` strings and numbers
+/// (non-zero is true) are accepted, anything else falls back to [def]
+/// instead of throwing a cast error.
+bool jsBool(dynamic v, bool def) {
+  if (v == null) return def;
+  if (v is bool) return v;
+  if (v is num) return v != 0;
+  if (v is String) {
+    final s = v.trim().toLowerCase();
+    if (s == 'true') return true;
+    if (s == 'false') return false;
+  }
+  return def;
+}
+
 /// Converts [v] to a [BorderRadius].
 ///
 /// Accepts a single number (uniform radius), a numeric string, or a
