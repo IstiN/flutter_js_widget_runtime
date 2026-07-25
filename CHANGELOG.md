@@ -1,3 +1,17 @@
+## 0.4.10
+
+- Add a pure-Dart software 3D pipeline to the `scene3d` node: when the node
+  carries a `meshes` prop it renders on `CustomPaint` — perspective-projected
+  triangles, painter's z-sort, flat Lambert shading — with zero native
+  dependencies and no `Js3dHost` required. Props: `meshes`
+  (`{vertices, faces, color}`), `camera` (`position`, `target`, `fov`),
+  `rotation` (`x`/`y`/`z` static transform; JS animates by re-rendering on
+  raf/timer), `light.direction`, `background`, and `onTap` (fires with
+  `{x, y}` local coordinates). Nodes without `meshes` keep routing to the
+  host-provided `Js3dHost` engine. Malformed meshes/vertices/faces are
+  skipped, never fatal. See `docs/3d-spike.md` for the flutter_gl evaluation
+  and poly-budget guidance.
+
 ## 0.4.9
 
 - Add 3D scene support via the new `scene3d` renderer node and

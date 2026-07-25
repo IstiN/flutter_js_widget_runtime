@@ -22,6 +22,7 @@ import 'package:js_widget_runtime/src/renderer/nodes/js_animation_nodes.dart';
 import 'package:js_widget_runtime/src/renderer/nodes/js_map_node.dart';
 import 'package:js_widget_runtime/src/renderer/nodes/js_node_helpers.dart';
 import 'package:js_widget_runtime/src/renderer/nodes/js_path_node.dart';
+import 'package:js_widget_runtime/src/renderer/nodes/js_scene3d_mesh_node.dart';
 import 'package:js_widget_runtime/src/renderer/nodes/js_scene3d_node.dart';
 import 'package:js_widget_runtime/src/renderer/ui_view_field_registry.dart';
 
@@ -43,7 +44,8 @@ final _jsonWidgetDefaultColors = JsonWidgetTheme.fromAccent(Colors.deepPurple);
 ///           entrance (one-shot mount animation, staggered via `delay`),
 ///           animatedSwitcher (view transition on `switchKey` change)
 /// Media:    video, audio (render placeholders unless a custom builder is registered)
-/// 3D:       scene3d (host-provided 3D engine; GLB/GLTF models, camera, lights)
+/// 3D:       scene3d (software mesh rendering via a `meshes` prop — pure Dart;
+///           or host-provided 3D engine for GLB/GLTF models, camera, lights)
 /// Effects:  blur (ImageFilter), clip on container, boxShadows, radial gradients,
 ///           rotateX/rotateY/perspective transforms, textShadows, textTransform,
 ///           universal effect props (offsetX/offsetY, scale, rotation, opacity, blur).
@@ -573,7 +575,8 @@ class JsonWidgetRenderer {
     IconData icon, {
     String? label,
   }) {
-    final effectiveLabel = label ?? m['label'] as String? ?? m['text'] as String?;
+    final effectiveLabel =
+        label ?? m['label'] as String? ?? m['text'] as String?;
     return Container(
       width: _doubleOrNull(m['width']) ?? 120,
       height: _doubleOrNull(m['height']) ?? 80,
@@ -673,6 +676,13 @@ class JsonWidgetRenderer {
   }
 
   Widget _scene3d(Map<String, dynamic> m) {
+    // Software-rendered mesh scenes need no host: pure Dart CustomPaint.
+    if (m['meshes'] is List) {
+      return JsScene3dMeshNode(
+        node: Map<String, dynamic>.from(m),
+        onEvent: onEvent,
+      );
+    }
     final host = js3dHost;
     final sceneId = m['id'] as String? ?? 'default';
     if (host == null) {

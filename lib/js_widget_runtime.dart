@@ -2,7 +2,8 @@
 library;
 
 export 'src/loader/asset_widget_file_reader.dart' show AssetWidgetFileReader;
-export 'src/loader/widget_file_reader.dart' show WidgetFileReader, MemoryWidgetFileReader;
+export 'src/loader/widget_file_reader.dart'
+    show WidgetFileReader, MemoryWidgetFileReader;
 export 'src/model/js_runtime_config.dart';
 export 'src/model/widget_manifest.dart' show WidgetManifest;
 export 'src/renderer/json_widget_renderer.dart' show JsonWidgetRenderer;
@@ -12,6 +13,15 @@ export 'src/renderer/font/js_font_resolver.dart' show JsFontResolver;
 export 'src/renderer/json_widget_theme.dart' show JsonWidgetTheme;
 export 'src/renderer/nodes/js_3d_host.dart'
     show Js3dHost, Js3dController, Js3dCommand;
+export 'src/renderer/nodes/js_scene3d_mesh_node.dart'
+    show
+        JsScene3dMeshNode,
+        Scene3dMesh,
+        Scene3dCamera,
+        Scene3dConfig,
+        Scene3dProjector,
+        Scene3dMeshPainter,
+        parseScene3dConfig;
 export 'src/renderer/media/js_media_controller.dart'
     show JsMediaController, JsVideoController, JsAudioController;
 export 'src/renderer/media/js_media_host.dart' show JsMediaHost;
