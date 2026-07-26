@@ -94,14 +94,24 @@ class _JsWidgetRuntimeWidgetState extends State<JsWidgetRuntimeWidget> {
     // Keyboard capture for `jsr.onKey`. The handler only fires when this
     // subtree holds focus and no editable text field is focused, so
     // `textField`/`textArea` nodes keep receiving their keystrokes.
-    return Focus(
-      focusNode: _keyFocusNode,
-      autofocus: true,
-      onKeyEvent: (node, event) => jsHandleRuntimeKeyEvent(
-        event,
-        (payload) => _engine?.dispatchHostEvent('key', payload),
+    // `autofocus` alone is not enough in embedded hosts (boards, panels):
+    // the first tap anywhere inside the widget explicitly claims focus,
+    // otherwise keystrokes die with no primary focus at all.
+    return Listener(
+      onPointerDown: (_) {
+        if (!_keyFocusNode.hasFocus && !jsEditableTextHasFocus()) {
+          _keyFocusNode.requestFocus();
+        }
+      },
+      child: Focus(
+        focusNode: _keyFocusNode,
+        autofocus: true,
+        onKeyEvent: (node, event) => jsHandleRuntimeKeyEvent(
+          event,
+          (payload) => _engine?.dispatchHostEvent('key', payload),
+        ),
+        child: content,
       ),
-      child: content,
     );
   }
 }

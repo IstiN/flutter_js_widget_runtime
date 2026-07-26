@@ -11,6 +11,11 @@ class FakeEngineBackend extends JsWidgetEngineBackend {
   final List<String> hostTargets = [];
   final List<Map<String, dynamic>> hostPayloads = [];
 
+  void clear() {
+    hostTargets.clear();
+    hostPayloads.clear();
+  }
+
   @override
   Future<void> init() async {}
 
