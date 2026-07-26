@@ -1,3 +1,7 @@
+## 0.4.14
+
+- Automated patch bump.
+
 ## 0.4.13
 
 - The `image` node now sends a browser-ish `User-Agent` for network URLs:
