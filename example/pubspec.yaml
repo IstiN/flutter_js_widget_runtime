@@ -31,4 +31,5 @@ flutter:
     - widgets/3d-viewer/
     - widgets/3d-showcase/
     - widgets/3d-glb-showcase/
+    - widgets/3d-game-dodge/
     - assets/models/

@@ -186,10 +186,61 @@ void main() {
         controller.dispose();
       });
     });
+    test('playAnimation with a skeletal clip name is ignored', () {
+      final controller = controllerWithBox('s1');
+
+      // The cube host has no skeletal animations; a `name` payload must
+      // not start an axis rotation either.
+      controller.apply(
+        const Js3dCommand(
+          kind: 'playAnimation',
+          sceneId: 's1',
+          modelId: 'box',
+          payload: {'name': 'run', 'loop': true},
+        ),
+      );
+      expect(controller.animationCount, 0);
+
+      // The axis-rotation form still works.
+      controller.apply(
+        const Js3dCommand(
+          kind: 'playAnimation',
+          sceneId: 's1',
+          modelId: 'box',
+          payload: {'axis': 'y', 'speed': 1.0},
+        ),
+      );
+      expect(controller.animationCount, 1);
+
+      controller.apply(
+        const Js3dCommand(kind: 'stopAnimation', sceneId: 's1', modelId: 'box'),
+      );
+      expect(controller.animationCount, 0);
+
+      controller.dispose();
+    });
 
   });
 }
 
 extension _TestableController on Cube3dController {
   cube.Object? object(String id) => objects[id];
+}
+
+/// Builds a controller with a ready scene and a single `box` cube model.
+Cube3dController controllerWithBox(String sceneId) {
+  final controller = createCube3dHost().createController(
+    sceneId,
+    <String, dynamic>{},
+  ) as Cube3dController;
+  controller.onSceneCreated(cube.Scene());
+  controller.apply(
+    Js3dCommand(
+      kind: 'addModel',
+      sceneId: sceneId,
+      modelId: 'box',
+      payload: const {'primitive': 'cube'},
+    ),
+  );
+  return controller;
 }

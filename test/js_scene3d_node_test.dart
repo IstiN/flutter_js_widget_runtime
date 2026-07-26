@@ -4,12 +4,16 @@ import 'package:js_widget_runtime/js_widget_runtime.dart';
 
 class _Fake3dController extends Js3dController {
   final List<Js3dCommand> commands = [];
+  Map<String, dynamic>? raycastResult;
 
   @override
   void apply(Js3dCommand command) {
     commands.add(command);
     notifyListeners();
   }
+
+  @override
+  Map<String, dynamic>? raycastAt(Offset ndc) => raycastResult;
 }
 
 class _Fake3dHost extends Js3dHost {
@@ -83,6 +87,49 @@ void main() {
       await tester.pump();
       expect(host.controller.commands.length, 1);
       expect(host.controller.commands.first.kind, 'addModel');
+    });
+
+    testWidgets('tap raycasts through the controller and reports the hit',
+        (tester) async {
+      final host = _Fake3dHost();
+      host.controller.raycastResult = const {
+        'modelId': 'box',
+        'point': [0.0, 0.0, 0.0],
+      };
+      final hits = <String, Map<String, dynamic>>{};
+      final renderer = JsonWidgetRenderer(
+        onEvent: (_, __) {},
+        js3dHost: host,
+        onScene3dTap: (sceneId, payload) => hits[sceneId] = payload,
+      );
+      await _pumpScene(tester, renderer);
+      await tester.tap(find.byType(GestureDetector));
+      expect(hits.keys, ['main']);
+      expect(hits['main']?['modelId'], 'box');
+    });
+
+    testWidgets('tap miss reports {modelId: null}', (tester) async {
+      final host = _Fake3dHost();
+      final hits = <Map<String, dynamic>>[];
+      final renderer = JsonWidgetRenderer(
+        onEvent: (_, __) {},
+        js3dHost: host,
+        onScene3dTap: (_, payload) => hits.add(payload),
+      );
+      await _pumpScene(tester, renderer);
+      await tester.tap(find.byType(GestureDetector));
+      expect(hits.single, {'modelId': null});
+    });
+
+    testWidgets('no tap gesture is installed without an onScene3dTap callback',
+        (tester) async {
+      final host = _Fake3dHost();
+      final renderer = JsonWidgetRenderer(
+        onEvent: (_, __) {},
+        js3dHost: host,
+      );
+      await _pumpScene(tester, renderer);
+      expect(find.byType(GestureDetector), findsNothing);
     });
   });
 }

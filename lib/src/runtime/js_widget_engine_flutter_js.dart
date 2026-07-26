@@ -157,6 +157,25 @@ class FlutterJsWidgetEngineBackend implements JsWidgetEngineBackend {
   }
 
   @override
+  void dispatchHostEvent(String target, Map<String, dynamic> payload) {
+    final rt = _runtime;
+    if (rt == null || _disposed) return;
+    try {
+      rt.evaluate(hostEventJs(target, payload));
+      rt.executePendingJob();
+    } catch (e) {
+      debugPrint('[FlutterJsWidgetEngineBackend] host event error: $e');
+    }
+  }
+
+  /// Builds the JS snippet that delivers a host event to bootstrap listeners
+  /// (`jsr.onKey`, `jsr.scene3d.onTap`). Extracted for unit testing.
+  static String hostEventJs(String target, Map<String, dynamic> payload) =>
+      'if(typeof __jsrHostEvent==="function"){'
+      '__jsrHostEvent(${jsonEncode(target)},${jsonEncode(payload)});'
+      '}';
+
+  @override
   Future<void> dispose() async {
     _disposed = true;
     _bridge.dispose();

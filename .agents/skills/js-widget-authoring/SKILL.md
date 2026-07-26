@@ -196,8 +196,27 @@ jsr.scene3d.setTransform('main', 'player', {
   scale: [1.5, 1.5, 1.5]
 });
 
+// Batched transforms — ONE bridge message for many models (use per frame).
+jsr.scene3d.setTransforms('main', [
+  { modelId: 'player', position: [1, 0, 0] },
+  { modelId: 'enemy-1', position: [3, 0, -5], rotation: [0, 90, 0] }
+]);
+
+// Axis rotation (both hosts): spins the model around an axis.
+jsr.scene3d.playAnimation('main', 'player', { axis: 'y', speed: 0.5 });
+
+// Skeletal clip (flame host, GLB models with animations): pass a name string
+// or {name, loop, speed}. The cube host ignores named clips.
 jsr.scene3d.playAnimation('main', 'player', 'run');
+jsr.scene3d.playAnimation('main', 'player', { name: 'run', loop: true, speed: 1.5 });
+
+// Stops skeletal playback AND axis rotation.
 jsr.scene3d.stopAnimation('main', 'player');
+
+// Tap picking: nearest AABB hit under the tap, or {modelId: null} on a miss.
+jsr.scene3d.onTap('main', function(hit) {
+  if (hit.modelId) console.log('tapped', hit.modelId, 'at', hit.point);
+});
 
 jsr.scene3d.setCamera('main', {
   position: [0, 5, 10],
@@ -213,3 +232,60 @@ jsr.scene3d.destroy('main');
   host engine.
 - Keep 3D widget logic behind feature detection where possible, because hosts
   are not required to provide a `Js3dHost`.
+
+## Keyboard Input (`jsr.onKey`)
+
+Game-style widgets register a keyboard handler once:
+
+```javascript
+var keys = { left: false, right: false };
+
+jsr.onKey(function(ev) {
+  // ev = {key, code, down, repeat}
+  // key: 'a', 'd', 'r', 'arrowLeft', 'arrowRight', 'arrowUp', 'arrowDown',
+  //      'space', 'enter', 'escape', ...
+  if (ev.key === 'arrowLeft' || ev.key === 'a') keys.left = ev.down;
+  if (ev.key === 'arrowRight' || ev.key === 'd') keys.right = ev.down;
+  if (ev.down && !ev.repeat && ev.key === 'r') restart();
+});
+```
+
+- Key capture only works while the widget panel has focus; the runtime grabs
+  focus automatically when the widget page opens.
+- Keystrokes are never swallowed while a `textField`/`textArea` node holds
+  focus, so forms and games can coexist.
+- Track held keys in a map and apply movement in the frame loop — do not move
+  per key event (auto-repeat rates vary by platform).
+
+## Mini Game Pattern
+
+Reference: `example/widgets/3d-game-dodge/` (Dodge Blocks 3D).
+
+```javascript
+var lastTick = 0;
+
+function tick(elapsedMs) {
+  requestAnimationFrame(tick);
+  if (!lastTick) { lastTick = elapsedMs; return; }
+  var dt = Math.min((elapsedMs - lastTick) / 1000, 0.1);
+  lastTick = elapsedMs;
+
+  // 1. advance gameplay state from `keys` and dt
+  // 2. spawn/despawn with jsr.scene3d.addModel / removeModel
+  // 3. move every model with ONE batched call:
+  jsr.scene3d.setTransforms(sceneId, [
+    { modelId: 'player', position: [px, 0, 2] },
+    { modelId: 'block-0', position: [bx, 0, bz] }
+  ]);
+  // 4. keep CLI state live
+  jsr.exportState({ score: score, lives: lives, best: best });
+}
+
+jsr.onKey(onKey);
+requestAnimationFrame(tick);
+```
+
+- Do collision math (AABB overlap) in JS; `jsr.scene3d.onTap` is for picking.
+- Persist records with `jsr.storage.set('my-best', best)`.
+- Render HUD (score, lives) as regular JSON UI around the `scene3d` node; a
+  `stack` with `positioned` children works for game-over overlays.

@@ -149,6 +149,12 @@ class WebWorkerJsWidgetEngineBackend implements JsWidgetEngineBackend {
       _postToWorker('__jsr_updateTheme', colors);
 
   @override
+  void dispatchHostEvent(String target, Map<String, dynamic> payload) {
+    if (_disposed) return;
+    _postToWorker('__jsr_host_event', {'target': target, 'payload': payload});
+  }
+
+  @override
   Future<void> dispose() async {
     _disposed = true;
     _bridge.dispose();
@@ -261,6 +267,10 @@ self.onmessage = function(e){
   } else if (msg.channel === '__jsr_updateTheme') {
     jsr.theme = msg.payload;
     if (jsr._onThemeChange) { try { jsr._onThemeChange(jsr.theme); } catch(e) {} }
+  } else if (msg.channel === '__jsr_host_event') {
+    if (typeof __jsrHostEvent === 'function') {
+      __jsrHostEvent(msg.payload.target, msg.payload.payload);
+    }
   } else if (msg.channel === '__jsr_interval_tick') {
     if (__iv_cbs[msg.payload]) __iv_cbs[msg.payload]();
   } else if (msg.channel === '__jsr_raf_tick') {

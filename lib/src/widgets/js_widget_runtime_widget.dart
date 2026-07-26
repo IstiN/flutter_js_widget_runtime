@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import 'package:js_widget_runtime/js_widget_runtime.dart';
+import 'package:js_widget_runtime/src/widgets/js_key_events.dart';
 
 /// Runs a JavaScript widget and renders its declarative JSON UI tree.
 ///
@@ -31,6 +32,7 @@ class JsWidgetRuntimeWidget extends StatefulWidget {
 class _JsWidgetRuntimeWidgetState extends State<JsWidgetRuntimeWidget> {
   JsWidgetEngine? _engine;
   Map<String, dynamic>? _uiTree;
+  final FocusNode _keyFocusNode = FocusNode();
 
   @override
   void initState() {
@@ -48,6 +50,7 @@ class _JsWidgetRuntimeWidgetState extends State<JsWidgetRuntimeWidget> {
 
   @override
   void dispose() {
+    _keyFocusNode.dispose();
     _engine?.dispose();
     super.dispose();
   }
@@ -76,12 +79,29 @@ class _JsWidgetRuntimeWidgetState extends State<JsWidgetRuntimeWidget> {
   @override
   Widget build(BuildContext context) {
     final tree = _uiTree;
+    final Widget content;
     if (tree == null) {
-      return const Center(child: CircularProgressIndicator());
+      content = const Center(child: CircularProgressIndicator());
+    } else {
+      final renderer = JsonWidgetRenderer(
+        onEvent: (actionId, payload) => _engine?.callEvent(actionId, payload),
+        js3dHost: widget.config.js3dHost,
+        onScene3dTap: (sceneId, payload) =>
+            _engine?.dispatchHostEvent('scene3d.tap:$sceneId', payload),
+      );
+      content = renderer.build(tree, context);
     }
-    final renderer = JsonWidgetRenderer(
-      onEvent: (actionId, payload) => _engine?.callEvent(actionId, payload),
+    // Keyboard capture for `jsr.onKey`. The handler only fires when this
+    // subtree holds focus and no editable text field is focused, so
+    // `textField`/`textArea` nodes keep receiving their keystrokes.
+    return Focus(
+      focusNode: _keyFocusNode,
+      autofocus: true,
+      onKeyEvent: (node, event) => jsHandleRuntimeKeyEvent(
+        event,
+        (payload) => _engine?.dispatchHostEvent('key', payload),
+      ),
+      child: content,
     );
-    return renderer.build(tree, context);
   }
 }

@@ -54,6 +54,11 @@ class JsWidgetEngine {
   ]) =>
       _backend.callEvent(actionId, payload);
 
+  /// Delivers a fire-and-forget host event (keyboard, scene3d tap) to the
+  /// widget's bootstrap listeners. See [JsWidgetEngineBackend.dispatchHostEvent].
+  void dispatchHostEvent(String target, Map<String, dynamic> payload) =>
+      _backend.dispatchHostEvent(target, payload);
+
   /// Pushes a theme update into the running JS context.
   void updateTheme(Map<String, dynamic> colors) => _backend.updateTheme(colors);
 

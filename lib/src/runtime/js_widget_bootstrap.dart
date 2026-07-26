@@ -86,6 +86,13 @@ var jsr = {
   _handler: null,
   onEvent: function(fn){ jsr._handler = fn; },
 
+  // Keyboard handler registration for game-style widgets:
+  //   jsr.onKey(function(ev) { ... });
+  // ev = {key:'a'|'arrowLeft'|'arrowRight'|'arrowUp'|'arrowDown'|'space'|...,
+  //       code:'KeyA', down:true|false, repeat:true|false}
+  _keyHandler: null,
+  onKey: function(fn){ jsr._keyHandler = fn; },
+
   // Theme — updated by Dart when the user switches themes
   theme: {isDark:true,bg:'#0f172a',surface:'#1e293b',border:'#334155',accent:'#818cf8',text:'#f1f5f9',muted:'#64748b'},
   _onThemeChange: null,
@@ -156,13 +163,37 @@ var jsr = {
       this._send('removeModel', sceneId, {modelId: modelId});
     },
     setTransform: function(sceneId, modelId, transform) {
-      this._send('setTransform', sceneId, {modelId: modelId, transform: transform});
+      var payload = {modelId: modelId};
+      if (transform) {
+        for (var k in transform) { payload[k] = transform[k]; }
+      }
+      this._send('setTransform', sceneId, payload);
     },
-    playAnimation: function(sceneId, modelId, animationName) {
-      this._send('playAnimation', sceneId, {modelId: modelId, animationName: animationName});
+    // Batched transforms: one bridge message instead of N.
+    // items = [{modelId, position?, rotation?, scale?}, ...]
+    setTransforms: function(sceneId, items) {
+      this._send('setTransforms', sceneId, {items: items || []});
+    },
+    // options: an animation name (string, skeletal), or an object
+    // {name, loop, speed} for skeletal animations / {axis, speed} for the
+    // built-in axis rotation.
+    playAnimation: function(sceneId, modelId, options) {
+      var payload = {modelId: modelId};
+      if (typeof options === 'string') {
+        payload.name = options;
+      } else if (options) {
+        for (var k in options) { payload[k] = options[k]; }
+      }
+      this._send('playAnimation', sceneId, payload);
     },
     stopAnimation: function(sceneId, modelId) {
       this._send('stopAnimation', sceneId, {modelId: modelId});
+    },
+    // Tap picking: handler receives {modelId, point:[x,y,z]} for the nearest
+    // hit, or {modelId: null} on a miss.
+    _tapHandlers: {},
+    onTap: function(sceneId, fn) {
+      this._tapHandlers[sceneId] = fn;
     },
     setCamera: function(sceneId, camera) {
       this._send('setCamera', sceneId, camera);
@@ -170,6 +201,21 @@ var jsr = {
     setLight: function(sceneId, light) {
       this._send('setLight', sceneId, light);
     }
+  }
+};
+
+// Fire-and-forget host-originated events (keyboard, scene3d tap picking).
+// The Dart engine calls this global; it never crosses the bridge channels.
+var __jsrHostEvent = function(target, payload) {
+  try {
+    if (target === 'key') {
+      if (jsr._keyHandler) jsr._keyHandler(payload);
+    } else if (target.indexOf('scene3d.tap:') === 0) {
+      var h = jsr.scene3d._tapHandlers[target.substring('scene3d.tap:'.length)];
+      if (h) h(payload);
+    }
+  } catch (e) {
+    console.error('jsr host event error: ' + (e && e.message ? e.message : String(e)));
   }
 };
 ''';

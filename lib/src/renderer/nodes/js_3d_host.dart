@@ -32,6 +32,13 @@ abstract class Js3dController extends ChangeNotifier {
   /// Applies a command to the scene.
   void apply(Js3dCommand command);
 
+  /// Attempts to pick a model at normalized device coordinates [ndc]
+  /// (x/y in `[-1, 1]`, y up), used by tap picking (`jsr.scene3d.onTap`).
+  ///
+  /// Returns `{modelId, point: [x, y, z]}` for the nearest hit, or null on a
+  /// miss or when the host does not support raycasting.
+  Map<String, dynamic>? raycastAt(Offset ndc) => null;
+
   /// Disposes any resources owned by this scene.
   @mustCallSuper
   @override

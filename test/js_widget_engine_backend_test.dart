@@ -1,64 +1,28 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:js_widget_runtime/js_widget_runtime.dart';
+import 'package:js_widget_runtime/src/runtime/js_widget_engine_flutter_js.dart';
 
-class _FakeBackend extends JsWidgetEngineBackend {
-  String? ranWidgetJs;
-  String? ranHostBootstrapJs;
-  String? lastActionId;
-  Map<String, dynamic>? lastPayload;
-  bool disposed = false;
+import 'fake_engine_backend.dart';
 
-  @override
-  Future<void> init() async {}
-
-  @override
-  Future<void> run(
-    String widgetJs, {
-    String? hostBootstrapJs,
-    Map<String, dynamic> initialTheme = const {},
-  }) async {
-    ranWidgetJs = widgetJs;
-    ranHostBootstrapJs = hostBootstrapJs;
-  }
-
-  @override
-  Future<void> callEvent(
-    String actionId, [
-    Map<String, dynamic>? payload,
-  ]) async {
-    lastActionId = actionId;
-    lastPayload = payload;
-  }
-
-  @override
-  void updateTheme(Map<String, dynamic> colors) {}
-
-  @override
-  Future<void> dispose() async {
-    disposed = true;
-  }
-
-  @override
-  List<Map<String, dynamic>> flushLogs() => [];
-
-  @override
-  List<Map<String, dynamic>> peekLogs() => [];
-
-  @override
-  Map<String, dynamic>? get exportedState => null;
-}
+JsRuntimeConfig _configFor(
+  FakeEngineBackend backend, {
+  String? instanceId,
+  String? hostBootstrapJs,
+}) =>
+    JsRuntimeConfig(
+      instanceId: instanceId,
+      hostBootstrapJs: hostBootstrapJs,
+      onRender: (_) {},
+      onSetTitle: (_) {},
+      onStorageUpdate: (_) {},
+      backend: backend,
+    );
 
 void main() {
   group('JsWidgetEngine backend delegation', () {
     test('uses custom backend from JsRuntimeConfig', () async {
-      final backend = _FakeBackend();
-      final config = JsRuntimeConfig(
-        onRender: (_) {},
-        onSetTitle: (_) {},
-        onStorageUpdate: (_) {},
-        backend: backend,
-      );
-      final engine = JsWidgetEngine(config: config);
+      final backend = FakeEngineBackend();
+      final engine = JsWidgetEngine(config: _configFor(backend));
       await engine.run('console.log("hello")');
       expect(backend.ranWidgetJs, 'console.log("hello")');
 
@@ -71,30 +35,18 @@ void main() {
     });
 
     test('injects provided instanceId into bootstrap', () async {
-      final backend = _FakeBackend();
-      final config = JsRuntimeConfig(
-        instanceId: 'panel-42',
-        onRender: (_) {},
-        onSetTitle: (_) {},
-        onStorageUpdate: (_) {},
-        backend: backend,
-      );
-      final engine = JsWidgetEngine(config: config);
-      await engine.run('1');
+      final backend = FakeEngineBackend();
+      await JsWidgetEngine(
+        config: _configFor(backend, instanceId: 'panel-42'),
+      ).run('1');
       expect(backend.ranHostBootstrapJs, contains('jsr.instanceId = "panel-42"'));
     });
 
     test('generates a unique instanceId when not provided', () async {
-      final backendA = _FakeBackend();
-      final backendB = _FakeBackend();
-      JsRuntimeConfig configFor(_FakeBackend b) => JsRuntimeConfig(
-            onRender: (_) {},
-            onSetTitle: (_) {},
-            onStorageUpdate: (_) {},
-            backend: b,
-          );
-      await JsWidgetEngine(config: configFor(backendA)).run('1');
-      await JsWidgetEngine(config: configFor(backendB)).run('1');
+      final backendA = FakeEngineBackend();
+      final backendB = FakeEngineBackend();
+      await JsWidgetEngine(config: _configFor(backendA)).run('1');
+      await JsWidgetEngine(config: _configFor(backendB)).run('1');
       final a = backendA.ranHostBootstrapJs!;
       final b = backendB.ranHostBootstrapJs!;
       expect(a, contains('jsr.instanceId = '));
@@ -103,18 +55,36 @@ void main() {
     });
 
     test('appends host bootstrap after instanceId', () async {
-      final backend = _FakeBackend();
-      final config = JsRuntimeConfig(
-        instanceId: 'p1',
-        hostBootstrapJs: 'jsr.custom = 1;',
-        onRender: (_) {},
-        onSetTitle: (_) {},
-        onStorageUpdate: (_) {},
-        backend: backend,
-      );
-      await JsWidgetEngine(config: config).run('1');
+      final backend = FakeEngineBackend();
+      await JsWidgetEngine(
+        config: _configFor(
+          backend,
+          instanceId: 'p1',
+          hostBootstrapJs: 'jsr.custom = 1;',
+        ),
+      ).run('1');
       expect(backend.ranHostBootstrapJs, contains('jsr.instanceId = "p1"'));
       expect(backend.ranHostBootstrapJs, contains('jsr.custom = 1;'));
+    });
+
+    test('dispatchHostEvent delegates to the backend', () async {
+      final backend = FakeEngineBackend();
+      final engine = JsWidgetEngine(config: _configFor(backend));
+      engine.dispatchHostEvent('key', {'key': 'a', 'down': true});
+      engine.dispatchHostEvent('scene3d.tap:s1', {'modelId': null});
+      expect(backend.hostTargets, ['key', 'scene3d.tap:s1']);
+      expect(backend.hostPayloads.first['key'], 'a');
+      await engine.dispose();
+    });
+
+    test('hostEventJs wraps the bootstrap dispatcher with JSON args', () {
+      final js = FlutterJsWidgetEngineBackend.hostEventJs(
+        'scene3d.tap:s1',
+        const {'modelId': 'box', 'point': [1, 2, 3]},
+      );
+      expect(js, contains('__jsrHostEvent('));
+      expect(js, contains('"scene3d.tap:s1"'));
+      expect(js, contains('"modelId":"box"'));
     });
   });
 }

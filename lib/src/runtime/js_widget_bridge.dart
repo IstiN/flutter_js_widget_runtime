@@ -391,6 +391,26 @@ class JsWidgetBridge {
         );
       case 'destroy':
         _sceneControllers.remove(sceneId)?.dispose();
+      case 'setTransforms':
+        // Batched transforms: fan out one message into per-model setTransform
+        // commands so hosts only implement a single mutation path.
+        final payload = (req['payload'] as Map? ?? {}).cast<String, dynamic>();
+        final controller = _sceneControllers[sceneId];
+        if (controller != null) {
+          final items = payload['items'] as List? ?? const [];
+          for (final item in items) {
+            if (item is! Map) continue;
+            final m = item.cast<String, dynamic>();
+            controller.apply(
+              Js3dCommand(
+                kind: 'setTransform',
+                sceneId: sceneId,
+                modelId: m['modelId'] as String?,
+                payload: m,
+              ),
+            );
+          }
+        }
       case 'addModel':
       case 'removeModel':
       case 'setTransform':

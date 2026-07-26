@@ -137,5 +137,40 @@ void main() {
         async.elapse(const Duration(seconds: 1));
       });
     });
+    test('skeletal playAnimation (name) is queued like any other command', () {
+      fakeAsync((async) {
+        final controller = Flame3dHost.instance.createController(
+          's1',
+          <String, dynamic>{},
+        ) as Flame3dController;
+
+        controller.apply(
+          const Js3dCommand(
+            kind: 'playAnimation',
+            sceneId: 's1',
+            modelId: 'helmet',
+            payload: {'name': 'run', 'loop': true, 'speed': 1.5},
+          ),
+        );
+        expect(controller.pendingLength, 1);
+
+        async.elapse(const Duration(seconds: 1));
+        expect(controller.error, isNotNull);
+        expect(controller.pendingLength, 0);
+
+        controller.dispose();
+      });
+    });
+
+    test('raycastAt returns null before the game exists', () {
+      final controller = Flame3dHost.instance.createController(
+        'raycast-null',
+        <String, dynamic>{},
+      ) as Flame3dController;
+
+      expect(controller.raycastAt(Offset.zero), isNull);
+
+      controller.dispose();
+    });
   });
 }

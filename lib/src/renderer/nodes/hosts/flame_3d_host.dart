@@ -11,6 +11,8 @@ import 'package:flame_3d/resources.dart';
 import 'package:flutter/material.dart';
 import 'package:js_widget_runtime/js_widget_runtime.dart';
 import 'package:js_widget_runtime/src/renderer/nodes/hosts/js_3d_host_utils.dart';
+import 'package:js_widget_runtime/src/renderer/nodes/hosts/js_3d_raycast.dart';
+import 'package:vector_math/vector_math_64.dart' as vm64;
 
 /// Creates a [Js3dHost] implementation backed by `flame_3d`.
 ///
@@ -129,6 +131,9 @@ class Flame3dController extends Js3dController {
   int get pendingLength => _pending.length;
 
   @override
+  Map<String, dynamic>? raycastAt(Offset ndc) => game?.raycastModel(ndc);
+
+  @override
   void apply(Js3dCommand command) {
     if (_disposed) return;
     if (game == null && error == null) {
@@ -198,11 +203,20 @@ class Flame3dController extends Js3dController {
           scale: payload['scale'] as List?,
         );
       case 'playAnimation':
-        final axis = payload['axis'] as String? ?? 'y';
-        final speed = (payload['speed'] as num?)?.toDouble() ?? 1.0;
-        game?.setRotation(modelId, axis, speed);
+        final name = payload['name'] as String?;
+        if (name != null) {
+          // Skeletal animation from the model's GLB clip list. flame_3d's
+          // AnimationState always loops at 1x speed, so `loop`/`speed` are
+          // accepted for API compatibility but not yet applied.
+          game?.playSkeletalAnimation(modelId, name);
+        } else {
+          final axis = payload['axis'] as String? ?? 'y';
+          final speed = (payload['speed'] as num?)?.toDouble() ?? 1.0;
+          game?.setRotation(modelId, axis, speed);
+        }
       case 'stopAnimation':
         game?.stopRotation(modelId);
+        game?.stopSkeletalAnimation(modelId);
       case 'setCamera':
         _applyCamera(payload);
       case 'setLight':
@@ -394,6 +408,55 @@ class JsFlame3dGame extends FlameGame3D<World3D, CameraComponent3D> {
 
   void stopRotation(String modelId) {
     _rotations.remove(modelId);
+  }
+
+  /// Starts the skeletal animation clip [name] on a loaded model.
+  ///
+  /// Unknown clips are ignored (and logged) instead of throwing, so a widget
+  /// can request animations before checking [ModelComponent.animationNames].
+  void playSkeletalAnimation(String modelId, String name) {
+    final model = _models[modelId];
+    if (model == null) return;
+    if (!model.animationNames.contains(name)) {
+      debugPrint(
+        '[Flame3dGame] unknown animation "$name" for modelId=$modelId '
+        '(available: ${model.animationNames.toList()})',
+      );
+      return;
+    }
+    model.playAnimationByName(name);
+  }
+
+  /// Stops skeletal playback on a loaded model, if any is running.
+  void stopSkeletalAnimation(String modelId) {
+    _models[modelId]?.stopAnimation();
+  }
+
+  /// Picks the nearest model whose world-space AABB is hit by the camera ray
+  /// through [ndc] (x/y in `[-1, 1]`, y up). Returns `{modelId, point}` or
+  /// null on a miss.
+  Map<String, dynamic>? raycastModel(Offset ndc) {
+    final ray = js3dRayFromNdc(ndc, camera.viewProjectionMatrix.storage);
+    String? hitId;
+    var hitT = double.infinity;
+    for (final entry in _models.entries) {
+      final aabb = entry.value.aabb;
+      final t = js3dRayIntersectAabb(
+        ray,
+        vm64.Vector3(aabb.min.x, aabb.min.y, aabb.min.z),
+        vm64.Vector3(aabb.max.x, aabb.max.y, aabb.max.z),
+      );
+      if (t != null && t < hitT) {
+        hitT = t;
+        hitId = entry.key;
+      }
+    }
+    if (hitId == null) return null;
+    final point = ray.at(hitT);
+    return {
+      'modelId': hitId,
+      'point': [point.x, point.y, point.z],
+    };
   }
 
   @override

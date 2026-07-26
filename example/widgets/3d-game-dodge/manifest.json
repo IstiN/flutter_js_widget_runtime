@@ -1,0 +1,21 @@
+{
+  "id": "3d-game-dodge",
+  "name": "Dodge Blocks 3D",
+  "description": "Keyboard mini game: dodge falling blocks with Arrow keys or A/D, press R to restart",
+  "version": "1.0.0",
+  "icon": "🕹️",
+  "allowedCommands": [],
+  "network": false,
+  "cli": {
+    "summary": "3D dodge mini game driven by jsr.onKey and batched setTransforms",
+    "events": [],
+    "read": {
+      "state": "yoloit app:state 3d-game-dodge",
+      "snapshot": "yoloit app:snapshot 3d-game-dodge"
+    },
+    "examples": [
+      "yoloit app:run 3d-game-dodge",
+      "yoloit app:state 3d-game-dodge"
+    ]
+  }
+}

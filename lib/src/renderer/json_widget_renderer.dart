@@ -76,6 +76,7 @@ class JsonWidgetRenderer {
     this.customBuilders,
     this.mediaHost,
     this.js3dHost,
+    this.onScene3dTap,
     this.externalAssetResolver,
     this.fontResolver,
     this.mapTileProvider,
@@ -105,6 +106,12 @@ class JsonWidgetRenderer {
   /// real 3D scenes (GLB/GLTF models, cameras, lights); otherwise they render a
   /// placeholder icon.
   final Js3dHost? js3dHost;
+
+  /// Optional callback for tap picking on `scene3d` nodes
+  /// (`jsr.scene3d.onTap`). Receives the scene id and either
+  /// `{modelId, point: [x, y, z]}` or `{modelId: null}` on a miss.
+  final void Function(String sceneId, Map<String, dynamic> payload)?
+  onScene3dTap;
 
   /// Optional resolver for `external:<id>` asset sources.
   final ExternalAssetResolver? externalAssetResolver;
@@ -381,6 +388,7 @@ class JsonWidgetRenderer {
       sceneId: sceneId,
       host: host,
       config: Map<String, dynamic>.from(m),
+      onSceneTap: onScene3dTap,
     );
   }
 

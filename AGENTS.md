@@ -54,9 +54,14 @@ Core methods:
 - `jsr.loadAsset(path)` — load an asset file as string.
 - `jsr.setTitle(title)` — update widget title.
 - `jsr.exportState(obj)` — expose structured state for CLI snapshots.
+- `jsr.onKey(handler)` — keyboard input for game-style widgets. The handler receives `{key, code, down, repeat}` where `key` is a camelCase label (`'a'`, `'arrowLeft'`, `'arrowRight'`, `'arrowUp'`, `'arrowDown'`, `'space'`, `'enter'`, ...). Fire-and-forget; no event-done round trip. Keystrokes are never captured while a `textField`/`textArea` node holds focus. Dart side: `JsWidgetEngineBackend.dispatchHostEvent(target, payload)` delivers host events (`'key'`, `'scene3d.tap:<sceneId>'`) to bootstrap listeners.
 - `jsr.showError(msg)` — render a styled error card.
 - `jsr.ease.*` — easing helpers (`linear`, `easeIn`, `easeOut`, `easeInOut`, `bounce`, `elastic`, `backIn`, `backOut`).
 - `jsr.scene3d.*` — create/update/destroy 3D scenes, load GLB/GLTF models, set transforms, play animations, control camera and lights. Requires the host to provide a `Js3dHost`.
+  - `jsr.scene3d.setTransforms(sceneId, items)` — batched transforms: one bridge message fans out to per-model `setTransform` commands. `items` is `[{modelId, position?, rotation?, scale?}, ...]`. Use this (not N `setTransform` calls) when moving many models per frame.
+  - `jsr.scene3d.playAnimation(sceneId, modelId, options)` — `options` is either a clip name string (skeletal), or an object. `{axis, speed}` drives the built-in axis rotation; `{name, loop, speed}` plays a skeletal clip on the flame host via `ModelComponent.playAnimationByName` (flame_3d currently loops at 1x; `loop`/`speed` are accepted but not yet applied). The cube host ignores `name` requests.
+  - `jsr.scene3d.stopAnimation(sceneId, modelId)` — stops skeletal playback AND axis rotation.
+  - `jsr.scene3d.onTap(sceneId, handler)` — tap picking. On tap the host raycasts from the camera through the tap point and intersects model AABBs; the handler receives `{modelId, point: [x, y, z]}` for the nearest hit or `{modelId: null}` on a miss. The pure math lives in `lib/src/renderer/nodes/hosts/js_3d_raycast.dart` (`js3dRayFromNdc`, `js3dRayIntersectAabb`) and is unit-testable without a GPU.
 - `jsr.instanceId` — a per-engine identifier injected before the widget runs. Use it to namespace named resources (e.g. scene ids) so multiple panels running the same widget do not collide: `var sceneId = 'glb-' + jsr.instanceId`. Hosts pass `JsRuntimeConfig.instanceId` for reload-stable ids (e.g. a panel id); otherwise a unique per-process token is generated.
 - `setTimeout`, `setInterval`, `requestAnimationFrame`, `console.log` are shimmed.
 
@@ -67,7 +72,20 @@ Renderer effects ported from YoClip: radial gradients, box shadows, blur nodes, 
 - Add a `scene3d` node to the JSON tree and a `Js3dHost` to `JsRuntimeConfig.js3dHost`.
 - Ready-made hosts ship in the package: `createJs3dHost()` (dispatcher; routes GLB/`engine:'flame'` to `Flame3dHost`, primitives/OBJ to `Cube3dHost`), `createFlame3dHost()` (GLB/GLTF with PBR on Impeller platforms), `createCube3dHost()` (cross-platform primitives + OBJ via flutter_cube).
 - `Js3dHost` is an abstraction; custom engines can be plugged by implementing it.
-- Examples: `example/widgets/3d-showcase/` (primitives) and `example/widgets/3d-glb-showcase/` (DamagedHelmet GLB).
+- Examples: `example/widgets/3d-showcase/` (primitives), `example/widgets/3d-glb-showcase/` (DamagedHelmet GLB) and `example/widgets/3d-game-dodge/` (mini game).
+
+## Building Games
+
+The runtime ships a small game-oriented input/output surface on top of `scene3d`:
+
+- **Input**: `jsr.onKey(fn)` delivers `{key, code, down, repeat}`. Track held keys in a map (`keys.left = ev.down`) rather than moving per key event, so motion is frame-rate independent. Text fields keep focus priority — game keys are ignored while a `textField` is focused.
+- **Frame loop**: drive the game with `requestAnimationFrame(tick)`; compute `dt` from the elapsed-ms argument.
+- **Movement**: batch every model move of a frame into ONE `jsr.scene3d.setTransforms(sceneId, items)` call; spawn/despawn with `addModel`/`removeModel`.
+- **Collision**: keep gameplay math (AABB overlap) in JS; use `jsr.scene3d.onTap` only when you need picking.
+- **State**: call `jsr.exportState({score, lives, best})` so CLI snapshots stay live, and persist records via `jsr.storage`.
+- **HUD**: render score/lives as normal JSON UI around the `scene3d` node; use a `stack` with `positioned` children for game-over overlays.
+
+Reference implementation: `example/widgets/3d-game-dodge/` (Dodge Blocks 3D — Arrow/A-D movement, R to restart).
 
 See the dedicated skill in `.agents/skills/js-widget-authoring/SKILL.md` for the full widget authoring guide.
 

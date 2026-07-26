@@ -102,6 +102,10 @@ class Cube3dController extends Js3dController {
   @visibleForTesting
   int get pendingLength => _pending.length;
 
+  /// Test helper exposing how many axis rotations are currently running.
+  @visibleForTesting
+  int get animationCount => _animations.length;
+
   void onSceneCreated(cube.Scene scene) {
     if (_disposed) return;
 
@@ -167,9 +171,13 @@ class Cube3dController extends Js3dController {
           _scene?.update();
         }
       case 'playAnimation':
-        final axis = payload['axis'] as String? ?? 'y';
-        final speed = (payload['speed'] as num?)?.toDouble() ?? 1.0;
-        _animations[modelId] = _Animation(axis: axis, speed: speed);
+        // The cube host has no skeletal animation support; a clip `name`
+        // request is ignored instead of starting an axis rotation.
+        if (payload['name'] is! String) {
+          final axis = payload['axis'] as String? ?? 'y';
+          final speed = (payload['speed'] as num?)?.toDouble() ?? 1.0;
+          _animations[modelId] = _Animation(axis: axis, speed: speed);
+        }
       case 'stopAnimation':
         _animations.remove(modelId);
       case 'setCamera':

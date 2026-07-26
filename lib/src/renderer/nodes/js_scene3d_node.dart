@@ -20,12 +20,19 @@ class JsScene3dNode extends StatefulWidget {
     required this.sceneId,
     required this.host,
     required this.config,
+    this.onSceneTap,
     super.key,
   });
 
   final String sceneId;
   final Js3dHost host;
   final Map<String, dynamic> config;
+
+  /// Called with the raycast result when the scene is tapped: either
+  /// `{modelId, point: [x, y, z]}` for the nearest hit or `{modelId: null}`
+  /// on a miss. When null, taps are not intercepted at all.
+  final void Function(String sceneId, Map<String, dynamic> payload)?
+  onSceneTap;
 
   @override
   State<JsScene3dNode> createState() => _JsScene3dNodeState();
@@ -49,13 +56,41 @@ class _JsScene3dNodeState extends State<JsScene3dNode> {
     super.dispose();
   }
 
+  void _handleTapUp(TapUpDetails details, Size size) {
+    final callback = widget.onSceneTap;
+    if (callback == null || size.width <= 0 || size.height <= 0) return;
+    // Convert the tap into normalized device coordinates (y up).
+    final ndc = Offset(
+      (details.localPosition.dx / size.width) * 2 - 1,
+      1 - (details.localPosition.dy / size.height) * 2,
+    );
+    final hit = _controller.raycastAt(ndc);
+    callback(widget.sceneId, hit ?? const {'modelId': null});
+  }
+
   @override
   Widget build(BuildContext context) {
-    final scene = widget.host.build(
+    Widget scene = widget.host.build(
       context,
       _controller,
       widget.config,
     );
+
+    if (widget.onSceneTap != null) {
+      final inner = scene;
+      scene = Builder(
+        builder: (gestureContext) => GestureDetector(
+          behavior: HitTestBehavior.opaque,
+          onTapUp: (details) {
+            final box = gestureContext.findRenderObject() as RenderBox?;
+            if (box != null && box.hasSize) {
+              _handleTapUp(details, box.size);
+            }
+          },
+          child: inner,
+        ),
+      );
+    }
 
     final width = _doubleOrNull(widget.config['width']);
     final height = _doubleOrNull(widget.config['height']);
@@ -68,7 +103,10 @@ class _JsScene3dNodeState extends State<JsScene3dNode> {
       );
     }
 
-    return Expanded(child: scene);
+    // Without an explicit size the scene fills the constraints of the
+    // nearest bounded ancestor — wrap the node in `expanded` inside flex
+    // layouts, or place it as a non-positioned child of a `stack`.
+    return scene;
   }
 
   static double? _doubleOrNull(dynamic value) {

@@ -113,6 +113,9 @@ class _HostedController extends Js3dController {
   void apply(Js3dCommand command) => controller.apply(command);
 
   @override
+  Map<String, dynamic>? raycastAt(Offset ndc) => controller.raycastAt(ndc);
+
+  @override
   void dispose() {
     onDispose();
     controller.removeListener(notifyListeners);

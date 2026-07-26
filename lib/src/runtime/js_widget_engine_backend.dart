@@ -24,6 +24,15 @@ abstract class JsWidgetEngineBackend {
   /// Dispatches an event to the widget's `handleEvent(actionId, payload)`.
   Future<void> callEvent(String actionId, Map<String, dynamic>? payload);
 
+  /// Delivers a fire-and-forget host-originated event to JS listeners
+  /// registered via bootstrap APIs (e.g. `jsr.onKey`, `jsr.scene3d.onTap`).
+  ///
+  /// [target] identifies the listener set: `'key'` for `jsr.onKey`, or
+  /// `'scene3d.tap:<sceneId>'` for `jsr.scene3d.onTap`. Unlike [callEvent]
+  /// there is no completion round trip. The default implementation is a no-op
+  /// so custom backends stay source-compatible.
+  void dispatchHostEvent(String target, Map<String, dynamic> payload) {}
+
   /// Pushes an updated theme into the running JS context.
   void updateTheme(Map<String, dynamic> colors);
 

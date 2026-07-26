@@ -249,6 +249,48 @@ void main() {
         expect(commands.first.payload?['src'], 'a.glb');
       });
 
+      test('setTransforms fans out to one setTransform per item', () async {
+        await sceneBridge.dispatch(
+          '__jsr_scene3d_command',
+          '{"kind":"create","sceneId":"s1","payload":{}}',
+        );
+        await sceneBridge.dispatch(
+          '__jsr_scene3d_command',
+          '{"kind":"setTransforms","sceneId":"s1","payload":{"items":['
+          '{"modelId":"a","position":[1,0,0]},'
+          '{"modelId":"b","scale":[2,2,2]}'
+          ']}}',
+        );
+        expect(commands.length, 2);
+        expect(commands[0].kind, 'setTransform');
+        expect(commands[0].sceneId, 's1');
+        expect(commands[0].modelId, 'a');
+        expect(commands[0].payload?['position'], [1, 0, 0]);
+        expect(commands[1].kind, 'setTransform');
+        expect(commands[1].modelId, 'b');
+        expect(commands[1].payload?['scale'], [2, 2, 2]);
+      });
+
+      test('setTransforms skips non-map items and unknown scenes', () async {
+        // No controller for the scene: nothing is applied.
+        await sceneBridge.dispatch(
+          '__jsr_scene3d_command',
+          '{"kind":"setTransforms","sceneId":"nope","payload":{"items":[{"modelId":"a"}]}}',
+        );
+        expect(commands, isEmpty);
+
+        await sceneBridge.dispatch(
+          '__jsr_scene3d_command',
+          '{"kind":"create","sceneId":"s1","payload":{}}',
+        );
+        await sceneBridge.dispatch(
+          '__jsr_scene3d_command',
+          '{"kind":"setTransforms","sceneId":"s1","payload":{"items":["junk",{"modelId":"a"}]}}',
+        );
+        expect(commands.length, 1);
+        expect(commands.single.modelId, 'a');
+      });
+
       test('destroy disposes controller', () async {
         await sceneBridge.dispatch(
           '__jsr_scene3d_command',
