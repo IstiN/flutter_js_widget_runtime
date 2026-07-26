@@ -1107,6 +1107,15 @@ void main() {
       expect(image.image, isA<AssetImage>());
     });
 
+    testWidgets('image URL sends a browser-ish User-Agent', (tester) async {
+      await tester.pumpWidget(
+        buildTree({'type': 'image', 'url': 'https://example.com/a.png'}),
+      );
+      final image = tester.widget<Image>(find.byType(Image));
+      final provider = image.image as NetworkImage;
+      expect(provider.headers?['User-Agent'], contains('AppleWebKit'));
+    });
+
     testWidgets('custom builder for video node', (tester) async {
       final customRenderer = JsonWidgetRenderer(
         onEvent: (id, payload) => events.add((id, payload)),

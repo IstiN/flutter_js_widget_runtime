@@ -1,3 +1,10 @@
+## 0.4.13
+
+- The `image` node now sends a browser-ish `User-Agent` for network URLs:
+  dart:io's default `Dart/x.y (dart:io)` UA is rejected by popular CDNs
+  (Wikimedia answers HTTP 400), which made every remote image render as a
+  broken-image icon.
+
 ## 0.4.12
 
 - Fix dead `button`/`iconButton` taps: `_buttonActionId` ignored the

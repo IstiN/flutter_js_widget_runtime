@@ -342,8 +342,15 @@ class JsonWidgetRenderer {
     if (source.startsWith('file:')) {
       return resolveFileImageProvider(source.substring(5));
     }
-    return NetworkImage(source);
+    // dart:io's default `Dart/x.y (dart:io)` UA is rejected by popular CDNs
+    // (Wikimedia answers 400), so send a browser-ish one by default.
+    return NetworkImage(source, headers: const {'User-Agent': _imageUserAgent});
   }
+
+  static const _imageUserAgent =
+      'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) '
+      'AppleWebKit/537.36 (KHTML, like Gecko) '
+      'Chrome/126.0.0.0 Safari/537.36';
 
   Widget _video(Map<String, dynamic> m) {
     final host = mediaHost;
