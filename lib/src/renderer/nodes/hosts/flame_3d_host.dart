@@ -513,18 +513,19 @@ class _Flame3dGameWidgetState extends State<_Flame3dGameWidget> {
     // offscreen board capture (overview PNG). The offscreen tree is wrapped in
     // a HeadlessScrollBehavior — never claim or attach the game there, so the
     // visible panel always owns it.
-    if (ScrollConfiguration.of(context) is HeadlessScrollBehavior) {
-      return const SizedBox.shrink();
-    }
+    final isHeadless =
+        ScrollConfiguration.of(context) is HeadlessScrollBehavior;
     if (!_ownsGame) {
       final owner = c.gameWidgetOwner;
       if (owner == null || !identical(owner, game)) {
-        // Unclaimed, or the previous claim points to a stale game instance.
-        c.gameWidgetOwner = game;
-        _ownsGame = true;
+        if (!isHeadless) {
+          // Unclaimed, or the previous claim points to a stale game instance.
+          c.gameWidgetOwner = game;
+          _ownsGame = true;
+        }
       }
     }
-    if (!_ownsGame) {
+    if (isHeadless || !_ownsGame) {
       return const SizedBox.shrink();
     }
     return GameWidget(game: game, addRepaintBoundary: false);
