@@ -1,7 +1,11 @@
+import 'dart:convert';
+
 import 'package:js_widget_runtime/src/model/js_runtime_config.dart';
 import 'package:js_widget_runtime/src/runtime/js_widget_engine_backend.dart';
 import 'package:js_widget_runtime/src/runtime/js_widget_engine_default.dart'
     if (dart.library.html) 'package:js_widget_runtime/src/runtime/js_widget_engine_default_web.dart';
+
+int _instanceCounter = 0;
 
 /// Entry point for running a JS widget.
 ///
@@ -30,9 +34,18 @@ class JsWidgetEngine {
   /// Runs the widget JavaScript.
   Future<void> run(String widgetJs) => _backend.run(
         widgetJs,
-        hostBootstrapJs: _config.hostBootstrapJs,
+        hostBootstrapJs: _effectiveBootstrap(),
         initialTheme: _config.initialTheme,
       );
+
+  /// Builds the JS evaluated before the widget code: always exposes
+  /// `jsr.instanceId`, then appends any host-provided bootstrap.
+  String _effectiveBootstrap() {
+    final id = _config.instanceId ?? 'i${_instanceCounter++}';
+    final host = _config.hostBootstrapJs;
+    return 'jsr.instanceId = ${jsonEncode(id)};'
+        '${host == null ? '' : '\n$host'}';
+  }
 
   /// Dispatches an event to the widget's `handleEvent` function.
   Future<void> callEvent(

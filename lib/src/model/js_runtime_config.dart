@@ -19,6 +19,7 @@ typedef JsPermissionChecker = bool Function(String capability);
 class JsRuntimeConfig {
   const JsRuntimeConfig({
     this.widgetId = 'default',
+    this.instanceId,
     this.appDir,
     this.initialTheme = const {
       'isDark': true,
@@ -50,6 +51,16 @@ class JsRuntimeConfig {
   });
 
   final String widgetId;
+
+  /// Optional stable identifier for this widget engine instance, exposed to
+  /// JS as `jsr.instanceId`.
+  ///
+  /// Widgets that create named resources (e.g. `jsr.scene3d` scenes) should
+  /// namespace them with `jsr.instanceId` so that several panels running the
+  /// same widget do not collide in the shared 3D host cache. When null, the
+  /// engine generates a unique per-process token (not stable across reloads);
+  /// hosts that want reload-stable ids (e.g. a panel id) should pass one.
+  final String? instanceId;
 
   /// Base directory used by `jsr.loadAsset(path)`.
   final String? appDir;
