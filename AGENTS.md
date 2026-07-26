@@ -57,6 +57,7 @@ Core methods:
 - `jsr.showError(msg)` — render a styled error card.
 - `jsr.ease.*` — easing helpers (`linear`, `easeIn`, `easeOut`, `easeInOut`, `bounce`, `elastic`, `backIn`, `backOut`).
 - `jsr.scene3d.*` — create/update/destroy 3D scenes, load GLB/GLTF models, set transforms, play animations, control camera and lights. Requires the host to provide a `Js3dHost`.
+- `jsr.instanceId` — a per-engine identifier injected before the widget runs. Use it to namespace named resources (e.g. scene ids) so multiple panels running the same widget do not collide: `var sceneId = 'glb-' + jsr.instanceId`. Hosts pass `JsRuntimeConfig.instanceId` for reload-stable ids (e.g. a panel id); otherwise a unique per-process token is generated.
 - `setTimeout`, `setInterval`, `requestAnimationFrame`, `console.log` are shimmed.
 
 Renderer effects ported from YoClip: radial gradients, box shadows, blur nodes, `clip: true` on containers, static/3D transforms, text shadows, `textTransform`.
@@ -64,8 +65,9 @@ Renderer effects ported from YoClip: radial gradients, box shadows, blur nodes, 
 ## 3D Support
 
 - Add a `scene3d` node to the JSON tree and a `Js3dHost` to `JsRuntimeConfig.js3dHost`.
-- `Js3dHost` is an abstraction; concrete engines live in host apps (e.g., `flutter_3d_controller`, Flame 3D, three_dart).
-- Example integration: `example/lib/flutter_3d_controller_host.dart` and `example/widgets/3d-viewer/`.
+- Ready-made hosts ship in the package: `createJs3dHost()` (dispatcher; routes GLB/`engine:'flame'` to `Flame3dHost`, primitives/OBJ to `Cube3dHost`), `createFlame3dHost()` (GLB/GLTF with PBR on Impeller platforms), `createCube3dHost()` (cross-platform primitives + OBJ via flutter_cube).
+- `Js3dHost` is an abstraction; custom engines can be plugged by implementing it.
+- Examples: `example/widgets/3d-showcase/` (primitives) and `example/widgets/3d-glb-showcase/` (DamagedHelmet GLB).
 
 See the dedicated skill in `.agents/skills/js-widget-authoring/SKILL.md` for the full widget authoring guide.
 
