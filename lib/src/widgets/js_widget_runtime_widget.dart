@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 
 import 'package:js_widget_runtime/js_widget_runtime.dart';
-import 'package:js_widget_runtime/src/widgets/js_key_events.dart';
 
 /// Runs a JavaScript widget and renders its declarative JSON UI tree.
 ///
@@ -32,7 +31,6 @@ class JsWidgetRuntimeWidget extends StatefulWidget {
 class _JsWidgetRuntimeWidgetState extends State<JsWidgetRuntimeWidget> {
   JsWidgetEngine? _engine;
   Map<String, dynamic>? _uiTree;
-  final FocusNode _keyFocusNode = FocusNode();
 
   @override
   void initState() {
@@ -50,7 +48,6 @@ class _JsWidgetRuntimeWidgetState extends State<JsWidgetRuntimeWidget> {
 
   @override
   void dispose() {
-    _keyFocusNode.dispose();
     _engine?.dispose();
     super.dispose();
   }
@@ -91,27 +88,9 @@ class _JsWidgetRuntimeWidgetState extends State<JsWidgetRuntimeWidget> {
       );
       content = renderer.build(tree, context);
     }
-    // Keyboard capture for `jsr.onKey`. The handler only fires when this
-    // subtree holds focus and no editable text field is focused, so
-    // `textField`/`textArea` nodes keep receiving their keystrokes.
-    // `autofocus` alone is not enough in embedded hosts (boards, panels):
-    // the first tap anywhere inside the widget explicitly claims focus,
-    // otherwise keystrokes die with no primary focus at all.
-    return Listener(
-      onPointerDown: (_) {
-        if (!_keyFocusNode.hasFocus && !jsEditableTextHasFocus()) {
-          _keyFocusNode.requestFocus();
-        }
-      },
-      child: Focus(
-        focusNode: _keyFocusNode,
-        autofocus: true,
-        onKeyEvent: (node, event) => jsHandleRuntimeKeyEvent(
-          event,
-          (payload) => _engine?.dispatchHostEvent('key', payload),
-        ),
-        child: content,
-      ),
+    return JsKeyboardCapture(
+      onEvent: (payload) => _engine?.dispatchHostEvent('key', payload),
+      child: content,
     );
   }
 }

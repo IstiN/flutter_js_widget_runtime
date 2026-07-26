@@ -52,5 +52,6 @@ export 'src/runtime/js_widget_bridge.dart'
         JsIntervalTickHandler,
         JsRafTickHandler;
 export 'src/widgets/js_widget_app.dart' show JsWidgetApp;
+export 'src/widgets/js_keyboard_capture.dart' show JsKeyboardCapture;
 export 'src/widgets/js_widget_demo_menu.dart' show JsWidgetDemoMenu;
 export 'src/widgets/js_widget_runtime_widget.dart' show JsWidgetRuntimeWidget;
