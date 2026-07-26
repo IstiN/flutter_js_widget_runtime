@@ -81,6 +81,30 @@ void main() {
       expect(events.first.$2['id'], 42);
     });
 
+    testWidgets('button honors the documented onPressed prop', (tester) async {
+      await tester.pumpWidget(
+        buildTree({'type': 'button', 'label': 'Go', 'onPressed': 'go_now'}),
+      );
+      await tester.tap(find.text('Go'));
+      await tester.pump();
+      expect(events.single.$1, 'go_now');
+    });
+
+    testWidgets('iconButton honors the documented onPressed prop', (
+      tester,
+    ) async {
+      await tester.pumpWidget(
+        buildTree({
+          'type': 'iconButton',
+          'icon': 'add',
+          'onPressed': 'add_item',
+        }),
+      );
+      await tester.tap(find.byType(IconButton));
+      await tester.pump();
+      expect(events.single.$1, 'add_item');
+    });
+
     testWidgets('iconButton renders Icon and fires event', (tester) async {
       await tester.pumpWidget(
         buildTree({'type': 'iconButton', 'icon': 'add', 'onTap': 'add_item'}),

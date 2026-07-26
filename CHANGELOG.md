@@ -1,3 +1,10 @@
+## 0.4.12
+
+- Fix dead `button`/`iconButton` taps: `_buttonActionId` ignored the
+  documented `onPressed` prop (SKILL.md and every bundled demo use it) and
+  fired the `_tap` fallback instead, so JS handlers keyed by action id never
+  matched. `onPressed` now takes priority, `onTap` stays supported.
+
 ## 0.4.11
 
 - Chore: split `json_widget_renderer.dart` (~1900 lines) into `part` files

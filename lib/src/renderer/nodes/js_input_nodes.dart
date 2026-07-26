@@ -144,7 +144,7 @@ extension on JsonWidgetRenderer {
   }
 
   String _buttonActionId(Map<String, dynamic> m) {
-    final raw = m['onTap'] ?? m['action'] ?? m['actionId'];
+    final raw = m['onPressed'] ?? m['onTap'] ?? m['action'] ?? m['actionId'];
     if (raw == null) return '_tap';
     final text = '$raw'.trim();
     return text.isEmpty ? '_tap' : text;
@@ -182,7 +182,7 @@ extension on JsonWidgetRenderer {
     icon: Icon(_iconData(m['icon'] as String? ?? 'info')),
     iconSize: _double(m['size'], 24),
     color: _color(m['color'] as String?),
-    onPressed: _tapHandler(m['onTap'], m['payload']),
+    onPressed: _tapHandler(_buttonActionId(m), m['payload']),
     tooltip: m['tooltip'] as String?,
   );
 
