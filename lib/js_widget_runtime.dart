@@ -11,6 +11,14 @@ export 'src/renderer/external_asset_resolver.dart' show ExternalAssetResolver;
 export 'src/renderer/font/js_font_loader.dart' show JsFontLoader;
 export 'src/renderer/font/js_font_resolver.dart' show JsFontResolver;
 export 'src/renderer/json_widget_theme.dart' show JsonWidgetTheme;
+export 'src/renderer/headless_scroll_behavior.dart'
+    show HeadlessScrollBehavior, HeadlessScrollPhysics;
+export 'src/renderer/nodes/hosts/cube_3d_host.dart'
+    show Cube3dHost, Cube3dController, createCube3dHost;
+export 'src/renderer/nodes/hosts/dispatcher_3d_host.dart'
+    show Js3dDispatcherHost, createJs3dHost;
+export 'src/renderer/nodes/hosts/flame_3d_host.dart'
+    show Flame3dHost, Flame3dController, JsFlame3dGame, createFlame3dHost;
 export 'src/renderer/nodes/js_3d_host.dart'
     show Js3dHost, Js3dController, Js3dCommand;
 export 'src/renderer/nodes/js_scene3d_mesh_node.dart'

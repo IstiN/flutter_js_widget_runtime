@@ -4,8 +4,6 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:js_widget_runtime/js_widget_runtime.dart';
 
-import 'flutter_3d_controller_host.dart';
-
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
   runApp(const DemoApp());
@@ -44,6 +42,8 @@ class _DemoHomeState extends State<DemoHome> {
     'stocks',
     'crypto',
     '3d-viewer',
+    '3d-showcase',
+    '3d-glb-showcase',
   ];
 
   @override
@@ -81,7 +81,7 @@ class _DemoHomeState extends State<DemoHome> {
     onRender: (_) {},
     onSetTitle: (_) {},
     onStorageUpdate: (_) {},
-    js3dHost: const Flutter3dControllerHost(),
+    js3dHost: createJs3dHost(),
     fetchHandler: (id, url, method, headers) async {
       // Demo fetch: only allow GET to a few public APIs used by weather/stocks.
       if (method != 'GET') {
