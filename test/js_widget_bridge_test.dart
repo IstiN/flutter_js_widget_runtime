@@ -198,6 +198,43 @@ void main() {
       expect(completed, isTrue);
     });
 
+    test('a queued callEvent never sends after dispose', () async {
+      // Regression (TestFlight SIGSEGV in JSC::JSLock::lock): an event queued
+      // behind an in-flight one ran its send after the engine was disposed —
+      // dispose() completes the pending completer, draining the queue — and
+      // evaluated JS in the released JSContextGroup (use-after-free).
+      var disposed = false;
+      final raceBridge = JsWidgetBridge(
+        widgetId: 'test',
+        onRender: (_) {},
+        onSetTitle: (_) {},
+        onStorageUpdate: (_) {},
+        onLog: (_) {},
+        isDisposed: () => disposed,
+        resolveCallback: (_, __) {},
+        fetchHandler: (_, __, ___, ____) async {},
+        secretsGetHandler: (_, __) async {},
+        secretsSetHandler: (_, __, ___) async {},
+        loadAssetHandler: (_, __) async {},
+        execHandler: (_, __) async {},
+        intervalTickHandler: (_) {},
+        rafTickHandler: (_, __) {},
+        initialStorage: const {},
+      );
+      // Event #1 stays in flight (its done never arrives); event #2 queues.
+      final first = raceBridge.callEvent(() {});
+      var secondSent = false;
+      final second = raceBridge.callEvent(() => secondSent = true);
+      await pumpEventQueue();
+      // Engine teardown: completes the in-flight completer, draining the
+      // queue into event #2's send — which must now no-op.
+      disposed = true;
+      raceBridge.dispose();
+      await first;
+      await second;
+      expect(secondSent, isFalse);
+    });
+
     test('interval fires through handler', () async {
       await bridge.dispatch('__jsr_set_interval', '{"id":"i1","ms":10}');
       await Future<void>.delayed(const Duration(milliseconds: 40));

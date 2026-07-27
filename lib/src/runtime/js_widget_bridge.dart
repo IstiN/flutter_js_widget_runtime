@@ -180,6 +180,14 @@ class JsWidgetBridge {
   }
 
   Future<void> _runEvent(void Function() send) async {
+    // A queued event can reach here after the engine was torn down: dispose()
+    // completes the in-flight completer, which drains the queue. Never send
+    // into a dead runtime — on the flutter_js backend that is a
+    // use-after-free of the released JSContextGroup (SIGSEGV in JSC).
+    if (isDisposed()) {
+      _eventInFlight = false;
+      return;
+    }
     final completer = Completer<void>();
     _eventCompleter = completer;
     try {

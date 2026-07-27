@@ -139,6 +139,11 @@ class FlutterJsWidgetEngineBackend implements JsWidgetEngineBackend {
     final encodedAction = jsonEncode(actionId);
     final encodedPayload = jsonEncode(payload ?? {});
     await _bridge.callEvent(() {
+      // The send may be queued behind an in-flight event and only run after
+      // this backend was disposed or restarted: never evaluate into a stale
+      // runtime — its JSContextGroup is already released and JavaScriptCore
+      // crashes (use-after-free) on any call into it.
+      if (!_isLive(rt)) return;
       rt.evaluate(
         '(function(){'
         'var __h=jsr._handler||(typeof handleEvent==="function"?handleEvent:null);'
@@ -184,6 +189,13 @@ class FlutterJsWidgetEngineBackend implements JsWidgetEngineBackend {
   }
 
   // ── Private ──────────────────────────────────────────────────────────────
+
+  /// True while [rt] is the current, not-yet-disposed runtime. Every deferred
+  /// entry point (queued event sends, timer ticks, async resolve callbacks)
+  /// must re-check this before touching the runtime: after [dispose] the
+  /// native JSContextGroup is released and any call into it is a
+  /// use-after-free, which Dart try/catch cannot intercept (SIGSEGV).
+  bool _isLive(JavascriptRuntime rt) => !_disposed && identical(rt, _runtime);
 
   void _setupBridges(JavascriptRuntime rt) {
     _bridge.resolveCallback = _config.resolveCallback ??
@@ -268,6 +280,7 @@ class FlutterJsWidgetEngineBackend implements JsWidgetEngineBackend {
   }
 
   void _handleIntervalTick(JavascriptRuntime rt, String id) {
+    if (!_isLive(rt)) return;
     try {
       rt.evaluate('if(__iv_cbs["$id"])__iv_cbs["$id"]()');
       rt.executePendingJob();
@@ -275,6 +288,7 @@ class FlutterJsWidgetEngineBackend implements JsWidgetEngineBackend {
   }
 
   void _handleRafTick(JavascriptRuntime rt, String id, int elapsedMs) {
+    if (!_isLive(rt)) return;
     try {
       rt.evaluate(
         'if(__raf_cbs["$id"]){__raf_cbs["$id"]($elapsedMs);delete __raf_cbs["$id"];}',
@@ -286,7 +300,7 @@ class FlutterJsWidgetEngineBackend implements JsWidgetEngineBackend {
   }
 
   void _resolveCallback(JavascriptRuntime rt, String id, dynamic value) {
-    if (_disposed) return;
+    if (!_isLive(rt)) return;
     try {
       rt.evaluate(
         'if(__cbs["$id"]){__cbs["$id"](${jsonEncode(value)});delete __cbs["$id"];}',
