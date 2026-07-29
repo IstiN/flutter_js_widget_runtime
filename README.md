@@ -2,6 +2,8 @@
 
 A Flutter package that runs JavaScript widgets and renders them as native Flutter UI.
 
+![CRAP](badges/crap.svg)
+
 - **VM/desktop/mobile**: uses [`flutter_js`](https://pub.dev/packages/flutter_js) (QuickJS / JavaScriptCore).
 - **Web**: uses a dedicated `web.Worker` spawned from an inline Blob URL.
 

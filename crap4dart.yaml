@@ -1,0 +1,48 @@
+# crap4dart configuration.
+# See https://github.com/IstiN/crap4dart for details.
+
+sources: [lib, bin]
+exclude:
+  - 'example/**'
+  - 'tool/**'
+  - '**.g.dart'
+  - '**.freezed.dart'
+  - '**.mocks.dart'
+  - 'lib/src/runtime/js_widget_engine_flutter_js.dart'
+  - 'lib/src/runtime/js_widget_engine_web_worker.dart'
+  - 'lib/src/widgets/js_widget_app.dart'
+  - 'lib/src/widgets/js_widget_demo_menu.dart'
+  - 'lib/src/widgets/js_widget_runtime_widget.dart'
+
+crap:
+  enabled: true
+  # Current baseline (Max CRAP 210.00). Do not increase without explicit
+  # approval; the goal is to ratchet this down over time.
+  threshold: 210.0
+  run_tests: false
+
+coverage:
+  lcov_path: coverage/lcov.info
+  run_tests: false
+  required: true
+  branch_coverage: true
+
+gates:
+  # CRAP-only ratchet for now. Enable other gates only after the baseline
+  # improves enough that they pass; otherwise every commit would fail.
+  loc:
+    enabled: false
+  test_coverage:
+    enabled: false
+  golden:
+    enabled: false
+  hardcoded_strings:
+    enabled: false
+  accessibility:
+    enabled: false
+  complexity:
+    enabled: false
+  method_size:
+    enabled: false
+  public_docs:
+    enabled: false
