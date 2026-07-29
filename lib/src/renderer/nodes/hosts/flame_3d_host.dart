@@ -79,6 +79,9 @@ class Flame3dHost extends Js3dHost {
     Map<String, dynamic> config,
   ) {
     final c = controller as Flame3dController;
+    // Declarative configs (the yoclip video pipeline re-renders the whole
+    // node tree every frame) are applied here; only diffs take effect.
+    c._applyConfig(config);
     return _Flame3dGameWidget(
       key: ValueKey(c.sceneId),
       controller: c,
@@ -115,6 +118,9 @@ class Flame3dController extends Js3dController {
   /// Releases the current game-widget claim and notifies listeners so a
   /// waiting widget can rebuild and claim the game.
   void releaseGameWidgetClaim() {
+    // The release is posted via scheduleMicrotask — by the time it runs the
+    // controller may already be disposed (teardown race).
+    if (_disposed) return;
     gameWidgetOwner = null;
     notifyListeners();
   }
@@ -146,11 +152,33 @@ class Flame3dController extends Js3dController {
     notifyListeners();
   }
 
+  /// [apply] without the listener notification: declarative config updates
+  /// arrive on every rebuild of the owning widget (yoclip re-renders the
+  /// whole tree per frame), so notifying here would loop build → apply →
+  /// notify → rebuild forever.
+  void _applyQuiet(Js3dCommand command) {
+    if (_disposed) return;
+    if (game == null && error == null) {
+      _pending.add(command);
+      _initGameIfNeeded();
+      return;
+    }
+    if (game == null) return;
+    _apply(command);
+  }
+
   void _initGameIfNeeded() {
     if (_disposed || _initializing || game != null || error != null) return;
     _initializing = true;
     debugPrint('[Flame3dController] init game sceneId=$sceneId');
-    _host._ensureGpu().then((_) async {
+    final initFuture = _initGame();
+    Js3dCaptureSync.track(initFuture);
+  }
+
+  Future<void> _initGame() async {
+    try {
+      await _host._ensureGpu();
+      if (_disposed || game != null) return;
       if (_disposed || game != null) return;
       debugPrint('[Flame3dController] game created sceneId=$sceneId');
       game = JsFlame3dGame(
@@ -162,18 +190,22 @@ class Flame3dController extends Js3dController {
           notifyListeners();
         },
       );
+      final onLoadFuture = game!.onLoad();
+      if (onLoadFuture is Future<void>) {
+        Js3dCaptureSync.track(onLoadFuture);
+      }
       for (final cmd in _pending) {
         _apply(cmd);
       }
       _pending.clear();
       if (!_disposed) notifyListeners();
-    }).catchError((Object e) {
+    } catch (e) {
       if (_disposed) return;
       error = 'flame_3d unavailable: $e';
       debugPrint('[Flame3dController] init error sceneId=$sceneId: $e');
       _pending.clear();
       notifyListeners();
-    });
+    }
   }
 
   void _apply(Js3dCommand command) {
@@ -224,6 +256,84 @@ class Flame3dController extends Js3dController {
     }
   }
 
+  // ---- Declarative config (yoclip-style re-render per frame) -------------
+
+  /// Model id → `src` of the currently declared model (loaded or loading).
+  final Map<String, String> _declaredModelSrcs = {};
+
+  /// Model id → the skeletal clip currently requested for it.
+  final Map<String, String> _playingClips = {};
+
+  /// The declarative animation clock from the config (`time`, seconds), and
+  /// how far the game has been advanced so far. The headless capture drives
+  /// `game.update` by the delta, so rendered frames are deterministic.
+  double declaredTime = 0;
+  double lastTime = 0;
+
+  /// Applies a declarative scene config (`{models: [...], camera, time}`)
+  /// idempotently — safe to call on every widget rebuild. Only diffs take
+  /// effect: a model reloads only when its `src` changes, transforms update
+  /// in place, animations (re)start only when the clip name changes, models
+  /// missing from the config are removed.
+  void _applyConfig(Map<String, dynamic> config) {
+    if (_disposed) return;
+    final t = (config['time'] as num?)?.toDouble();
+    if (t != null) declaredTime = t;
+    final cam = config['camera'];
+    if (cam is Map) {
+      final camKey = cam.toString();
+      if (camKey != _lastCameraKey) {
+        _lastCameraKey = camKey;
+        _applyQuiet(Js3dCommand(
+          kind: 'setCamera',
+          sceneId: sceneId,
+          payload: cam.cast<String, dynamic>(),
+        ));
+      }
+    }
+    final models = config['models'];
+    if (models is! List) return;
+    final seen = <String>{};
+    for (final entry in models.whereType<Map>()) {
+      final m = entry.cast<String, dynamic>();
+      final id = (m['modelId'] ?? m['id'] ?? 'model').toString();
+      seen.add(id);
+      final src = m['src'] as String?;
+      if (src != null && src.isNotEmpty && _declaredModelSrcs[id] != src) {
+        _declaredModelSrcs[id] = src;
+        _applyQuiet(Js3dCommand(kind: 'addModel', sceneId: sceneId, payload: m));
+      } else {
+        _applyQuiet(
+          Js3dCommand(kind: 'setTransform', sceneId: sceneId, payload: m),
+        );
+      }
+      final clip = m['animation'] as String?;
+      final loaded = game?.hasModel(id) ?? false;
+      if (clip != null && loaded && _playingClips[id] != clip) {
+        _playingClips[id] = clip;
+        _applyQuiet(Js3dCommand(
+          kind: 'playAnimation',
+          sceneId: sceneId,
+          payload: {'modelId': id, 'name': clip},
+        ));
+      }
+    }
+    for (final old in _declaredModelSrcs.keys.toList()) {
+      if (!seen.contains(old)) {
+        _declaredModelSrcs.remove(old);
+        _playingClips.remove(old);
+        _applyQuiet(Js3dCommand(
+          kind: 'removeModel',
+          sceneId: sceneId,
+          payload: {'modelId': old},
+        ));
+      }
+    }
+  }
+
+  /// Fingerprint of the last camera config applied declaratively.
+  String? _lastCameraKey;
+
   void _applyCamera(Map<String, dynamic>? cam) {
     final camera = game?.camera;
     if (cam == null || camera is! CameraComponent3D) return;
@@ -240,15 +350,23 @@ class Flame3dController extends Js3dController {
     // once when the game loads.
   }
 
+  /// Guard for the ChangeNotifier teardown itself — independent from
+  /// [_disposed], which marks the whole controller as torn down.
+  bool _cnDisposed = false;
+
   @override
   void dispose() {
     final lastReference = _host._release(this);
-    if (lastReference) {
+    // Idempotent ChangeNotifier teardown: shared controllers can be
+    // disposed by several owners (unmount + final tree teardown).
+    if (lastReference && !_cnDisposed) {
+      _cnDisposed = true;
       super.dispose();
     }
   }
 
   void _disposeInternal() {
+    if (_disposed) return;
     _disposed = true;
     game?.dispose();
   }
@@ -277,6 +395,11 @@ class JsFlame3dGame extends FlameGame3D<World3D, CameraComponent3D> {
   final Map<String, ModelComponent> _models = {};
   final Map<String, _Rotation> _rotations = {};
   final Set<String> _loadingModels = {};
+
+  /// The scene composites over other layers (yoclip backgrounds, board
+  /// panels) — Flame's default black backdrop must not cover them.
+  @override
+  Color backgroundColor() => const Color(0x00000000);
 
   @override
   FutureOr<void> onLoad() async {
@@ -329,6 +452,22 @@ class JsFlame3dGame extends FlameGame3D<World3D, CameraComponent3D> {
     if (!_loadingModels.add(modelId)) return;
 
     debugPrint('[Flame3dGame] loadModel modelId=$modelId src=$src');
+    Js3dCaptureSync.track(_loadModelInner(
+      modelId: modelId,
+      src: src,
+      position: position,
+      rotation: rotation,
+      scale: scale,
+    ));
+  }
+
+  Future<void> _loadModelInner({
+    required String modelId,
+    required String src,
+    List<dynamic>? position,
+    List<dynamic>? rotation,
+    List<dynamic>? scale,
+  }) async {
     try {
       removeModel(modelId);
       final model = await ModelParser.parse(src);
@@ -367,6 +506,9 @@ class JsFlame3dGame extends FlameGame3D<World3D, CameraComponent3D> {
     }
     _rotations.remove(modelId);
   }
+
+  /// Whether a model with [modelId] is loaded and attached to the world.
+  bool hasModel(String modelId) => _models.containsKey(modelId);
 
   /// Work around the flame_3d GLB parser, which defaults every material to
   /// `metallic: 1.0` and ignores the `metallicRoughnessTexture`. A fully
@@ -575,24 +717,135 @@ class _Flame3dGameWidgetState extends State<_Flame3dGameWidget> {
     // scene may render in several places at once: the visible panel and the
     // offscreen board capture (overview PNG). The offscreen tree is wrapped in
     // a HeadlessScrollBehavior — never claim or attach the game there, so the
-    // visible panel always owns it.
+    // visible panel always owns it. Headless trees instead render the scene
+    // through the offscreen capture path (render-to-texture inside
+    // `World3D.renderFromCamera`, composited into our canvas) — this is what
+    // makes GLB scenes exportable to video.
     final isHeadless =
         ScrollConfiguration.of(context) is HeadlessScrollBehavior;
+    if (isHeadless) {
+      return _Flame3dHeadlessCapture(controller: c, game: game);
+    }
     if (!_ownsGame) {
       final owner = c.gameWidgetOwner;
       if (owner == null || !identical(owner, game)) {
-        if (!isHeadless) {
-          // Unclaimed, or the previous claim points to a stale game instance.
-          c.gameWidgetOwner = game;
-          _ownsGame = true;
-        }
+        // Unclaimed, or the previous claim points to a stale game instance.
+        c.gameWidgetOwner = game;
+        _ownsGame = true;
       }
     }
-    if (isHeadless || !_ownsGame) {
+    if (!_ownsGame) {
       return const SizedBox.shrink();
     }
     return GameWidget(game: game, addRepaintBoundary: false);
   }
+}
+
+/// Renders a [JsFlame3dGame] into a headless (offscreen) widget tree.
+///
+/// `World3D.renderFromCamera` already renders the 3D world into a GPU render
+/// target and composites it as an image, so driving the game manually from a
+/// [CustomPainter] gives us real GLB output in any canvas — including the
+/// yoclip video export pipeline. The game's animation clock advances by the
+/// config `time` delta (deterministic per rendered frame), never wall time.
+class _Flame3dHeadlessCapture extends StatefulWidget {
+  const _Flame3dHeadlessCapture({required this.controller, required this.game});
+
+  final Flame3dController controller;
+  final JsFlame3dGame game;
+
+  @override
+  State<_Flame3dHeadlessCapture> createState() =>
+      _Flame3dHeadlessCaptureState();
+}
+
+class _Flame3dHeadlessCaptureState extends State<_Flame3dHeadlessCapture> {
+  bool _loadStarted = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _ensureLoaded();
+  }
+
+  @override
+  void didUpdateWidget(covariant _Flame3dHeadlessCapture oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (!identical(oldWidget.game, widget.game)) {
+      _loadStarted = false;
+    }
+    _ensureLoaded();
+  }
+
+  void _ensureLoaded() {
+    if (_loadStarted) return;
+    _loadStarted = true;
+    // Without a GameWidget nothing calls onLoad for us.
+    () async {
+      final future = widget.game.onLoad();
+      if (future != null) await future;
+      if (mounted) setState(() {});
+    }();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    Widget child = CustomPaint(
+      size: Size.infinite,
+      painter: _Flame3dCapturePainter(
+        controller: widget.controller,
+        game: widget.game,
+        context: context,
+      ),
+    );
+    // World3D reads the device pixel ratio from a MediaQuery; headless
+    // capture trees may not have one.
+    if (MediaQuery.maybeOf(context) == null) {
+      child = MediaQuery(data: const MediaQueryData(), child: child);
+    }
+    return child;
+  }
+}
+
+/// Drives a [JsFlame3dGame] frame-by-frame into an offscreen canvas.
+class _Flame3dCapturePainter extends CustomPainter {
+  _Flame3dCapturePainter({
+    required this.controller,
+    required this.game,
+    required this.context,
+  }) : super(repaint: controller);
+
+  final Flame3dController controller;
+  final JsFlame3dGame game;
+  final BuildContext context;
+
+  /// Last size pushed into the game — tracked here because [FlameGame.size]
+  /// asserts until the first `onGameResize`, so we can't read-compare it.
+  Vector2? _lastSize;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    if (size.isEmpty) return;
+    // The only way to give the game a context without a GameWidget
+    // (World3D reads the pixel ratio from it).
+    // ignore: invalid_use_of_internal_member
+    game.widgetBuildContext ??= context;
+    final target = Vector2(size.width, size.height);
+    final last = _lastSize;
+    if (last == null || (last - target).length2 > 0.01) {
+      _lastSize = target;
+      game.onGameResize(target);
+    }
+    final dt = controller.declaredTime - controller.lastTime;
+    if (dt > 0) {
+      game.update(dt);
+      controller.lastTime = controller.declaredTime;
+    }
+    game.render(canvas);
+  }
+
+  @override
+  bool shouldRepaint(covariant _Flame3dCapturePainter oldDelegate) => true;
 }
 
 /// Default light color when a hex string cannot be parsed.

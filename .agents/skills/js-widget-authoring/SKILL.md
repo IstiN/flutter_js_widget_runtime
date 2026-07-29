@@ -250,8 +250,10 @@ jsr.onKey(function(ev) {
 });
 ```
 
-- Key capture only works while the widget panel has focus; the runtime grabs
-  focus automatically when the widget page opens.
+- Key capture only works while the widget subtree has focus. If the host uses
+  [JsWidgetRuntimeWidget], focus is claimed automatically on the first tap.
+  If the host renders a [JsonWidgetRenderer] tree directly (e.g. yoloit boards),
+  it must wrap the tree with `JsKeyboardCapture(onEvent: (p) => engine.dispatchHostEvent('key', p), child: ...)`.
 - Keystrokes are never swallowed while a `textField`/`textArea` node holds
   focus, so forms and games can coexist.
 - Track held keys in a map and apply movement in the frame loop — do not move

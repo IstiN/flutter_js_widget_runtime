@@ -115,8 +115,15 @@ class _HostedController extends Js3dController {
   @override
   Map<String, dynamic>? raycastAt(Offset ndc) => controller.raycastAt(ndc);
 
+  bool _disposed = false;
+
   @override
   void dispose() {
+    // Idempotent: unmount/remount cycles (per-frame scene rebuilds in video
+    // pipelines, plus final tree teardown) can dispose the same shared
+    // controller more than once.
+    if (_disposed) return;
+    _disposed = true;
     onDispose();
     controller.removeListener(notifyListeners);
     controller.dispose();

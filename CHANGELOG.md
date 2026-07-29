@@ -4,7 +4,21 @@
 
 ## 0.4.20
 
-- Automated patch bump.
+- feat(3d): headless GLB rendering for the flame_3d host — offscreen capture
+  path renders the scene into a GPU render target and composites it into any
+  canvas (video export / board snapshots), replacing the old headless
+  placeholder. Requires Impeller + Flutter GPU enabled by the embedder.
+- feat(3d): declarative `scene3d` configs — `models: [{modelId, src,
+  position, rotation, scale, animation}]` + `camera` + `time` applied
+  idempotently on every rebuild (diff-only), so video pipelines that
+  re-render the node tree per frame can drive GLB scenes frame-accurately.
+- feat(3d): `Js3dCaptureSync` pending-work tracker lets headless renderers
+  wait for GPU init / model loads before capturing a frame.
+- fix(3d): transparent scene background (Flame's opaque black default no
+  longer covers layers composited behind the 3D scene).
+- fix(3d): no more build→apply→notify→rebuild loop when declarative configs
+  are applied on every widget rebuild; disposed-controller release guard;
+  idempotent controller dispose (unmount/remount + final tree teardown).
 
 ## 0.4.19
 
