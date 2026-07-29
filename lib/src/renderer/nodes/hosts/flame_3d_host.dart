@@ -1,3 +1,4 @@
+// ignore_for_file: invalid_use_of_internal_member
 import 'dart:async';
 
 import 'package:flame/game.dart';
@@ -8,7 +9,7 @@ import 'package:flame_3d/graphics.dart';
 import 'package:flame_3d/model.dart';
 import 'package:flame_3d/parser.dart';
 import 'package:flame_3d/resources.dart';
-import 'package:flutter/material.dart';
+import 'package:flutter/material.dart' hide Viewport;
 import 'package:js_widget_runtime/js_widget_runtime.dart';
 import 'package:js_widget_runtime/src/renderer/nodes/hosts/js_3d_host_utils.dart';
 import 'package:js_widget_runtime/src/renderer/nodes/hosts/js_3d_raycast.dart';
@@ -128,6 +129,10 @@ class Flame3dController extends Js3dController {
   void _addRef() => _refCount++;
   int _releaseRef() => --_refCount;
 
+  /// Whether the controller was disposed — teardown (scene unmount, final
+  /// tree disposal) can race with paints/rebuilds still referencing it.
+  bool get isDisposed => _disposed;
+
   /// Test helper exposing whether the game was created.
   @visibleForTesting
   bool get hasGame => game != null;
@@ -224,6 +229,7 @@ class Flame3dController extends Js3dController {
           position: payload['position'] as List?,
           rotation: payload['rotation'] as List?,
           scale: payload['scale'] as List?,
+          unlit: payload['unlit'] == true,
         );
       case 'removeModel':
         game?.removeModel(modelId);
@@ -308,8 +314,7 @@ class Flame3dController extends Js3dController {
         );
       }
       final clip = m['animation'] as String?;
-      final loaded = game?.hasModel(id) ?? false;
-      if (clip != null && loaded && _playingClips[id] != clip) {
+      if (clip != null && _playingClips[id] != clip) {
         _playingClips[id] = clip;
         _applyQuiet(Js3dCommand(
           kind: 'playAnimation',
@@ -372,6 +377,68 @@ class Flame3dController extends Js3dController {
   }
 }
 
+/// A [World3D] that does not depend on a live [MediaQuery]: the stock world
+/// reads the device pixel ratio from `game.buildContext` on every render,
+/// which crashes during offscreen teardown (deactivated ancestor lookup).
+/// This one carries an explicitly assigned [pixelRatio] and its own light
+/// registry (the base `_lights` list is private).
+class _JsWorld3D extends World3D {
+  /// Device pixel ratio used for the GPU pass size; assigned by the capture
+  /// widget while its context is alive (defaults to 1).
+  double pixelRatio = 1;
+
+  /// Lights registered through [addLight] (the base class keeps its own
+  /// private list; we mirror it here for the render pass).
+  final List<Light> jsLights = [];
+
+  @override
+  void addLight(Light light) {
+    super.addLight(light);
+    jsLights.add(light);
+  }
+
+  @override
+  void removeLight(Light light) {
+    super.removeLight(light);
+    jsLights.remove(light);
+  }
+
+  @override
+  void renderFromCamera(Canvas canvas) {
+    final camera = CameraComponent3D.currentCamera!;
+    final Viewport(virtualSize: size) = camera.viewport;
+    final renderSize = Size(size.x * pixelRatio, size.y * pixelRatio);
+    context
+      ..lights = jsLights
+      ..setCamera(camera.viewMatrix, camera.projectionMatrix);
+    final device = game.device;
+    device.beginPass(renderSize);
+    // NOT super.renderFromCamera: that is World3D's own implementation,
+    // which needs a live MediaQuery. World.renderFromCamera (flame's 2D
+    // world) is just `renderTree(canvas)` plus a camera assert.
+    // Render the world's children manually: a vanilla world.renderTree
+    // never reaches the Object3D children in the offscreen capture, so the
+    // GPU pass stayed empty. Rendering each child directly is what flame's
+    // pipeline does in the GameWidget path.
+    for (final child in children) {
+      child.renderTree(canvas);
+    }
+    context.flush();
+    final image = device.endPass();
+    canvas.drawImageRect(
+      image,
+      Offset.zero & renderSize,
+      Rect.fromLTWH(-size.x / 2, -size.y / 2, size.x, size.y),
+      // The whole point of the 2x supersample is the downscale — with the
+      // default FilterQuality.none the larger image is point-sampled and
+      // the jaggies survive. High quality filtering is what makes SSAA
+      // actually smooth the edges.
+      Paint()..filterQuality = FilterQuality.high,
+    );
+    image.dispose();
+  }
+}
+
 /// {@template js_flame3d_game}
 /// A small [FlameGame3D] that loads a single GLB/GLTF/OBJ model and rotates it.
 /// {@endtemplate}
@@ -380,7 +447,7 @@ class JsFlame3dGame extends FlameGame3D<World3D, CameraComponent3D> {
     this.config, {
     this.onError,
   }) : super(
-        world: World3D(),
+        world: _JsWorld3D(),
         camera: CameraComponent3D(
           position: Vector3(0, 0, 8),
           target: Vector3.zero(),
@@ -395,6 +462,12 @@ class JsFlame3dGame extends FlameGame3D<World3D, CameraComponent3D> {
   final Map<String, ModelComponent> _models = {};
   final Map<String, _Rotation> _rotations = {};
   final Set<String> _loadingModels = {};
+
+  /// Model id → clip requested before the model finished loading. A
+  /// declarative scene rebuilt only once per exported frame may request an
+  /// animation while the model is still parsing; the clip starts right after
+  /// the model lands in the world.
+  final Map<String, String> _pendingClips = {};
 
   /// The scene composites over other layers (yoclip backgrounds, board
   /// panels) — Flame's default black backdrop must not cover them.
@@ -443,6 +516,7 @@ class JsFlame3dGame extends FlameGame3D<World3D, CameraComponent3D> {
     List<dynamic>? position,
     List<dynamic>? rotation,
     List<dynamic>? scale,
+    bool unlit = false,
   }) async {
     if (src == null || src.isEmpty) return;
     // The same scene can be driven by more than one JS engine (visible panel
@@ -458,6 +532,7 @@ class JsFlame3dGame extends FlameGame3D<World3D, CameraComponent3D> {
       position: position,
       rotation: rotation,
       scale: scale,
+      unlit: unlit,
     ));
   }
 
@@ -467,6 +542,7 @@ class JsFlame3dGame extends FlameGame3D<World3D, CameraComponent3D> {
     List<dynamic>? position,
     List<dynamic>? rotation,
     List<dynamic>? scale,
+    bool unlit = false,
   }) async {
     try {
       removeModel(modelId);
@@ -475,7 +551,7 @@ class JsFlame3dGame extends FlameGame3D<World3D, CameraComponent3D> {
         '[Flame3dGame] model parsed modelId=$modelId '
         'nodes=${model.nodes.length} animations=${model.animations.length}',
       );
-      _applyMaterialFixups(model);
+      _applyMaterialFixups(model, unlit: unlit);
       // Remove again in case a parallel add slipped in during the await.
       removeModel(modelId);
       final component = ModelComponent(
@@ -486,6 +562,10 @@ class JsFlame3dGame extends FlameGame3D<World3D, CameraComponent3D> {
       );
       _models[modelId] = component;
       world.add(component);
+      final pendingClip = _pendingClips[modelId];
+      if (pendingClip != null) {
+        playSkeletalAnimation(modelId, pendingClip);
+      }
       debugPrint(
         '[Flame3dGame] model added modelId=$modelId '
         'worldChildren=${world.children.length}',
@@ -515,15 +595,27 @@ class JsFlame3dGame extends FlameGame3D<World3D, CameraComponent3D> {
   /// metallic surface has no diffuse response, so with our simple
   /// ambient+point lighting it renders black. Clamping metallic to 0 makes
   /// models shade with diffuse lighting instead.
-  void _applyMaterialFixups(Model model) {
+  ///
+  /// When [unlit] is set (declarative `models: [{..., unlit: true}]`), the
+  /// SpatialMaterial is swapped for an UnlitMaterial carrying the same
+  /// albedo — flat brand marks (logos, UI) then render at their exact
+  /// colors instead of being dimmed by the light rig.
+  void _applyMaterialFixups(Model model, {bool unlit = false}) {
     for (final node in model.nodes.values) {
       final mesh = node.mesh;
       if (mesh == null) continue;
       for (final surface in mesh.surfaces) {
         final material = surface.material;
         if (material is SpatialMaterial) {
-          material.metallic = 0.0;
-          material.roughness = 1.0;
+          if (unlit) {
+            surface.material = UnlitMaterial(
+              albedoColor: material.albedoColor,
+              albedoTexture: material.albedoTexture,
+            );
+          } else {
+            material.metallic = 0.0;
+            material.roughness = 1.0;
+          }
         }
       }
     }
@@ -557,8 +649,12 @@ class JsFlame3dGame extends FlameGame3D<World3D, CameraComponent3D> {
   /// Unknown clips are ignored (and logged) instead of throwing, so a widget
   /// can request animations before checking [ModelComponent.animationNames].
   void playSkeletalAnimation(String modelId, String name) {
+    _pendingClips[modelId] = name;
     final model = _models[modelId];
-    if (model == null) return;
+    if (model == null) {
+      debugPrint('[Flame3dGame] clip queued modelId=$modelId name=$name');
+      return;
+    }
     if (!model.animationNames.contains(name)) {
       debugPrint(
         '[Flame3dGame] unknown animation "$name" for modelId=$modelId '
@@ -567,6 +663,7 @@ class JsFlame3dGame extends FlameGame3D<World3D, CameraComponent3D> {
       return;
     }
     model.playAnimationByName(name);
+    debugPrint('[Flame3dGame] playAnimation modelId=$modelId name=$name ok');
   }
 
   /// Stops skeletal playback on a loaded model, if any is running.
@@ -618,6 +715,7 @@ class JsFlame3dGame extends FlameGame3D<World3D, CameraComponent3D> {
       model.rotation.setFrom(model.rotation * q);
     }
   }
+
 }
 
 class _Rotation {
@@ -706,6 +804,10 @@ class _Flame3dGameWidgetState extends State<_Flame3dGameWidget> {
   @override
   Widget build(BuildContext context) {
     final c = widget.controller;
+    if (c.isDisposed) {
+      debugPrint('[Flame3dGameWidget] controller disposed sceneId=${c.sceneId} — shrink');
+      return const SizedBox.shrink();
+    }
     if (c.error != null) {
       return _ErrorWidget(message: c.error!);
     }
@@ -780,30 +882,36 @@ class _Flame3dHeadlessCaptureState extends State<_Flame3dHeadlessCapture> {
   void _ensureLoaded() {
     if (_loadStarted) return;
     _loadStarted = true;
-    // Without a GameWidget nothing calls onLoad for us.
+    // Without a GameWidget nothing calls onLoad for us — and nothing mounts
+    // the game. An unmounted FlameGame renders and updates NOTHING
+    // (CameraComponent skips unmounted worlds), so mount it manually once
+    // the load completes.
     () async {
       final future = widget.game.onLoad();
       if (future != null) await future;
+      if (!widget.game.isMounted) {
+        widget.game.mount();
+      }
       if (mounted) setState(() {});
     }();
   }
 
   @override
   Widget build(BuildContext context) {
-    Widget child = CustomPaint(
+    if (widget.controller.isDisposed) {
+      return const SizedBox.shrink();
+    }
+    // NOTE: the capture harness renders physical pixels 1:1 (the test
+    // surface reports ratio 3.0, which would inflate the GPU pass and scale
+    // the scene out of frame). The painter instead supersamples the world's
+    // render target 2x internally for anti-aliasing.
+    return CustomPaint(
       size: Size.infinite,
       painter: _Flame3dCapturePainter(
         controller: widget.controller,
         game: widget.game,
-        context: context,
       ),
     );
-    // World3D reads the device pixel ratio from a MediaQuery; headless
-    // capture trees may not have one.
-    if (MediaQuery.maybeOf(context) == null) {
-      child = MediaQuery(data: const MediaQueryData(), child: child);
-    }
-    return child;
   }
 }
 
@@ -812,12 +920,10 @@ class _Flame3dCapturePainter extends CustomPainter {
   _Flame3dCapturePainter({
     required this.controller,
     required this.game,
-    required this.context,
   }) : super(repaint: controller);
 
   final Flame3dController controller;
   final JsFlame3dGame game;
-  final BuildContext context;
 
   /// Last size pushed into the game — tracked here because [FlameGame.size]
   /// asserts until the first `onGameResize`, so we can't read-compare it.
@@ -825,11 +931,14 @@ class _Flame3dCapturePainter extends CustomPainter {
 
   @override
   void paint(Canvas canvas, Size size) {
-    if (size.isEmpty) return;
-    // The only way to give the game a context without a GameWidget
-    // (World3D reads the pixel ratio from it).
-    // ignore: invalid_use_of_internal_member
-    game.widgetBuildContext ??= context;
+    // Teardown race: a final paint can flush after the controller is gone.
+    if (size.isEmpty || controller.isDisposed) return;
+    // Supersample the GPU pass for anti-aliased edges: the world renders
+    // into a 2x render target and `_JsWorld3D.renderFromCamera` downscales
+    // it into the widget rect (classic SSAA). 1x output looked visibly
+    // jaggy on hard GLB edges (logo silhouettes).
+    final w = game.world;
+    if (w is _JsWorld3D && w.pixelRatio != 2.0) w.pixelRatio = 2.0;
     final target = Vector2(size.width, size.height);
     final last = _lastSize;
     if (last == null || (last - target).length2 > 0.01) {
@@ -837,7 +946,7 @@ class _Flame3dCapturePainter extends CustomPainter {
       game.onGameResize(target);
     }
     final dt = controller.declaredTime - controller.lastTime;
-    if (dt > 0) {
+    if (dt > 0 && game.isMounted) {
       game.update(dt);
       controller.lastTime = controller.declaredTime;
     }

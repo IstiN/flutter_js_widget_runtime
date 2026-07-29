@@ -72,7 +72,47 @@ void main() {
 
       expect(identical(bridgeController, rendererController), isTrue);
 
+      // Reuse retains the shared controller: both references must be
+      // released before it is torn down.
       bridgeController.dispose();
+      rendererController.dispose();
+    });
+
+    test('survives unmount/remount within the same frame (retain on reuse)', () {
+      // yoclip's per-frame scene rebuilds can run the new State's initState
+      // before the old State's dispose; the old dispose must not kill the
+      // controller the new State just acquired.
+      final host = createJs3dHost() as Js3dDispatcherHost;
+
+      final first = host.createController(
+        'remount',
+        <String, dynamic>{'primitive': 'cube'},
+      );
+      final second = host.createController(
+        'remount',
+        <String, dynamic>{'primitive': 'cube'},
+      );
+      expect(identical(first, second), isTrue);
+
+      // Old State disposes after the new one retained: controller stays alive
+      // and keeps being reused.
+      first.dispose();
+      final third = host.createController(
+        'remount',
+        <String, dynamic>{'primitive': 'cube'},
+      );
+      expect(identical(second, third), isTrue);
+
+      // Releasing the remaining references tears it down; the next create
+      // builds a fresh controller.
+      second.dispose();
+      third.dispose();
+      final fourth = host.createController(
+        'remount',
+        <String, dynamic>{'primitive': 'cube'},
+      );
+      expect(identical(third, fourth), isFalse);
+      fourth.dispose();
     });
   });
 }

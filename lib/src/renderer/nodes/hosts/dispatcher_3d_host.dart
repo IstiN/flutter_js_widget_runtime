@@ -59,7 +59,13 @@ class Js3dDispatcherHost extends Js3dHost {
     // renderer carries width/height). Return the first-created controller so
     // both sides mutate and observe the same host instance.
     final existing = _controllers[sceneId];
-    if (existing != null) {
+    if (existing != null && !existing.isDisposed) {
+      // Reference counting matters here: when a scene3d node unmounts and
+      // remounts within the same frame (per-frame scene rebuilds in the
+      // yoclip video pipeline), the new State's initState runs BEFORE the old
+      // State's dispose. Without a retain the old State would dispose the
+      // controller the new State just acquired, leaving it permanently dead.
+      existing._retain();
       debugPrint(
         '[Js3dDispatcher] reuse controller sceneId=$sceneId '
         'host=${existing.host.runtimeType}',
@@ -116,13 +122,21 @@ class _HostedController extends Js3dController {
   Map<String, dynamic>? raycastAt(Offset ndc) => controller.raycastAt(ndc);
 
   bool _disposed = false;
+  int _refCount = 1;
+
+  /// Whether this controller was fully disposed (last reference released).
+  bool get isDisposed => _disposed;
+
+  void _retain() => _refCount++;
 
   @override
   void dispose() {
-    // Idempotent: unmount/remount cycles (per-frame scene rebuilds in video
-    // pipelines, plus final tree teardown) can dispose the same shared
-    // controller more than once.
+    // Idempotent per owner: unmount/remount cycles (per-frame scene rebuilds
+    // in video pipelines, plus final tree teardown) can dispose the same
+    // shared controller more than once. The inner controller is torn down
+    // only when the last reference goes away.
     if (_disposed) return;
+    if (--_refCount > 0) return;
     _disposed = true;
     onDispose();
     controller.removeListener(notifyListeners);

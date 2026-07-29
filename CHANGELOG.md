@@ -1,9 +1,43 @@
+## 0.4.24
+
+- feat(3d): `unlit: true` on declarative scene3d model entries — swaps the
+  loaded GLB's SpatialMaterial for an UnlitMaterial with the same albedo, so
+  flat brand marks (logos, UI panels) render at their exact colors instead
+  of being dimmed by the scene light rig.
+
+## 0.4.23
+
+- feat(3d): `jsrSetFlameAssetBundle` — replace Flame's global asset bundle
+  (both `Flame.bundle` and the eagerly created `Flame.assets` cache) so
+  host apps rendering projects from arbitrary directories (YoClip Studio)
+  can serve GLB/OBJ model files that are not in the app's own bundle.
+
+## 0.4.22
+
+- fix(3d): anti-aliased headless GLB capture — the flame_3d offscreen
+  painter now renders the world into a 2x render target and downscales it
+  into the widget rect with FilterQuality.high (SSAA); 1x output — and a
+  point-sampled downscale — had visibly jagged edges on hard GLB
+  silhouettes (extruded logos, low-poly models).
+
 ## 0.4.21
 
-- Automated patch bump.
+- fix(3d): the 3D host dispatcher reference-counts shared controllers — when
+  a scene3d node unmounts and remounts within the same frame (per-frame
+  scene rebuilds in video pipelines), the new State's initState runs before
+  the old State's dispose; previously the late dispose killed the controller
+  the new State had just acquired, leaving the scene permanently empty for
+  the rest of the export.
 
 ## 0.4.20
 
+- fix(3d): headless capture mounts the game tree manually and renders the
+  world's children directly — an unmounted FlameGame renders and updates
+  nothing (frozen skeletal animations, unregistered lights, invisible
+  scenes), and a vanilla world renderTree never reached Object3D children in
+  offscreen capture (empty GPU pass).
+- fix(3d): teardown races — disposed-controller guards and a MediaQuery-free
+  World3D (pixel ratio explicit) so final-frame capture can't crash.
 - feat(3d): headless GLB rendering for the flame_3d host — offscreen capture
   path renders the scene into a GPU render target and composites it into any
   canvas (video export / board snapshots), replacing the old headless
