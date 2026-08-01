@@ -76,91 +76,105 @@ Color? _parseColor(dynamic value) {
   return v == null ? null : Color(v);
 }
 
+List<double>? _parseVertex(dynamic v) {
+  if (v is! List || v.length < 3) return null;
+  final x = v[0];
+  final y = v[1];
+  final z = v[2];
+  if (x is num && y is num && z is num) {
+    return [x.toDouble(), y.toDouble(), z.toDouble()];
+  }
+  return null;
+}
+
+List<List<double>> _parseVertices(dynamic raw) {
+  final vertices = <List<double>>[];
+  if (raw is! List) return vertices;
+  for (final v in raw) {
+    final vertex = _parseVertex(v);
+    if (vertex != null) vertices.add(vertex);
+  }
+  return vertices;
+}
+
+List<int>? _parseFace(dynamic f, int vertexCount) {
+  if (f is! List || f.length < 3) return null;
+  final i = f[0];
+  final j = f[1];
+  final k = f[2];
+  if (i is! num || j is! num || k is! num) return null;
+  final face = [i.toInt(), j.toInt(), k.toInt()];
+  if (!face.every((idx) => idx >= 0 && idx < vertexCount)) return null;
+  return face;
+}
+
+List<List<int>> _parseFaces(dynamic raw, int vertexCount) {
+  final faces = <List<int>>[];
+  if (raw is! List) return faces;
+  for (final f in raw) {
+    final face = _parseFace(f, vertexCount);
+    if (face != null) faces.add(face);
+  }
+  return faces;
+}
+
+Scene3dMesh? _parseMesh(dynamic raw) {
+  if (raw is! Map) return null;
+  final vertices = _parseVertices(raw['vertices']);
+  final faces = _parseFaces(raw['faces'], vertices.length);
+  if (vertices.isEmpty || faces.isEmpty) return null;
+  return Scene3dMesh(
+    vertices: vertices,
+    faces: faces,
+    color: _parseColor(raw['color']) ?? const Color(0xFF90CAF9),
+  );
+}
+
+List<Scene3dMesh> _parseMeshes(dynamic raw) {
+  final meshes = <Scene3dMesh>[];
+  if (raw is! List) return meshes;
+  for (final entry in raw) {
+    final mesh = _parseMesh(entry);
+    if (mesh != null) meshes.add(mesh);
+  }
+  return meshes;
+}
+
+Scene3dCamera _parseCamera(dynamic raw) {
+  const fallback = Scene3dCamera();
+  if (raw is! Map) return fallback;
+  return Scene3dCamera(
+    position: _vec3(raw['position'], fallback.position),
+    target: _vec3(raw['target'], fallback.target),
+    fov: (raw['fov'] is num)
+        ? (raw['fov'] as num).toDouble().clamp(10, 150)
+        : fallback.fov,
+  );
+}
+
+List<double> _parseEuler(dynamic raw, List<double> fallback) {
+  if (raw is Map) {
+    return [
+      (raw['x'] is num) ? (raw['x'] as num).toDouble() : 0.0,
+      (raw['y'] is num) ? (raw['y'] as num).toDouble() : 0.0,
+      (raw['z'] is num) ? (raw['z'] as num).toDouble() : 0.0,
+    ];
+  }
+  if (raw is List) return _vec3(raw, fallback);
+  return fallback;
+}
+
 /// Parses the raw node map into a [Scene3dConfig]. Tolerates garbage:
 /// malformed meshes, vertices and faces are skipped individually.
 Scene3dConfig parseScene3dConfig(Map<String, dynamic> config) {
-  final meshes = <Scene3dMesh>[];
-  final rawMeshes = config['meshes'];
-  if (rawMeshes is List) {
-    for (final raw in rawMeshes) {
-      if (raw is! Map) continue;
-      final vertices = <List<double>>[];
-      final rawVertices = raw['vertices'];
-      if (rawVertices is! List) continue;
-      for (final v in rawVertices) {
-        if (v is List && v.length >= 3) {
-          final x = v[0];
-          final y = v[1];
-          final z = v[2];
-          if (x is num && y is num && z is num) {
-            vertices.add([x.toDouble(), y.toDouble(), z.toDouble()]);
-          }
-        }
-      }
-      final faces = <List<int>>[];
-      final rawFaces = raw['faces'];
-      if (rawFaces is List) {
-        for (final f in rawFaces) {
-          if (f is List && f.length >= 3) {
-            final i = f[0];
-            final j = f[1];
-            final k = f[2];
-            if (i is num && j is num && k is num) {
-              final face = [i.toInt(), j.toInt(), k.toInt()];
-              if (face.every((idx) => idx >= 0 && idx < vertices.length)) {
-                faces.add(face);
-              }
-            }
-          }
-        }
-      }
-      if (vertices.isEmpty || faces.isEmpty) continue;
-      meshes.add(
-        Scene3dMesh(
-          vertices: vertices,
-          faces: faces,
-          color: _parseColor(raw['color']) ?? const Color(0xFF90CAF9),
-        ),
-      );
-    }
-  }
-
-  final rawCamera = config['camera'];
-  var camera = const Scene3dCamera();
-  if (rawCamera is Map) {
-    camera = Scene3dCamera(
-      position: _vec3(rawCamera['position'], camera.position),
-      target: _vec3(rawCamera['target'], camera.target),
-      fov: (rawCamera['fov'] is num)
-          ? (rawCamera['fov'] as num).toDouble().clamp(10, 150)
-          : camera.fov,
-    );
-  }
-
-  final rawRotation = config['rotation'];
-  var rotation = const [0.0, 0.0, 0.0];
-  if (rawRotation is Map) {
-    rotation = [
-      (rawRotation['x'] is num) ? (rawRotation['x'] as num).toDouble() : 0.0,
-      (rawRotation['y'] is num) ? (rawRotation['y'] as num).toDouble() : 0.0,
-      (rawRotation['z'] is num) ? (rawRotation['z'] as num).toDouble() : 0.0,
-    ];
-  } else if (rawRotation is List) {
-    rotation = _vec3(rawRotation, rotation);
-  }
-
-  final rawLight = config['light'];
-  var lightDirection = const [-0.4, -0.8, -0.6];
-  if (rawLight is Map && rawLight['direction'] != null) {
-    lightDirection = _vec3(rawLight['direction'], lightDirection);
-  } else if (rawLight is List) {
-    lightDirection = _vec3(rawLight, lightDirection);
-  }
-
+  const defaultLight = [-0.4, -0.8, -0.6];
+  final lightDirection = config['light'] is Map
+      ? _vec3((config['light'] as Map)['direction'], defaultLight)
+      : _vec3(config['light'], defaultLight);
   return Scene3dConfig(
-    meshes: meshes,
-    camera: camera,
-    rotation: rotation,
+    meshes: _parseMeshes(config['meshes']),
+    camera: _parseCamera(config['camera']),
+    rotation: _parseEuler(config['rotation'], const [0.0, 0.0, 0.0]),
     lightDirection: lightDirection,
     background: _parseColor(config['background'] ?? config['backgroundColor']),
   );
