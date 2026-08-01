@@ -1,3 +1,7 @@
+## 0.4.25
+
+- Automated patch bump.
+
 ## 0.4.24
 
 - feat(3d): `unlit: true` on declarative scene3d model entries — swaps the
