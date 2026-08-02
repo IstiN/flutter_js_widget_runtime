@@ -2,37 +2,9 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:js_widget_runtime/src/renderer/media/js_media_controller.dart';
 import 'package:js_widget_runtime/src/renderer/media/js_media_controller_mixin.dart';
 
-class _FakeController extends JsMediaController {
-  final positionCtl = StreamController<Duration>.broadcast();
-  final durationCtl = StreamController<Duration>.broadcast();
-  final playingCtl = StreamController<bool>.broadcast();
-  final calls = <String>[];
-
-  @override
-  Stream<Duration> get positionStream => positionCtl.stream;
-
-  @override
-  Stream<Duration> get durationStream => durationCtl.stream;
-
-  @override
-  Stream<bool> get playingStream => playingCtl.stream;
-
-  @override
-  Future<void> play() async => calls.add('play');
-
-  @override
-  Future<void> pause() async => calls.add('pause');
-
-  @override
-  Future<void> seek(Duration position) async =>
-      calls.add('seek:${position.inMilliseconds}');
-
-  @override
-  Future<void> dispose() async => calls.add('dispose');
-}
+import 'support/fake_media_controllers.dart';
 
 class _Probe extends StatefulWidget {
   const _Probe({
@@ -42,7 +14,7 @@ class _Probe extends StatefulWidget {
     this.loop = false,
   });
 
-  final _FakeController controller;
+  final RecordingAudioController controller;
   final String src;
   final bool autoPlay;
   final bool loop;
@@ -55,7 +27,7 @@ class _ProbeState extends State<_Probe> with JsMediaControllerMixin {
   double? lastRatio;
 
   @override
-  _FakeController createController(String src) => widget.controller;
+  RecordingAudioController createController(String src) => widget.controller;
 
   @override
   Stream<double?>? get aspectRatioStream =>
@@ -89,7 +61,7 @@ void main() {
   }
 
   testWidgets('streams drive position/duration/playing state', (tester) async {
-    final controller = _FakeController();
+    final controller = RecordingAudioController('probe.mp3');
     final state = await pump(tester, _Probe(controller: controller));
 
     controller.durationCtl.add(const Duration(seconds: 10));
@@ -105,7 +77,7 @@ void main() {
   });
 
   testWidgets('loop seeks to zero and autoPlay plays on init', (tester) async {
-    final controller = _FakeController();
+    final controller = RecordingAudioController('probe.mp3');
     await pump(
       tester,
       _Probe(controller: controller, autoPlay: true, loop: true),
@@ -114,7 +86,7 @@ void main() {
   });
 
   testWidgets('toggle flips between play and pause', (tester) async {
-    final controller = _FakeController();
+    final controller = RecordingAudioController('probe.mp3');
     final state = await pump(tester, _Probe(controller: controller));
 
     await state.toggle();
@@ -127,7 +99,7 @@ void main() {
   });
 
   testWidgets('seek maps the fraction onto the duration', (tester) async {
-    final controller = _FakeController();
+    final controller = RecordingAudioController('probe.mp3');
     final state = await pump(tester, _Probe(controller: controller));
 
     // No duration yet: seek is a no-op.
@@ -143,7 +115,7 @@ void main() {
   testWidgets('didUpdateWidget initializes a controller arriving late', (
     tester,
   ) async {
-    final controller = _FakeController();
+    final controller = RecordingAudioController('probe.mp3');
     await tester.pumpWidget(
       MaterialApp(home: _Probe(controller: controller, src: '')),
     );
@@ -161,7 +133,7 @@ void main() {
   testWidgets('dispose cancels subscriptions and disposes the controller', (
     tester,
   ) async {
-    final controller = _FakeController();
+    final controller = RecordingAudioController('probe.mp3');
     await pump(tester, _Probe(controller: controller));
     await tester.pumpWidget(const MaterialApp(home: SizedBox()));
     // sub.cancel() chains microtasks — let the real event loop settle.

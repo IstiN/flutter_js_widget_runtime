@@ -2,103 +2,15 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:js_widget_runtime/js_widget_runtime.dart';
 
-/// Audio controller that only records method calls; streams are inert
-/// because the assertions below never subscribe to them.
-class _RecordingAudioController extends JsAudioController {
-  _RecordingAudioController(this.src);
-
-  final String src;
-  final List<String> calls = <String>[];
-
-  @override
-  Stream<Duration> get positionStream => const Stream.empty();
-
-  @override
-  Stream<Duration> get durationStream => const Stream.empty();
-
-  @override
-  Stream<bool> get playingStream => const Stream.empty();
-
-  @override
-  Future<void> play() async => calls.add('play');
-
-  @override
-  Future<void> pause() async => calls.add('pause');
-
-  @override
-  Future<void> seek(Duration position) async =>
-      calls.add('seek:${position.inMilliseconds}');
-
-  @override
-  Future<void> setVolume(double volume) async => calls.add('volume:$volume');
-
-  @override
-  Future<void> setLoop(bool loop) async => calls.add('loop:$loop');
-
-  @override
-  Future<void> dispose() async => calls.add('dispose');
-}
-
-class _FakeVideoController extends JsVideoController {
-  @override
-  double? get aspectRatio => null;
-
-  @override
-  Stream<double?> get aspectRatioStream => const Stream.empty();
-
-  @override
-  Stream<Duration> get positionStream => const Stream.empty();
-
-  @override
-  Stream<Duration> get durationStream => const Stream.empty();
-
-  @override
-  Stream<bool> get playingStream => const Stream.empty();
-
-  @override
-  Future<void> play() async {}
-
-  @override
-  Future<void> pause() async {}
-
-  @override
-  Future<void> seek(Duration position) async {}
-
-  @override
-  Future<void> dispose() async {}
-
-  @override
-  Widget buildVideo(
-    BuildContext context, {
-    BoxFit fit = BoxFit.contain,
-    double? width,
-    double? height,
-  }) =>
-      const SizedBox.shrink();
-}
-
-class _RecordingMediaHost extends JsMediaHost {
-  final List<_RecordingAudioController> audioControllers =
-      <_RecordingAudioController>[];
-
-  @override
-  JsVideoController createVideoController(String src) => _FakeVideoController();
-
-  @override
-  JsAudioController createAudioController(String src) {
-    final controller = _RecordingAudioController(src);
-    audioControllers.add(controller);
-    return controller;
-  }
-}
+import 'support/fake_media_controllers.dart';
 
 void main() {
   group('audio_player node', () {
-    late _RecordingMediaHost host;
+    late RecordingMediaHost host;
     late JsonWidgetRenderer renderer;
 
     setUp(() {
-      host = _RecordingMediaHost();
+      host = RecordingMediaHost();
       renderer = JsonWidgetRenderer(onEvent: (_, __) {}, mediaHost: host);
     });
 
