@@ -209,6 +209,16 @@ class FlutterJsWidgetEngineBackend implements JsWidgetEngineBackend {
   static int get pendingNativeReleaseCount => _pendingNativeRelease.length;
 
   static void _releaseNativeWhenQuiet(JavascriptRuntime rt) {
+    // Zero grace (tests, opt-out): release inline — scheduling even a
+    // zero-duration Timer would leak it into widget-test teardown invariants.
+    if (nativeReleaseGrace == Duration.zero) {
+      try {
+        rt.dispose();
+      } catch (e) {
+        debugPrint('[FlutterJsWidgetEngineBackend] native release error: $e');
+      }
+      return;
+    }
     _pendingNativeRelease.add(rt);
     Timer(nativeReleaseGrace, () {
       if (!_pendingNativeRelease.remove(rt)) return;
