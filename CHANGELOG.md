@@ -1,3 +1,7 @@
+## 0.4.26
+
+- Automated patch bump.
+
 ## Unreleased
 
 - feat(renderer): `audio_player` node — frame-driven declarative audio for
