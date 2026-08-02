@@ -187,58 +187,13 @@ class FlutterJsWidgetEngineBackend implements JsWidgetEngineBackend {
   Future<void> dispose() async {
     _disposed = true;
     _bridge.dispose();
-    final rt = _runtime;
+    // Immediate release: js_app_engine's process-wide lifecycle lock orders
+    // this native release before any new engine's native context creation —
+    // deferring it (the old grace-window experiment) let the allocator reuse
+    // the address for a live engine, then freed that engine's context out
+    // from under it (the TestFlight SIGSEGV it was meant to prevent).
+    _runtime?.dispose();
     _runtime = null;
-    if (rt != null) _releaseNativeWhenQuiet(rt);
-  }
-
-  /// Grace window before the native JSContextGroup of a disposed runtime is
-  /// actually released. flutter_js releases synchronously, but JavaScriptCore
-  /// work (bootstrap promise chains, in-flight bridge callbacks, a queued
-  /// evaluate from another async arm) can still reference the context for a
-  /// short while after Dart-side dispose — touching a released VM is a hard
-  /// SIGSEGV (JSC::JSLock::lock on a dead VM), not a catchable Dart error.
-  /// Holding the runtime alive briefly removes the whole use-after-free
-  /// class at the cost of a few seconds of retained native memory.
-  static Duration nativeReleaseGrace = const Duration(seconds: 15);
-
-  static final Set<JavascriptRuntime> _pendingNativeRelease = {};
-
-  /// Test hook: how many runtimes wait out their grace window.
-  @visibleForTesting
-  static int get pendingNativeReleaseCount => _pendingNativeRelease.length;
-
-  static void _releaseNativeWhenQuiet(JavascriptRuntime rt) {
-    // Zero grace (tests, opt-out): release inline — scheduling even a
-    // zero-duration Timer would leak it into widget-test teardown invariants.
-    if (nativeReleaseGrace == Duration.zero) {
-      try {
-        rt.dispose();
-      } catch (e) {
-        debugPrint('[FlutterJsWidgetEngineBackend] native release error: $e');
-      }
-      return;
-    }
-    _pendingNativeRelease.add(rt);
-    Timer(nativeReleaseGrace, () {
-      if (!_pendingNativeRelease.remove(rt)) return;
-      try {
-        rt.dispose();
-      } catch (e) {
-        debugPrint('[FlutterJsWidgetEngineBackend] native release error: $e');
-      }
-    });
-  }
-
-  /// Test hook: release everything pending, immediately.
-  @visibleForTesting
-  static void flushPendingNativeReleases() {
-    for (final rt in _pendingNativeRelease.toList()) {
-      _pendingNativeRelease.remove(rt);
-      try {
-        rt.dispose();
-      } catch (_) {}
-    }
   }
 
   // ── Private ──────────────────────────────────────────────────────────────
