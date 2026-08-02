@@ -90,7 +90,9 @@ class FlutterJsWidgetEngineBackend implements JsWidgetEngineBackend {
       final runtime = getJavascriptRuntime();
       runtime.enableHandlePromises();
       _runtime = runtime;
-      debugPrint('[FlutterJsWidgetEngineBackend] starting ${runtime.runtimeType}');
+      debugPrint(
+        '[FlutterJsWidgetEngineBackend] starting ${runtime.runtimeType}',
+      );
       _setupBridges(runtime);
 
       final bootstrapResult = runtime.evaluate(kJsWidgetBootstrap);
@@ -102,7 +104,8 @@ class FlutterJsWidgetEngineBackend implements JsWidgetEngineBackend {
       updateTheme(initialTheme);
 
       final hostBootstrap = hostBootstrapJs ?? '';
-      final code = '''
+      final code =
+          '''
 (function() {
   try {
     $hostBootstrap
@@ -184,8 +187,48 @@ class FlutterJsWidgetEngineBackend implements JsWidgetEngineBackend {
   Future<void> dispose() async {
     _disposed = true;
     _bridge.dispose();
-    _runtime?.dispose();
+    final rt = _runtime;
     _runtime = null;
+    if (rt != null) _releaseNativeWhenQuiet(rt);
+  }
+
+  /// Grace window before the native JSContextGroup of a disposed runtime is
+  /// actually released. flutter_js releases synchronously, but JavaScriptCore
+  /// work (bootstrap promise chains, in-flight bridge callbacks, a queued
+  /// evaluate from another async arm) can still reference the context for a
+  /// short while after Dart-side dispose — touching a released VM is a hard
+  /// SIGSEGV (JSC::JSLock::lock on a dead VM), not a catchable Dart error.
+  /// Holding the runtime alive briefly removes the whole use-after-free
+  /// class at the cost of a few seconds of retained native memory.
+  static Duration nativeReleaseGrace = const Duration(seconds: 15);
+
+  static final Set<JavascriptRuntime> _pendingNativeRelease = {};
+
+  /// Test hook: how many runtimes wait out their grace window.
+  @visibleForTesting
+  static int get pendingNativeReleaseCount => _pendingNativeRelease.length;
+
+  static void _releaseNativeWhenQuiet(JavascriptRuntime rt) {
+    _pendingNativeRelease.add(rt);
+    Timer(nativeReleaseGrace, () {
+      if (!_pendingNativeRelease.remove(rt)) return;
+      try {
+        rt.dispose();
+      } catch (e) {
+        debugPrint('[FlutterJsWidgetEngineBackend] native release error: $e');
+      }
+    });
+  }
+
+  /// Test hook: release everything pending, immediately.
+  @visibleForTesting
+  static void flushPendingNativeReleases() {
+    for (final rt in _pendingNativeRelease.toList()) {
+      _pendingNativeRelease.remove(rt);
+      try {
+        rt.dispose();
+      } catch (_) {}
+    }
   }
 
   // ── Private ──────────────────────────────────────────────────────────────
@@ -198,7 +241,8 @@ class FlutterJsWidgetEngineBackend implements JsWidgetEngineBackend {
   bool _isLive(JavascriptRuntime rt) => !_disposed && identical(rt, _runtime);
 
   void _setupBridges(JavascriptRuntime rt) {
-    _bridge.resolveCallback = _config.resolveCallback ??
+    _bridge.resolveCallback =
+        _config.resolveCallback ??
         (id, value) => _resolveCallback(rt, id, value);
     _config.onResolveReady?.call(_bridge.resolveCallback);
     _bridge.fetchHandler = (id, url, method, headers) async {
@@ -242,11 +286,14 @@ class FlutterJsWidgetEngineBackend implements JsWidgetEngineBackend {
       }
     };
     _bridge.intervalTickHandler = (id) => _handleIntervalTick(rt, id);
-    _bridge.rafTickHandler = (id, elapsedMs) => _handleRafTick(rt, id, elapsedMs);
+    _bridge.rafTickHandler = (id, elapsedMs) =>
+        _handleRafTick(rt, id, elapsedMs);
 
     for (final channel in _bridgeChannels) {
       rt.setupBridge(channel, (args) {
-        if (_disposed) return;
+        // Restart-safe: a channel of a PREVIOUS runtime must not dispatch
+        // into the restarted backend's world (and never into a dead one).
+        if (!_isLive(rt)) return;
         unawaited(_bridge.dispatch(channel, args));
       });
     }
