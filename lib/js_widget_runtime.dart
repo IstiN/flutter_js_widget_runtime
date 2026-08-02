@@ -37,6 +37,8 @@ export 'src/renderer/media/js_media_controller.dart'
 export 'src/renderer/media/js_media_host.dart' show JsMediaHost;
 export 'src/renderer/media/js_video_widget.dart' show JsVideoWidget;
 export 'src/renderer/media/js_audio_widget.dart' show JsAudioWidget;
+export 'src/renderer/media/js_audio_player_widget.dart'
+    show JsAudioPlayerWidget;
 export 'src/renderer/ui_view_bindings.dart' show UiViewBindings;
 export 'src/renderer/ui_view_field_registry.dart' show UiViewFieldRegistry;
 export 'src/renderer/ui_view_tree_normalizer.dart' show UiViewTreeNormalizer;

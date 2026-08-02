@@ -30,6 +30,18 @@ abstract class JsMediaController {
 
   /// Seeks to [position].
   Future<void> seek(Duration position);
+
+  /// Sets the playback volume in the range `0.0`–`1.0`.
+  ///
+  /// Concrete no-op default so existing hosts stay source-compatible;
+  /// hosts that support volume control override this.
+  Future<void> setVolume(double volume) async {}
+
+  /// Enables or disables looping playback.
+  ///
+  /// Concrete no-op default so existing hosts stay source-compatible;
+  /// hosts that support looping override this.
+  Future<void> setLoop(bool loop) async {}
 }
 
 /// Controller for video nodes.

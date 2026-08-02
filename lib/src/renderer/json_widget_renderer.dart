@@ -11,6 +11,7 @@ import 'package:js_widget_runtime/src/renderer/external_asset_resolver.dart';
 import 'package:js_widget_runtime/src/renderer/font/js_font_loader.dart';
 import 'package:js_widget_runtime/src/renderer/font/js_font_resolver.dart';
 import 'package:js_widget_runtime/src/renderer/json_widget_theme.dart';
+import 'package:js_widget_runtime/src/renderer/media/js_audio_player_widget.dart';
 import 'package:js_widget_runtime/src/renderer/media/js_audio_widget.dart';
 import 'package:js_widget_runtime/src/renderer/media/js_media_host.dart';
 import 'package:js_widget_runtime/src/renderer/media/js_video_widget.dart';
@@ -229,6 +230,7 @@ class JsonWidgetRenderer {
       'absoluteFill' || 'fill' => _absoluteFill(m),
       'video' => _video(m),
       'audio' => _audio(m),
+      'audio_player' => _audioPlayer(m),
       'scene3d' => _scene3d(m),
 
       _ => _unknownType(m),
@@ -369,6 +371,12 @@ class JsonWidgetRenderer {
     final host = mediaHost;
     if (host == null) return _mediaPlaceholder(m, Icons.audiotrack);
     return JsAudioWidget(host: host, node: m);
+  }
+
+  Widget _audioPlayer(Map<String, dynamic> m) {
+    final host = mediaHost;
+    if (host == null) return const SizedBox.shrink();
+    return JsAudioPlayerWidget(host: host, node: m);
   }
 
   Widget _scene3d(Map<String, dynamic> m) {
