@@ -12,6 +12,23 @@ void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
   group('FlutterJsWidgetEngineBackend native release grace', () {
+    // These are native-integration tests: they need the quickjs bridge
+    // library (.so/.dylib), which CI runners do not build. Probe once and
+    // no-op the group where the bridge is unavailable.
+    var nativeAvailable = true;
+    setUpAll(() async {
+      try {
+        final probe = FlutterJsWidgetEngineBackend(config: _config());
+        await probe.run('1+1;');
+        await probe.dispose();
+        // The probe's own deferred release must not leak into the counts
+        // asserted below.
+        FlutterJsWidgetEngineBackend.flushPendingNativeReleases();
+      } on Object {
+        nativeAvailable = false;
+      }
+    });
+
     tearDown(() {
       FlutterJsWidgetEngineBackend.flushPendingNativeReleases();
       FlutterJsWidgetEngineBackend.nativeReleaseGrace = const Duration(
@@ -22,6 +39,7 @@ void main() {
     test(
       'dispose defers the native release instead of releasing synchronously',
       () async {
+        if (!nativeAvailable) return;
         FlutterJsWidgetEngineBackend.nativeReleaseGrace = const Duration(
           milliseconds: 80,
         );
@@ -43,6 +61,7 @@ void main() {
     test(
       'restart releases both runtimes after grace (no crash, no leak)',
       () async {
+        if (!nativeAvailable) return;
         FlutterJsWidgetEngineBackend.nativeReleaseGrace = const Duration(
           milliseconds: 80,
         );
@@ -69,6 +88,7 @@ void main() {
     test(
       'a grace timer firing after an early flush is a no-op (no double release)',
       () async {
+        if (!nativeAvailable) return;
         FlutterJsWidgetEngineBackend.nativeReleaseGrace = const Duration(
           milliseconds: 60,
         );
