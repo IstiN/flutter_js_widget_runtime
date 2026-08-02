@@ -1,3 +1,18 @@
+## Unreleased
+
+- feat(renderer): `audio_player` node — frame-driven declarative audio for
+  JS scenes. Per-frame `playing`/`volume`/`loop` props and `seekToMs`
+  change-seeks are reconciled against a host `JsAudioController`;
+  `JsMediaController` gained concrete no-op `setVolume`/`setLoop` defaults,
+  so existing hosts stay source-compatible. Zero-size widget, host-less
+  renders are safe no-ops.
+
+- fix(3d): flame_3d model `rotation` applied yaw as pitch and vice versa —
+  `Quaternion.euler(yaw, pitch, roll)` takes yaw first, but the conversion
+  passed pitch. A `rotation: [0, 180, 0]` model entry flipped the model
+  nose-over-tail (wheels up) instead of turning it around; small yaw values
+  (the only kind used before) looked like a slight lean.
+
 ## 0.4.25
 
 - Automated patch bump.
