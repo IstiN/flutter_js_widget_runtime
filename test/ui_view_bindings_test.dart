@@ -1,85 +1,107 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:js_widget_runtime/js_widget_runtime.dart';
+import 'package:js_widget_runtime/src/renderer/ui_view_bindings.dart';
 
 void main() {
-  group('UiViewBindings', () {
-    test('resolveString replaces storage placeholders', () {
-      final resolved = UiViewBindings.resolveString(
-        'Clicks: {{taps}} — {{message}}',
-        <String, dynamic>{'taps': 3, 'message': 'Hi'},
-      );
-      expect(resolved, 'Clicks: 3 — Hi');
+  group('UiViewBindings.storageFromState / scriptsFromState', () {
+    test('non-Map _storage yields an empty storage', () {
+      expect(UiViewBindings.storageFromState({'_storage': 'nope'}), isEmpty);
     });
 
-    test('applyEventToStorage increments taps and stores payload', () {
-      final next = UiViewBindings.applyEventToStorage(
-        storage: <String, dynamic>{'taps': 2},
-        actionId: 'btn1',
-        payload: <String, dynamic>{'message': 'Clicked'},
-      );
-      expect(next['taps'], 3);
-      expect(next['lastAction'], 'btn1');
-      expect(next['message'], 'Clicked');
-    });
-
-    test('applyFieldStorage writes one key without tap increment', () {
-      final next = UiViewBindings.applyFieldStorage(
-        state: <String, dynamic>{'_storage': <String, dynamic>{'name': 'Old'}},
-        key: 'nameInput',
-        value: 'Anna',
-      );
-      final storage = UiViewBindings.storageFromState(next);
-      expect(storage['nameInput'], 'Anna');
-      expect(storage['name'], 'Old');
-      expect(storage['taps'], isNull);
-    });
-
-    test('seedFieldsFromTree seeds textField id from value', () {
-      final seeded = UiViewBindings.seedFieldsFromTree(
-        <String, dynamic>{
-          'type': 'textField',
-          'id': 'nameInput',
-          'value': 'Guest',
+    test('scripts keep only non-blank strings', () {
+      final scripts = UiViewBindings.scriptsFromState({
+        '_scripts': {
+          'save': 'storage.count++',
+          'blank': '   ',
+          'num': 42,
         },
-        <String, dynamic>{},
-      );
-      expect(seeded['nameInput'], 'Guest');
+      });
+      expect(scripts, {'save': 'storage.count++'});
     });
 
-    test('withLiveFields overlays registry snapshot', () {
-      final registry = UiViewFieldRegistry();
-      registry.register('nameInput', () => 'Anna');
-      final merged = UiViewBindings.withLiveFields(
-        <String, dynamic>{'_storage': <String, dynamic>{'name': 'Old'}},
-        registry,
-      );
-      final storage = UiViewBindings.storageFromState(merged);
-      expect(storage['nameInput'], 'Anna');
-      expect(storage['name'], 'Old');
+    test('missing _scripts yields an empty map', () {
+      expect(UiViewBindings.scriptsFromState(const {}), isEmpty);
     });
+  });
 
-    test('applyTree hides nodes when when resolves empty', () {
-      final resolved = UiViewBindings.applyTree(
-        <String, dynamic>{
-          'type': 'column',
-          'children': <Map<String, dynamic>>[
-            <String, dynamic>{
-              'type': 'text',
-              'data': 'Visible',
-            },
-            <String, dynamic>{
-              'type': 'text',
-              'data': 'Hidden',
-              'when': '{{showHidden}}',
-            },
-          ],
+  group('UiViewBindings.seedFieldsFromTree', () {
+    test('seeds from initialValue with placeholder resolution', () {
+      final seeded = UiViewBindings.seedFieldsFromTree({
+        'type': 'column',
+        'children': [
+          {
+            'type': 'textField',
+            'id': 'city',
+            'initialValue': '{{country}} capital',
+          },
+          {'type': 'textField', 'name': 'skip-empty', 'initialValue': ''},
+        ],
+      }, {
+        'country': 'Belarus',
+      });
+      expect(seeded['city'], 'Belarus capital');
+      expect(seeded.containsKey('skip-empty'), isFalse);
+    });
+  });
+
+  group('UiViewBindings.applyTap', () {
+    Map<String, dynamic> runScript({
+      required String script,
+      required Map<String, dynamic> storage,
+      required String actionId,
+      required Map<String, dynamic> payload,
+    }) =>
+        {...storage, 'ran': script};
+
+    test('runs the bound script when one exists', () {
+      final next = UiViewBindings.applyTap(
+        state: {
+          '_storage': {'n': 1},
+          '_scripts': {'save': 'n++'},
         },
-        <String, dynamic>{'showHidden': ''},
+        actionId: 'save',
+        payload: const {'x': 1},
+        runScript: runScript,
       );
+      expect(next['_storage']['ran'], 'n++');
+      expect(next['_lastEvent']['actionId'], 'save');
+    });
 
-      final children = resolved['children'] as List;
+    test('falls back to applyEventToStorage without a script', () {
+      final next = UiViewBindings.applyTap(
+        state: const {},
+        actionId: 'tap1',
+        payload: const {'x': 1},
+        runScript: runScript,
+      );
+      expect(next['_storage']['x'], 1);
+      expect(next['_storage']['lastAction'], 'tap1');
+      expect(next['_storage']['taps'], 1);
+    });
+  });
+
+  group('UiViewBindings.shouldShowNode via applyTree', () {
+    test('visible/when string falsy collapses the node', () {
+      final tree = UiViewBindings.applyTree({
+        'type': 'column',
+        'children': [
+          {
+            'type': 'text',
+            'visible': '{{hide}}',
+            'data': 'gone',
+          },
+          {
+            'type': 'text',
+            'when': '0',
+            'data': 'alsogone',
+          },
+          {'type': 'text', 'data': 'kept'},
+        ],
+      }, {
+        'hide': 'false',
+      });
+      final children = tree['children'] as List;
       expect(children, hasLength(1));
-      expect((children.first as Map)['data'], 'Visible');
+      expect(children.single['data'], 'kept');
     });
   });
 }
