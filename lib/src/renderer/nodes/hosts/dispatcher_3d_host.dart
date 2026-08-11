@@ -22,6 +22,11 @@ class Js3dDispatcherHost extends Js3dHost {
   final Js3dHost _flame = createFlame3dHost();
   final Map<String, _HostedController> _controllers = {};
 
+  /// Remembers which host was selected for a given sceneId so that a
+  /// controller recreated after dispose (e.g. post-timeout re-render)
+  /// routes to the same host even if the new config lacks engine/src.
+  final Map<String, Js3dHost> _hostByScene = {};
+
   /// Returns the host that should handle the given [config].
   ///
   /// Explicit `engine: 'flame'` or a GLB/GLTF source selects `flame_3d`.
@@ -72,12 +77,23 @@ class Js3dDispatcherHost extends Js3dHost {
       );
       return existing;
     }
-    final host = selectHost(config);
+    // Use the remembered host if available: when a controller is disposed and
+    // later recreated (e.g. after a callEvent timeout triggers a re-render),
+    // the new config from the renderer side only carries {type, id, width,
+    // height} — no engine/src — which would default to Cube3dHost. Remembering
+    // the original selection ensures Flame3dHost scenes stay on Flame3dHost.
+    final host = _hostByScene[sceneId] ?? selectHost(config);
+    _hostByScene[sceneId] = host;
     final inner = host.createController(sceneId, config);
     final wrapper = _HostedController(
       host: host,
       controller: inner,
-      onDispose: () => _controllers.remove(sceneId),
+      onDispose: () {
+        _controllers.remove(sceneId);
+        // Keep _hostByScene entry — a controller recreated after dispose
+        // (e.g. post-timeout re-render) needs the same host. The entry is
+        // a single map key, negligible memory.
+      },
     );
     _controllers[sceneId] = wrapper;
     debugPrint(

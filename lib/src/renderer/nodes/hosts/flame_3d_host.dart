@@ -373,7 +373,14 @@ class Flame3dController extends Js3dController {
   void _disposeInternal() {
     if (_disposed) return;
     _disposed = true;
-    game?.dispose();
+    final g = game;
+    // A game that never received a layout (e.g. a single-frame offscreen
+    // capture torn down at the exact frame the scene entered) asserts inside
+    // FlameGame.dispose while processing lifecycle events. Skipping disposal
+    // is safe: nothing was ever laid out or painted, and the harness process
+    // tears the whole isolate down right after.
+    if (g == null || !g.hasLayout) return;
+    g.dispose();
   }
 }
 
@@ -964,7 +971,7 @@ Quaternion _quaternionFromEuler(Vector3 eulerDegrees) {
   final yaw = eulerDegrees.y * degrees2Radians;
   final pitch = eulerDegrees.x * degrees2Radians;
   final roll = eulerDegrees.z * degrees2Radians;
-  return Quaternion.euler(pitch, yaw, roll);
+  return Quaternion.euler(yaw, pitch, roll);
 }
 
 extension _Vector3Let on Vector3 {

@@ -1,3 +1,9 @@
+## 0.4.32
+
+- Fix 3D host-flip: remember per-sceneId host selection so controllers
+  recreated after a callEvent timeout route to the same host (Flame3dHost
+  stays Flame3dHost) even when the renderer-side config lacks engine/src.
+
 ## 0.4.31
 
 - Automated patch bump.
