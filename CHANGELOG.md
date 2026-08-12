@@ -1,3 +1,7 @@
+## 0.4.43
+
+- Automated patch bump.
+
 ## 0.4.42
 
 - Fix callEvent deadlock: _handleEventDone was nulling _eventCompleter
