@@ -156,14 +156,15 @@ class FlutterJsWidgetEngineBackend implements JsWidgetEngineBackend {
     Map<String, dynamic>? payload,
   ]) async {
     final rt = _runtime;
-    if (rt == null || _disposed) return;
+    if (rt == null || _disposed) {
+      debugPrint('[WidgetEvent] callEvent SKIP: rt=${rt != null} disposed=$_disposed widgetId=$actionId');
+      return;
+    }
     final encodedAction = jsonEncode(actionId);
     final encodedPayload = jsonEncode(payload ?? {});
+    debugPrint('[WidgetEvent] callEvent ENTER: actionId=$actionId rt=${rt.hashCode} disposed=$_disposed');
     await _bridge.callEvent(() {
-      // The send may be queued behind an in-flight event and only run after
-      // this backend was disposed or restarted: never evaluate into a stale
-      // runtime — its JSContextGroup is already released and JavaScriptCore
-      // crashes (use-after-free) on any call into it.
+      debugPrint('[WidgetEvent] send() called: isLive=${_isLive(rt)} actionId=$actionId');
       if (!_isLive(rt)) return;
       rt.evaluate(
         '(function(){'
