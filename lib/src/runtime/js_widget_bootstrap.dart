@@ -40,7 +40,7 @@ var jsr = {
     backOut: function(t){ var c1=1.70158,c3=c1+1; return 1+c3*Math.pow(t-1,3)+c1*Math.pow(t-1,2); },
   },
 
-  render: function(tree){ sendMessage('__jsr_render', JSON.stringify(tree)); },
+  render: function(tree){ try{ tree.__iid = __IID; }catch(e){} sendMessage('__jsr_render', JSON.stringify(tree)); },
 
   setTitle: function(t){ sendMessage('__jsr_set_title', String(t)); },
 

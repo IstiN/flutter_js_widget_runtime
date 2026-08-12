@@ -104,6 +104,11 @@ class FlutterJsWidgetEngineBackend implements JsWidgetEngineBackend {
       );
       _setupBridges(runtime);
 
+      // Inject a unique instance ID before bootstrap so jsr.render can tag
+      // every render tree with it. On macOS (JSC), sendMessage is process-
+      // global — render from engine A can arrive at engine B's bridge.
+      // The __iid tag lets the Dart side filter cross-engine render leaks.
+      runtime.evaluate('var __IID="${_config.instanceId ?? _config.widgetId}";');
       final bootstrapResult = runtime.evaluate(kJsWidgetBootstrap);
       if (bootstrapResult.isError) {
         debugPrint(
