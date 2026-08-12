@@ -187,24 +187,18 @@ class FlutterJsWidgetEngineBackend implements JsWidgetEngineBackend {
   Future<void> dispose() async {
     _disposed = true;
     _bridge.dispose();
-    // Defer the native JSContextGroup release to after the current event-loop
-    // turn. During run() → dispose() → evaluate(), the current stack may still
-    // be inside rt.evaluate()/executePendingJob() which holds native JSC
-    // callbacks. Releasing the context synchronously frees the JSContextGroup
-    // out from under those in-flight callbacks → SIGSEGV in JSValueToStringCopy.
-    //
-    // A short delay also prevents the allocator from reusing the freed
-    // context's address for a new engine created immediately after (the
-    // TestFlight SIGSEGV that prompted the previous immediate-release).
     final rt = _runtime;
     _runtime = null;
     if (rt != null) {
-      await Future<void>.delayed(Duration.zero);
-      try {
-        rt.dispose();
-      } catch (_) {
-        // Already released — safe to ignore.
-      }
+      // Release on the next microtask to avoid SIGSEGV if the current stack
+      // is still inside evaluate()/executePendingJob(), but don't use
+      // Future.delayed(Duration.zero) which added a full event-loop turn
+      // delay and broke widget init ordering.
+      scheduleMicrotask(() {
+        try {
+          rt.dispose();
+        } catch (_) {}
+      });
     }
   }
 

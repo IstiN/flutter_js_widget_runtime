@@ -1,3 +1,9 @@
+## 0.4.34
+
+- Fix dispose: use scheduleMicrotask instead of Future.delayed(Duration.zero)
+  to avoid event-loop ordering issues that caused widgets to get stuck in
+  loading state.
+
 ## 0.4.33
 
 - Fix SIGSEGV: defer native JSContextGroup release to the next event-loop
