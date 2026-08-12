@@ -287,19 +287,19 @@ class JsWidgetBridge {
   }
 
   void _handleEventDone(dynamic args) {
-    debugPrint('[WidgetEvent] _handleEventDone called, hasCompleter=${_eventCompleter != null}');
+    final ec = _eventCompleter;
+    debugPrint('[WidgetEvent] _handleEventDone called, completer=${ec?.hashCode} isCompleted=${ec?.isCompleted}');
     try {
       final decoded = _parseArgs(args);
       if (decoded['error'] != null) {
         debugPrint('[JsWidgetBridge] event error: ${decoded['error']}');
       }
     } catch (_) {}
-    final pending = _eventCompleter;
-    if (pending != null && !pending.isCompleted) {
-      // Take-and-null: a stray or duplicated done must never complete a
-      // later event's completer.
+    if (ec != null && !ec.isCompleted) {
       _eventCompleter = null;
-      pending.complete();
+      ec.complete();
+    } else {
+      debugPrint('[WidgetEvent] _handleEventDone: completer already null or completed!');
     }
   }
 
