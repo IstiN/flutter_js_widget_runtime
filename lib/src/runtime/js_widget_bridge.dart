@@ -111,6 +111,9 @@ class JsWidgetBridge {
 
   /// Dispatches a message coming from the JS runtime.
   Future<void> dispatch(String channel, dynamic payload) async {
+    if (channel == '__jsr_event_done') {
+      debugPrint('[WidgetEvent] dispatch __jsr_event_done: isDisposed=${isDisposed()} hasCompleter=${_eventCompleter != null}');
+    }
     if (isDisposed()) return;
     switch (channel) {
       case '__jsr_render':
