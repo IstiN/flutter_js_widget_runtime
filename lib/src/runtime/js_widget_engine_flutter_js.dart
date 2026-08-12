@@ -82,7 +82,16 @@ class FlutterJsWidgetEngineBackend implements JsWidgetEngineBackend {
     String? hostBootstrapJs,
     Map<String, dynamic> initialTheme = const {},
   }) async {
-    await dispose();
+    // Detach the old runtime without releasing its native context yet.
+    // The native JSContextGroup release is deferred to after the new
+    // runtime is fully initialized — releasing synchronously inside
+    // run() causes SIGSEGV because the old evaluate()/executePendingJob()
+    // may still be on the native stack.
+    final oldRuntime = _runtime;
+    _disposed = true;
+    _bridge.dispose();
+    _runtime = null;
+
     _disposed = false;
     _consoleLogs.clear();
 
@@ -129,6 +138,15 @@ class FlutterJsWidgetEngineBackend implements JsWidgetEngineBackend {
     } catch (e) {
       debugPrint('[FlutterJsWidgetEngineBackend] startup error: $e');
       rethrow;
+    } finally {
+      // Now that the new runtime is fully initialized, release the old one.
+      if (oldRuntime != null) {
+        scheduleMicrotask(() {
+          try {
+            oldRuntime.dispose();
+          } catch (_) {}
+        });
+      }
     }
   }
 
@@ -190,10 +208,9 @@ class FlutterJsWidgetEngineBackend implements JsWidgetEngineBackend {
     final rt = _runtime;
     _runtime = null;
     if (rt != null) {
-      // Release on the next microtask to avoid SIGSEGV if the current stack
-      // is still inside evaluate()/executePendingJob(), but don't use
-      // Future.delayed(Duration.zero) which added a full event-loop turn
-      // delay and broke widget init ordering.
+      // Deferred release: if dispose() is called from within a native JSC
+      // callback (e.g. bridge channel → dispatch → dispose chain), releasing
+      // synchronously frees the JSContextGroup out from under the callback.
       scheduleMicrotask(() {
         try {
           rt.dispose();

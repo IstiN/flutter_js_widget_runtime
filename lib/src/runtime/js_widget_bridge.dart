@@ -193,7 +193,7 @@ class JsWidgetBridge {
     try {
       send();
       await completer.future.timeout(
-        const Duration(seconds: 30),
+        const Duration(seconds: 5),
         onTimeout: () {
           debugPrint('[JsWidgetBridge] callEvent timeout');
         },

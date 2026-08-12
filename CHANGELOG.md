@@ -1,3 +1,12 @@
+## 0.4.35
+
+- Fix SIGSEGV: defer old runtime release until AFTER new runtime init
+  completes (was releasing during init via scheduleMicrotask, which ran
+  between evaluate() calls and freed the old JSContextGroup out from
+  under in-flight native callbacks).
+- Reduce callEvent timeout from 30s to 5s — a single stuck event was
+  blocking ALL widget interactions for 30 seconds.
+
 ## 0.4.34
 
 - Fix dispose: use scheduleMicrotask instead of Future.delayed(Duration.zero)
