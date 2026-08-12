@@ -279,6 +279,7 @@ class JsWidgetBridge {
   }
 
   void _handleEventDone(dynamic args) {
+    debugPrint('[WidgetEvent] _handleEventDone called, hasCompleter=${_eventCompleter != null}');
     try {
       final decoded = _parseArgs(args);
       if (decoded['error'] != null) {

@@ -170,12 +170,13 @@ class FlutterJsWidgetEngineBackend implements JsWidgetEngineBackend {
         'var __h=jsr._handler||(typeof handleEvent==="function"?handleEvent:null);'
         'if(!__h){sendMessage("__jsr_event_done","{}");return;}'
         'try{'
+        'console.log("[JSEvent] calling handler actionId=$encodedAction");'
         'var __r=__h($encodedAction,$encodedPayload);'
         'if(__r&&typeof __r.then==="function"){'
         '__r.then(function(){sendMessage("__jsr_event_done","{}");},'
         'function(e){sendMessage("__jsr_event_done",JSON.stringify({error:e.message||String(e)}));});'
         '}else{sendMessage("__jsr_event_done","{}");}'
-        '}catch(e){sendMessage("__jsr_event_done",JSON.stringify({error:e.message||String(e)}));}'
+        '}catch(e){console.log("[JSEvent] error: "+(e.message||String(e)));sendMessage("__jsr_event_done",JSON.stringify({error:e.message||String(e)}));}'
         '})();',
       );
       rt.executePendingJob();
@@ -279,9 +280,10 @@ class FlutterJsWidgetEngineBackend implements JsWidgetEngineBackend {
 
     for (final channel in _bridgeChannels) {
       rt.setupBridge(channel, (args) {
-        // Restart-safe: a channel of a PREVIOUS runtime must not dispatch
-        // into the restarted backend's world (and never into a dead one).
-        if (!_isLive(rt)) return;
+        if (!_isLive(rt)) {
+          debugPrint('[WidgetEvent] bridge SKIP channel=$channel not live rt=${rt.hashCode} _runtime=${_runtime?.hashCode}');
+          return;
+        }
         unawaited(_bridge.dispatch(channel, args));
       });
     }
