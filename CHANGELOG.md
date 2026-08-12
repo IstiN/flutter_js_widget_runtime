@@ -1,3 +1,11 @@
+## 0.4.33
+
+- Fix SIGSEGV: defer native JSContextGroup release to the next event-loop
+  turn. During run() → dispose() → evaluate(), the current stack may still
+  be inside executePendingJob() which holds native JSC callbacks. Releasing
+  the context synchronously freed the JSContextGroup out from under those
+  in-flight callbacks → crash in JSValueToStringCopy.
+
 ## 0.4.32
 
 - Fix 3D host-flip: remember per-sceneId host selection so controllers
