@@ -1,6 +1,9 @@
-## 0.4.41
+## 0.4.42
 
-- Automated patch bump.
+- Fix callEvent deadlock: _handleEventDone was nulling _eventCompleter
+  before _runEvent could complete it. On macOS (merged thread), JSC bridge
+  callback fires DURING rt.evaluate() inside send(). Nulling the completer
+  meant _runEvent's await never completed.
 
 ## 0.4.40
 

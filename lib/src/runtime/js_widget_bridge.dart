@@ -111,9 +111,6 @@ class JsWidgetBridge {
 
   /// Dispatches a message coming from the JS runtime.
   Future<void> dispatch(String channel, dynamic payload) async {
-    if (channel == '__jsr_event_done') {
-      debugPrint('[WidgetEvent] dispatch __jsr_event_done: isDisposed=${isDisposed()} hasCompleter=${_eventCompleter != null}');
-    }
     if (isDisposed()) return;
     switch (channel) {
       case '__jsr_render':
@@ -190,16 +187,13 @@ class JsWidgetBridge {
 
   Future<void> _runEvent(void Function() send) async {
     if (isDisposed()) {
-      debugPrint('[WidgetEvent] _runEvent SKIP: disposed');
       _eventInFlight = false;
       return;
     }
     final completer = Completer<void>();
     _eventCompleter = completer;
-    debugPrint('[WidgetEvent] _runEvent: completer set=${completer.hashCode}');
     try {
       send();
-      debugPrint('[WidgetEvent] _runEvent: after send(), awaiting completer');
       await completer.future.timeout(
         const Duration(seconds: 5),
         onTimeout: () {
@@ -288,19 +282,14 @@ class JsWidgetBridge {
 
   void _handleEventDone(dynamic args) {
     final ec = _eventCompleter;
-    debugPrint('[WidgetEvent] _handleEventDone called, completer=${ec?.hashCode} isCompleted=${ec?.isCompleted}');
-    try {
-      final decoded = _parseArgs(args);
-      if (decoded['error'] != null) {
-        debugPrint('[JsWidgetBridge] event error: ${decoded['error']}');
-      }
-    } catch (_) {}
     if (ec != null && !ec.isCompleted) {
-      _eventCompleter = null;
       ec.complete();
-    } else {
-      debugPrint('[WidgetEvent] _handleEventDone: completer already null or completed!');
     }
+    // Don't null _eventCompleter here — _runEvent's finally block handles that.
+    // Nulling here caused a race: on macOS (merged thread), the JSC bridge
+    // callback could fire DURING rt.evaluate() inside send(), processing the
+    // event_done microtask before send() returned. The _runEvent finally
+    // would then see _eventCompleter already null and skip completing it.
   }
 
   void _handleExportState(dynamic args) {
