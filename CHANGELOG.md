@@ -1,3 +1,7 @@
+## 0.4.36
+
+- Automated patch bump.
+
 ## 0.4.35
 
 - Fix SIGSEGV: defer old runtime release until AFTER new runtime init
