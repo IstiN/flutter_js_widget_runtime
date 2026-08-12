@@ -167,28 +167,25 @@ class FlutterJsWidgetEngineBackend implements JsWidgetEngineBackend {
     }
     final encodedAction = jsonEncode(actionId);
     final encodedPayload = jsonEncode(payload ?? {});
-    debugPrint('[WidgetEvent] callEvent ENTER: actionId=$actionId rt=${rt.hashCode} disposed=$_disposed');
-    await _bridge.callEvent(() {
-      debugPrint('[WidgetEvent] send() called: isLive=${_isLive(rt)} actionId=$actionId');
-      if (!_isLive(rt)) return;
-      rt.evaluate(
-        '(function(){'
-        'var __h=jsr._handler||(typeof handleEvent==="function"?handleEvent:null);'
-        'if(!__h){sendMessage("__jsr_event_done","{}");return;}'
-        'try{'
-        'var __r=__h($encodedAction,$encodedPayload);'
-        'if(__r&&typeof __r.then==="function"){'
-        '__r.then(function(){sendMessage("__jsr_event_done","{}");},'
-        'function(e){sendMessage("__jsr_event_done",JSON.stringify({error:e.message||String(e)}));});'
-        '}else{sendMessage("__jsr_event_done","{}");}'
-        '}catch(e){sendMessage("__jsr_event_done",JSON.stringify({error:e.message||String(e)}));}'
-        '})();',
-      );
-      // Pump pending jobs — on JSC, sendMessage callbacks are queued as
-      // pending jobs and need pumping to reach the Dart bridge.
-      rt.executePendingJob();
-      rt.executePendingJob();
-    });
+    // Call JS handler synchronously — don't go through _bridge.callEvent's
+    // event_done round-trip. On macOS (JSC), sendMessage is process-global
+    // and __jsr_event_done can't be reliably routed back to the correct
+    // engine, causing deadlocks. The handler executes synchronously inside
+    // evaluate(), so any jsr.render() side-effect is already visible.
+    final rt2 = _runtime;
+    if (rt2 == null || _disposed || !_isLive(rt)) return;
+    rt2.evaluate(
+      '(function(){'
+      'var __h=jsr._handler||(typeof handleEvent==="function"?handleEvent:null);'
+      'if(!__h){return;}'
+      'try{'
+      'var __r=__h($encodedAction,$encodedPayload);'
+      'if(__r&&typeof __r.then==="function"){__r.then(function(){},function(e){});}'
+      '}catch(e){}'
+      '})();',
+    );
+    rt2.executePendingJob();
+    rt2.executePendingJob();
   }
 
   @override
