@@ -1,6 +1,12 @@
-## 0.4.43
+## 0.4.44
 
-- Automated patch bump.
+- Fix JS widget cross-engine leaks on macOS/JSC:
+  - callEvent is now synchronous (skips __jsr_event_done round-trip)
+  - Render trees tagged with __iid, routed to correct panel
+  - requestAnimationFrame tagged with __iid for game loop routing
+  - _isLive guard + try/catch on callEvent to prevent SIGSEGV on disposed runtime
+
+## 0.4.43
 
 ## 0.4.42
 
