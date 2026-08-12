@@ -179,11 +179,10 @@ class FlutterJsWidgetEngineBackend implements JsWidgetEngineBackend {
         '}catch(e){sendMessage("__jsr_event_done",JSON.stringify({error:e.message||String(e)}));}'
         '})();',
       );
-      // Pump pending jobs in a loop — on JSC, sendMessage callbacks are
-      // queued as pending jobs and need multiple pumps to drain.
-      for (var i = 0; i < 10; i++) {
-        if (!rt.evaluatePendingJob()) break;
-      }
+      // Pump pending jobs — on JSC, sendMessage callbacks are queued as
+      // pending jobs and need pumping to reach the Dart bridge.
+      rt.executePendingJob();
+      rt.executePendingJob();
     });
   }
 
