@@ -161,31 +161,28 @@ class FlutterJsWidgetEngineBackend implements JsWidgetEngineBackend {
     Map<String, dynamic>? payload,
   ]) async {
     final rt = _runtime;
-    if (rt == null || _disposed) {
-      debugPrint('[WidgetEvent] callEvent SKIP: rt=${rt != null} disposed=$_disposed widgetId=$actionId');
-      return;
-    }
+    if (rt == null || _disposed) return;
     final encodedAction = jsonEncode(actionId);
     final encodedPayload = jsonEncode(payload ?? {});
-    // Call JS handler synchronously — don't go through _bridge.callEvent's
-    // event_done round-trip. On macOS (JSC), sendMessage is process-global
-    // and __jsr_event_done can't be reliably routed back to the correct
-    // engine, causing deadlocks. The handler executes synchronously inside
-    // evaluate(), so any jsr.render() side-effect is already visible.
-    final rt2 = _runtime;
-    if (rt2 == null || _disposed || !_isLive(rt)) return;
-    rt2.evaluate(
-      '(function(){'
-      'var __h=jsr._handler||(typeof handleEvent==="function"?handleEvent:null);'
-      'if(!__h){return;}'
-      'try{'
-      'var __r=__h($encodedAction,$encodedPayload);'
-      'if(__r&&typeof __r.then==="function"){__r.then(function(){},function(e){});}'
-      '}catch(e){}'
-      '})();',
-    );
-    rt2.executePendingJob();
-    rt2.executePendingJob();
+    // Re-check _isLive right before evaluate — the engine may have been
+    // disposed between the async entry point and here (offscreen capture
+    // dispose, panel switch, etc).
+    if (!_isLive(rt)) return;
+    try {
+      rt.evaluate(
+        '(function(){'
+        'var __h=jsr._handler||(typeof handleEvent==="function"?handleEvent:null);'
+        'if(!__h){return;}'
+        'try{'
+        'var __r=__h($encodedAction,$encodedPayload);'
+        'if(__r&&typeof __r.then==="function"){__r.then(function(){},function(e){});}'
+        '}catch(e){}'
+        '})();',
+      );
+      rt.executePendingJob();
+    } catch (e) {
+      debugPrint('[FlutterJsWidgetEngineBackend] callEvent error: $e');
+    }
   }
 
   @override

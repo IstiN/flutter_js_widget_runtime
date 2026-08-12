@@ -24,7 +24,7 @@ var clearTimeout = function(id){ sendMessage('__jsr_clear_interval', String(id))
 var setInterval = function(fn,ms){ var id=__nid(); __iv_cbs[id]=fn; sendMessage('__jsr_set_interval',JSON.stringify({id:id,ms:ms||1000})); return id; };
 var clearInterval = function(id){ sendMessage('__jsr_clear_interval', String(id)); delete __iv_cbs[String(id)]; };
 
-var requestAnimationFrame = function(fn){ var id=__nid(); __raf_cbs[id]=fn; sendMessage('__jsr_raf',JSON.stringify({id:id})); return id; };
+var requestAnimationFrame = function(fn){ var id=__nid(); __raf_cbs[id]=fn; sendMessage('__jsr_raf',JSON.stringify({id:id,iid:__IID})); return id; };
 var cancelAnimationFrame = function(id){ delete __raf_cbs[String(id)]; sendMessage('__jsr_caf', String(id)); };
 
 var jsr = {
