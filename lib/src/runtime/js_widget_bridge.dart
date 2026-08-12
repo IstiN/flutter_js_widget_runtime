@@ -164,6 +164,12 @@ class JsWidgetBridge {
   /// await inline), so a done signaled right after callEvent still finds its
   /// completer; subsequent events queue behind [_eventChain].
   Future<void> callEvent(void Function() send) {
+    // Safety: if _eventInFlight is stuck true from a previous dispose/restart
+    // cycle (bridge.dispose() completes the completer but may not reset the
+    // flag if dispose happened between _runEvent start and finally), reset it.
+    if (_eventCompleter == null) {
+      _eventInFlight = false;
+    }
     if (!_eventInFlight) {
       _eventInFlight = true;
       final future = _runEvent(send);
