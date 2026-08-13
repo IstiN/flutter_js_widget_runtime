@@ -310,11 +310,21 @@ class JsWidgetBridge {
     final req = _parseArgs(args);
     final id = req['id'] as String;
     final ms = (req['ms'] as num?)?.toInt() ?? 1000;
+    final once = req['once'] == true;
     _intervals[id]?.cancel();
-    _intervals[id] = Timer.periodic(Duration(milliseconds: ms), (_) {
-      if (isDisposed()) return;
-      intervalTickHandler(id);
-    });
+    final duration = Duration(milliseconds: ms);
+    if (once) {
+      _intervals[id] = Timer(duration, () {
+        _intervals.remove(id);
+        if (isDisposed()) return;
+        intervalTickHandler(id);
+      });
+    } else {
+      _intervals[id] = Timer.periodic(duration, (_) {
+        if (isDisposed()) return;
+        intervalTickHandler(id);
+      });
+    }
   }
 
   void _handleClearInterval(dynamic id) {

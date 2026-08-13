@@ -1,3 +1,11 @@
+## 0.4.45
+
+- Perf: micro-optimizations in JS bootstrap:
+  - Monotonic counter for IDs instead of Math.random()+Date.now()
+  - Reusable argument joiner for console.log (avoids Array.slice alloc)
+  - setTimeout uses one-shot Timer instead of periodic
+  - Manual JSON string building for timer/RAF messages (avoids JSON.stringify)
+
 ## 0.4.44
 
 - Fix JS widget cross-engine leaks on macOS/JSC:

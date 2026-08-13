@@ -11,20 +11,35 @@ const String kJsWidgetBootstrap = r'''
 var __cbs = {};
 var __iv_cbs = {};
 var __raf_cbs = {};
-var __nid = function(){return Math.random().toString(36).slice(2)+Date.now().toString(36);};
+
+// Monotonic counter for unique IDs — far cheaper than Math.random()+Date.now()
+// which was called on every timer, RAF, and promise callback.
+var __idCounter = 0;
+var __nid = function(){return 'i'+(++__idCounter);};
+
+// Reusable argument-joiner: avoids Array.prototype.slice.call(arguments)
+// allocation on every console call.
+function __joinArgs(a){
+  var n=a.length;
+  if(n===0)return '';
+  if(n===1)return String(a[0]);
+  var s=String(a[0]);
+  for(var i=1;i<n;i++){s+=' '+String(a[i]);}
+  return s;
+}
 
 var console = {
-  log:   function(){sendMessage('__jsr_log', Array.prototype.slice.call(arguments).join(' '));},
-  warn:  function(){sendMessage('__jsr_log', '[W] '+Array.prototype.slice.call(arguments).join(' '));},
-  error: function(){sendMessage('__jsr_log', '[E] '+Array.prototype.slice.call(arguments).join(' '));}
+  log:   function(){sendMessage('__jsr_log', __joinArgs(arguments));},
+  warn:  function(){sendMessage('__jsr_log', '[W] '+__joinArgs(arguments));},
+  error: function(){sendMessage('__jsr_log', '[E] '+__joinArgs(arguments));}
 };
 
-var setTimeout = function(fn,ms){ var id=__nid(); __iv_cbs[id]=function(){fn();clearInterval(id);}; sendMessage('__jsr_set_interval',JSON.stringify({id:id,ms:ms||0})); return id; };
+var setTimeout = function(fn,ms){ var id=__nid(); __iv_cbs[id]=function(){delete __iv_cbs[id];fn();}; sendMessage('__jsr_set_interval','{"id":"'+id+'","ms":'+(ms||0)+',"once":true}'); return id; };
 var clearTimeout = function(id){ sendMessage('__jsr_clear_interval', String(id)); };
-var setInterval = function(fn,ms){ var id=__nid(); __iv_cbs[id]=fn; sendMessage('__jsr_set_interval',JSON.stringify({id:id,ms:ms||1000})); return id; };
+var setInterval = function(fn,ms){ var id=__nid(); __iv_cbs[id]=fn; sendMessage('__jsr_set_interval','{"id":"'+id+'","ms":'+(ms||1000)+'}'); return id; };
 var clearInterval = function(id){ sendMessage('__jsr_clear_interval', String(id)); delete __iv_cbs[String(id)]; };
 
-var requestAnimationFrame = function(fn){ var id=__nid(); __raf_cbs[id]=fn; sendMessage('__jsr_raf',JSON.stringify({id:id,iid:__IID})); return id; };
+var requestAnimationFrame = function(fn){ var id=__nid(); __raf_cbs[id]=fn; sendMessage('__jsr_raf','{"id":"'+id+'","iid":"'+__IID+'"}'); return id; };
 var cancelAnimationFrame = function(id){ delete __raf_cbs[String(id)]; sendMessage('__jsr_caf', String(id)); };
 
 var jsr = {
