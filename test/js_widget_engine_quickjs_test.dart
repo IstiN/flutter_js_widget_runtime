@@ -4,14 +4,13 @@ import 'dart:io';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:js_widget_runtime/src/model/js_runtime_config.dart';
 import 'package:js_widget_runtime/src/runtime/js_widget_engine_quickjs.dart';
-import 'package:js_widget_runtime/src/runtime/quickjs/quickjs_ffi.dart';
-import 'package:js_widget_runtime/src/runtime/quickjs/quickjs_runtime.dart';
+import 'package:quickjs_runtime/quickjs_runtime.dart';
 
 /// Tests for the opt-in QuickJS FFI engine backend and its dart:ffi runtime.
 ///
-/// The whole suite skips when the native library has not been built — run
-/// `tool/build_quickjs.sh` from the package root first (CI builds it before
-/// running tests).
+/// The whole suite skips when the native library has not been built — CI
+/// builds it inside the quickjs_runtime package checkout before running
+/// tests (or set JSR_QUICKJS_LIB).
 final bool _hasNativeLib = File(QuickjsFfi.libraryPath).existsSync();
 
 class _Recorder {
@@ -452,16 +451,20 @@ void main() {
       );
       _backends.add(backend);
       await backend.init();
-      await backend.run('''
+        await backend.run('''
 (function() {
   jsr.loadAsset('hello.txt').then(function(text) {
     jsr.exportState({head: text.substring(0, 5)});
   });
 })();
 ''');
-      await pumpEventQueue();
-      expect(backend.exportedState, {'head': 'hello'});
-    });
+        // Real file I/O needs event-loop turns; pumpEventQueue alone is not
+        // guaranteed to flush it under load.
+        for (var i = 0; i < 50 && backend.exportedState == null; i++) {
+          await Future<void>.delayed(const Duration(milliseconds: 10));
+        }
+        expect(backend.exportedState, {'head': 'hello'});
+      });
 
     test('setTimeout fires through the Dart-backed interval timer', () async {
       final r = _Recorder();

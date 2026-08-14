@@ -35,7 +35,16 @@ jobs:
         run: sudo apt-get update -qq && sudo apt-get install -y -qq gcc
 
       - name: Build QuickJS native library
-        run: ./tool/build_quickjs.sh
+        run: |
+          QUICKJS_REF=$(python3 -c "
+          import re
+          lock = open('pubspec.lock').read()
+          m = re.search(r'quickjs_runtime:.*?resolved-ref: \"([0-9a-f]+)\"', lock, re.S)
+          print(m.group(1))
+          ")
+          QUICKJS_DIR="$HOME/.pub-cache/git/quickjs_runtime-$QUICKJS_REF"
+          echo "quickjs_runtime at: $QUICKJS_DIR"
+          bash "$QUICKJS_DIR/tool/build_quickjs.sh"
 
       - name: Run tests with coverage
         run: flutter test --coverage --no-pub
