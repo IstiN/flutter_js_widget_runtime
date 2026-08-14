@@ -147,7 +147,8 @@ fi
 # ═══════════════════════════════════════════════════════════════════════════
 # 4. CRAP RATCHET
 # ═══════════════════════════════════════════════════════════════════════════
-echo "🔍 Checking CRAP score (threshold: 1056.0)..."
+CRAP_THRESHOLD=$(grep -A5 '^crap:' crap4dart.yaml | grep 'threshold:' | awk '{print $2}')
+echo "🔍 Checking CRAP score (threshold: ${CRAP_THRESHOLD})..."
 if dart run crap4dart analyze --badge badges/crap.svg >/tmp/crap4dart-precommit.log 2>&1; then
   echo "✅ CRAP ratchet OK (see badges/crap.svg)"
 else
@@ -157,7 +158,7 @@ else
   echo "╚═══════════════════════════════════════════════════════════════════════════╝"
   tail -n 40 /tmp/crap4dart-precommit.log
   echo ""
-  echo "   The CRAP score is higher than the current baseline (1056.0)."
+  echo "   The CRAP score is higher than the current baseline (${CRAP_THRESHOLD})."
   echo "   Add tests or simplify the changed code, then retry."
   echo "   Use --no-verify to skip (NOT recommended)."
   exit 1

@@ -42,6 +42,9 @@ tool/
 - Single quotes only.
 - Package-relative imports only (`package:js_widget_runtime/...`).
 - Keep files under 1500 lines.
+- Keep the max CRAP score at or below the `crap.threshold` ratchet in
+  `crap4dart.yaml` (run `dart pub global run crap4dart analyze` or
+  `./scripts/pre-commit`); the badge in `badges/crap.svg` must stay green.
 - Maintain test coverage >= 80% and duplication < 1%.
 - Run `./scripts/pre-commit` before pushing.
 
@@ -129,6 +132,33 @@ flutter pub publish --force
 
 - PRs and pushes to `main` run `.github/workflows/pr.yml` (quality gates).
 - Pushes to `main` run `.github/workflows/publish.yml`, which bumps the version, tags it, and publishes to pub.dev via OIDC automated publishing.
+
+## Flutter Version / flame_3d Branch Strategy
+
+CI on `main` is pinned to Flutter 3.44.4 because hosted `flame_3d 0.3.0`
+does not compile against the `flutter_gpu` API of Flutter 3.47+ (fixed
+upstream in flame-engine/flame#3995 but not yet published to pub.dev).
+
+Two tracks are maintained until the upstream fix is published:
+
+- `main` — hosted `flame_3d: ^0.3.0`, CI pinned to Flutter 3.44.4, publishes
+  to pub.dev (pub.dev forbids git dependencies in published packages).
+- `flame-3.47` — `flame_3d` from the `IstiN/flame` fork (branch
+  `flame_3d-0.3.0-flutter-3.47`, a backport of flame-engine/flame#3995 onto
+  0.3.0), CI on Flutter 3.47.0, not published.
+
+`.github/workflows/automerge-main.yml` merges every push to `main` into
+`flame-3.47` automatically. If the merge conflicts, it opens (or updates) a
+PR `main` → `flame-3.47` for manual resolution. Do not delete the
+`flame-3.47` branch while the automerge workflow is active.
+
+Once flame_3d publishes a 3.47-compatible release:
+
+1. Merge `flame-3.47` into `main` (resolve any fallout).
+2. Restore `flame_3d: ^0.3.x` from pub.dev in `pubspec.yaml`.
+3. Remove the `flutter-version` pin from `pr.yml` and `publish.yml`.
+4. Delete `.github/workflows/automerge-main.yml` and the `flame-3.47` branch.
+5. Remove this section from `AGENTS.md`.
 
 ## Adding New Widget Examples
 

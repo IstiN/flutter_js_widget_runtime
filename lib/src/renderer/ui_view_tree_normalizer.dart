@@ -53,75 +53,89 @@ class UiViewTreeNormalizer {
   }
 
   static void _aliasFields(Map<String, dynamic> out) {
+    _aliasTextContent(out);
+    final type = out['type'] as String? ?? '';
+    if (_boxTypes.contains(type)) _aliasBoxDecoration(out, type);
+    if (_buttonTypes.contains(type)) _aliasButtonLabel(out);
+    if (_inputTypes.contains(type)) _aliasInputFields(out, type);
+    if (_imageTypes.contains(type)) _aliasImageSource(out);
+    if (type == 'svg') _aliasSvgMarkup(out);
+    if (_valueTypes.contains(type)) _aliasOnChanged(out);
+    if (type == 'dropdown' || type == 'select') _aliasDropdown(out);
+  }
+
+  static const Set<String> _boxTypes = {'container', 'card', 'animatedContainer'};
+  static const Set<String> _buttonTypes = {'button', 'textButton', 'outlinedButton'};
+  static const Set<String> _inputTypes = {'textField', 'input', 'textArea'};
+  static const Set<String> _imageTypes = {'image', 'networkImage', 'img'};
+  static const Set<String> _valueTypes = {'switch', 'checkbox', 'slider'};
+
+  static void _aliasTextContent(Map<String, dynamic> out) {
     if (out['content'] != null && out['data'] == null) {
       out['data'] = out.remove('content');
     }
     if (out['label'] != null && out['data'] == null && out['type'] == 'text') {
       out['data'] = out['label'];
     }
+  }
 
-    final type = out['type'] as String? ?? '';
-    if (type == 'container' || type == 'card' || type == 'animatedContainer') {
-      if (out['backgroundColor'] != null && out['decoration'] == null) {
-        out['decoration'] = <String, dynamic>{
-          'color': out.remove('backgroundColor'),
-        };
-      }
-      if (out['color'] != null &&
-          out['decoration'] == null &&
-          type == 'container') {
-        out['decoration'] = <String, dynamic>{'color': out.remove('color')};
-      }
+  static void _aliasBoxDecoration(Map<String, dynamic> out, String type) {
+    if (out['backgroundColor'] != null && out['decoration'] == null) {
+      out['decoration'] = <String, dynamic>{
+        'color': out.remove('backgroundColor'),
+      };
     }
-
-    if (type == 'button' || type == 'textButton' || type == 'outlinedButton') {
-      if (out['title'] != null && out['data'] == null) {
-        out['data'] = out.remove('title');
-      }
-      if (out['text'] != null && out['data'] == null) {
-        out['data'] = out.remove('text');
-      }
+    if (out['color'] != null && out['decoration'] == null &&
+        type == 'container') {
+      out['decoration'] = <String, dynamic>{'color': out.remove('color')};
     }
+  }
 
-    if (type == 'textField' || type == 'input' || type == 'textArea') {
-      out['type'] = type == 'textArea' ? 'textArea' : 'textField';
-      if (out['placeholder'] != null && out['hint'] == null) {
-        out['hint'] = out.remove('placeholder');
-      }
-      if (out['value'] != null && out['initialValue'] == null) {
-        out['initialValue'] = out.remove('value');
-      }
-      if (out['onChanged'] != null && out['onChange'] == null) {
-        out['onChange'] = out.remove('onChanged');
-      }
+  static void _aliasButtonLabel(Map<String, dynamic> out) {
+    if (out['title'] != null && out['data'] == null) {
+      out['data'] = out.remove('title');
     }
-
-    if (type == 'image' || type == 'networkImage' || type == 'img') {
-      out['type'] = 'image';
-      if (out['uri'] != null && out['url'] == null) {
-        out['url'] = out.remove('uri');
-      }
-      if (out['source'] != null && out['url'] == null) {
-        out['url'] = out.remove('source');
-      }
+    if (out['text'] != null && out['data'] == null) {
+      out['data'] = out.remove('text');
     }
+  }
 
-    if (type == 'svg' && out['markup'] != null && out['data'] == null) {
+  static void _aliasInputFields(Map<String, dynamic> out, String type) {
+    out['type'] = type == 'textArea' ? 'textArea' : 'textField';
+    if (out['placeholder'] != null && out['hint'] == null) {
+      out['hint'] = out.remove('placeholder');
+    }
+    if (out['value'] != null && out['initialValue'] == null) {
+      out['initialValue'] = out.remove('value');
+    }
+    _aliasOnChanged(out);
+  }
+
+  static void _aliasImageSource(Map<String, dynamic> out) {
+    out['type'] = 'image';
+    if (out['uri'] != null && out['url'] == null) {
+      out['url'] = out.remove('uri');
+    }
+    if (out['source'] != null && out['url'] == null) {
+      out['url'] = out.remove('source');
+    }
+  }
+
+  static void _aliasSvgMarkup(Map<String, dynamic> out) {
+    if (out['markup'] != null && out['data'] == null) {
       out['data'] = out.remove('markup');
     }
+  }
 
-    if ((type == 'switch' || type == 'checkbox' || type == 'slider') &&
-        out['onChanged'] != null &&
-        out['onChange'] == null) {
+  static void _aliasOnChanged(Map<String, dynamic> out) {
+    if (out['onChanged'] != null && out['onChange'] == null) {
       out['onChange'] = out.remove('onChanged');
     }
+  }
 
-    if (type == 'dropdown' || type == 'select') {
-      out['type'] = 'dropdown';
-      if (out['onChanged'] != null && out['onChange'] == null) {
-        out['onChange'] = out.remove('onChanged');
-      }
-    }
+  static void _aliasDropdown(Map<String, dynamic> out) {
+    out['type'] = 'dropdown';
+    _aliasOnChanged(out);
   }
 
   static String _aliasType(String raw) {
