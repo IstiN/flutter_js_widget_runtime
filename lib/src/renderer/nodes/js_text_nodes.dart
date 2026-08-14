@@ -384,8 +384,12 @@ class _SparklinePainter extends CustomPainter {
 
   @override
   bool shouldRepaint(_SparklinePainter old) =>
-      old.points != points ||
-      old.color != color ||
+      old.points != points || _paintPropsChanged(old);
+
+  bool _paintPropsChanged(_SparklinePainter old) =>
+      old.color != color || _fillPropsChanged(old);
+
+  bool _fillPropsChanged(_SparklinePainter old) =>
       old.fillColor != fillColor ||
       old.strokeWidth != strokeWidth ||
       old.fill != fill;
@@ -465,7 +469,9 @@ class _BarChartPainter extends CustomPainter {
 
   @override
   bool shouldRepaint(_BarChartPainter old) =>
-      old.points != points ||
+      old.points != points || _paintPropsChanged(old);
+
+  bool _paintPropsChanged(_BarChartPainter old) =>
       old.color != color ||
       old.fillColor != fillColor ||
       old.strokeWidth != strokeWidth;

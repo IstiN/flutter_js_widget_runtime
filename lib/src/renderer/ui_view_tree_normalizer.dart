@@ -15,26 +15,9 @@ class UiViewTreeNormalizer {
     }
 
     _aliasFields(out);
-
-    final type = out['type'] as String? ?? '';
-    if ((type == 'column' || type == 'row' || type == 'wrap') &&
-        out['children'] == null &&
-        out['child'] is Map) {
-      out['children'] = <dynamic>[out.remove('child')];
-    }
-
+    _hoistSingleChild(out);
     if (out['children'] is List) {
-      out['children'] = (out['children'] as List).map((child) {
-        if (child is Map) {
-          return _normalizeNode(
-            Map<String, dynamic>.from(child.cast<String, dynamic>()),
-          );
-        }
-        if (child is String) {
-          return <String, dynamic>{'type': 'text', 'data': child};
-        }
-        return child;
-      }).toList();
+      out['children'] = _normalizeChildren(out['children'] as List);
     }
 
     if (out['child'] is Map) {
@@ -50,6 +33,32 @@ class UiViewTreeNormalizer {
     }
 
     return out;
+  }
+
+  /// Flex containers without `children` promote their single `child` map to
+  /// a one-element `children` list.
+  static void _hoistSingleChild(Map<String, dynamic> out) {
+    final type = out['type'] as String? ?? '';
+    final isFlex = type == 'column' || type == 'row' || type == 'wrap';
+    if (isFlex && out['children'] == null && out['child'] is Map) {
+      out['children'] = <dynamic>[out.remove('child')];
+    }
+  }
+
+  static List<dynamic> _normalizeChildren(List children) => children
+      .map((child) => _normalizeChild(child))
+      .toList();
+
+  static dynamic _normalizeChild(dynamic child) {
+    if (child is Map) {
+      return _normalizeNode(
+        Map<String, dynamic>.from(child.cast<String, dynamic>()),
+      );
+    }
+    if (child is String) {
+      return <String, dynamic>{'type': 'text', 'data': child};
+    }
+    return child;
   }
 
   static void _aliasFields(Map<String, dynamic> out) {

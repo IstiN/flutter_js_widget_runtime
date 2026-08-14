@@ -163,13 +163,19 @@ class Flame3dController extends Js3dController {
   /// notify → rebuild forever.
   void _applyQuiet(Js3dCommand command) {
     if (_disposed) return;
-    if (game == null && error == null) {
-      _pending.add(command);
-      _initGameIfNeeded();
+    if (game == null) {
+      _bufferWhileLoading(command);
       return;
     }
-    if (game == null) return;
     _apply(command);
+  }
+
+  /// Queues [command] until the game finishes initializing. Dropped when the
+  /// init already failed (`error != null`) — there is no game to apply to.
+  void _bufferWhileLoading(Js3dCommand command) {
+    if (error != null) return;
+    _pending.add(command);
+    _initGameIfNeeded();
   }
 
   void _initGameIfNeeded() {
@@ -183,15 +189,23 @@ class Flame3dController extends Js3dController {
   Future<void> _initGame() async {
     try {
       await _host._ensureGpu();
-      if (_disposed || game != null) return;
-      debugPrint('[Flame3dController] game created sceneId=$sceneId');
-      game = _createGame();
-      _trackOnLoad();
-      _drainPendingCommands();
-      if (!_disposed) notifyListeners();
+      _createGameIfReady();
+      _finishInit();
     } catch (e) {
       _handleInitError(e);
     }
+  }
+
+  void _createGameIfReady() {
+    if (_disposed || game != null) return;
+    debugPrint('[Flame3dController] game created sceneId=$sceneId');
+    game = _createGame();
+    _trackOnLoad();
+  }
+
+  void _finishInit() {
+    _drainPendingCommands();
+    if (!_disposed) notifyListeners();
   }
 
   JsFlame3dGame _createGame() => JsFlame3dGame(
@@ -349,16 +363,18 @@ class Flame3dController extends Js3dController {
   /// Reloads the model only when its declared `src` changes; otherwise just
   /// updates the transform in place.
   void _syncModelSource(String id, Map<String, dynamic> m) {
-    final src = m['src'] as String?;
-    if (src != null && src.isNotEmpty && _declaredModelSrcs[id] != src) {
-      _declaredModelSrcs[id] = src;
+    if (_declaredSrcChanged(id, m['src'])) {
+      _declaredModelSrcs[id] = m['src'] as String;
       _applyQuiet(Js3dCommand(kind: 'addModel', sceneId: sceneId, payload: m));
-    } else {
-      _applyQuiet(
-        Js3dCommand(kind: 'setTransform', sceneId: sceneId, payload: m),
-      );
+      return;
     }
+    _applyQuiet(Js3dCommand(kind: 'setTransform', sceneId: sceneId, payload: m));
   }
+
+  /// Whether the model's declared `src` is new (non-empty and different from
+  /// the currently loaded source).
+  bool _declaredSrcChanged(String id, dynamic src) =>
+      src is String && src.isNotEmpty && _declaredModelSrcs[id] != src;
 
   /// (Re)starts a skeletal clip only when the requested clip name changes.
   void _syncModelClip(String id, Map<String, dynamic> m) {
@@ -391,12 +407,23 @@ class Flame3dController extends Js3dController {
   void _applyCamera(Map<String, dynamic>? cam) {
     final camera = game?.camera;
     if (cam == null || camera is! CameraComponent3D) return;
+    _applyCameraPose(cam, camera);
+    _applyCameraFov(cam, camera);
+  }
+
+  void _applyCameraFov(Map<String, dynamic> cam, CameraComponent3D camera) {
+    final fov = (cam['fov'] as num?)?.toDouble();
+    if (fov != null) camera.fovY = fov;
+  }
+
+  void _applyCameraPose(
+    Map<String, dynamic> cam,
+    CameraComponent3D camera,
+  ) {
     js3dReadVec3f(cam['position'] as List?)?.let(camera.position.setFrom);
     js3dReadVec3f(cam['target'] as List?)?.let(camera.target.setFrom);
     js3dReadVec3f(cam['up'] as List?)
         ?.let((Vector3 v) => camera.up.setFrom(v));
-    final fov = (cam['fov'] as num?)?.toDouble();
-    if (fov != null) camera.fovY = fov;
   }
 
   void _applyLight(Map<String, dynamic>? light) {
@@ -574,17 +601,11 @@ class JsFlame3dGame extends FlameGame3D<World3D, CameraComponent3D> {
     List<dynamic>? scale,
     bool unlit = false,
   }) async {
-    if (src == null || src.isEmpty) return;
-    // The same scene can be driven by more than one JS engine (visible panel
-    // + offscreen board capture), so addModel may arrive twice in parallel.
-    // Without a guard both calls see an empty _models map before either parse
-    // finishes and add two components — one rotating, one static.
-    if (!_loadingModels.add(modelId)) return;
-
+    if (!_shouldLoad(modelId, src)) return;
     debugPrint('[Flame3dGame] loadModel modelId=$modelId src=$src');
     Js3dCaptureSync.track(_loadModelInner(
       modelId: modelId,
-      src: src,
+      src: src!,
       position: position,
       rotation: rotation,
       scale: scale,
@@ -592,6 +613,16 @@ class JsFlame3dGame extends FlameGame3D<World3D, CameraComponent3D> {
     ));
   }
 
+  /// Guards a load request: rejects an empty [src], and deduplicates
+  /// parallel loads of the same model. The same scene can be driven by more
+  /// than one JS engine (visible panel + offscreen board capture), so
+  /// addModel may arrive twice in parallel. Without a guard both calls see
+  /// an empty `_models` map before either parse finishes and add two
+  /// components — one rotating, one static.
+  bool _shouldLoad(String modelId, String? src) {
+    if (src == null || src.isEmpty) return false;
+    return _loadingModels.add(modelId);
+  }
   Future<void> _loadModelInner({
     required String modelId,
     required String src,
@@ -656,13 +687,18 @@ class JsFlame3dGame extends FlameGame3D<World3D, CameraComponent3D> {
   /// SpatialMaterial is swapped for an UnlitMaterial carrying the same
   /// albedo — flat brand marks (logos, UI) then render at their exact
   /// colors instead of being dimmed by the light rig.
-  void _applyMaterialFixups(Model model, {bool unlit = false}) {
-    for (final node in model.nodes.values) {
+  void _applyMaterialFixups(Model model, {bool unlit = false}) => _applyNodeMaterialFixups(model.nodes.values, unlit: unlit);
+
+  void _applyNodeMaterialFixups(Iterable<ModelNode> nodes, {required bool unlit}) {
+    for (final node in nodes) {
       final mesh = node.mesh;
-      if (mesh == null) continue;
-      for (final surface in mesh.surfaces) {
-        _fixSurfaceMaterial(surface, unlit: unlit);
-      }
+      if (mesh != null) _applyMeshMaterialFixups(mesh, unlit: unlit);
+    }
+  }
+
+  void _applyMeshMaterialFixups(Mesh mesh, {required bool unlit}) {
+    for (final surface in mesh.surfaces) {
+      _fixSurfaceMaterial(surface, unlit: unlit);
     }
   }
 
@@ -735,27 +771,36 @@ class JsFlame3dGame extends FlameGame3D<World3D, CameraComponent3D> {
   /// null on a miss.
   Map<String, dynamic>? raycastModel(Offset ndc) {
     final ray = js3dRayFromNdc(ndc, camera.viewProjectionMatrix.storage);
-    String? hitId;
-    var hitT = double.infinity;
-    for (final entry in _models.entries) {
-      final aabb = entry.value.aabb;
-      final t = js3dRayIntersectAabb(
-        ray,
-        vm64.Vector3(aabb.min.x, aabb.min.y, aabb.min.z),
-        vm64.Vector3(aabb.max.x, aabb.max.y, aabb.max.z),
-      );
-      if (t != null && t < hitT) {
-        hitT = t;
-        hitId = entry.key;
-      }
-    }
-    if (hitId == null) return null;
-    final point = ray.at(hitT);
+    final hit = _nearestModelHit(ray);
+    if (hit == null) return null;
     return {
-      'modelId': hitId,
-      'point': [point.x, point.y, point.z],
+      'modelId': hit.modelId,
+      'point': [hit.t.x, hit.t.y, hit.t.z],
     };
   }
+
+  /// Ray/AABB sweep over all loaded models; the nearest hit wins.
+  _ModelHit? _nearestModelHit(Js3dRay ray) {
+    _ModelHit? best;
+    var bestT = double.infinity;
+    for (final entry in _models.entries) {
+      final t = _rayDistanceToModel(ray, entry.value);
+      if (!_isBetterHit(t, bestT)) continue;
+      bestT = t!;
+      best = _ModelHit(entry.key, ray.at(t));
+    }
+    return best;
+  }
+
+  /// Whether [t] is a valid hit strictly closer than [bestT].
+  bool _isBetterHit(double? t, double bestT) => t != null && t < bestT;
+
+  double? _rayDistanceToModel(Js3dRay ray, ModelComponent model) =>
+      js3dRayIntersectAabb(
+        ray,
+        vm64.Vector3(model.aabb.min.x, model.aabb.min.y, model.aabb.min.z),
+        vm64.Vector3(model.aabb.max.x, model.aabb.max.y, model.aabb.max.z),
+      );
 
   @override
   void update(double dt) {
@@ -877,6 +922,12 @@ class _Flame3dGameWidgetState extends State<_Flame3dGameWidget> {
     if (_isHeadlessContext(context)) {
       return _Flame3dHeadlessCapture(controller: c, game: game);
     }
+    return _ownedGameWidget(c, game);
+  }
+
+  /// The attached [GameWidget] for this widget once it owns the game, or a
+  /// zero-size placeholder while another live widget holds the claim.
+  Widget _ownedGameWidget(Flame3dController c, JsFlame3dGame game) {
     if (!_tryClaimGame(c, game)) {
       return const SizedBox.shrink();
     }
@@ -886,18 +937,23 @@ class _Flame3dGameWidgetState extends State<_Flame3dGameWidget> {
   /// Placeholder widget for disposed/errored/loading controllers, or `null`
   /// when the controller has a live game to render.
   Widget? _buildFallback(Flame3dController c) {
-    if (c.isDisposed) {
-      debugPrint('[Flame3dGameWidget] controller disposed sceneId=${c.sceneId} — shrink');
-      return const SizedBox.shrink();
-    }
-    if (c.error != null) {
-      return _ErrorWidget(message: c.error!);
-    }
-    if (c.game == null) {
-      return const Center(child: CircularProgressIndicator());
-    }
+    if (c.isDisposed) return _disposedPlaceholder(c);
+    return _readyFallback(c);
+  }
+
+  Widget? _readyFallback(Flame3dController c) {
+    if (c.error != null) return _ErrorWidget(message: c.error!);
+    if (c.game == null) return _loadingPlaceholder();
     return null;
   }
+
+  Widget _disposedPlaceholder(Flame3dController c) {
+    debugPrint('[Flame3dGameWidget] controller disposed sceneId=${c.sceneId} — shrink');
+    return const SizedBox.shrink();
+  }
+
+  Widget _loadingPlaceholder() =>
+      const Center(child: CircularProgressIndicator());
 
   bool _isHeadlessContext(BuildContext context) =>
       ScrollConfiguration.of(context) is HeadlessScrollBehavior;
@@ -906,13 +962,17 @@ class _Flame3dGameWidgetState extends State<_Flame3dGameWidget> {
   /// Returns whether this widget now owns the game.
   bool _tryClaimGame(Flame3dController c, JsFlame3dGame game) {
     if (_ownsGame) return true;
-    final owner = c.gameWidgetOwner;
-    if (owner == null || !identical(owner, game)) {
-      // Unclaimed, or the previous claim points to a stale game instance.
+    // Unclaimed, or the previous claim points to a stale game instance.
+    if (_claimIsStale(c, game)) {
       c.gameWidgetOwner = game;
       _ownsGame = true;
     }
     return _ownsGame;
+  }
+
+  bool _claimIsStale(Flame3dController c, JsFlame3dGame game) {
+    final owner = c.gameWidgetOwner;
+    return owner == null || !identical(owner, game);
   }
 }
 
@@ -960,13 +1020,17 @@ class _Flame3dHeadlessCaptureState extends State<_Flame3dHeadlessCapture> {
     // (CameraComponent skips unmounted worlds), so mount it manually once
     // the load completes.
     () async {
-      final future = widget.game.onLoad();
-      if (future != null) await future;
-      if (!widget.game.isMounted) {
-        widget.game.mount();
-      }
+      await _loadAndMountGame();
       if (mounted) setState(() {});
     }();
+  }
+
+  Future<void> _loadAndMountGame() async {
+    final future = widget.game.onLoad();
+    if (future != null) await future;
+    if (!widget.game.isMounted) {
+      widget.game.mount();
+    }
   }
 
   @override
@@ -1044,6 +1108,14 @@ class _Flame3dCapturePainter extends CustomPainter {
 
 /// Default light color when a hex string cannot be parsed.
 const _defaultLightColor = Color.fromARGB(255, 59, 130, 246);
+
+/// A raycast hit: the model id and the world-space intersection point.
+class _ModelHit {
+  const _ModelHit(this.modelId, this.t);
+
+  final String modelId;
+  final vm64.Vector3 t;
+}
 
 Quaternion _quaternionFromEuler(Vector3 eulerDegrees) {
   final yaw = eulerDegrees.y * degrees2Radians;
