@@ -36,13 +36,13 @@ jobs:
 
       - name: Build QuickJS native library
         run: |
-          QUICKJS_REF=$(python3 -c "
-          import re
-          lock = open('pubspec.lock').read()
-          m = re.search(r'quickjs_runtime:.*?resolved-ref: \"([0-9a-f]+)\"', lock, re.S)
-          print(m.group(1))
+          QUICKJS_DIR=$(python3 -c "
+          import json
+          cfg = json.load(open('.dart_tool/package_config.json'))
+          for p in cfg['packages']:
+              if p['name'] == 'quickjs_runtime':
+                  print(p['rootUri'].replace('file://','')); break
           ")
-          QUICKJS_DIR="$HOME/.pub-cache/git/quickjs_runtime-$QUICKJS_REF"
           echo "quickjs_runtime at: $QUICKJS_DIR"
           bash "$QUICKJS_DIR/tool/build_quickjs.sh"
 
