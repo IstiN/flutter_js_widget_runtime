@@ -175,6 +175,30 @@ char* qjs_eval(JSContext* ctx, const char* code, const char* filename,
     return result;
 }
 
+/* Execute pending jobs (promise reactions, async continuations). Drains the
+ * queue until it is empty or a job throws. Returns the number of executed
+ * jobs, or -1 if a job raised an exception (reported on stderr, cleared). */
+int qjs_execute_pending_jobs(JSContext* ctx) {
+    JSRuntime* rt = JS_GetRuntime(ctx);
+    int executed = 0;
+    for (;;) {
+        JSContext* ctx1;
+        int rc = JS_ExecutePendingJob(rt, &ctx1);
+        if (rc == 0) break;
+        if (rc < 0) {
+            JSValue err = JS_GetException(ctx1);
+            const char* msg = JS_ToCString(ctx1, err);
+            fprintf(stderr, "[quickjs] pending job error: %s\n",
+                    msg ? msg : "(unknown)");
+            if (msg) JS_FreeCString(ctx1, msg);
+            JS_FreeValue(ctx1, err);
+            return -1;
+        }
+        executed++;
+    }
+    return executed;
+}
+
 /* Set a global variable from a JSON string. Returns 0 on success. */
 int qjs_set_global_json(JSContext* ctx, const char* name, const char* json) {
     JSValue val = JS_ParseJSON(ctx, json, strlen(json), "<global>");
