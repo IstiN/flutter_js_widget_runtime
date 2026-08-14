@@ -26,6 +26,12 @@ jobs:
       - name: Install dependencies
         run: flutter pub get
 
+      - name: Install gcc
+        run: sudo apt-get update -qq && sudo apt-get install -y -qq gcc
+
+      - name: Build QuickJS native library
+        run: ./tool/build_quickjs.sh
+
       - name: Run tests with coverage
         run: flutter test --coverage --no-pub
 
