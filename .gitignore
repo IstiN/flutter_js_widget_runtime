@@ -35,3 +35,43 @@ web/.dart_tool/
 
 # Native
 native/quickjs/*.so
+# Dart / Flutter
+.dart_tool/
+.flutter-plugins
+.flutter-plugins-dependencies
+.pub-cache/
+.pub/
+build/
+coverage/
+report/
+*.iml
+*.lock
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# macOS
+.DS_Store
+
+# Android
+android/.gradle/
+local.properties
+
+# iOS
+ios/Pods/
+ios/.symlinks/
+ios/Flutter/Flutter.framework
+ios/Flutter/Flutter.podspec
+
+# Web
+web/.dart_tool/
+
+# Native
+native/quickjs/*.so
+# crap4dart profiling
+profile-reports/
+.crap_profile_temp/
