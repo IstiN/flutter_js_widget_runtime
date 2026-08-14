@@ -455,6 +455,16 @@ class JsonWidgetRenderer {
     if (child is Expanded || child is Flexible || child is Spacer) {
       return child;
     }
+    // Fast path: the vast majority of nodes carry no effect props at all —
+    // one null-check per key beats parsing each value on every rebuild.
+    if (m['offsetX'] == null &&
+        m['offsetY'] == null &&
+        m['scale'] == null &&
+        m['rotation'] == null &&
+        m['blur'] == null &&
+        m['opacity'] == null) {
+      return child;
+    }
 
     Widget result = child;
     final type = m['type'] as String? ?? '';

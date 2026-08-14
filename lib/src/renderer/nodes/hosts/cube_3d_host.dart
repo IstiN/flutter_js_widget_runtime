@@ -434,6 +434,18 @@ cube.Mesh _sphereMesh({int subdivisions = 2}) {
 cube.Mesh _torusMesh({int majorSegments = 32, int minorSegments = 16, double majorRadius = 1.0, double minorRadius = 0.35}) {
   final vertices = <Vector3>[];
   final indices = <cube.Polygon>[];
+  _torusVertices(vertices, majorSegments, minorSegments, majorRadius, minorRadius);
+  _torusIndices(indices, majorSegments, minorSegments);
+  return cube.Mesh(vertices: vertices, indices: indices);
+}
+
+void _torusVertices(
+  List<Vector3> vertices,
+  int majorSegments,
+  int minorSegments,
+  double majorRadius,
+  double minorRadius,
+) {
   for (var i = 0; i <= majorSegments; i++) {
     final u = i * 2 * pi / majorSegments;
     final cosU = cos(u);
@@ -451,6 +463,13 @@ cube.Mesh _torusMesh({int majorSegments = 32, int minorSegments = 16, double maj
       );
     }
   }
+}
+
+void _torusIndices(
+  List<cube.Polygon> indices,
+  int majorSegments,
+  int minorSegments,
+) {
   for (var i = 0; i < majorSegments; i++) {
     for (var j = 0; j < minorSegments; j++) {
       final a = i * (minorSegments + 1) + j;
@@ -460,7 +479,6 @@ cube.Mesh _torusMesh({int majorSegments = 32, int minorSegments = 16, double maj
       indices.add(cube.Polygon(b, a + 1, b + 1));
     }
   }
-  return cube.Mesh(vertices: vertices, indices: indices);
 }
 
 cube.Mesh _cityMesh({int grid = 6, double cell = 0.35, double gap = 0.12}) {

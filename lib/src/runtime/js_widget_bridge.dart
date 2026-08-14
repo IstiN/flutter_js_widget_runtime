@@ -452,22 +452,24 @@ class JsWidgetBridge {
   }
 
   void _ensureRafTicker() {
-    if (_rafTicker != null) {
-      if (!_rafTicker!.isTicking) _rafTicker!.start();
+    final existing = _rafTicker;
+    if (existing != null) {
+      if (!existing.isTicking) existing.start();
       return;
     }
-    _rafTicker = Ticker((elapsed) {
-      if (isDisposed() || _rafCallbacks.isEmpty) {
-        _rafTicker?.stop();
-        return;
-      }
-      final ms = elapsed.inMilliseconds;
-      final ids = List<String>.from(_rafCallbacks.keys);
-      _rafCallbacks.clear();
-      for (final id in ids) {
-        rafTickHandler(id, ms);
-      }
-    });
-    _rafTicker!.start();
+    _rafTicker = Ticker(_onRafTick)..start();
+  }
+
+  void _onRafTick(Duration elapsed) {
+    if (isDisposed() || _rafCallbacks.isEmpty) {
+      _rafTicker?.stop();
+      return;
+    }
+    final ms = elapsed.inMilliseconds;
+    final ids = List<String>.from(_rafCallbacks.keys);
+    _rafCallbacks.clear();
+    for (final id in ids) {
+      rafTickHandler(id, ms);
+    }
   }
 }

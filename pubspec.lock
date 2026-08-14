@@ -93,10 +93,10 @@ packages:
     dependency: "direct dev"
     description:
       name: crap4dart
-      sha256: "2afeaadccbdad0ba47a72c88e1c72cbed4565736564ad4c2e85127b2e4e4cdbd"
+      sha256: "83df8b982aad75fe9825d740987f05e7d7b98b85c6de653daa43288c5822524d"
       url: "https://pub.dev"
     source: hosted
-    version: "0.5.1"
+    version: "0.5.2"
   crypto:
     dependency: transitive
     description:

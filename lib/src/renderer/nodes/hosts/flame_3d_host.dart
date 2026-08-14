@@ -185,23 +185,31 @@ class Flame3dController extends Js3dController {
       await _host._ensureGpu();
       if (_disposed || game != null) return;
       debugPrint('[Flame3dController] game created sceneId=$sceneId');
-      game = JsFlame3dGame(
-        config,
-        onError: (message) {
-          if (_disposed) return;
-          error = message;
-          debugPrint('[Flame3dController] error sceneId=$sceneId: $message');
-          notifyListeners();
-        },
-      );
-      final onLoadFuture = game!.onLoad();
-      if (onLoadFuture is Future<void>) {
-        Js3dCaptureSync.track(onLoadFuture);
-      }
+      game = _createGame();
+      _trackOnLoad();
       _drainPendingCommands();
       if (!_disposed) notifyListeners();
     } catch (e) {
       _handleInitError(e);
+    }
+  }
+
+  JsFlame3dGame _createGame() => JsFlame3dGame(
+        config,
+        onError: _handleGameError,
+      );
+
+  void _handleGameError(String message) {
+    if (_disposed) return;
+    error = message;
+    debugPrint('[Flame3dController] error sceneId=$sceneId: $message');
+    notifyListeners();
+  }
+
+  void _trackOnLoad() {
+    final onLoadFuture = game!.onLoad();
+    if (onLoadFuture is Future<void>) {
+      Js3dCaptureSync.track(onLoadFuture);
     }
   }
 
@@ -334,6 +342,13 @@ class Flame3dController extends Js3dController {
   void _syncDeclaredModel(Map<String, dynamic> m, Set<String> seen) {
     final id = (m['modelId'] ?? m['id'] ?? 'model').toString();
     seen.add(id);
+    _syncModelSource(id, m);
+    _syncModelClip(id, m);
+  }
+
+  /// Reloads the model only when its declared `src` changes; otherwise just
+  /// updates the transform in place.
+  void _syncModelSource(String id, Map<String, dynamic> m) {
     final src = m['src'] as String?;
     if (src != null && src.isNotEmpty && _declaredModelSrcs[id] != src) {
       _declaredModelSrcs[id] = src;
@@ -343,15 +358,18 @@ class Flame3dController extends Js3dController {
         Js3dCommand(kind: 'setTransform', sceneId: sceneId, payload: m),
       );
     }
+  }
+
+  /// (Re)starts a skeletal clip only when the requested clip name changes.
+  void _syncModelClip(String id, Map<String, dynamic> m) {
     final clip = m['animation'] as String?;
-    if (clip != null && _playingClips[id] != clip) {
-      _playingClips[id] = clip;
-      _applyQuiet(Js3dCommand(
-        kind: 'playAnimation',
-        sceneId: sceneId,
-        payload: {'modelId': id, 'name': clip},
-      ));
-    }
+    if (clip == null || _playingClips[id] == clip) return;
+    _playingClips[id] = clip;
+    _applyQuiet(Js3dCommand(
+      kind: 'playAnimation',
+      sceneId: sceneId,
+      payload: {'modelId': id, 'name': clip},
+    ));
   }
 
   void _pruneUndeclaredModels(Set<String> seen) {
@@ -643,20 +661,23 @@ class JsFlame3dGame extends FlameGame3D<World3D, CameraComponent3D> {
       final mesh = node.mesh;
       if (mesh == null) continue;
       for (final surface in mesh.surfaces) {
-        final material = surface.material;
-        if (material is SpatialMaterial) {
-          if (unlit) {
-            surface.material = UnlitMaterial(
-              albedoColor: material.albedoColor,
-              albedoTexture: material.albedoTexture,
-            );
-          } else {
-            material.metallic = 0.0;
-            material.roughness = 1.0;
-          }
-        }
+        _fixSurfaceMaterial(surface, unlit: unlit);
       }
     }
+  }
+
+  void _fixSurfaceMaterial(Surface surface, {required bool unlit}) {
+    final material = surface.material;
+    if (material is! SpatialMaterial) return;
+    if (!unlit) {
+      material.metallic = 0.0;
+      material.roughness = 1.0;
+      return;
+    }
+    surface.material = UnlitMaterial(
+      albedoColor: material.albedoColor,
+      albedoTexture: material.albedoTexture,
+    );
   }
 
   void setTransform(

@@ -133,9 +133,50 @@ class JsPathPainter extends CustomPainter {
 /// Supports the most common commands: M/m, L/l, H/h, V/v, C/c, S/s, Q/q, T/t,
 /// Z/z, A/a. Converts the data into a [Path].
 Path parseSvgPathData(String data) {
-  final path = Path();
-  final tokens = _tokenize(data);
-  var i = 0;
+  final state = _PathParseState(data);
+  while (state.hasNext) {
+    state.nextCommand();
+    switch (state.command) {
+      case 'M':
+        state.moveTo();
+        // Subsequent coordinate pairs after M are treated as implicit lineTo.
+        while (state.hasMoreNumbers) {
+          state.lineTo();
+        }
+      case 'L':
+        state.lineTo();
+      case 'H':
+        state.horizontalTo();
+      case 'V':
+        state.verticalTo();
+      case 'C':
+        state.cubicTo();
+      case 'S':
+        state.smoothCubicTo();
+      case 'Q':
+        state.quadTo();
+      case 'T':
+        state.smoothQuadTo();
+      case 'A':
+        state.arcTo();
+      case 'Z':
+        state.closePath();
+      default:
+        // Unknown command: skip.
+        break;
+    }
+  }
+  return state.path;
+}
+
+/// Mutable cursor state shared by the per-command handlers of
+/// [parseSvgPathData].
+class _PathParseState {
+  _PathParseState(String data) : tokens = _tokenize(data);
+
+  final Path path = Path();
+  final List<String> tokens;
+  int i = 0;
 
   double currentX = 0;
   double currentY = 0;
@@ -146,160 +187,127 @@ Path parseSvgPathData(String data) {
   double? lastQuadX;
   double? lastQuadY;
 
-  double parseNum() => double.parse(tokens[i++]);
+  String command = '';
+  bool isRelative = false;
 
-  while (i < tokens.length) {
+  bool get hasNext => i < tokens.length;
+  bool get hasMoreNumbers => i < tokens.length && !_isCommand(tokens[i]);
+
+  void nextCommand() {
     final token = tokens[i++];
-    if (token.isEmpty) continue;
-
-    final command = token[token.length - 1];
-    final isRelative = command == command.toLowerCase();
-
-    void moveTo(double x, double y) {
-      if (isRelative) {
-        currentX += x;
-        currentY += y;
-      } else {
-        currentX = x;
-        currentY = y;
-      }
-      path.moveTo(currentX, currentY);
-      startX = currentX;
-      startY = currentY;
-    }
-
-    void lineTo(double x, double y) {
-      if (isRelative) {
-        currentX += x;
-        currentY += y;
-      } else {
-        currentX = x;
-        currentY = y;
-      }
-      path.lineTo(currentX, currentY);
-    }
-
-    switch (command.toUpperCase()) {
-      case 'M':
-        moveTo(parseNum(), parseNum());
-        // Subsequent coordinate pairs after M are treated as implicit lineTo.
-        while (i < tokens.length && !_isCommand(tokens[i])) {
-          lineTo(parseNum(), parseNum());
-        }
-      case 'L':
-        lineTo(parseNum(), parseNum());
-      case 'H':
-        final x = parseNum();
-        lineTo(isRelative ? x : x - currentX, isRelative ? 0 : currentY);
-      case 'V':
-        final y = parseNum();
-        lineTo(isRelative ? 0 : currentX, isRelative ? y : y - currentY);
-      case 'C':
-        final x1 = parseNum();
-        final y1 = parseNum();
-        final x2 = parseNum();
-        final y2 = parseNum();
-        final x = parseNum();
-        final y = parseNum();
-        double ax1, ay1, ax2, ay2, ax, ay;
-        if (isRelative) {
-          ax1 = currentX + x1;
-          ay1 = currentY + y1;
-          ax2 = currentX + x2;
-          ay2 = currentY + y2;
-          ax = currentX + x;
-          ay = currentY + y;
-        } else {
-          ax1 = x1;
-          ay1 = y1;
-          ax2 = x2;
-          ay2 = y2;
-          ax = x;
-          ay = y;
-        }
-        path.cubicTo(ax1, ay1, ax2, ay2, ax, ay);
-        lastCubicX2 = ax2;
-        lastCubicY2 = ay2;
-        currentX = ax;
-        currentY = ay;
-      case 'S':
-        final x2 = parseNum();
-        final y2 = parseNum();
-        final x = parseNum();
-        final y = parseNum();
-        final ax2 = isRelative ? currentX + x2 : x2;
-        final ay2 = isRelative ? currentY + y2 : y2;
-        final ax = isRelative ? currentX + x : x;
-        final ay = isRelative ? currentY + y : y;
-        final ax1 = lastCubicX2 != null
-            ? currentX * 2 - lastCubicX2
-            : currentX;
-        final ay1 = lastCubicY2 != null
-            ? currentY * 2 - lastCubicY2
-            : currentY;
-        path.cubicTo(ax1, ay1, ax2, ay2, ax, ay);
-        lastCubicX2 = ax2;
-        lastCubicY2 = ay2;
-        currentX = ax;
-        currentY = ay;
-      case 'Q':
-        final x1 = parseNum();
-        final y1 = parseNum();
-        final x = parseNum();
-        final y = parseNum();
-        final ax1 = isRelative ? currentX + x1 : x1;
-        final ay1 = isRelative ? currentY + y1 : y1;
-        final ax = isRelative ? currentX + x : x;
-        final ay = isRelative ? currentY + y : y;
-        path.quadraticBezierTo(ax1, ay1, ax, ay);
-        lastQuadX = ax1;
-        lastQuadY = ay1;
-        currentX = ax;
-        currentY = ay;
-      case 'T':
-        final x = parseNum();
-        final y = parseNum();
-        final ax = isRelative ? currentX + x : x;
-        final ay = isRelative ? currentY + y : y;
-        final ax1 = lastQuadX != null
-            ? currentX * 2 - lastQuadX
-            : currentX;
-        final ay1 = lastQuadY != null
-            ? currentY * 2 - lastQuadY
-            : currentY;
-        path.quadraticBezierTo(ax1, ay1, ax, ay);
-        lastQuadX = ax1;
-        lastQuadY = ay1;
-        currentX = ax;
-        currentY = ay;
-      case 'A':
-        final rx = parseNum().abs();
-        final ry = parseNum().abs();
-        final phi = parseNum() * pi / 180;
-        final largeArc = parseNum() != 0;
-        final sweep = parseNum() != 0;
-        var x = parseNum();
-        var y = parseNum();
-        if (isRelative) {
-          x += currentX;
-          y += currentY;
-        }
-        _arcTo(path, currentX, currentY, rx, ry, phi, largeArc, sweep, x, y);
-        currentX = x;
-        currentY = y;
-      case 'Z':
-        path.close();
-        if (startX != null && startY != null) {
-          currentX = startX!;
-          currentY = startY!;
-        }
-      default:
-        // Unknown command: skip.
-        break;
-    }
+    if (token.isEmpty) return;
+    command = token[token.length - 1].toUpperCase();
+    isRelative = token[token.length - 1] == token[token.length - 1].toLowerCase();
   }
 
-  return path;
+  double parseNum() => double.parse(tokens[i++]);
+
+  /// Resolves a coordinate against [currentX]/[currentY] for relative
+  /// commands, or leaves absolute values as-is.
+  double _abs(double v, double current) => isRelative ? current + v : v;
+
+  void moveTo() {
+    final x = _abs(parseNum(), currentX);
+    final y = _abs(parseNum(), currentY);
+    currentX = x;
+    currentY = y;
+    path.moveTo(x, y);
+    startX = x;
+    startY = y;
+  }
+
+  void lineTo() {
+    final x = _abs(parseNum(), currentX);
+    final y = _abs(parseNum(), currentY);
+    currentX = x;
+    currentY = y;
+    path.lineTo(x, y);
+  }
+
+  void horizontalTo() {
+    final x = _abs(parseNum(), currentX);
+    currentX = x;
+    path.lineTo(x, currentY);
+  }
+
+  void verticalTo() {
+    final y = _abs(parseNum(), currentY);
+    currentY = y;
+    path.lineTo(currentX, y);
+  }
+
+  void cubicTo() {
+    final x1 = _abs(parseNum(), currentX);
+    final y1 = _abs(parseNum(), currentY);
+    final x2 = _abs(parseNum(), currentX);
+    final y2 = _abs(parseNum(), currentY);
+    final x = _abs(parseNum(), currentX);
+    final y = _abs(parseNum(), currentY);
+    path.cubicTo(x1, y1, x2, y2, x, y);
+    lastCubicX2 = x2;
+    lastCubicY2 = y2;
+    currentX = x;
+    currentY = y;
+  }
+
+  void smoothCubicTo() {
+    final x2 = _abs(parseNum(), currentX);
+    final y2 = _abs(parseNum(), currentY);
+    final x = _abs(parseNum(), currentX);
+    final y = _abs(parseNum(), currentY);
+    final x1 = lastCubicX2 != null ? currentX * 2 - lastCubicX2! : currentX;
+    final y1 = lastCubicY2 != null ? currentY * 2 - lastCubicY2! : currentY;
+    path.cubicTo(x1, y1, x2, y2, x, y);
+    lastCubicX2 = x2;
+    lastCubicY2 = y2;
+    currentX = x;
+    currentY = y;
+  }
+
+  void quadTo() {
+    final x1 = _abs(parseNum(), currentX);
+    final y1 = _abs(parseNum(), currentY);
+    final x = _abs(parseNum(), currentX);
+    final y = _abs(parseNum(), currentY);
+    path.quadraticBezierTo(x1, y1, x, y);
+    lastQuadX = x1;
+    lastQuadY = y1;
+    currentX = x;
+    currentY = y;
+  }
+
+  void smoothQuadTo() {
+    final x = _abs(parseNum(), currentX);
+    final y = _abs(parseNum(), currentY);
+    final x1 = lastQuadX != null ? currentX * 2 - lastQuadX! : currentX;
+    final y1 = lastQuadY != null ? currentY * 2 - lastQuadY! : currentY;
+    path.quadraticBezierTo(x1, y1, x, y);
+    lastQuadX = x1;
+    lastQuadY = y1;
+    currentX = x;
+    currentY = y;
+  }
+
+  void arcTo() {
+    final rx = parseNum().abs();
+    final ry = parseNum().abs();
+    final phi = parseNum() * pi / 180;
+    final largeArc = parseNum() != 0;
+    final sweep = parseNum() != 0;
+    final x = _abs(parseNum(), currentX);
+    final y = _abs(parseNum(), currentY);
+    _arcTo(path, currentX, currentY, rx, ry, phi, largeArc, sweep, x, y);
+    currentX = x;
+    currentY = y;
+  }
+
+  void closePath() {
+    path.close();
+    if (startX != null && startY != null) {
+      currentX = startX!;
+      currentY = startY!;
+    }
+  }
 }
 
 /// Converts an SVG elliptical arc (endpoint parameterization, spec F.6.5)
