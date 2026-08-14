@@ -1,0 +1,60 @@
+name: Auto-merge main into flame-3.47
+
+# Keeps the flame-3.47 branch (Flutter 3.47 + IstiN/flame fork build) in
+# sync with main: every push to main is merged into flame-3.47 and pushed
+# back. If the merge conflicts, a PR from main into flame-3.47 is opened
+# (or updated) so the conflict is resolved by hand.
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pull-requests: write
+
+concurrency:
+  group: automerge-flame-3.47
+  cancel-in-progress: true
+
+jobs:
+  automerge:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout flame-3.47
+        uses: actions/checkout@v4
+        with:
+          ref: flame-3.47
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Merge main into flame-3.47
+        id: merge
+        run: |
+          set -uo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git fetch origin main
+          if git merge --no-edit origin/main; then
+            git push origin flame-3.47
+            echo "merged=true" >> "$GITHUB_OUTPUT"
+          else
+            git merge --abort
+            echo "merged=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Open conflict PR
+        if: steps.merge.outputs.merged == 'false'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          TITLE="chore: merge main into flame-3.47 (conflicts)"
+          BODY='Automatic merge of `main` into `flame-3.47` failed. Resolve conflicts manually.'
+          EXISTING=$(gh pr list --head main --base flame-3.47 --state open --json number --jq '.[0].number')
+          if [ -n "$EXISTING" ]; then
+            gh pr edit "$EXISTING" --title "$TITLE" --body "$BODY"
+          else
+            gh pr create --head main --base flame-3.47 --title "$TITLE" --body "$BODY"
+          fi

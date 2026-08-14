@@ -184,7 +184,6 @@ class Flame3dController extends Js3dController {
     try {
       await _host._ensureGpu();
       if (_disposed || game != null) return;
-      if (_disposed || game != null) return;
       debugPrint('[Flame3dController] game created sceneId=$sceneId');
       game = JsFlame3dGame(
         config,
@@ -199,68 +198,84 @@ class Flame3dController extends Js3dController {
       if (onLoadFuture is Future<void>) {
         Js3dCaptureSync.track(onLoadFuture);
       }
-      for (final cmd in _pending) {
-        _apply(cmd);
-      }
-      _pending.clear();
+      _drainPendingCommands();
       if (!_disposed) notifyListeners();
     } catch (e) {
-      if (_disposed) return;
-      error = 'flame_3d unavailable: $e';
-      debugPrint('[Flame3dController] init error sceneId=$sceneId: $e');
-      _pending.clear();
-      notifyListeners();
+      _handleInitError(e);
     }
+  }
+
+  void _drainPendingCommands() {
+    for (final cmd in _pending) {
+      _apply(cmd);
+    }
+    _pending.clear();
+  }
+
+  void _handleInitError(Object error) {
+    if (_disposed) return;
+    this.error = 'flame_3d unavailable: $error';
+    debugPrint('[Flame3dController] init error sceneId=$sceneId: $error');
+    _pending.clear();
+    notifyListeners();
   }
 
   void _apply(Js3dCommand command) {
     final payload = command.payload ?? {};
     final modelId = js3dModelId(command, payload);
-
-    switch (command.kind) {
-      case 'addModel':
-        debugPrint(
-          '[Flame3dController] addModel sceneId=$sceneId modelId=$modelId '
-          'src=${payload['src']}',
-        );
-        game?.loadModel(
-          modelId: modelId,
-          src: payload['src'] as String?,
-          position: payload['position'] as List?,
-          rotation: payload['rotation'] as List?,
-          scale: payload['scale'] as List?,
-          unlit: payload['unlit'] == true,
-        );
-      case 'removeModel':
-        game?.removeModel(modelId);
-      case 'setTransform':
-        game?.setTransform(
-          modelId,
-          position: payload['position'] as List?,
-          rotation: payload['rotation'] as List?,
-          scale: payload['scale'] as List?,
-        );
-      case 'playAnimation':
-        final name = payload['name'] as String?;
-        if (name != null) {
-          // Skeletal animation from the model's GLB clip list. flame_3d's
-          // AnimationState always loops at 1x speed, so `loop`/`speed` are
-          // accepted for API compatibility but not yet applied.
-          game?.playSkeletalAnimation(modelId, name);
-        } else {
-          final axis = payload['axis'] as String? ?? 'y';
-          final speed = (payload['speed'] as num?)?.toDouble() ?? 1.0;
-          game?.setRotation(modelId, axis, speed);
-        }
-      case 'stopAnimation':
-        game?.stopRotation(modelId);
-        game?.stopSkeletalAnimation(modelId);
-      case 'setCamera':
-        _applyCamera(payload);
-      case 'setLight':
-        _applyLight(payload);
-    }
+    final handler = _commandHandlers[command.kind];
+    if (handler != null) handler(modelId, payload);
   }
+
+  void _applyAddModel(String modelId, Map<String, dynamic> payload) {
+    debugPrint(
+      '[Flame3dController] addModel sceneId=$sceneId modelId=$modelId '
+      'src=${payload['src']}',
+    );
+    game?.loadModel(
+      modelId: modelId,
+      src: payload['src'] as String?,
+      position: payload['position'] as List?,
+      rotation: payload['rotation'] as List?,
+      scale: payload['scale'] as List?,
+      unlit: payload['unlit'] == true,
+    );
+  }
+
+  void _applyPlayAnimation(String modelId, Map<String, dynamic> payload) {
+    final name = payload['name'] as String?;
+    if (name != null) {
+      // Skeletal animation from the model's GLB clip list. flame_3d's
+      // AnimationState always loops at 1x speed, so `loop`/`speed` are
+      // accepted for API compatibility but not yet applied.
+      game?.playSkeletalAnimation(modelId, name);
+      return;
+    }
+    final axis = payload['axis'] as String? ?? 'y';
+    final speed = (payload['speed'] as num?)?.toDouble() ?? 1.0;
+    game?.setRotation(modelId, axis, speed);
+  }
+
+  void _applyStopAnimation(String modelId, Map<String, dynamic> _) {
+    game?.stopRotation(modelId);
+    game?.stopSkeletalAnimation(modelId);
+  }
+
+  late final Map<String, void Function(String, Map<String, dynamic>)>
+      _commandHandlers = {
+        'addModel': _applyAddModel,
+        'removeModel': (modelId, _) => game?.removeModel(modelId),
+        'setTransform': (modelId, payload) => game?.setTransform(
+              modelId,
+              position: payload['position'] as List?,
+              rotation: payload['rotation'] as List?,
+              scale: payload['scale'] as List?,
+            ),
+        'playAnimation': _applyPlayAnimation,
+        'stopAnimation': _applyStopAnimation,
+        'setCamera': (_, payload) => _applyCamera(payload),
+        'setLight': (_, payload) => _applyLight(payload),
+      };
 
   // ---- Declarative config (yoclip-style re-render per frame) -------------
 
@@ -283,56 +298,72 @@ class Flame3dController extends Js3dController {
   /// missing from the config are removed.
   void _applyConfig(Map<String, dynamic> config) {
     if (_disposed) return;
+    _syncConfigTime(config);
+    _syncConfigCamera(config);
+    _syncConfigModels(config);
+  }
+
+  void _syncConfigTime(Map<String, dynamic> config) {
     final t = (config['time'] as num?)?.toDouble();
     if (t != null) declaredTime = t;
+  }
+
+  void _syncConfigCamera(Map<String, dynamic> config) {
     final cam = config['camera'];
-    if (cam is Map) {
-      final camKey = cam.toString();
-      if (camKey != _lastCameraKey) {
-        _lastCameraKey = camKey;
-        _applyQuiet(Js3dCommand(
-          kind: 'setCamera',
-          sceneId: sceneId,
-          payload: cam.cast<String, dynamic>(),
-        ));
-      }
-    }
+    if (cam is! Map) return;
+    final camKey = cam.toString();
+    if (camKey == _lastCameraKey) return;
+    _lastCameraKey = camKey;
+    _applyQuiet(Js3dCommand(
+      kind: 'setCamera',
+      sceneId: sceneId,
+      payload: cam.cast<String, dynamic>(),
+    ));
+  }
+
+  void _syncConfigModels(Map<String, dynamic> config) {
     final models = config['models'];
     if (models is! List) return;
     final seen = <String>{};
     for (final entry in models.whereType<Map>()) {
-      final m = entry.cast<String, dynamic>();
-      final id = (m['modelId'] ?? m['id'] ?? 'model').toString();
-      seen.add(id);
-      final src = m['src'] as String?;
-      if (src != null && src.isNotEmpty && _declaredModelSrcs[id] != src) {
-        _declaredModelSrcs[id] = src;
-        _applyQuiet(Js3dCommand(kind: 'addModel', sceneId: sceneId, payload: m));
-      } else {
-        _applyQuiet(
-          Js3dCommand(kind: 'setTransform', sceneId: sceneId, payload: m),
-        );
-      }
-      final clip = m['animation'] as String?;
-      if (clip != null && _playingClips[id] != clip) {
-        _playingClips[id] = clip;
-        _applyQuiet(Js3dCommand(
-          kind: 'playAnimation',
-          sceneId: sceneId,
-          payload: {'modelId': id, 'name': clip},
-        ));
-      }
+      _syncDeclaredModel(entry.cast<String, dynamic>(), seen);
     }
+    _pruneUndeclaredModels(seen);
+  }
+
+  void _syncDeclaredModel(Map<String, dynamic> m, Set<String> seen) {
+    final id = (m['modelId'] ?? m['id'] ?? 'model').toString();
+    seen.add(id);
+    final src = m['src'] as String?;
+    if (src != null && src.isNotEmpty && _declaredModelSrcs[id] != src) {
+      _declaredModelSrcs[id] = src;
+      _applyQuiet(Js3dCommand(kind: 'addModel', sceneId: sceneId, payload: m));
+    } else {
+      _applyQuiet(
+        Js3dCommand(kind: 'setTransform', sceneId: sceneId, payload: m),
+      );
+    }
+    final clip = m['animation'] as String?;
+    if (clip != null && _playingClips[id] != clip) {
+      _playingClips[id] = clip;
+      _applyQuiet(Js3dCommand(
+        kind: 'playAnimation',
+        sceneId: sceneId,
+        payload: {'modelId': id, 'name': clip},
+      ));
+    }
+  }
+
+  void _pruneUndeclaredModels(Set<String> seen) {
     for (final old in _declaredModelSrcs.keys.toList()) {
-      if (!seen.contains(old)) {
-        _declaredModelSrcs.remove(old);
-        _playingClips.remove(old);
-        _applyQuiet(Js3dCommand(
-          kind: 'removeModel',
-          sceneId: sceneId,
-          payload: {'modelId': old},
-        ));
-      }
+      if (seen.contains(old)) continue;
+      _declaredModelSrcs.remove(old);
+      _playingClips.remove(old);
+      _applyQuiet(Js3dCommand(
+        kind: 'removeModel',
+        sceneId: sceneId,
+        payload: {'modelId': old},
+      ));
     }
   }
 
@@ -811,17 +842,9 @@ class _Flame3dGameWidgetState extends State<_Flame3dGameWidget> {
   @override
   Widget build(BuildContext context) {
     final c = widget.controller;
-    if (c.isDisposed) {
-      debugPrint('[Flame3dGameWidget] controller disposed sceneId=${c.sceneId} — shrink');
-      return const SizedBox.shrink();
-    }
-    if (c.error != null) {
-      return _ErrorWidget(message: c.error!);
-    }
-    final game = c.game;
-    if (game == null) {
-      return const Center(child: CircularProgressIndicator());
-    }
+    final fallback = _buildFallback(c);
+    if (fallback != null) return fallback;
+    final game = c.game!;
     // The same game instance can only be attached to one GameWidget, but the
     // scene may render in several places at once: the visible panel and the
     // offscreen board capture (overview PNG). The offscreen tree is wrapped in
@@ -830,23 +853,45 @@ class _Flame3dGameWidgetState extends State<_Flame3dGameWidget> {
     // through the offscreen capture path (render-to-texture inside
     // `World3D.renderFromCamera`, composited into our canvas) — this is what
     // makes GLB scenes exportable to video.
-    final isHeadless =
-        ScrollConfiguration.of(context) is HeadlessScrollBehavior;
-    if (isHeadless) {
+    if (_isHeadlessContext(context)) {
       return _Flame3dHeadlessCapture(controller: c, game: game);
     }
-    if (!_ownsGame) {
-      final owner = c.gameWidgetOwner;
-      if (owner == null || !identical(owner, game)) {
-        // Unclaimed, or the previous claim points to a stale game instance.
-        c.gameWidgetOwner = game;
-        _ownsGame = true;
-      }
-    }
-    if (!_ownsGame) {
+    if (!_tryClaimGame(c, game)) {
       return const SizedBox.shrink();
     }
     return GameWidget(game: game, addRepaintBoundary: false);
+  }
+
+  /// Placeholder widget for disposed/errored/loading controllers, or `null`
+  /// when the controller has a live game to render.
+  Widget? _buildFallback(Flame3dController c) {
+    if (c.isDisposed) {
+      debugPrint('[Flame3dGameWidget] controller disposed sceneId=${c.sceneId} — shrink');
+      return const SizedBox.shrink();
+    }
+    if (c.error != null) {
+      return _ErrorWidget(message: c.error!);
+    }
+    if (c.game == null) {
+      return const Center(child: CircularProgressIndicator());
+    }
+    return null;
+  }
+
+  bool _isHeadlessContext(BuildContext context) =>
+      ScrollConfiguration.of(context) is HeadlessScrollBehavior;
+
+  /// Claims the game for this widget unless another live widget owns it.
+  /// Returns whether this widget now owns the game.
+  bool _tryClaimGame(Flame3dController c, JsFlame3dGame game) {
+    if (_ownsGame) return true;
+    final owner = c.gameWidgetOwner;
+    if (owner == null || !identical(owner, game)) {
+      // Unclaimed, or the previous claim points to a stale game instance.
+      c.gameWidgetOwner = game;
+      _ownsGame = true;
+    }
+    return _ownsGame;
   }
 }
 
@@ -940,24 +985,36 @@ class _Flame3dCapturePainter extends CustomPainter {
   void paint(Canvas canvas, Size size) {
     // Teardown race: a final paint can flush after the controller is gone.
     if (size.isEmpty || controller.isDisposed) return;
-    // Supersample the GPU pass for anti-aliased edges: the world renders
-    // into a 2x render target and `_JsWorld3D.renderFromCamera` downscales
-    // it into the widget rect (classic SSAA). 1x output looked visibly
-    // jaggy on hard GLB edges (logo silhouettes).
+    _applySupersampling();
+    _resizeIfNeeded(size);
+    _advanceAnimationClock();
+    game.render(canvas);
+  }
+
+  /// Supersample the GPU pass for anti-aliased edges: the world renders
+  /// into a 2x render target and `_JsWorld3D.renderFromCamera` downscales
+  /// it into the widget rect (classic SSAA). 1x output looked visibly
+  /// jaggy on hard GLB edges (logo silhouettes).
+  void _applySupersampling() {
     final w = game.world;
     if (w is _JsWorld3D && w.pixelRatio != 2.0) w.pixelRatio = 2.0;
+  }
+
+  void _resizeIfNeeded(Size size) {
     final target = Vector2(size.width, size.height);
     final last = _lastSize;
-    if (last == null || (last - target).length2 > 0.01) {
-      _lastSize = target;
-      game.onGameResize(target);
-    }
+    if (last != null && (last - target).length2 <= 0.01) return;
+    _lastSize = target;
+    game.onGameResize(target);
+  }
+
+  /// The game's animation clock advances by the config `time` delta
+  /// (deterministic per rendered frame), never wall time.
+  void _advanceAnimationClock() {
     final dt = controller.declaredTime - controller.lastTime;
-    if (dt > 0 && game.isMounted) {
-      game.update(dt);
-      controller.lastTime = controller.declaredTime;
-    }
-    game.render(canvas);
+    if (dt <= 0 || !game.isMounted) return;
+    game.update(dt);
+    controller.lastTime = controller.declaredTime;
   }
 
   @override
