@@ -162,20 +162,28 @@ extension on JsonWidgetRenderer {
     );
     if (bg == null && fg == null) return null;
 
-    final baseStyle = textButton
-        ? TextButton.styleFrom(foregroundColor: fg)
-        : outlined
-        ? OutlinedButton.styleFrom(backgroundColor: bg, foregroundColor: fg)
-        : ElevatedButton.styleFrom(backgroundColor: bg, foregroundColor: fg);
+    return _variantStyle(bg, fg, textButton, outlined)
+        .merge(_stateProps(bg, fg, textButton));
+  }
 
-    return baseStyle.merge(
+  ButtonStyle _stateProps(Color? bg, Color? fg, bool textButton) =>
       ButtonStyle(
-        backgroundColor: bg != null && !textButton
-            ? WidgetStatePropertyAll(bg)
-            : null,
-        foregroundColor: fg != null ? WidgetStatePropertyAll(fg) : null,
-      ),
-    );
+        backgroundColor: _bgState(bg, textButton),
+        foregroundColor: fg == null ? null : WidgetStatePropertyAll(fg),
+      );
+
+  WidgetStatePropertyAll<Color>? _bgState(Color? bg, bool textButton) =>
+      bg != null && !textButton ? WidgetStatePropertyAll(bg) : null;
+
+  ButtonStyle _variantStyle(
+    Color? bg,
+    Color? fg,
+    bool textButton,
+    bool outlined,
+  ) {
+    if (textButton) return TextButton.styleFrom(foregroundColor: fg);
+    if (outlined) return OutlinedButton.styleFrom(backgroundColor: bg, foregroundColor: fg);
+    return ElevatedButton.styleFrom(backgroundColor: bg, foregroundColor: fg);
   }
 
   Widget _iconButton(Map<String, dynamic> m) => IconButton(
@@ -325,16 +333,25 @@ class _TextFieldNodeState extends State<_TextFieldNode> {
   @override
   void didUpdateWidget(_TextFieldNode old) {
     super.didUpdateWidget(old);
-    if (widget.storageKey != old.storageKey) {
-      _unregisterField(old.storageKey);
-      _registerField();
-    }
-    if (widget.initialValue != old.initialValue &&
-        widget.initialValue != _ctrl.text &&
-        !_focusNode.hasFocus) {
-      _ctrl.text = widget.initialValue;
-    }
+    _reregisterIfStorageKeyChanged(old);
+    _syncInitialValue(old);
   }
+
+  void _reregisterIfStorageKeyChanged(_TextFieldNode old) {
+    if (widget.storageKey == old.storageKey) return;
+    _unregisterField(old.storageKey);
+    _registerField();
+  }
+
+  void _syncInitialValue(_TextFieldNode old) {
+    if (!_initialValueNeedsSync(old)) return;
+    _ctrl.text = widget.initialValue;
+  }
+
+  bool _initialValueNeedsSync(_TextFieldNode old) =>
+      widget.initialValue != old.initialValue &&
+      widget.initialValue != _ctrl.text &&
+      !_focusNode.hasFocus;
 
   void _registerField() {
     final key = widget.storageKey;

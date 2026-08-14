@@ -16,9 +16,9 @@ exclude:
 
 crap:
   enabled: true
-  # Current baseline (Max CRAP 30.00). Do not increase without explicit
+  # Current baseline (Max CRAP 12.00). Do not increase without explicit
   # approval; the goal is to ratchet this down over time.
-  threshold: 35.0
+  threshold: 12.0
   run_tests: false
 
 coverage:

@@ -134,40 +134,33 @@ class JsPathPainter extends CustomPainter {
 /// Z/z, A/a. Converts the data into a [Path].
 Path parseSvgPathData(String data) {
   final state = _PathParseState(data);
+  final handlers = _pathCommandHandlers;
   while (state.hasNext) {
     state.nextCommand();
-    switch (state.command) {
-      case 'M':
-        state.moveTo();
-        // Subsequent coordinate pairs after M are treated as implicit lineTo.
-        while (state.hasMoreNumbers) {
-          state.lineTo();
-        }
-      case 'L':
-        state.lineTo();
-      case 'H':
-        state.horizontalTo();
-      case 'V':
-        state.verticalTo();
-      case 'C':
-        state.cubicTo();
-      case 'S':
-        state.smoothCubicTo();
-      case 'Q':
-        state.quadTo();
-      case 'T':
-        state.smoothQuadTo();
-      case 'A':
-        state.arcTo();
-      case 'Z':
-        state.closePath();
-      default:
-        // Unknown command: skip.
-        break;
-    }
+    handlers[state.command]?.call(state);
   }
   return state.path;
 }
+
+/// Per-command handlers; unknown commands simply have no entry.
+final Map<String, void Function(_PathParseState)> _pathCommandHandlers = {
+  'M': (s) {
+    s.moveTo();
+    // Subsequent coordinate pairs after M are treated as implicit lineTo.
+    while (s.hasMoreNumbers) {
+      s.lineTo();
+    }
+  },
+  'L': (s) => s.lineTo(),
+  'H': (s) => s.horizontalTo(),
+  'V': (s) => s.verticalTo(),
+  'C': (s) => s.cubicTo(),
+  'S': (s) => s.smoothCubicTo(),
+  'Q': (s) => s.quadTo(),
+  'T': (s) => s.smoothQuadTo(),
+  'A': (s) => s.arcTo(),
+  'Z': (s) => s.closePath(),
+};
 
 /// Mutable cursor state shared by the per-command handlers of
 /// [parseSvgPathData].
@@ -310,6 +303,88 @@ class _PathParseState {
   }
 }
 
+/// Resolved arc geometry from SVG spec F.6.5 steps 1–4: possibly scaled
+/// radii, the endpoints in prime coordinates, and the ellipse center in the
+/// original coordinate system.
+class _ArcCenter {
+  const _ArcCenter(
+    this.rxx,
+    this.ryy,
+    this.x1p,
+    this.y1p,
+    this.cx,
+    this.cy,
+    this.cxp,
+    this.cyp,
+  );
+
+  final double rxx;
+  final double ryy;
+  final double x1p;
+  final double y1p;
+  final double cx;
+  final double cy;
+  final double cxp;
+  final double cyp;
+}
+
+_ArcCenter _arcCenter(
+  double x0,
+  double y0,
+  double x,
+  double y,
+  double rx,
+  double ry,
+  double phi,
+  double cosPhi,
+  double sinPhi,
+  bool largeArc,
+  bool sweep,
+) {
+  // Step 1: transform the endpoints into prime (rotated) coordinates.
+  final dx2 = (x0 - x) / 2;
+  final dy2 = (y0 - y) / 2;
+  final x1p = cosPhi * dx2 + sinPhi * dy2;
+  final y1p = -sinPhi * dx2 + cosPhi * dy2;
+
+  // Step 2: scale the radii up if they are too small for the endpoints.
+  var rxx = rx;
+  var ryy = ry;
+  final lambda = (x1p * x1p) / (rxx * rxx) + (y1p * y1p) / (ryy * ryy);
+  if (lambda > 1) {
+    final s = sqrt(lambda);
+    rxx *= s;
+    ryy *= s;
+  }
+  final center = _centerInPrime(rxx, ryy, x1p, y1p, largeArc, sweep);
+
+  // Step 4: center back in the original coordinate system.
+  final cx = cosPhi * center.$1 - sinPhi * center.$2 + (x0 + x) / 2;
+  final cy = sinPhi * center.$1 + cosPhi * center.$2 + (y0 + y) / 2;
+  return _ArcCenter(rxx, ryy, x1p, y1p, cx, cy, center.$1, center.$2);
+}
+
+/// Step 3: ellipse center in prime coordinates as `(cxp, cyp)`.
+(double, double) _centerInPrime(
+  double rxx,
+  double ryy,
+  double x1p,
+  double y1p,
+  bool largeArc,
+  bool sweep,
+) {
+  final rx2 = rxx * rxx;
+  final ry2 = ryy * ryy;
+  final x1p2 = x1p * x1p;
+  final y1p2 = y1p * y1p;
+  final denom = rx2 * y1p2 + ry2 * x1p2;
+  final radicand = denom == 0
+      ? 0.0
+      : max(0.0, (rx2 * ry2 - rx2 * y1p2 - ry2 * x1p2) / denom);
+  final coef = (largeArc == sweep ? -1 : 1) * sqrt(radicand);
+  return (coef * rxx * y1p / ryy, -coef * ryy * x1p / rxx);
+}
+
 /// Converts an SVG elliptical arc (endpoint parameterization, spec F.6.5)
 /// into cubic Bézier segments appended to [path]. The path's current point
 /// must be (x0, y0); the arc ends at (x, y).
@@ -332,38 +407,17 @@ void _arcTo(
   final cosPhi = cos(phi);
   final sinPhi = sin(phi);
 
-  // Step 1: transform the endpoints into prime (rotated) coordinates.
-  final dx2 = (x0 - x) / 2;
-  final dy2 = (y0 - y) / 2;
-  final x1p = cosPhi * dx2 + sinPhi * dy2;
-  final y1p = -sinPhi * dx2 + cosPhi * dy2;
-
-  // Step 2: scale the radii up if they are too small for the endpoints.
-  var rxx = rx;
-  var ryy = ry;
-  final lambda = (x1p * x1p) / (rxx * rxx) + (y1p * y1p) / (ryy * ryy);
-  if (lambda > 1) {
-    final s = sqrt(lambda);
-    rxx *= s;
-    ryy *= s;
-  }
-
-  // Step 3: ellipse center in prime coordinates.
-  final rx2 = rxx * rxx;
-  final ry2 = ryy * ryy;
-  final x1p2 = x1p * x1p;
-  final y1p2 = y1p * y1p;
-  final denom = rx2 * y1p2 + ry2 * x1p2;
-  final radicand = denom == 0
-      ? 0.0
-      : max(0.0, (rx2 * ry2 - rx2 * y1p2 - ry2 * x1p2) / denom);
-  final coef = (largeArc == sweep ? -1 : 1) * sqrt(radicand);
-  final cxp = coef * rxx * y1p / ryy;
-  final cyp = -coef * ryy * x1p / rxx;
-
-  // Step 4: center back in the original coordinate system.
-  final cx = cosPhi * cxp - sinPhi * cyp + (x0 + x) / 2;
-  final cy = sinPhi * cxp + cosPhi * cyp + (y0 + y) / 2;
+  // Steps 1–4: resolve the ellipse center in the original coordinate system.
+  final center = _arcCenter(x0, y0, x, y, rx, ry, phi, cosPhi, sinPhi,
+      largeArc, sweep);
+  final rxx = center.rxx;
+  final ryy = center.ryy;
+  final x1p = center.x1p;
+  final y1p = center.y1p;
+  final cx = center.cx;
+  final cy = center.cy;
+  final cxp = center.cxp;
+  final cyp = center.cyp;
 
   // Step 5: start angle and angular sweep of the arc.
   double angle(double ux, double uy, double vx, double vy) {

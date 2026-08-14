@@ -64,67 +64,9 @@ Widget buildJsMapNode(
 
   final markers = <Marker>[];
   final fitPoints = <LatLng>[];
-  for (final (index, raw) in (m['markers'] as List? ?? const []).indexed) {
-    if (raw is! Map) continue;
-    final mm = raw.cast<String, dynamic>();
-    final lat = jsDoubleOrNull(mm['lat']);
-    final lng = jsDoubleOrNull(mm['lng']);
-    if (lat == null || lng == null) continue;
-    final point = LatLng(lat, lng);
-    fitPoints.add(point);
-    final id = (mm['id'] ?? index).toString();
-    final label = mm['label'] as String?;
-    final color = parseColor(mm['color'] as String?) ?? Colors.red;
-    markers.add(
-      Marker(
-        point: point,
-        width: label != null ? 120 : 40,
-        height: label != null ? 64 : 40,
-        child: GestureDetector(
-          behavior: HitTestBehavior.opaque,
-          onTap: onMarkerTap == null
-              ? null
-              : () => fire(onMarkerTap, <String, dynamic>{'id': id}),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Icon(Icons.location_pin, color: color, size: 32),
-              if (label != null)
-                Text(
-                  label,
-                  overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(
-                    fontSize: 11,
-                    color: Colors.white,
-                    shadows: [Shadow(color: Colors.black, blurRadius: 2)],
-                  ),
-                ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
-  final polylines = <Polyline>[];
-  for (final raw in m['polylines'] as List? ?? const []) {
-    if (raw is! Map) continue;
-    final pm = raw.cast<String, dynamic>();
-    final points = <LatLng>[
-      for (final p in pm['points'] as List? ?? const [])
-        if (p is List && p.length >= 2)
-          LatLng(jsDouble(p[0], 0), jsDouble(p[1], 0)),
-    ];
-    if (points.length < 2) continue;
-    fitPoints.addAll(points);
-    polylines.add(
-      Polyline(
-        points: points,
-        color: parseColor(pm['color'] as String?) ?? Colors.blue,
-        strokeWidth: jsDouble(pm['width'], 3),
-      ),
-    );
-  }
+  _collectMarkers(m['markers'], onMarkerTap, fire, markers, fitPoints);
+  final polylines =
+      _collectPolylines(m['polylines'], fitPoints);
 
   final bounds = _fitBounds(m['fitBounds'], fitPoints);
 
@@ -138,7 +80,25 @@ Widget buildJsMapNode(
     if (markers.isNotEmpty) MarkerLayer(markers: markers),
   ];
 
-  Widget map = FlutterMap(
+  Widget map = _flutterMap(center, zoom, bounds, onTap, fire, layers);
+
+  final width = jsDoubleOrNull(m['width']);
+  final height = jsDoubleOrNull(m['height']);
+  if (width != null || height != null) {
+    map = SizedBox(width: width, height: height, child: map);
+  }
+  return map;
+}
+
+FlutterMap _flutterMap(
+  LatLng center,
+  double zoom,
+  LatLngBounds? bounds,
+  String? onTap,
+  void Function(String, Map<String, dynamic>) fire,
+  List<Widget> layers,
+) {
+  return FlutterMap(
     options: MapOptions(
       initialCenter: center,
       initialZoom: zoom,
@@ -154,13 +114,94 @@ Widget buildJsMapNode(
     ),
     children: layers,
   );
+}
 
-  final width = jsDoubleOrNull(m['width']);
-  final height = jsDoubleOrNull(m['height']);
-  if (width != null || height != null) {
-    map = SizedBox(width: width, height: height, child: map);
+/// Parses the `markers` array into [markers]; valid points also land in
+/// [fitPoints] for camera fitting.
+void _collectMarkers(
+  dynamic rawMarkers,
+  String? onMarkerTap,
+  void Function(String, Map<String, dynamic>) fire,
+  List<Marker> markers,
+  List<LatLng> fitPoints,
+) {
+  for (final (index, raw) in (rawMarkers as List? ?? const []).indexed) {
+    if (raw is! Map) continue;
+    final marker = _mapMarker(raw.cast<String, dynamic>(), index, onMarkerTap, fire);
+    if (marker == null) continue;
+    fitPoints.add(marker.point);
+    markers.add(marker);
   }
-  return map;
+}
+
+/// Builds one map marker, or `null` when lat/lng is missing/invalid.
+Marker? _mapMarker(
+  Map<String, dynamic> mm,
+  int index,
+  String? onMarkerTap,
+  void Function(String, Map<String, dynamic>) fire,
+) {
+  final lat = jsDoubleOrNull(mm['lat']);
+  final lng = jsDoubleOrNull(mm['lng']);
+  if (lat == null || lng == null) return null;
+  final point = LatLng(lat, lng);
+  final id = (mm['id'] ?? index).toString();
+  final label = mm['label'] as String?;
+  final color = parseColor(mm['color'] as String?) ?? Colors.red;
+  return Marker(
+    point: point,
+    width: label != null ? 120 : 40,
+    height: label != null ? 64 : 40,
+    child: GestureDetector(
+      behavior: HitTestBehavior.opaque,
+      onTap: onMarkerTap == null
+          ? null
+          : () => fire(onMarkerTap, <String, dynamic>{'id': id}),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(Icons.location_pin, color: color, size: 32),
+          if (label != null)
+            Text(
+              label,
+              overflow: TextOverflow.ellipsis,
+              style: const TextStyle(
+                fontSize: 11,
+                color: Colors.white,
+                shadows: [Shadow(color: Colors.black, blurRadius: 2)],
+              ),
+            ),
+        ],
+      ),
+    ),
+  );
+}
+
+/// Parses the `polylines` array; valid points also land in [fitPoints].
+List<Polyline> _collectPolylines(dynamic rawPolylines, List<LatLng> fitPoints) {
+  final polylines = <Polyline>[];
+  for (final raw in rawPolylines as List? ?? const []) {
+    final polyline = _mapPolyline(raw, fitPoints);
+    if (polyline != null) polylines.add(polyline);
+  }
+  return polylines;
+}
+
+Polyline? _mapPolyline(dynamic raw, List<LatLng> fitPoints) {
+  if (raw is! Map) return null;
+  final pm = raw.cast<String, dynamic>();
+  final points = <LatLng>[
+    for (final p in pm['points'] as List? ?? const [])
+      if (p is List && p.length >= 2)
+        LatLng(jsDouble(p[0], 0), jsDouble(p[1], 0)),
+  ];
+  if (points.length < 2) return null;
+  fitPoints.addAll(points);
+  return Polyline(
+    points: points,
+    color: parseColor(pm['color'] as String?) ?? Colors.blue,
+    strokeWidth: jsDouble(pm['width'], 3),
+  );
 }
 
 LatLngBounds? _fitBounds(dynamic fitBounds, List<LatLng> fitPoints) {

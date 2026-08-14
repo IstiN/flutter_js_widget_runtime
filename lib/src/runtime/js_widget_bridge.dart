@@ -112,43 +112,39 @@ class JsWidgetBridge {
   /// Dispatches a message coming from the JS runtime.
   Future<void> dispatch(String channel, dynamic payload) async {
     if (isDisposed()) return;
-    switch (channel) {
-      case '__jsr_render':
-        _handleRender(payload);
-      case '__jsr_fetch':
-        await _handleFetch(payload);
-      case '__jsr_storage_get':
-        _handleStorageGet(payload);
-      case '__jsr_storage_set':
-        _handleStorageSet(payload);
-      case '__jsr_set_title':
-        _handleSetTitle(payload);
-      case '__jsr_event_done':
-        _handleEventDone(payload);
-      case '__jsr_export_state':
-        _handleExportState(payload);
-      case '__jsr_log':
-        _handleLog(payload);
-      case '__jsr_set_interval':
-        _handleSetInterval(payload);
-      case '__jsr_clear_interval':
-        _handleClearInterval(payload);
-      case '__jsr_raf':
-        _handleRaf(payload);
-      case '__jsr_caf':
-        _handleCaf(payload);
-      case '__jsr_secrets_get':
-        await _handleSecretsGet(payload);
-      case '__jsr_secrets_set':
-        await _handleSecretsSet(payload);
-      case '__jsr_load_asset':
-        await _handleLoadAsset(payload);
-      case '__jsr_exec':
-        await _handleExec(payload);
-      case '__jsr_scene3d_command':
-        _handleScene3dCommand(payload);
+    final asyncHandler = _asyncChannelHandlers[channel];
+    if (asyncHandler != null) {
+      await asyncHandler(payload);
+      return;
     }
+    _syncChannelHandlers[channel]?.call(payload);
   }
+
+  /// Fire-and-forget `__jsr_*` channels — handled inline in [dispatch].
+  late final Map<String, void Function(dynamic)> _syncChannelHandlers = {
+    '__jsr_render': _handleRender,
+    '__jsr_storage_get': _handleStorageGet,
+    '__jsr_storage_set': _handleStorageSet,
+    '__jsr_set_title': _handleSetTitle,
+    '__jsr_event_done': _handleEventDone,
+    '__jsr_export_state': _handleExportState,
+    '__jsr_log': _handleLog,
+    '__jsr_set_interval': _handleSetInterval,
+    '__jsr_clear_interval': _handleClearInterval,
+    '__jsr_raf': _handleRaf,
+    '__jsr_caf': _handleCaf,
+    '__jsr_scene3d_command': _handleScene3dCommand,
+  };
+
+  /// Channels whose result must be awaited by [dispatch].
+  late final Map<String, Future<void> Function(dynamic)>
+      _asyncChannelHandlers = {
+        '__jsr_fetch': _handleFetch,
+        '__jsr_secrets_get': _handleSecretsGet,
+        '__jsr_secrets_set': _handleSecretsSet,
+        '__jsr_load_asset': _handleLoadAsset,
+        '__jsr_exec': _handleExec,
+      };
 
   /// Serializes [callEvent] invocations so rapid-fire gestures (tap-down,
   /// tap-up, tap) complete in order. Previously a stale `__jsr_event_done`
@@ -397,7 +393,15 @@ class JsWidgetBridge {
       debugPrint('[JsWidgetBridge] scene3d command ignored: missing sceneId');
       return;
     }
+    _dispatchScene3dCommand(host, kind, sceneId, req);
+  }
 
+  void _dispatchScene3dCommand(
+    Js3dHost host,
+    String kind,
+    String sceneId,
+    Map<String, dynamic> req,
+  ) {
     switch (kind) {
       case 'create':
         _sceneControllers[sceneId]?.dispose();
@@ -410,45 +414,68 @@ class JsWidgetBridge {
       case 'setTransforms':
         // Batched transforms: fan out one message into per-model setTransform
         // commands so hosts only implement a single mutation path.
-        final payload = (req['payload'] as Map? ?? {}).cast<String, dynamic>();
-        final controller = _sceneControllers[sceneId];
-        if (controller != null) {
-          final items = payload['items'] as List? ?? const [];
-          for (final item in items) {
-            if (item is! Map) continue;
-            final m = item.cast<String, dynamic>();
-            controller.apply(
-              Js3dCommand(
-                kind: 'setTransform',
-                sceneId: sceneId,
-                modelId: m['modelId'] as String?,
-                payload: m,
-              ),
-            );
-          }
-        }
-      case 'addModel':
-      case 'removeModel':
-      case 'setTransform':
-      case 'playAnimation':
-      case 'stopAnimation':
-      case 'setCamera':
-      case 'setLight':
-        final payload = (req['payload'] as Map? ?? {}).cast<String, dynamic>();
-        final controller = _sceneControllers[sceneId];
-        if (controller != null) {
-          controller.apply(
-            Js3dCommand(
-              kind: kind,
-              sceneId: sceneId,
-              modelId: payload['modelId'] as String?,
-              payload: payload,
-            ),
-          );
-        }
+        _fanOutSetTransforms(sceneId, req['payload']);
       default:
-        debugPrint('[JsWidgetBridge] unknown scene3d command: $kind');
+        _applyScene3dModelCommand(kind, sceneId, req['payload']);
     }
+  }
+
+  void _fanOutSetTransforms(String sceneId, dynamic payload) {
+    final controller = _sceneControllers[sceneId];
+    if (controller == null) return;
+    final items = ((payload as Map?)?['items'] as List?) ?? const [];
+    for (final item in items) {
+      if (item is! Map) continue;
+      final m = item.cast<String, dynamic>();
+      controller.apply(
+        Js3dCommand(
+          kind: 'setTransform',
+          sceneId: sceneId,
+          modelId: m['modelId'] as String?,
+          payload: m,
+        ),
+      );
+    }
+  }
+
+  void _applyScene3dModelCommand(
+    String kind,
+    String sceneId,
+    dynamic payload,
+  ) {
+    if (!_modelCommandKinds.contains(kind)) {
+      debugPrint('[JsWidgetBridge] unknown scene3d command: $kind');
+      return;
+    }
+    _applyScene3dToController(kind, sceneId, payload);
+  }
+
+  static const Set<String> _modelCommandKinds = {
+    'addModel',
+    'removeModel',
+    'setTransform',
+    'playAnimation',
+    'stopAnimation',
+    'setCamera',
+    'setLight',
+  };
+
+  void _applyScene3dToController(
+    String kind,
+    String sceneId,
+    dynamic payload,
+  ) {
+    final controller = _sceneControllers[sceneId];
+    if (controller == null) return;
+    final p = (payload as Map? ?? {}).cast<String, dynamic>();
+    controller.apply(
+      Js3dCommand(
+        kind: kind,
+        sceneId: sceneId,
+        modelId: p['modelId'] as String?,
+        payload: p,
+      ),
+    );
   }
 
   void _ensureRafTicker() {

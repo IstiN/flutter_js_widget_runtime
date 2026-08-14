@@ -55,16 +55,17 @@ class Scene3dConfig {
 }
 
 List<double> _vec3(dynamic value, List<double> fallback) {
-  if (value is List && value.length >= 3) {
-    final x = value[0];
-    final y = value[1];
-    final z = value[2];
-    if (x is num && y is num && z is num) {
-      return [x.toDouble(), y.toDouble(), z.toDouble()];
-    }
-  }
-  return List<double>.from(fallback);
+  if (!_isVec3(value)) return List<double>.from(fallback);
+  final v = value as List;
+  return [
+    (v[0] as num).toDouble(),
+    (v[1] as num).toDouble(),
+    (v[2] as num).toDouble(),
+  ];
 }
+
+bool _isVec3(dynamic value) =>
+    value is List && value.length >= 3 && value.every((e) => e is num);
 
 Color? _parseColor(dynamic value) {
   if (value is! String) return null;

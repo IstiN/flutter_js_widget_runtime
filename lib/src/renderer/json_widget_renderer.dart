@@ -457,53 +457,63 @@ class JsonWidgetRenderer {
     }
     // Fast path: the vast majority of nodes carry no effect props at all —
     // one null-check per key beats parsing each value on every rebuild.
-    if (m['offsetX'] == null &&
-        m['offsetY'] == null &&
-        m['scale'] == null &&
-        m['rotation'] == null &&
-        m['blur'] == null &&
-        m['opacity'] == null) {
-      return child;
-    }
+    if (_hasNoEffectProps(m)) return child;
 
-    Widget result = child;
-    final type = m['type'] as String? ?? '';
+    Widget result = _applyTransformEffects(child, m);
+    result = _applyBlur(result, m['blur']);
+    return _applyOpacityEffect(result, m);
+  }
 
+  bool _hasNoEffectProps(Map<String, dynamic> m) =>
+      m['offsetX'] == null &&
+      m['offsetY'] == null &&
+      m['scale'] == null &&
+      m['rotation'] == null &&
+      m['blur'] == null &&
+      m['opacity'] == null;
+
+  Widget _applyTransformEffects(Widget child, Map<String, dynamic> m) {
     final offsetX = _doubleOrNull(m['offsetX']);
     final offsetY = _doubleOrNull(m['offsetY']);
     final scale = _doubleOrNull(m['scale']);
     final rotation = _doubleOrNull(m['rotation']);
-
-    if (offsetX != null ||
-        offsetY != null ||
-        scale != null ||
-        rotation != null) {
-      final matrix = Matrix4.identity();
-      if (offsetX != null || offsetY != null) {
-        matrix.translateByDouble(offsetX ?? 0.0, offsetY ?? 0.0, 0, 1);
-      }
-      if (scale != null) {
-        matrix.scaleByDouble(scale, scale, 1, 1);
-      }
-      if (rotation != null) {
-        matrix.rotateZ(rotation);
-      }
-      result = Transform(
-        transform: matrix,
-        alignment: Alignment.center,
-        child: result,
-      );
+    if (offsetX == null && offsetY == null && scale == null && rotation == null) {
+      return child;
     }
+    return Transform(
+      transform: _effectMatrix(offsetX, offsetY, scale, rotation),
+      alignment: Alignment.center,
+      child: child,
+    );
+  }
 
-    result = _applyBlur(result, m['blur']);
+  Matrix4 _effectMatrix(
+    double? offsetX,
+    double? offsetY,
+    double? scale,
+    double? rotation,
+  ) {
+    final matrix = Matrix4.identity();
+    if (offsetX != null || offsetY != null) {
+      matrix.translateByDouble(offsetX ?? 0.0, offsetY ?? 0.0, 0, 1);
+    }
+    if (scale != null) {
+      matrix.scaleByDouble(scale, scale, 1, 1);
+    }
+    if (rotation != null) {
+      matrix.rotateZ(rotation);
+    }
+    return matrix;
+  }
 
+  Widget _applyOpacityEffect(Widget child, Map<String, dynamic> m) {
     final opacity = _doubleOrNull(m['opacity']);
     // animatedOpacity handles opacity itself with an animation.
-    if (opacity != null && opacity != 1.0 && type != 'animatedOpacity') {
-      result = Opacity(opacity: opacity.clamp(0.0, 1.0), child: result);
+    final type = m['type'] as String? ?? '';
+    if (opacity == null || opacity == 1.0 || type == 'animatedOpacity') {
+      return child;
     }
-
-    return result;
+    return Opacity(opacity: opacity.clamp(0.0, 1.0), child: child);
   }
 
   // ── Helpers ───────────────────────────────────────────────────────────────
@@ -584,26 +594,25 @@ class JsonWidgetRenderer {
   }
 
   EdgeInsets _edgeInsets(dynamic v) {
-    if (v == null) return EdgeInsets.zero;
     if (v is num) return EdgeInsets.all(v.toDouble());
-    if (v is List && v.length == 4) {
-      return EdgeInsets.fromLTRB(
+    if (v is List && v.length == 4) return _edgeInsetsFromList(v);
+    if (v is Map) return _edgeInsetsFromMap(v);
+    return EdgeInsets.zero;
+  }
+
+  EdgeInsets _edgeInsetsFromList(List v) => EdgeInsets.fromLTRB(
         (v[0] as num).toDouble(),
         (v[1] as num).toDouble(),
         (v[2] as num).toDouble(),
         (v[3] as num).toDouble(),
       );
-    }
-    if (v is Map) {
-      return EdgeInsets.only(
+
+  EdgeInsets _edgeInsetsFromMap(Map v) => EdgeInsets.only(
         left: _double(v['left'], 0),
         top: _double(v['top'], 0),
         right: _double(v['right'], 0),
         bottom: _double(v['bottom'], 0),
       );
-    }
-    return EdgeInsets.zero;
-  }
 
   EdgeInsetsGeometry? _edgeInsetsOrNull(dynamic v) =>
       v == null ? null : _edgeInsets(v);
