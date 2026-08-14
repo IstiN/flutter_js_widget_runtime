@@ -256,46 +256,11 @@ class QuickjsWidgetEngineBackend implements JsWidgetEngineBackend {
         _config.resolveCallback ??
         (id, value) => _resolveCallback(rt, id, value);
     _config.onResolveReady?.call(_bridge.resolveCallback);
-    _bridge.fetchHandler = (id, url, method, headers) async {
-      if (_config.fetchHandler != null) {
-        await _config.fetchHandler!.call(id, url, method, headers);
-        return;
-      }
-      await defaultVmFetchHandler(
-        id,
-        url,
-        method,
-        headers,
-        _bridge.resolveCallback,
-      );
-    };
-    _bridge.secretsGetHandler = (id, key) async {
-      if (_config.secretsGetHandler != null) {
-        await _config.secretsGetHandler!.call(id, key);
-      }
-    };
-    _bridge.secretsSetHandler = (id, key, value) async {
-      if (_config.secretsSetHandler != null) {
-        await _config.secretsSetHandler!.call(id, key, value);
-      }
-    };
-    _bridge.loadAssetHandler = (id, path) async {
-      if (_config.loadAssetHandler != null) {
-        await _config.loadAssetHandler!.call(id, path);
-        return;
-      }
-      await defaultVmLoadAssetHandler(
-        id,
-        path,
-        _config.appDir,
-        _bridge.resolveCallback,
-      );
-    };
-    _bridge.execHandler = (id, cmd) async {
-      if (_config.execHandler != null) {
-        await _config.execHandler!.call(id, cmd);
-      }
-    };
+    _bridge.fetchHandler = _fetchHandler;
+    _bridge.secretsGetHandler = _secretsGetHandler;
+    _bridge.secretsSetHandler = _secretsSetHandler;
+    _bridge.loadAssetHandler = _loadAssetHandler;
+    _bridge.execHandler = _execHandler;
     _bridge.intervalTickHandler = (id) => _handleIntervalTick(rt, id);
     _bridge.rafTickHandler = (id, elapsedMs) =>
         _handleRafTick(rt, id, elapsedMs);
@@ -303,14 +268,65 @@ class QuickjsWidgetEngineBackend implements JsWidgetEngineBackend {
     // The bootstrap channels everything through one global function; the
     // C bridge marshals its arguments as a JSON array [channel, payload].
     rt.registerHostFunction('sendMessage', (argsJson) {
-      final args = jsonDecode(argsJson);
-      if (args is List && args.length == 2 && args[0] is String) {
-        if (_isLive(rt)) {
-          unawaited(_bridge.dispatch(args[0] as String, args[1]));
-        }
-      }
+      _handleSendMessage(rt, argsJson);
       return null;
     });
+  }
+
+  Future<void> _fetchHandler(
+    String id,
+    String url,
+    String method,
+    Map<String, String> headers,
+  ) async {
+    final handler = _config.fetchHandler;
+    if (handler != null) {
+      await handler(id, url, method, headers);
+      return;
+    }
+    await defaultVmFetchHandler(
+      id,
+      url,
+      method,
+      headers,
+      _bridge.resolveCallback,
+    );
+  }
+
+  Future<void> _secretsGetHandler(String id, String key) async {
+    final handler = _config.secretsGetHandler;
+    if (handler != null) await handler(id, key);
+  }
+
+  Future<void> _secretsSetHandler(String id, String key, dynamic value) async {
+    final handler = _config.secretsSetHandler;
+    if (handler != null) await handler(id, key, value);
+  }
+
+  Future<void> _loadAssetHandler(String id, String path) async {
+    final handler = _config.loadAssetHandler;
+    if (handler != null) {
+      await handler(id, path);
+      return;
+    }
+    await defaultVmLoadAssetHandler(
+      id,
+      path,
+      _config.appDir,
+      _bridge.resolveCallback,
+    );
+  }
+
+  Future<void> _execHandler(String id, String cmd) async {
+    final handler = _config.execHandler;
+    if (handler != null) await handler(id, cmd);
+  }
+
+  void _handleSendMessage(QuickjsRuntime rt, String argsJson) {
+    final args = jsonDecode(argsJson);
+    if (args is! List || args.length != 2 || args[0] is! String) return;
+    if (!_isLive(rt)) return;
+    unawaited(_bridge.dispatch(args[0] as String, args[1]));
   }
 
   void _handleLog(String msg) {
