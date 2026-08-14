@@ -9,31 +9,24 @@ import 'package:js_widget_runtime/src/model/js_runtime_config.dart';
 import 'package:js_widget_runtime/src/runtime/js_widget_bootstrap.dart';
 import 'package:js_widget_runtime/src/runtime/js_widget_bridge.dart';
 import 'package:js_widget_runtime/src/runtime/js_widget_engine_backend.dart';
-import 'package:js_widget_runtime/src/runtime/quickjs/quickjs_ffi.dart';
-import 'package:js_widget_runtime/src/runtime/quickjs/quickjs_runtime.dart';
+import 'package:quickjs_runtime/quickjs_runtime.dart';
 
-/// VM JS engine backend backed by the vendored QuickJS runtime via `dart:ffi`.
+/// VM JS engine backend backed by the QuickJS runtime via `dart:ffi`, from
+/// the pure-Dart `quickjs_runtime` package.
 ///
 /// Unlike the default `flutter_js` backend, host calls are **synchronous**:
 /// the C bridge invokes a Dart [NativeCallable] on the owning isolate's
 /// thread while `JS_Eval` is still on the stack, so bridge messages
-/// (`jsr.render`, `console.log`, …) reach Dart before `eval` returns. This
-/// mirrors dmtools-dart's native runtime, extracted here so both projects
-/// share one home for the QuickJS sources and C bridge.
+/// (`jsr.render`, `console.log`, …) reach Dart before `eval` returns.
 ///
 /// This backend is opt-in: construct it directly and pass it via
 /// [JsRuntimeConfig.backend]. It imports `dart:ffi`/`dart:io` and therefore
 /// must never be imported from a web-reachable path.
 ///
-/// The shared library is looked up in this order:
-/// 1. the `JSR_QUICKJS_LIB` environment variable, when set;
-/// 2. `native/quickjs/libquickjs_bridge.so` relative to [Platform.script]
-///    (covers `dart run` and compiled binaries);
-/// 3. `native/quickjs/libquickjs_bridge.so` relative to the current working
-///    directory (covers `flutter test` / `dart test` run from the package
-///    root).
-///
-/// Build it with `tool/build_quickjs.sh`; a missing library makes [init]
+/// The shared library (`libquickjs_bridge.so`) lives in the
+/// `quickjs_runtime` package; see its README for lookup order and build
+/// instructions (`tool/build_quickjs.sh` inside that package, or set the
+/// `JSR_QUICKJS_LIB` environment variable). A missing library makes [init]
 /// throw a [StateError] explaining that.
 class QuickjsWidgetEngineBackend implements JsWidgetEngineBackend {
   QuickjsWidgetEngineBackend({required JsRuntimeConfig config})
