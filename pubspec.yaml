@@ -13,6 +13,8 @@ dependencies:
     sdk: flutter
 
   flutter_js: ^0.8.7
+  # dart:ffi helpers (Utf8, malloc) for the QuickJS FFI backend.
+  ffi: ^2.1.0
   web: ^1.1.1
   flutter_svg: ^2.3.0
   flutter_markdown_plus: ^1.0.7
