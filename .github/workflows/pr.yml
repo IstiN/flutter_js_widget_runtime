@@ -21,7 +21,10 @@ jobs:
       - name: Setup Flutter
         uses: subosito/flutter-action@v2
         with:
+          # Pinned: flame_3d 0.3.0 does not compile against the flutter_gpu
+          # API shipped with Flutter 3.47+. Unpin once flame_3d publishes a fix.
           channel: stable
+          flutter-version: 3.44.4
 
       - name: Install dependencies
         run: flutter pub get
