@@ -13,11 +13,9 @@ dependencies:
     sdk: flutter
 
   flutter_js: ^0.8.7
-  # QuickJS FFI backend (VM-only, opt-in): vendored QuickJS + C bridge with
-  # synchronous host callbacks. Pure Dart — no Flutter SDK needed to build it.
-  quickjs_runtime:
-    git:
-      url: https://github.com/IstiN/quickjs_runtime
+  # QuickJS FFI backend (VM-only, opt-in): QuickJS + C bridge with
+  # synchronous host callbacks. Pure Dart — no Flutter SDK needed.
+  quickjs_runtime: ^0.1.0
   web: ^1.1.1
   flutter_svg: ^2.3.0
   flutter_markdown_plus: ^1.0.7
