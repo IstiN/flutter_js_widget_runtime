@@ -7,6 +7,7 @@ This guide covers how to work with the `js_widget_runtime` Dart package and its 
 `js_widget_runtime` renders JavaScript widgets as Flutter widgets. It is published to pub.dev as `js_widget_runtime`.
 
 - **VM engine**: `flutter_js` (QuickJS / JavaScriptCore)
+- **Opt-in VM engine**: QuickJS FFI backend (vendored QuickJS + C bridge, synchronous host calls) via `JsRuntimeConfig.backend`
 - **Web engine**: Dedicated `web.Worker` built from an inline Blob URL
 - **Public API**: `lib/js_widget_runtime.dart`
 - **Examples**: `example/widgets/`
@@ -25,10 +26,15 @@ lib/
 example/
   lib/main.dart        Demo app showing the example widgets
   widgets/             Example JS widgets: yolo-hello, calculator, weather, stocks, crypto, animation-showcase
+native/
+  quickjs/             Vendored QuickJS 2024-01-13 sources (build artifact libquickjs_bridge.so is git-ignored)
+  quickjs_bridge.c     C bridge (JSON marshaling, synchronous host callbacks) the FFI layer talks to
 scripts/
   pre-commit           Quality gates (tests, coverage, duplication)
   compute_coverage.py  Coverage helper used by CI
   compute_duplication.py  Duplication helper used by CI
+tool/
+  build_quickjs.sh     Builds native/quickjs/libquickjs_bridge.so (gcc)
 ```
 
 ## Coding Conventions
@@ -92,6 +98,7 @@ See the dedicated skill in `.agents/skills/js-widget-authoring/SKILL.md` for the
 ## Engine Architecture
 
 - `JsWidgetEngine` is a conditional export: VM on native, Web on `dart.library.html`.
+- An opt-in QuickJS FFI backend (`lib/src/runtime/js_widget_engine_quickjs.dart`, VM-only — never import it from a web-reachable path) implements the same interface on the vendored QuickJS sources with synchronous host calls (`NativeCallable`). Pass it via `JsRuntimeConfig.backend`; build its native library first with `tool/build_quickjs.sh` (CI does this before `flutter test`).
 - `JsWidgetBridge` is platform-agnostic and dispatches `__jsr_*` channels.
 - `kJsWidgetBootstrap` defines the JS runtime API. Any new `jsr.*` API must be added here and wired through `JsWidgetBridge` and both VM/Web engines.
 - Engine handlers are injected via `JsRuntimeConfig`. The package provides defaults, but hosts override them for real permissions, storage, networking, etc.

@@ -6,6 +6,7 @@ A Flutter package that runs JavaScript widgets and renders them as native Flutte
 
 - **VM/desktop/mobile**: uses [`flutter_js`](https://pub.dev/packages/flutter_js) (QuickJS / JavaScriptCore).
 - **Web**: uses a dedicated `web.Worker` spawned from an inline Blob URL.
+- **Opt-in QuickJS FFI backend** (VM only): swap `flutter_js` for the vendored QuickJS runtime to get fully synchronous host calls — build the native library with `./tool/build_quickjs.sh`, then pass `QuickjsWidgetEngineBackend` via `JsRuntimeConfig.backend`.
 
 The JS side communicates with Flutter through a declarative JSON UI tree and a small async bridge (`render`, `fetchJson`, `exec`, `storage`, `secrets`, timers, `requestAnimationFrame`, etc.).
 
