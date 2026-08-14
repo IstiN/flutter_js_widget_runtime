@@ -1,3 +1,7 @@
+## 0.4.46
+
+- Automated patch bump.
+
 ## 0.4.45
 
 - Perf: micro-optimizations in JS bootstrap:
