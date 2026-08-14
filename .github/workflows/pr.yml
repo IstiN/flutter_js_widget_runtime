@@ -21,12 +21,12 @@ jobs:
       - name: Setup Flutter
         uses: subosito/flutter-action@v2
         with:
-          # flame_3d comes from the IstiN/flame fork (branch
-          # flame_3d-0.3.0-flutter-3.47) which requires the flutter_gpu API
-          # of Flutter 3.47+. Once the fix is published upstream
-          # (flame-engine/flame#3995), switch back to a pub dependency.
+          # Pinned: hosted flame_3d 0.3.0 does not compile against the
+          # flutter_gpu API shipped with Flutter 3.47+. The Flutter 3.47
+          # compatible build lives on the flame-3.47 branch (IstiN/flame
+          # fork). Unpin when flame-engine/flame#3995 is published.
           channel: stable
-          flutter-version: 3.47.0
+          flutter-version: 3.44.4
 
       - name: Install dependencies
         run: flutter pub get

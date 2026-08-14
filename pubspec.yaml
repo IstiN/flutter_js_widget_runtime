@@ -27,11 +27,7 @@ dependencies:
   # OBJ models (cross-platform), flame_3d for GLB/GLTF with PBR materials.
   flutter_cube: ^0.1.1
   flame: ^1.38.0
-  flame_3d:
-    git:
-      url: https://github.com/IstiN/flame
-      path: packages/flame_3d
-      ref: flame_3d-0.3.0-flutter-3.47
+  flame_3d: ^0.3.0
   vector_math: ^2.1.4
 
   # Conditional platform helpers; imported only on web.
