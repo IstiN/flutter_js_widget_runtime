@@ -35,8 +35,14 @@ class Flame3dHost extends Js3dHost {
 
   bool _gpuInitialized = false;
 
+  /// Test seam: when set, [Flame3dController._initGame] skips the real GPU
+  /// backend initialization (which requires Impeller) — used together with
+  /// an injected game factory to drive the controller logic headlessly.
+  @visibleForTesting
+  bool skipGpuInit = false;
+
   Future<void> _ensureGpu() async {
-    if (_gpuInitialized) return;
+    if (_gpuInitialized || skipGpuInit) return;
     await GpuBackend.initialize();
     _gpuInitialized = true;
   }
@@ -94,13 +100,21 @@ class Flame3dHost extends Js3dHost {
 /// A [Js3dController] implementation that backs a `flame_3d` scene.
 /// {@endtemplate}
 class Flame3dController extends Js3dController {
-  Flame3dController(this.sceneId, this.config, this._host);
+  Flame3dController(this.sceneId, this.config, this._host, {gameFactory})
+    : _gameFactory = gameFactory ?? _defaultGameFactory;
 
   final String sceneId;
   final Map<String, dynamic> config;
   final Flame3dHost _host;
+  final Js3dGameApi Function(Map<String, dynamic>, Flame3dController)
+  _gameFactory;
 
-  JsFlame3dGame? game;
+  static Js3dGameApi _defaultGameFactory(
+    Map<String, dynamic> config,
+    Flame3dController controller,
+  ) => JsFlame3dGame(config, onError: controller._handleGameError);
+
+  Js3dGameApi? game;
   String? error;
   final List<Js3dCommand> _pending = [];
   bool _initializing = false;
@@ -115,7 +129,6 @@ class Flame3dController extends Js3dController {
   /// to build claims the game; the others render a placeholder until it is
   /// released.
   JsFlame3dGame? gameWidgetOwner;
-
   /// Releases the current game-widget claim and notifies listeners so a
   /// waiting widget can rebuild and claim the game.
   void releaseGameWidgetClaim() {
@@ -199,7 +212,7 @@ class Flame3dController extends Js3dController {
   void _createGameIfReady() {
     if (_disposed || game != null) return;
     debugPrint('[Flame3dController] game created sceneId=$sceneId');
-    game = _createGame();
+    game = _gameFactory(config, this);
     _trackOnLoad();
   }
 
@@ -207,11 +220,6 @@ class Flame3dController extends Js3dController {
     _drainPendingCommands();
     if (!_disposed) notifyListeners();
   }
-
-  JsFlame3dGame _createGame() => JsFlame3dGame(
-        config,
-        onError: _handleGameError,
-      );
 
   void _handleGameError(String message) {
     if (_disposed) return;
@@ -221,10 +229,7 @@ class Flame3dController extends Js3dController {
   }
 
   void _trackOnLoad() {
-    final onLoadFuture = game!.onLoad();
-    if (onLoadFuture is Future<void>) {
-      Js3dCaptureSync.track(onLoadFuture);
-    }
+    Js3dCaptureSync.track(game!.load());
   }
 
   void _drainPendingCommands() {
@@ -325,6 +330,11 @@ class Flame3dController extends Js3dController {
     _syncConfigModels(config);
   }
 
+  /// Test seam: applies a declarative scene config directly (bypasses the
+  /// widget rebuild cycle).
+  @visibleForTesting
+  void debugApplyConfig(Map<String, dynamic> config) => _applyConfig(config);
+
   void _syncConfigTime(Map<String, dynamic> config) {
     final t = (config['time'] as num?)?.toDouble();
     if (t != null) declaredTime = t;
@@ -405,25 +415,13 @@ class Flame3dController extends Js3dController {
   String? _lastCameraKey;
 
   void _applyCamera(Map<String, dynamic>? cam) {
-    final camera = game?.camera;
-    if (cam == null || camera is! CameraComponent3D) return;
-    _applyCameraPose(cam, camera);
-    _applyCameraFov(cam, camera);
-  }
-
-  void _applyCameraFov(Map<String, dynamic> cam, CameraComponent3D camera) {
-    final fov = (cam['fov'] as num?)?.toDouble();
-    if (fov != null) camera.fovY = fov;
-  }
-
-  void _applyCameraPose(
-    Map<String, dynamic> cam,
-    CameraComponent3D camera,
-  ) {
-    js3dReadVec3f(cam['position'] as List?)?.let(camera.position.setFrom);
-    js3dReadVec3f(cam['target'] as List?)?.let(camera.target.setFrom);
-    js3dReadVec3f(cam['up'] as List?)
-        ?.let((Vector3 v) => camera.up.setFrom(v));
+    if (cam == null) return;
+    game?.setCamera(
+      js3dReadVec3f(cam['position'] as List?),
+      js3dReadVec3f(cam['target'] as List?),
+      js3dReadVec3f(cam['up'] as List?),
+      (cam['fov'] as num?)?.toDouble(),
+    );
   }
 
   void _applyLight(Map<String, dynamic>? light) {
@@ -456,7 +454,7 @@ class Flame3dController extends Js3dController {
     // is safe: nothing was ever laid out or painted, and the harness process
     // tears the whole isolate down right after.
     if (g == null || !g.hasLayout) return;
-    g.dispose();
+    g.disposeGame();
   }
 }
 
@@ -525,7 +523,58 @@ class _JsWorld3D extends World3D {
 /// {@template js_flame3d_game}
 /// A small [FlameGame3D] that loads a single GLB/GLTF/OBJ model and rotates it.
 /// {@endtemplate}
-class JsFlame3dGame extends FlameGame3D<World3D, CameraComponent3D> {
+/// The controller-facing surface of a 3D game. Exists so tests can drive
+/// the controller's command/diff logic with a recording implementation,
+/// without the GPU requirements of [JsFlame3dGame]'s FlameGame3D base.
+abstract class Js3dGameApi {
+  Future<void> loadModel({
+    required String modelId,
+    required String? src,
+    List<dynamic>? position,
+    List<dynamic>? rotation,
+    List<dynamic>? scale,
+    bool unlit = false,
+  });
+
+  void removeModel(String modelId);
+
+  void setTransform(
+    String modelId, {
+    List<dynamic>? position,
+    List<dynamic>? rotation,
+    List<dynamic>? scale,
+  });
+
+  void setRotation(String modelId, String axis, double speed);
+
+  void stopRotation(String modelId);
+
+  void playSkeletalAnimation(String modelId, String name);
+
+  void stopSkeletalAnimation(String modelId);
+
+  void setCamera(
+    Vector3? position,
+    Vector3? target,
+    Vector3? up,
+    double? fov,
+  );
+
+  /// Initializes the game (loads assets); called once after creation.
+  Future<void> load();
+
+  /// Whether the game ever received a layout. Games that never laid out
+  /// can be dropped without disposal.
+  bool get hasLayout;
+
+  /// Releases native/GPU resources.
+  void disposeGame();
+
+  Map<String, dynamic>? raycastModel(Offset ndc);
+}
+
+class JsFlame3dGame extends FlameGame3D<World3D, CameraComponent3D>
+    implements Js3dGameApi {
   JsFlame3dGame(
     this.config, {
     this.onError,
@@ -766,6 +815,36 @@ class JsFlame3dGame extends FlameGame3D<World3D, CameraComponent3D> {
     _models[modelId]?.stopAnimation();
   }
 
+  /// Applies declarative camera pose/fov; individual nulls leave the
+  /// current value untouched.
+  void setCamera(
+    Vector3? position,
+    Vector3? target,
+    Vector3? up,
+    double? fov,
+  ) {
+    _applyCameraPose(position, target, up);
+    if (fov != null) camera.fovY = fov;
+  }
+
+  void _applyCameraPose(Vector3? position, Vector3? target, Vector3? up) {
+    position?.let(camera.position.setFrom);
+    target?.let(camera.target.setFrom);
+    up?.let(camera.up.setFrom);
+  }
+
+  @override
+  Future<void> load() async {
+    final future = onLoad();
+    if (future is Future<void>) await future;
+  }
+
+  @override
+  bool get hasLayout => isMounted && size != Vector2.zero();
+
+  @override
+  void disposeGame() => dispose();
+
   /// Picks the nearest model whose world-space AABB is hit by the camera ray
   /// through [ndc] (x/y in `[-1, 1]`, y up). Returns `{modelId, point}` or
   /// null on a miss.
@@ -920,9 +999,9 @@ class _Flame3dGameWidgetState extends State<_Flame3dGameWidget> {
     // `World3D.renderFromCamera`, composited into our canvas) — this is what
     // makes GLB scenes exportable to video.
     if (_isHeadlessContext(context)) {
-      return _Flame3dHeadlessCapture(controller: c, game: game);
+      return _Flame3dHeadlessCapture(controller: c, game: game as JsFlame3dGame);
     }
-    return _ownedGameWidget(c, game);
+    return _ownedGameWidget(c, game as JsFlame3dGame);
   }
 
   /// The attached [GameWidget] for this widget once it owns the game, or a
