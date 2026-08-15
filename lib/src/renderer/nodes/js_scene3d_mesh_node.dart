@@ -173,13 +173,32 @@ Scene3dConfig parseScene3dConfig(Map<String, dynamic> config) {
       ? _vec3((config['light'] as Map)['direction'], defaultLight)
       : _vec3(config['light'], defaultLight);
   return Scene3dConfig(
-    meshes: _parseMeshes(config['meshes']),
+    meshes: _parseMeshesCached(config['meshes']),
     camera: _parseCamera(config['camera']),
     rotation: _parseEuler(config['rotation'], const [0.0, 0.0, 0.0]),
     lightDirection: lightDirection,
     background: _parseColor(config['background'] ?? config['backgroundColor']),
   );
 }
+
+/// Memoizes [Scene3dMesh] lists per source list identity. Render loops
+/// rebuild the same `meshes` JSON on every frame; re-parsing thousands of
+/// vertices per build dominated the profile (~10ms mean per parse), while
+/// the list is typically the identical, unmutated object each time.
+List<Scene3dMesh> _parseMeshesCached(dynamic raw) {
+  if (raw is! List) return const [];
+  final cached = _meshCache[raw];
+  if (cached != null) return cached;
+  final meshes = _parseMeshes(raw);
+  if (_meshCache.length >= _meshCacheLimit) _meshCache.clear();
+  _meshCache[raw] = meshes;
+  return meshes;
+}
+
+/// Last N source lists → parsed meshes. Bounded so mutated-or-discarded
+/// scenes cannot grow it unboundedly.
+final Map<List, List<Scene3dMesh>> _meshCache = {};
+const _meshCacheLimit = 16;
 
 /// Perspective projector: model space → rotation → view space → screen.
 ///

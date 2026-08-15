@@ -325,7 +325,9 @@ class QuickjsWidgetEngineBackend implements JsWidgetEngineBackend {
   void _handleLog(String msg) {
     debugPrint('[JsWidget:${_config.widgetId}] $msg');
     _consoleLogs.add({'ts': DateTime.now().millisecondsSinceEpoch, 'msg': msg});
-    if (_consoleLogs.length > _maxLogs) _consoleLogs.removeAt(0);
+    if (_consoleLogs.length > _maxLogs) {
+      _consoleLogs.removeRange(0, _consoleLogs.length - _maxLogs);
+    }
     _config.onLog?.call(msg);
   }
 
