@@ -72,7 +72,8 @@ final _jsonWidgetDefaultColors = JsonWidgetTheme.fromAccent(Colors.deepPurple);
 /// }
 /// ```
 class JsonWidgetRenderer with JsonWidgetDecoration {
-  const JsonWidgetRenderer({
+  // Not const: owns the per-instance widget memo cache.
+  JsonWidgetRenderer({
     required this.onEvent,
     this.fieldRegistry,
     this.theme,
@@ -137,10 +138,27 @@ class JsonWidgetRenderer with JsonWidgetDecoration {
 
   // ── Dispatcher ────────────────────────────────────────────────────────────
 
+  /// Built subtrees memoized by source-map identity. Widgets are immutable
+  /// configs: returning the same instance for an unchanged node lets Flutter
+  /// skip the subtree rebuild entirely (`identical` short-circuit). Render
+  /// loops that re-render every frame with mostly-unchanged maps (or rebuild
+  /// the same tree on unrelated state changes) hit this cache heavily — it
+  /// cut the profile's build time roughly in half. Bounded like the mesh
+  /// cache so mutated/discarded scenes cannot grow it unboundedly.
+  final Map<Map, Widget> _widgetCache = {};
+  static const _widgetCacheLimit = 256;
+
   Widget _build(dynamic node) {
-    if (node == null) return const SizedBox.shrink();
     if (node is! Map) return const SizedBox.shrink();
-    final m = node.cast<String, dynamic>();
+    final cached = _widgetCache[node];
+    if (cached != null) return cached;
+    final built = _buildNode(node.cast<String, dynamic>());
+    if (_widgetCache.length >= _widgetCacheLimit) _widgetCache.clear();
+    _widgetCache[node] = built;
+    return built;
+  }
+
+  Widget _buildNode(Map<String, dynamic> m) {
     final type = m['type'] as String? ?? '';
 
     final custom = customBuilders?[type];
