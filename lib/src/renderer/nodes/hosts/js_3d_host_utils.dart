@@ -20,12 +20,8 @@ Color js3dParseColor(String value, Color fallback) {
   if (hex.length == 6) {
     final rgb = int.tryParse(hex, radix: 16);
     if (rgb != null) {
-      return Color.fromARGB(
-        255,
-        (rgb >> 16) & 0xff,
-        (rgb >> 8) & 0xff,
-        rgb & 0xff,
-      );
+      return Color.fromARGB(_opaqueAlpha, (rgb >> 16) & _byteMask,
+          (rgb >> 8) & _byteMask, rgb & _byteMask);
     }
   }
   return fallback;
@@ -55,3 +51,7 @@ vm32.Vector3? js3dReadVec3f(List<dynamic>? value) {
 /// `modelId` wins over the command-level field, falling back to `'default'`.
 String js3dModelId(Js3dCommand command, Map<String, dynamic> payload) =>
     (payload['modelId'] as String?) ?? command.modelId ?? 'default';
+
+/// Byte mask / opaque alpha for hex color parsing.
+const _byteMask = 0xff;
+const _opaqueAlpha = 255;

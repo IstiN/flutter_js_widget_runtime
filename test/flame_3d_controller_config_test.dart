@@ -1,4 +1,3 @@
-import 'dart:ui';
 
 import 'package:flame_3d/game.dart' show Vector3;
 import 'package:flutter_test/flutter_test.dart';
@@ -197,10 +196,10 @@ void main() {
         gameFactory: (_, __) => game,
       );
       controller.debugApplyConfig({'time': 1.5, 'models': []});
-      expect(controller.declaredTime, 1.5);
+      expect(controller.sceneSync.declaredTime, 1.5);
       // No time in the new config → the clock keeps its last value.
       controller.debugApplyConfig({'models': []});
-      expect(controller.declaredTime, 1.5);
+      expect(controller.sceneSync.declaredTime, 1.5);
       controller.dispose();
     });
   });

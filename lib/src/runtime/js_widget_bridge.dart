@@ -68,7 +68,18 @@ class JsWidgetBridge {
     required this.rafTickHandler,
     this.js3dHost,
     required Map<String, dynamic> initialStorage,
-  }) : _storage = Map<String, dynamic>.from(initialStorage);
+  }) {
+    _store = JsStorageChannel(initialStorage: initialStorage);
+    _store.storageRead = (id, key) => resolveCallback(id, _store.storage[key]);
+    _store.storageChanged = onStorageUpdate;
+    _store.parseFallback = _parseArgs;
+    _raf.onTick = (id, ms) => rafTickHandler(id, ms);
+    _raf.shouldStop = isDisposed;
+    // Read the (mutable) handler fields on every tick: engines rewire them
+    // after construction (see QuickjsWidgetEngineBackend._setupBridges).
+    _intervals.onTick = (id) => intervalTickHandler(id);
+    _intervals.shouldStop = isDisposed;
+  }
 
   static bool _allowAll(String _) => true;
 
@@ -90,18 +101,15 @@ class JsWidgetBridge {
   JsRafTickHandler rafTickHandler;
   Js3dHost? js3dHost;
 
-  final Map<String, dynamic> _storage;
+  late final JsStorageChannel _store;
   final Map<String, Js3dController> _sceneControllers = {};
-  Map<String, dynamic>? _exportedState;
-  final Map<String, Timer> _intervals = {};
-  Ticker? _rafTicker;
-  final Map<String, bool> _rafCallbacks = {};
+
+  final JsIntervalScheduler _intervals = JsIntervalScheduler();
+  final JsRafScheduler _raf = JsRafScheduler();
   Completer<void>? _eventCompleter;
 
   /// Last structured state exported via `jsr.exportState(...)`.
-  Map<String, dynamic>? get exportedState => _exportedState == null
-      ? null
-      : Map<String, dynamic>.from(_exportedState!);
+  Map<String, dynamic>? get exportedState => _store.exportedState;
 
   /// Returns the JS snippet used to update the widget theme.
   static String updateThemeJs(Map<String, dynamic> colors) {
@@ -206,13 +214,8 @@ class JsWidgetBridge {
 
   /// Releases all timers, tickers and 3D scene controllers owned by the bridge.
   void dispose() {
-    for (final t in _intervals.values) {
-      t.cancel();
-    }
-    _intervals.clear();
-    _rafTicker?.dispose();
-    _rafTicker = null;
-    _rafCallbacks.clear();
+    _intervals.dispose();
+    _raf.dispose();
     for (final controller in _sceneControllers.values) {
       controller.dispose();
     }
@@ -253,23 +256,20 @@ class JsWidgetBridge {
   }
 
   void _handleStorageGet(dynamic args) {
-    final req = _parseArgs(args);
-    final id = req['id'] as String;
     if (!isPermissionAllowed('storage')) {
-      resolveCallback(id, {
-        '__error': 'storage is disabled in Settings → Apps & Widgets',
-      });
+      final req = _parseArgs(args);
+      resolveCallback(
+        req['id'] as String,
+        {'__error': 'storage is disabled in Settings → Apps & Widgets'},
+      );
       return;
     }
-    final key = req['key'] as String;
-    resolveCallback(id, _storage[key]);
+    _store.handleGet(_parseArgs(args));
   }
 
   void _handleStorageSet(dynamic args) {
     if (!isPermissionAllowed('storage')) return;
-    final req = _parseArgs(args);
-    _storage[req['key'] as String] = req['value'];
-    onStorageUpdate(Map<String, dynamic>.from(_storage));
+    _store.handleSet(_parseArgs(args));
   }
 
   void _handleSetTitle(dynamic title) {
@@ -288,15 +288,7 @@ class JsWidgetBridge {
     // would then see _eventCompleter already null and skip completing it.
   }
 
-  void _handleExportState(dynamic args) {
-    try {
-      _exportedState = args is Map
-          ? Map<String, dynamic>.from(args)
-          : Map<String, dynamic>.from(_parseArgs(args));
-    } catch (_) {
-      _exportedState = null;
-    }
-  }
+  void _handleExportState(dynamic args) => _store.handleExportState(args);
 
   void _handleLog(dynamic args) {
     onLog(args?.toString() ?? '');
@@ -304,44 +296,24 @@ class JsWidgetBridge {
 
   void _handleSetInterval(dynamic args) {
     final req = _parseArgs(args);
-    final id = req['id'] as String;
-    final ms = (req['ms'] as num?)?.toInt() ?? 1000;
-    final once = req['once'] == true;
-    _intervals[id]?.cancel();
-    final duration = Duration(milliseconds: ms);
-    if (once) {
-      _intervals[id] = Timer(duration, () {
-        _intervals.remove(id);
-        if (isDisposed()) return;
-        intervalTickHandler(id);
-      });
-    } else {
-      _intervals[id] = Timer.periodic(duration, (_) {
-        if (isDisposed()) return;
-        intervalTickHandler(id);
-      });
-    }
+    _intervals.schedule(
+      req['id'] as String,
+      (req['ms'] as num?)?.toInt() ?? 1000,
+      once: req['once'] == true,
+    );
   }
 
   void _handleClearInterval(dynamic id) {
-    final idStr = id?.toString() ?? '';
-    _intervals[idStr]?.cancel();
-    _intervals.remove(idStr);
+    _intervals.cancel(id?.toString() ?? '');
   }
 
   void _handleRaf(dynamic args) {
     final req = _parseArgs(args);
-    final id = req['id'] as String;
-    _rafCallbacks[id] = true;
-    _ensureRafTicker();
+    _raf.requestFrame(req['id'] as String);
   }
 
   void _handleCaf(dynamic id) {
-    final idStr = id?.toString() ?? '';
-    _rafCallbacks.remove(idStr);
-    if (_rafCallbacks.isEmpty) {
-      _rafTicker?.stop();
-    }
+    _raf.cancelFrame(id?.toString() ?? '');
   }
 
   Future<void> _handleSecretsGet(dynamic args) async {
@@ -477,26 +449,145 @@ class JsWidgetBridge {
       ),
     );
   }
+}
 
-  void _ensureRafTicker() {
-    final existing = _rafTicker;
+
+
+/// `jsr.storage` / `jsr.exportState` channel state: the persistent storage
+/// map and the last exported state snapshot.
+class JsStorageChannel {
+  JsStorageChannel({required Map<String, dynamic> initialStorage})
+    : storage = Map<String, dynamic>.from(initialStorage);
+
+  final Map<String, dynamic> storage;
+  Map<String, dynamic>? _exportedState;
+
+  Map<String, dynamic>? get exportedState => _exportedState == null
+      ? null
+      : Map<String, dynamic>.from(_exportedState!);
+
+  void handleGet(Map<String, dynamic> req) {
+    final id = req['id'] as String;
+    final key = req['key'] as String;
+    storageRead(id, key);
+  }
+
+  void handleSet(Map<String, dynamic> req) {
+    storage[req['key'] as String] = req['value'];
+    storageChanged(Map<String, dynamic>.from(storage));
+  }
+
+  void handleExportState(dynamic args) {
+    try {
+      _exportedState = args is Map
+          ? Map<String, dynamic>.from(args)
+          : Map<String, dynamic>.from(parseFallback(args));
+    } catch (_) {
+      _exportedState = null;
+    }
+  }
+
+  /// Wired by the bridge: parses non-map payloads into a map
+  /// (JSON-encoded channel arguments).
+  dynamic Function(dynamic) parseFallback = (_) => const {};
+
+  /// Wired by the bridge: resolves the JS promise for a storage read.
+  void Function(String id, String key) storageRead = (_, __) {};
+  /// Wired by the bridge: notifies the host about a storage write.
+  void Function(Map<String, dynamic>) storageChanged = (_) {};
+}
+
+/// Drives `setTimeout`/`setInterval` callbacks: one timer per id, replaced
+/// on re-schedule, stopped on dispose.
+class JsIntervalScheduler {
+  JsIntervalScheduler({this.onTick, this.shouldStop});
+
+  /// Fires `(id)` when a timer elapses.
+  void Function(String id)? onTick;
+  /// Whether the owning bridge is disposed (skips firing).
+  bool Function()? shouldStop;
+
+  final _timers = <String, Timer>{};
+
+  void schedule(String id, int ms, {bool once = false}) {
+    final duration = Duration(milliseconds: ms);
+    _timers[id]?.cancel();
+    if (once) {
+      _timers[id] = Timer(duration, () {
+        _timers.remove(id);
+        if (shouldStop?.call() ?? false) return;
+        onTick?.call(id);
+      });
+    } else {
+      _timers[id] = Timer.periodic(duration, (_) {
+        if (shouldStop?.call() ?? false) return;
+        onTick?.call(id);
+      });
+    }
+  }
+
+  void cancel(String id) {
+    _timers[id]?.cancel();
+    _timers.remove(id);
+  }
+
+  void dispose() {
+    for (final t in _timers.values) {
+      t.cancel();
+    }
+    _timers.clear();
+  }
+}
+
+/// Drives `requestAnimationFrame` callbacks through a [Ticker]: frames are
+/// requested by id, fired once per tick in registration order, and the
+/// ticker stops itself when no frames are pending.
+class JsRafScheduler {
+  JsRafScheduler({this.onTick, this.shouldStop});
+
+  /// Fires `(id, elapsedMs)` for each requested frame.
+  void Function(String id, int elapsedMs)? onTick;
+  /// Whether the owning bridge is disposed (stops the ticker).
+  bool Function()? shouldStop;
+
+  Ticker? _ticker;
+  final _pending = <String, bool>{};
+
+  void requestFrame(String id) {
+    _pending[id] = true;
+    _ensureTicker();
+  }
+
+  void cancelFrame(String id) {
+    _pending.remove(id);
+    if (_pending.isEmpty) _ticker?.stop();
+  }
+
+  void dispose() {
+    _ticker?.dispose();
+    _ticker = null;
+    _pending.clear();
+  }
+
+  void _ensureTicker() {
+    final existing = _ticker;
     if (existing != null) {
       if (!existing.isTicking) existing.start();
       return;
     }
-    _rafTicker = Ticker(_onRafTick)..start();
+    _ticker = Ticker(_onTick)..start();
   }
 
-  void _onRafTick(Duration elapsed) {
-    if (isDisposed() || _rafCallbacks.isEmpty) {
-      _rafTicker?.stop();
+  void _onTick(Duration elapsed) {
+    if ((shouldStop?.call() ?? false) || _pending.isEmpty) {
+      _ticker?.stop();
       return;
     }
     final ms = elapsed.inMilliseconds;
-    final ids = List<String>.from(_rafCallbacks.keys);
-    _rafCallbacks.clear();
+    final ids = List<String>.from(_pending.keys);
+    _pending.clear();
     for (final id in ids) {
-      rafTickHandler(id, ms);
+      onTick?.call(id, ms);
     }
   }
 }

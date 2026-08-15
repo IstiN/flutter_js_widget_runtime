@@ -47,6 +47,61 @@ abstract class Js3dController extends ChangeNotifier {
   }
 }
 
+/// Reference-counted controller registry shared by the built-in hosts.
+///
+/// The JS bridge and the widget renderer can request the same scene
+/// independently; the registry hands out one controller per `sceneId` and
+/// keeps it alive until the last reference is released.
+mixin Js3dControllerRegistry<T extends RefCountedJs3dController> {
+  final _controllers = <String, T>{};
+
+  /// Returns the live controller for [sceneId] (retaining one more
+  /// reference), or null when none exists.
+  T? retainController(String sceneId) {
+    final existing = _controllers[sceneId];
+    if (existing == null || existing.isDisposedCtrl) return null;
+    existing.addRef();
+    return existing;
+  }
+
+  /// Registers a freshly created [controller] under its scene id.
+  void registerController(T controller) {
+    _controllers[controller.sceneId] = controller;
+  }
+
+  /// Drops a reference; returns whether this was the last one (the caller
+  /// then disposes the controller).
+  bool releaseController(T controller) {
+    if (controller.dropRef() != 0) return false;
+    _controllers.remove(controller.sceneId);
+    return true;
+  }
+}
+
+/// Reference-counting plumbing for controllers managed by a
+/// [Js3dControllerRegistry].
+abstract class RefCountedJs3dController extends Js3dController {
+  int _refCount = 1;
+
+  /// This controller's scene id.
+  String get sceneId;
+
+  /// Whether [disposeInternal] has run.
+  bool get isDisposedCtrl;
+
+  /// Host hook: release native/scene resources (called once, when the last
+  /// reference is gone).
+  void disposeInternal();
+
+  /// Registers one more holder of this controller.
+  @protected
+  void addRef() => _refCount++;
+
+  /// Removes one holder; returns the remaining count.
+  @protected
+  int dropRef() => --_refCount;
+}
+
 /// Factory provided by the host to create concrete 3D controllers for
 /// `scene3d` / `model3d` nodes.
 ///

@@ -127,7 +127,7 @@ Scene3dMesh? _parseMesh(dynamic raw) {
   return Scene3dMesh(
     vertices: vertices,
     faces: faces,
-    color: _parseColor(raw['color']) ?? const Color(0xFF90CAF9),
+    color: _parseColor(raw['color']) ?? defaultMeshColor,
   );
 }
 
@@ -444,3 +444,6 @@ class _ProjectedFace {
   final double depth;
   final Color color;
 }
+
+/// Fallback mesh color when none is declared.
+const defaultMeshColor = Color(0xFF90CAF9);

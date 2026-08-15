@@ -28,9 +28,12 @@ const _switcherVariants = {
 /// cannot reuse the node's `type` key because the dispatcher consumes that
 /// (a JS object literal like `{type: 'entrance', type: 'slideUp'}` keeps
 /// only the last `type`). Unknown values fall back to `'fade'`.
+/// Fallback when the requested animation variant is missing or unknown.
+const _defaultVariant = 'fade';
+
 String _variant(dynamic v, Set<String> allowed) {
   final s = v is String ? v : '';
-  return allowed.contains(s) ? s : 'fade';
+  return allowed.contains(s) ? s : _defaultVariant;
 }
 
 /// Tolerant duration parser: numeric strings parse, garbage falls back to
