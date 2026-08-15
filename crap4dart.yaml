@@ -66,24 +66,28 @@ gates:
       - 'lib/src/runtime/js_widget_engine_quickjs.dart'
       - 'lib/src/runtime/js_widget_bootstrap.dart'
 
-  # Known-duplicated hosts (cube_3d_host, flame_3d_host) mirror each other's
-  # controller lifecycle by design; js_layout_nodes duplication is being
-  # ratcheted down. Ratchet: do not add files here without team approval.
+  # Ratchet: do not add files here without team approval.
   duplication:
     enabled: true
     threshold: 1.0
-    exclude:
-      - 'lib/src/renderer/nodes/hosts/cube_3d_host.dart'
-      - 'lib/src/renderer/nodes/hosts/flame_3d_host.dart'
-      - 'lib/src/renderer/nodes/js_layout_nodes.dart'
 
   # Rendering code is numeric by nature (layout dims, chart metrics, color
   # values). Hex colors outside const declarations still get flagged.
   magic_constants:
-    enabled: false
+    enabled: true
+    flag_hex_colors: true
+    min_duplicates: 3
+    exclude:
+      - '**.g.dart'
+      - 'test/**'
+      - 'lib/src/renderer/nodes/js_layout_nodes.dart'
 
   class_size:
-    enabled: false
+    enabled: true
+    # 30 methods: hosts/bridge legitimately coordinate many small handlers
+    # (already split into part files and helper classes); WMC stays strict.
+    max_methods: 30
+    max_wmc: 80
 
   folder_structure:
     enabled: false

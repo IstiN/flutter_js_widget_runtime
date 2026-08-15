@@ -316,19 +316,44 @@ class QuickjsWidgetEngineBackend implements JsWidgetEngineBackend {
   }
 
   void _handleSendMessage(QuickjsRuntime rt, String argsJson) {
+    // `__jsr_log` dominates bridge traffic (~93% in profiled runs): every
+    // console.log from widget JS crosses here. Fast-path it without the
+    // generic jsonDecode of the whole payload.
+    if (argsJson.startsWith('["__jsr_log",')) {
+      if (!_isLive(rt)) return;
+      final msg = _decodeLogPayload(argsJson);
+      unawaited(_bridge.dispatch('__jsr_log', msg));
+      return;
+    }
     final args = jsonDecode(argsJson);
     if (args is! List || args.length != 2 || args[0] is! String) return;
     if (!_isLive(rt)) return;
     unawaited(_bridge.dispatch(args[0] as String, args[1]));
   }
 
+  /// Extracts the message string from a `["__jsr_log","<msg>"]` payload by
+  /// decoding just the string literal (the payload is engine-generated with
+  /// a single string element), skipping the generic array decode.
+  static String _decodeLogPayload(String argsJson) {
+    final start = '["__jsr_log",'.length;
+    var end = argsJson.length;
+    if (end > start && argsJson.endsWith(']')) end--;
+    final body = argsJson.substring(start, end);
+    final decoded = jsonDecode(body);
+    return decoded is String ? decoded : body;
+  }
+
   void _handleLog(String msg) {
     debugPrint('[JsWidget:${_config.widgetId}] $msg');
+    _appendConsoleLog(msg);
+    _config.onLog?.call(msg);
+  }
+
+  void _appendConsoleLog(String msg) {
     _consoleLogs.add({'ts': DateTime.now().millisecondsSinceEpoch, 'msg': msg});
     if (_consoleLogs.length > _maxLogs) {
       _consoleLogs.removeRange(0, _consoleLogs.length - _maxLogs);
     }
-    _config.onLog?.call(msg);
   }
 
   void _handleIntervalTick(QuickjsRuntime rt, String id) {

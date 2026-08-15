@@ -56,7 +56,7 @@ class UiViewTreeNormalizer {
       );
     }
     if (child is String) {
-      return <String, dynamic>{'type': 'text', 'data': child};
+      return <String, dynamic>{'type': textNodeType, 'data': child};
     }
     return child;
   }
@@ -83,7 +83,7 @@ class UiViewTreeNormalizer {
     if (out['content'] != null && out['data'] == null) {
       out['data'] = out.remove('content');
     }
-    if (out['label'] != null && out['data'] == null && out['type'] == 'text') {
+    if (out['label'] != null && out['data'] == null && out['type'] == textNodeType) {
       out['data'] = out['label'];
     }
   }
@@ -105,7 +105,7 @@ class UiViewTreeNormalizer {
       out['data'] = out.remove('title');
     }
     if (out['text'] != null && out['data'] == null) {
-      out['data'] = out.remove('text');
+      out['data'] = out.remove(textNodeAlias);
     }
   }
 
@@ -236,3 +236,7 @@ class UiViewTreeNormalizer {
     'glb': 'scene3d',
   };
 }
+
+/// The canonical node type for plain text nodes and its input alias.
+const textNodeType = 'text';
+const textNodeAlias = 'text';

@@ -171,7 +171,7 @@ class WidgetManifest {
           id: (raw['id'] as String? ?? id).trim(),
           name: (raw['name'] as String? ?? id),
           description: raw['description'] as String? ?? '',
-          version: raw['version'] as String? ?? '1.0.0',
+          version: raw['version'] as String? ?? defaultWidgetVersion,
           icon: raw['icon'] as String? ?? '🔧',
           allowedCommands: List<String>.from(
             raw['allowedCommands'] as List? ?? [],
@@ -193,7 +193,7 @@ class WidgetManifest {
       id: id,
       name: _titleCase(id),
       description: '',
-      version: '1.0.0',
+      version: defaultWidgetVersion,
       icon: '🔧',
       allowedCommands: const [],
       networkEnabled: true,
@@ -210,7 +210,7 @@ class WidgetManifest {
       id: stem,
       name: _titleCase(stem),
       description: '',
-      version: '1.0.0',
+      version: defaultWidgetVersion,
       icon: '🔧',
       allowedCommands: const [],
       networkEnabled: true,
@@ -239,3 +239,6 @@ class WidgetManifest {
         return w[0].toUpperCase() + w.substring(1);
       }).join(' ');
 }
+
+/// Version assigned to manifests that do not declare one.
+const defaultWidgetVersion = '1.0.0';

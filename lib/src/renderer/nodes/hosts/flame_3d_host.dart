@@ -15,6 +15,7 @@ import 'package:js_widget_runtime/src/renderer/nodes/hosts/js_3d_host_utils.dart
 import 'package:js_widget_runtime/src/renderer/nodes/hosts/js_3d_raycast.dart';
 import 'package:vector_math/vector_math_64.dart' as vm64;
 
+part 'flame_3d_controller_config.dart';
 /// Creates a [Js3dHost] implementation backed by `flame_3d`.
 ///
 /// Supports GLB/GLTF/OBJ models with animations and lighting. This host
@@ -25,13 +26,12 @@ Js3dHost createFlame3dHost() => Flame3dHost.instance;
 /// {@template flame3d_host}
 /// A [Js3dHost] that drives a `flame_3d` scene from JS commands.
 /// {@endtemplate}
-class Flame3dHost extends Js3dHost {
+class Flame3dHost extends Js3dHost
+    with Js3dControllerRegistry<Flame3dController> {
   Flame3dHost._();
 
   /// Singleton instance shared by the JS bridge and the widget renderer.
   static final Flame3dHost instance = Flame3dHost._();
-
-  final Map<String, Flame3dController> _controllers = {};
 
   bool _gpuInitialized = false;
 
@@ -52,31 +52,18 @@ class Flame3dHost extends Js3dHost {
     String sceneId,
     Map<String, dynamic> config,
   ) {
-    final existing = _controllers[sceneId];
-    if (existing != null && !existing._disposed) {
-      existing._addRef();
-      debugPrint(
-        '[Flame3dHost] reuse controller sceneId=$sceneId '
-        'refCount=${existing._refCount}',
-      );
+    final existing = retainController(sceneId);
+    if (existing != null) {
+      debugPrint('[Flame3dHost] reuse controller sceneId=$sceneId');
       return existing;
     }
     final controller = Flame3dController(sceneId, config, this);
-    _controllers[sceneId] = controller;
+    registerController(controller);
     debugPrint(
       '[Flame3dHost] create controller sceneId=$sceneId '
       'configKeys=${config.keys.toList()}',
     );
     return controller;
-  }
-
-  bool _release(Flame3dController controller) {
-    if (controller._releaseRef() == 0) {
-      _controllers.remove(controller.sceneId);
-      controller._disposeInternal();
-      return true;
-    }
-    return false;
   }
 
   @override
@@ -88,7 +75,7 @@ class Flame3dHost extends Js3dHost {
     final c = controller as Flame3dController;
     // Declarative configs (the yoclip video pipeline re-renders the whole
     // node tree every frame) are applied here; only diffs take effect.
-    c._applyConfig(config);
+    c.sceneSync._applyConfig(config);
     return _Flame3dGameWidget(
       key: ValueKey(c.sceneId),
       controller: c,
@@ -99,13 +86,25 @@ class Flame3dHost extends Js3dHost {
 /// {@template flame3d_controller}
 /// A [Js3dController] implementation that backs a `flame_3d` scene.
 /// {@endtemplate}
-class Flame3dController extends Js3dController {
+class Flame3dController extends RefCountedJs3dController {
   Flame3dController(this.sceneId, this.config, this._host, {gameFactory})
     : _gameFactory = gameFactory ?? _defaultGameFactory;
 
   final String sceneId;
   final Map<String, dynamic> config;
   final Flame3dHost _host;
+
+  /// Declarative scene-config diffing (part file) — exposed members:
+  /// [debugApplyConfig], [declaredTime], [lastTime].
+  late final Flame3dSceneSync sceneSync = Flame3dSceneSync(
+    sceneId: sceneId,
+    isDisposed: () => _disposed,
+    applyQuiet: _applyQuiet,
+  );
+
+  @visibleForTesting
+  void debugApplyConfig(Map<String, dynamic> config) =>
+      sceneSync._applyConfig(config);
   final Js3dGameApi Function(Map<String, dynamic>, Flame3dController)
   _gameFactory;
 
@@ -119,7 +118,6 @@ class Flame3dController extends Js3dController {
   final List<Js3dCommand> _pending = [];
   bool _initializing = false;
   bool _disposed = false;
-  int _refCount = 1;
 
   /// The game instance currently claimed by a mounted [GameWidget].
   ///
@@ -139,11 +137,10 @@ class Flame3dController extends Js3dController {
     notifyListeners();
   }
 
-  void _addRef() => _refCount++;
-  int _releaseRef() => --_refCount;
-
   /// Whether the controller was disposed — teardown (scene unmount, final
   /// tree disposal) can race with paints/rebuilds still referencing it.
+  @override
+  bool get isDisposedCtrl => _disposed;
   bool get isDisposed => _disposed;
 
   /// Test helper exposing whether the game was created.
@@ -304,115 +301,6 @@ class Flame3dController extends Js3dController {
         'setLight': (_, payload) => _applyLight(payload),
       };
 
-  // ---- Declarative config (yoclip-style re-render per frame) -------------
-
-  /// Model id → `src` of the currently declared model (loaded or loading).
-  final Map<String, String> _declaredModelSrcs = {};
-
-  /// Model id → the skeletal clip currently requested for it.
-  final Map<String, String> _playingClips = {};
-
-  /// The declarative animation clock from the config (`time`, seconds), and
-  /// how far the game has been advanced so far. The headless capture drives
-  /// `game.update` by the delta, so rendered frames are deterministic.
-  double declaredTime = 0;
-  double lastTime = 0;
-
-  /// Applies a declarative scene config (`{models: [...], camera, time}`)
-  /// idempotently — safe to call on every widget rebuild. Only diffs take
-  /// effect: a model reloads only when its `src` changes, transforms update
-  /// in place, animations (re)start only when the clip name changes, models
-  /// missing from the config are removed.
-  void _applyConfig(Map<String, dynamic> config) {
-    if (_disposed) return;
-    _syncConfigTime(config);
-    _syncConfigCamera(config);
-    _syncConfigModels(config);
-  }
-
-  /// Test seam: applies a declarative scene config directly (bypasses the
-  /// widget rebuild cycle).
-  @visibleForTesting
-  void debugApplyConfig(Map<String, dynamic> config) => _applyConfig(config);
-
-  void _syncConfigTime(Map<String, dynamic> config) {
-    final t = (config['time'] as num?)?.toDouble();
-    if (t != null) declaredTime = t;
-  }
-
-  void _syncConfigCamera(Map<String, dynamic> config) {
-    final cam = config['camera'];
-    if (cam is! Map) return;
-    final camKey = cam.toString();
-    if (camKey == _lastCameraKey) return;
-    _lastCameraKey = camKey;
-    _applyQuiet(Js3dCommand(
-      kind: 'setCamera',
-      sceneId: sceneId,
-      payload: cam.cast<String, dynamic>(),
-    ));
-  }
-
-  void _syncConfigModels(Map<String, dynamic> config) {
-    final models = config['models'];
-    if (models is! List) return;
-    final seen = <String>{};
-    for (final entry in models.whereType<Map>()) {
-      _syncDeclaredModel(entry.cast<String, dynamic>(), seen);
-    }
-    _pruneUndeclaredModels(seen);
-  }
-
-  void _syncDeclaredModel(Map<String, dynamic> m, Set<String> seen) {
-    final id = (m['modelId'] ?? m['id'] ?? 'model').toString();
-    seen.add(id);
-    _syncModelSource(id, m);
-    _syncModelClip(id, m);
-  }
-
-  /// Reloads the model only when its declared `src` changes; otherwise just
-  /// updates the transform in place.
-  void _syncModelSource(String id, Map<String, dynamic> m) {
-    if (_declaredSrcChanged(id, m['src'])) {
-      _declaredModelSrcs[id] = m['src'] as String;
-      _applyQuiet(Js3dCommand(kind: 'addModel', sceneId: sceneId, payload: m));
-      return;
-    }
-    _applyQuiet(Js3dCommand(kind: 'setTransform', sceneId: sceneId, payload: m));
-  }
-
-  /// Whether the model's declared `src` is new (non-empty and different from
-  /// the currently loaded source).
-  bool _declaredSrcChanged(String id, dynamic src) =>
-      src is String && src.isNotEmpty && _declaredModelSrcs[id] != src;
-
-  /// (Re)starts a skeletal clip only when the requested clip name changes.
-  void _syncModelClip(String id, Map<String, dynamic> m) {
-    final clip = m['animation'] as String?;
-    if (clip == null || _playingClips[id] == clip) return;
-    _playingClips[id] = clip;
-    _applyQuiet(Js3dCommand(
-      kind: 'playAnimation',
-      sceneId: sceneId,
-      payload: {'modelId': id, 'name': clip},
-    ));
-  }
-
-  void _pruneUndeclaredModels(Set<String> seen) {
-    for (final old in _declaredModelSrcs.keys.toList()) {
-      if (seen.contains(old)) continue;
-      _declaredModelSrcs.remove(old);
-      _playingClips.remove(old);
-      _applyQuiet(Js3dCommand(
-        kind: 'removeModel',
-        sceneId: sceneId,
-        payload: {'modelId': old},
-      ));
-    }
-  }
-
-  /// Fingerprint of the last camera config applied declaratively.
-  String? _lastCameraKey;
 
   void _applyCamera(Map<String, dynamic>? cam) {
     if (cam == null) return;
@@ -435,16 +323,18 @@ class Flame3dController extends Js3dController {
 
   @override
   void dispose() {
-    final lastReference = _host._release(this);
+    final lastReference = _host.releaseController(this);
     // Idempotent ChangeNotifier teardown: shared controllers can be
     // disposed by several owners (unmount + final tree teardown).
     if (lastReference && !_cnDisposed) {
       _cnDisposed = true;
       super.dispose();
     }
+    if (lastReference) disposeInternal();
   }
 
-  void _disposeInternal() {
+  @override
+  void disposeInternal() {
     if (_disposed) return;
     _disposed = true;
     final g = game;
@@ -604,7 +494,7 @@ class JsFlame3dGame extends FlameGame3D<World3D, CameraComponent3D>
   /// The scene composites over other layers (yoclip backgrounds, board
   /// panels) — Flame's default black backdrop must not cover them.
   @override
-  Color backgroundColor() => const Color(0x00000000);
+  Color backgroundColor() => _transparentBackdrop;
 
   @override
   FutureOr<void> onLoad() async {
@@ -1175,10 +1065,10 @@ class _Flame3dCapturePainter extends CustomPainter {
   /// The game's animation clock advances by the config `time` delta
   /// (deterministic per rendered frame), never wall time.
   void _advanceAnimationClock() {
-    final dt = controller.declaredTime - controller.lastTime;
+    final dt = controller.sceneSync.declaredTime - controller.sceneSync.lastTime;
     if (dt <= 0 || !game.isMounted) return;
     game.update(dt);
-    controller.lastTime = controller.declaredTime;
+    controller.sceneSync.lastTime = controller.sceneSync.declaredTime;
   }
 
   @override
@@ -1206,3 +1096,7 @@ Quaternion _quaternionFromEuler(Vector3 eulerDegrees) {
 extension _Vector3Let on Vector3 {
   void let(void Function(Vector3) action) => action(this);
 }
+
+/// The scene composites over other layers (backgrounds, board panels) —
+/// Flame's default black backdrop must not cover them.
+const _transparentBackdrop = Color(0x00000000);

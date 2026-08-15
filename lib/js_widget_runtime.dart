@@ -22,7 +22,12 @@ export 'src/renderer/nodes/hosts/flame_3d_host.dart'
     show Flame3dHost, Flame3dController, JsFlame3dGame, createFlame3dHost;
 export 'src/renderer/nodes/hosts/js_3d_capture_sync.dart' show Js3dCaptureSync;
 export 'src/renderer/nodes/js_3d_host.dart'
-    show Js3dHost, Js3dController, Js3dCommand;
+    show
+        Js3dHost,
+        Js3dController,
+        Js3dCommand,
+        Js3dControllerRegistry,
+        RefCountedJs3dController;
 export 'src/renderer/nodes/js_scene3d_mesh_node.dart'
     show
         JsScene3dMeshNode,

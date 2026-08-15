@@ -16,9 +16,9 @@ class JsonWidgetTheme {
     return JsonWidgetTheme(
       primary: accent,
       divider: isDark ? Colors.white24 : Colors.black12,
-      surface: isDark ? const Color(0xFF1e293b) : Colors.white,
-      text: isDark ? const Color(0xFFf1f5f9) : Colors.black87,
-      muted: isDark ? const Color(0xFF64748b) : Colors.black54,
+      surface: isDark ? _darkSurface : Colors.white,
+      text: isDark ? _darkText : Colors.black87,
+      muted: isDark ? _darkMuted : Colors.black54,
     );
   }
 
@@ -60,3 +60,8 @@ InputDecoration appInputDecoration({
     fillColor: colorScheme.surfaceContainerHighest.withValues(alpha: 0.3),
   );
 }
+
+/// Dark-mode theme swatches (slate palette).
+const _darkSurface = Color(0xFF1e293b);
+const _darkText = Color(0xFFf1f5f9);
+const _darkMuted = Color(0xFF64748b);

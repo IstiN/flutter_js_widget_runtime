@@ -105,8 +105,33 @@ extension on JsonWidgetRenderer {
   );
 
   Widget _container(Map<String, dynamic> m) {
+    Widget child = _buildBox(Container.new, m);
+    if (m['clip'] == true) {
+      final radius = _containerBorderRadius(_containerDecoration(m), m['borderRadius']);
+      if (radius != null) {
+        child = ClipRRect(borderRadius: radius, child: child);
+      }
+    }
+    return child;
+  }
+
+  /// Builds a [Container] or [AnimatedContainer] from the shared box props
+  /// (`width/height/padding/margin/alignment/decoration/transform/child`).
+  Widget _buildBox(
+    Widget Function({
+      double? width,
+      double? height,
+      EdgeInsetsGeometry? padding,
+      EdgeInsetsGeometry? margin,
+      Alignment? alignment,
+      Decoration? decoration,
+      Matrix4? transform,
+      Widget? child,
+    }) ctor,
+    Map<String, dynamic> m,
+  ) {
     final p = _containerProps(m);
-    Widget child = Container(
+    return ctor(
       width: p.width,
       height: p.height,
       padding: p.padding,
@@ -116,13 +141,6 @@ extension on JsonWidgetRenderer {
       transform: _matrix4(m['transform']),
       child: p.child,
     );
-    if (m['clip'] == true) {
-      final radius = _containerBorderRadius(p.decoration, m['borderRadius']);
-      if (radius != null) {
-        child = ClipRRect(borderRadius: radius, child: child);
-      }
-    }
-    return child;
   }
 
   BorderRadius? _containerBorderRadius(
@@ -290,43 +308,4 @@ extension on JsonWidgetRenderer {
     'spaceEvenly' => WrapAlignment.spaceEvenly,
     _ => WrapAlignment.start,
   };
-
-  // ── Animated widgets ──────────────────────────────────────────────────────
-
-  Widget _animatedContainer(Map<String, dynamic> m) {
-    final p = _containerProps(m);
-    return AnimatedContainer(
-      duration: Duration(milliseconds: _int(m['duration'], 300)),
-      curve: _curve(m['curve'] as String?),
-      width: p.width,
-      height: p.height,
-      padding: p.padding,
-      margin: p.margin,
-      alignment: p.alignment,
-      decoration: p.decoration,
-      transform: _matrix4(m['transform']),
-      child: p.child,
-    );
-  }
-
-  Widget _animatedOpacity(Map<String, dynamic> m) => AnimatedOpacity(
-    duration: Duration(milliseconds: _int(m['duration'], 300)),
-    curve: _curve(m['curve'] as String?),
-    opacity: _double(m['opacity'], 1.0),
-    child: _child(m) ?? const SizedBox.shrink(),
-  );
-
-  Widget _animatedPositioned(Map<String, dynamic> m) => AnimatedPositioned(
-    duration: Duration(milliseconds: _int(m['duration'], 300)),
-    curve: _curve(m['curve'] as String?),
-    left: _doubleOrNull(m['left']),
-    top: _doubleOrNull(m['top']),
-    right: _doubleOrNull(m['right']),
-    bottom: _doubleOrNull(m['bottom']),
-    width: _doubleOrNull(m['width']),
-    height: _doubleOrNull(m['height']),
-    child: _child(m) ?? const SizedBox.shrink(),
-  );
-
-  Curve _curve(String? v) => jsCurve(v);
 }

@@ -23,37 +23,25 @@ Js3dHost createCube3dHost() => Cube3dHost.instance;
 /// must mutate the same scene, this host caches controllers by [sceneId] and
 /// returns the same instance to both the JS bridge and the widget renderer.
 /// {@endtemplate}
-class Cube3dHost extends Js3dHost {
+class Cube3dHost extends Js3dHost
+    with Js3dControllerRegistry<Cube3dController> {
   Cube3dHost._();
 
   /// Singleton instance shared by the JS bridge and the widget renderer.
   static final Cube3dHost instance = Cube3dHost._();
-
-  final Map<String, Cube3dController> _controllers = {};
 
   @override
   Js3dController createController(
     String sceneId,
     Map<String, dynamic> config,
   ) {
-    final existing = _controllers[sceneId];
-    if (existing != null && !existing._disposed) {
-      existing._addRef();
-      return existing;
-    }
+    final existing = retainController(sceneId);
+    if (existing != null) return existing;
     final controller = Cube3dController._(sceneId, config);
-    _controllers[sceneId] = controller;
+    registerController(controller);
     return controller;
   }
 
-  bool _release(Cube3dController controller) {
-    if (controller._releaseRef() == 0) {
-      _controllers.remove(controller.sceneId);
-      controller._disposeInternal();
-      return true;
-    }
-    return false;
-  }
 
   @override
   Widget build(
@@ -78,7 +66,7 @@ class Cube3dHost extends Js3dHost {
 /// Exposed as public only for unit testing; the host returns it through the
 /// abstract [Js3dController] interface.
 /// {@endtemplate}
-class Cube3dController extends Js3dController {
+class Cube3dController extends RefCountedJs3dController {
   Cube3dController._(this.sceneId, this.config);
 
   final String sceneId;
@@ -90,10 +78,9 @@ class Cube3dController extends Js3dController {
   final Map<String, _Animation> _animations = {};
   Timer? _animationTimer;
   bool _disposed = false;
-  int _refCount = 1;
 
-  void _addRef() => _refCount++;
-  int _releaseRef() => --_refCount;
+  @override
+  bool get isDisposedCtrl => _disposed;
 
   /// Test helpers exposing internal controller state.
   @visibleForTesting
@@ -296,13 +283,15 @@ class Cube3dController extends Js3dController {
 
   @override
   void dispose() {
-    final lastReference = Cube3dHost.instance._release(this);
+    final lastReference = Cube3dHost.instance.releaseController(this);
     if (lastReference) {
       super.dispose();
+      disposeInternal();
     }
   }
 
-  void _disposeInternal() {
+  @override
+  void disposeInternal() {
     _disposed = true;
     _animationTimer?.cancel();
   }
@@ -484,9 +473,9 @@ void _torusIndices(
 cube.Mesh _cityMesh({int grid = 6, double cell = 0.35, double gap = 0.12}) {
   // Deterministic pseudo-random heights so the city looks the same every run.
   double hash(int x, int z) {
-    var v = (x * 374761393 + z * 668265263).toDouble().abs();
-    v = (v * (v * v * 1274126177 % 0x7fffffff)) % 0x7fffffff;
-    return v / 0x7fffffff;
+    var v = (x * _hashSeedA + z * _hashSeedB).toDouble().abs();
+    v = (v * (v * v * _hashSeedC % _hashMask) % _hashMask);
+    return v / _hashMask;
   }
 
   final vertices = <Vector3>[];
@@ -586,3 +575,9 @@ class _MidKey {
   @override
   int get hashCode => Object.hash(a, b);
 }
+
+/// Deterministic city-hash seeds (large primes) and the int mask.
+const _hashSeedA = 374761393;
+const _hashSeedB = 668265263;
+const _hashSeedC = 1274126177;
+const _hashMask = 0x7fffffff;
