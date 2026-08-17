@@ -180,24 +180,43 @@ Widget _host(Map<String, dynamic>? tree) => MaterialApp(
 /// engine's timers and `run` would never complete.
 final Map<String, Map<String, dynamic>?> _trees = {};
 
-/// Golden comparison tolerant to sub-pixel platform differences: font
+/// Golden comparator tolerant to sub-pixel platform differences: font
 /// rasterization (macOS CoreText vs Linux FreeType) produces slightly
-/// different anti-aliasing — well under 0.5% of pixels but enough to fail
-/// the strict byte comparison. Larger diffs are real regressions and fail.
-Future<void> _expectGoldenTolerant(Finder finder, Uri golden,
-    {double tolerance = 0.005}) async {
-  await expectLater(finder, matchesGoldenFile(golden)).then(
-    (_) {},
-    onError: (Object e) {
-      final msg = e.toString();
-      final m = RegExp(r'([\d.]+)%').firstMatch(msg);
-      if (m != null && double.parse(m.group(1)!) / 100 <= tolerance) return;
-      throw e;
-    },
-  );
+/// different anti-aliasing — typically under 0.5% of pixels, but enough to
+/// fail the strict comparison. Diffs above [tolerance] are real
+/// regressions and still fail.
+class TolerantGoldenComparator extends LocalFileComparator {
+  TolerantGoldenComparator(super.testFile, {this.tolerance = 0.005});
+
+  /// Max fraction of differing pixels (from ComparisonResult.diffPercent).
+  final double tolerance;
+
+  @override
+  Future<bool> compare(Uint8List imageBytes, Uri golden) async {
+    final result = await GoldenFileComparator.compareLists(
+      imageBytes,
+      await getGoldenBytes(golden),
+    );
+    if (result.passed) {
+      result.dispose();
+      return true;
+    }
+    final withinTolerance = result.diffPercent / 100 <= tolerance;
+    result.dispose();
+    if (withinTolerance) return true;
+    return super.compare(imageBytes, golden);
+  }
 }
 
 void main() {
+  // Tolerant goldens: font anti-aliasing differs per platform (CoreText vs
+  // FreeType). Construct from the default comparator's basedir (a directory
+  // URI) so golden paths keep resolving relative to this test file.
+  final basedir = (goldenFileComparator as LocalFileComparator).basedir;
+  goldenFileComparator = TolerantGoldenComparator(
+    basedir.resolve('goldens_test_file.dart'),
+  );
+
   setUpAll(() async {
     if (_hasNativeLib) {
       for (final e in _widgetFiles.entries) {
@@ -235,9 +254,9 @@ void main() {
       // animations and timers, and goldens must stay deterministic.
       await tester.pump(const Duration(milliseconds: 16));
 
-      await _expectGoldenTolerant(
+      await expectLater(
         find.byType(MaterialApp),
-        Uri.parse('goldens/${entry.key}.png'),
+        matchesGoldenFile('goldens/${entry.key}.png'),
       );
     });
   }
