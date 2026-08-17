@@ -6,9 +6,21 @@ A Flutter package that runs JavaScript widgets and renders them as native Flutte
 
 - **VM/desktop/mobile**: uses [`flutter_js`](https://pub.dev/packages/flutter_js) (QuickJS / JavaScriptCore).
 - **Web**: uses a dedicated `web.Worker` spawned from an inline Blob URL.
-- **Opt-in QuickJS FFI backend** (VM only): swap `flutter_js` for the vendored QuickJS runtime to get fully synchronous host calls — build the native library with `./tool/build_quickjs.sh`, then pass `QuickjsWidgetEngineBackend` via `JsRuntimeConfig.backend`.
+- **Opt-in QuickJS FFI backend** (VM only): swap `flutter_js` for the [quickjs_runtime](https://pub.dev/packages/quickjs_runtime) package to get fully synchronous host calls — build the native library with `bash <quickjs_runtime>/tool/build_quickjs.sh`, then pass `QuickjsWidgetEngineBackend` via `JsRuntimeConfig.backend`.
 
 The JS side communicates with Flutter through a declarative JSON UI tree and a small async bridge (`render`, `fetchJson`, `exec`, `storage`, `secrets`, timers, `requestAnimationFrame`, etc.).
+
+## Example widgets
+
+Real JavaScript, rendered by this package and captured by [golden tests](test/golden/js_widget_golden_test.dart) — the images below are generated straight from those test runs. Live, interactive versions ship in the [example app](example/).
+
+| | |
+|---|---|
+| ![yolo-hello](doc/widgets/yolo-hello.png) | ![calculator](doc/widgets/calculator.png) |
+| ![weather](doc/widgets/weather.png) | ![stocks](doc/widgets/stocks.png) |
+| ![crypto](doc/widgets/crypto.png) | ![animation-showcase](doc/widgets/animation-showcase.png) |
+
+yolo-hello (animated gradient + bounce) · calculator (full keyboard logic in JS) · weather (wttr.in fetch) · stocks (live quotes) · crypto (price tickers) · animation-showcase (entrance/switcher effects)
 
 ## Quick start
 
