@@ -74,12 +74,70 @@ class Flame3dHost extends Js3dHost
   ) {
     final c = controller as Flame3dController;
     // Declarative configs (the yoclip video pipeline re-renders the whole
-    // node tree every frame) are applied here; only diffs take effect.
-    c.sceneSync._applyConfig(config);
-    return _Flame3dGameWidget(
-      key: ValueKey(c.sceneId),
-      controller: c,
-    );
+    // node tree every frame) are applied *after* the current frame lays out,
+    // not inside build — running addModel / setTransform / playAnimation
+    // while the Flame [GameWidget] is still being built trips the
+    // `game.hasLayout` assertion on the very next seek when the render object
+    // is being reattached.
+    return _Flame3dDeclarativeNode(controller: c, config: config);
+  }
+}
+
+/// Applies the declarative config after the current frame, isolating game
+/// mutations from the build pass.
+class _Flame3dDeclarativeNode extends StatefulWidget {
+  const _Flame3dDeclarativeNode({required this.controller, required this.config});
+
+  final Flame3dController controller;
+  final Map<String, dynamic> config;
+
+  @override
+  State<_Flame3dDeclarativeNode> createState() => _Flame3dDeclarativeNodeState();
+}
+
+class _Flame3dDeclarativeNodeState extends State<_Flame3dDeclarativeNode> {
+  @override
+  void initState() {
+    super.initState();
+    widget.controller.addListener(_onChanged);
+    _apply();
+  }
+
+  @override
+  void didUpdateWidget(covariant _Flame3dDeclarativeNode oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (!identical(oldWidget.controller, widget.controller)) {
+      oldWidget.controller.removeListener(_onChanged);
+      widget.controller.addListener(_onChanged);
+    }
+    if (oldWidget.config != widget.config) _apply();
+  }
+
+  @override
+  void dispose() {
+    widget.controller.removeListener(_onChanged);
+    super.dispose();
+  }
+
+  void _onChanged() {
+    if (mounted) setState(() {});
+  }
+
+  void _apply() {
+    // Defer until after the current frame's build/layout/paint so the
+    // underlying [GameWidget] is laid out and ready to receive mutations
+    // (flame's `game.hasLayout` assertion fires otherwise).
+    final config = widget.config;
+    if (config.isEmpty) return;
+    final controller = widget.controller;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) controller.sceneSync._applyConfig(config);
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return _Flame3dGameWidget(controller: widget.controller);
   }
 }
 

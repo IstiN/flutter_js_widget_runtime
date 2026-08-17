@@ -2,6 +2,7 @@
 library;
 
 import 'dart:async';
+
 import 'dart:io';
 
 import 'package:flutter/material.dart';
@@ -208,6 +209,17 @@ class TolerantGoldenComparator extends LocalFileComparator {
   }
 }
 
+/// Registers a font committed under test/golden/ for deterministic
+/// cross-platform glyph rendering.
+Future<void> _loadCommittedFont(String path, String family) async {
+  final file = File(path);
+  if (!file.existsSync()) return;
+  final bytes = await file.readAsBytes();
+  final loader = FontLoader(family)
+    ..addFont(Future.value(ByteData.view(bytes.buffer)));
+  await loader.load();
+}
+
 void main() {
   // Tolerant goldens: font anti-aliasing differs per platform (CoreText vs
   // FreeType). Construct from the default comparator's basedir (a directory
@@ -236,7 +248,27 @@ void main() {
     final loader = FontLoader('Roboto')
       ..addFont(Future.value(ByteData.view(bytes.buffer)));
     await loader.load();
+    // MaterialIcons: without it every Icon renders the broken-image
+    // placeholder (box with an X) in tests — the icon font is not part of
+    // the default test environment.
+    final icons = File(
+      '$root/bin/cache/artifacts/material_fonts/MaterialIcons-Regular.otf',
+    );
+    if (!icons.existsSync()) return;
+    final iconBytes = await icons.readAsBytes();
+    final iconLoader = FontLoader('MaterialIcons')
+      ..addFont(Future.value(ByteData.view(iconBytes.buffer)));
+    await iconLoader.load();
+    // Emoji: widgets render emoji in text nodes; NotoEmoji (monochrome,
+    // committed under test/golden/) keeps the glyphs identical on every
+    // platform — color emoji fonts differ between macOS and Linux and
+    // would break the goldens.
+    await _loadCommittedFont('test/golden/NotoEmoji-Regular.ttf', 'NotoEmoji');
+    // U+232B (backspace) & friends live in the symbols block, not emoji.
+    await _loadCommittedFont(
+      'test/golden/NotoSansSymbols2-Regular.ttf', 'NotoSansSymbols2');
   });
+
 
   for (final entry in _widgetFiles.entries) {
     testWidgets('example widget ${entry.key} renders its first frame',
