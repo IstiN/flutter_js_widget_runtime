@@ -201,18 +201,19 @@ extension on JsonWidgetRenderer {
         m['data'] as String? ??
         '';
     final icon = m['icon'] as String?;
+    final labelStyle = TextStyle(fontFamilyFallback: _emojiFallback);
     if (icon != null && text.isNotEmpty) {
       return Row(
         mainAxisSize: MainAxisSize.min,
         children: [
           Icon(_iconData(icon), size: 16),
           const SizedBox(width: 6),
-          Text(text),
+          Text(text, style: labelStyle),
         ],
       );
     }
     if (icon != null) return Icon(_iconData(icon));
-    return Text(text);
+    return Text(text, style: labelStyle);
   }
 
   Widget _textFieldNode(Map<String, dynamic> m) =>

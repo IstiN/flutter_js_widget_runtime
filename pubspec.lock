@@ -92,12 +92,11 @@ packages:
   crap4dart:
     dependency: "direct dev"
     description:
-      path: "."
-      ref: "80712060c8"
-      resolved-ref: "80712060c8a4d937c9fb61300c6d28b802e85d02"
-      url: "https://github.com/IstiN/crap4dart"
-    source: git
-    version: "0.8.5"
+      name: crap4dart
+      sha256: e09469dd9099b82460fcec422d13048f7393cc3b8b628672502d419743732943
+      url: "https://pub.dev"
+    source: hosted
+    version: "0.9.1"
   crypto:
     dependency: transitive
     description:

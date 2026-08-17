@@ -3,6 +3,16 @@ part of '../json_widget_renderer.dart';
 /// Text and display node builders for [JsonWidgetRenderer]: text,
 /// markdown, icons, chips, badges, list tiles, progress indicators, and
 /// the built-in sparkline/bar chart painters.
+
+/// Emoji/system-symbol font families tried when the primary family lacks a
+/// glyph (registered by hosts and the golden tests).
+const _emojiFallback = [
+  'NotoEmoji',
+  'NotoSansSymbols2',
+  'Apple Color Emoji',
+  'Segoe UI Emoji',
+];
+
 extension on JsonWidgetRenderer {
   // ── Display ───────────────────────────────────────────────────────────────
 
@@ -21,7 +31,7 @@ extension on JsonWidgetRenderer {
     if (textTransform == 'lowercase') data = data.toLowerCase();
     Widget textWidget = Text(
       data,
-      style: style,
+      style: style ?? const TextStyle(fontFamilyFallback: _emojiFallback),
       textAlign: align,
       maxLines: maxLines,
       overflow: overflow,
@@ -58,7 +68,13 @@ extension on JsonWidgetRenderer {
     final color = _color(m['color'] as String?);
     // Emoji / unicode strings pass through as Text
     if (name.runes.any((r) => r > 127)) {
-      return Text(name, style: TextStyle(fontSize: size));
+      return Text(
+        name,
+        style: TextStyle(
+          fontSize: size,
+          fontFamilyFallback: _emojiFallback,
+        ),
+      );
     }
     return Icon(_iconData(name), size: size, color: color);
   }
@@ -182,6 +198,10 @@ extension on JsonWidgetRenderer {
       fontWeight: _fontWeight(style['fontWeight']),
       fontStyle: isItalic ? FontStyle.italic : null,
       fontFamily: style['fontFamily'] as String?,
+      // Emoji and other glyphs missing from the primary family fall back to
+      // NotoEmoji (registered by hosts/tests) and then the platform's
+      // default emoji font.
+      fontFamilyFallback: _emojiFallback,
       letterSpacing: _doubleOrNull(style['letterSpacing']),
       height:
           _doubleOrNull(style['height']) ?? _doubleOrNull(style['lineHeight']),
