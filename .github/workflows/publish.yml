@@ -38,8 +38,23 @@ jobs:
       - name: Install dependencies
         run: flutter pub get
 
+      - name: Install gcc
+        run: sudo apt-get update -qq && sudo apt-get install -y -qq gcc
+
+      - name: Build QuickJS native library
+        run: |
+          QUICKJS_DIR=$(python3 -c "
+          import json
+          cfg = json.load(open('.dart_tool/package_config.json'))
+          for p in cfg['packages']:
+              if p['name'] == 'quickjs_runtime':
+                  print(p['rootUri'].replace('file://','')); break
+          ")
+          echo "quickjs_runtime at: $QUICKJS_DIR"
+          bash "$QUICKJS_DIR/tool/build_quickjs.sh"
+
       - name: Run tests
-        run: flutter test
+        run: flutter test --no-pub
 
       - name: Configure Git
         run: |
