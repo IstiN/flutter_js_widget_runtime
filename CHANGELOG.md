@@ -1,6 +1,13 @@
 ## 0.4.70
 
-- Automated patch bump.
+- fix(engine): SIGSEGV on widget dispose — native runtime release moved from
+  `scheduleMicrotask` (same event-loop turn) to `Future.delayed(Duration.zero)`
+  (next turn), with a final `executePendingJob()` drain before the release.
+  flutter_js resolves promise bridges via microtasks (`future.then` →
+  `evaluate`), so a microtask-scheduled release could free the JSContextGroup
+  while a sibling microtask was still about to evaluate into it, crashing in
+  `JSValueToStringCopy` with a dead `JSC::VM`. Applies to both `dispose()` and
+  the old-runtime release path in `run()`.
 
 ## 0.4.69
 
