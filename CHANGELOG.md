@@ -1,3 +1,7 @@
+## 0.4.71
+
+- Automated patch bump.
+
 ## 0.4.70
 
 - fix(engine): SIGSEGV on widget dispose — native runtime release moved from
