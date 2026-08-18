@@ -32,6 +32,7 @@ part 'json_widget_decoration.dart';
 part 'nodes/js_input_nodes.dart';
 part 'nodes/js_animated_nodes.dart';
 part 'nodes/js_layout_nodes.dart';
+part 'nodes/js_m3_nodes.dart';
 part 'nodes/js_text_nodes.dart';
 
 final _jsonWidgetDefaultColors = JsonWidgetTheme.fromAccent(Colors.deepPurple);
@@ -47,6 +48,8 @@ final _jsonWidgetDefaultColors = JsonWidgetTheme.fromAccent(Colors.deepPurple);
 /// List:     listView, gridView, listTile
 /// Input:    button, textButton, outlinedButton, iconButton, textField,
 ///           textArea, switch, checkbox, slider, dropdown
+/// M3:       appBar, navigationBar, tabBar, fab, segmentedButton, radio,
+///           searchBar, tooltip, popupMenu, banner, bottomAppBar
 /// Map:      map (OSM tiles via flutter_map, markers, polylines)
 /// Animation: animatedContainer/animatedOpacity/animatedPositioned (implicit),
 ///           entrance (one-shot mount animation, staggered via `delay`),
@@ -215,6 +218,18 @@ class JsonWidgetRenderer with JsonWidgetDecoration {
       'textButton' => _textButton(m),
       'outlinedButton' => _outlinedButton(m),
       'iconButton' => _iconButton(m),
+      // Material 3 nodes
+      'appBar' => _appBarNode(m),
+      'navigationBar' => _navigationBarNode(m),
+      'tabBar' => _tabBarNode(m),
+      'fab' => _fabNode(m),
+      'segmentedButton' => _segmentedButtonNode(m),
+      'radio' => _radioNode(m),
+      'searchBar' => _searchBarNode(m),
+      'tooltip' => _tooltipNode(m),
+      'popupMenu' => _popupMenuNode(m),
+      'banner' => _bannerNode(m),
+      'bottomAppBar' => _bottomAppBarNode(m),
       'image' => _image(m),
       'svg' => _svg(m),
       'aspectRatio' => _aspectRatio(m),

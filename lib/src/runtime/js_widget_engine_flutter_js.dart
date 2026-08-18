@@ -108,7 +108,9 @@ class FlutterJsWidgetEngineBackend implements JsWidgetEngineBackend {
       // every render tree with it. On macOS (JSC), sendMessage is process-
       // global — render from engine A can arrive at engine B's bridge.
       // The __iid tag lets the Dart side filter cross-engine render leaks.
-      runtime.evaluate('var __IID="${_config.instanceId ?? _config.widgetId}";');
+      runtime.evaluate(
+        'var __IID="${_config.instanceId ?? _config.widgetId}";',
+      );
       final bootstrapResult = runtime.evaluate(kJsWidgetBootstrap);
       if (bootstrapResult.isError) {
         debugPrint(
@@ -146,11 +148,7 @@ class FlutterJsWidgetEngineBackend implements JsWidgetEngineBackend {
     } finally {
       // Now that the new runtime is fully initialized, release the old one.
       if (oldRuntime != null) {
-        scheduleMicrotask(() {
-          try {
-            oldRuntime.dispose();
-          } catch (_) {}
-        });
+        _scheduleNativeRelease(oldRuntime);
       }
     }
   }
@@ -214,12 +212,31 @@ class FlutterJsWidgetEngineBackend implements JsWidgetEngineBackend {
       // Deferred release: if dispose() is called from within a native JSC
       // callback (e.g. bridge channel → dispatch → dispose chain), releasing
       // synchronously frees the JSContextGroup out from under the callback.
-      scheduleMicrotask(() {
-        try {
-          rt.dispose();
-        } catch (_) {}
-      });
+      _scheduleNativeRelease(rt);
     }
+  }
+
+  /// Releases the native runtime on the NEXT event-loop turn, after every
+  /// pending microtask has drained.
+  ///
+  /// `scheduleMicrotask` runs in the SAME loop turn — promise-resolve
+  /// callbacks queued by flutter_js (`future.then` → `evaluate(...)`) are
+  /// also microtasks, so a microtask release could free the JSContextGroup
+  /// while a sibling microtask was about to evaluate into it, crashing in
+  /// `JSValueToStringCopy` with a dead `JSC::VM` (SIGSEGV seen in the wild
+  /// on widget dispose). A timer event (`Future.delayed(Duration.zero)`)
+  /// runs strictly after the microtask queue is empty, and the final
+  /// `executePendingJob()` drain flushes any remaining JSC job queue before
+  /// the release.
+  void _scheduleNativeRelease(JavascriptRuntime rt) {
+    Future<void>.delayed(Duration.zero, () {
+      try {
+        rt.executePendingJob();
+      } catch (_) {}
+      try {
+        rt.dispose();
+      } catch (_) {}
+    });
   }
 
   // ── Private ──────────────────────────────────────────────────────────────
@@ -283,7 +300,9 @@ class FlutterJsWidgetEngineBackend implements JsWidgetEngineBackend {
     for (final channel in _bridgeChannels) {
       rt.setupBridge(channel, (args) {
         if (!_isLive(rt)) {
-          debugPrint('[WidgetEvent] bridge SKIP channel=$channel not live rt=${rt.hashCode} _runtime=${_runtime?.hashCode}');
+          debugPrint(
+            '[WidgetEvent] bridge SKIP channel=$channel not live rt=${rt.hashCode} _runtime=${_runtime?.hashCode}',
+          );
           return;
         }
         unawaited(_bridge.dispatch(channel, args));

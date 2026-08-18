@@ -14,6 +14,23 @@ example/widgets/my-widget/
   widget.js
 ```
 
+### Multiple JS files
+
+Widgets can be split into modules using familiar ES-module syntax — no
+manifest `files` list needed:
+
+```javascript
+import './helpers.js';
+import { formatMoney } from './lib/money.js';
+```
+
+The loader inlines relative `import` statements (and `export` keywords are
+stripped from inlined files) before eval, resolving `../` against the
+importing file. Each file is inlined once, in source order. `jsr.include('path')`
+does the same inline for one-off string-style includes. Bare/package
+imports (`import 'lodash'`) are NOT supported — there is no runtime module
+system or bundler; everything is concatenated into one shared scope.
+
 ## manifest.json
 
 ```json
@@ -84,7 +101,7 @@ example/widgets/my-widget/
 
 ## Important Rules
 
-1. **ES5-compatible IIFE**. No modules, no arrow functions, no `const`/`let`, no async/await syntax (use Promise chains).
+1. **ES5-compatible IIFE**. No arrow functions, no `const`/`let`, no async/await syntax (use Promise chains). Relative `import`/`export` statements ARE allowed — they are inlined at load time (see "Multiple JS files"); runtime module features (dynamic `import()`, bare package specifiers) are not.
 2. Always wrap widget code in `(function() { ... })();`.
 3. Register events with `jsr.onEvent(handleEvent)` before the first `render()`.
 4. `jsr.render(tree)` accepts a JSON UI tree. See supported types below.
@@ -100,6 +117,7 @@ The renderer in `lib/src/renderer/json_widget_renderer.dart` supports types such
 
 - Layout: `column`, `row`, `stack`, `wrap`, `expanded`, `flexible`, `padding`, `sizedBox`, `center`, `align`, `safeArea`, `scroll`, `listView`, `gridView`, `aspectRatio`, `opacity`, `clipRRect`, `animatedContainer`, `animatedOpacity`, `animatedPositioned`
 - Material: `text`, `button`, `textButton`, `outlinedButton`, `elevatedButton`, `iconButton`, `chip`, `card`, `listTile`, `badge`, `circleAvatar`, `linearProgressIndicator`, `circularProgressIndicator`, `divider`, `spacer`
+- Material 3: `appBar` ({title, leading, actions}), `navigationBar` ({destinations, selectedIndex, onChanged}), `tabBar` ({tabs, children}), `fab` ({icon, label, onTap, mini}), `segmentedButton` ({segments, selected, multiSelect, onChanged}), `radio` ({value, groupValue, label, onChanged}), `searchBar` ({hint, onChanged, onSubmitted}), `tooltip` ({message, child}), `popupMenu` ({items, icon, onSelected}), `banner` ({message, icon, actions}), `bottomAppBar` ({children, color, height})
 - Input: `textField`, `switch`, `checkbox`, `slider`, `dropdown`
 - Media: `image`, `svg`, `markdown`
 - 3D: `scene3d` (host-provided engine; see `jsr.scene3d` API below)
@@ -115,6 +133,7 @@ For exact props, read `lib/src/renderer/json_widget_renderer.dart` and the norma
 - `slider` `onChanged` → payload `{ value: 0.5 }`.
 - `switch`, `checkbox` `onChanged` → payload `{ value: true }`.
 - `dropdown` `onChanged` → payload `{ value: 'selected' }`.
+- `navigationBar` `onChanged` → `{ value: <index> }`; `segmentedButton` → `{ value: 'a' }` or `{ value: ['a','b'] }` in multiSelect; `radio` → `{ value: <value> }`; `popupMenu` `onSelected` → `{ value: <value> }`; `searchBar` `onChanged`/`onSubmitted` → `{ value: 'text' }`.
 - `gestureDetector` `onPanUpdate` → payload `{ dx, dy }`; `onPanStart`/`onPanEnd` → `{}`.
 
 ## Testing Widgets
