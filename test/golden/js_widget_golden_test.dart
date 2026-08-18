@@ -59,62 +59,53 @@ const _weatherFixture = {
   ],
 };
 
-/// Fixed quotes payload shaped like the stocks widget's API.
-const _stocksFixture = {
-  'quoteResponse': {
-    'result': [
-      {
-        'symbol': 'AAPL',
-        'shortName': 'Apple Inc.',
-        'regularMarketPrice': 189.92,
-        'regularMarketChangePercent': 1.24,
-      },
-      {
-        'symbol': 'GOOGL',
-        'shortName': 'Alphabet Inc.',
-        'regularMarketPrice': 141.48,
-        'regularMarketChangePercent': -0.52,
-      },
-      {
-        'symbol': 'TSLA',
-        'shortName': 'Tesla Inc.',
-        'regularMarketPrice': 248.5,
-        'regularMarketChangePercent': 2.87,
-      },
-    ],
-  },
+/// Fixed quotes payload shaped like the Yahoo v8 chart API the stocks
+/// widget consumes (one fetch per symbol, resolved by URL).
+const _stocksQuotes = {
+  'AAPL': 189.92,
+  'MSFT': 412.3,
+  'GOOGL': 141.48,
+  'NVDA': 871.2,
+  'TSLA': 248.5,
 };
 
-/// Fixed coins payload shaped like the crypto widget's API.
-const _cryptoFixture = {
-  'data': [
-    {
-      'name': 'Bitcoin',
-      'symbol': 'BTC',
-      'priceUsd': 43250.6,
-      'changePercent24Hr': 2.1,
-    },
-    {
-      'name': 'Ethereum',
-      'symbol': 'ETH',
-      'priceUsd': 2245.3,
-      'changePercent24Hr': -1.2,
-    },
-    {
-      'name': 'Solana',
-      'symbol': 'SOL',
-      'priceUsd': 98.4,
-      'changePercent24Hr': 4.5,
-    },
-  ],
+/// Fixed prices shaped like the CoinGecko simple/price API the crypto
+/// widget consumes (map keyed by coin id).
+const _cryptoPrices = {
+  'bitcoin': {'usd': 43250.6, 'usd_24h_change': 2.1},
+  'ethereum': {'usd': 2245.3, 'usd_24h_change': -1.2},
+  'solana': {'usd': 98.4, 'usd_24h_change': 4.5},
+  'binancecoin': {'usd': 305.1, 'usd_24h_change': 0.8},
 };
 
-dynamic _fixtureFor(String widget) => switch (widget) {
-      'weather' => _weatherFixture,
-      'stocks' => _stocksFixture,
-      'crypto' => _cryptoFixture,
-      _ => null,
-};
+/// Resolves the fixture payload for a fetch of [url] from [widget]; null
+/// when the widget does not fetch anything golden-relevant.
+dynamic _fixtureFor(String widget, String url) {
+  switch (widget) {
+    case 'weather':
+      return _weatherFixture;
+    case 'stocks':
+      final sym = RegExp(r'chart/([A-Z.]+)').firstMatch(url)?.group(1);
+      final price = _stocksQuotes[sym];
+      if (price == null) return null;
+      return {
+        'chart': {
+          'result': [
+            {
+              'meta': {
+                'regularMarketPrice': price,
+                'chartPreviousClose': price * 0.99,
+                'longName': sym,
+              },
+            },
+          ],
+        },
+      };
+    case 'crypto':
+      return _cryptoPrices;
+  }
+  return null;
+}
 
 /// Runs [widgetJs] once and returns the tree of the render call that
 /// follows data arrival: for fetching widgets that is the populated UI; for
@@ -137,10 +128,10 @@ Future<Map<String, dynamic>?> _renderedTreeAfterData(
       onSetTitle: (_) {},
       onStorageUpdate: (_) {},
       onResolveReady: (fn) => resolve = fn,
-      fetchHandler: _fixtureFor(widgetId) == null
-          ? null
-          : (id, url, method, headers) async =>
-                resolve(id, _fixtureFor(widgetId)),
+      fetchHandler: (id, url, method, headers) async {
+        final payload = _fixtureFor(widgetId, url);
+        if (payload != null) resolve(id, payload);
+      },
     ),
   );
   await backend.init();
@@ -155,7 +146,8 @@ Future<Map<String, dynamic>?> _renderedTreeAfterData(
   // stop as soon as we have the post-data frame.
   for (var i = 0; i < 50; i++) {
     await Future<void>.delayed(const Duration(milliseconds: 10));
-    final enough = _fixtureFor(widgetId) == null ? renders.isNotEmpty : renders.length >= 2;
+    final isFetching = const ['weather', 'stocks', 'crypto'].contains(widgetId);
+    final enough = !isFetching ? renders.isNotEmpty : renders.length >= 2;
     if (enough) break;
   }
   // The RAF/timer loop may keep the eval pending; dispose regardless.
