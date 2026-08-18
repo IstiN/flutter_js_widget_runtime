@@ -1,8 +1,13 @@
 # js_widget_runtime
 
-A Flutter package that runs JavaScript widgets and renders them as native Flutter UI.
-
+[![CI](https://github.com/IstiN/flutter_js_widget_runtime/actions/workflows/pr.yml/badge.svg)](https://github.com/IstiN/flutter_js_widget_runtime/actions/workflows/pr.yml)
+[![pub package](https://img.shields.io/pub/v/js_widget_runtime.svg)](https://pub.dev/packages/js_widget_runtime)
+[![pub points](https://img.shields.io/pub/points/js_widget_runtime)](https://pub.dev/packages/js_widget_runtime/score)
+[![platforms](https://img.shields.io/badge/platforms-android%20%7C%20ios%20%7C%20macos%20%7C%20web-brightgreen)](https://pub.dev/packages/js_widget_runtime)
+[![coverage ≥ 85%](https://img.shields.io/badge/coverage-%E2%89%A5%2085%25-brightgreen)](scripts/compute_coverage.py)
 ![CRAP](badges/crap.svg)
+
+A Flutter package that runs JavaScript widgets and renders them as native Flutter UI.
 
 - **VM/desktop/mobile**: uses [`flutter_js`](https://pub.dev/packages/flutter_js) (QuickJS / JavaScriptCore).
 - **Web**: uses a dedicated `web.Worker` spawned from an inline Blob URL.
@@ -28,6 +33,10 @@ Real JavaScript, rendered by this package and captured by [golden tests](test/go
 yolo-hello (animated gradient + bounce) · calculator (full keyboard logic in JS) · weather (wttr.in fetch) · stocks (live quotes) · crypto (price tickers) · map (OpenStreetMap landmarks) · animation-showcase (menu + per-scene captures from the interactive golden: fade / morph / bounce / cards / drag / pulse / colors) · 3d-showcase (procedural primitives, flutter_cube) · 3d-game-dodge (dodge-the-blocks game) · 3d-glb-showcase (GLB model with PBR) · fitness-trainer (skeletal-coach workout, flame_3d) · m3-showcase (Material 3 nodes: appBar, banner, searchBar, segmentedButton, radio, tabBar, fab, popupMenu, navigationBar — extra state frames under doc/widgets/m3-*.png)
 
 ## Quick start
+
+```sh
+flutter pub add js_widget_runtime
+```
 
 ```dart
 import 'package:flutter/material.dart';
