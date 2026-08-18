@@ -56,6 +56,7 @@ Core methods:
 - `jsr.secrets.get(key)` / `jsr.secrets.set(key, val)` — secure storage.
 - `jsr.exec(cmd)` — run a shell command (host-dependent).
 - `jsr.loadAsset(path)` — load an asset file as string.
+- **Multi-file widgets**: relative ES-module-style imports are inlined at load time — `import './helpers.js'` / `import { x } from './lib/x.js'` (exports stripped, each file inlined once, `../` resolved). No manifest `files` list needed (it still works as an explicit ordered concat). `jsr.include('path')` inlines a file at the call site. No runtime module system: no bare package specifiers, no dynamic import.
 - `jsr.setTitle(title)` — update widget title.
 - `jsr.exportState(obj)` — expose structured state for CLI snapshots.
 - `jsr.onKey(handler)` — keyboard input for game-style widgets. The handler receives `{key, code, down, repeat}` where `key` is a camelCase label (`'a'`, `'arrowLeft'`, `'arrowRight'`, `'arrowUp'`, `'arrowDown'`, `'space'`, `'enter'`, ...). Fire-and-forget; no event-done round trip. Keystrokes are never captured while a `textField`/`textArea` node holds focus. Dart side: `JsWidgetEngineBackend.dispatchHostEvent(target, payload)` delivers host events (`'key'`, `'scene3d.tap:<sceneId>'`) to bootstrap listeners. **Host integration**: hosts using `JsWidgetRuntimeWidget` get keyboard capture for free; hosts that build a `JsonWidgetRenderer` tree themselves MUST wrap it with `JsKeyboardCapture(onEvent: (p) => engine.dispatchHostEvent('key', p), child: ...)` or `jsr.onKey` will never fire.

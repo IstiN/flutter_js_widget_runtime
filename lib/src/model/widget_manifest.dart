@@ -74,7 +74,10 @@ class WidgetManifest {
   /// If [files] is set, reads each file in order and concatenates them.
   /// Otherwise falls back to reading widget.js.
   /// After assembling, runs the [_preprocessIncludes] pass which inlines
-  /// `jsr.include('path')` calls with the referenced file contents.
+  /// `jsr.include('path')` calls and ES-module-style relative imports
+  /// (`import './helpers.js'`, `import { x } from './helpers.js'`) with the
+  /// referenced file contents — familiar to React/Node developers, no
+  /// manifest `files` list needed. Each imported file is inlined once.
   Future<String?> readJs({required WidgetFileReader reader}) async {
     final base = widgetPath;
     late final String js;
@@ -97,13 +100,32 @@ class WidgetManifest {
       js = content;
     }
 
-    return _preprocessIncludes(js, appDir, 0, reader);
+    return _preprocessIncludes(js, appDir, 0, reader, <String>{});
   }
 
-  /// Recursively inlines `jsr.include('path')` calls (up to [_maxIncludeDepth]).
+  /// Recursively inlines `jsr.include('path')` calls and relative `import`
+  /// statements (up to [_maxIncludeDepth]).
   static const int _maxIncludeDepth = 5;
   static final RegExp _includeRegex = RegExp(
     r'''jsr\.include\(\s*['"]([^'"]+)['"]\s*\)''',
+  );
+
+  /// Statement-level relative import: `import './x.js'`,
+  /// `import { a, b } from './x.js'`, `import name from './x.js'`.
+  /// Bindings are not rewired — inlining shares one scope, so imported
+  /// symbols are simply declared by the inlined file. Only relative paths
+  /// (starting with `.`) are resolved; anything else is left as-is.
+  static final RegExp _importRegex = RegExp(
+    r'''^[ \t]*import\s+(?:[\w${},* ]+\s+from\s+)?['"](\.[^'"]+)['"]\s*;?[ \t]*$''',
+    multiLine: true,
+  );
+
+  /// `export` keywords are stripped from inlined files: after concatenation
+  /// everything lives in one scope, so exports are meaningless and would be
+  /// a syntax error in the QuickJS/WebWorker eval path.
+  static final RegExp _exportRegex = RegExp(
+    r'^[ \t]*export\s+(?=(?:async\s+)?(?:function|class|const|let|var|default)\b)',
+    multiLine: true,
   );
 
   static Future<String> _preprocessIncludes(
@@ -111,29 +133,84 @@ class WidgetManifest {
     String baseDir,
     int depth,
     WidgetFileReader reader,
+    Set<String> visited,
   ) async {
     if (depth >= _maxIncludeDepth) return source;
-    if (!_includeRegex.hasMatch(source)) return source;
+    if (!_includeRegex.hasMatch(source) && !_importRegex.hasMatch(source)) {
+      return source;
+    }
+
+    Future<String> load(String relPath, bool once) async {
+      final absPath = _resolvePath(baseDir, relPath);
+      if (once && !visited.add(absPath)) return '';
+      final content = await reader.readString(absPath);
+      if (content == null) return '/* import: file not found: $relPath */';
+      final stripped = content.replaceAll(_exportRegex, '');
+      return _preprocessIncludes(
+        stripped,
+        _parentOf(absPath),
+        depth + 1,
+        reader,
+        visited,
+      );
+    }
+
+    // Imports first: they are statement-level, so each match is replaced by
+    // the (once-only) file content. Load in source order (dedup claims go to
+    // the earliest import), then splice from the end so positions stay valid.
+    var out = source;
+    final imports = _importRegex.allMatches(source).toList();
+    final replacements = <String>[
+      for (final match in imports) await load(match.group(1)!, true),
+    ];
+    for (var i = imports.length - 1; i >= 0; i--) {
+      out = out.replaceRange(imports[i].start, imports[i].end, replacements[i]);
+    }
 
     final buffer = StringBuffer();
     var last = 0;
-    for (final match in _includeRegex.allMatches(source)) {
-      buffer.write(source.substring(last, match.start));
+    var foundInclude = false;
+    for (final match in _includeRegex.allMatches(out)) {
+      foundInclude = true;
+      buffer.write(out.substring(last, match.start));
       final relPath = match.group(1)!;
-      final absPath = '$baseDir/$relPath';
+      final absPath = _resolvePath(baseDir, relPath);
       final content = await reader.readString(absPath);
       if (content != null) {
-        final subDir = _parentOf(absPath);
+        final stripped = content.replaceAll(_exportRegex, '');
         buffer.write(
-          await _preprocessIncludes(content, subDir, depth + 1, reader),
+          await _preprocessIncludes(
+            stripped,
+            _parentOf(absPath),
+            depth + 1,
+            reader,
+            visited,
+          ),
         );
       } else {
         buffer.write('/* jsr.include: file not found: $relPath */');
       }
       last = match.end;
     }
-    buffer.write(source.substring(last));
+    if (!foundInclude) return out;
+    buffer.write(out.substring(last));
     return buffer.toString();
+  }
+
+  /// Resolves [relPath] (which may contain `./` and `../`) against
+  /// [baseDir], using forward slashes.
+  static String _resolvePath(String baseDir, String relPath) {
+    final segments = '$baseDir/$relPath'.split('/');
+    final out = <String>[];
+    for (final segment in segments) {
+      if (segment == '.' || segment.isEmpty) continue;
+      if (segment == '..') {
+        if (out.isNotEmpty) out.removeLast();
+        continue;
+      }
+      out.add(segment);
+    }
+    return out.join('/');
   }
 
   static String _parentOf(String path) {

@@ -56,6 +56,72 @@ void main() {
       expect(js, '// included; jsr.render({});');
     });
 
+    test('readJs inlines relative import statements', () async {
+      const manifest = _counterManifest;
+      final reader = MemoryWidgetFileReader({
+        'widgets/counter/widget.js':
+            "import './lib/helpers.js';\njsr.render({});",
+        'widgets/counter/lib/helpers.js': 'function helper() {}',
+      });
+      final js = await manifest.readJs(reader: reader);
+      expect(js, 'function helper() {}\njsr.render({});');
+    });
+
+    test('readJs strips named import bindings and export keywords', () async {
+      const manifest = _counterManifest;
+      final reader = MemoryWidgetFileReader({
+        'widgets/counter/widget.js':
+            "import { helper } from './lib/helpers.js';\nhelper();",
+        'widgets/counter/lib/helpers.js':
+            'export function helper() {}\nexport const answer = 42;',
+      });
+      final js = await manifest.readJs(reader: reader);
+      expect(js, 'function helper() {}\nconst answer = 42;\nhelper();');
+    });
+
+    test('readJs inlines each imported file only once', () async {
+      const manifest = _counterManifest;
+      final reader = MemoryWidgetFileReader({
+        'widgets/counter/widget.js':
+            "import './a.js';\nimport './a.js';\njsr.render({});",
+        'widgets/counter/a.js': 'var once = 1;',
+      });
+      final js = await manifest.readJs(reader: reader);
+      expect(js, 'var once = 1;\n\njsr.render({});');
+    });
+
+    test('readJs resolves nested imports relative to the importing file',
+        () async {
+      const manifest = _counterManifest;
+      final reader = MemoryWidgetFileReader({
+        'widgets/counter/widget.js': "import './lib/a.js';",
+        'widgets/counter/lib/a.js': "import './b.js';\n// a",
+        'widgets/counter/lib/b.js': '// b',
+      });
+      final js = await manifest.readJs(reader: reader);
+      expect(js, '// b\n// a');
+    });
+
+    test('readJs resolves dot-dot imports', () async {
+      const manifest = _counterManifest;
+      final reader = MemoryWidgetFileReader({
+        'widgets/counter/widget.js': "import './lib/a.js';",
+        'widgets/counter/lib/a.js': "import '../shared.js';",
+        'widgets/counter/shared.js': '// shared',
+      });
+      final js = await manifest.readJs(reader: reader);
+      expect(js, '// shared');
+    });
+
+    test('readJs leaves a comment for missing imports', () async {
+      const manifest = _counterManifest;
+      final reader = MemoryWidgetFileReader({
+        'widgets/counter/widget.js': "import './nope.js';",
+      });
+      final js = await manifest.readJs(reader: reader);
+      expect(js, '/* import: file not found: ./nope.js */');
+    });
+
     test('fromStorage returns null when widget.js is missing', () async {
       final reader = MemoryWidgetFileReader({});
       final manifest = await WidgetManifest.fromStorage(
