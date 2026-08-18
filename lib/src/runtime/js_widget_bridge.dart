@@ -112,8 +112,12 @@ class JsWidgetBridge {
   Map<String, dynamic>? get exportedState => _store.exportedState;
 
   /// Returns the JS snippet used to update the widget theme.
+  ///
+  /// Keys are merged onto the bootstrap defaults instead of replacing the
+  /// whole map, so a host passing a partial theme (or an empty one) does not
+  /// wipe the keys it did not set.
   static String updateThemeJs(Map<String, dynamic> colors) {
-    return 'jsr.theme=${jsonEncode(colors)};'
+    return 'jsr.theme=Object.assign(jsr.theme||{},${jsonEncode(colors)});'
         'if(jsr._onThemeChange){try{jsr._onThemeChange(jsr.theme);}catch(e){}}';
   }
 

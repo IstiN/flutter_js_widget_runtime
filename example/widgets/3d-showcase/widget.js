@@ -10,7 +10,7 @@
 
   function init() {
     jsr.scene3d.create(sceneId, {
-      camera: { position: [0, 0, -8], target: [0, 0, 0], fov: 60 },
+      camera: { position: [4, 3, 10], target: [0, 0, 0], fov: 60 },
       // Higher ambient light makes flat shading less harsh; flutter_cube does
       // not cast real shadows, so a strong ambient term avoids "glitchy" dark
       // faces on the cube/torus/city.

@@ -321,6 +321,7 @@ class Flame3dController extends RefCountedJs3dController {
       rotation: payload['rotation'] as List?,
       scale: payload['scale'] as List?,
       unlit: payload['unlit'] == true,
+      color: payload['color'] as String?,
     );
   }
 
@@ -482,6 +483,7 @@ abstract class Js3dGameApi {
     List<dynamic>? rotation,
     List<dynamic>? scale,
     bool unlit = false,
+    String? color,
   });
 
   void removeModel(String modelId);
@@ -597,6 +599,7 @@ class JsFlame3dGame extends FlameGame3D<World3D, CameraComponent3D>
     List<dynamic>? rotation,
     List<dynamic>? scale,
     bool unlit = false,
+    String? color,
   }) async {
     if (!_shouldLoad(modelId, src)) return;
     debugPrint('[Flame3dGame] loadModel modelId=$modelId src=$src');
@@ -607,6 +610,7 @@ class JsFlame3dGame extends FlameGame3D<World3D, CameraComponent3D>
       rotation: rotation,
       scale: scale,
       unlit: unlit,
+      color: color,
     ));
   }
 
@@ -627,6 +631,7 @@ class JsFlame3dGame extends FlameGame3D<World3D, CameraComponent3D>
     List<dynamic>? rotation,
     List<dynamic>? scale,
     bool unlit = false,
+    String? color,
   }) async {
     try {
       removeModel(modelId);
@@ -636,6 +641,7 @@ class JsFlame3dGame extends FlameGame3D<World3D, CameraComponent3D>
         'nodes=${model.nodes.length} animations=${model.animations.length}',
       );
       _applyMaterialFixups(model, unlit: unlit);
+      js3dTintModel(model, color);
       // Remove again in case a parallel add slipped in during the await.
       removeModel(modelId);
       final component = ModelComponent(

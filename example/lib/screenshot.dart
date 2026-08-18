@@ -22,9 +22,17 @@ import 'package:js_widget_runtime/js_widget_runtime.dart';
 import 'package:js_widget_runtime/src/runtime/js_widget_engine_quickjs.dart';
 
 /// Widget id and output path come from the process environment, so a single
-/// build covers every widget.
+/// build covers every widget. JSR_WIDGET_PATH skips the asset bundle and
+/// loads widget.js straight from disk — much faster lighting/camera
+/// iteration, since no rebuild is needed between tweaks.
 final _kWidget = Platform.environment['JSR_WIDGET'] ?? '';
+final _kWidgetPath = Platform.environment['JSR_WIDGET_PATH'] ?? '';
 final _kOut = Platform.environment['JSR_OUT'] ?? '/tmp/jsr-screenshot.png';
+
+Future<String> _loadWidgetJs() {
+  if (_kWidgetPath.isNotEmpty) return File(_kWidgetPath).readAsString();
+  return rootBundle.loadString('widgets/$_kWidget/widget.js');
+}
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -42,7 +50,7 @@ class _ScreenshotApp extends StatelessWidget {
       home: Scaffold(
         backgroundColor: const Color(0xFF0F172A),
         body: FutureBuilder<String>(
-          future: rootBundle.loadString('widgets/$_kWidget/widget.js'),
+          future: _loadWidgetJs(),
           builder: (context, snap) {
             if (snap.hasError) {
               return Center(child: Text('missing widget $_kWidget'));
@@ -79,20 +87,27 @@ class _CaptureFrameState extends State<_CaptureFrame> {
   void initState() {
     super.initState();
     // Wait for the widget to settle (model load + first frames), then capture
-    // and exit. 5s covers the GLB parse + first rendered frame.
-    Timer(const Duration(seconds: 5), _captureAndExit);
+    // and exit. 8s covers the GLB parse + first rendered frame and gives the
+    // map widget time to fetch a few OSM tiles.
+    Timer(const Duration(seconds: 8), _captureAndExit);
   }
 
   @override
   Widget build(BuildContext context) {
     return RepaintBoundary(
       key: _boundaryKey,
-      child: _tree == null
-          ? const Center(child: CircularProgressIndicator())
-          : JsonWidgetRenderer(
-              onEvent: (_, __) {},
-              js3dHost: createJs3dHost(),
-            ).build(_tree),
+      // The boundary captures only its own subtree — the Scaffold backdrop
+      // stays outside. Paint the dark board color inside, or text themed for
+      // a dark UI disappears into the transparent (white-looking) PNG.
+      child: Container(
+        color: const Color(0xFF0F172A),
+        child: _tree == null
+            ? const Center(child: CircularProgressIndicator())
+            : JsonWidgetRenderer(
+                onEvent: (_, __) {},
+                js3dHost: createJs3dHost(),
+              ).build(_tree),
+      ),
     );
   }
 

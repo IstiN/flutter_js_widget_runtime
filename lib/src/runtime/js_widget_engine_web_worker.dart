@@ -265,7 +265,7 @@ self.onmessage = function(e){
       sendMessage('__jsr_event_done', JSON.stringify({error: e.message || String(e)}));
     }
   } else if (msg.channel === '__jsr_updateTheme') {
-    jsr.theme = msg.payload;
+    jsr.theme = Object.assign(jsr.theme || {}, msg.payload);
     if (jsr._onThemeChange) { try { jsr._onThemeChange(jsr.theme); } catch(e) {} }
   } else if (msg.channel === '__jsr_host_event') {
     if (typeof __jsrHostEvent === 'function') {
@@ -280,7 +280,7 @@ self.onmessage = function(e){
   }
 };
 $kJsWidgetBootstrap
-jsr.theme = $themeJson;
+jsr.theme = Object.assign(jsr.theme || {}, $themeJson);
 try {
   $escapedHostBootstrap
   $escapedJs

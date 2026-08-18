@@ -8,16 +8,22 @@
   function init() {
     jsr.scene3d.create(sceneId, {
       engine: 'flame',
-      camera: { position: [0, 0, 8], target: [0, 0, 0], fov: 60 },
-      light: { position: [5, 8, 5], ambient: 5.0, diffuse: 2.0 }
+      camera: { position: [3, 1.3, 6], target: [0, 0, 0], fov: 60 },
+      // Low ambient + stronger key light: ambient ~5 washed the PBR textures
+      // out to flat white.
+      light: { position: [5, 8, 5], ambient: 0.5, diffuse: 3.0 }
     });
     jsr.scene3d.addModel(sceneId, {
       modelId: modelId,
       src: 'models/DamagedHelmet.glb',
+      // flame_3d's GLB parser drops node TRS transforms; the helmet export
+      // carries a -90° X node rotation, so re-apply it here (plus a yaw so
+      // the visor faces the camera) to stand the model upright.
+      rotation: [-90, 135, 0],
       scale: [2, 2, 2]
     });
     if (rotating) {
-      jsr.scene3d.playAnimation(sceneId, modelId, { axis: 'y', speed: speed });
+      jsr.scene3d.playAnimation(sceneId, modelId, { axis: 'z', speed: speed });
     }
     render();
   }
@@ -25,7 +31,7 @@
   function toggleRotation() {
     rotating = !rotating;
     if (rotating) {
-      jsr.scene3d.playAnimation(sceneId, modelId, { axis: 'y', speed: speed });
+      jsr.scene3d.playAnimation(sceneId, modelId, { axis: 'z', speed: speed });
     } else {
       jsr.scene3d.stopAnimation(sceneId, modelId);
     }
@@ -35,7 +41,7 @@
   function setSpeed(next) {
     speed = next;
     if (rotating) {
-      jsr.scene3d.playAnimation(sceneId, modelId, { axis: 'y', speed: speed });
+      jsr.scene3d.playAnimation(sceneId, modelId, { axis: 'z', speed: speed });
     }
     render();
   }

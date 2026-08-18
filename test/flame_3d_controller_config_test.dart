@@ -31,6 +31,7 @@ class _RecordingGame implements Js3dGameApi {
     List<dynamic>? rotation,
     List<dynamic>? scale,
     bool unlit = false,
+    String? color,
   }) async {
     calls.add('add:$modelId:$src');
     loadedModels[modelId] = src;

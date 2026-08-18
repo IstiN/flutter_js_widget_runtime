@@ -7,14 +7,17 @@
 // Pause / skip / quit any time. Completed sessions persist in
 // jsr.storage. All colors from jsr.theme.
 (function() {
+  // Stroked icons need an explicit stroke color — SVG default is
+  // stroke:none, and the renderer's srcIn tint can only recolor pixels the
+  // artwork actually paints.
   var SVG = {
-    dumbbell: '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M7.5 7.5v9M4.5 9v6M16.5 7.5v9M19.5 9v6M7.5 12h9"/></svg>',
-    flame: '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M8.5 14.5A2.5 2.5 0 0 0 11 12c0-1.38-.5-2-1-3-1.072-2.143-.224-4.054 2-6 .5 2.5 2 4.9 4 6.5 2 1.6 3 3.5 3 5.5a7 7 0 1 1-14 0c0-1.153.433-2.294 1-3a2.5 2.5 0 0 0 2.5 2.5z"/></svg>',
-    timer: '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M10 2h4M12 8v4l2.5 2.5"/><circle cx="12" cy="14" r="8"/></svg>',
+    dumbbell: '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="#ffffff" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M7.5 7.5v9M4.5 9v6M16.5 7.5v9M19.5 9v6M7.5 12h9"/></svg>',
+    flame: '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="#ffffff" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M8.5 14.5A2.5 2.5 0 0 0 11 12c0-1.38-.5-2-1-3-1.072-2.143-.224-4.054 2-6 .5 2.5 2 4.9 4 6.5 2 1.6 3 3.5 3 5.5a7 7 0 1 1-14 0c0-1.153.433-2.294 1-3a2.5 2.5 0 0 0 2.5 2.5z"/></svg>',
+    timer: '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="#ffffff" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M10 2h4M12 8v4l2.5 2.5"/><circle cx="12" cy="14" r="8"/></svg>',
     play: '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" stroke="none"><path d="M8 5.5v13l11-6.5z"/></svg>',
     pause: '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" stroke="none"><path d="M7 5h4v14H7zM13 5h4v14h-4z"/></svg>',
     next: '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" stroke="none"><path d="M6 5.5v13l9-6.5zM17 5h2v14h-2z"/></svg>',
-    trophy: '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M8 21h8M12 17v4M7 4h10v6a5 5 0 0 1-10 0zM7 6H4a1 1 0 0 0-1 1c0 2 1.5 3.5 4 3.6M17 6h3a1 1 0 0 1 1 1c0 2-1.5 3.5-4 3.6"/></svg>'
+    trophy: '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="#ffffff" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M8 21h8M12 17v4M7 4h10v6a5 5 0 0 1-10 0zM7 6H4a1 1 0 0 0-1 1c0 2 1.5 3.5 4 3.6M17 6h3a1 1 0 0 1 1 1c0 2-1.5 3.5-4 3.6"/></svg>'
   };
 
   // The workout: exercise steps + rest steps between them. `clip` is a
@@ -193,8 +196,9 @@
 
   function bigButton(t, label, icon, action, accent) {
     return { type: 'button', label: label, icon: icon,
-      color: accent ? t.accent2 : t.surfaceAlt,
-      textColor: accent ? t.onAccent : t.text,
+      // The renderer styles buttons via `style`, not top-level color props.
+      style: { backgroundColor: accent ? t.accent2 : t.surfaceAlt,
+        foregroundColor: accent ? t.onAccent : t.text },
       onPressed: action };
   }
 
@@ -339,7 +343,11 @@
   });
   jsr.scene3d.addModel(sceneId, {
     modelId: 'coach', src: MODEL_SRC,
-    position: [0, 0, 0], scale: [1, 1, 1]
+    position: [0, 0, 0], scale: [1, 1, 1],
+    // The anny body model ships with a skin-tone texture only; tint it to a
+    // saturated violet so the coach reads as a stylized mannequin (accent2
+    // multiplied by bright skin washes out to near-white).
+    color: '#8b5cf6'
   });
   sceneReady = true;
   jsr.scene3d.playAnimation(sceneId, 'coach', { name: 'Idle', loop: true });
