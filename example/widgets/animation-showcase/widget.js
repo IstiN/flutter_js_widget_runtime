@@ -5,15 +5,28 @@
   var currentScene = 'menu';
 
   // ── Scene: Menu ────────────────────────────────────────────────────────
+
+  // Hand-drawn SVG icons (24×24 viewBox), one per demo — no emoji fonts,
+  // so the rendering is identical on every platform including golden tests.
+  var ICONS = {
+    fade: '<svg viewBox="0 0 24 24"><path d="M12 3a7 7 0 0 0-7 7v10l2.3-1.8L9.5 20l2.5-1.8L14.5 20l2.2-1.8L19 20V10a7 7 0 0 0-7-7z" fill="#cbd5f5"/><circle cx="9.5" cy="10.5" r="1.3" fill="#1e293b"/><circle cx="14.5" cy="10.5" r="1.3" fill="#1e293b"/><path d="M4.5 6.5 6 8M19.5 6.5 18 8" stroke="#94a3b8" stroke-width="1.2" stroke-linecap="round"/></svg>',
+    morph: '<svg viewBox="0 0 24 24"><path d="M12 2.5 18.5 9 12 21.5 5.5 9z" fill="#8b5cf6" opacity="0.85"/><path d="M12 2.5 18.5 9H5.5z" fill="#c4b5fd"/><circle cx="10.2" cy="7.2" r="0.8" fill="#f8fafc"/><circle cx="14" cy="8.4" r="0.6" fill="#f8fafc"/><circle cx="12.6" cy="5.6" r="0.5" fill="#f8fafc"/></svg>',
+    bounce: '<svg viewBox="0 0 24 24"><circle cx="12" cy="14" r="7" fill="#f97316"/><path d="M12 7a7 7 0 0 1 7 7" stroke="#fdba74" stroke-width="1.5" fill="none"/><path d="M9.2 11.2a4 4 0 0 1 3-1.2" stroke="#ffedd5" stroke-width="1.5" fill="none" stroke-linecap="round"/><path d="M4 5.5 7 8M6.5 3.5 8.5 6.5" stroke="#94a3b8" stroke-width="1.2" stroke-linecap="round"/></svg>',
+    cards: '<svg viewBox="0 0 24 24"><rect x="4" y="6" width="10" height="14" rx="2" transform="rotate(-12 9 13)" fill="#475569"/><rect x="10" y="4" width="10" height="14" rx="2" transform="rotate(8 15 11)" fill="#e2e8f0"/><path d="M15 7.2c.8-.8 2.2-.4 2.2.8 0 1.2-1.6 2-2.2 3-.6-1-2.2-1.8-2.2-3 0-1.2 1.4-1.6 2.2-.8z" fill="#ef4444"/></svg>',
+    drag: '<svg viewBox="0 0 24 24"><path d="M9 11V4.8a1.8 1.8 0 0 1 3.6 0V10l4.9.9c1 .2 1.7 1.1 1.7 2.1v3.2c0 .8-.2 1.6-.7 2.3L17 21H9.4L5 16.5c-.6-.7-.5-1.7.2-2.3.6-.5 1.5-.5 2.1.1L9 16z" fill="#fbbf24" stroke="#f59e0b" stroke-width="0.8"/><path d="M5 4.5 6.5 6M3.5 8H6" stroke="#94a3b8" stroke-width="1.2" stroke-linecap="round"/></svg>',
+    pulse: '<svg viewBox="0 0 24 24"><path d="M12 20.5 4.8 13a4.6 4.6 0 0 1 6.5-6.5l.7.7.7-.7A4.6 4.6 0 0 1 19.2 13z" fill="#f43f5e"/><path d="M4 11h3l1.5-3 3 6 2-4 1.5 2h4" stroke="#fb7185" stroke-width="1.6" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>',
+    colors: '<svg viewBox="0 0 24 24"><path d="M4 16a5 5 0 0 1 5-5h6a5 5 0 0 1 0 10H9a5 5 0 0 1-5-5z" fill="#60a5fa"/><path d="M6.5 12.5a5 5 0 0 1 5-5h1a5 5 0 0 1 0 10" fill="#34d399" opacity="0.9"/><path d="M9 9a5 5 0 0 1 5-5 5 5 0 0 1 5 5 5 5 0 0 1-5 5" fill="#fbbf24" opacity="0.9"/><circle cx="6" cy="8.5" r="2.6" fill="#e2e8f0"/><circle cx="7" cy="7.8" r="0.8" fill="#1e293b"/></svg>',
+  };
+
   function renderMenu() {
     var demos = [
-      {id:'fade',     icon:'👻', title:'Fade In/Out',       desc:'animatedOpacity toggle'},
-      {id:'morph',    icon:'🔮', title:'Container Morph',   desc:'animatedContainer size + color'},
-      {id:'bounce',   icon:'🏀', title:'Bouncing Ball',     desc:'requestAnimationFrame + physics'},
-      {id:'cards',    icon:'🃏', title:'Card Stack',        desc:'animatedPositioned in Stack'},
-      {id:'drag',     icon:'👆', title:'Drag & Follow',     desc:'gestureDetector onPanUpdate'},
-      {id:'pulse',    icon:'💓', title:'Pulse Animation',   desc:'RAF + scale oscillation'},
-      {id:'colors',   icon:'🌈', title:'Color Transitions', desc:'smooth gradient morphing'},
+      {id:'fade',     title:'Fade In/Out',       desc:'animatedOpacity toggle'},
+      {id:'morph',    title:'Container Morph',   desc:'animatedContainer size + color'},
+      {id:'bounce',   title:'Bouncing Ball',     desc:'requestAnimationFrame + physics'},
+      {id:'cards',    title:'Card Stack',        desc:'animatedPositioned in Stack'},
+      {id:'drag',     title:'Drag & Follow',     desc:'gestureDetector onPanUpdate'},
+      {id:'pulse',    title:'Pulse Animation',   desc:'RAF + scale oscillation'},
+      {id:'colors',   title:'Color Transitions', desc:'smooth gradient morphing'},
     ];
 
     var items = demos.map(function(d) {
@@ -22,7 +35,7 @@
           decoration:{color: jsr.theme.surface, borderRadius:10, borderColor: jsr.theme.border, borderWidth:1},
           padding:[12,12,12,12], margin:[0,0,0,8],
           child:{type:'row', crossAxisAlignment:'center', children:[
-            {type:'text', data:d.icon, style:{fontSize:24}},
+            {type:'svg', data:ICONS[d.id], size:24},
             {type:'sizedBox', width:12},
             {type:'expanded', child:{type:'column', crossAxisAlignment:'start', children:[
               {type:'text', data:d.title, style:{color: jsr.theme.text, fontSize:14, fontWeight:'w600'}},
@@ -35,8 +48,12 @@
     });
 
     jsr.render({type:'column', crossAxisAlignment:'stretch', children:[
-      {type:'padding', padding:[12,16,12,8], child:{type:'text', data:'🎬 Animation Demos',
-        style:{color: jsr.theme.text, fontSize:18, fontWeight:'w700'}}},
+      {type:'padding', padding:[12,16,12,8], child:{type:'row', children:[
+        {type:'svg', data:'<svg viewBox="0 0 24 24"><rect x="2.5" y="6" width="19" height="13" rx="2.5" fill="#334155"/><circle cx="8" cy="12.5" r="2.4" fill="#94a3b8"/><circle cx="13.2" cy="12.5" r="2.4" fill="#94a3b8"/><circle cx="18.4" cy="12.5" r="2.4" fill="#94a3b8"/><rect x="4" y="8.8" width="7" height="1.6" rx="0.8" fill="#1e293b"/></svg>', size:22},
+        {type:'sizedBox', width:8},
+        {type:'text', data:'Animation Demos',
+        style:{color: jsr.theme.text, fontSize:18, fontWeight:'w700'}},
+      ]}},
       {type:'expanded', child:{type:'listView', shrinkWrap:false, padding:[12,0,12,12], children:items}},
     ]});
   }
@@ -298,6 +315,6 @@
   }
 
   jsr.onEvent(handleEvent);
-  jsr.setTitle('🎬 Animation Showcase');
+  jsr.setTitle('Animation Showcase');
   renderMenu();
 })();
