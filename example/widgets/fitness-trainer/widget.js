@@ -34,7 +34,7 @@
   ];
 
   var sceneId = 'fitness-' + (jsr.instanceId || 'app') + '-' + Math.floor(Math.random() * 1e9);
-  var MODEL_SRC = 'widgets/fitness-trainer/models/coach_anny.glb';
+  var MODEL_SRC = 'models/coach_anny.glb';
 
   var state = {
     screen: 'home', // home | workout | done
