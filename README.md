@@ -21,8 +21,10 @@ Real JavaScript, rendered by this package and captured by [golden tests](test/go
 | ![crypto](doc/widgets/crypto.png) | ![animation-showcase](doc/widgets/animation-showcase.png) |
 | ![map](doc/widgets/map.png) | ![showcase: bounce](doc/widgets/showcase-bounce.png) |
 | ![showcase: card stack](doc/widgets/showcase-cards.png) | ![showcase: colors](doc/widgets/showcase-colors.png) |
+| ![3D showcase](doc/widgets/3d-showcase.png) | ![3D game: dodge](doc/widgets/3d-game-dodge.png) |
+| ![GLB showcase](doc/widgets/3d-glb-showcase.png) | ![fitness trainer](doc/widgets/fitness-trainer.png) |
 
-yolo-hello (animated gradient + bounce) · calculator (full keyboard logic in JS) · weather (wttr.in fetch) · stocks (live quotes) · crypto (price tickers) · map (OpenStreetMap landmarks) · animation-showcase (menu + per-scene captures from the interactive golden: fade / morph / bounce / cards / drag / pulse / colors)
+yolo-hello (animated gradient + bounce) · calculator (full keyboard logic in JS) · weather (wttr.in fetch) · stocks (live quotes) · crypto (price tickers) · map (OpenStreetMap landmarks) · animation-showcase (menu + per-scene captures from the interactive golden: fade / morph / bounce / cards / drag / pulse / colors) · 3d-showcase (procedural primitives, flutter_cube) · 3d-game-dodge (dodge-the-blocks game) · 3d-glb-showcase (GLB model with PBR) · fitness-trainer (skeletal-coach workout, flame_3d)
 
 ## Quick start
 
