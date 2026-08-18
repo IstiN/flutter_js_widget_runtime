@@ -227,6 +227,14 @@ class JsWidgetBridge {
     }
   }
 
+  /// Test seam: stops interval timers and the RAF ticker without disposing
+  /// scene controllers (see QuickjsWidgetEngineBackend.debugStopTimers).
+  @visibleForTesting
+  void debugStopTimers() {
+    _intervals.dispose();
+    _raf.dispose();
+  }
+
   Map<String, dynamic> _parseArgs(dynamic args) => (args is Map)
       ? Map<String, dynamic>.from(args)
       : jsonDecode(args?.toString() ?? '{}') as Map<String, dynamic>;

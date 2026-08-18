@@ -226,6 +226,15 @@ class QuickjsWidgetEngineBackend implements JsWidgetEngineBackend {
     }
   }
 
+  /// Test seam: stops the bridge's timers and RAF ticker without disposing
+  /// the bridge or its scene controllers. Golden tests of animated/3D
+  /// widgets keep the engine alive for the capture, but a ticking engine
+  /// trips the test binding's "animation still running" invariant.
+  @visibleForTesting
+  void debugStopTimers() {
+    _bridge.debugStopTimers();
+  }
+
   // ── Private ──────────────────────────────────────────────────────────────
 
   /// True while [rt] is the current, not-yet-disposed runtime. Deferred

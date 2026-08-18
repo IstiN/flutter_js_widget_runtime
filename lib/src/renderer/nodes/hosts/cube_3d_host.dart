@@ -35,6 +35,12 @@ class Cube3dHost extends Js3dHost
   @visibleForTesting
   factory Cube3dHost.fresh() => Cube3dHost._();
 
+  /// Test seam: when true, controllers never start the periodic animation
+  /// timer — golden captures need a static frame, and a live Timer inside
+  /// the test's fake-async zone trips the timers-pending invariant.
+  @visibleForTesting
+  bool skipAnimationLoop = false;
+
   @override
   Js3dController createController(
     String sceneId,
@@ -42,7 +48,7 @@ class Cube3dHost extends Js3dHost
   ) {
     final existing = retainController(sceneId);
     if (existing != null) return existing;
-    final controller = Cube3dController._(sceneId, config);
+    final controller = Cube3dController._(sceneId, config, this);
     registerController(controller);
     return controller;
   }
@@ -72,7 +78,9 @@ class Cube3dHost extends Js3dHost
 /// abstract [Js3dController] interface.
 /// {@endtemplate}
 class Cube3dController extends RefCountedJs3dController {
-  Cube3dController._(this.sceneId, this.config);
+  Cube3dController._(this.sceneId, this.config, this._host);
+
+  final Cube3dHost _host;
 
   final String sceneId;
   final Map<String, dynamic> config;
@@ -260,6 +268,10 @@ class Cube3dController extends RefCountedJs3dController {
 
   void _startAnimationLoop() {
     _animationTimer?.cancel();
+    // Golden/test captures never run the animation loop: a periodic timer
+    // created inside the test's fake-async zone trips the "timers pending"
+    // invariant. Animations are also cheap to drive manually.
+    if (_host.skipAnimationLoop) return;
     _animationTimer = Timer.periodic(
       const Duration(milliseconds: 16),
       (_) {
@@ -299,6 +311,14 @@ class Cube3dController extends RefCountedJs3dController {
   void disposeInternal() {
     _disposed = true;
     _animationTimer?.cancel();
+  }
+
+  /// Test seam: stops the animation-loop timer without disposing the
+  /// controller — golden captures need the scene alive but a quiet tree.
+  @visibleForTesting
+  void stopAnimationLoop() {
+    _animationTimer?.cancel();
+    _animationTimer = null;
   }
 }
 
