@@ -52,6 +52,7 @@ const _widgetFiles = {
   '3d-game-dodge': 'example/widgets/3d-game-dodge/widget.js',
   '3d-glb-showcase': 'example/widgets/3d-glb-showcase/widget.js',
   'fitness-trainer': 'example/widgets/fitness-trainer/widget.js',
+  'm3-showcase': 'example/widgets/m3-showcase/widget.js',
 };
 
 /// One cube host for all 3D goldens — a fresh instance per test run so
@@ -74,6 +75,21 @@ const _showcaseTaps = {
   'drag': 'go_drag',
   'pulse': 'go_pulse',
   'colors': 'go_colors',
+};
+
+/// Interactive states of m3-showcase captured as extra golden frames —
+/// the frames double as GIF material for the README. The widget's handlers
+/// treat an empty payload as "cycle to the next value", so a bare actionId
+/// produces a deterministic next state.
+const _m3Taps = {
+  // Banner dismissed via its GOT IT action.
+  'dismiss': 'banner_dismiss',
+  // FAB tapped once: counter at 1.
+  'fab': 'fab_tap',
+  // NavigationBar cycled to Favorites, segmented cycled to Month, radio
+  // flipped to Compact — one combined state per event.
+  'nav': 'nav_changed',
+  'controls': 'seg_changed',
 };
 
 /// Fixed weather payload shaped like wttr.in j1.
@@ -319,7 +335,9 @@ void main() {
         // golden capture. But their JS-side RAF loops/timers keep ticking
         // and would trip the "animation still running after the tree was
         // disposed" invariant — stop them while keeping the scene alive.
-        if (e.key == 'animation-showcase' || _is3dWidget(e.key)) {
+        if (e.key == 'animation-showcase' ||
+            e.key == 'm3-showcase' ||
+            _is3dWidget(e.key)) {
           runner.stopEngineTimers();
           _runners[e.key] = runner;
           // Cube controllers run their own animation Timer outside the
@@ -421,6 +439,29 @@ void main() {
       await expectLater(
         find.byType(MaterialApp),
         matchesGoldenFile('goldens/showcase-${tap.key}.png'),
+      );
+    });
+  }
+
+  // Interactive m3-showcase walk: fire payload-less actions and capture the
+  // resulting state frames (GIF material for the README).
+  for (final tap in _m3Taps.entries) {
+    testWidgets('m3-showcase state ${tap.key}', (tester) async {
+      if (!_hasNativeLib) {
+        markTestSkipped('QuickJS native library not built');
+      }
+      await tester.binding.setSurfaceSize(const Size(420, 860));
+
+      final runner = _runners['m3-showcase'];
+      final tree = await runner!.tap(tap.value);
+      expect(tree, isNotNull, reason: 'state ${tap.key} did not re-render');
+
+      await tester.pumpWidget(_host(tree, 'm3-showcase'));
+      await tester.pump(const Duration(milliseconds: 16));
+
+      await expectLater(
+        find.byType(MaterialApp),
+        matchesGoldenFile('goldens/m3-${tap.key}.png'),
       );
     });
   }
