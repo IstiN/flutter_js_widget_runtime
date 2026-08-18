@@ -36,6 +36,10 @@ final bool _hasNativeLib = File(QuickjsFfi.libraryPath).existsSync();
 /// Widgets whose scenes need the Impeller-backed flame host (GLB models).
 const _flameWidgets = {'3d-glb-showcase', 'fitness-trainer'};
 
+/// All 3D widgets (cube or flame) — their scenes paint from the second
+/// frame on, after `onSceneCreated` fires.
+bool _is3dWidget(String id) => id.startsWith('3d-') || _flameWidgets.contains(id);
+
 const _widgetFiles = {
   'yolo-hello': 'example/widgets/yolo-hello/widget.js',
   'calculator': 'example/widgets/calculator/widget.js',
@@ -53,7 +57,7 @@ const _widgetFiles = {
 /// One cube host for all 3D goldens — a fresh instance per test run so
 /// scene controllers never leak across widget captures (the singleton would
 /// serve disposed controllers from a previous test).
-final _goldenCubeHost = Cube3dHost.fresh();
+final _goldenCubeHost = Cube3dHost.fresh()..skipAnimationLoop = true;
 
 /// Flame host for GLB widgets (Impeller-backed; the golden pumps render
 /// through it on macOS, on Linux CI those widgets fall back to their
@@ -147,6 +151,13 @@ class _RunningWidget {
 
   final QuickjsWidgetEngineBackend backend;
   final List<Map<String, dynamic>> renders;
+
+  /// Stops the JS engine's RAF ticker and interval timers without disposing
+  /// the bridge or its scene controllers — the scene3d golden still needs
+  /// the controller alive. Widgets with infinite RAF/timer loops (showcase,
+  /// 3D games) would otherwise trip the "animation still running after the
+  /// tree was disposed" test invariant.
+  void stopEngineTimers() => backend.debugStopTimers();
 
   /// Fires the widget's event handler (as a button tap would) and waits
   /// for the next render it produces.
@@ -302,8 +313,24 @@ void main() {
         _trees[e.key] = runner.renders.isNotEmpty ? runner.renders.last : null;
         // Non-interactive widgets' engines are no longer needed; timers and
         // tickers must not survive into the golden pumps below.
-        if (e.key != 'animation-showcase') await runner.dispose();
-        else _runners[e.key] = runner;
+        // Interactive (showcase) and 3D widgets' engines must stay alive:
+        // the scene3d node binds the controller created during JS startup,
+        // and disposing the bridge would dispose the scene before the
+        // golden capture. But their JS-side RAF loops/timers keep ticking
+        // and would trip the "animation still running after the tree was
+        // disposed" invariant — stop them while keeping the scene alive.
+        if (e.key == 'animation-showcase' || _is3dWidget(e.key)) {
+          runner.stopEngineTimers();
+          _runners[e.key] = runner;
+          // Cube controllers run their own animation Timer outside the
+          // bridge — stop it too (the scene must stay alive for the golden,
+          // but nothing may keep ticking into the capture).
+          for (final c in _goldenCubeHost.liveControllers.values) {
+            c.stopAnimationLoop();
+          }
+        } else {
+          await runner.dispose();
+        }
       }
     }
     // Real fonts make goldens readable and reusable as README screenshots;
@@ -355,6 +382,16 @@ void main() {
       // A fixed frame, never pumpAndSettle: showcase widgets run infinite
       // animations and timers, and goldens must stay deterministic.
       await tester.pump(const Duration(milliseconds: 16));
+      // 3D scenes need a second pump: the Cube widget creates the scene in
+      // its first build and `onSceneCreated` fires after that frame; the
+      // models and lighting are only painted from the second frame on.
+      if (_is3dWidget(entry.key)) {
+        // The Cube widget drains pending commands (addModel, etc.) in
+        // onSceneCreated — which fires after its first frame; the scene then
+        // paints objects only from the following frame. Two extra pumps.
+        await tester.pump(const Duration(milliseconds: 16));
+        await tester.pump(const Duration(milliseconds: 16));
+      }
 
       await expectLater(
         find.byType(MaterialApp),

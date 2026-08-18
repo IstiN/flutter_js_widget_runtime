@@ -69,6 +69,10 @@ mixin Js3dControllerRegistry<T extends RefCountedJs3dController> {
     _controllers[controller.sceneId] = controller;
   }
 
+  /// All currently live controllers, keyed by scene id.
+  @visibleForTesting
+  Map<String, T> get liveControllers => Map.unmodifiable(_controllers);
+
   /// Drops a reference; returns whether this was the last one (the caller
   /// then disposes the controller).
   bool releaseController(T controller) {
