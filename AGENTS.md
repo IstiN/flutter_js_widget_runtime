@@ -66,8 +66,11 @@ Core methods:
   - `jsr.scene3d.playAnimation(sceneId, modelId, options)` — `options` is either a clip name string (skeletal), or an object. `{axis, speed}` drives the built-in axis rotation; `{name, loop, speed}` plays a skeletal clip on the flame host via `ModelComponent.playAnimationByName` (flame_3d currently loops at 1x; `loop`/`speed` are accepted but not yet applied). The cube host ignores `name` requests.
   - `jsr.scene3d.stopAnimation(sceneId, modelId)` — stops skeletal playback AND axis rotation.
   - `jsr.scene3d.onTap(sceneId, handler)` — tap picking. On tap the host raycasts from the camera through the tap point and intersects model AABBs; the handler receives `{modelId, point: [x, y, z]}` for the nearest hit or `{modelId: null}` on a miss. The pure math lives in `lib/src/renderer/nodes/hosts/js_3d_raycast.dart` (`js3dRayFromNdc`, `js3dRayIntersectAabb`) and is unit-testable without a GPU.
+  - `jsr.scene3d.addModel(sceneId, {..., color})` (flame host only) — `color: '#rrggbb'` multiplies every surface albedo, tinting a GLB whose own palette does not fit the host theme (e.g. the fitness-trainer mannequin). Note flame_3d's GLB parser drops node TRS transforms, so exports with baked node rotations (e.g. DamagedHelmet's -90° X) need that rotation re-applied via `addModel({rotation})`.
 - `jsr.instanceId` — a per-engine identifier injected before the widget runs. Use it to namespace named resources (e.g. scene ids) so multiple panels running the same widget do not collide: `var sceneId = 'glb-' + jsr.instanceId`. Hosts pass `JsRuntimeConfig.instanceId` for reload-stable ids (e.g. a panel id); otherwise a unique per-process token is generated.
 - `setTimeout`, `setInterval`, `requestAnimationFrame`, `console.log` are shimmed.
+
+`jsr.theme` keys: `isDark`, `bg`, `surface`, `surfaceAlt`, `border`, `borderBright`, `accent`, `accent2`, `onAccent`, `text`, `muted`. Host `updateTheme` payloads are MERGED onto the bootstrap defaults (`Object.assign`), so a partial map no longer wipes the keys it omits.
 
 Renderer effects ported from YoClip: radial gradients, box shadows, blur nodes, `clip: true` on containers, static/3D transforms, text shadows, `textTransform`.
 
@@ -161,3 +164,23 @@ Once flame_3d publishes a 3.47-compatible release:
 2. Add the id to `example/lib/main.dart` in `_widgetIds`.
 3. Keep widget JS self-contained and ES5-compatible (no modules, no arrow functions).
 4. Add a small test if the widget introduces new renderer types.
+5. Refresh the README gallery (`doc/widgets/<id>.png` + a row in the README table).
+
+## Gallery Screenshots
+
+The README gallery images in `doc/widgets/` come from two sources:
+
+- **Golden tests** (`flutter test test/golden/js_widget_golden_test.dart --update-goldens`,
+  then copy `test/golden/goldens/*.png`) — everything except GLB scenes and
+  the map. Goldens run the QuickJS backend with fixture data and a frozen
+  clock (`Date.now` is pinned), so they are deterministic.
+- **The screenshot harness** (`example/lib/screenshot.dart`) — for widgets
+  that need a real GPU or network (`3d-glb-showcase`, `fitness-trainer`,
+  `map`). Build once with `cd example && flutter build macos -t lib/screenshot.dart`,
+  then run the bundled binary with `JSR_WIDGET=<id> JSR_OUT=<png>` (add
+  `JSR_WIDGET_PATH=<file>` to load an edited widget.js from disk instead of
+  the bundled asset — no rebuild while iterating on camera/lighting).
+  The binary waits 8s, captures a `RepaintBoundary` at 2x and exits. The
+  macOS app must keep sandbox disabled (`Release.entitlements`) and
+  `FLTEnableImpeller`/`FLTEnableFlutterGPU` in `Info.plist`, or GLB scenes
+  render nothing.

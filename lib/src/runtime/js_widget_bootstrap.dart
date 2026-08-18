@@ -109,7 +109,7 @@ var jsr = {
   onKey: function(fn){ jsr._keyHandler = fn; },
 
   // Theme — updated by Dart when the user switches themes
-  theme: {isDark:true,bg:'#0f172a',surface:'#1e293b',border:'#334155',accent:'#818cf8',text:'#f1f5f9',muted:'#64748b'},
+  theme: {isDark:true,bg:'#0f172a',surface:'#1e293b',surfaceAlt:'#293548',border:'#334155',borderBright:'#475569',accent:'#818cf8',accent2:'#a78bfa',onAccent:'#0f172a',text:'#f1f5f9',muted:'#64748b'},
   _onThemeChange: null,
   onThemeChange: function(fn){ jsr._onThemeChange = fn; },
 

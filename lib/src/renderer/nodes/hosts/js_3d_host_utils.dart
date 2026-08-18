@@ -1,5 +1,7 @@
 import 'dart:ui';
 
+import 'package:flame_3d/model.dart';
+import 'package:flame_3d/resources.dart';
 import 'package:js_widget_runtime/js_widget_runtime.dart';
 import 'package:vector_math/vector_math.dart' as vm32;
 import 'package:vector_math/vector_math_64.dart' as vm64;
@@ -51,6 +53,36 @@ vm32.Vector3? js3dReadVec3f(List<dynamic>? value) {
 /// `modelId` wins over the command-level field, falling back to `'default'`.
 String js3dModelId(Js3dCommand command, Map<String, dynamic> payload) =>
     (payload['modelId'] as String?) ?? command.modelId ?? 'default';
+
+/// Multiplies every surface albedo of [model] by a tint parsed from a
+/// `#rrggbb` string. Lets a JS widget recolor a GLB whose own palette does
+/// not fit the host theme (e.g. a skin-toned body model as a stylized
+/// mannequin). Pure CPU-side math on material data — unit-testable without
+/// a GPU. A null [color] is a no-op.
+void js3dTintModel(Model model, String? color) {
+  if (color == null) return;
+  final tint = js3dParseColor(color, const Color(0xFFFFFFFF));
+  for (final node in model.nodes.values) {
+    final mesh = node.mesh;
+    if (mesh == null) continue;
+    for (final surface in mesh.surfaces) {
+      final material = surface.material;
+      if (material is SpatialMaterial) {
+        material.albedoColor = _multiplyColors(material.albedoColor, tint);
+      } else if (material is UnlitMaterial) {
+        material.albedoColor = _multiplyColors(material.albedoColor, tint);
+      }
+    }
+  }
+}
+
+/// Per-channel multiply of two colors (alpha included).
+Color _multiplyColors(Color a, Color b) => Color.fromARGB(
+      (a.a * b.a * 255).round(),
+      (a.r * b.r * 255).round(),
+      (a.g * b.g * 255).round(),
+      (a.b * b.b * 255).round(),
+    );
 
 /// Byte mask / opaque alpha for hex color parsing.
 const _byteMask = 0xff;
