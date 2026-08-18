@@ -1,0 +1,15 @@
+#!/bin/sh
+# This is a generated file; do not edit or check into version control.
+export "FLUTTER_ROOT=/Users/Uladzimir_Klyshevich/development/flutter"
+export "FLUTTER_APPLICATION_PATH=/Users/Uladzimir_Klyshevich/git/flutter_js_widget_runtime/example"
+export "FLUTTER_FRAMEWORK_SWIFT_PACKAGE_PATH=/Users/Uladzimir_Klyshevich/git/flutter_js_widget_runtime/example/macos/Flutter/ephemeral/Packages/.packages/FlutterFramework"
+export "COCOAPODS_PARALLEL_CODE_SIGN=true"
+export "FLUTTER_TARGET=lib/screenshot.dart"
+export "FLUTTER_BUILD_DIR=build"
+export "FLUTTER_BUILD_NAME=0.1.0"
+export "FLUTTER_BUILD_NUMBER=0.1.0"
+export "DART_DEFINES=RkxVVFRFUl9WRVJTSU9OPTMuNDQuNA==,RkxVVFRFUl9DSEFOTkVMPXN0YWJsZQ==,RkxVVFRFUl9HSVRfVVJMPWh0dHBzOi8vZ2l0aHViLmNvbS9mbHV0dGVyL2ZsdXR0ZXIuZ2l0,RkxVVFRFUl9GUkFNRVdPUktfUkVWSVNJT049YWQ3MGVjNDYxNw==,RkxVVFRFUl9FTkdJTkVfUkVWSVNJT049YTEwZDhhYzM4ZA==,RkxVVFRFUl9EQVJUX1ZFUlNJT049My4xMi4y"
+export "DART_OBFUSCATION=false"
+export "TRACK_WIDGET_CREATION=true"
+export "TREE_SHAKE_ICONS=true"
+export "PACKAGE_CONFIG=/Users/Uladzimir_Klyshevich/git/flutter_js_widget_runtime/example/.dart_tool/package_config.json"
