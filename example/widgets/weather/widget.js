@@ -6,16 +6,32 @@
   var _inputCity = city;
   var _visible = false; // for fade-in animation
 
+  // Hand-drawn SVG weather icons (no emoji fonts — deterministic rendering
+  // on every platform, including golden tests).
+  var WX = {
+    sun: '<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="5" fill="#fbbf24"/><g stroke="#f59e0b" stroke-width="1.6" stroke-linecap="round"><path d="M12 2.5v2.4M12 19.1v2.4M2.5 12h2.4M19.1 12h2.4M5 5l1.7 1.7M17.3 17.3 19 19M19 5l-1.7 1.7M6.7 17.3 5 19"/></g></svg>',
+    partly: '<svg viewBox="0 0 24 24"><circle cx="8.5" cy="8.5" r="3.4" fill="#fbbf24"/><path d="M9 18a4 4 0 0 1 .6-8 5.5 5.5 0 0 1 10.4 1.5A3.5 3.5 0 0 1 19.5 18z" fill="#cbd5e1"/></svg>',
+    cloud: '<svg viewBox="0 0 24 24"><path d="M6.5 18a4 4 0 0 1 .6-8 5.5 5.5 0 0 1 10.4 1.5A3.5 3.5 0 0 1 17 18z" fill="#94a3b8"/></svg>',
+    rain: '<svg viewBox="0 0 24 24"><path d="M6.5 14a4 4 0 0 1 .6-8 5.5 5.5 0 0 1 10.4 1.5A3.5 3.5 0 0 1 17 14z" fill="#94a3b8"/><g stroke="#38bdf8" stroke-width="1.6" stroke-linecap="round"><path d="M9 17l-1 3M13 17l-1 3M17 17l-1 3"/></g></svg>',
+    snow: '<svg viewBox="0 0 24 24"><path d="M6.5 14a4 4 0 0 1 .6-8 5.5 5.5 0 0 1 10.4 1.5A3.5 3.5 0 0 1 17 14z" fill="#cbd5e1"/><g stroke="#e0f2fe" stroke-width="1.5" stroke-linecap="round"><path d="M9 17.5v3M7.7 19l2.6 0M13 17.5v3M11.7 19l2.6 0M17 17.5v3M15.7 19l2.6 0"/></g></svg>',
+    storm: '<svg viewBox="0 0 24 24"><path d="M6.5 13a4 4 0 0 1 .6-8 5.5 5.5 0 0 1 10.4 1.5A3.5 3.5 0 0 1 17 13z" fill="#64748b"/><path d="M12.5 12.5 9.5 17.5h2.2L10.8 21.5 15 15.8h-2.4z" fill="#facc15"/></svg>',
+    fog: '<svg viewBox="0 0 24 24"><path d="M6.5 12a4 4 0 0 1 .6-8 5.5 5.5 0 0 1 10.4 1.5A3.5 3.5 0 0 1 17 12z" fill="#cbd5e1"/><g stroke="#94a3b8" stroke-width="1.5" stroke-linecap="round"><path d="M5 15.5h12M7 18h11M9 20.5h8"/></g></svg>',
+    temp: '<svg viewBox="0 0 24 24"><path d="M10 13.5V5a2 2 0 0 1 4 0v8.5a4 4 0 1 1-4 0z" fill="#e2e8f0"/><circle cx="12" cy="17" r="1.8" fill="#f43f5e"/></svg>',
+    drop: '<svg viewBox="0 0 24 24"><path d="M12 3s6 6.5 6 11a6 6 0 0 1-12 0c0-4.5 6-11 6-11z" fill="#38bdf8"/><path d="M9 14a3 3 0 0 0 2 2.8" stroke="#bae6fd" stroke-width="1.4" fill="none" stroke-linecap="round"/></svg>',
+    wind: '<svg viewBox="0 0 24 24"><g stroke="#7dd3fc" stroke-width="1.8" fill="none" stroke-linecap="round"><path d="M3 8h9.5a2.5 2.5 0 1 0-2.4-3.2M3 12.5h13.5a2.5 2.5 0 1 1-2.4 3.2M3 17h7.5"/></g></svg>',
+    eye: '<svg viewBox="0 0 24 24"><path d="M2.5 12S6 5.5 12 5.5 21.5 12 21.5 12 18 18.5 12 18.5 2.5 12 2.5 12z" fill="none" stroke="#94a3b8" stroke-width="1.6"/><circle cx="12" cy="12" r="3.2" fill="#38bdf8"/></svg>',
+  };
+
   function iconForDesc(desc) {
     var d = desc.toLowerCase();
-    if (d.indexOf('sun') >= 0 || d.indexOf('clear') >= 0) return '☀️';
-    if (d.indexOf('part') >= 0) return '⛅';
-    if (d.indexOf('cloud') >= 0 || d.indexOf('overcast') >= 0) return '☁️';
-    if (d.indexOf('rain') >= 0 || d.indexOf('drizzle') >= 0) return '🌧️';
-    if (d.indexOf('snow') >= 0 || d.indexOf('blizzard') >= 0) return '❄️';
-    if (d.indexOf('thunder') >= 0) return '⛈️';
-    if (d.indexOf('fog') >= 0 || d.indexOf('mist') >= 0) return '🌫️';
-    return '🌡️';
+    if (d.indexOf('sun') >= 0 || d.indexOf('clear') >= 0) return WX.sun;
+    if (d.indexOf('part') >= 0) return WX.partly;
+    if (d.indexOf('cloud') >= 0 || d.indexOf('overcast') >= 0) return WX.cloud;
+    if (d.indexOf('rain') >= 0 || d.indexOf('drizzle') >= 0) return WX.rain;
+    if (d.indexOf('snow') >= 0 || d.indexOf('blizzard') >= 0) return WX.snow;
+    if (d.indexOf('thunder') >= 0) return WX.storm;
+    if (d.indexOf('fog') >= 0 || d.indexOf('mist') >= 0) return WX.fog;
+    return WX.temp;
   }
 
   async function load() {
@@ -49,7 +65,7 @@
            decoration:{color:'#0f172a', borderRadius:0},
            padding:[16,20,16,16],
            child:{type:'column',crossAxisAlignment:'center',children:[
-            {type:'text',data:icon,style:{fontSize:52}},
+            {type:'svg', data:icon, size:52},
             {type:'sizedBox',height:4},
             {type:'text',data:areaName+', '+country,
              style:{color:'#94a3b8',fontSize:12,textAlign:'center'}},
@@ -63,10 +79,10 @@
           {type:'padding',padding:[12,12,12,8],child:{type:'row',
             mainAxisAlignment:'spaceAround',
             children:[
-              _stat('💧','Humidity',cur.humidity+'%'),
-              _stat('💨','Wind',cur.windspeedKmph+' km/h'),
-              _stat('🌡️','Feels',cur.FeelsLikeC+'°C'),
-              _stat('👁️','Vis.',cur.visibility+' km'),
+              _stat(WX.drop,'Humidity',cur.humidity+'%'),
+              _stat(WX.wind,'Wind',cur.windspeedKmph+' km/h'),
+              _stat(WX.temp,'Feels',cur.FeelsLikeC+'°C'),
+              _stat(WX.eye,'Vis.',cur.visibility+' km'),
             ]
           }},
           // City input row
@@ -108,7 +124,7 @@
 
   function _stat(icon, label, value) {
     return {type:'column',crossAxisAlignment:'center',mainAxisSize:'min',children:[
-      {type:'text',data:icon,style:{fontSize:18}},
+      {type:'svg',data:icon,size:18},
       {type:'sizedBox',height:2},
       {type:'text',data:value,style:{color:'#e2e8f0',fontSize:13,fontWeight:'w600'}},
       {type:'text',data:label,style:{color:'#64748b',fontSize:10}},

@@ -3,7 +3,7 @@
 (function() {
   var hue = 0;
   var scale = 1.0;
-  var label = 'Hello YoLoIT!';
+  var label = 'Hello JS Runtime!';
   var tapCount = 0;
   var bouncing = false;
   var bounceY = 0;
