@@ -1,0 +1,26 @@
+{
+  "id": "m3-showcase",
+  "name": "M3 Showcase",
+  "description": "Material 3 components rendered from a single JSON tree: appBar, banner, searchBar, segmentedButton, radio, tabBar, fab, popupMenu, tooltip, navigationBar.",
+  "version": "1.0.0",
+  "icon": "🧩",
+  "allowedCommands": [],
+  "network": false,
+  "cli": {
+    "summary": "Material 3 component gallery rendered from JSON nodes",
+    "events": [
+      { "id": "banner_dismiss", "description": "Dismiss the info banner" },
+      { "id": "fab_tap", "description": "Increment the created counter" },
+      { "id": "nav_changed", "description": "Switch the navigationBar destination (payload value = index; empty payload cycles)" },
+      { "id": "reset", "description": "Reset all demo state" }
+    ],
+    "read": {
+      "state": "jsr app:state m3-showcase",
+      "snapshot": "jsr app:snapshot m3-showcase"
+    },
+    "examples": [
+      "jsr app:run m3-showcase",
+      "jsr app:execute m3-showcase banner_dismiss"
+    ]
+  }
+}
