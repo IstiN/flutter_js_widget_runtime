@@ -30,6 +30,11 @@ class Cube3dHost extends Js3dHost
   /// Singleton instance shared by the JS bridge and the widget renderer.
   static final Cube3dHost instance = Cube3dHost._();
 
+  /// A fresh host not sharing controller state with the singleton — for
+  /// tests and for hosts that must not reuse scenes from a previous run.
+  @visibleForTesting
+  factory Cube3dHost.fresh() => Cube3dHost._();
+
   @override
   Js3dController createController(
     String sceneId,

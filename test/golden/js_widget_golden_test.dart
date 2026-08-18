@@ -33,6 +33,9 @@ import 'package:quickjs_runtime/quickjs_runtime.dart';
 final bool _hasNativeLib = File(QuickjsFfi.libraryPath).existsSync();
 
 /// Example widget id → its widget.js path (relative to the repo root).
+/// Widgets whose scenes need the Impeller-backed flame host (GLB models).
+const _flameWidgets = {'3d-glb-showcase', 'fitness-trainer'};
+
 const _widgetFiles = {
   'yolo-hello': 'example/widgets/yolo-hello/widget.js',
   'calculator': 'example/widgets/calculator/widget.js',
@@ -41,7 +44,21 @@ const _widgetFiles = {
   'crypto': 'example/widgets/crypto/widget.js',
   'animation-showcase': 'example/widgets/animation-showcase/widget.js',
   'map': 'example/widgets/map/widget.js',
+  '3d-showcase': 'example/widgets/3d-showcase/widget.js',
+  '3d-game-dodge': 'example/widgets/3d-game-dodge/widget.js',
+  '3d-glb-showcase': 'example/widgets/3d-glb-showcase/widget.js',
+  'fitness-trainer': 'example/widgets/fitness-trainer/widget.js',
 };
+
+/// One cube host for all 3D goldens — a fresh instance per test run so
+/// scene controllers never leak across widget captures (the singleton would
+/// serve disposed controllers from a previous test).
+final _goldenCubeHost = Cube3dHost.fresh();
+
+/// Flame host for GLB widgets (Impeller-backed; the golden pumps render
+/// through it on macOS, on Linux CI those widgets fall back to their
+/// placeholder and the golden stays the placeholder image).
+final _goldenFlameHost = createFlame3dHost();
 
 /// Demo scenes of animation-showcase visited by the interactive golden:
 /// tap each menu row and capture the scene it opens.
@@ -159,6 +176,7 @@ Future<_RunningWidget> _runWidget(String widgetJs, String widgetId) async {
   final backend = QuickjsWidgetEngineBackend(
     config: JsRuntimeConfig(
       widgetId: widgetId,
+      js3dHost: _flameWidgets.contains(widgetId) ? _goldenFlameHost : _goldenCubeHost,
       onRender: renders.add,
       onSetTitle: (_) {},
       onStorageUpdate: (_) {},
@@ -204,7 +222,7 @@ class _GoldenTileProvider extends TileProvider {
       MemoryImage(_bytes);
 }
 
-Widget _host(Map<String, dynamic>? tree) => MaterialApp(
+Widget _host(Map<String, dynamic>? tree, [String? widgetId]) => MaterialApp(
       debugShowCheckedModeBanner: false,
       theme: ThemeData.dark(useMaterial3: true),
       home: Scaffold(
@@ -213,6 +231,9 @@ Widget _host(Map<String, dynamic>? tree) => MaterialApp(
           child: JsonWidgetRenderer(
             onEvent: (_, __) {},
             mapTileProvider: _GoldenTileProvider(),
+            js3dHost: widgetId != null && _flameWidgets.contains(widgetId)
+                ? _goldenFlameHost
+                : _goldenCubeHost,
           ).build(tree),
         ),
       ),
@@ -278,8 +299,11 @@ void main() {
       for (final e in _widgetFiles.entries) {
         final js = File(e.value).readAsStringSync();
         final runner = await _runWidget(js, e.key);
-        _runners[e.key] = runner;
         _trees[e.key] = runner.renders.isNotEmpty ? runner.renders.last : null;
+        // Non-interactive widgets' engines are no longer needed; timers and
+        // tickers must not survive into the golden pumps below.
+        if (e.key != 'animation-showcase') await runner.dispose();
+        else _runners[e.key] = runner;
       }
     }
     // Real fonts make goldens readable and reusable as README screenshots;
@@ -327,7 +351,7 @@ void main() {
       final tree = _trees[entry.key];
       expect(tree, isNotNull, reason: '${entry.key} never called jsr.render');
 
-      await tester.pumpWidget(_host(tree));
+      await tester.pumpWidget(_host(tree, entry.key));
       // A fixed frame, never pumpAndSettle: showcase widgets run infinite
       // animations and timers, and goldens must stay deterministic.
       await tester.pump(const Duration(milliseconds: 16));
@@ -354,7 +378,7 @@ void main() {
       final tree = await runner!.tap(tap.value);
       expect(tree, isNotNull, reason: 'scene ${tap.key} did not re-render');
 
-      await tester.pumpWidget(_host(tree));
+      await tester.pumpWidget(_host(tree, 'animation-showcase'));
       await tester.pump(const Duration(milliseconds: 16));
 
       await expectLater(
