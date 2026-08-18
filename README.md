@@ -19,8 +19,10 @@ Real JavaScript, rendered by this package and captured by [golden tests](test/go
 | ![yolo-hello](doc/widgets/yolo-hello.png) | ![calculator](doc/widgets/calculator.png) |
 | ![weather](doc/widgets/weather.png) | ![stocks](doc/widgets/stocks.png) |
 | ![crypto](doc/widgets/crypto.png) | ![animation-showcase](doc/widgets/animation-showcase.png) |
+| ![map](doc/widgets/map.png) | ![showcase: bounce](doc/widgets/showcase-bounce.png) |
+| ![showcase: card stack](doc/widgets/showcase-cards.png) | ![showcase: colors](doc/widgets/showcase-colors.png) |
 
-yolo-hello (animated gradient + bounce) · calculator (full keyboard logic in JS) · weather (wttr.in fetch) · stocks (live quotes) · crypto (price tickers) · animation-showcase (entrance/switcher effects)
+yolo-hello (animated gradient + bounce) · calculator (full keyboard logic in JS) · weather (wttr.in fetch) · stocks (live quotes) · crypto (price tickers) · map (OpenStreetMap landmarks) · animation-showcase (menu + per-scene captures from the interactive golden: fade / morph / bounce / cards / drag / pulse / colors)
 
 ## Quick start
 

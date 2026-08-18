@@ -45,6 +45,8 @@ class _DemoHomeState extends State<DemoHome> {
     '3d-showcase',
     '3d-glb-showcase',
     '3d-game-dodge',
+    'fitness-trainer',
+    'map',
   ];
 
   @override

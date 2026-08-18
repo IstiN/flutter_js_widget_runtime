@@ -2,10 +2,13 @@
 library;
 
 import 'dart:async';
+import 'dart:convert';
+import 'dart:typed_data';
 
 import 'dart:io';
 
 import 'package:flutter/material.dart';
+import 'package:flutter_map/flutter_map.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:js_widget_runtime/js_widget_runtime.dart';
@@ -37,6 +40,19 @@ const _widgetFiles = {
   'stocks': 'example/widgets/stocks/widget.js',
   'crypto': 'example/widgets/crypto/widget.js',
   'animation-showcase': 'example/widgets/animation-showcase/widget.js',
+  'map': 'example/widgets/map/widget.js',
+};
+
+/// Demo scenes of animation-showcase visited by the interactive golden:
+/// tap each menu row and capture the scene it opens.
+const _showcaseTaps = {
+  'fade': 'go_fade',
+  'morph': 'go_morph',
+  'bounce': 'go_bounce',
+  'cards': 'go_cards',
+  'drag': 'go_drag',
+  'pulse': 'go_pulse',
+  'colors': 'go_colors',
 };
 
 /// Fixed weather payload shaped like wttr.in j1.
@@ -107,6 +123,28 @@ dynamic _fixtureFor(String widget, String url) {
   return null;
 }
 
+/// A running widget engine plus its render log — lets golden tests drive
+/// events (button taps) and capture the resulting tree.
+class _RunningWidget {
+  _RunningWidget(this.backend, this.renders);
+
+  final QuickjsWidgetEngineBackend backend;
+  final List<Map<String, dynamic>> renders;
+
+  /// Fires the widget's event handler (as a button tap would) and waits
+  /// for the next render it produces.
+  Future<Map<String, dynamic>?> tap(String actionId, [int waitFor = 20]) async {
+    final before = renders.length;
+    await backend.callEvent(actionId);
+    for (var i = 0; i < waitFor && renders.length <= before; i++) {
+      await Future<void>.delayed(const Duration(milliseconds: 10));
+    }
+    return renders.length > before ? renders.last : null;
+  }
+
+  Future<void> dispose() => backend.dispose();
+}
+
 /// Runs [widgetJs] once and returns the tree of the render call that
 /// follows data arrival: for fetching widgets that is the populated UI; for
 /// pure widgets it is simply the first render.
@@ -115,10 +153,7 @@ dynamic _fixtureFor(String widget, String url) {
 /// animation-showcase) start an infinite `requestAnimationFrame` loop from
 /// the initial eval, so awaiting run() would never complete inside the
 /// synchronous QuickJS eval.
-Future<Map<String, dynamic>?> _renderedTreeAfterData(
-  String widgetJs,
-  String widgetId,
-) async {
+Future<_RunningWidget> _runWidget(String widgetJs, String widgetId) async {
   final renders = <Map<String, dynamic>>[];
   void Function(String id, dynamic value) resolve = (_, _) {};
   final backend = QuickjsWidgetEngineBackend(
@@ -137,11 +172,14 @@ Future<Map<String, dynamic>?> _renderedTreeAfterData(
   await backend.init();
   // Freeze the clock: widget headers show the current time, which would
   // make the goldens differ on every run.
-  final running = backend.run(
-    widgetJs,
-    hostBootstrapJs: 'Date.now = function() { return 1760000000000; };'
-        'Date.prototype.toLocaleTimeString = function() { return "12:34"; };',
-  );
+  unawaited(backend
+      .run(
+        widgetJs,
+        hostBootstrapJs: 'Date.now = function() { return 1760000000000; };'
+            'Date.prototype.toLocaleTimeString = function() '
+            '{ return "12:34"; };',
+      )
+      .catchError((_) {}));
   // Drain pending JS promise continuations (the awaited fetchJson .then);
   // stop as soon as we have the post-data frame.
   for (var i = 0; i < 50; i++) {
@@ -150,10 +188,20 @@ Future<Map<String, dynamic>?> _renderedTreeAfterData(
     final enough = !isFetching ? renders.isNotEmpty : renders.length >= 2;
     if (enough) break;
   }
-  // The RAF/timer loop may keep the eval pending; dispose regardless.
-  unawaited(running.catchError((_) {}));
-  await backend.dispose();
-  return renders.isNotEmpty ? renders.last : null;
+  return _RunningWidget(backend, renders);
+}
+
+/// In-memory 1×1 tile so map goldens never touch the network or the
+/// path_provider-backed cache.
+class _GoldenTileProvider extends TileProvider {
+  static final Uint8List _bytes = base64Decode(
+    'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk'
+    'YPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==',
+  );
+
+  @override
+  ImageProvider getImage(TileCoordinates coordinates, TileLayer options) =>
+      MemoryImage(_bytes);
 }
 
 Widget _host(Map<String, dynamic>? tree) => MaterialApp(
@@ -162,7 +210,10 @@ Widget _host(Map<String, dynamic>? tree) => MaterialApp(
       home: Scaffold(
         backgroundColor: const Color(0xFF0F172A),
         body: Center(
-          child: JsonWidgetRenderer(onEvent: (_, __) {}).build(tree),
+          child: JsonWidgetRenderer(
+            onEvent: (_, __) {},
+            mapTileProvider: _GoldenTileProvider(),
+          ).build(tree),
         ),
       ),
     );
@@ -172,6 +223,7 @@ Widget _host(Map<String, dynamic>? tree) => MaterialApp(
 /// event loop — inside testWidgets the fake async zone would freeze the
 /// engine's timers and `run` would never complete.
 final Map<String, Map<String, dynamic>?> _trees = {};
+final Map<String, _RunningWidget> _runners = {};
 
 /// Golden comparator tolerant to sub-pixel platform differences: font
 /// rasterization (macOS CoreText vs Linux FreeType) produces slightly
@@ -225,7 +277,9 @@ void main() {
     if (_hasNativeLib) {
       for (final e in _widgetFiles.entries) {
         final js = File(e.value).readAsStringSync();
-        _trees[e.key] = await _renderedTreeAfterData(js, e.key);
+        final runner = await _runWidget(js, e.key);
+        _runners[e.key] = runner;
+        _trees[e.key] = runner.renders.isNotEmpty ? runner.renders.last : null;
       }
     }
     // Real fonts make goldens readable and reusable as README screenshots;
@@ -284,4 +338,35 @@ void main() {
       );
     });
   }
+
+  // Interactive showcase walk: tap each animation-demo row in the menu and
+  // capture the scene it opens. Verifies the whole event → JS → render
+  // round trip, not just the initial frame.
+  for (final tap in _showcaseTaps.entries) {
+    testWidgets('showcase scene ${tap.key} opens on tap', (tester) async {
+      if (!_hasNativeLib) {
+        markTestSkipped('QuickJS native library not built');
+      }
+      await tester.binding.setSurfaceSize(const Size(420, 860));
+
+      final runner = _runners['animation-showcase'];
+      // Start from the menu: fire the row tap and wait for the scene render.
+      final tree = await runner!.tap(tap.value);
+      expect(tree, isNotNull, reason: 'scene ${tap.key} did not re-render');
+
+      await tester.pumpWidget(_host(tree));
+      await tester.pump(const Duration(milliseconds: 16));
+
+      await expectLater(
+        find.byType(MaterialApp),
+        matchesGoldenFile('goldens/showcase-${tap.key}.png'),
+      );
+    });
+  }
+
+  tearDownAll(() async {
+    for (final runner in _runners.values) {
+      await runner.dispose();
+    }
+  });
 }
