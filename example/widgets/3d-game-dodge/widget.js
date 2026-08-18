@@ -47,9 +47,6 @@
       primitive: 'cube',
       color: '#22d3ee',
       position: [0, 0, PLAYER_Z],
-      // A 45° yaw turns the player into a diamond so the top-down camera
-      // sees three faces instead of one flat front.
-      rotation: [0, 45, 0],
       scale: [1.2, 1.2, 1.2]
     });
     jsr.storage.get('dodge-best').then(function(saved) {
