@@ -177,6 +177,9 @@ extension on JsonWidgetRenderer {
   Widget _searchBarNode(Map<String, dynamic> m) {
     return SearchBar(
       hintText: m['hint'] as String?,
+      // The M3 default elevation (6) paints a black shadow ring on dark
+      // themes; the JSON surfaces are already lifted by their own cards.
+      elevation: const WidgetStatePropertyAll(0),
       onChanged: (text) {
         final action = m['onChange'] ?? m['onChanged'];
         if (action != null) {
