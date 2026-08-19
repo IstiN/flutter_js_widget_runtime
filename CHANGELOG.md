@@ -1,3 +1,7 @@
+## 0.4.76
+
+- Automated patch bump.
+
 ## 0.4.75
 
 - fix(engine): cross-engine message routing on macOS JSC — flutter_js
