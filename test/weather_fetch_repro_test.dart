@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:js_widget_runtime/js_widget_runtime.dart';
@@ -6,6 +7,10 @@ import 'package:js_widget_runtime/js_widget_runtime.dart';
 // Real-backend repro for the "weather stuck on loading" report:
 // widget calls jsr.render (spinner) + jsr.fetchJson; the fetch resolve must
 // re-enter JS and produce a SECOND render with data (or an error render).
+//
+// macOS-only: the default JsWidgetEngine backend is flutter_js — JavaScriptCore
+// on macOS (system framework, always available) but a QuickJS plugin .so on
+// Linux, which CI does not build. The tests also hit the live wttr.in API.
 
 JsWidgetEngine _reproEngine(
   String widgetId,
@@ -33,6 +38,7 @@ String _fetchJs(String city, String marker, {String spinner = 'center'}) => '''
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
+  if (!Platform.isMacOS) return;
 
   test(
     'fetchJson resolve triggers a second render (real JSC backend)',
