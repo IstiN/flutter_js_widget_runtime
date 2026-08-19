@@ -19,6 +19,20 @@ void main() {
       return MaterialApp(home: Scaffold(body: renderer.build(tree)));
     }
 
+    Future<void> pumpOverlay(
+      WidgetTester tester,
+      Map<String, dynamic> node,
+    ) async {
+      await tester.pumpWidget(buildTree(node));
+      await tester.pump();
+      await tester.pumpAndSettle();
+    }
+
+    Future<void> tapOverlayButton(WidgetTester tester, String label) async {
+      await tester.tap(find.text(label));
+      await tester.pumpAndSettle();
+    }
+
     testWidgets('bottomSheet shows child and fires dismiss on drag close', (
       tester,
     ) async {
@@ -241,6 +255,86 @@ void main() {
     testWidgets('carousel with no children renders nothing', (tester) async {
       await tester.pumpWidget(buildTree({'type': 'carousel'}));
       expect(find.byType(CarouselView), findsNothing);
+    });
+
+    testWidgets('datePicker posts the picked date on OK', (tester) async {
+      await pumpOverlay(tester, {
+        'type': 'datePicker',
+        'initialDate': '2024-05-10',
+        'onSelected': 'date_picked',
+      });
+      expect(find.byType(DatePickerDialog), findsOneWidget);
+
+      await tester.tap(find.text('15'));
+      await tester.pump();
+      await tapOverlayButton(tester, 'OK');
+      expect(find.byType(DatePickerDialog), findsNothing);
+      expect(events.single.$1, 'date_picked');
+      expect(events.single.$2, {'value': '2024-05-15'});
+    });
+
+    testWidgets('datePicker cancel fires custom onDismiss', (tester) async {
+      await pumpOverlay(tester, {
+        'type': 'datePicker',
+        // Unparseable dates fall back to the defaults (today, 1900, 2100).
+        'initialDate': 'not-a-date',
+        'firstDate': '2020-01-01',
+        'lastDate': '2030-12-31',
+        'onSelected': 'date_picked',
+        'onDismiss': 'date_cancelled',
+      });
+      expect(find.byType(DatePickerDialog), findsOneWidget);
+
+      await tapOverlayButton(tester, 'Cancel');
+      expect(events.single.$1, 'date_cancelled');
+      expect(events.single.$2, <String, dynamic>{});
+    });
+
+    testWidgets('datePicker cancel without onDismiss fires default event', (
+      tester,
+    ) async {
+      await pumpOverlay(tester, {'type': 'datePicker'});
+      expect(find.byType(DatePickerDialog), findsOneWidget);
+
+      await tapOverlayButton(tester, 'Cancel');
+      expect(events.single.$1, 'datePickerDismiss');
+    });
+
+    testWidgets('timePicker posts the initial time on OK', (tester) async {
+      await pumpOverlay(tester, {
+        'type': 'timePicker',
+        'initialTime': '14:05',
+        'onSelected': 'time_picked',
+      });
+      expect(find.byType(TimePickerDialog), findsOneWidget);
+
+      await tapOverlayButton(tester, 'OK');
+      expect(find.byType(TimePickerDialog), findsNothing);
+      expect(events.single.$1, 'time_picked');
+      expect(events.single.$2, {'value': '14:05'});
+    });
+
+    testWidgets('timePicker cancel fires default dismiss event', (
+      tester,
+    ) async {
+      // An unparseable initialTime falls back to the current time.
+      await pumpOverlay(tester, {'type': 'timePicker', 'initialTime': 'bogus'});
+      expect(find.byType(TimePickerDialog), findsOneWidget);
+
+      await tapOverlayButton(tester, 'Cancel');
+      expect(events.single.$1, 'timePickerDismiss');
+    });
+
+    testWidgets('timePicker cancel honors custom onDismiss', (tester) async {
+      await pumpOverlay(tester, {
+        'type': 'timePicker',
+        'onSelected': 'time_picked',
+        'onDismiss': 'time_cancelled',
+      });
+      expect(find.byType(TimePickerDialog), findsOneWidget);
+
+      await tapOverlayButton(tester, 'Cancel');
+      expect(events.single.$1, 'time_cancelled');
     });
   });
 

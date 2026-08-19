@@ -1,0 +1,20 @@
+{
+  "id": "charts-showcase",
+  "name": "Charts Showcase",
+  "description": "fl_chart-backed charts from JSON nodes: line, bar, pie, radar, scatter.",
+  "version": "1.0.0",
+  "icon": "📊",
+  "allowedCommands": [],
+  "network": false,
+  "cli": {
+    "summary": "Chart gallery rendered through the flChart node",
+    "events": [],
+    "read": {
+      "state": "jsr app:state charts-showcase",
+      "snapshot": "jsr app:snapshot charts-showcase"
+    },
+    "examples": [
+      "jsr app:run charts-showcase"
+    ]
+  }
+}

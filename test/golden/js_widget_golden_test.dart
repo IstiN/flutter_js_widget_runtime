@@ -53,6 +53,7 @@ const _widgetFiles = {
   '3d-glb-showcase': 'example/widgets/3d-glb-showcase/widget.js',
   'fitness-trainer': 'example/widgets/fitness-trainer/widget.js',
   'm3-showcase': 'example/widgets/m3-showcase/widget.js',
+  'charts-showcase': 'example/widgets/charts-showcase/widget.js',
 };
 
 /// One cube host for all 3D goldens — a fresh instance per test run so
@@ -107,6 +108,8 @@ const _m3OverlayTaps = {
   'sheet': 'show_sheet',
   'dialog': 'show_dialog',
   'snack': 'show_snack',
+  'date': 'show_date',
+  'time': 'show_time',
 };
 
 /// Fixed weather payload shaped like wttr.in j1.

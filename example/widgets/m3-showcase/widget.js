@@ -69,6 +69,14 @@
     if (state.overlay === 'snack') {
       return { type: 'snackBar', message: 'Snackbar from a JSON node', actionLabel: 'UNDO', onAction: 'overlay_dismiss' };
     }
+    if (state.overlay === 'date') {
+      // Pinned initial date keeps the golden frame deterministic (the
+      // calendar opens on August 2026 regardless of today's date).
+      return { type: 'datePicker', initialDate: '2026-08-19', onSelected: 'date_picked', onDismiss: 'overlay_dismiss' };
+    }
+    if (state.overlay === 'time') {
+      return { type: 'timePicker', initialTime: '09:41', onSelected: 'time_picked', onDismiss: 'overlay_dismiss' };
+    }
     return { type: 'sizedBox', height: 0 };
   }
 
@@ -233,6 +241,15 @@
                       { type: 'sizedBox', width: 8 },
                       { type: 'outlinedButton', text: 'Snack', onTap: 'show_snack' }
                     ]
+                  },
+                  { type: 'sizedBox', height: 8 },
+                  {
+                    type: 'row',
+                    children: [
+                      { type: 'outlinedButton', text: 'Date', onTap: 'show_date' },
+                      { type: 'sizedBox', width: 8 },
+                      { type: 'outlinedButton', text: 'Time', onTap: 'show_time' }
+                    ]
                   }
                 ])
               ]
@@ -287,7 +304,10 @@
     if (name === 'show_sheet') state.overlay = 'sheet';
     if (name === 'show_dialog') state.overlay = 'dialog';
     if (name === 'show_snack') state.overlay = 'snack';
+    if (name === 'show_date') state.overlay = 'date';
+    if (name === 'show_time') state.overlay = 'time';
     if (name === 'overlay_dismiss') state.overlay = null;
+    if (name === 'date_picked' || name === 'time_picked') state.overlay = null;
     render();
   });
 
