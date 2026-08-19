@@ -205,6 +205,7 @@ class FlutterJsWidgetEngineBackend implements JsWidgetEngineBackend {
   @override
   Future<void> dispose() async {
     _disposed = true;
+    _unregisterRoute();
     _bridge.dispose();
     final rt = _runtime;
     _runtime = null;
@@ -213,6 +214,15 @@ class FlutterJsWidgetEngineBackend implements JsWidgetEngineBackend {
       // callback (e.g. bridge channel → dispatch → dispose chain), releasing
       // synchronously frees the JSContextGroup out from under the callback.
       _scheduleNativeRelease(rt);
+    }
+  }
+
+  void _unregisterRoute() {
+    final iid = _config.instanceId ?? _config.widgetId;
+    final route = _routesByIid[iid];
+    if (route != null && identical(route.bridge, _bridge)) {
+      route.disposed = true;
+      _routesByIid.remove(iid);
     }
   }
 
@@ -308,6 +318,109 @@ class FlutterJsWidgetEngineBackend implements JsWidgetEngineBackend {
         unawaited(_bridge.dispatch(channel, args));
       });
     }
+    _installGlobalChannelRouter();
+  }
+
+  // ── Cross-engine message routing ─────────────────────────────────────────
+  //
+  // flutter_js 0.8.x (JSC backend) registers the native `sendMessage`
+  // callback as a STATIC: every created runtime overwrites it, so all
+  // messages from ALL live JS contexts dispatch through the LAST runtime's
+  // channel map. With several engines alive (a board with multiple widgets),
+  // messages from engine A were delivered to engine B — a weather widget's
+  // fetch resolved into a neighbour widget and its UI stayed on the loading
+  // spinner forever (verified by a two-engine repro test).
+  //
+  // The router below is installed into EVERY registered channel map (the
+  // maps are public static state on JavascriptRuntime). It tags each call
+  // with the receiving runtime id and forwards to the OWNING engine's
+  // handler when the payload carries a different engine tag. Payloads are
+  // tagged by the bootstrap's `sendMessage` shim with the engine `__IID`.
+
+  /// Live engines by instance id (the `__IID` injected into each runtime).
+  static final Map<String, _EngineRoute> _routesByIid = {};
+
+  /// Bridges the (iid, channel) → dispatch entry for one live engine.
+  static void _registerRoute(String iid, JsWidgetBridge bridge) {
+    _routesByIid[iid] = _EngineRoute(bridge: bridge);
+  }
+
+  void _installGlobalChannelRouter() {
+    final myIid = _config.instanceId ?? _config.widgetId;
+    _registerRoute(myIid, _bridge);
+    // Install/refresh a router row in every live channel map so whichever
+    // map the static callback reads from, dispatch is iid-aware.
+    final maps = JavascriptRuntime.channelFunctionsRegistered;
+    for (final map in maps.values) {
+      for (final channel in _bridgeChannels) {
+        // Keep any existing per-engine handler as the fallback for
+        // untagged messages (older bootstrap without the shim).
+        final existing = map[channel];
+        map[channel] = _routeMessage(myIid, channel, existing);
+      }
+    }
+  }
+
+  /// Builds the router closure for one channel.
+  Function(dynamic) _routeMessage(
+    String myIid,
+    String channel,
+    Function(dynamic)? fallback,
+  ) {
+    // Channels whose payload is a RAW string (not JSON) — the bootstrap's
+    // iid wrapper wraps them as {iid, id}; unwrap back before delivery.
+    final unwrapsRawId =
+        channel == '__jsr_log' ||
+        channel == '__jsr_set_title' ||
+        channel == '__jsr_clear_interval' ||
+        channel == '__jsr_caf';
+    return (dynamic payload) {
+      // Unwrap {"iid":..., "id":...} wrappers produced by the bootstrap for
+      // plain-id channels back into the raw id string the handler expects.
+      if (unwrapsRawId && payload is String) {
+        try {
+          final decoded = jsonDecode(payload);
+          if (decoded is Map<String, dynamic> &&
+              decoded.containsKey('iid') &&
+              decoded.containsKey('id')) {
+            payload = decoded['id']?.toString();
+          }
+        } catch (_) {}
+      }
+      final iid = _payloadIid(payload);
+      if (iid == null || iid == myIid) {
+        // Untagged or ours — legacy per-engine path.
+        return fallback?.call(payload);
+      }
+      final route = _routesByIid[iid];
+      if (route == null || route.disposed) {
+        // Destination engine is gone; drop with a breadcrumb.
+        debugPrint(
+          '[WidgetEvent] router DROP channel=$channel iid=$iid (engine gone)',
+        );
+        return null;
+      }
+      route.bridge.dispatch(channel, payload);
+      return null;
+    };
+  }
+
+  /// Extracts the `iid` field from a channel payload when present.
+  static String? _payloadIid(dynamic payload) {
+    if (payload is Map<String, dynamic>) {
+      final v = payload['iid'];
+      return v is String ? v : null;
+    }
+    if (payload is String) {
+      try {
+        final decoded = jsonDecode(payload);
+        if (decoded is Map<String, dynamic>) {
+          final v = decoded['iid'];
+          return v is String ? v : null;
+        }
+      } catch (_) {}
+    }
+    return null;
   }
 
   static const List<String> _bridgeChannels = [
@@ -368,4 +481,12 @@ class FlutterJsWidgetEngineBackend implements JsWidgetEngineBackend {
       debugPrint('[FlutterJsWidgetEngineBackend] resolve callback error: $e');
     }
   }
+}
+
+/// Routing entry for one live engine, keyed by its `__IID`.
+class _EngineRoute {
+  _EngineRoute({required this.bridge});
+
+  final JsWidgetBridge bridge;
+  bool disposed = false;
 }

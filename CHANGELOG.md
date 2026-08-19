@@ -1,3 +1,18 @@
+## 0.4.75
+
+- fix(engine): cross-engine message routing on macOS JSC — flutter_js
+  registers the native `sendMessage` callback as a STATIC, so every new
+  runtime overwrites it and ALL live JS contexts dispatch through the
+  LAST runtime's channel map. With several engines alive (a board with
+  multiple widgets), one widget's fetch/render messages were delivered to
+  a neighbour widget — e.g. the weather widget stayed on its loading
+  spinner forever while its data rendered inside another widget
+  (deterministic two-engine repro test included). The bootstrap now tags
+  every message payload with the engine `iid`; a Dart-side router
+  (installed into every live channel map) delivers each message to its
+  owning engine and strips the tag before handlers run. QuickJS backend
+  (per-engine native routing) only unwraps raw-id channels.
+
 ## 0.4.74
 
 - Automated patch bump.

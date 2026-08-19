@@ -12,6 +12,26 @@ var __cbs = {};
 var __iv_cbs = {};
 var __raf_cbs = {};
 
+// Cross-engine routing tag: on macOS (JSC) the native sendMessage callback
+// is process-global and dispatches through the LAST-created runtime's
+// channel map. Every message payload below carries the engine __IID so the
+// Dart-side router can deliver it to the OWNING engine (see
+// _installGlobalChannelRouter in js_widget_engine_flutter_js.dart).
+function __tag(payload){
+  if(payload===undefined||payload===null)return '{"iid":"'+__IID+'"}';
+  if(typeof payload==='string'){
+    // Plain-id channels (clearInterval/cancelAnimationFrame): wrap as
+    // {iid, id} — the Dart router unwraps and delivers the raw id.
+    try{
+      var o=JSON.parse(payload);
+      if(o&&typeof o==='object'){o.iid=__IID;return JSON.stringify(o);}
+    }catch(e){}
+    return '{"iid":"'+__IID+'","id":'+JSON.stringify(payload)+'}';
+  }
+  return payload;
+}
+function __send(ch,payload){sendMessage(ch,__tag(payload));}
+
 // Monotonic counter for unique IDs — far cheaper than Math.random()+Date.now()
 // which was called on every timer, RAF, and promise callback.
 var __idCounter = 0;
@@ -29,18 +49,18 @@ function __joinArgs(a){
 }
 
 var console = {
-  log:   function(){sendMessage('__jsr_log', __joinArgs(arguments));},
-  warn:  function(){sendMessage('__jsr_log', '[W] '+__joinArgs(arguments));},
-  error: function(){sendMessage('__jsr_log', '[E] '+__joinArgs(arguments));}
+  log:   function(){__send('__jsr_log', __joinArgs(arguments));},
+  warn:  function(){__send('__jsr_log', '[W] '+__joinArgs(arguments));},
+  error: function(){__send('__jsr_log', '[E] '+__joinArgs(arguments));}
 };
 
-var setTimeout = function(fn,ms){ var id=__nid(); __iv_cbs[id]=function(){delete __iv_cbs[id];fn();}; sendMessage('__jsr_set_interval','{"id":"'+id+'","ms":'+(ms||0)+',"once":true}'); return id; };
-var clearTimeout = function(id){ sendMessage('__jsr_clear_interval', String(id)); };
-var setInterval = function(fn,ms){ var id=__nid(); __iv_cbs[id]=fn; sendMessage('__jsr_set_interval','{"id":"'+id+'","ms":'+(ms||1000)+'}'); return id; };
-var clearInterval = function(id){ sendMessage('__jsr_clear_interval', String(id)); delete __iv_cbs[String(id)]; };
+var setTimeout = function(fn,ms){ var id=__nid(); __iv_cbs[id]=function(){delete __iv_cbs[id];fn();}; __send('__jsr_set_interval','{"id":"'+id+'","ms":'+(ms||0)+',"once":true}'); return id; };
+var clearTimeout = function(id){ __send('__jsr_clear_interval', String(id)); };
+var setInterval = function(fn,ms){ var id=__nid(); __iv_cbs[id]=fn; __send('__jsr_set_interval','{"id":"'+id+'","ms":'+(ms||1000)+'}'); return id; };
+var clearInterval = function(id){ __send('__jsr_clear_interval', String(id)); delete __iv_cbs[String(id)]; };
 
-var requestAnimationFrame = function(fn){ var id=__nid(); __raf_cbs[id]=fn; sendMessage('__jsr_raf','{"id":"'+id+'","iid":"'+__IID+'"}'); return id; };
-var cancelAnimationFrame = function(id){ delete __raf_cbs[String(id)]; sendMessage('__jsr_caf', String(id)); };
+var requestAnimationFrame = function(fn){ var id=__nid(); __raf_cbs[id]=fn; __send('__jsr_raf','{"id":"'+id+'","iid":"'+__IID+'"}'); return id; };
+var cancelAnimationFrame = function(id){ delete __raf_cbs[String(id)]; __send('__jsr_caf', String(id)); };
 
 var jsr = {
   // Easing helpers for animations and tweening in widget code.
@@ -55,15 +75,15 @@ var jsr = {
     backOut: function(t){ var c1=1.70158,c3=c1+1; return 1+c3*Math.pow(t-1,3)+c1*Math.pow(t-1,2); },
   },
 
-  render: function(tree){ try{ tree.__iid = __IID; }catch(e){} sendMessage('__jsr_render', JSON.stringify(tree)); },
+  render: function(tree){ try{ tree.__iid = __IID; }catch(e){} __send('__jsr_render', JSON.stringify(tree)); },
 
-  setTitle: function(t){ sendMessage('__jsr_set_title', String(t)); },
+  setTitle: function(t){ __send('__jsr_set_title', String(t)); },
 
   fetchJson: function(url,opts){
     return new Promise(function(resolve,reject){
       var id=__nid();
       __cbs[id]=function(r){if(r&&r.__error)reject(new Error(r.__error));else resolve(r);};
-      sendMessage('__jsr_fetch', JSON.stringify({id:id,url:url,method:(opts&&opts.method)||'GET',headers:(opts&&opts.headers)||{}}));
+      __send('__jsr_fetch', JSON.stringify({id:id,url:url,method:(opts&&opts.method)||'GET',headers:(opts&&opts.headers)||{}}));
     });
   },
 
@@ -71,7 +91,7 @@ var jsr = {
     return new Promise(function(resolve,reject){
       var id=__nid();
       __cbs[id]=function(r){if(r&&r.__error)reject(new Error(r.__error));else resolve(r);};
-      sendMessage('__jsr_exec', JSON.stringify({id:id,cmd:cmd}));
+      __send('__jsr_exec', JSON.stringify({id:id,cmd:cmd}));
     });
   },
 
@@ -83,18 +103,18 @@ var jsr = {
       return new Promise(function(resolve){
         var id=__nid();
         __cbs[id]=function(v){self._c[key]=v;resolve(v);};
-        sendMessage('__jsr_storage_get', JSON.stringify({id:id,key:key}));
+        __send('__jsr_storage_get', JSON.stringify({id:id,key:key}));
       });
     },
     set:function(key,val){
       this._c[key]=val;
-      sendMessage('__jsr_storage_set', JSON.stringify({key:key,value:val}));
+      __send('__jsr_storage_set', JSON.stringify({key:key,value:val}));
       return Promise.resolve();
     }
   },
 
   // Structured state for CLI (jsr app:state)
-  exportState:function(obj){sendMessage('__jsr_export_state', JSON.stringify(obj||{}));},
+  exportState:function(obj){__send('__jsr_export_state', JSON.stringify(obj||{}));},
 
   // Event handler registration — called from IIFE widgets:
   //   jsr.onEvent(function handleEvent(actionId, payload) { ... });
@@ -119,21 +139,21 @@ var jsr = {
       return new Promise(function(resolve){
         var id=__nid();
         __cbs[id]=function(v){resolve(v);};
-        sendMessage('__jsr_secrets_get', JSON.stringify({id:id,key:key}));
+        __send('__jsr_secrets_get', JSON.stringify({id:id,key:key}));
       });
     },
     set:function(key,val){
       return new Promise(function(resolve){
         var id=__nid();
         __cbs[id]=function(ok){resolve(ok);};
-        sendMessage('__jsr_secrets_set', JSON.stringify({id:id,key:key,value:val}));
+        __send('__jsr_secrets_set', JSON.stringify({id:id,key:key,value:val}));
       });
     },
     delete:function(key){
       return new Promise(function(resolve){
         var id=__nid();
         __cbs[id]=function(ok){resolve(ok);};
-        sendMessage('__jsr_secrets_set', JSON.stringify({id:id,key:key,value:null}));
+        __send('__jsr_secrets_set', JSON.stringify({id:id,key:key,value:null}));
       });
     }
   },
@@ -152,14 +172,14 @@ var jsr = {
     return new Promise(function(resolve) {
       var id = __nid();
       __cbs[id] = function(v) { resolve(v); };
-      sendMessage('__jsr_load_asset', JSON.stringify({id: id, path: path}));
+      __send('__jsr_load_asset', JSON.stringify({id: id, path: path}));
     });
   },
 
   // 3D scene API. The host provides the actual engine via Js3dHost.
   scene3d: {
     _send: function(kind, sceneId, payload) {
-      sendMessage('__jsr_scene3d_command', JSON.stringify({
+      __send('__jsr_scene3d_command', JSON.stringify({
         kind: kind,
         sceneId: sceneId,
         payload: payload || {}

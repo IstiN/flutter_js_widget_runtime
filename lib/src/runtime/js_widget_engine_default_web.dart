@@ -8,5 +8,4 @@ import 'package:js_widget_runtime/src/runtime/js_widget_engine_web_worker.dart';
 /// import in `js_widget_engine_wrapper.dart`.
 JsWidgetEngineBackend createDefaultJsWidgetEngineBackend(
   JsRuntimeConfig config,
-) =>
-    WebWorkerJsWidgetEngineBackend(config: config);
+) => WebWorkerJsWidgetEngineBackend(config: config);

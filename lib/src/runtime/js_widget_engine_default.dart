@@ -9,5 +9,4 @@ import 'package:js_widget_runtime/src/runtime/js_widget_engine_flutter_js.dart';
 /// web — the web variant of this factory is `js_widget_engine_default_web.dart`.
 JsWidgetEngineBackend createDefaultJsWidgetEngineBackend(
   JsRuntimeConfig config,
-) =>
-    FlutterJsWidgetEngineBackend(config: config);
+) => FlutterJsWidgetEngineBackend(config: config);

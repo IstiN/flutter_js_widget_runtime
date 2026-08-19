@@ -124,6 +124,16 @@ class JsWidgetBridge {
   /// Dispatches a message coming from the JS runtime.
   Future<void> dispatch(String channel, dynamic payload) async {
     if (isDisposed()) return;
+    // The shared bootstrap tags every sendMessage payload with the engine
+    // `iid` for the JSC cross-engine router. By the time a message reaches
+    // THIS bridge it is already routed to the right engine — strip the tag
+    // so handlers see the widget's own payload only. (The RAF channel keeps
+    // its own explicit `iid` contract; render trees use `__iid`.)
+    if (payload is Map<String, dynamic> &&
+        payload.containsKey('iid') &&
+        channel != '__jsr_raf') {
+      payload = {...payload}..remove('iid');
+    }
     final asyncHandler = _asyncChannelHandlers[channel];
     if (asyncHandler != null) {
       await asyncHandler(payload);
@@ -149,8 +159,8 @@ class JsWidgetBridge {
   };
 
   /// Channels whose result must be awaited by [dispatch].
-  late final Map<String, Future<void> Function(dynamic)>
-      _asyncChannelHandlers = {
+  late final Map<String, Future<void> Function(dynamic)> _asyncChannelHandlers =
+      {
         '__jsr_fetch': _handleFetch,
         '__jsr_secrets_get': _handleSecretsGet,
         '__jsr_secrets_set': _handleSecretsSet,
@@ -239,9 +249,15 @@ class JsWidgetBridge {
     _raf.dispose();
   }
 
-  Map<String, dynamic> _parseArgs(dynamic args) => (args is Map)
-      ? Map<String, dynamic>.from(args)
-      : jsonDecode(args?.toString() ?? '{}') as Map<String, dynamic>;
+  Map<String, dynamic> _parseArgs(dynamic args) {
+    final decoded = (args is Map)
+        ? Map<String, dynamic>.from(args)
+        : jsonDecode(args?.toString() ?? '{}') as Map<String, dynamic>;
+    // Drop the bootstrap's cross-engine routing tag — widget-facing
+    // payloads must not leak it into state, titles, or exported data.
+    if (decoded.containsKey('iid')) decoded.remove('iid');
+    return decoded;
+  }
 
   void _handleRender(dynamic args) {
     try {
@@ -270,10 +286,9 @@ class JsWidgetBridge {
   void _handleStorageGet(dynamic args) {
     if (!isPermissionAllowed('storage')) {
       final req = _parseArgs(args);
-      resolveCallback(
-        req['id'] as String,
-        {'__error': 'storage is disabled in Settings → Apps & Widgets'},
-      );
+      resolveCallback(req['id'] as String, {
+        '__error': 'storage is disabled in Settings → Apps & Widgets',
+      });
       return;
     }
     _store.handleGet(_parseArgs(args));
@@ -422,11 +437,7 @@ class JsWidgetBridge {
     }
   }
 
-  void _applyScene3dModelCommand(
-    String kind,
-    String sceneId,
-    dynamic payload,
-  ) {
+  void _applyScene3dModelCommand(String kind, String sceneId, dynamic payload) {
     if (!_modelCommandKinds.contains(kind)) {
       debugPrint('[JsWidgetBridge] unknown scene3d command: $kind');
       return;
@@ -444,11 +455,7 @@ class JsWidgetBridge {
     'setLight',
   };
 
-  void _applyScene3dToController(
-    String kind,
-    String sceneId,
-    dynamic payload,
-  ) {
+  void _applyScene3dToController(String kind, String sceneId, dynamic payload) {
     final controller = _sceneControllers[sceneId];
     if (controller == null) return;
     final p = (payload as Map? ?? {}).cast<String, dynamic>();
@@ -462,8 +469,6 @@ class JsWidgetBridge {
     );
   }
 }
-
-
 
 /// `jsr.storage` / `jsr.exportState` channel state: the persistent storage
 /// map and the last exported state snapshot.
@@ -505,6 +510,7 @@ class JsStorageChannel {
 
   /// Wired by the bridge: resolves the JS promise for a storage read.
   void Function(String id, String key) storageRead = (_, __) {};
+
   /// Wired by the bridge: notifies the host about a storage write.
   void Function(Map<String, dynamic>) storageChanged = (_) {};
 }
@@ -516,6 +522,7 @@ class JsIntervalScheduler {
 
   /// Fires `(id)` when a timer elapses.
   void Function(String id)? onTick;
+
   /// Whether the owning bridge is disposed (skips firing).
   bool Function()? shouldStop;
 
@@ -559,6 +566,7 @@ class JsRafScheduler {
 
   /// Fires `(id, elapsedMs)` for each requested frame.
   void Function(String id, int elapsedMs)? onTick;
+
   /// Whether the owning bridge is disposed (stops the ticker).
   bool Function()? shouldStop;
 
