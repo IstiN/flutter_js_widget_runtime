@@ -61,14 +61,42 @@ class Cube3dHost extends Js3dHost
     Map<String, dynamic> config,
   ) {
     final c = controller as Cube3dController;
-    return ListenableBuilder(
-      listenable: c,
-      builder: (context, _) => cube.Cube(
-        onSceneCreated: c.onSceneCreated,
-        interactive: config['interactive'] != false,
+    return _CubeSceneLifecycle(
+      onGone: c.onSceneGone,
+      child: ListenableBuilder(
+        listenable: c,
+        builder: (context, _) => cube.Cube(
+          onSceneCreated: c.onSceneCreated,
+          interactive: config['interactive'] != false,
+        ),
       ),
     );
   }
+}
+
+/// Reports the scene widget's disposal to the controller: the
+/// [cube.Scene] is owned by the (defunct after unmount) Cube State, so the
+/// controller must drop it instead of calling `Scene.update` — which
+/// forwards to `setState` on a disposed State — on the next JS command.
+class _CubeSceneLifecycle extends StatefulWidget {
+  const _CubeSceneLifecycle({required this.onGone, required this.child});
+
+  final VoidCallback onGone;
+  final Widget child;
+
+  @override
+  State<_CubeSceneLifecycle> createState() => _CubeSceneLifecycleState();
+}
+
+class _CubeSceneLifecycleState extends State<_CubeSceneLifecycle> {
+  @override
+  void dispose() {
+    widget.onGone();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) => widget.child;
 }
 
 /// {@template cube3d_controller}
@@ -108,15 +136,16 @@ class Cube3dController extends RefCountedJs3dController {
 
   void onSceneCreated(cube.Scene scene) {
     if (_disposed) return;
-
     // If the Cube widget was rebuilt (e.g. after a JS re-render), flutter_cube
     // gives us a brand new Scene. Migrate existing objects so animation and
-    // speed changes keep working instead of driving a detached scene.
+    // speed changes keep working instead of driving a detached scene. The
+    // same path re-attaches objects after the panel was unmounted and
+    // remounted (onSceneGone cleared the stale scene).
     final oldScene = _scene;
     _scene = scene;
-    if (oldScene != null && oldScene != scene && _objects.isNotEmpty) {
+    if (oldScene != scene && _objects.isNotEmpty) {
       for (final obj in _objects.values) {
-        oldScene.world.remove(obj);
+        oldScene?.world.remove(obj);
         scene.world.add(obj);
       }
     }
@@ -129,6 +158,15 @@ class Cube3dController extends RefCountedJs3dController {
     _pending.clear();
     _startAnimationLoop();
     notifyListeners();
+  }
+
+  /// The widget hosting the current scene was unmounted (panel closed, tree
+  /// torn down). Its [cube.Scene] dies with the Cube State — drop the
+  /// reference so later JS commands buffer in [_pending] until a fresh scene
+  /// arrives, instead of `Scene.update` calling `setState` on a defunct
+  /// State (crash: "setState() called after dispose()").
+  void onSceneGone() {
+    _scene = null;
   }
 
   @override
