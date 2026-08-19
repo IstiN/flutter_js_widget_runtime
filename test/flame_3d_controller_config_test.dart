@@ -14,11 +14,14 @@ class _RecordingGame implements Js3dGameApi {
   final clips = <String, String>{};
   double? cameraFov;
 
+  /// Configurable stand-in for the game's ever-had-a-layout flag.
+  bool laidOut = true;
+
   @override
   Future<void> load() async {}
 
   @override
-  bool get hasEverLaidOut => true;
+  bool get hasEverLaidOut => laidOut;
 
   @override
   void disposeGame() => calls.add('dispose');
@@ -202,6 +205,56 @@ void main() {
       controller.debugApplyConfig({'models': []});
       expect(controller.sceneSync.declaredTime, 1.5);
       controller.dispose();
+    });
+
+    testWidgets('dispose skips a game that never had a layout', (tester) async {
+      Flame3dHost.instance.skipGpuInit = true;
+      addTearDown(() => Flame3dHost.instance.skipGpuInit = false);
+      final game = _RecordingGame()..laidOut = false;
+      final controller = Flame3dController(
+        's5',
+        const {},
+        Flame3dHost.instance,
+        gameFactory: (_, __) => game,
+      );
+      controller.apply(const Js3dCommand(
+        kind: 'addModel',
+        sceneId: 's5',
+        payload: {'modelId': 'm1', 'src': 'a.glb'},
+      ));
+      await tester.pumpAndSettle();
+      await tester.runAsync(() => Future<void>.delayed(Duration.zero));
+      expect(controller.hasGame, isTrue);
+
+      controller.dispose();
+
+      // A game that never laid out must be dropped without disposal —
+      // FlameGame.dispose asserts on lifecycle events for layout-less games.
+      expect(game.calls, isNot(contains('dispose')));
+    });
+
+    testWidgets('dispose releases a laid-out game', (tester) async {
+      Flame3dHost.instance.skipGpuInit = true;
+      addTearDown(() => Flame3dHost.instance.skipGpuInit = false);
+      final game = _RecordingGame();
+      final controller = Flame3dController(
+        's6',
+        const {},
+        Flame3dHost.instance,
+        gameFactory: (_, __) => game,
+      );
+      controller.apply(const Js3dCommand(
+        kind: 'addModel',
+        sceneId: 's6',
+        payload: {'modelId': 'm1', 'src': 'a.glb'},
+      ));
+      await tester.pumpAndSettle();
+      await tester.runAsync(() => Future<void>.delayed(Duration.zero));
+      expect(controller.hasGame, isTrue);
+
+      controller.dispose();
+
+      expect(game.calls, contains('dispose'));
     });
   });
 }
