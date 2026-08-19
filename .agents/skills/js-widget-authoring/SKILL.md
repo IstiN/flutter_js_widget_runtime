@@ -117,7 +117,8 @@ The renderer in `lib/src/renderer/json_widget_renderer.dart` supports types such
 
 - Layout: `column`, `row`, `stack`, `wrap`, `expanded`, `flexible`, `padding`, `sizedBox`, `center`, `align`, `safeArea`, `scroll`, `listView`, `gridView`, `aspectRatio`, `opacity`, `clipRRect`, `animatedContainer`, `animatedOpacity`, `animatedPositioned`
 - Material: `text`, `button`, `textButton`, `outlinedButton`, `elevatedButton`, `iconButton`, `chip`, `card`, `listTile`, `badge`, `circleAvatar`, `linearProgressIndicator`, `circularProgressIndicator`, `divider`, `spacer`
-- Material 3: `appBar` ({title, leading, actions}), `navigationBar` ({destinations, selectedIndex, onChanged}), `tabBar` ({tabs, children}), `fab` ({icon, label, onTap, mini}), `segmentedButton` ({segments, selected, multiSelect, onChanged}), `radio` ({value, groupValue, label, onChanged}), `searchBar` ({hint, onChanged, onSubmitted}), `tooltip` ({message, child}), `popupMenu` ({items, icon, onSelected}), `banner` ({message, icon, actions}), `bottomAppBar` ({children, color, height})
+- Material 3: `appBar` ({title, leading, actions}), `navigationBar` ({destinations, selectedIndex, onChanged}), `navigationRail` (same shape), `tabBar` ({tabs, children}), `fab` ({icon, label, onTap, mini}), `segmentedButton` ({segments, selected, multiSelect, onChanged}), `radio` ({value, groupValue, label, onChanged}), `searchBar` ({hint, onChanged, onSubmitted}), `tooltip` ({message, child}), `popupMenu` ({items, icon, onSelected}), `banner` ({message, icon, actions}), `bottomAppBar` ({children, color, height}), `carousel` ({children, itemExtent, shrinkExtent})
+- Overlays (zero-size driver nodes; open on mount, close on unmount): `bottomSheet` ({child, height, color, dismissible, onDismiss}), `dialog` ({title, message, child, actions, dismissible, onDismiss}), `snackBar` ({message, actionLabel, onAction, durationMs})
 - Input: `textField`, `switch`, `checkbox`, `slider`, `dropdown`
 - Media: `image`, `svg`, `markdown`
 - 3D: `scene3d` (host-provided engine; see `jsr.scene3d` API below)
@@ -133,7 +134,9 @@ For exact props, read `lib/src/renderer/json_widget_renderer.dart` and the norma
 - `slider` `onChanged` → payload `{ value: 0.5 }`.
 - `switch`, `checkbox` `onChanged` → payload `{ value: true }`.
 - `dropdown` `onChanged` → payload `{ value: 'selected' }`.
-- `navigationBar` `onChanged` → `{ value: <index> }`; `segmentedButton` → `{ value: 'a' }` or `{ value: ['a','b'] }` in multiSelect; `radio` → `{ value: <value> }`; `popupMenu` `onSelected` → `{ value: <value> }`; `searchBar` `onChanged`/`onSubmitted` → `{ value: 'text' }`.
+- `navigationBar`/`navigationRail` `onChanged` → `{ value: <index> }`; `segmentedButton` → `{ value: 'a' }` or `{ value: ['a','b'] }` in multiSelect; `radio` → `{ value: <value> }`; `popupMenu` `onSelected` → `{ value: <value> }`; `searchBar` `onChanged`/`onSubmitted` → `{ value: 'text' }`.
+- Overlays: `bottomSheet`/`dialog` dismiss (drag, barrier, back) → `onDismiss` event with `{}`; dialog actions pop first, then fire their own `onTap` (no dismiss event for action closes); `snackBar` `onAction` → `{}`.
+- Motion curves for `animatedContainer` & friends accept M3 tokens: `emphasized`, `emphasizedAccelerate`, `emphasizedDecelerate`, `standard`, `standardAccelerate`, `standardDecelerate` (approximated — the Flutter 3.44 SDK predates the real `Easing.*` tokens).
 - `gestureDetector` `onPanUpdate` → payload `{ dx, dy }`; `onPanStart`/`onPanEnd` → `{}`.
 
 ## Testing Widgets

@@ -33,6 +33,7 @@ part 'nodes/js_input_nodes.dart';
 part 'nodes/js_animated_nodes.dart';
 part 'nodes/js_layout_nodes.dart';
 part 'nodes/js_m3_nodes.dart';
+part 'nodes/js_m3_overlay_nodes.dart';
 part 'nodes/js_text_nodes.dart';
 
 final _jsonWidgetDefaultColors = JsonWidgetTheme.fromAccent(Colors.deepPurple);
@@ -49,7 +50,10 @@ final _jsonWidgetDefaultColors = JsonWidgetTheme.fromAccent(Colors.deepPurple);
 /// Input:    button, textButton, outlinedButton, iconButton, textField,
 ///           textArea, switch, checkbox, slider, dropdown
 /// M3:       appBar, navigationBar, tabBar, fab, segmentedButton, radio,
-///           searchBar, tooltip, popupMenu, banner, bottomAppBar
+///           searchBar, tooltip, popupMenu, banner, bottomAppBar,
+///           navigationRail, carousel
+/// Overlays: bottomSheet, dialog, snackBar (drive modal surfaces; render as
+///           zero-size placeholders and post a dismiss event on close)
 /// Map:      map (OSM tiles via flutter_map, markers, polylines)
 /// Animation: animatedContainer/animatedOpacity/animatedPositioned (implicit),
 ///           entrance (one-shot mount animation, staggered via `delay`),
@@ -230,6 +234,11 @@ class JsonWidgetRenderer with JsonWidgetDecoration {
       'popupMenu' => _popupMenuNode(m),
       'banner' => _bannerNode(m),
       'bottomAppBar' => _bottomAppBarNode(m),
+      'bottomSheet' => _bottomSheetNode(m),
+      'dialog' => _dialogNode(m),
+      'snackBar' => _snackBarNode(m),
+      'navigationRail' => _navigationRailNode(m),
+      'carousel' => _carouselNode(m),
       'image' => _image(m),
       'svg' => _svg(m),
       'aspectRatio' => _aspectRatio(m),

@@ -100,6 +100,15 @@ const _showcase3dTaps = {
   'city': 'shape_city',
 };
 
+/// m3-showcase overlay frames: bottomSheet/dialog/snackBar open with an
+/// entrance animation, so these captures pump past it (the regular taps
+/// pump a single 16ms frame).
+const _m3OverlayTaps = {
+  'sheet': 'show_sheet',
+  'dialog': 'show_dialog',
+  'snack': 'show_snack',
+};
+
 /// Fixed weather payload shaped like wttr.in j1.
 const _weatherFixture = {
   'current_condition': [
@@ -497,6 +506,31 @@ void main() {
       await expectLater(
         find.byType(MaterialApp),
         matchesGoldenFile('goldens/3d-showcase-${tap.key}.png'),
+      );
+    });
+  }
+
+  // m3-showcase overlays: pump past the entrance animation so the sheet /
+  // dialog / snackbar is fully in frame.
+  for (final tap in _m3OverlayTaps.entries) {
+    testWidgets('m3-showcase overlay ${tap.key}', (tester) async {
+      if (!_hasNativeLib) {
+        markTestSkipped('QuickJS native library not built');
+      }
+      await tester.binding.setSurfaceSize(const Size(420, 860));
+
+      final runner = _runners['m3-showcase'];
+      final tree = await runner!.tap(tap.value);
+      expect(tree, isNotNull, reason: 'overlay ${tap.key} did not re-render');
+
+      await tester.pumpWidget(_host(tree, 'm3-showcase'));
+      // Post-frame show* callback + ~250ms entrance transition.
+      await tester.pump(const Duration(milliseconds: 16));
+      await tester.pump(const Duration(milliseconds: 400));
+
+      await expectLater(
+        find.byType(MaterialApp),
+        matchesGoldenFile('goldens/m3-${tap.key}.png'),
       );
     });
   }
