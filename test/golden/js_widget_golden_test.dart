@@ -92,6 +92,14 @@ const _m3Taps = {
   'controls': 'seg_changed',
 };
 
+/// 3d-showcase shape buttons: tap each and capture the primitive it swaps
+/// in — guards the shape_sphere/torus/city event path end to end.
+const _showcase3dTaps = {
+  'sphere': 'shape_sphere',
+  'torus': 'shape_torus',
+  'city': 'shape_city',
+};
+
 /// Fixed weather payload shaped like wttr.in j1.
 const _weatherFixture = {
   'current_condition': [
@@ -462,6 +470,33 @@ void main() {
       await expectLater(
         find.byType(MaterialApp),
         matchesGoldenFile('goldens/m3-${tap.key}.png'),
+      );
+    });
+  }
+
+  // 3d-showcase shape variants: fire the shape_* button events and capture
+  // the swapped primitive (extra pumps — the cube scene paints objects from
+  // the second frame on).
+  for (final tap in _showcase3dTaps.entries) {
+    testWidgets('3d-showcase shape ${tap.key} renders on tap',
+        (tester) async {
+      if (!_hasNativeLib) {
+        markTestSkipped('QuickJS native library not built');
+      }
+      await tester.binding.setSurfaceSize(const Size(420, 860));
+
+      final runner = _runners['3d-showcase'];
+      final tree = await runner!.tap(tap.value);
+      expect(tree, isNotNull, reason: 'shape ${tap.key} did not re-render');
+
+      await tester.pumpWidget(_host(tree, '3d-showcase'));
+      await tester.pump(const Duration(milliseconds: 16));
+      await tester.pump(const Duration(milliseconds: 16));
+      await tester.pump(const Duration(milliseconds: 16));
+
+      await expectLater(
+        find.byType(MaterialApp),
+        matchesGoldenFile('goldens/3d-showcase-${tap.key}.png'),
       );
     });
   }
