@@ -1,13 +1,15 @@
 part of '../json_widget_renderer.dart';
 
 /// Material 3 overlay and navigation node builders for [JsonWidgetRenderer]:
-/// `bottomSheet`, `dialog`, `snackBar`, `navigationRail`, and `carousel`.
+/// `bottomSheet`, `dialog`, `snackBar`, `datePicker`, `timePicker`,
+/// `navigationRail`, and `carousel`.
 ///
 /// The overlay nodes drive modal surfaces (`showModalBottomSheet`,
-/// `showDialog`, `ScaffoldMessenger.showSnackBar`) and render as zero-size
-/// placeholders in the tree; each shows once per mount and posts its dismiss
-/// event (`onDismiss` or a per-type default) when the surface closes while
-/// the node is still in the tree.
+/// `showDialog`, `ScaffoldMessenger.showSnackBar`, `showDatePicker`,
+/// `showTimePicker`) and render as zero-size placeholders in the tree; each
+/// shows once per mount and posts its dismiss event (`onDismiss` or a
+/// per-type default) when the surface closes without a selection while the
+/// node is still in the tree.
 extension on JsonWidgetRenderer {
   /// `bottomSheet` — `{child, height?, color?, dismissible? (default true),
   /// onDismiss?}`; closing the sheet posts `onDismiss ?? 'bottomSheetDismiss'`.
@@ -24,6 +26,19 @@ extension on JsonWidgetRenderer {
   /// without a `ScaffoldMessenger` ancestor.
   Widget _snackBarNode(Map<String, dynamic> m) =>
       _JsSnackBarNode(renderer: this, node: m);
+
+  /// `datePicker` — `{initialDate? (ISO 'YYYY-MM-DD'), firstDate?, lastDate?,
+  /// onSelected, onDismiss?}` (defaults: today, 1900-01-01, 2100-12-31);
+  /// picking posts `{'value': 'YYYY-MM-DD'}` to `onSelected`, cancelling posts
+  /// `onDismiss ?? 'datePickerDismiss'`.
+  Widget _datePickerNode(Map<String, dynamic> m) =>
+      _JsDatePickerNode(renderer: this, node: m);
+
+  /// `timePicker` — `{initialTime? ('HH:MM'), onSelected, onDismiss?}`;
+  /// picking posts `{'value': 'HH:MM'}` (24h, zero-padded) to `onSelected`,
+  /// cancelling posts `onDismiss ?? 'timePickerDismiss'`.
+  Widget _timePickerNode(Map<String, dynamic> m) =>
+      _JsTimePickerNode(renderer: this, node: m);
 
   /// `navigationRail` — `{destinations: [{icon, label}], selectedIndex,
   /// onChanged}`; selection posts `{'value': index}`.
@@ -65,8 +80,9 @@ extension on JsonWidgetRenderer {
 }
 
 /// Shared lifecycle for the overlay driver nodes ([_JsBottomSheetNode],
-/// [_JsDialogNode]): presents the overlay once per mount in a post-frame
-/// callback, and on unmount pops the route (guarded — cannot throw).
+/// [_JsDialogNode], [_JsDatePickerNode], [_JsTimePickerNode]): presents the
+/// overlay once per mount in a post-frame callback, and on unmount pops the
+/// route (guarded — cannot throw).
 mixin _JsOverlayState<T extends StatefulWidget> on State<T> {
   bool _showing = false;
   NavigatorState? _navigator;
@@ -263,6 +279,143 @@ class _JsSnackBarNodeState extends State<_JsSnackBarNode> {
                 onPressed: r._tapHandler(m['onAction'], m['payload']) ?? () {},
               ),
       ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) => const SizedBox.shrink();
+}
+
+String _jsPad2(int v) => v.toString().padLeft(2, '0');
+
+/// Formats a picked date as ISO `YYYY-MM-DD` (no intl dependency).
+String _jsFormatDate(DateTime d) =>
+    '${d.year.toString().padLeft(4, '0')}-${_jsPad2(d.month)}-${_jsPad2(d.day)}';
+
+/// Formats a picked time as 24h zero-padded `HH:MM`.
+String _jsFormatTime(TimeOfDay t) => '${_jsPad2(t.hour)}:${_jsPad2(t.minute)}';
+
+/// Parses an ISO `YYYY-MM-DD` string; returns null for unusable input.
+DateTime? _jsParseDate(dynamic raw) {
+  if (raw is! String) return null;
+  final parts = raw.split('-');
+  if (parts.length != 3) return null;
+  final year = int.tryParse(parts[0]);
+  final month = int.tryParse(parts[1]);
+  final day = int.tryParse(parts[2]);
+  if (year == null || month == null || day == null) return null;
+  return DateTime(year, month, day);
+}
+
+/// Parses a `HH:MM` string; returns null for unusable input.
+TimeOfDay? _jsParseTime(dynamic raw) {
+  if (raw is! String) return null;
+  final parts = raw.split(':');
+  if (parts.length != 2) return null;
+  final hour = int.tryParse(parts[0]);
+  final minute = int.tryParse(parts[1]);
+  if (hour == null || minute == null) return null;
+  return TimeOfDay(hour: hour, minute: minute);
+}
+
+/// Shared close handling for the picker overlay nodes: a non-null [value]
+/// posts `{'value': value}` to the node's `onSelected` action (when set),
+/// otherwise the dismiss event (`onDismiss ?? [defaultDismiss]`) fires.
+void _jsPostPickerResult(
+  JsonWidgetRenderer renderer,
+  Map<String, dynamic> m,
+  String? value,
+  String defaultDismiss,
+) {
+  if (value != null) {
+    final action = m['onSelected'];
+    if (action != null) {
+      renderer.onEvent('$action', <String, dynamic>{'value': value});
+    }
+    return;
+  }
+  renderer.onEvent(
+    '${m['onDismiss'] ?? defaultDismiss}',
+    const <String, dynamic>{},
+  );
+}
+
+/// Placeholder that opens [showDatePicker] once mounted and closes it when
+/// removed from the tree.
+class _JsDatePickerNode extends StatefulWidget {
+  const _JsDatePickerNode({required this.renderer, required this.node});
+
+  final JsonWidgetRenderer renderer;
+  final Map<String, dynamic> node;
+
+  @override
+  State<_JsDatePickerNode> createState() => _JsDatePickerNodeState();
+}
+
+class _JsDatePickerNodeState extends State<_JsDatePickerNode>
+    with _JsOverlayState {
+  DateTime? _selected;
+
+  @override
+  Future<void> present() async {
+    final m = widget.node;
+    _selected = await showDatePicker(
+      context: context,
+      initialDate: _jsParseDate(m['initialDate']) ?? DateTime.now(),
+      firstDate: _jsParseDate(m['firstDate']) ?? DateTime(1900),
+      lastDate: _jsParseDate(m['lastDate']) ?? DateTime(2100),
+    );
+  }
+
+  @override
+  void onOverlayClosed() {
+    final selected = _selected;
+    _jsPostPickerResult(
+      widget.renderer,
+      widget.node,
+      selected == null ? null : _jsFormatDate(selected),
+      'datePickerDismiss',
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) => const SizedBox.shrink();
+}
+
+/// Placeholder that opens [showTimePicker] once mounted and closes it when
+/// removed from the tree.
+class _JsTimePickerNode extends StatefulWidget {
+  const _JsTimePickerNode({required this.renderer, required this.node});
+
+  final JsonWidgetRenderer renderer;
+  final Map<String, dynamic> node;
+
+  @override
+  State<_JsTimePickerNode> createState() => _JsTimePickerNodeState();
+}
+
+class _JsTimePickerNodeState extends State<_JsTimePickerNode>
+    with _JsOverlayState {
+  TimeOfDay? _selected;
+
+  @override
+  Future<void> present() async {
+    final m = widget.node;
+    final now = TimeOfDay.now();
+    _selected = await showTimePicker(
+      context: context,
+      initialTime: _jsParseTime(m['initialTime']) ?? now,
+    );
+  }
+
+  @override
+  void onOverlayClosed() {
+    final selected = _selected;
+    _jsPostPickerResult(
+      widget.renderer,
+      widget.node,
+      selected == null ? null : _jsFormatTime(selected),
+      'timePickerDismiss',
     );
   }
 

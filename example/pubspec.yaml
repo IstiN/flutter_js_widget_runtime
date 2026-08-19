@@ -34,5 +34,6 @@ flutter:
     - widgets/3d-game-dodge/
     - widgets/fitness-trainer/
     - widgets/m3-showcase/
+    - widgets/charts-showcase/
     - widgets/map/
     - assets/models/

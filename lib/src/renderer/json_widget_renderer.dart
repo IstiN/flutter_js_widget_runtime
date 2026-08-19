@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:typed_data';
 import 'dart:ui' show ImageFilter;
 
+import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart' show TileProvider;
 import 'package:flutter_markdown_plus/flutter_markdown_plus.dart';
@@ -31,6 +32,7 @@ part 'json_widget_decoration.dart';
 
 part 'nodes/js_input_nodes.dart';
 part 'nodes/js_animated_nodes.dart';
+part 'nodes/js_chart_nodes.dart';
 part 'nodes/js_layout_nodes.dart';
 part 'nodes/js_m3_nodes.dart';
 part 'nodes/js_m3_overlay_nodes.dart';
@@ -51,9 +53,12 @@ final _jsonWidgetDefaultColors = JsonWidgetTheme.fromAccent(Colors.deepPurple);
 ///           textArea, switch, checkbox, slider, dropdown
 /// M3:       appBar, navigationBar, tabBar, fab, segmentedButton, radio,
 ///           searchBar, tooltip, popupMenu, banner, bottomAppBar,
-///           navigationRail, carousel
-/// Overlays: bottomSheet, dialog, snackBar (drive modal surfaces; render as
-///           zero-size placeholders and post a dismiss event on close)
+///           navigationRail, carousel, drawer
+/// Overlays: bottomSheet, dialog, snackBar, datePicker, timePicker (drive
+///           modal surfaces; render as zero-size placeholders and post a
+///           dismiss event on close)
+/// Charts:   chart (CustomPainter sparkline/bar), flChart (fl_chart-backed
+///           line/bar/pie/radar/scatter)
 /// Map:      map (OSM tiles via flutter_map, markers, polylines)
 /// Animation: animatedContainer/animatedOpacity/animatedPositioned (implicit),
 ///           entrance (one-shot mount animation, staggered via `delay`),
@@ -249,6 +254,10 @@ class JsonWidgetRenderer with JsonWidgetDecoration {
       'textField' => _textFieldNode(m),
       'textArea' => _textAreaNode(m),
       'chart' => _chartNode(m),
+      'flChart' => _flChartNode(m),
+      'datePicker' => _datePickerNode(m),
+      'timePicker' => _timePickerNode(m),
+      'drawer' => _drawerNode(m),
       'blur' => _applyBlur(_child(m) ?? const SizedBox.shrink(), m['sigma']),
 
       // Animated widgets (implicit animations)

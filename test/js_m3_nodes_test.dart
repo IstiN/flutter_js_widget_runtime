@@ -250,5 +250,45 @@ void main() {
       expect(find.text('left'), findsOneWidget);
       expect(find.text('right'), findsOneWidget);
     });
+
+    testWidgets('drawer opens via the appBar hamburger', (tester) async {
+      await tester.pumpWidget(
+        buildTree({
+          'type': 'drawer',
+          'drawer': {
+            'type': 'column',
+            'children': [
+              {'type': 'text', 'data': 'menu item'},
+            ],
+          },
+          'child': {
+            'type': 'column',
+            'children': [
+              {'type': 'appBar', 'title': 'Home'},
+              {'type': 'text', 'data': 'body content'},
+            ],
+          },
+        }),
+      );
+      expect(find.text('body content'), findsOneWidget);
+      // The drawer is closed: its content is not mounted yet.
+      expect(find.byType(Drawer), findsNothing);
+      expect(find.text('menu item'), findsNothing);
+
+      // The appBar node shows a hamburger because the enclosing (nested)
+      // Scaffold has a drawer.
+      await tester.tap(find.byIcon(Icons.menu));
+      await tester.pumpAndSettle();
+      expect(find.byType(Drawer), findsOneWidget);
+      expect(find.text('menu item'), findsOneWidget);
+    });
+
+    testWidgets('drawer without drawer/child props degrades gracefully', (
+      tester,
+    ) async {
+      await tester.pumpWidget(buildTree({'type': 'drawer'}));
+      expect(find.byType(Scaffold), findsWidgets);
+      expect(find.byType(Drawer), findsNothing);
+    });
   });
 }

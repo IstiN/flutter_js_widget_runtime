@@ -2,7 +2,7 @@ part of '../json_widget_renderer.dart';
 
 /// Material 3 node builders for [JsonWidgetRenderer]: `appBar`,
 /// `navigationBar`, `tabBar`, `fab`, `segmentedButton`, `radio`, `searchBar`,
-/// `tooltip`, `popupMenu`, `banner`, and `bottomAppBar`.
+/// `tooltip`, `popupMenu`, `banner`, `bottomAppBar`, and `drawer`.
 ///
 /// Value-changing nodes post `{'value': ...}` to the action named by
 /// `onChange`/`onChanged` (or `onSelected` for `popupMenu`); tap-only
@@ -275,4 +275,23 @@ extension on JsonWidgetRenderer {
       child: Row(children: _children(m)),
     ),
   );
+
+  /// `drawer` — `{drawer: <node>, child: <node>}`. Builds a nested
+  /// [Scaffold] whose `drawer` is the built `drawer` node (wrapped in a
+  /// [Drawer] + [SafeArea]) and whose `body` is the built `child` node.
+  ///
+  /// The nested Scaffold is intentional: a JS widget has no host Scaffold of
+  /// its own, and an `appBar` node inside the child automatically shows the
+  /// hamburger button when a Scaffold with a drawer is an ancestor. Missing
+  /// `drawer`/`child` props degrade to no drawer / an empty body.
+  Widget _drawerNode(Map<String, dynamic> m) {
+    final drawerNode = m['drawer'];
+    final childNode = m['child'];
+    return Scaffold(
+      drawer: drawerNode is Map
+          ? Drawer(child: SafeArea(child: _build(drawerNode)))
+          : null,
+      body: childNode is Map ? _build(childNode) : const SizedBox.shrink(),
+    );
+  }
 }
