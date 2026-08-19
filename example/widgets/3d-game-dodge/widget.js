@@ -220,6 +220,7 @@
   }
 
   function render() {
+    jsr.exportState({ score: state.score, lives: state.lives, best: state.best });
     var sceneChildren = [
       { type: 'scene3d', id: sceneId, interactive: false }
     ];

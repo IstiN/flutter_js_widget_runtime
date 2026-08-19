@@ -23,6 +23,7 @@
 
   function render() {
     var t = jsr.theme;
+    jsr.exportState({ ready: true });
     jsr.render({
       type: 'column',
       crossAxisAlignment: 'stretch',

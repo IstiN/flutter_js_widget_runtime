@@ -46,7 +46,12 @@
     render();
   }
 
+  function exportNow() {
+    jsr.exportState({ rotating: rotating, speed: speed });
+  }
+
   function render() {
+    exportNow();
     jsr.render({
       type: 'column',
       crossAxisAlignment: 'stretch',

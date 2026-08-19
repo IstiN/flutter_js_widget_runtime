@@ -84,7 +84,7 @@
     var t = jsr.theme;
     jsr.exportState({
       nav: state.nav, seg: state.seg, radio: state.radio,
-      created: state.created, banner: state.banner
+      created: state.created, banner: state.banner, lastMenu: state.lastMenu
     });
     jsr.render({
       type: 'column',

@@ -37,8 +37,12 @@
     };
   }
 
+  var loaded = false;
+  var rotation = [0, 0, 0];
+
   jsr.onEvent(function(actionId) {
     if (actionId === 'load') {
+      loaded = true;
       jsr.scene3d.create('main', {
         camera: { position: [0, 0, 3], target: [0, 0, 0] }
       });
@@ -47,15 +51,19 @@
         src: modelUrl
       });
     } else if (actionId === 'rotate') {
+      rotation = [45, 45, 0];
       jsr.scene3d.setTransform('main', 'astronaut', {
-        rotation: [45, 45, 0]
+        rotation: rotation
       });
     } else if (actionId === 'reset') {
+      rotation = [0, 0, 0];
       jsr.scene3d.setTransform('main', 'astronaut', {
-        rotation: [0, 0, 0]
+        rotation: rotation
       });
     }
+    jsr.exportState({ loaded: loaded, rotation: rotation });
   });
 
   jsr.render(buildUI());
+  jsr.exportState({ loaded: loaded, rotation: rotation });
 })();

@@ -24,6 +24,7 @@
     var bg = hslToHex(hue, 70, 45);
     var textColor = '#ffffff';
 
+    jsr.exportState({ tapCount: tapCount, scale: scale, bouncing: bouncing, hue: hue });
     jsr.render({
       type: 'center',
       child: {type: 'column', mainAxisSize: 'min', crossAxisAlignment: 'center', children: [
@@ -65,6 +66,7 @@
     if (bouncing) return;
     bouncing = true;
     bounceVel = -8;
+    render();
     function frame(elapsed) {
       bounceVel += 0.6; // gravity
       bounceY += bounceVel;

@@ -123,7 +123,12 @@
     };
   }
 
+  function exportNow() {
+    jsr.exportState({ shape: shape, color: color, rotating: rotating, speed: speed });
+  }
+
   function render() {
+    exportNow();
     jsr.render({
       type: 'column',
       crossAxisAlignment: 'stretch',
