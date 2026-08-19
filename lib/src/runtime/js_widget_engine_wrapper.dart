@@ -33,10 +33,10 @@ class JsWidgetEngine {
 
   /// Runs the widget JavaScript.
   Future<void> run(String widgetJs) => _backend.run(
-        widgetJs,
-        hostBootstrapJs: _effectiveBootstrap(),
-        initialTheme: _config.initialTheme,
-      );
+    widgetJs,
+    hostBootstrapJs: _effectiveBootstrap(),
+    initialTheme: _config.initialTheme,
+  );
 
   /// Builds the JS evaluated before the widget code: always exposes
   /// `jsr.instanceId`, then appends any host-provided bootstrap.
@@ -48,10 +48,7 @@ class JsWidgetEngine {
   }
 
   /// Dispatches an event to the widget's `handleEvent` function.
-  Future<void> callEvent(
-    String actionId, [
-    Map<String, dynamic>? payload,
-  ]) =>
+  Future<void> callEvent(String actionId, [Map<String, dynamic>? payload]) =>
       _backend.callEvent(actionId, payload);
 
   /// Delivers a fire-and-forget host event (keyboard, scene3d tap) to the

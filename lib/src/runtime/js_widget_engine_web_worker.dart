@@ -28,12 +28,8 @@ class WebWorkerJsWidgetEngineBackend implements JsWidgetEngineBackend {
       isPermissionAllowed: config.isPermissionAllowed ?? _allowAll,
       resolveCallback:
           config.resolveCallback ?? (id, value) => _resolveCallback(id, value),
-      fetchHandler: (id, url, method, headers) => _handleFetch(
-        id,
-        url,
-        method,
-        headers,
-      ),
+      fetchHandler: (id, url, method, headers) =>
+          _handleFetch(id, url, method, headers),
       secretsGetHandler: (id, key) async {
         if (_config.secretsGetHandler != null) {
           await _config.secretsGetHandler!.call(id, key);
@@ -51,10 +47,8 @@ class WebWorkerJsWidgetEngineBackend implements JsWidgetEngineBackend {
       },
       execHandler: (id, cmd) => _handleExec(id, cmd),
       intervalTickHandler: (id) => _postToWorker('__jsr_interval_tick', id),
-      rafTickHandler: (id, elapsedMs) => _postToWorker(
-        '__jsr_raf_tick',
-        {'id': id, 'elapsed': elapsedMs},
-      ),
+      rafTickHandler: (id, elapsedMs) =>
+          _postToWorker('__jsr_raf_tick', {'id': id, 'elapsed': elapsedMs}),
       js3dHost: config.js3dHost,
       initialStorage: config.initialStorage,
     );
@@ -137,10 +131,10 @@ class WebWorkerJsWidgetEngineBackend implements JsWidgetEngineBackend {
     }
     if (_disposed || _worker == null) return;
     await _bridge.callEvent(() {
-      _postToWorker(
-        '__jsr_call_event',
-        {'actionId': actionId, 'payload': payload ?? {}},
-      );
+      _postToWorker('__jsr_call_event', {
+        'actionId': actionId,
+        'payload': payload ?? {},
+      });
     });
   }
 
@@ -237,8 +231,10 @@ class WebWorkerJsWidgetEngineBackend implements JsWidgetEngineBackend {
     String? hostBootstrapJs,
   ]) {
     final escapedJs = widgetJs.replaceAll('</script>', '<\\/script>');
-    final escapedHostBootstrap = (hostBootstrapJs ?? '')
-        .replaceAll('</script>', '<\\/script>');
+    final escapedHostBootstrap = (hostBootstrapJs ?? '').replaceAll(
+      '</script>',
+      '<\\/script>',
+    );
     final themeJson = jsonEncode(initialTheme);
     return '''
 function sendMessage(channel, jsonString) {

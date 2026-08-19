@@ -331,13 +331,41 @@ class QuickjsWidgetEngineBackend implements JsWidgetEngineBackend {
     if (argsJson.startsWith('["__jsr_log",')) {
       if (!_isLive(rt)) return;
       final msg = _decodeLogPayload(argsJson);
-      unawaited(_bridge.dispatch('__jsr_log', msg));
+      unawaited(_bridge.dispatch('__jsr_log', _unwrapRawId(msg)));
       return;
     }
     final args = jsonDecode(argsJson);
     if (args is! List || args.length != 2 || args[0] is! String) return;
     if (!_isLive(rt)) return;
-    unawaited(_bridge.dispatch(args[0] as String, args[1]));
+    unawaited(
+      _bridge.dispatch(args[0] as String, _unwrapRawId(args[1], args[0])),
+    );
+  }
+
+  /// Raw-string channels receive their payload wrapped as {iid, id} by the
+  /// shared bootstrap's iid tagging (needed for the JSC cross-engine
+  /// router). QuickJS routes per-engine natively, so unwrap back to the raw
+  /// string before dispatch. JSON-object payloads pass through untouched
+  /// (the extra `iid` key is ignored by their handlers).
+  dynamic _unwrapRawId(dynamic payload, [String? channel]) {
+    if (payload is! String) return payload;
+    if (channel != null &&
+        channel != '__jsr_log' &&
+        channel != '__jsr_set_title' &&
+        channel != '__jsr_clear_interval' &&
+        channel != '__jsr_caf') {
+      return payload;
+    }
+    if (!payload.startsWith('{"iid":')) return payload;
+    try {
+      final decoded = jsonDecode(payload);
+      if (decoded is Map<String, dynamic> &&
+          decoded.containsKey('iid') &&
+          decoded.containsKey('id')) {
+        return decoded['id'];
+      }
+    } catch (_) {}
+    return payload;
   }
 
   /// Extracts the message string from a `["__jsr_log","<msg>"]` payload by
