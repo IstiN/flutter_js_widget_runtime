@@ -56,6 +56,7 @@
       ]}},
       {type:'expanded', child:{type:'listView', shrinkWrap:false, padding:[12,0,12,12], children:items}},
     ]});
+    exportNow();
   }
 
   // ── Scene: Fade ────────────────────────────────────────────────────────
@@ -71,6 +72,7 @@
         {type:'button', text: fadeVisible ? 'Fade Out' : 'Fade In', onTap:'toggle_fade'},
       ]
     }));
+    exportNow();
   }
 
   // ── Scene: Morph ───────────────────────────────────────────────────────
@@ -95,6 +97,7 @@
           style:{color: jsr.theme.muted, fontSize:11}},
       ]
     }));
+    exportNow();
   }
 
   // ── Scene: Bounce ──────────────────────────────────────────────────────
@@ -119,6 +122,7 @@
         {type:'button', text: ballActive ? '⏸ Stop' : '🏀 Drop!', onTap:'bounce_toggle'},
       ]
     }));
+    exportNow();
   }
   function bounceLoop() {
     if (!ballActive) return;
@@ -159,6 +163,7 @@
         {type:'button', text:'Shuffle 🃏', onTap:'shuffle_cards'},
       ]
     }));
+    exportNow();
   }
 
   // ── Scene: Drag ────────────────────────────────────────────────────────
@@ -179,6 +184,7 @@
           child:{type:'container', width:280, height:250}},
       ]},
     }));
+    exportNow();
   }
 
   // ── Scene: Pulse ───────────────────────────────────────────────────────
@@ -194,6 +200,7 @@
         {type:'button', text: pulseActive ? '⏹ Stop' : '▶ Start', onTap:'pulse_toggle'},
       ]
     }));
+    exportNow();
   }
   function pulseLoop() {
     if (!pulseActive) return;
@@ -234,6 +241,7 @@
         {type:'button', text: colorActive ? '⏹ Stop' : '▶ Start', onTap:'color_toggle'},
       ]
     }));
+    exportNow();
   }
   function colorLoop() {
     if (!colorActive) return;
@@ -312,6 +320,10 @@
     ballActive = false;
     pulseActive = false;
     colorActive = false;
+  }
+
+  function exportNow() {
+    jsr.exportState({ scene: currentScene });
   }
 
   jsr.onEvent(handleEvent);

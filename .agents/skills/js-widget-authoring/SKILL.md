@@ -373,55 +373,69 @@ backend — never a re-implementation.
 ### 8.1 Headless logic tests (write these by default)
 
 Boot the widget in a plain Dart test, fire events with `callEvent`, assert on
-`backend.exportedState` — the object your widget publishes via `jsr.exportState`.
-No UI, no pumping, milliseconds per test. Reference implementation:
-`test/calculator_logic_test.dart`:
+`exportedState` — the object your widget publishes via `jsr.exportState`.
+No UI, no pumping, milliseconds per test. Use the shared helper
+`test/support/widget_logic_helper.dart`:
 
 ```dart
-import 'dart:async';
-import 'dart:io';
-
 import 'package:flutter_test/flutter_test.dart';
-import 'package:js_widget_runtime/js_widget_runtime.dart';
 import 'package:js_widget_runtime/src/runtime/js_widget_engine_quickjs.dart';
-import 'package:quickjs_runtime/quickjs_runtime.dart';
 
-final bool _hasNativeLib = File(QuickjsFfi.libraryPath).existsSync();
-
-Future<QuickjsWidgetEngineBackend> _boot(String widgetId) async {
-  final backend = QuickjsWidgetEngineBackend(
-    config: JsRuntimeConfig(
-      widgetId: widgetId,
-      onRender: (_) {},
-      onSetTitle: (_) {},
-      onStorageUpdate: (_) {},
-    ),
-  );
-  await backend.init();
-  unawaited(
-    backend
-        .run(File('example/widgets/$widgetId/widget.js').readAsStringSync())
-        .catchError((_) {}),
-  );
-  for (var i = 0; i < 50 && backend.exportedState == null; i++) {
-    await Future<void>.delayed(const Duration(milliseconds: 10));
-  }
-  return backend;
-}
+import 'support/widget_logic_helper.dart';
 
 void main() {
-  if (!_hasNativeLib) return; // CI builds the lib; skip silently otherwise
+  if (!hasQuickjsNativeLib) return; // CI builds the lib; skip silently otherwise
 
-  test('7 + 2 = 9', () async {
-    final backend = await _boot('calculator');
-    addTearDown(backend.dispose);
-    for (final key in ['7', '+', '2', '=']) {
-      await backend.callEvent('btn_$key');
-      await Future<void>.delayed(const Duration(milliseconds: 20));
-    }
-    expect(backend.exportedState?['display'], '9');
+  test('my widget starts on the home screen', () async {
+    final h = await bootWidget('my-widget');
+    addTearDown(() => h.backend.dispose());
+    expect(h.state!['screen'], 'home');
+  });
+
+  test('tapping add increments the counter', () async {
+    final h = await bootWidget('my-widget');
+    addTearDown(() => h.backend.dispose());
+    await h.callEvent('add');
+    expect(h.state!['count'], 1);
   });
 }
+```
+
+For widgets that call `jsr.fetchJson`, pass fixture responses keyed by URL
+substring:
+
+```dart
+final h = await bootWidget(
+  'weather',
+  fetchResponses: {
+    'wttr.in': {
+      'current_condition': [
+        {'temp_C': '15', 'weatherDesc': [{'value': 'Sunny'}]},
+      ],
+      'nearest_area': [
+        {'areaName': [{'value': 'London'}], 'country': [{'value': 'UK'}]},
+      ],
+    },
+  },
+);
+```
+
+Game-style widgets that drive `requestAnimationFrame` need a `WidgetTester` to
+pump frames. Use `testWidgets`, `h.pumpFrames(tester, duration)`, and dispose
+synchronously before the test returns:
+
+```dart
+testWidgets('game score increases while moving', (tester) async {
+  final h = await bootWidget('3d-game-dodge');
+  try {
+    await h.keyDown('arrowRight');
+    await h.pumpFrames(tester, const Duration(milliseconds: 400));
+    await h.keyUp('arrowRight');
+    expect(h.state!['score'], greaterThan(0.0));
+  } finally {
+    await h.backend.dispose();
+  }
+});
 ```
 
 Rules for testable widgets:
@@ -429,9 +443,8 @@ Rules for testable widgets:
 - **Always `jsr.exportState(...)` the observable state** (display value, score,
   current screen, list lengths). Tests assert on it; so does the CLI.
 - Keep handlers total: unknown actionId → no-op, missing payload → cycle.
-- Widgets that fetch: inject fixtures through the config's `fetchHandler`
-  (see `_fixtureFor` in `test/golden/js_widget_golden_test.dart`) — never hit
-  the network in tests.
+- Widgets that fetch: inject fixtures through `bootWidget(fetchResponses: ...)`
+  or the config's `fetchHandler` — never hit the network in tests.
 - One engine per test (`setUp`/`tearDown`), or share one in `setUpAll` when
   boot cost matters — but then reset state via an event between tests.
 
