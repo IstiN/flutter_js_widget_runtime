@@ -44,6 +44,11 @@ Color? _parseNamedColor(String name) {
 /// Parses a curve name into a Flutter [Curve].
 ///
 /// Unknown or null values fall back to [Curves.easeInOut].
+///
+/// The `emphasized*`/`standard*` names are Material 3 motion token aliases.
+/// Flutter 3.44 does not ship the new `Easing.*` tokens (and
+/// `Curves.emphasized*` was removed before that), so each alias maps to the
+/// closest curve available in this SDK.
 Curve jsCurve(String? v) => switch (v) {
   'linear' => Curves.linear,
   'easeIn' => Curves.easeIn,
@@ -55,6 +60,13 @@ Curve jsCurve(String? v) => switch (v) {
   'elasticIn' => Curves.elasticIn,
   'decelerate' => Curves.decelerate,
   'fastOutSlowIn' => Curves.fastOutSlowIn,
+  // M3 motion tokens (approximations; see doc comment above).
+  'emphasized' => Curves.easeInOutCubicEmphasized,
+  'emphasizedAccelerate' => Curves.easeInCubic,
+  'emphasizedDecelerate' => Curves.easeOutCubic,
+  'standard' => Curves.fastOutSlowIn,
+  'standardAccelerate' => Curves.easeIn,
+  'standardDecelerate' => Curves.easeOut,
   _ => Curves.easeInOut,
 };
 

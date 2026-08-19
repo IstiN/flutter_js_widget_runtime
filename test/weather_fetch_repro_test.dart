@@ -6,6 +6,31 @@ import 'package:js_widget_runtime/js_widget_runtime.dart';
 // Real-backend repro for the "weather stuck on loading" report:
 // widget calls jsr.render (spinner) + jsr.fetchJson; the fetch resolve must
 // re-enter JS and produce a SECOND render with data (or an error render).
+
+JsWidgetEngine _reproEngine(
+  String widgetId,
+  void Function(String type) onRender, {
+  String? instanceId,
+}) =>
+    JsWidgetEngine(
+      config: JsRuntimeConfig(
+        widgetId: widgetId,
+        instanceId: instanceId,
+        onRender: (tree) => onRender('${tree['type']}'),
+        onSetTitle: (_) {},
+        onStorageUpdate: (_) {},
+      ),
+    );
+
+String _fetchJs(String city, String marker, {String spinner = 'center'}) => '''
+      jsr.render({type:'$spinner'});
+      jsr.fetchJson('https://wttr.in/$city?format=j1').then(function(d){
+        jsr.render({type:'text', data:'$marker'});
+      }, function(e){
+        jsr.render({type:'text', data:'ERR$marker'});
+      });
+    ''';
+
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
@@ -13,22 +38,8 @@ void main() {
     'fetchJson resolve triggers a second render (real JSC backend)',
     () async {
       final renders = <String>[];
-      final engine = JsWidgetEngine(
-        config: JsRuntimeConfig(
-          widgetId: 'fetch-repro',
-          onRender: (tree) => renders.add('${tree['type']}'),
-          onSetTitle: (_) {},
-          onStorageUpdate: (_) {},
-        ),
-      );
-      await engine.run('''
-      jsr.render({type:'center'});
-      jsr.fetchJson('https://wttr.in/London?format=j1').then(function(d){
-        jsr.render({type:'text', data:'OK:'+!!d.current_condition});
-      }, function(e){
-        jsr.render({type:'text', data:'ERR:'+e});
-      });
-    ''');
+      final engine = _reproEngine('fetch-repro', renders.add);
+      await engine.run(_fetchJs('London', 'OK'));
       // Allow fetch + resolve + evaluate to complete.
       await Future<void>.delayed(const Duration(seconds: 8));
       expect(
@@ -49,41 +60,16 @@ void main() {
     'engine replaced mid-fetch keeps rendering (weather stuck repro)',
     () async {
       final renders = <String>[];
-      var engine = JsWidgetEngine(
-        config: JsRuntimeConfig(
-          widgetId: 'weather-repro',
-          onRender: (tree) => renders.add('old:${tree['type']}'),
-          onSetTitle: (_) {},
-          onStorageUpdate: (_) {},
-        ),
+      var engine = _reproEngine(
+        'weather-repro',
+        (t) => renders.add('old:$t'),
       );
-      await engine.run('''
-      jsr.render({type:'center'});
-      jsr.fetchJson('https://wttr.in/London?format=j1').then(function(d){
-        jsr.render({type:'text', data:'OK'});
-      }, function(e){
-        jsr.render({type:'text', data:'ERR'});
-      });
-    ''');
+      await engine.run(_fetchJs('London', 'OK'));
 
       // Replace the engine immediately (fetch still in flight).
       await engine.dispose();
-      engine = JsWidgetEngine(
-        config: JsRuntimeConfig(
-          widgetId: 'weather-repro',
-          onRender: (tree) => renders.add('new:${tree['type']}'),
-          onSetTitle: (_) {},
-          onStorageUpdate: (_) {},
-        ),
-      );
-      await engine.run('''
-      jsr.render({type:'center'});
-      jsr.fetchJson('https://wttr.in/London?format=j1').then(function(d){
-        jsr.render({type:'text', data:'OK2'});
-      }, function(e){
-        jsr.render({type:'text', data:'ERR2'});
-      });
-    ''');
+      engine = _reproEngine('weather-repro', (t) => renders.add('new:$t'));
+      await engine.run(_fetchJs('London', 'OK2'));
 
       await Future<void>.delayed(const Duration(seconds: 8));
       expect(
@@ -104,41 +90,19 @@ void main() {
     'two concurrent engines: fetch resolves into the owning engine',
     () async {
       final renders = <String>[];
-      final weather = JsWidgetEngine(
-        config: JsRuntimeConfig(
-          widgetId: 'weather',
-          instanceId: 'w1',
-          onRender: (tree) => renders.add('weather:${tree['type']}'),
-          onSetTitle: (_) {},
-          onStorageUpdate: (_) {},
-        ),
+      final weather = _reproEngine(
+        'weather',
+        (t) => renders.add('weather:$t'),
+        instanceId: 'w1',
       );
-      await weather.run('''
-      jsr.render({type:'center'});
-      jsr.fetchJson('https://wttr.in/London?format=j1').then(function(d){
-        jsr.render({type:'text', data:'OK'});
-      }, function(e){
-        jsr.render({type:'text', data:'ERR'});
-      });
-    ''');
+      await weather.run(_fetchJs('London', 'OK'));
 
-      final other = JsWidgetEngine(
-        config: JsRuntimeConfig(
-          widgetId: 'other',
-          instanceId: 'o1',
-          onRender: (tree) => renders.add('other:${tree['type']}'),
-          onSetTitle: (_) {},
-          onStorageUpdate: (_) {},
-        ),
+      final other = _reproEngine(
+        'other',
+        (t) => renders.add('other:$t'),
+        instanceId: 'o1',
       );
-      await other.run('''
-      jsr.render({type:'row'});
-      jsr.fetchJson('https://wttr.in/Paris?format=j1').then(function(d){
-        jsr.render({type:'text', data:'OKO'});
-      }, function(e){
-        jsr.render({type:'text', data:'ERRO'});
-      });
-    ''');
+      await other.run(_fetchJs('Paris', 'OKO', spinner: 'row'));
 
       await Future<void>.delayed(const Duration(seconds: 10));
       final weatherRenders = renders

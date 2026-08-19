@@ -10,7 +10,8 @@
     seg: 'week',
     radio: 'standard',
     created: 0,
-    lastMenu: null
+    lastMenu: null,
+    overlay: null // null | 'sheet' | 'dialog' | 'snack'
   };
 
   var SEGMENTS = ['day', 'week', 'month'];
@@ -29,6 +30,48 @@
         children: children } };
   }
 
+  function overlayNode(t) {
+    if (state.overlay === 'sheet') {
+      return {
+        type: 'bottomSheet',
+        color: t.surface,
+        onDismiss: 'overlay_dismiss',
+        child: {
+          type: 'container',
+          padding: [20, 20, 20, 20],
+          child: {
+            type: 'column',
+            mainAxisSize: 'min',
+            crossAxisAlignment: 'stretch',
+            children: [
+              { type: 'text', data: 'Modal bottom sheet', style: { color: t.text, fontSize: 16, fontWeight: 'w700' } },
+              { type: 'sizedBox', height: 8 },
+              { type: 'text', data: 'Drag down or tap outside to dismiss — JS gets onDismiss.', style: { color: t.muted, fontSize: 12 } },
+              { type: 'sizedBox', height: 12 },
+              { type: 'button', text: 'Close from JS', onTap: 'overlay_dismiss' }
+            ]
+          }
+        }
+      };
+    }
+    if (state.overlay === 'dialog') {
+      return {
+        type: 'dialog',
+        title: 'AlertDialog',
+        message: 'Actions pop the dialog and fire their event.',
+        onDismiss: 'overlay_dismiss',
+        actions: [
+          { label: 'CANCEL', onTap: 'overlay_dismiss' },
+          { label: 'OK', onTap: 'overlay_dismiss' }
+        ]
+      };
+    }
+    if (state.overlay === 'snack') {
+      return { type: 'snackBar', message: 'Snackbar from a JSON node', actionLabel: 'UNDO', onAction: 'overlay_dismiss' };
+    }
+    return { type: 'sizedBox', height: 0 };
+  }
+
   function render() {
     var t = jsr.theme;
     jsr.exportState({
@@ -39,6 +82,7 @@
       type: 'column',
       crossAxisAlignment: 'stretch',
       children: [
+        overlayNode(t),
         {
           type: 'appBar',
           title: 'Material 3',
@@ -177,6 +221,19 @@
                       }
                     ]
                   }
+                ]),
+                card(t, [
+                  caption(t, 'OVERLAYS'),
+                  {
+                    type: 'row',
+                    children: [
+                      { type: 'outlinedButton', text: 'Sheet', onTap: 'show_sheet' },
+                      { type: 'sizedBox', width: 8 },
+                      { type: 'outlinedButton', text: 'Dialog', onTap: 'show_dialog' },
+                      { type: 'sizedBox', width: 8 },
+                      { type: 'outlinedButton', text: 'Snack', onTap: 'show_snack' }
+                    ]
+                  }
                 ])
               ]
             }
@@ -227,6 +284,10 @@
     if (name === 'menu_selected') {
       state.lastMenu = payload && payload.value ? String(payload.value) : null;
     }
+    if (name === 'show_sheet') state.overlay = 'sheet';
+    if (name === 'show_dialog') state.overlay = 'dialog';
+    if (name === 'show_snack') state.overlay = 'snack';
+    if (name === 'overlay_dismiss') state.overlay = null;
     render();
   });
 
