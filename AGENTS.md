@@ -182,6 +182,8 @@ The README gallery images in `doc/widgets/` come from two sources:
   `JSR_WIDGET_PATH=<file>` to load an edited widget.js from disk instead of
   the bundled asset — no rebuild while iterating on camera/lighting).
   The binary waits 8s, captures a `RepaintBoundary` at 2x and exits. The
-  macOS app must keep sandbox disabled (`Release.entitlements`) and
+  macOS app must keep sandbox disabled (`Release.entitlements` and
+  `DebugProfile.entitlements` — the debug build is the one with live
+  asserts, useful for catching flame lifecycle races) and
   `FLTEnableImpeller`/`FLTEnableFlutterGPU` in `Info.plist`, or GLB scenes
   render nothing.

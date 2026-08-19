@@ -2327,7 +2327,7 @@
 /Users/Uladzimir_Klyshevich/development/flutter/packages/flutter_tools/lib/src/build_system/targets/macos.dart
 /Users/Uladzimir_Klyshevich/development/flutter/packages/flutter_tools/lib/src/build_system/targets/native_assets.dart
 /Users/Uladzimir_Klyshevich/git/flutter_js_widget_runtime/LICENSE
-/Users/Uladzimir_Klyshevich/git/flutter_js_widget_runtime/example/DOES_NOT_EXIST_RERUN_FOR_WILDCARD261960579
+/Users/Uladzimir_Klyshevich/git/flutter_js_widget_runtime/example/DOES_NOT_EXIST_RERUN_FOR_WILDCARD826621932
 /Users/Uladzimir_Klyshevich/git/flutter_js_widget_runtime/example/assets/models/DamagedHelmet.glb
 /Users/Uladzimir_Klyshevich/git/flutter_js_widget_runtime/example/assets/models/coach_anny.LICENSE.txt
 /Users/Uladzimir_Klyshevich/git/flutter_js_widget_runtime/example/assets/models/coach_anny.glb
@@ -2350,6 +2350,8 @@
 /Users/Uladzimir_Klyshevich/git/flutter_js_widget_runtime/example/widgets/fitness-trainer/icon.svg
 /Users/Uladzimir_Klyshevich/git/flutter_js_widget_runtime/example/widgets/fitness-trainer/manifest.json
 /Users/Uladzimir_Klyshevich/git/flutter_js_widget_runtime/example/widgets/fitness-trainer/widget.js
+/Users/Uladzimir_Klyshevich/git/flutter_js_widget_runtime/example/widgets/m3-showcase/manifest.json
+/Users/Uladzimir_Klyshevich/git/flutter_js_widget_runtime/example/widgets/m3-showcase/widget.js
 /Users/Uladzimir_Klyshevich/git/flutter_js_widget_runtime/example/widgets/map/manifest.json
 /Users/Uladzimir_Klyshevich/git/flutter_js_widget_runtime/example/widgets/map/widget.js
 /Users/Uladzimir_Klyshevich/git/flutter_js_widget_runtime/example/widgets/stocks/manifest.json
@@ -2392,6 +2394,7 @@
 /Users/Uladzimir_Klyshevich/git/flutter_js_widget_runtime/lib/src/renderer/nodes/js_animation_nodes.dart
 /Users/Uladzimir_Klyshevich/git/flutter_js_widget_runtime/lib/src/renderer/nodes/js_input_nodes.dart
 /Users/Uladzimir_Klyshevich/git/flutter_js_widget_runtime/lib/src/renderer/nodes/js_layout_nodes.dart
+/Users/Uladzimir_Klyshevich/git/flutter_js_widget_runtime/lib/src/renderer/nodes/js_m3_nodes.dart
 /Users/Uladzimir_Klyshevich/git/flutter_js_widget_runtime/lib/src/renderer/nodes/js_map_node.dart
 /Users/Uladzimir_Klyshevich/git/flutter_js_widget_runtime/lib/src/renderer/nodes/js_node_helpers.dart
 /Users/Uladzimir_Klyshevich/git/flutter_js_widget_runtime/lib/src/renderer/nodes/js_path_node.dart

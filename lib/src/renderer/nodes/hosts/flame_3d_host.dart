@@ -402,7 +402,7 @@ class Flame3dController extends RefCountedJs3dController {
     // FlameGame.dispose while processing lifecycle events. Skipping disposal
     // is safe: nothing was ever laid out or painted, and the harness process
     // tears the whole isolate down right after.
-    if (g == null || !g.hasLayout) return;
+    if (g == null || !g.hasEverLaidOut) return;
     g.disposeGame();
   }
 }
@@ -514,8 +514,10 @@ abstract class Js3dGameApi {
   Future<void> load();
 
   /// Whether the game ever received a layout. Games that never laid out
-  /// can be dropped without disposal.
-  bool get hasLayout;
+  /// can be dropped without disposal. Distinct from flame's own
+  /// `Game.hasLayout` (which the GameWidget asserts during attach): this one
+  /// stays true once the game was ever resized.
+  bool get hasEverLaidOut;
 
   /// Releases native/GPU resources.
   void disposeGame();
@@ -793,8 +795,22 @@ class JsFlame3dGame extends FlameGame3D<World3D, CameraComponent3D>
     if (future is Future<void>) await future;
   }
 
+  // NOTE: do NOT override flame's `hasLayout` here. GameWidget's
+  // loaderFuture asserts `game.hasLayout` while attaching — before
+  // `game.mount()` — so an override that also requires `isMounted` makes the
+  // assert fire on every fresh attach (and reading `size` before the first
+  // resize throws the same assert itself). Track "ever laid out" separately
+  // for the dispose guard instead.
+  bool _everLaidOut = false;
+
   @override
-  bool get hasLayout => isMounted && size != Vector2.zero();
+  void onGameResize(Vector2 size) {
+    _everLaidOut = true;
+    super.onGameResize(size);
+  }
+
+  @override
+  bool get hasEverLaidOut => _everLaidOut;
 
   @override
   void disposeGame() => dispose();
@@ -1051,11 +1067,16 @@ class _Flame3dHeadlessCaptureState extends State<_Flame3dHeadlessCapture> {
     // Without a GameWidget nothing calls onLoad for us — and nothing mounts
     // the game. An unmounted FlameGame renders and updates NOTHING
     // (CameraComponent skips unmounted worlds), so mount it manually once
-    // the load completes.
-    () async {
-      await _loadAndMountGame();
-      if (mounted) setState(() {});
-    }();
+    // the load completes. Defer to after the first frame so the [GameWidget]
+    // has a real size by the time we call `game.mount()` — flame's
+    // `loaderFuture` IIFE asserts `game.hasLayout` (`_size != null`) and
+    // would fire when the GameWidget runs its own performLayout otherwise.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      () async {
+        await _loadAndMountGame();
+        if (mounted) setState(() {});
+      }();
+    });
   }
 
   Future<void> _loadAndMountGame() async {

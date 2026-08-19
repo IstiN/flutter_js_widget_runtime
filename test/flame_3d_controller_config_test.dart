@@ -18,7 +18,7 @@ class _RecordingGame implements Js3dGameApi {
   Future<void> load() async {}
 
   @override
-  bool get hasLayout => true;
+  bool get hasEverLaidOut => true;
 
   @override
   void disposeGame() => calls.add('dispose');
