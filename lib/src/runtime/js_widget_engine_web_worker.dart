@@ -225,6 +225,14 @@ class WebWorkerJsWidgetEngineBackend implements JsWidgetEngineBackend {
     worker.postMessage(message.toJS);
   }
 
+  @visibleForTesting
+  String buildWorkerScriptForTest(
+    String widgetJs,
+    Map<String, dynamic> initialTheme, [
+    String? hostBootstrapJs,
+  ]) =>
+      _buildWorkerScript(widgetJs, initialTheme, hostBootstrapJs);
+
   String _buildWorkerScript(
     String widgetJs,
     Map<String, dynamic> initialTheme, [
@@ -236,7 +244,12 @@ class WebWorkerJsWidgetEngineBackend implements JsWidgetEngineBackend {
       '<\\/script>',
     );
     final themeJson = jsonEncode(initialTheme);
+    // __IID must exist before the shared bootstrap: its __send helper tags
+    // every payload with it (cross-engine routing on JSC; on web it's a
+    // harmless no-op key that the bridge strips).
+    final iidJson = jsonEncode(_config.instanceId ?? _config.widgetId);
     return '''
+var __IID = $iidJson;
 function sendMessage(channel, jsonString) {
   self.postMessage('__jsr__' + JSON.stringify({channel: channel, payload: jsonString}));
 }

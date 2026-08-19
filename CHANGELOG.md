@@ -1,3 +1,12 @@
+## 0.4.79
+
+- fix(web): declare __IID before the shared bootstrap in the web worker
+  script — the 0.4.75 iid tagging made `__tag` reference `__IID`
+  unconditionally, but the web worker never declared it, so every widget
+  message threw `ReferenceError: __IID is not defined` and JS widgets on the
+  web client hung on the loading spinner (engine loaded, renderer built,
+  first render never arrived).
+
 ## 0.4.78
 
 - Automated patch bump.
