@@ -1,5 +1,6 @@
 import 'package:flutter/foundation.dart';
 
+import 'package:js_widget_runtime/src/renderer/media/js_media_host.dart';
 import 'package:js_widget_runtime/src/renderer/nodes/js_3d_host.dart';
 import 'package:js_widget_runtime/src/runtime/js_widget_engine_backend.dart';
 
@@ -52,6 +53,7 @@ class JsRuntimeConfig {
     this.rafTickHandler,
     this.backend,
     this.js3dHost,
+    this.mediaHost,
   });
 
   final String widgetId;
@@ -137,6 +139,10 @@ class JsRuntimeConfig {
   /// Optional host-provided 3D engine factory for `scene3d` nodes.
   final Js3dHost? js3dHost;
 
+  /// Optional host-provided media factory for `video` / `audio` /
+  /// `audio_player` nodes. Without one those nodes render placeholders.
+  final JsMediaHost? mediaHost;
+
   JsRuntimeConfig copyWith({
     String? widgetId,
     String? appDir,
@@ -166,6 +172,7 @@ class JsRuntimeConfig {
     void Function(String id, int elapsedMs)? rafTickHandler,
     JsWidgetEngineBackend? backend,
     Js3dHost? js3dHost,
+    JsMediaHost? mediaHost,
   }) =>
       JsRuntimeConfig(
         widgetId: widgetId ?? this.widgetId,
@@ -189,5 +196,6 @@ class JsRuntimeConfig {
         rafTickHandler: rafTickHandler ?? this.rafTickHandler,
         backend: backend ?? this.backend,
         js3dHost: js3dHost ?? this.js3dHost,
+        mediaHost: mediaHost ?? this.mediaHost,
       );
 }

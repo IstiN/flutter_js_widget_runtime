@@ -1,0 +1,20 @@
+00:01 +56 ~1 -1: /Users/Uladzimir_Klyshevich/git/flutter_js_widget_runtime/test/golden/js_widget_golden_test.dart: example widget yolo-hello renders its first frame [E]
+  Test failed. See exception logs above.
+00:01 +56 ~1 -2: /Users/Uladzimir_Klyshevich/git/flutter_js_widget_runtime/test/golden/js_widget_golden_test.dart: example widget calculator renders its first frame [E]
+  Test failed. See exception logs above.
+00:01 +56 ~1 -3: /Users/Uladzimir_Klyshevich/git/flutter_js_widget_runtime/test/golden/js_widget_golden_test.dart: example widget weather renders its first frame [E]
+  Test failed. See exception logs above.
+00:01 +56 ~1 -4: /Users/Uladzimir_Klyshevich/git/flutter_js_widget_runtime/test/golden/js_widget_golden_test.dart: example widget stocks renders its first frame [E]
+  Test failed. See exception logs above.
+00:01 +56 ~1 -5: /Users/Uladzimir_Klyshevich/git/flutter_js_widget_runtime/test/golden/js_widget_golden_test.dart: example widget crypto renders its first frame [E]
+  Test failed. See exception logs above.
+00:01 +56 ~1 -6: /Users/Uladzimir_Klyshevich/git/flutter_js_widget_runtime/test/golden/js_widget_golden_test.dart: example widget animation-showcase renders its first frame [E]
+  Test failed. See exception logs above.
+00:01 +56 ~1 -7: /Users/Uladzimir_Klyshevich/git/flutter_js_widget_runtime/test/golden/js_widget_golden_test.dart: example widget map renders its first frame [E]
+  Test failed. See exception logs above.
+00:01 +56 ~1 -8: /Users/Uladzimir_Klyshevich/git/flutter_js_widget_runtime/test/golden/js_widget_golden_test.dart: example widget 3d-showcase renders its first frame [E]
+  Test failed. See exception logs above.
+00:01 +56 ~1 -9: /Users/Uladzimir_Klyshevich/git/flutter_js_widget_runtime/test/golden/js_widget_golden_test.dart: example widget 3d-game-dodge renders its first frame [E]
+  Test failed. See exception logs above.
+00:01 +56 ~1 -10: /Users/Uladzimir_Klyshevich/git/flutter_js_widget_runtime/test/golden/js_widget_golden_test.dart: example widget 3d-glb-showcase renders its first frame [E]
+  Test failed. See exception logs above.

@@ -1,0 +1,3 @@
+lib/src/renderer/nodes/js_text_nodes.dart:79:    return Icon(_iconData(name), size: size, color: color);
+lib/src/renderer/nodes/js_text_nodes.dart:128:      return Icon(_iconData(raw), size: 20);
+lib/src/renderer/nodes/js_text_nodes.dart:173:          ? Icon(_iconData(m['icon'] as String), size: 16)

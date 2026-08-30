@@ -1,0 +1,10 @@
+lib/src/renderer/json_widget_decoration.dart:164:  EdgeInsetsGeometry? _edgeInsetsOrNull(dynamic v) =>
+lib/src/renderer/json_widget_decoration.dart:164:  EdgeInsetsGeometry? _edgeInsetsOrNull(dynamic v) =>
+lib/src/renderer/json_widget_decoration.dart-165-      v == null ? null : _edgeInsets(v);
+lib/src/renderer/json_widget_decoration.dart-166-
+lib/src/renderer/json_widget_decoration.dart-167-  Color? _color(String? s) => parseColor(s);
+lib/src/renderer/json_widget_decoration.dart-168-
+lib/src/renderer/json_widget_decoration.dart-169-  IconData _iconData(String name) =>
+lib/src/renderer/json_widget_decoration.dart-170-      const {
+lib/src/renderer/json_widget_decoration.dart-171-        'star': Icons.star,
+lib/src/renderer/json_widget_decoration.dart-172-        'favorite': Icons.favorite,

@@ -1,0 +1,85 @@
+
+  @override
+  Widget build(BuildContext context) {
+    final tree = _uiTree;
+    final Widget content;
+    if (tree == null) {
+      content = const Center(child: CircularProgressIndicator());
+    } else {
+      final renderer = JsonWidgetRenderer(
+        onEvent: (actionId, payload) => _engine?.callEvent(actionId, payload),
+        js3dHost: widget.config.js3dHost,
+        onScene3dTap: (sceneId, payload) =>
+            _engine?.dispatchHostEvent('scene3d.tap:$sceneId', payload),
+      );
+      content = renderer.build(tree, context);
+    }
+    return JsKeyboardCapture(
+      onEvent: (payload) => _engine?.dispatchHostEvent('key', payload),
+      child: content,
+    );
+  }
+    this.onResolveReady,
+    this.fetchHandler,
+    this.secretsGetHandler,
+    this.secretsSetHandler,
+    this.loadAssetHandler,
+    this.execHandler,
+    this.intervalTickHandler,
+    this.rafTickHandler,
+    this.backend,
+    this.js3dHost,
+  });
+
+  final String widgetId;
+
+  /// Optional stable identifier for this widget engine instance, exposed to
+  /// JS as `jsr.instanceId`.
+  /// Dart-backed animation frame tick.
+  final void Function(String id, int elapsedMs)? rafTickHandler;
+
+  /// Optional JS engine backend. When omitted, the engine uses the platform
+  /// default (`flutter_js` on VM, Web Worker on web).
+  final JsWidgetEngineBackend? backend;
+
+  /// Optional host-provided 3D engine factory for `scene3d` nodes.
+  final Js3dHost? js3dHost;
+
+  JsRuntimeConfig copyWith({
+    Future<void> Function(String id, String key)? secretsGetHandler,
+    Future<void> Function(String id, String key, dynamic value)?
+        secretsSetHandler,
+    Future<void> Function(String id, String path)? loadAssetHandler,
+    Future<void> Function(String id, String cmd)? execHandler,
+    void Function(String id)? intervalTickHandler,
+    void Function(String id, int elapsedMs)? rafTickHandler,
+    JsWidgetEngineBackend? backend,
+    Js3dHost? js3dHost,
+  }) =>
+      JsRuntimeConfig(
+        widgetId: widgetId ?? this.widgetId,
+        appDir: appDir ?? this.appDir,
+        initialTheme: initialTheme ?? this.initialTheme,
+        initialStorage: initialStorage ?? this.initialStorage,
+        hostBootstrapJs: hostBootstrapJs ?? this.hostBootstrapJs,
+        onRender: onRender ?? this.onRender,
+        onSetTitle: onSetTitle ?? this.onSetTitle,
+        onStorageUpdate: onStorageUpdate ?? this.onStorageUpdate,
+        onLog: onLog ?? this.onLog,
+        isPermissionAllowed: isPermissionAllowed ?? this.isPermissionAllowed,
+        resolveCallback: resolveCallback ?? this.resolveCallback,
+        onResolveReady: onResolveReady ?? this.onResolveReady,
+        fetchHandler: fetchHandler ?? this.fetchHandler,
+        secretsGetHandler: secretsGetHandler ?? this.secretsGetHandler,
+        secretsSetHandler: secretsSetHandler ?? this.secretsSetHandler,
+        loadAssetHandler: loadAssetHandler ?? this.loadAssetHandler,
+        execHandler: execHandler ?? this.execHandler,
+        intervalTickHandler: intervalTickHandler ?? this.intervalTickHandler,
+        rafTickHandler: rafTickHandler ?? this.rafTickHandler,
+        backend: backend ?? this.backend,
+        js3dHost: js3dHost ?? this.js3dHost,
+      );
+}
+1:import 'package:flutter/foundation.dart';
+3:import 'package:js_widget_runtime/src/renderer/nodes/js_3d_host.dart';
+4:import 'package:js_widget_runtime/src/runtime/js_widget_engine_backend.dart';

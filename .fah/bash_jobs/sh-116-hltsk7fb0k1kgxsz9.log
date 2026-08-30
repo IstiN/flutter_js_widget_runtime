@@ -1,0 +1,21 @@
+- `switch`, `checkbox` ({value, label?, onChanged → `{value: bool}`}),
+  `slider` ({value, min, max, divisions, onChanged → `{value: num}`}),
+  `dropdown` ({items: [strings|{value,label}], value, onChanged}).
+
+### Material 3
+
+| node | props (key ones) | events |
+|---|---|---|
+| `appBar` | `title, leading: {icon, onTap}, actions: [{icon, onTap, tooltip}], color` | taps |
+| `navigationBar` / `navigationRail` | `destinations: [{icon, label}], selectedIndex, onChanged` | `{value: index}` |
+| `tabBar` | `tabs: [string], children: [node]` | none (self-contained) |
+| `fab` | `icon?, label? (→ extended), mini?, onTap` | tap |
+| `segmentedButton` | `segments: [{value, label, icon?}], selected: [...], multiSelect?, onChanged` | `{value}` or `{value: [...]}` |
+| `radio` | `value, groupValue, label?, onChanged` | `{value}` |
+| `searchBar` | `hint, onChanged, onSubmitted` | `{value: text}` |
+| `tooltip` | `message, child` | — |
+| `popupMenu` | `items: [{value, label, icon?}], icon?, onSelected` | `{value}` |
+| `banner` | `message, icon?, actions: [{label, onTap}]` | taps |
+| `bottomAppBar` | `children, color?, height?` | — |
+| `carousel` | `children, itemExtent? (200), shrinkExtent? (0)` | — |
+| `drawer` | `drawer: node, child: node` — wraps child in a nested Scaffold with a Drawer; an `appBar` inside gets the hamburger automatically | — |

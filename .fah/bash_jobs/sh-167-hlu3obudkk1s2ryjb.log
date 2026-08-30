@@ -1,0 +1,46 @@
+import 'package:js_widget_runtime/src/renderer/media/js_media_controller.dart';
+
+/// Factory provided by the host to create concrete media controllers for
+/// `video` and `audio` nodes.
+///
+/// If a host does not provide a [JsMediaHost], the renderer falls back to
+/// placeholder icons for `video`/`audio` nodes.
+abstract class JsMediaHost {
+  const JsMediaHost();
+
+  /// Creates a video controller for [src].
+  JsVideoController createVideoController(String src);
+
+  /// Creates an audio controller for [src].
+  JsAudioController createAudioController(String src);
+}
+=======
+      'AppleWebKit/537.36 (KHTML, like Gecko) '
+      'Chrome/126.0.0.0 Safari/537.36';
+
+  Widget _video(Map<String, dynamic> m) {
+    final host = mediaHost;
+    if (host == null) return _mediaPlaceholder(m, Icons.videocam);
+    return JsVideoWidget(host: host, node: m);
+  }
+
+  Widget _audio(Map<String, dynamic> m) {
+    final host = mediaHost;
+    if (host == null) return _mediaPlaceholder(m, Icons.audiotrack);
+    return JsAudioWidget(host: host, node: m);
+  }
+
+  Widget _audioPlayer(Map<String, dynamic> m) {
+    final host = mediaHost;
+    if (host == null) return const SizedBox.shrink();
+    return JsAudioPlayerWidget(host: host, node: m);
+  }
+
+====
+js_audio_player_widget.dart
+js_audio_widget.dart
+js_media_controller_mixin.dart
+js_media_controller.dart
+js_media_controls.dart
+js_media_host.dart
+js_video_widget.dart

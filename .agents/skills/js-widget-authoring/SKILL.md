@@ -117,6 +117,12 @@ import { formatMoney } from './lib/money.js';
 | `files` | no | explicit ordered concat list (see imports above) |
 | `cli` | no | agent-facing metadata — see below |
 
+Host-specific extension keys are allowed — the runtime manifest model
+ignores unknown fields. Example (Fa host): `"widget": {"interactive": true}`
+makes the board live-tile route UI events into the tile engine's
+`jsr.onEvent` instead of opening the app on tap (default is display-only,
+tap-to-open). Widget JS needs no changes — same `jsr.onEvent` contract.
+
 The `cli` block is how coding agents discover your widget — fill it in:
 
 ```json
@@ -331,7 +337,11 @@ prefer `flChart` for anything user-facing.
 - `map` — OSM tiles: `{center: [lat, lng], zoom, markers: [{lat, lng, label?,
   color?}], onTap?}`.
 - `path` — vector path `{d, fill, stroke, viewBox}`.
-- `video` / `audio` / `audio_player` — host-provided players.
+- `video` — `{src, autoPlay?, loop?, controls? (true), fit?, width?, height?}`;
+  `audio`; `audio_player` — zero-size driver `{src, playing?, volume?, loop?,
+  seekToMs?}`: recompute props every render, host follows them. All three need
+  a host `JsMediaHost` (`JsRuntimeConfig.mediaHost`) or they render
+  placeholders; reference impl `example/lib/media_host.dart`.
 - `scene3d` — `{id, width?, height?, interactive?}` bound to `jsr.scene3d.*`.
 
 ### Gestures
