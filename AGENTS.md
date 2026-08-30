@@ -73,6 +73,8 @@ Core methods:
 
 `jsr.theme` keys: `isDark`, `bg`, `surface`, `surfaceAlt`, `border`, `borderBright`, `accent`, `accent2`, `onAccent`, `text`, `muted`. Host `updateTheme` payloads are MERGED onto the bootstrap defaults (`Object.assign`), so a partial map no longer wipes the keys it omits.
 
+Layout contract: hosts embed widgets at arbitrary heights (landing cards ~150 px, panels, full screen). The root node of a widget SHOULD be scrollable (`listView` with `shrinkWrap: false` + padding, or `scroll`) unless the content provably fits ~150 px — a fixed centered column will paint BOTTOM OVERFLOWED stripes in a short host. The renderer deliberately does NOT auto-wrap the root in a scroll view; scrollability is the widget's choice.
+
 Renderer effects ported from YoClip: radial gradients, box shadows, blur nodes, `clip: true` on containers, static/3D transforms, text shadows, `textTransform`.
 
 ## 3D Support

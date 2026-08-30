@@ -214,6 +214,15 @@ Hardcode hex colors only for brand/data colors (chart series, status dots).
 
 ---
 
+## 5b. Layout contract (root scrollability)
+
+Hosts embed widgets at arbitrary heights (~150 px landing cards, panels,
+full screen). Unless the content provably fits ~150 px, make the ROOT node
+scrollable: `listView` with `shrinkWrap: false` (default is `true` — wrong
+for a bounded root) plus `padding`, or a `scroll` node. A fixed centered
+`column` overflows in a short host (BOTTOM OVERFLOWED stripes). The
+renderer does not auto-wrap roots; scrollability is the widget's job.
+
 ## 6. UI tree — node catalog
 
 Every node is `{type: '...', ...props}`. Children go in `child` (single) or
