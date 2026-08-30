@@ -180,6 +180,10 @@ class _PreviewPageState extends State<PreviewPage> {
     onRender: (_) {},
     onSetTitle: (title) => web.document.title = title,
     onStorageUpdate: (_) {},
+    // 3D: primitives/OBJ via flutter_cube work on web; GLB/flame_3d
+    // scenes need flutter_gpu and stay empty (the dispatcher still
+    // routes them, the host fails gracefully to the placeholder).
+    js3dHost: createJs3dHost(),
     // Honor the manifest: widgets that did not opt into network access
     // get no fetch capability in the preview either.
     isPermissionAllowed: (capability) =>
