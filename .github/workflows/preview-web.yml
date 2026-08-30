@@ -1,0 +1,50 @@
+name: Preview Web Build
+
+# Builds the Flutter-web widget preview runner (example/lib/preview.dart)
+# and uploads it as an artifact. The fa1.dev deploy workflow (flutter_agent
+# repo) downloads the `jsr-preview-web` artifact and serves it under
+# /widgets/preview/.
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'lib/**'
+      - 'example/lib/preview.dart'
+      - 'example/pubspec.yaml'
+      - '.github/workflows/preview-web.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          # Pinned like pr.yml: hosted flame_3d 0.3.0 does not compile
+          # against Flutter 3.47+ (see AGENTS.md branch strategy).
+          channel: stable
+          flutter-version: 3.44.4
+
+      - name: Install dependencies
+        working-directory: example
+        run: flutter pub get
+
+      - name: Build web preview runner
+        working-directory: example
+        run: flutter build web -t lib/preview.dart --base-href /widgets/preview/ --no-wasm-dry-run
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: jsr-preview-web
+          path: example/build/web/
+          retention-days: 30

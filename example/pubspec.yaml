@@ -14,6 +14,9 @@ dependencies:
   js_widget_runtime:
     path: ../
 
+  # Web preview runner (lib/preview.dart): fetch + document.title.
+  web: ^1.1.1
+
 dev_dependencies:
   flutter_test:
     sdk: flutter

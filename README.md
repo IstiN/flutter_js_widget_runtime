@@ -34,6 +34,16 @@ Real JavaScript, rendered by this package and captured by [golden tests](test/go
 
 yolo-hello (animated gradient + bounce) · calculator (full keyboard logic in JS) · weather (wttr.in fetch) · stocks (live quotes) · crypto (price tickers) · map (OpenStreetMap landmarks) · animation-showcase (menu + per-scene captures from the interactive golden: fade / morph / bounce / cards / drag / pulse / colors) · 3d-showcase (procedural primitives, flutter_cube — shape variants under doc/widgets/3d-showcase-*.png) · 3d-game-dodge (dodge-the-blocks game) · 3d-glb-showcase (GLB model with PBR) · fitness-trainer (skeletal-coach workout, flame_3d) · m3-showcase (Material 3 nodes: appBar, banner, searchBar, segmentedButton, radio, tabBar, fab, popupMenu, navigationBar + overlays: bottomSheet, dialog, snackBar, datePicker, timePicker — extra state frames under doc/widgets/m3-*.png) · charts-showcase (fl_chart via the `flChart` node: line, bar, pie, radar, scatter)
 
+## Web preview runner
+
+`example/lib/preview.dart` is a web-only entry point that renders a single widget full-bleed through the real engine (Web Worker backend) — built for hosting live widget previews behind an iframe:
+
+```sh
+cd example && flutter build web -t lib/preview.dart --base-href /widgets/preview/
+```
+
+URL contract: `?widget=<id>&theme=dark|light`, with widget files fetched over HTTP (`?base=<url>` to override the source). `fetch` is enabled only for widgets whose manifest opts into `"network": true`. CI (`.github/workflows/preview-web.yml`) publishes the build as the `jsr-preview-web` artifact.
+
 ## Quick start
 
 ```sh
