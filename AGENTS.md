@@ -209,6 +209,12 @@ fa1.dev (`/widgets/preview/`), replacing the old hand-written DOM/CSS shim.
   in-memory handlers; `exec` is unavailable on web.
 - The entry point imports `package:web` (fetch, `document.title`), so it
   only builds for web — like `screenshot.dart` only builds for macOS.
+- **GitHub Pages**: `.github/workflows/pages.yml` deploys the live demo
+  site to <https://istin.github.io/flutter_js_widget_runtime/> — the
+  landing page `site/index.html` (cards built from the fa_widgets
+  `catalog.json`) at the root, the runner under `/preview/` built with
+  `--base-href /flutter_js_widget_runtime/preview/`. Same workflow shape:
+  build → `actions/upload-pages-artifact` → `actions/deploy-pages`.
 - **Known limitation**: GLB/`flame_3d` scenes (`3d-glb-showcase`,
   `fitness-trainer`) need flutter_gpu and render nothing on web;
   flutter_cube primitives (`3d-showcase`) work.

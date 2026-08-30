@@ -1,0 +1,70 @@
+name: GitHub Pages
+
+# Deploys the live demo site to GitHub Pages:
+#   /                      — landing page (site/index.html) with widget cards
+#   /preview/?widget=<id>  — the Flutter-web preview runner (example/lib/preview.dart)
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'lib/**'
+      - 'example/lib/preview.dart'
+      - 'example/pubspec.yaml'
+      - 'site/**'
+      - '.github/workflows/pages.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          # Pinned like pr.yml: hosted flame_3d 0.3.0 does not compile
+          # against Flutter 3.47+ (see AGENTS.md branch strategy).
+          channel: stable
+          flutter-version: 3.44.4
+
+      - name: Install dependencies
+        working-directory: example
+        run: flutter pub get
+
+      - name: Build web preview runner
+        working-directory: example
+        run: flutter build web -t lib/preview.dart --base-href /flutter_js_widget_runtime/preview/ --no-wasm-dry-run
+
+      - name: Assemble site
+        run: |
+          mkdir _site
+          cp site/index.html _site/index.html
+          cp -r example/build/web _site/preview
+
+      - name: Setup Pages
+        uses: actions/configure-pages@v5
+
+      - name: Upload Pages artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: _site
+
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
