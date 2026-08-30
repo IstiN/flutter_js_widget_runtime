@@ -47,6 +47,7 @@ class _DemoHomeState extends State<DemoHome> {
     '3d-game-dodge',
     'fitness-trainer',
     'm3-showcase',
+    'pomodoro',
     'charts-showcase',
     'map',
   ];
