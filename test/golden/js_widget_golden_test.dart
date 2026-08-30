@@ -56,6 +56,7 @@ const _widgetFiles = {
   'pomodoro': 'example/widgets/pomodoro/widget.js',
   'audio-player': 'example/widgets/audio-player/widget.js',
   'video-player': 'example/widgets/video-player/widget.js',
+  'webview-showcase': 'example/widgets/webview-showcase/widget.js',
   'charts-showcase': 'example/widgets/charts-showcase/widget.js',
 };
 

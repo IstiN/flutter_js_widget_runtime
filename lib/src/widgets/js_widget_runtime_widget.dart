@@ -84,6 +84,7 @@ class _JsWidgetRuntimeWidgetState extends State<JsWidgetRuntimeWidget> {
         onEvent: (actionId, payload) => _engine?.callEvent(actionId, payload),
         js3dHost: widget.config.js3dHost,
         mediaHost: widget.config.mediaHost,
+        webViewHost: widget.config.webViewHost,
         onScene3dTap: (sceneId, payload) =>
             _engine?.dispatchHostEvent('scene3d.tap:$sceneId', payload),
       );

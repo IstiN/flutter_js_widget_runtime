@@ -337,6 +337,13 @@ prefer `flChart` for anything user-facing.
 - `map` — OSM tiles: `{center: [lat, lng], zoom, markers: [{lat, lng, label?,
   color?}], onTap?}`.
 - `path` — vector path `{d, fill, stroke, viewBox}`.
+- `webView` — `{src, width?, height?, onMessage?}`; needs a host
+  `JsWebViewHost` (`JsRuntimeConfig.webViewHost`) or renders a placeholder.
+  Core ships an iframe host for web (`createIframeWebViewHost()`); VM hosts
+  plug flutter_inappwebview (reference `example/lib/webview_host.dart`).
+  Page-to-widget messages arrive as the `onMessage` event with
+  `{value: string}` (iframe: `postMessage({type:'jsr', data})`; inappwebview:
+  `callHandler('jsr', data)`).
 - `video` — `{src, autoPlay?, loop?, controls? (true), fit?, width?, height?}`;
   `audio`; `audio_player` — zero-size driver `{src, playing?, volume?, loop?,
   seekToMs?}`: recompute props every render, host follows them. All three need

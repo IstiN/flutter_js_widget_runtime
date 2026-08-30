@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:js_widget_runtime/js_widget_runtime.dart';
 
 import 'media_host.dart';
+import 'webview_host.dart';
 
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
@@ -52,6 +53,7 @@ class _DemoHomeState extends State<DemoHome> {
     'pomodoro',
     'audio-player',
     'video-player',
+    'webview-showcase',
     'charts-showcase',
     'map',
   ];
@@ -93,6 +95,7 @@ class _DemoHomeState extends State<DemoHome> {
     onStorageUpdate: (_) {},
     js3dHost: createJs3dHost(),
     mediaHost: const ExampleMediaHost(),
+    webViewHost: const ExampleWebViewHost(),
     fetchHandler: (id, url, method, headers) async {
       // Demo fetch: only allow GET to a few public APIs used by weather/stocks.
       if (method != 'GET') {

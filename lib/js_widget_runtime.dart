@@ -40,6 +40,9 @@ export 'src/renderer/nodes/js_scene3d_mesh_node.dart'
 export 'src/renderer/media/js_media_controller.dart'
     show JsMediaController, JsVideoController, JsAudioController;
 export 'src/renderer/media/js_media_host.dart' show JsMediaHost;
+export 'src/renderer/webview/js_web_view_host.dart' show JsWebViewHost;
+export 'src/renderer/webview/iframe_web_view_host.dart'
+    show createIframeWebViewHost, IframeWebViewHost;
 export 'src/renderer/media/js_video_widget.dart' show JsVideoWidget;
 export 'src/renderer/media/js_audio_widget.dart' show JsAudioWidget;
 export 'src/renderer/media/js_audio_player_widget.dart'
