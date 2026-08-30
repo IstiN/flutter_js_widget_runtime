@@ -184,6 +184,7 @@ class _PreviewPageState extends State<PreviewPage> {
     // scenes need flutter_gpu and stay empty (the dispatcher still
     // routes them, the host fails gracefully to the placeholder).
     js3dHost: createJs3dHost(),
+    webViewHost: createIframeWebViewHost(),
     // Honor the manifest: widgets that did not opt into network access
     // get no fetch capability in the preview either.
     isPermissionAllowed: (capability) =>

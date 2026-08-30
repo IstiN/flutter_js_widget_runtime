@@ -12,6 +12,7 @@ dependencies:
   flutter:
     sdk: flutter
 
+  flutter_inappwebview: ^6.1.5
   js_widget_runtime:
     path: ../
 
@@ -42,6 +43,7 @@ flutter:
     - widgets/pomodoro/
     - widgets/audio-player/
     - widgets/video-player/
+    - widgets/webview-showcase/
     - widgets/charts-showcase/
     - widgets/map/
     - assets/models/

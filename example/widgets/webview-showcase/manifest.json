@@ -1,0 +1,26 @@
+{
+  "id": "webview-showcase",
+  "name": "WebView Showcase",
+  "description": "Embeds web content via the webView node (host JsWebViewHost: flutter_inappwebview on VM, iframe on web): URL bar, preset sites, page-to-widget message bridge.",
+  "version": "1.0.0",
+  "icon": "🌐",
+  "allowedCommands": [],
+  "network": true,
+  "cli": {
+    "summary": "WebView node demo: URL navigation, presets, message bridge",
+    "events": [
+      { "id": "draft", "description": "URL field typing; payload {value: text}" },
+      { "id": "go", "description": "Navigate to the drafted URL" },
+      { "id": "preset", "description": "Load a preset site; payload {value: index}" },
+      { "id": "webViewMessage", "description": "Message from the embedded page; payload {value: string}" }
+    ],
+    "read": {
+      "state": "jsr app:state webview-showcase",
+      "snapshot": "jsr app:snapshot webview-showcase"
+    },
+    "examples": [
+      "jsr app:run webview-showcase",
+      "jsr app:execute webview-showcase preset --payload '{\"value\":\"1\"}'"
+    ]
+  }
+}

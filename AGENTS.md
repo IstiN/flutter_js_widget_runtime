@@ -161,6 +161,20 @@ Once flame_3d publishes a 3.47-compatible release:
 4. Delete `.github/workflows/automerge-main.yml` and the `flame-3.47` branch.
 5. Remove this section from `AGENTS.md`.
 
+## Embedded Web Content
+
+- `webView` node: `{src, width?, height?, onMessage?}`; renders a placeholder
+  until the host passes a `JsWebViewHost` via `JsRuntimeConfig.webViewHost`.
+- Web builds: the core ships `createIframeWebViewHost()` (iframe platform
+  view; cross-origin pages must allow framing — `X-Frame-Options`/CSP
+  `frame-ancestors` render blank). Page-to-widget bridge:
+  `window.parent.postMessage({type: 'jsr', data: '...'}, '*')`.
+- VM: implement `JsWebViewHost` over `flutter_inappwebview` (reference:
+  `example/lib/webview_host.dart`; iOS/Android/macOS — Linux/Windows get the
+  placeholder). Bridge: `window.flutter_inappwebview.callHandler('jsr', msg)`.
+- Messages fire the node's `onMessage` event id with payload `{value: msg}`.
+- Example widget: `webview-showcase`.
+
 ## Media Playback
 
 - `video` / `audio` / `audio_player` nodes render placeholders until the host

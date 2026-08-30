@@ -2,6 +2,7 @@ import 'package:flutter/foundation.dart';
 
 import 'package:js_widget_runtime/src/renderer/media/js_media_host.dart';
 import 'package:js_widget_runtime/src/renderer/nodes/js_3d_host.dart';
+import 'package:js_widget_runtime/src/renderer/webview/js_web_view_host.dart';
 import 'package:js_widget_runtime/src/runtime/js_widget_engine_backend.dart';
 
 /// Callback invoked to check whether a capability is allowed.
@@ -54,6 +55,7 @@ class JsRuntimeConfig {
     this.backend,
     this.js3dHost,
     this.mediaHost,
+    this.webViewHost,
   });
 
   final String widgetId;
@@ -143,6 +145,11 @@ class JsRuntimeConfig {
   /// `audio_player` nodes. Without one those nodes render placeholders.
   final JsMediaHost? mediaHost;
 
+  /// Optional host-provided web view factory for `webView` nodes. On web
+  /// builds the package ships `createIframeWebViewHost()`; VM hosts plug
+  /// `flutter_inappwebview` or `webview_flutter` through this interface.
+  final JsWebViewHost? webViewHost;
+
   JsRuntimeConfig copyWith({
     String? widgetId,
     String? appDir,
@@ -173,6 +180,7 @@ class JsRuntimeConfig {
     JsWidgetEngineBackend? backend,
     Js3dHost? js3dHost,
     JsMediaHost? mediaHost,
+    JsWebViewHost? webViewHost,
   }) =>
       JsRuntimeConfig(
         widgetId: widgetId ?? this.widgetId,
@@ -197,5 +205,6 @@ class JsRuntimeConfig {
         backend: backend ?? this.backend,
         js3dHost: js3dHost ?? this.js3dHost,
         mediaHost: mediaHost ?? this.mediaHost,
+        webViewHost: webViewHost ?? this.webViewHost,
       );
 }

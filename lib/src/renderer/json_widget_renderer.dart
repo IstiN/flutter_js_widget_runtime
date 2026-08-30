@@ -16,6 +16,7 @@ import 'package:js_widget_runtime/src/renderer/media/js_audio_player_widget.dart
 import 'package:js_widget_runtime/src/renderer/media/js_audio_widget.dart';
 import 'package:js_widget_runtime/src/renderer/media/js_media_host.dart';
 import 'package:js_widget_runtime/src/renderer/media/js_video_widget.dart';
+import 'package:js_widget_runtime/src/renderer/webview/js_web_view_host.dart';
 import 'package:js_widget_runtime/src/renderer/nodes/image_provider_resolver_stub.dart'
     if (dart.library.io) 'package:js_widget_runtime/src/renderer/nodes/image_provider_resolver_io.dart'
     if (dart.library.html) 'package:js_widget_runtime/src/renderer/nodes/image_provider_resolver_web.dart';
@@ -92,6 +93,7 @@ class JsonWidgetRenderer with JsonWidgetDecoration {
     this.imageResolver,
     this.customBuilders,
     this.mediaHost,
+    this.webViewHost,
     this.js3dHost,
     this.onScene3dTap,
     this.externalAssetResolver,
@@ -118,6 +120,10 @@ class JsonWidgetRenderer with JsonWidgetDecoration {
   /// Optional host-provided media factory. When set, `video`/`audio` nodes
   /// render real players; otherwise they render placeholder icons.
   final JsMediaHost? mediaHost;
+
+  /// Optional host-provided web view factory. When set, `webView` nodes
+  /// render real web content; otherwise they render a placeholder icon.
+  final JsWebViewHost? webViewHost;
 
   /// Optional host-provided 3D engine factory. When set, `scene3d` nodes render
   /// real 3D scenes (GLB/GLTF models, cameras, lights); otherwise they render a
@@ -285,6 +291,7 @@ class JsonWidgetRenderer with JsonWidgetDecoration {
       'video' => _video(m),
       'audio' => _audio(m),
       'audio_player' => _audioPlayer(m),
+      'webView' => _webView(m),
       'scene3d' => _scene3d(m),
 
       _ => _unknownType(m),
@@ -431,6 +438,20 @@ class JsonWidgetRenderer with JsonWidgetDecoration {
     final host = mediaHost;
     if (host == null) return const SizedBox.shrink();
     return JsAudioPlayerWidget(host: host, node: m);
+  }
+
+  Widget _webView(Map<String, dynamic> m) {
+    final host = webViewHost;
+    if (host == null) return _mediaPlaceholder(m, Icons.language);
+    final messageEvent = (m['onMessage'] as String?) ?? (m['onEvent'] as String?);
+    return host.buildWebView(
+      src: (m['src'] as String?) ?? (m['url'] as String?) ?? '',
+      onMessage: messageEvent == null
+          ? null
+          : (message) => onEvent(messageEvent, {'value': message}),
+      width: _doubleOrNull(m['width']),
+      height: _doubleOrNull(m['height']),
+    );
   }
 
   Widget _scene3d(Map<String, dynamic> m) {
