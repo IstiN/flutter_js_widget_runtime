@@ -1,5 +1,0 @@
-      expect(copy.widgetId, 'w2');
-      expect(copy.appDir, original.appDir);
-    });
-  });
-}

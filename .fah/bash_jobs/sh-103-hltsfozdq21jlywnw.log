@@ -1,5 +1,0 @@
-lib/src/renderer/nodes/js_input_nodes.dart
-lib/src/renderer/nodes/js_m3_overlay_nodes.dart
-lib/src/renderer/nodes/js_m3_nodes.dart
-lib/src/renderer/nodes/js_text_nodes.dart
-lib/src/renderer/json_widget_decoration.dart

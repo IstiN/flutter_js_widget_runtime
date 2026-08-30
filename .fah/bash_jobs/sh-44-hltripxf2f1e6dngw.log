@@ -1,5 +1,0 @@
-Analyzing preview.dart...
-No issues found!
-   info - lib/screenshot.dart:107:30 - Unnecessary use of multiple underscores. Try using '_'. - unnecessary_underscores
-
-4 issues found.

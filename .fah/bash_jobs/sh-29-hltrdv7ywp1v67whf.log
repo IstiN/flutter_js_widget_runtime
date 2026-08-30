@@ -1,3 +1,0 @@
-[96524:7967709:0830/155905.931985:ERROR:base/process/process_mac.cc:53] task_policy_set TASK_CATEGORY_POLICY: (os/kern) invalid argument (4)
-[96524:7967709:0830/155905.931995:ERROR:base/process/process_mac.cc:98] task_policy_set TASK_SUPPRESSION_POLICY: (os/kern) invalid argument (4)
--rw-r--r--@ 1 Uladzimir_Klyshevich  wheel  5365 Aug 30 15:59 /tmp/jsr_preview_m3b.png

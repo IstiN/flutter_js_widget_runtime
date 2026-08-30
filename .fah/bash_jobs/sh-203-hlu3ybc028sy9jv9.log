@@ -1,5 +1,0 @@
-test/js_runtime_config_test.dart
-test/js_scene3d_node_test.dart:74:        js3dHost: host,
-test/js_scene3d_node_test.dart:102:        js3dHost: host,
-test/js_scene3d_node_test.dart:116:        js3dHost: host,
-test/js_scene3d_node_test.dart:129:        js3dHost: host,

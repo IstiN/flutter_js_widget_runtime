@@ -1,7 +1,0 @@
-╔═══════════════════════════════════════════════════════════════════════════╗
-║  ✅ ALL QUALITY GATES PASSED — COMMIT APPROVED                            ║
-╚═══════════════════════════════════════════════════════════════════════════╝
- 5 files changed, 41 insertions(+), 31 deletions(-)
-Rebasing (1/1)Successfully rebased and updated refs/heads/main.
-   630db44..8ae8f83  main -> main
-8ae8f83 Make pomodoro root scrollable; document the root-scrollability layout contract

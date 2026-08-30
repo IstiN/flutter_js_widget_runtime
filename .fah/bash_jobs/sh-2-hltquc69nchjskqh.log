@@ -1,3 +1,0 @@
-37:  static const _widgetIds = [
-49:    'm3-showcase',
-64:      for (final id in _widgetIds) {

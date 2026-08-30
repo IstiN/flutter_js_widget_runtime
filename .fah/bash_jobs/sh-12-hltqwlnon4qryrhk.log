@@ -1,2 +1,0 @@
-1:/// Screenshot harness for the example widgets: renders one widget full-screen
-34:  return rootBundle.loadString('widgets/$_kWidget/widget.js');

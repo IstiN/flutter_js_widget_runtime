@@ -1,6 +1,0 @@
-/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk/usr/include/stdint.h:94:26: note: expanded from macro 'INT64_MAX'
-   94 | #define INT64_MAX        9223372036854775807LL
-      |                          ^~~~~~~~~~~~~~~~~~~~~
-2 warnings generated.
-built native/quickjs/libquickjs_bridge.so
-/Users/Uladzimir_Klyshevich/.pub-cache/hosted/pub.dev/quickjs_runtime-0.1.1/native/quickjs/libquickjs_bridge.so

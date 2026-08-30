@@ -1,6 +1,0 @@
-30:`example/widgets/my-widget/manifest.json`:
-91:No manifest `files` list needed — relative ES-module-style imports are inlined at
-106:- The explicit manifest `files: [...]` list still works (ordered concat) for
-109:## 4. manifest.json reference
-335:- `scene3d` — `{id, width?, height?, interactive?}` bound to `jsr.scene3d.*`.
-532:- [ ] `manifest.json` id == folder name; `cli` block filled.
