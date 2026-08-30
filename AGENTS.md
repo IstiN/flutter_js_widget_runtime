@@ -187,3 +187,28 @@ The README gallery images in `doc/widgets/` come from two sources:
   asserts, useful for catching flame lifecycle races) and
   `FLTEnableImpeller`/`FLTEnableFlutterGPU` in `Info.plist`, or GLB scenes
   render nothing.
+
+## Web Preview Runner
+
+`example/lib/preview.dart` is a web-only entry point that renders one widget
+full-bleed through `JsWidgetRuntimeWidget` — it powers the live previews on
+fa1.dev (`/widgets/preview/`), replacing the old hand-written DOM/CSS shim.
+
+- **Build**: `cd example && flutter build web -t lib/preview.dart --base-href /widgets/preview/`
+  (CI: `.github/workflows/preview-web.yml` uploads the `jsr-preview-web`
+  artifact; the fa1.dev deploy workflow in the flutter_agent repo downloads
+  it and serves it under `/widgets/preview/`).
+- **URL contract**: `?widget=<id>&theme=dark|light` (theme optional, default
+  dark). Files are fetched from
+  `https://raw.githubusercontent.com/IstiN/fa_widgets/main/widgets/<id>/`
+  (override with `?base=<url>`) via `HttpWidgetFileReader`, a
+  `WidgetFileReader` over `fetch` — multi-file widgets and `jsr.include`
+  imports resolve through it on demand.
+- **Permissions**: `fetch` is allowed only when the widget manifest sets
+  `"network": true` (`isPermissionAllowed`); storage/secrets are the default
+  in-memory handlers; `exec` is unavailable on web.
+- The entry point imports `package:web` (fetch, `document.title`), so it
+  only builds for web — like `screenshot.dart` only builds for macOS.
+- **Known limitation**: GLB/`flame_3d` scenes (`3d-glb-showcase`,
+  `fitness-trainer`) need flutter_gpu and render nothing on web;
+  flutter_cube primitives (`3d-showcase`) work.
