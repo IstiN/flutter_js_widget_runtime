@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="Live demos of js_widget_runtime — JavaScript widgets rendered as real Flutter widgets in your browser.">
+  <title>js_widget_runtime — live widget demos</title>
+  <style>
+    :root {
+      --bg: #0f172a; --surface: #1e293b; --surface-alt: #293548;
+      --border: #334155; --accent: #818cf8; --text: #f1f5f9; --muted: #94a3b8;
+    }
+    body.light {
+      --bg: #f8fafc; --surface: #ffffff; --surface-alt: #f1f5f9;
+      --border: #e2e8f0; --accent: #6366f1; --text: #0f172a; --muted: #64748b;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0; background: var(--bg); color: var(--text);
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      transition: background .2s, color .2s;
+    }
+    header { max-width: 1100px; margin: 0 auto; padding: 48px 20px 8px; }
+    h1 { font-size: 28px; margin: 0 0 8px; }
+    h1 .accent { color: var(--accent); }
+    p.sub { color: var(--muted); margin: 0 0 12px; max-width: 720px; line-height: 1.5; }
+    .links { display: flex; gap: 16px; flex-wrap: wrap; align-items: center; }
+    .links a { color: var(--accent); text-decoration: none; font-size: 14px; }
+    .links a:hover { text-decoration: underline; }
+    #themeToggle {
+      margin-left: auto; background: var(--surface); color: var(--text);
+      border: 1px solid var(--border); border-radius: 8px; padding: 6px 12px;
+      cursor: pointer; font-size: 13px;
+    }
+    main { max-width: 1100px; margin: 0 auto; padding: 24px 20px 64px; }
+    .grid {
+      display: grid; gap: 16px;
+      grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+    }
+    a.card {
+      display: block; background: var(--surface); border: 1px solid var(--border);
+      border-radius: 14px; padding: 18px; text-decoration: none; color: var(--text);
+      transition: border-color .15s, transform .15s;
+    }
+    a.card:hover { border-color: var(--accent); transform: translateY(-2px); }
+    .card .icon { width: 36px; height: 36px; margin-bottom: 10px; display: flex; align-items: center; font-size: 28px; }
+    .card .icon img { width: 36px; height: 36px; border-radius: 8px; }
+    .card h2 { font-size: 16px; margin: 0 0 6px; }
+    .card p { font-size: 13px; color: var(--muted); margin: 0 0 10px; line-height: 1.45; min-height: 38px; }
+    .tags { display: flex; gap: 6px; flex-wrap: wrap; }
+    .tag {
+      font-size: 11px; color: var(--muted); background: var(--surface-alt);
+      border-radius: 6px; padding: 2px 8px;
+    }
+    #status { color: var(--muted); padding: 40px 0; text-align: center; }
+    footer { max-width: 1100px; margin: 0 auto; padding: 0 20px 40px; color: var(--muted); font-size: 12px; }
+    footer a { color: var(--accent); }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>js_widget_runtime <span class="accent">live demos</span></h1>
+    <p class="sub">
+      JavaScript widgets rendered as real Flutter widgets — right in your browser.
+      Each demo runs in the jsr Web Worker engine; the UI tree is JSON produced by
+      the widget's JS and rendered with genuine Material 3 widgets. Click a card to play.
+    </p>
+    <div class="links">
+      <a href="https://github.com/IstiN/flutter_js_widget_runtime">GitHub</a>
+      <a href="https://pub.dev/packages/js_widget_runtime">pub.dev</a>
+      <a href="https://github.com/IstiN/fa_widgets">fa_widgets gallery</a>
+      <button id="themeToggle" type="button">☀️ light</button>
+    </div>
+  </header>
+  <main>
+    <div id="status">Loading widget catalog…</div>
+    <div class="grid" id="grid"></div>
+  </main>
+  <footer>
+    Demos are served by the Flutter-web preview runner built from this repo
+    (<code>example/lib/preview.dart</code>), loading widget sources from
+    <a href="https://github.com/IstiN/fa_widgets">IstiN/fa_widgets</a>.
+    Widgets needing a GPU (flame_3d/GLB) render an empty scene on the web.
+  </footer>
+  <script>
+    var CATALOG = 'https://raw.githubusercontent.com/IstiN/fa_widgets/main/catalog.json';
+    var RAW = 'https://raw.githubusercontent.com/IstiN/fa_widgets/main/widgets/';
+    // Used when the catalog fetch fails (offline / rate-limited).
+    var FALLBACK = [
+      { id: 'yolo-hello', name: 'Yolo Hello', description: 'Animated gradient + bounce' },
+      { id: 'calculator', name: 'Calculator', description: 'Full keyboard logic in JS' },
+      { id: 'm3-showcase', name: 'M3 Showcase', description: 'Material 3 component gallery' },
+      { id: 'animation-showcase', name: 'Animation Showcase', description: 'Animation & gesture demos' },
+      { id: 'weather', name: 'Weather', description: 'wttr.in fetch' },
+      { id: 'stocks', name: 'Stocks', description: 'Live quotes' },
+      { id: 'crypto', name: 'Crypto', description: 'Price tickers' },
+      { id: 'map', name: 'Map', description: 'OpenStreetMap landmarks' },
+      { id: '3d-game', name: '3D Dodge Game', description: 'Dodge the falling blocks in 3D' }
+    ];
+
+    var theme = 'dark';
+    var toggle = document.getElementById('themeToggle');
+    toggle.addEventListener('click', function () {
+      theme = theme === 'dark' ? 'light' : 'dark';
+      document.body.classList.toggle('light', theme === 'light');
+      toggle.textContent = theme === 'dark' ? '☀️ light' : '🌙 dark';
+      var links = document.querySelectorAll('a.card');
+      for (var i = 0; i < links.length; i++) {
+        links[i].href = links[i].href.replace(/theme=\w+/, 'theme=' + theme);
+      }
+    });
+
+    function esc(s) {
+      return String(s == null ? '' : s).replace(/[&<>"]/g, function (c) {
+        return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c];
+      });
+    }
+
+    function render(widgets) {
+      document.getElementById('status').style.display = 'none';
+      var grid = document.getElementById('grid');
+      var html = '';
+      for (var i = 0; i < widgets.length; i++) {
+        var w = widgets[i];
+        var id = w.id;
+        if (!/^[A-Za-z0-9_-]+$/.test(id)) continue;
+        var tags = (w.tags || []).map(function (t) {
+          return '<span class="tag">' + esc(t) + '</span>';
+        }).join('');
+        html +=
+          '<a class="card" href="preview/?widget=' + encodeURIComponent(id) + '&theme=' + theme + '">' +
+            '<div class="icon">' +
+              '<img src="' + RAW + encodeURIComponent(id) + '/icon.svg" alt="" ' +
+                'onerror="this.outerHTML=\'🧩\'">' +
+            '</div>' +
+            '<h2>' + esc(w.name || id) + '</h2>' +
+            '<p>' + esc(w.description || '') + '</p>' +
+            '<div class="tags">' + tags + '</div>' +
+          '</a>';
+      }
+      grid.innerHTML = html;
+    }
+
+    fetch(CATALOG)
+      .then(function (r) { return r.ok ? r.json() : Promise.reject(r.status); })
+      .then(function (data) { render(data.widgets || FALLBACK); })
+      .catch(function () { render(FALLBACK); });
+  </script>
+</body>
+</html>

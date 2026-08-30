@@ -15,9 +15,11 @@ A Flutter package that runs JavaScript widgets and renders them as native Flutte
 
 The JS side communicates with Flutter through a declarative JSON UI tree and a small async bridge (`render`, `fetchJson`, `exec`, `storage`, `secrets`, timers, `requestAnimationFrame`, etc.).
 
+**[▶ Live demos](https://istin.github.io/flutter_js_widget_runtime/)** — click through the widget gallery in your browser: each demo runs in the real engine (Web Worker backend) on GitHub Pages.
+
 ## Example widgets
 
-Real JavaScript, rendered by this package and captured by [golden tests](test/golden/js_widget_golden_test.dart) — the images below are generated straight from those test runs. Live, interactive versions ship in the [example app](example/).
+Real JavaScript, rendered by this package and captured by [golden tests](test/golden/js_widget_golden_test.dart) — the images below are generated straight from those test runs. Live, interactive versions ship in the [example app](example/) and run in the browser on the [live demos page](https://istin.github.io/flutter_js_widget_runtime/).
 
 | | |
 |---|---|
@@ -43,6 +45,12 @@ cd example && flutter build web -t lib/preview.dart --base-href /widgets/preview
 ```
 
 URL contract: `?widget=<id>&theme=dark|light`, with widget files fetched over HTTP (`?base=<url>` to override the source). `fetch` is enabled only for widgets whose manifest opts into `"network": true`. CI (`.github/workflows/preview-web.yml`) publishes the build as the `jsr-preview-web` artifact.
+
+The runner also powers the **live demo site on GitHub Pages** —
+<https://istin.github.io/flutter_js_widget_runtime/> — deployed by
+`.github/workflows/pages.yml`: a landing page (`site/index.html`, widget
+cards built from the fa_widgets catalog) at the root plus the runner under
+`/preview/` (base-href `/flutter_js_widget_runtime/preview/`).
 
 ## Quick start
 
