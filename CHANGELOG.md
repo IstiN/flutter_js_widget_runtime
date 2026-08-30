@@ -1,3 +1,7 @@
+## 0.4.80
+
+- Automated patch bump.
+
 ## 0.4.79
 
 - fix(web): declare __IID before the shared bootstrap in the web worker
