@@ -53,6 +53,7 @@ const _widgetFiles = {
   '3d-glb-showcase': 'example/widgets/3d-glb-showcase/widget.js',
   'fitness-trainer': 'example/widgets/fitness-trainer/widget.js',
   'm3-showcase': 'example/widgets/m3-showcase/widget.js',
+  'pomodoro': 'example/widgets/pomodoro/widget.js',
   'charts-showcase': 'example/widgets/charts-showcase/widget.js',
 };
 
