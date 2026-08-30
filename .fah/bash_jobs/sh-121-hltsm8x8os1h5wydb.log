@@ -1,7 +1,0 @@
-  (use "git pull" if you want to integrate the remote branch with yours)
-Rebasing (1/1)Successfully rebased and updated refs/heads/main.
-   ea0422f..e85335d  main -> main
-e85335d m3-showcase: demo drawer, navigationRail, carousel, bottomAppBar
-ea0422f chore: bump version to 0.4.81 [pub bump]
-74a342d Add GitHub Pages live demo site
-branch: refs/heads/main

@@ -1,7 +1,0 @@
-
-fatal: unable to auto-detect email address (got 'Uladzimir_Klyshevich@EPBYGROW03B0.(none)')
-hint: before pushing again.
-hint: See the 'Note about fast-forwards' in 'git push --help' for details.
-178a745 chore: bump version to 0.4.80 [pub bump]
-61be7a1 Add Flutter-web widget preview runner (example/lib/preview.dart)
-d589316 fix(web): declare __IID before the shared bootstrap in the web worker

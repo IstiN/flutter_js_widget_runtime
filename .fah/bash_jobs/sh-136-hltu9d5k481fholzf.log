@@ -1,4 +1,0 @@
-00:01 +7 -1: Some tests failed.
-
-Failing tests:
-  /Users/Uladzimir_Klyshevich/git/flutter_js_widget_runtime/test/pomodoro_logic_test.dart: pomodoro widget logic every 4th break is a long one
