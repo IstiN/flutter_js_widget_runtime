@@ -1,0 +1,19 @@
+lib/src/renderer/nodes/js_text_nodes.dart:108:  Widget _listTile(Map<String, dynamic> m) {
+lib/src/renderer/nodes/js_text_nodes.dart-109-    final title = (m['title'] ?? m['data'] ?? m['label'] ?? '').toString();
+lib/src/renderer/nodes/js_text_nodes.dart-110-    final subtitle = m['subtitle'] as String?;
+lib/src/renderer/nodes/js_text_nodes.dart-111-    final leading = _childFromKey(m, 'leading');
+lib/src/renderer/nodes/js_text_nodes.dart-112-    final trailing = _childFromKey(m, 'trailing');
+lib/src/renderer/nodes/js_text_nodes.dart-113-    return ListTile(
+lib/src/renderer/nodes/js_text_nodes.dart-114-      dense: m['dense'] as bool? ?? false,
+lib/src/renderer/nodes/js_text_nodes.dart-115-      enabled: m['enabled'] as bool? ?? true,
+lib/src/renderer/nodes/js_text_nodes.dart-116-      title: Text(title),
+lib/src/renderer/nodes/js_text_nodes.dart-117-      subtitle: subtitle == null ? null : Text(subtitle),
+lib/src/renderer/nodes/js_text_nodes.dart-118-      leading: leading,
+lib/src/renderer/nodes/js_text_nodes.dart-119-      trailing: trailing,
+lib/src/renderer/nodes/js_text_nodes.dart-120-      onTap: _tapHandler(m['onTap'] ?? m['onPress'], m['payload']),
+lib/src/renderer/nodes/js_text_nodes.dart-121-    );
+lib/src/renderer/nodes/js_text_nodes.dart-122-  }
+lib/src/renderer/nodes/js_text_nodes.dart-123-
+lib/src/renderer/nodes/js_text_nodes.dart-124-  Widget? _childFromKey(Map<String, dynamic> m, String key) {
+lib/src/renderer/nodes/js_text_nodes.dart-125-    final raw = m[key];
+lib/src/renderer/nodes/js_text_nodes.dart-126-    if (raw is Map) return _build(raw);

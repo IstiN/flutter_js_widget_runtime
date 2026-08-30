@@ -1,0 +1,24 @@
+{
+  "id": "video-player",
+  "name": "Video Player",
+  "description": "Video playback via the video node (host JsMediaHost, video_player in the demo app): source switcher (Big Buck Bunny / Elephants Dream / Sintel), BoxFit selector, native transport controls.",
+  "version": "1.0.0",
+  "icon": "🎬",
+  "allowedCommands": [],
+  "network": true,
+  "cli": {
+    "summary": "Video player driven by the video node",
+    "events": [
+      { "id": "select_video", "description": "Switch source; payload {value: index}" },
+      { "id": "select_fit", "description": "Set BoxFit; payload {value: 'contain'|'cover'|'fill'}" }
+    ],
+    "read": {
+      "state": "jsr app:state video-player",
+      "snapshot": "jsr app:snapshot video-player"
+    },
+    "examples": [
+      "jsr app:run video-player",
+      "jsr app:execute video-player select_fit --payload '{\"value\":\"cover\"}'"
+    ]
+  }
+}

@@ -1,0 +1,9 @@
+example/lib/main.dart:48:    'fitness-trainer',
+example/lib/main.dart:50:    'charts-showcase',
+test/charts_showcase_logic_test.dart:9:  group('charts-showcase widget logic', () {
+test/charts_showcase_logic_test.dart:14:      h = await bootWidget('charts-showcase');
+test/fitness_trainer_logic_test.dart:9:  group('fitness-trainer widget logic', () {
+test/fitness_trainer_logic_test.dart:14:      h = await bootWidget('fitness-trainer');
+test/golden/js_widget_golden_test.dart:37:const _flameWidgets = {'3d-glb-showcase', 'fitness-trainer'};
+test/golden/js_widget_golden_test.dart:54:  'fitness-trainer': 'example/widgets/fitness-trainer/widget.js',
+test/golden/js_widget_golden_test.dart:56:  'charts-showcase': 'example/widgets/charts-showcase/widget.js',

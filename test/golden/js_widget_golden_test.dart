@@ -54,6 +54,8 @@ const _widgetFiles = {
   'fitness-trainer': 'example/widgets/fitness-trainer/widget.js',
   'm3-showcase': 'example/widgets/m3-showcase/widget.js',
   'pomodoro': 'example/widgets/pomodoro/widget.js',
+  'audio-player': 'example/widgets/audio-player/widget.js',
+  'video-player': 'example/widgets/video-player/widget.js',
   'charts-showcase': 'example/widgets/charts-showcase/widget.js',
 };
 

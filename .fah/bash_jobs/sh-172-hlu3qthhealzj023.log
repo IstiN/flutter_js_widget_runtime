@@ -1,0 +1,5 @@
+Changed 16 dependencies!
+12 packages have newer versions incompatible with dependency constraints.
+Try `flutter pub outdated` for more information.
+11:  audioplayers: ^6.8.1
+19:  video_player: ^2.14.0

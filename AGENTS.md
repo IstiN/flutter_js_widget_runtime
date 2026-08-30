@@ -161,6 +161,18 @@ Once flame_3d publishes a 3.47-compatible release:
 4. Delete `.github/workflows/automerge-main.yml` and the `flame-3.47` branch.
 5. Remove this section from `AGENTS.md`.
 
+## Media Playback
+
+- `video` / `audio` / `audio_player` nodes render placeholders until the host
+  passes a `JsMediaHost` via `JsRuntimeConfig.mediaHost` (wired through to
+  `JsonWidgetRenderer`; the core package ships no media plugins by design).
+- Reference implementation: `example/lib/media_host.dart` (`ExampleMediaHost`
+  — video_player surfaces + audioplayers transport; `https?://` and
+  `assets/…` sources). Hosts may back the same interface with `media_kit`.
+- `audio_player` is a zero-size driver node for JS-controlled playback:
+  recompute `src`/`playing`/`volume`/`loop`/`seekToMs` props every render.
+- Example widgets: `audio-player`, `video-player`.
+
 ## Adding New Widget Examples
 
 1. Create `example/widgets/<id>/manifest.json` and `example/widgets/<id>/widget.js`.

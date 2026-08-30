@@ -1,0 +1,74 @@
+lib/src/renderer/:
+external_asset_resolver.dart
+flame_asset_bundle.dart
+font
+headless_scroll_behavior.dart
+json_widget_decoration.dart
+json_widget_renderer.dart
+json_widget_theme.dart
+media
+nodes
+ui_view_bindings.dart
+ui_view_field_registry.dart
+ui_view_tree_normalizer.dart
+===
+import 'dart:async';
+import 'dart:convert';
+import 'dart:js_interop';
+
+import 'package:flutter/foundation.dart';
+import 'package:web/web.dart' as web;
+
+import 'package:js_widget_runtime/src/model/js_runtime_config.dart';
+import 'package:js_widget_runtime/src/runtime/js_widget_bootstrap.dart';
+import 'package:js_widget_runtime/src/runtime/js_widget_bridge.dart';
+import 'package:js_widget_runtime/src/runtime/js_widget_engine_backend.dart';
+import 'package:js_widget_runtime/src/runtime/js_widget_engine_message.dart';
+import 'package:js_widget_runtime/src/defaults/web_default_handlers.dart';
+
+/// Web JS engine backend backed by a dedicated [web.Worker].
+class WebWorkerJsWidgetEngineBackend implements JsWidgetEngineBackend {
+  WebWorkerJsWidgetEngineBackend({required JsRuntimeConfig config})
+    : _config = config,
+      _consoleLogs = [] {
+    _bridge = JsWidgetBridge(
+      widgetId: config.widgetId,
+      onRender: config.onRender,
+      onSetTitle: config.onSetTitle,
+      onStorageUpdate: config.onStorageUpdate,
+      onLog: (msg) => _handleLog(msg),
+      isDisposed: () => _disposed,
+      appDir: config.appDir,
+      isPermissionAllowed: config.isPermissionAllowed ?? _allowAll,
+      resolveCallback:
+          config.resolveCallback ?? (id, value) => _resolveCallback(id, value),
+      fetchHandler: (id, url, method, headers) =>
+          _handleFetch(id, url, method, headers),
+      secretsGetHandler: (id, key) async {
+        if (_config.secretsGetHandler != null) {
+          await _config.secretsGetHandler!.call(id, key);
+        }
+      },
+      secretsSetHandler: (id, key, value) async {
+        if (_config.secretsSetHandler != null) {
+          await _config.secretsSetHandler!.call(id, key, value);
+        }
+      },
+      loadAssetHandler: (id, path) async {
+        if (_config.loadAssetHandler != null) {
+          await _config.loadAssetHandler!.call(id, path);
+        }
+      },
+      execHandler: (id, cmd) => _handleExec(id, cmd),
+      intervalTickHandler: (id) => _postToWorker('__jsr_interval_tick', id),
+      rafTickHandler: (id, elapsedMs) =>
+          _postToWorker('__jsr_raf_tick', {'id': id, 'elapsed': elapsedMs}),
+      js3dHost: config.js3dHost,
+      initialStorage: config.initialStorage,
+    );
+  }
+
+  static bool _allowAll(String _) => true;
+
+  final JsRuntimeConfig _config;
+  late final JsWidgetBridge _bridge;

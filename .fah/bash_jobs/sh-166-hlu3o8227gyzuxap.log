@@ -1,0 +1,16 @@
+18:import 'package:js_widget_runtime/src/renderer/media/js_video_widget.dart';
+94:    this.mediaHost,
+120:  final JsMediaHost? mediaHost;
+285:      'video' => _video(m),
+286:      'audio' => _audio(m),
+287:      'audio_player' => _audioPlayer(m),
+418:  Widget _video(Map<String, dynamic> m) {
+419:    final host = mediaHost;
+424:  Widget _audio(Map<String, dynamic> m) {
+425:    final host = mediaHost;
+lib/src/renderer/json_widget_renderer.dart
+lib/src/renderer/media/js_media_host.dart
+lib/src/renderer/media/js_audio_widget.dart
+lib/src/renderer/media/js_video_widget.dart
+lib/src/renderer/media/js_audio_player_widget.dart
+lib/src/renderer/media/js_media_controller.dart

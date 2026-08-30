@@ -1,0 +1,50 @@
+{
+    "schemaVersion": 1,
+    "generatedAt": "2026-08-30T12:51:35.260646Z",
+    "sourceRepo": "https://github.com/IstiN/fa_widgets",
+    "widgets": [
+        {
+            "id": "3d-game",
+            "name": "3D Dodge Game",
+            "version": "1.0.0",
+            "description": "Dodge the falling blocks in 3D \u2014 drag to steer",
+            "author": "Fa",
+            "tags": [
+                "game",
+                "3d"
+            ],
+            "permissions": {
+                "network": false,
+                "allowedCommands": []
+            },
+            "minRuntime": "0.4.79",
+            "icon": "icon.svg",
+            "zip": {
+                "file": "3d-game-1.0.0.zip",
+                "sha256": "4949f1ba74cc11fab099e33073d93a4d82f16e94316080312bd8be47a60da137",
+                "sizeBytes": 4078
+            }
+        },
+        {
+            "id": "animation-showcase",
+            "name": "Animation Showcase",
+            "version": "1.0.0",
+            "description": "Interactive demos of all animation & gesture capabilities",
+            "author": "Fa",
+            "tags": [
+                "demo"
+            ],
+            "permissions": {
+                "network": false,
+                "allowedCommands": []
+            },
+            "minRuntime": "0.4.79",
+            "icon": "icon.svg",
+            "zip": {
+                "file": "animation-showcase-1.0.0.zip",
+                "sha256": "ad5f0c2a7c4c7e990c0a2aad4ab7a8722bf67c77db7434ca9ca8fc8ff5db089b",
+                "sizeBytes": 6027
+            }
+        },
+        {
+            "id": "calculator",

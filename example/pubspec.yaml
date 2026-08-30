@@ -8,6 +8,7 @@ environment:
   flutter: '>=3.19.0'
 
 dependencies:
+  audioplayers: ^6.8.1
   flutter:
     sdk: flutter
 
@@ -15,6 +16,7 @@ dependencies:
     path: ../
 
   # Web preview runner (lib/preview.dart): fetch + document.title.
+  video_player: ^2.14.0
   web: ^1.1.1
 
 dev_dependencies:
@@ -38,6 +40,8 @@ flutter:
     - widgets/fitness-trainer/
     - widgets/m3-showcase/
     - widgets/pomodoro/
+    - widgets/audio-player/
+    - widgets/video-player/
     - widgets/charts-showcase/
     - widgets/map/
     - assets/models/

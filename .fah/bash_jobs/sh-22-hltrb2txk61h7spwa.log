@@ -1,0 +1,27 @@
+==> lib/src/renderer/nodes/hosts/flame_3d_host.dart <==
+// ignore_for_file: invalid_use_of_internal_member
+import 'dart:async';
+
+import 'package:flame/game.dart';
+import 'package:flame_3d/camera.dart';
+import 'package:flame_3d/components.dart';
+import 'package:flame_3d/game.dart';
+import 'package:flame_3d/graphics.dart';
+
+==> lib/src/renderer/nodes/hosts/cube_3d_host.dart <==
+import 'dart:async';
+import 'dart:math';
+
+import 'package:flutter/material.dart';
+import 'package:flutter_cube/flutter_cube.dart' as cube;
+import 'package:js_widget_runtime/js_widget_runtime.dart';
+import 'package:js_widget_runtime/src/renderer/nodes/hosts/js_3d_host_utils.dart';
+import 'package:vector_math/vector_math_64.dart' hide Colors;
+31:part 'json_widget_decoration.dart';
+33:part 'nodes/js_input_nodes.dart';
+34:part 'nodes/js_animated_nodes.dart';
+35:part 'nodes/js_chart_nodes.dart';
+36:part 'nodes/js_layout_nodes.dart';
+37:part 'nodes/js_m3_nodes.dart';
+38:part 'nodes/js_m3_overlay_nodes.dart';
+39:part 'nodes/js_text_nodes.dart';

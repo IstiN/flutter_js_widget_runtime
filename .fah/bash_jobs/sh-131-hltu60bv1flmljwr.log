@@ -1,0 +1,45 @@
+16:/// A small container returned by [bootWidget]. It holds the backend and a few
+17-/// convenience methods so tests stay short.
+18-class WidgetLogicHarness {
+19-  WidgetLogicHarness(this.backend);
+20-
+21-  final QuickjsWidgetEngineBackend backend;
+22-
+23-  Map<String, dynamic>? get state => backend.exportedState;
+24-
+25-  /// Fires [actionId] / [payload] and waits until the widget re-exports state
+26-  /// (or until [timeout] passes). Returns the new state for easy chaining.
+27-  Future<Map<String, dynamic>?> callEvent(
+28-    String actionId, {
+29-    Map<String, dynamic>? payload,
+30-    Duration timeout = const Duration(milliseconds: 500),
+31-  }) async {
+32-    final before = state;
+33-    await backend.callEvent(actionId, payload);
+34-    final deadline = DateTime.now().add(timeout);
+35-    while (DateTime.now().isBefore(deadline)) {
+36-      await Future<void>.delayed(const Duration(milliseconds: 10));
+37-      final now = state;
+38-      if (now != null && (before == null || !_mapsEqual(before, now))) {
+39-        return now;
+40-      }
+41-    }
+42-    return state;
+43-  }
+44-
+45-  /// Dispatches a host key event. The JS bootstrap forwards payloads with
+46-  /// target `'key'` to the widget's `jsr.onKey` handler.
+--
+105:Future<WidgetLogicHarness> bootWidget(
+106-  String widgetId, {
+107-  Map<String, dynamic> initialStorage = const {},
+108-  Map<String, dynamic> fetchResponses = const {},
+109-}) async {
+110-  TestWidgetsFlutterBinding.ensureInitialized();
+111-  void Function(String id, dynamic value)? resolve;
+112-  final backend = QuickjsWidgetEngineBackend(
+113-    config: JsRuntimeConfig(
+example/widgets/crypto/widget.js:179:  setInterval(load, 60 * 1000);
+example/widgets/fitness-trainer/widget.js:99:  setInterval(tick, 1000);
+example/widgets/stocks/widget.js:212:    setInterval(load, 5 * 60 * 1000);
+example/widgets/weather/widget.js:162:    setInterval(load, 10 * 60 * 1000);

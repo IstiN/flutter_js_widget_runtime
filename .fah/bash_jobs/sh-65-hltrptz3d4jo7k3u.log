@@ -1,0 +1,9 @@
+🧪 Running tests with coverage...
+✅ Coverage ratchet OK (86.1% >= 80.0%)
+   🏆 Coverage target 80.0% reached — excellent!
+🔍 Checking CRAP score (threshold: 12.0)...
+✅ CRAP ratchet OK (see badges/crap.svg)
+
+╔═══════════════════════════════════════════════════════════════════════════╗
+║  ✅ ALL QUALITY GATES PASSED — COMMIT APPROVED                            ║
+╚═══════════════════════════════════════════════════════════════════════════╝

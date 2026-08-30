@@ -1,0 +1,13 @@
+  'map': 'example/widgets/map/widget.js',
+  '3d-showcase': 'example/widgets/3d-showcase/widget.js',
+  '3d-game-dodge': 'example/widgets/3d-game-dodge/widget.js',
+  '3d-glb-showcase': 'example/widgets/3d-glb-showcase/widget.js',
+  'fitness-trainer': 'example/widgets/fitness-trainer/widget.js',
+  'm3-showcase': 'example/widgets/m3-showcase/widget.js',
+  'charts-showcase': 'example/widgets/charts-showcase/widget.js',
+};
+
+/// One cube host for all 3D goldens — a fresh instance per test run so
+/// scene controllers never leak across widget captures (the singleton would
+/// serve disposed controllers from a previous test).
+final _goldenCubeHost = Cube3dHost.fresh()..skipAnimationLoop = true;

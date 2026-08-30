@@ -1,0 +1,40 @@
+name: PR Quality Gates
+
+on:
+  pull_request:
+    branches:
+      - main
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: read
+
+jobs:
+  quality:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          # Pinned: hosted flame_3d 0.3.0 does not compile against the
+          # flutter_gpu API shipped with Flutter 3.47+. The Flutter 3.47
+          # compatible build lives on the flame-3.47 branch (IstiN/flame
+          # fork). Unpin when flame-engine/flame#3995 is published.
+          channel: stable
+          flutter-version: 3.44.4
+
+      - name: Install dependencies
+        run: flutter pub get
+
+      - name: Install gcc
+        run: sudo apt-get update -qq && sudo apt-get install -y -qq gcc
+
+      - name: Build QuickJS native library
+        run: |
+          QUICKJS_DIR=$(python3 -c "
+          import json

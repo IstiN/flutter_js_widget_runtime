@@ -1,0 +1,13 @@
+lib/src/renderer/nodes/js_text_nodes.dart:92:  Widget _spinner(Map<String, dynamic> m) => SizedBox(
+lib/src/renderer/nodes/js_text_nodes.dart-93-    width: _double(m['size'], 24),
+lib/src/renderer/nodes/js_text_nodes.dart-94-    height: _double(m['size'], 24),
+lib/src/renderer/nodes/js_text_nodes.dart-95-    child: CircularProgressIndicator(
+lib/src/renderer/nodes/js_text_nodes.dart-96-      strokeWidth: _double(m['strokeWidth'], 2),
+lib/src/renderer/nodes/js_text_nodes.dart-97-      color: _color(m['color'] as String?),
+lib/src/renderer/nodes/js_text_nodes.dart-98-    ),
+lib/src/renderer/nodes/js_text_nodes.dart-99-  );
+lib/src/renderer/nodes/js_text_nodes.dart-100-
+lib/src/renderer/nodes/js_text_nodes.dart-101-  Widget _linearProgress(Map<String, dynamic> m) => LinearProgressIndicator(
+lib/src/renderer/nodes/js_text_nodes.dart-102-    value: _doubleOrNull(m['value']),
+lib/src/renderer/nodes/js_text_nodes.dart-103-    minHeight: _double(m['height'], 4),
+lib/src/renderer/nodes/js_text_nodes.dart-104-    color: _color(m['color'] as String?),

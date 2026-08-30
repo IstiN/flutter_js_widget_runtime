@@ -1,0 +1,6 @@
+lib/src/renderer/nodes/js_layout_nodes.dart
+lib/src/renderer/json_widget_renderer.dart
+lib/src/renderer/json_widget_decoration.dart
+lib/src/renderer/json_widget_decoration.dart:143:  EdgeInsets _edgeInsets(dynamic v) {
+lib/src/renderer/json_widget_decoration.dart:150:  EdgeInsets _edgeInsetsFromList(List v) => EdgeInsets.fromLTRB(
+lib/src/renderer/json_widget_decoration.dart:157:  EdgeInsets _edgeInsetsFromMap(Map v) => EdgeInsets.only(

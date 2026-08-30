@@ -1,0 +1,18 @@
+00:00 +0: example widget yolo-hello renders its first frame
+  QuickJS native library not built
+══╡ EXCEPTION CAUGHT BY FLUTTER TEST FRAMEWORK ╞════════════════════════════════════════════════════
+The following TestFailure was thrown running a test:
+Expected: not null
+  Actual: <null>
+yolo-hello never called jsr.render
+
+When the exception was thrown, this was the stack:
+#4      main.<anonymous closure> (file:///Users/Uladzimir_Klyshevich/git/flutter_js_widget_runtime/test/golden/js_widget_golden_test.dart:417:7)
+<asynchronous suspension>
+#5      testWidgets.<anonymous closure>.<anonymous closure> (package:flutter_test/src/widget_tester.dart:192:15)
+<asynchronous suspension>
+#6      TestWidgetsFlutterBinding._runTestBody (package:flutter_test/src/binding.dart:1952:5)
+<asynchronous suspension>
+<asynchronous suspension>
+(elided one frame from package:stack_trace)
+

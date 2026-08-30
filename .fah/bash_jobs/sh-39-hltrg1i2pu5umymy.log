@@ -1,0 +1,4 @@
+CONSOLE:
+  Injecting <script> tag. Using callback.
+  WARNING: Falling back to CPU-only rendering. Reason: webGLVersion is -1
+saved /tmp/jsr_m3_dark.png

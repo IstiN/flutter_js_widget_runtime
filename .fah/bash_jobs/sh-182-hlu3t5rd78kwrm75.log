@@ -1,0 +1,29 @@
+lib/src/renderer/json_widget_renderer.dart:217:      'listTile' => _listTile(m),
+lib/src/renderer/nodes/js_text_nodes.dart:108:  Widget _listTile(Map<String, dynamic> m) {
+lib/src/renderer/nodes/js_text_nodes.dart-109-    final title = (m['title'] ?? m['data'] ?? m['label'] ?? '').toString();
+lib/src/renderer/nodes/js_text_nodes.dart-110-    final subtitle = m['subtitle'] as String?;
+lib/src/renderer/nodes/js_text_nodes.dart-111-    final leading = _childFromKey(m, 'leading');
+lib/src/renderer/nodes/js_text_nodes.dart-112-    final trailing = _childFromKey(m, 'trailing');
+lib/src/renderer/nodes/js_text_nodes.dart-113-    return ListTile(
+lib/src/renderer/nodes/js_text_nodes.dart-114-      dense: m['dense'] as bool? ?? false,
+lib/src/renderer/nodes/js_text_nodes.dart-115-      enabled: m['enabled'] as bool? ?? true,
+lib/src/renderer/nodes/js_text_nodes.dart-116-      title: Text(title),
+lib/src/renderer/nodes/js_text_nodes.dart-117-      subtitle: subtitle == null ? null : Text(subtitle),
+lib/src/renderer/nodes/js_text_nodes.dart-118-      leading: leading,
+lib/src/renderer/nodes/js_text_nodes.dart-119-      trailing: trailing,
+lib/src/renderer/nodes/js_text_nodes.dart-120-      onTap: _tapHandler(m['onTap'] ?? m['onPress'], m['payload']),
+lib/src/renderer/nodes/js_text_nodes.dart-121-    );
+lib/src/renderer/nodes/js_text_nodes.dart-122-  }
+lib/src/renderer/nodes/js_text_nodes.dart-123-
+lib/src/renderer/json_widget_renderer.dart:318:  Widget _mediaPlaceholder(
+lib/src/renderer/json_widget_renderer.dart-319-    Map<String, dynamic> m,
+lib/src/renderer/json_widget_renderer.dart-320-    IconData icon, {
+lib/src/renderer/json_widget_renderer.dart-321-    String? label,
+lib/src/renderer/json_widget_renderer.dart-322-  }) {
+lib/src/renderer/json_widget_renderer.dart-323-    final effectiveLabel =
+lib/src/renderer/json_widget_renderer.dart-324-        label ?? m['label'] as String? ?? m['text'] as String?;
+lib/src/renderer/json_widget_renderer.dart-325-    return Container(
+lib/src/renderer/json_widget_renderer.dart-326-      width: _doubleOrNull(m['width']) ?? 120,
+--
+lib/src/renderer/json_widget_renderer.dart:420:    if (host == null) return _mediaPlaceholder(m, Icons.videocam);
+lib/src/renderer/json_widget_renderer.dart-421-    return JsVideoWidget(host: host, node: m);

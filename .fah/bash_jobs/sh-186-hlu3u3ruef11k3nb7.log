@@ -1,0 +1,7 @@
+ok
+example/lib/main.dart:53:    'audio-player',
+example/lib/main.dart:54:    'video-player',
+example/pubspec.yaml:43:    - widgets/audio-player/
+example/pubspec.yaml:44:    - widgets/video-player/
+test/golden/js_widget_golden_test.dart:57:  'audio-player': 'example/widgets/audio-player/widget.js',
+test/golden/js_widget_golden_test.dart:58:  'video-player': 'example/widgets/video-player/widget.js',

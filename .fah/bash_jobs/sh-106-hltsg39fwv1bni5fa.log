@@ -1,0 +1,71 @@
+        right: _double(v['right'], 0),
+        bottom: _double(v['bottom'], 0),
+      );
+
+  EdgeInsetsGeometry? _edgeInsetsOrNull(dynamic v) =>
+      v == null ? null : _edgeInsets(v);
+
+  Color? _color(String? s) => parseColor(s);
+
+  IconData _iconData(String name) =>
+      const {
+        'star': Icons.star,
+        'favorite': Icons.favorite,
+        'home': Icons.home,
+        'settings': Icons.settings,
+        'search': Icons.search,
+        'add': Icons.add,
+        'remove': Icons.remove,
+        'delete': Icons.delete,
+        'edit': Icons.edit,
+        'info': Icons.info,
+        'check': Icons.check,
+        'close': Icons.close,
+        'arrow_forward': Icons.arrow_forward,
+        'arrow_back': Icons.arrow_back,
+        'refresh': Icons.refresh,
+        'share': Icons.share,
+        'download': Icons.download,
+        'upload': Icons.upload,
+        'cloud': Icons.cloud,
+        'person': Icons.person,
+        'menu': Icons.menu,
+        'more_vert': Icons.more_vert,
+        'trending_up': Icons.trending_up,
+        'trending_down': Icons.trending_down,
+        'attach_money': Icons.attach_money,
+        'show_chart': Icons.show_chart,
+        'bar_chart': Icons.bar_chart,
+        'notifications': Icons.notifications,
+        'lock': Icons.lock,
+        'key': Icons.key,
+        'language': Icons.language,
+        'thermostat': Icons.thermostat,
+        'water_drop': Icons.water_drop,
+        'air': Icons.air,
+        'wb_sunny': Icons.wb_sunny,
+        'nights_stay': Icons.nights_stay,
+        'umbrella': Icons.umbrella,
+        'calculate': Icons.calculate,
+        'timer': Icons.timer,
+        'calendar_today': Icons.calendar_today,
+        'warning': Icons.warning,
+        'error': Icons.error,
+        'done': Icons.done,
+        'play_arrow': Icons.play_arrow,
+        'pause': Icons.pause,
+        'stop': Icons.stop,
+        'skip_next': Icons.skip_next,
+        'skip_previous': Icons.skip_previous,
+      }[name.toLowerCase()] ??
+      Icons.widgets;
+
+  Alignment _alignment(dynamic v) {
+    if (v == null) return Alignment.center;
+    if (v is String) {
+      return switch (v) {
+        'topLeft' => Alignment.topLeft,
+        'topCenter' => Alignment.topCenter,
+        'topRight' => Alignment.topRight,
+        'centerLeft' => Alignment.centerLeft,
+        'center' => Alignment.center,

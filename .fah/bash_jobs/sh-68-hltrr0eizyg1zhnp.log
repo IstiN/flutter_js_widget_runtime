@@ -1,0 +1,4 @@
+ create mode 100644 example/web/index.html
+ create mode 100644 example/web/manifest.json
+To https://github.com/IstiN/flutter_js_widget_runtime.git
+   d589316..61be7a1  main -> main

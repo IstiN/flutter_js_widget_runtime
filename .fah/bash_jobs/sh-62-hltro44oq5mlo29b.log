@@ -1,0 +1,4 @@
+Compiling lib/preview.dart for the Web...                        1,755ms
+✓ Built build/web
+  WARNING: Falling back to CPU-only rendering. Reason: webGLVersion is -1
+saved /tmp/jsr_anim.png

@@ -21,6 +21,14 @@ void main() {
       expect(config.backend, isNull);
     });
 
+    test('mediaHost is null by default and survives copyWith', () {
+      expect(makeConfig().mediaHost, isNull);
+      const host = _FakeMediaHost();
+      final config = makeConfig().copyWith(mediaHost: host);
+      expect(config.mediaHost, same(host));
+      expect(config.copyWith().mediaHost, same(host));
+    });
+
     test('copyWith overrides values', () {
       final config = makeConfig().copyWith(
         widgetId: 'w1',
@@ -45,4 +53,16 @@ void main() {
       expect(copy.appDir, original.appDir);
     });
   });
+}
+
+class _FakeMediaHost extends JsMediaHost {
+  const _FakeMediaHost();
+
+  @override
+  JsVideoController createVideoController(String src) =>
+      throw UnimplementedError();
+
+  @override
+  JsAudioController createAudioController(String src) =>
+      throw UnimplementedError();
 }

@@ -1,0 +1,28 @@
+{
+  "id": "audio-player",
+  "name": "Audio Player",
+  "description": "Playlist audio player: play/pause/prev/next, volume slider, loop toggle. Playback runs through the zero-size audio_player node backed by the host JsMediaHost (audioplayers in the demo app).",
+  "version": "1.0.0",
+  "icon": "🎧",
+  "allowedCommands": [],
+  "network": true,
+  "cli": {
+    "summary": "Playlist audio player driven by the audio_player node",
+    "events": [
+      { "id": "play_pause", "description": "Toggle playback" },
+      { "id": "next", "description": "Next track (wraps)" },
+      { "id": "prev", "description": "Previous track (wraps)" },
+      { "id": "select:<index>", "description": "Select and play track by index" },
+      { "id": "volume", "description": "Set volume; payload {value: 0..1}" },
+      { "id": "toggle_loop", "description": "Loop current track; payload {value: bool}" }
+    ],
+    "read": {
+      "state": "jsr app:state audio-player",
+      "snapshot": "jsr app:snapshot audio-player"
+    },
+    "examples": [
+      "jsr app:run audio-player",
+      "jsr app:execute audio-player play_pause"
+    ]
+  }
+}
