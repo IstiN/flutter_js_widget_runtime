@@ -46,6 +46,21 @@ void main() {
       expect(h.state!['nav'], 2);
     });
 
+    test('navigation rail changes destination', () async {
+      expect(h.state!['rail'], 0);
+      await h.callEvent('rail_changed', payload: {'value': 2});
+      expect(h.state!['rail'], 2);
+    });
+
+    test('drawer item is remembered, drawer reset restores defaults', () async {
+      await h.callEvent('drawer_item', payload: {'value': 'about'});
+      expect(h.state!['lastMenu'], 'drawer: about');
+      await h.callEvent('fab_tap');
+      await h.callEvent('drawer_item', payload: {'value': 'reset'});
+      expect(h.state!['created'], 0);
+      expect(h.state!['rail'], 0);
+    });
+
     test('segmented button changes selection', () async {
       await h.callEvent('seg_changed', payload: {'value': 'day'});
       expect(h.state!['seg'], 'day');

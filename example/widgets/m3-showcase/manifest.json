@@ -1,7 +1,7 @@
 {
   "id": "m3-showcase",
   "name": "M3 Showcase",
-  "description": "Material 3 components rendered from a single JSON tree: appBar, banner, searchBar, segmentedButton, radio, tabBar, fab, popupMenu, tooltip, navigationBar.",
+  "description": "Material 3 components rendered from a single JSON tree: drawer, appBar, banner, searchBar, segmentedButton, radio, navigationRail, carousel, bottomAppBar, tabBar, fab, popupMenu, tooltip, navigationBar + overlays.",
   "version": "1.0.0",
   "icon": "🧩",
   "allowedCommands": [],
@@ -12,6 +12,8 @@
       { "id": "banner_dismiss", "description": "Dismiss the info banner" },
       { "id": "fab_tap", "description": "Increment the created counter" },
       { "id": "nav_changed", "description": "Switch the navigationBar destination (payload value = index; empty payload cycles)" },
+      { "id": "rail_changed", "description": "Switch the navigationRail destination (payload value = index; empty payload cycles)" },
+      { "id": "drawer_item", "description": "Drawer menu tap (payload value = item id; 'reset' resets demo state)" },
       { "id": "reset", "description": "Reset all demo state" }
     ],
     "read": {
