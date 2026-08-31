@@ -40,6 +40,12 @@ class _ProbeState extends State<_Probe> with JsMediaControllerMixin {
   String get src => widget.src;
 
   @override
+  String srcOf(StatefulWidget w) => (w as _Probe).src;
+
+  @override
+  bool loopOf(StatefulWidget w) => (w as _Probe).loop;
+
+  @override
   bool get autoPlay => widget.autoPlay;
 
   @override

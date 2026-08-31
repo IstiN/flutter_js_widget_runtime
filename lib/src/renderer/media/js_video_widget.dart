@@ -34,8 +34,14 @@ class _JsVideoWidgetState extends State<JsVideoWidget>
   double? _aspectRatio;
 
   @override
-  String get src =>
-      (widget.node['src'] as String?) ?? (widget.node['url'] as String?) ?? '';
+  String get src => srcOf(widget);
+
+  @override
+  String srcOf(JsVideoWidget w) =>
+      (w.node['src'] as String?) ?? (w.node['url'] as String?) ?? '';
+
+  @override
+  bool loopOf(JsVideoWidget w) => w.node['loop'] == true;
 
   @override
   bool get autoPlay => widget.node['autoPlay'] == true;
