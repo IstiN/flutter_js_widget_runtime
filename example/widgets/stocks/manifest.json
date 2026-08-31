@@ -2,15 +2,21 @@
   "id": "stocks",
   "name": "Stock Prices",
   "description": "Real-time stock quotes",
-  "version": "1.0.1",
-  "icon": "📈",
+  "version": "1.0.2",
+  "icon": "\ud83d\udcc8",
   "allowedCommands": [],
   "network": true,
   "cli": {
     "summary": "Real-time stock quotes (Yahoo Finance)",
     "events": [
-      { "id": "refresh", "description": "Reload quotes" },
-      { "id": "back", "description": "Return from chart view to list" },
+      {
+        "id": "refresh",
+        "description": "Reload quotes"
+      },
+      {
+        "id": "back",
+        "description": "Return from chart view to list"
+      },
       {
         "id": "apply_symbols",
         "description": "Set symbols from field (payload: {\"value\":\"AAPL,MSFT\"})"
@@ -25,7 +31,7 @@
       }
     ],
     "read": {
-      "state": "jsr app:state stocks — quotes[] with price and changePct",
+      "state": "jsr app:state stocks \u2014 quotes[] with price and changePct",
       "snapshot": "jsr app:snapshot stocks"
     },
     "examples": [
