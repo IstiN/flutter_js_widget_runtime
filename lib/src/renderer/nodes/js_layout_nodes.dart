@@ -260,6 +260,7 @@ extension on JsonWidgetRenderer {
   Widget _gridView(Map<String, dynamic> m) {
     final items = m['children'] as List? ?? [];
     final cols = _int(m['crossAxisCount'], 2);
+    final maxExtent = _doubleOrNull(m['maxCrossAxisExtent']);
     return GridView.builder(
       shrinkWrap: jsBool(m['shrinkWrap'], true),
       physics: _scrollPhysics(
@@ -267,14 +268,53 @@ extension on JsonWidgetRenderer {
         const NeverScrollableScrollPhysics(),
       ),
       padding: _edgeInsetsOrNull(m['padding']),
-      gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-        crossAxisCount: cols,
-        crossAxisSpacing: _double(m['crossAxisSpacing'], 4),
-        mainAxisSpacing: _double(m['mainAxisSpacing'], 4),
-        childAspectRatio: _double(m['childAspectRatio'], 1),
-      ),
+      // `maxCrossAxisExtent` ("columns no wider than N", count floats with
+      // width) wins over the fixed `crossAxisCount` when both are set.
+      gridDelegate: maxExtent != null
+          ? SliverGridDelegateWithMaxCrossAxisExtent(
+              maxCrossAxisExtent: maxExtent,
+              crossAxisSpacing: _double(m['crossAxisSpacing'], 4),
+              mainAxisSpacing: _double(m['mainAxisSpacing'], 4),
+              childAspectRatio: _double(m['childAspectRatio'], 1),
+            )
+          : SliverGridDelegateWithFixedCrossAxisCount(
+              crossAxisCount: cols,
+              crossAxisSpacing: _double(m['crossAxisSpacing'], 4),
+              mainAxisSpacing: _double(m['mainAxisSpacing'], 4),
+              childAspectRatio: _double(m['childAspectRatio'], 1),
+            ),
       itemCount: items.length,
       itemBuilder: (_, i) => _build(items[i]),
+    );
+  }
+
+  /// Renders an `adaptive` node: picks one of its `compact` / `medium` /
+  /// `expanded` children by the AVAILABLE width (LayoutBuilder — the size
+  /// allotted to the widget, not the screen). Material 3 window size
+  /// classes by default (<600 / 600-840 / >840), overridable via
+  /// `breakpoints: [compactMax, mediumMax]`. A missing tier falls back to
+  /// the nearest defined one.
+  Widget _adaptive(Map<String, dynamic> m) {
+    final bps = m['breakpoints'] as List?;
+    final compactMax =
+        bps != null && bps.isNotEmpty ? (bps[0] as num).toDouble() : 600.0;
+    final mediumMax =
+        bps != null && bps.length > 1 ? (bps[1] as num).toDouble() : 840.0;
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final w = constraints.maxWidth;
+        final bp = w < compactMax
+            ? 'compact'
+            : (w < mediumMax ? 'medium' : 'expanded');
+        final child = m[bp] ??
+            (bp == 'expanded'
+                ? (m['medium'] ?? m['compact'])
+                : bp == 'medium'
+                    ? (m['compact'] ?? m['expanded'])
+                    : (m['medium'] ?? m['expanded']));
+        if (child == null) return const SizedBox.shrink();
+        return _build(child);
+      },
     );
   }
 

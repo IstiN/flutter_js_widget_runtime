@@ -57,6 +57,7 @@ const _widgetFiles = {
   'audio-player': 'example/widgets/audio-player/widget.js',
   'video-player': 'example/widgets/video-player/widget.js',
   'webview-showcase': 'example/widgets/webview-showcase/widget.js',
+  'adaptive-dashboard': 'example/widgets/adaptive-dashboard/widget.js',
   'charts-showcase': 'example/widgets/charts-showcase/widget.js',
 };
 

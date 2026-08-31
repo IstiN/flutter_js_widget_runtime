@@ -31,6 +31,7 @@ class JsWidgetRuntimeWidget extends StatefulWidget {
 class _JsWidgetRuntimeWidgetState extends State<JsWidgetRuntimeWidget> {
   JsWidgetEngine? _engine;
   Map<String, dynamic>? _uiTree;
+  Size? _reportedViewport;
 
   @override
   void initState() {
@@ -73,6 +74,24 @@ class _JsWidgetRuntimeWidgetState extends State<JsWidgetRuntimeWidget> {
     }
   }
 
+  /// Reports the allotted size to JS (`jsr.viewport()` / `jsr.onViewport`)
+  /// whenever the layout constraints change — covers panels, full screen
+  /// and fixed-size board tiles alike.
+  void _reportViewport(Size size) {
+    if (_reportedViewport == size) return;
+    _reportedViewport = size;
+    final engine = _engine;
+    if (engine == null) return;
+    // Post-frame: the QuickJS backend executes JS synchronously, and a
+    // synchronous render → setState during the build phase would throw.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      engine.dispatchHostEvent('viewport', {
+        'width': size.width,
+        'height': size.height,
+      });
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
     final tree = _uiTree;
@@ -90,9 +109,16 @@ class _JsWidgetRuntimeWidgetState extends State<JsWidgetRuntimeWidget> {
       );
       content = renderer.build(tree, context);
     }
-    return JsKeyboardCapture(
-      onEvent: (payload) => _engine?.dispatchHostEvent('key', payload),
-      child: content,
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        if (constraints.hasBoundedWidth && constraints.hasBoundedHeight) {
+          _reportViewport(Size(constraints.maxWidth, constraints.maxHeight));
+        }
+        return JsKeyboardCapture(
+          onEvent: (payload) => _engine?.dispatchHostEvent('key', payload),
+          child: content,
+        );
+      },
     );
   }
 }
