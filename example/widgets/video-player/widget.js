@@ -6,20 +6,20 @@
   var VIDEOS = [
     {
       title: 'Big Buck Bunny',
-      meta: 'Blender Foundation · 9:56 · 1080p',
-      url: 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4',
+      meta: 'Blender Foundation · 9:56 · 720p',
+      url: 'https://archive.org/download/BigBuckBunny_124/Content/big_buck_bunny_720p_surround.mp4',
       icon: 'bunny'
     },
     {
       title: 'Elephants Dream',
-      meta: 'Orange Open Movie · 10:53 · 1080p',
-      url: 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ElephantsDream.mp4',
+      meta: 'Orange Open Movie · 10:53 · 1024p',
+      url: 'https://archive.org/download/ElephantsDream/ed_1024_512kb.mp4',
       icon: 'elephant'
     },
     {
       title: 'Sintel',
-      meta: 'Blender Foundation · 14:48 · 4K',
-      url: 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/Sintel.mp4',
+      meta: 'Blender Foundation · 0:52 trailer · 480p',
+      url: 'https://download.blender.org/durian/trailer/sintel_trailer-480p.mp4',
       icon: 'flame'
     }
   ];
