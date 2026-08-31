@@ -133,6 +133,31 @@ var jsr = {
   _onThemeChange: null,
   onThemeChange: function(fn){ jsr._onThemeChange = fn; },
 
+  // Viewport — the actual size the host allotted to the widget (tile,
+  // panel, full screen), in logical px. Updated via the 'viewport' host
+  // event; null until the host reports its first layout.
+  _viewport: null,
+  _viewportHandler: null,
+  viewport: function(){ return jsr._viewport; },
+  onViewport: function(fn){ jsr._viewportHandler = fn; },
+
+  // Material 3 window size classes: <600 compact, 600-840 medium, >840 expanded.
+  breakpoint: function(w){
+    var vw = (typeof w === 'number') ? w : (jsr._viewport && jsr._viewport.width) || 0;
+    return vw < 600 ? 'compact' : (vw < 840 ? 'medium' : 'expanded');
+  },
+
+  // Pick a value for the current viewport breakpoint; falls back to the
+  // nearest defined tier.
+  adaptive: function(map){
+    if (!map) return undefined;
+    var bp = jsr.breakpoint();
+    if (map[bp] !== undefined) return map[bp];
+    if (bp === 'expanded') return map.medium !== undefined ? map.medium : map.compact;
+    if (bp === 'medium') return map.compact !== undefined ? map.compact : map.expanded;
+    return map.medium !== undefined ? map.medium : map.expanded;
+  },
+
   // Encrypted secure storage — sandboxed per widget ID
   secrets:{
     get:function(key){
@@ -245,6 +270,9 @@ var __jsrHostEvent = function(target, payload) {
   try {
     if (target === 'key') {
       if (jsr._keyHandler) jsr._keyHandler(payload);
+    } else if (target === 'viewport') {
+      jsr._viewport = payload;
+      if (jsr._viewportHandler) jsr._viewportHandler(payload);
     } else if (target.indexOf('scene3d.tap:') === 0) {
       var h = jsr.scene3d._tapHandlers[target.substring('scene3d.tap:'.length)];
       if (h) h(payload);

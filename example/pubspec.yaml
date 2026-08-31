@@ -44,6 +44,7 @@ flutter:
     - widgets/audio-player/
     - widgets/video-player/
     - widgets/webview-showcase/
+    - widgets/adaptive-dashboard/
     - widgets/charts-showcase/
     - widgets/map/
     - assets/models/

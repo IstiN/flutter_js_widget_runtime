@@ -220,6 +220,7 @@ class JsonWidgetRenderer with JsonWidgetDecoration {
       'scroll' => _scroll(m),
       'listView' => _listView(m),
       'gridView' => _gridView(m),
+      'adaptive' => _adaptive(m),
       'listTile' => _listTile(m),
       'markdown' => _markdown(m),
       'circleAvatar' => _circleAvatar(m),

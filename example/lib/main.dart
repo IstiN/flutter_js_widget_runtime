@@ -54,6 +54,7 @@ class _DemoHomeState extends State<DemoHome> {
     'audio-player',
     'video-player',
     'webview-showcase',
+    'adaptive-dashboard',
     'charts-showcase',
     'map',
   ];

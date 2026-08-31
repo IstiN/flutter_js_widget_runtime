@@ -220,6 +220,34 @@ Hardcode hex colors only for brand/data colors (chart series, status dots).
 
 ---
 
+## 5a. Adaptive layout
+
+Widgets render in containers of arbitrary size (board tiles ~160px, panels,
+full screen). Tooling — pick per case:
+
+- **`adaptive` NODE (preferred for layout switching):**
+  `{type: 'adaptive', compact: node, medium?: node, expanded?: node,
+  breakpoints?: [600, 840]}` — the renderer's LayoutBuilder picks a subtree
+  by the ALLOTTED width (not the screen). Synchronous, no JS round trip,
+  works in goldens and with raw-JsonWidgetRenderer hosts. Missing tier →
+  nearest defined one.
+- **`gridView.maxCrossAxisExtent: N`** — columns "no wider than N"; the
+  column count floats with width (wins over `crossAxisCount` when both set).
+- **`jsr.viewport()`** → `{width, height}` — last reported container size
+  (null until the host's first layout). Hosts on `JsWidgetRuntimeWidget`
+  report automatically; the event target is `'viewport'`.
+- **`jsr.onViewport(fn)`** — fired on size changes (tile resize, window
+  drag); re-render there if your JS state depends on size.
+- **`jsr.breakpoint(width?)`** → `'compact'|'medium'|'expanded'`
+  (<600 / 600–840 / ≥840, Material 3 window size classes; default width is
+  the current viewport).
+- **`jsr.adaptive({compact, medium, expanded})`** — pick a VALUE (padding,
+  column count, …) for the current viewport breakpoint.
+
+Rules of thumb: switching whole subtrees → `adaptive` node; deriving scalar
+props → `jsr.adaptive`; reacting to resize → `jsr.onViewport`. Reference:
+`example/widgets/adaptive-dashboard`.
+
 ## 5b. Layout contract (root scrollability)
 
 Hosts embed widgets at arbitrary heights (~150 px landing cards, panels,
