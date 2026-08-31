@@ -30,6 +30,11 @@ mixin JsMediaControllerMixin<C extends JsMediaController, T extends StatefulWidg
   bool get autoPlay;
   bool get loop;
 
+  /// Reads the src from an arbitrary widget instance — used by
+  /// [didUpdateWidget] to detect src changes (the `src` getter always
+  /// reflects the CURRENT widget).
+  String srcOf(T widget);
+
   C? get controller => _controller;
 
   Duration get position => _position;
@@ -45,8 +50,30 @@ mixin JsMediaControllerMixin<C extends JsMediaController, T extends StatefulWidg
   @override
   void didUpdateWidget(covariant T oldWidget) {
     super.didUpdateWidget(oldWidget);
-    if (src.isNotEmpty && _controller == null) {
+    final previous = srcOf(oldWidget);
+    if (src != previous) {
+      // Source switch (e.g. the JS widget recomputed `src` on re-render):
+      // tear down the old controller and start the new source. Without
+      // this the first source kept playing forever.
+      unawaited(_replaceController());
+    } else if (src.isNotEmpty && _controller == null) {
       _initController();
+    } else if (loop != loopOf(oldWidget)) {
+      unawaited(_controller?.setLoop(loop));
+    }
+  }
+
+  /// Reads the loop flag from an arbitrary widget instance.
+  bool loopOf(T widget);
+
+  Future<void> _replaceController() async {
+    await _disposeController();
+    _position = Duration.zero;
+    _duration = Duration.zero;
+    _isPlaying = false;
+    if (mounted && src.isNotEmpty) {
+      await _initController();
+      if (mounted) setState(() {});
     }
   }
 

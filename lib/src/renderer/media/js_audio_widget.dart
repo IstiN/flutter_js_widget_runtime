@@ -30,8 +30,14 @@ class JsAudioWidget extends StatefulWidget {
 class _JsAudioWidgetState extends State<JsAudioWidget>
     with JsMediaControllerMixin<JsAudioController, JsAudioWidget> {
   @override
-  String get src =>
-      (widget.node['src'] as String?) ?? (widget.node['url'] as String?) ?? '';
+  String get src => srcOf(widget);
+
+  @override
+  String srcOf(JsAudioWidget w) =>
+      (w.node['src'] as String?) ?? (w.node['url'] as String?) ?? '';
+
+  @override
+  bool loopOf(JsAudioWidget w) => w.node['loop'] == true;
 
   String? get _title => widget.node['title'] as String?;
 
