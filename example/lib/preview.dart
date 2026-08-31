@@ -275,6 +275,10 @@ class _PreviewPageState extends State<PreviewPage> {
     webViewHost: createIframeWebViewHost(),
     // Media: HTML <video>/<audio> elements (web build of the preview).
     mediaHost: createWebMediaHost(),
+    // jsr.fa platform shims: make bridge-based widgets (voice-notes)
+    // functional in the web preview where the browser offers the same
+    // capability (getUserMedia + MediaRecorder for the mic).
+    hostBootstrapJs: _kWebPlatformShims,
     // Honor the manifest: widgets that did not opt into network access
     // get no fetch capability in the preview either.
     isPermissionAllowed: (capability) =>
@@ -320,3 +324,49 @@ class _PreviewPageState extends State<PreviewPage> {
     );
   }
 }
+
+/// Web shims for `jsr.fa.*` platform bridges, injected before the widget
+/// runs. Only capabilities with a real browser equivalent are provided;
+/// everything else stays undefined so bridge-guarded widgets keep
+/// rendering their "Runs in the Fa app" stubs.
+///
+/// Contract (matches the app-side bridge):
+/// - `jsr.fa.asr.record({seconds})` → `Promise<{path, seconds}>` where
+///   `path` is a playable blob: URL. The browser mic-permission prompt
+///   appears on first call; a denial rejects the promise.
+/// - `jsr.fa.asr.transcribe({path})` → `Promise<{text}>` — there is no
+///   on-device ASR on web, so it resolves with an explanatory stub text.
+const String _kWebPlatformShims = r'''
+jsr.fa = jsr.fa || {};
+jsr.fa.asr = {
+  record: function(opts) {
+    var seconds = (opts && opts.seconds) || 5;
+    return new Promise(function(resolve, reject) {
+      if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+        reject('microphone is not available in this browser');
+        return;
+      }
+      navigator.mediaDevices.getUserMedia({ audio: true }).then(function(stream) {
+        var rec = new MediaRecorder(stream);
+        var chunks = [];
+        rec.ondataavailable = function(e) { if (e.data && e.data.size) chunks.push(e.data); };
+        rec.onerror = function(e) { reject(String(e.error || e)); };
+        rec.onstop = function() {
+          stream.getTracks().forEach(function(t) { t.stop(); });
+          var blob = new Blob(chunks, { type: rec.mimeType || 'audio/webm' });
+          resolve({ path: URL.createObjectURL(blob), seconds: seconds });
+        };
+        rec.start();
+        setTimeout(function() { if (rec.state !== 'inactive') rec.stop(); }, seconds * 1000);
+      }).catch(function(e) {
+        reject(String((e && e.name) === 'NotAllowedError'
+          ? 'microphone permission denied'
+          : e));
+      });
+    });
+  },
+  transcribe: function() {
+    return Promise.resolve({ text: '(transcription is unavailable in the web preview)' });
+  }
+};
+''';
