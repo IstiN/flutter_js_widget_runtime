@@ -2,16 +2,25 @@
   "id": "pomodoro",
   "name": "Pomodoro",
   "description": "Pomodoro timer: 25 min focus / 5 min break cycles (every 4th break is 15 min), start/pause/reset/skip, completed counter persisted in storage, donut progress ring.",
-  "version": "1.0.0",
-  "icon": "🍅",
+  "version": "1.0.2",
+  "icon": "\ud83c\udf45",
   "allowedCommands": [],
   "network": false,
   "cli": {
     "summary": "Pomodoro timer with focus/break cycles and a persisted completed counter",
     "events": [
-      { "id": "start_pause", "description": "Toggle the timer (Start/Pause)" },
-      { "id": "reset", "description": "Back to a fresh 25 min focus phase" },
-      { "id": "skip", "description": "Finish the current phase now; skipping a focus counts it as a completed pomodoro" }
+      {
+        "id": "start_pause",
+        "description": "Toggle the timer (Start/Pause)"
+      },
+      {
+        "id": "reset",
+        "description": "Back to a fresh 25 min focus phase"
+      },
+      {
+        "id": "skip",
+        "description": "Finish the current phase now; skipping a focus counts it as a completed pomodoro"
+      }
     ],
     "read": {
       "state": "jsr app:state pomodoro",
@@ -21,5 +30,11 @@
       "jsr app:run pomodoro",
       "jsr app:execute pomodoro start_pause"
     ]
+  },
+  "widget": {
+    "entry": "widget.js",
+    "size": "2x2",
+    "refreshSeconds": 30,
+    "interactive": true
   }
 }
