@@ -31,12 +31,14 @@ void main() {
       await tester.sendKeyEvent(LogicalKeyboardKey.arrowLeft);
       await tester.pump();
 
-      expect(backend.hostTargets, hasLength(2)); // down + up
-      expect(backend.hostTargets, everyElement('key'));
-      expect(backend.hostPayloads.first['key'], 'arrowLeft');
-      expect(backend.hostPayloads.first['down'], isTrue);
-      expect(backend.hostPayloads.first['repeat'], isFalse);
-      expect(backend.hostPayloads.last['down'], isFalse);
+      // The widget also reports its viewport size as a host event — filter
+      // to the key events only.
+      final keyPayloads = backend.keyPayloads;
+      expect(keyPayloads, hasLength(2)); // down + up
+      expect(keyPayloads.first['key'], 'arrowLeft');
+      expect(keyPayloads.first['down'], isTrue);
+      expect(keyPayloads.first['repeat'], isFalse);
+      expect(keyPayloads.last['down'], isFalse);
     });
 
     testWidgets('tapping the widget claims keyboard focus', (tester) async {
@@ -79,8 +81,9 @@ void main() {
       await tester.sendKeyEvent(LogicalKeyboardKey.arrowRight);
       await tester.pump();
 
-      expect(backend.hostTargets, hasLength(2)); // down + up
-      expect(backend.hostPayloads.first['key'], 'arrowRight');
+      final keyPayloads = backend.keyPayloads;
+      expect(keyPayloads, hasLength(2)); // down + up
+      expect(keyPayloads.first['key'], 'arrowRight');
     });
   });
 }

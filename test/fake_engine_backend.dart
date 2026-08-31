@@ -11,6 +11,12 @@ class FakeEngineBackend extends JsWidgetEngineBackend {
   final List<String> hostTargets = [];
   final List<Map<String, dynamic>> hostPayloads = [];
 
+  /// Host-event payloads with target `'key'` (viewport reports filtered out).
+  List<Map<String, dynamic>> get keyPayloads => [
+        for (var i = 0; i < hostTargets.length; i++)
+          if (hostTargets[i] == 'key') hostPayloads[i],
+      ];
+
   void clear() {
     hostTargets.clear();
     hostPayloads.clear();
