@@ -2,22 +2,28 @@
   "id": "crypto",
   "name": "Crypto Prices",
   "description": "Live BTC, ETH, SOL prices via CoinGecko",
-  "version": "1.0.1",
-  "icon": "₿",
+  "version": "1.0.2",
+  "icon": "\u20bf",
   "allowedCommands": [],
   "network": true,
   "cli": {
     "summary": "Live crypto prices (BTC, ETH, SOL, BNB, XRP)",
     "events": [
-      { "id": "refresh", "description": "Reload prices" },
-      { "id": "back", "description": "Return from chart view to list" },
+      {
+        "id": "refresh",
+        "description": "Reload prices"
+      },
+      {
+        "id": "back",
+        "description": "Return from chart view to list"
+      },
       {
         "id": "show_chart_<coinId>",
         "description": "Open 24h chart, e.g. show_chart_bitcoin"
       }
     ],
     "read": {
-      "state": "jsr app:state crypto — prices[] with usd and change24h",
+      "state": "jsr app:state crypto \u2014 prices[] with usd and change24h",
       "snapshot": "jsr app:snapshot crypto"
     },
     "examples": [

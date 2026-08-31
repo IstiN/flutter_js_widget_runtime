@@ -2,15 +2,21 @@
   "id": "animation-showcase",
   "name": "Animation Showcase",
   "description": "Interactive demos of all animation & gesture capabilities",
-  "version": "1.0.0",
-  "icon": "🎬",
+  "version": "1.0.1",
+  "icon": "\ud83c\udfac",
   "allowedCommands": [],
   "network": false,
   "cli": {
     "summary": "Gallery of animation primitives",
     "events": [
-      { "id": "tab_<name>", "description": "Switch demo tab, e.g. tab_opacity" },
-      { "id": "play", "description": "Replay current demo animation" }
+      {
+        "id": "tab_<name>",
+        "description": "Switch demo tab, e.g. tab_opacity"
+      },
+      {
+        "id": "play",
+        "description": "Replay current demo animation"
+      }
     ],
     "read": {
       "state": "jsr app:state animation-showcase",

@@ -2,8 +2,8 @@
   "id": "adaptive-dashboard",
   "name": "Adaptive Dashboard",
   "description": "Adaptive-layout reference: adaptive node switches column/2-col-grid/floating-grid by allotted width (M3 breakpoints), gridView.maxCrossAxisExtent, jsr.breakpoint/adaptive for values, jsr.onViewport re-render.",
-  "version": "1.0.0",
-  "icon": "📐",
+  "version": "1.0.1",
+  "icon": "\ud83d\udcd0",
   "allowedCommands": [],
   "network": false,
   "cli": {

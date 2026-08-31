@@ -177,12 +177,35 @@
     return v < lo ? lo : (v > hi ? hi : v);
   }
 
+  // HP hearts — inline SVG (filled red when alive, outline slate when
+  // lost); no emoji anywhere in this widget.
+  var HEART_PATH = 'M12 20.5 C7 16.5 3.5 13.2 3.5 9.6 3.5 6.9 5.6 5 8.1 5 ' +
+    'c1.6 0 3.1.8 3.9 2.1 C12.8 5.8 14.3 5 15.9 5 c2.5 0 4.6 1.9 4.6 4.6 ' +
+    '0 3.6 -3.5 6.9 -8.5 10.9 Z';
+  var BURST_PATH = 'M12 2.5 14 8.5 20.5 7 16 12 20.5 17 14 15.5 12 21.5 ' +
+    '10 15.5 3.5 17 8 12 3.5 7 10 8.5 Z';
+
+  function svgIcon(body, size, color, filled) {
+    return {
+      type: 'svg',
+      data: '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" ' +
+        'fill="' + (filled ? color : 'none') + '" stroke="' + color + '" ' +
+        'stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">' +
+        body + '</svg>',
+      width: size, height: size
+    };
+  }
+
   function hearts() {
-    var s = '';
+    var out = [];
     for (var i = 0; i < START_LIVES; i++) {
-      s += i < state.lives ? '❤️' : '🖤';
+      var alive = i < state.lives;
+      out.push(svgIcon(
+        '<path d="' + HEART_PATH + '"/>', 15,
+        alive ? '#ef4444' : '#475569', alive));
+      if (i < START_LIVES - 1) out.push({ type: 'sizedBox', width: 3 });
     }
-    return s;
+    return out;
   }
 
   function statText(label, value) {
@@ -208,7 +231,14 @@
           mainAxisSize: 'min',
           crossAxisAlignment: 'center',
           children: [
-            { type: 'text', data: '💥 GAME OVER', style: { fontSize: 26, color: '#ef4444', fontWeight: 'w700' } },
+            {
+              type: 'row', mainAxisSize: 'min', crossAxisAlignment: 'center',
+              children: [
+                svgIcon('<path d="' + BURST_PATH + '"/>', 26, '#ef4444', false),
+                { type: 'sizedBox', width: 8 },
+                { type: 'text', data: 'GAME OVER', style: { fontSize: 26, color: '#ef4444', fontWeight: 'w700' } }
+              ]
+            },
             { type: 'sizedBox', height: 8 },
             { type: 'text', data: 'Score: ' + state.score.toFixed(1) + 's', style: { fontSize: 16, color: '#ffffff' } },
             { type: 'sizedBox', height: 12 },
@@ -253,9 +283,9 @@
             crossAxisAlignment: 'center',
             children: [
               statText('SCORE', state.score.toFixed(1) + 's'),
-              { type: 'text', data: hearts(), style: { fontSize: 16 } },
+              { type: 'row', mainAxisSize: 'min', children: hearts() },
               statText('BEST', state.best.toFixed(1) + 's'),
-              { type: 'text', data: '◀ ▶ / A D', style: { fontSize: 11, color: jsr.theme.muted } }
+              { type: 'text', data: 'Arrows / A D', style: { fontSize: 11, color: jsr.theme.muted } }
             ]
           }
         }
@@ -265,6 +295,6 @@
 
   state = freshState();
   jsr.onEvent(function() {});
-  jsr.setTitle('🕹️ Dodge Blocks 3D');
+  jsr.setTitle('Dodge Blocks 3D');
   init();
 })();

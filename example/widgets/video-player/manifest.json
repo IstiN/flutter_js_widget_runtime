@@ -2,7 +2,7 @@
   "id": "video-player",
   "name": "Video Player",
   "description": "Video playback via the video node (host JsMediaHost, video_player in the demo app): source switcher (Big Buck Bunny / Elephants Dream / Sintel), BoxFit selector, native transport controls.",
-  "version": "1.0.2",
+  "version": "1.0.3",
   "icon": "\ud83c\udfac",
   "allowedCommands": [],
   "network": true,

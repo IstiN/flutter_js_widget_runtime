@@ -102,11 +102,17 @@
     // One dot per pomodoro in the current 4-cycle; filled = done.
     var filled = state.completed % 4;
     if (state.completed > 0 && filled === 0) filled = 4; // just finished a full cycle
+    // Cycle dots — SVG tomato when done, outline circle otherwise.
+    var TOMATO = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">' +
+      '<circle cx="12" cy="13.5" r="7.5" fill="#ef4444"/>' +
+      '<path d="M12 6c-.8-1.8-2.4-2.6-4-2.4 1.4.6 2.3 1.6 2.7 2.8M12 6c.8-1.8 2.4-2.6 4-2.4-1.4.6-2.3 1.6-2.7 2.8M12 6V3.4" ' +
+      'stroke="#22c55e" stroke-width="1.6" fill="none" stroke-linecap="round"/></svg>';
+    var CIRCLE = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">' +
+      '<circle cx="12" cy="12" r="7" fill="none" stroke="' + t.borderBright +
+      '" stroke-width="1.8"/></svg>';
     var dots = [];
     for (var i = 0; i < 4; i++) {
-      dots.push(i < filled
-        ? { type: 'text', data: '🍅', style: { fontSize: 18 } }
-        : { type: 'text', data: '○', style: { fontSize: 18, color: t.borderBright } });
+      dots.push({ type: 'svg', data: i < filled ? TOMATO : CIRCLE, width: 18, height: 18 });
       if (i < 3) dots.push({ type: 'sizedBox', width: 6 });
     }
     return { type: 'row', mainAxisAlignment: 'center', children: dots };
@@ -187,7 +193,7 @@
     }
   });
 
-  jsr.setTitle('🍅 Pomodoro');
+  jsr.setTitle('Pomodoro');
   setInterval(tick, 1000);
   render();
 })();

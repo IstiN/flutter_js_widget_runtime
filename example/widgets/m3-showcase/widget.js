@@ -50,7 +50,7 @@
         crossAxisAlignment: 'stretch',
         children: [
           { type: 'padding', padding: [16, 20, 16, 8], child: {
-            type: 'text', data: '🧩 M3 Showcase',
+            type: 'text', data: 'M3 Showcase',
             style: { color: t.text, fontSize: 16, fontWeight: 'w700' }
           } },
           { type: 'divider', color: t.border },
@@ -436,6 +436,6 @@
     render();
   });
 
-  jsr.setTitle('🧩 M3 Showcase');
+  jsr.setTitle('M3 Showcase');
   render();
 })();

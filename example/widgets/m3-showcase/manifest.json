@@ -2,19 +2,37 @@
   "id": "m3-showcase",
   "name": "M3 Showcase",
   "description": "Material 3 components rendered from a single JSON tree: drawer, appBar, banner, searchBar, segmentedButton, radio, navigationRail, carousel, bottomAppBar, tabBar, fab, popupMenu, tooltip, navigationBar + overlays.",
-  "version": "1.0.0",
-  "icon": "🧩",
+  "version": "1.0.1",
+  "icon": "\ud83e\udde9",
   "allowedCommands": [],
   "network": false,
   "cli": {
     "summary": "Material 3 component gallery rendered from JSON nodes",
     "events": [
-      { "id": "banner_dismiss", "description": "Dismiss the info banner" },
-      { "id": "fab_tap", "description": "Increment the created counter" },
-      { "id": "nav_changed", "description": "Switch the navigationBar destination (payload value = index; empty payload cycles)" },
-      { "id": "rail_changed", "description": "Switch the navigationRail destination (payload value = index; empty payload cycles)" },
-      { "id": "drawer_item", "description": "Drawer menu tap (payload value = item id; 'reset' resets demo state)" },
-      { "id": "reset", "description": "Reset all demo state" }
+      {
+        "id": "banner_dismiss",
+        "description": "Dismiss the info banner"
+      },
+      {
+        "id": "fab_tap",
+        "description": "Increment the created counter"
+      },
+      {
+        "id": "nav_changed",
+        "description": "Switch the navigationBar destination (payload value = index; empty payload cycles)"
+      },
+      {
+        "id": "rail_changed",
+        "description": "Switch the navigationRail destination (payload value = index; empty payload cycles)"
+      },
+      {
+        "id": "drawer_item",
+        "description": "Drawer menu tap (payload value = item id; 'reset' resets demo state)"
+      },
+      {
+        "id": "reset",
+        "description": "Reset all demo state"
+      }
     ],
     "read": {
       "state": "jsr app:state m3-showcase",

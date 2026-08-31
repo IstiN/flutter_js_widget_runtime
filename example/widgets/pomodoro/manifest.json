@@ -2,7 +2,7 @@
   "id": "pomodoro",
   "name": "Pomodoro",
   "description": "Pomodoro timer: 25 min focus / 5 min break cycles (every 4th break is 15 min), start/pause/reset/skip, completed counter persisted in storage, donut progress ring.",
-  "version": "1.0.2",
+  "version": "1.0.3",
   "icon": "\ud83c\udf45",
   "allowedCommands": [],
   "network": false,

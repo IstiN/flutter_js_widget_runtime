@@ -59,6 +59,26 @@
     exportNow();
   }
 
+
+  // Stylish inline SVG glyphs (white stroke — they sit on colored
+  // containers). Emoji are not used anywhere in this widget.
+  function svgIcon(body, size) {
+    return {
+      type: 'svg',
+      data: '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" ' +
+        'fill="none" stroke="#ffffff" stroke-width="1.8" ' +
+        'stroke-linecap="round" stroke-linejoin="round">' + body + '</svg>',
+      width: size, height: size
+    };
+  }
+  var GLYPHS = {
+    ghost: '<path d="M12 3a7 7 0 0 0 -7 7 v9 l2.3 -1.7 2.3 1.7 2.4 -1.7 2.4 1.7 2.3 -1.7 L19 19 v-9 a7 7 0 0 0 -7 -7 Z"/><path d="M9.5 10.5h.01M14.5 10.5h.01"/>',
+    orb: '<circle cx="12" cy="12" r="7.5"/><path d="M8.5 10.5a4.5 4.5 0 0 1 4 -2.6"/>',
+    cursor: '<path d="M5.5 3.5 19 12.5 l-7.4 1 L8.5 20 Z"/>',
+    heart: '<path d="M12 20.5 C7 16.5 3.5 13.2 3.5 9.6 3.5 6.9 5.6 5 8.1 5 c1.6 0 3.1.8 3.9 2.1 C12.8 5.8 14.3 5 15.9 5 c2.5 0 4.6 1.9 4.6 4.6 0 3.6 -3.5 6.9 -8.5 10.9 Z"/>',
+    rainbow: '<path d="M4 18.5a8 8 0 0 1 16 0"/><path d="M7.5 18.5a4.5 4.5 0 0 1 9 0"/>'
+  };
+
   // ── Scene: Fade ────────────────────────────────────────────────────────
   var fadeVisible = true;
   function renderFade() {
@@ -67,7 +87,7 @@
         {type:'animatedOpacity', duration:500, curve:'easeInOut', opacity: fadeVisible ? 1.0 : 0.0,
           child:{type:'container', width:150, height:150,
             decoration:{color: jsr.theme.accent, borderRadius:20},
-            child:{type:'center', child:{type:'text', data:'👻', style:{fontSize:48}}}}},
+            child:{type:'center', child: svgIcon(GLYPHS.ghost, 52)}}},
         {type:'sizedBox', height:24},
         {type:'button', text: fadeVisible ? 'Fade Out' : 'Fade In', onTap:'toggle_fade'},
       ]
@@ -89,7 +109,7 @@
         {type:'animatedContainer', duration:600, curve:'elasticIn',
           width:cfg.w, height:cfg.h,
           decoration:{color:cfg.color, borderRadius:cfg.radius},
-          child:{type:'center', child:{type:'text', data:'🔮', style:{fontSize:32}}}},
+          child:{type:'center', child: svgIcon(GLYPHS.orb, 34)}},
         {type:'sizedBox', height:24},
         {type:'button', text:'Morph →', onTap:'morph_next'},
         {type:'sizedBox', height:8},
@@ -119,7 +139,7 @@
               positioned:{left:0, bottom:0}},
           ]}},
         {type:'sizedBox', height:16},
-        {type:'button', text: ballActive ? '⏸ Stop' : '🏀 Drop!', onTap:'bounce_toggle'},
+        {type:'button', text: ballActive ? 'Stop' : 'Drop', onTap:'bounce_toggle'},
       ]
     }));
     exportNow();
@@ -160,7 +180,7 @@
         {type:'container', width:260, height:180,
           child:{type:'stack', children: cards}},
         {type:'sizedBox', height:16},
-        {type:'button', text:'Shuffle 🃏', onTap:'shuffle_cards'},
+        {type:'button', text:'Shuffle', onTap:'shuffle_cards'},
       ]
     }));
     exportNow();
@@ -178,7 +198,7 @@
           child:{type:'container', width:50, height:50,
             decoration:{color:'#8b5cf6', borderRadius:25,
               gradient:{colors:['#8b5cf6','#ec4899'], begin:'topLeft', end:'bottomRight'}},
-            child:{type:'center', child:{type:'text', data:'👆', style:{fontSize:20}}}}},
+            child:{type:'center', child: svgIcon(GLYPHS.cursor, 21)}}},
         // Full-area gesture catcher
         {type:'gestureDetector', onPanUpdate:'drag_move', onTapDown:'drag_tap',
           child:{type:'container', width:280, height:250}},
@@ -195,9 +215,9 @@
         {type:'animatedContainer', duration:50, curve:'linear',
           width: 80 * pulseScale, height: 80 * pulseScale,
           decoration:{color:'#ef4444', borderRadius: 40 * pulseScale},
-          child:{type:'center', child:{type:'text', data:'💓', style:{fontSize: 24 * pulseScale}}}},
+          child:{type:'center', child: svgIcon(GLYPHS.heart, 34 * pulseScale)}},
         {type:'sizedBox', height:24},
-        {type:'button', text: pulseActive ? '⏹ Stop' : '▶ Start', onTap:'pulse_toggle'},
+        {type:'button', text: pulseActive ? 'Stop' : 'Start', onTap:'pulse_toggle'},
       ]
     }));
     exportNow();
@@ -234,11 +254,11 @@
           width:200, height:120, decoration:{borderRadius:16,
             gradient:{colors:[hsl(colorHue,70,50), hsl((colorHue+120)%360,70,40)],
               begin:'topLeft', end:'bottomRight'}},
-          child:{type:'center', child:{type:'text', data:'🌈',style:{fontSize:40}}}},
+          child:{type:'center', child: svgIcon(GLYPHS.rainbow, 44)}},
         {type:'sizedBox', height:16},
         {type:'text', data:'Hue: '+Math.round(colorHue)+'°', style:{color: jsr.theme.muted, fontSize:12}},
         {type:'sizedBox', height:8},
-        {type:'button', text: colorActive ? '⏹ Stop' : '▶ Start', onTap:'color_toggle'},
+        {type:'button', text: colorActive ? 'Stop' : 'Start', onTap:'color_toggle'},
       ]
     }));
     exportNow();

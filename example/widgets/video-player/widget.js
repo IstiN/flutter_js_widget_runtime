@@ -306,6 +306,6 @@
     render();
   });
 
-  jsr.setTitle('🎬 Video Player');
+  jsr.setTitle('Video Player');
   render();
 })();
