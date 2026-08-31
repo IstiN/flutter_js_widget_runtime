@@ -6,9 +6,9 @@
   function buildUI() {
     return {
       type: 'column',
-      mainAxisAlignment: 'center',
       crossAxisAlignment: 'center',
       children: [
+        { type: 'sizedBox', height: 16 },
         {
           type: 'text',
           data: '🧊 3D Model Viewer',
@@ -16,10 +16,12 @@
         },
         { type: 'sizedBox', height: 12 },
         {
-          type: 'scene3d',
-          id: 'main',
-          width: 320,
-          height: 320
+          // Expanded scene: adapts to whatever height the host allots.
+          type: 'expanded',
+          child: { type: 'center', child: {
+            type: 'scene3d',
+            id: 'main'
+          } }
         },
         { type: 'sizedBox', height: 12 },
         {

@@ -32,13 +32,15 @@
           {
             type: 'clipRRect', borderRadius: 12,
             child: {
-              type: 'video',
-              src: VIDEOS[state.video].url,
-              controls: true,
-              autoPlay: false,
-              fit: state.fit,
-              width: 380,
-              height: 214
+              // Fluid width, fixed 16:9 ratio — no hardcoded pixel size.
+              type: 'aspectRatio', aspectRatio: 1.78,
+              child: {
+                type: 'video',
+                src: VIDEOS[state.video].url,
+                controls: true,
+                autoPlay: false,
+                fit: state.fit
+              }
             }
           },
           { type: 'sizedBox', height: 14 },
