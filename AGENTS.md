@@ -185,6 +185,11 @@ Once flame_3d publishes a 3.47-compatible release:
 - Reference implementation: `example/lib/media_host.dart` (`ExampleMediaHost`
   — video_player surfaces + audioplayers transport; `https?://` and
   `assets/…` sources). Hosts may back the same interface with `media_kit`.
+- Web builds: the core ships `createWebMediaHost()` (conditional export,
+  like the iframe web-view host) — HTML `<video>`/`<audio>` elements behind
+  `JsMediaHost`: position/duration/playing streams, seek/volume/loop,
+  `object-fit` mapping, autoplay-policy-safe `play()`. The web preview
+  runner uses it; VM hosts use the reference implementation.
 - `audio_player` is a zero-size driver node for JS-controlled playback:
   recompute `src`/`playing`/`volume`/`loop`/`seekToMs` props every render.
 - Example widgets: `audio-player`, `video-player`.
