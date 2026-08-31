@@ -215,16 +215,17 @@
             }
           },
           {
-            // Bottom gradient title bar.
-            positioned: { left: 0, right: 0, bottom: 0 },
+            // Top gradient title bar (bottom edge belongs to the node's
+            // built-in transport controls).
+            positioned: { left: 0, right: 0, top: 0 },
             child: {
               type: 'container',
-              padding: [26, 14, 10, 14],
+              padding: [10, 14, 26, 14],
               decoration: {
                 gradient: {
                   type: 'linear',
                   begin: 'topCenter', end: 'bottomCenter',
-                  colors: ['#00000000', alpha('#000000', '#D9')]
+                  colors: [alpha('#000000', '#D9'), '#00000000']
                 }
               },
               child: {
