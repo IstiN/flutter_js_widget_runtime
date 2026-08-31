@@ -28,6 +28,10 @@ of this base at packaging time:
   every other field. The published zip name and the update flow ride on
   this `version` — bumping it here (+release tag) is the *only* way a new
   widget build ships downstream.
+- **Optional host-agnostic hints** the base may carry: a `widget` section
+  (`entry`, `size`, `refreshSeconds`, `interactive`) describing how the
+  widget behaves on dashboard boards. The runtime's manifest parser
+  ignores unknown keys; hosts that render boards may honor them.
 
 Rules for edits:
 
