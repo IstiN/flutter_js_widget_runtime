@@ -2,8 +2,8 @@
   "id": "weather",
   "name": "Weather",
   "description": "Current weather for any city using wttr.in",
-  "version": "1.0.1",
-  "icon": "🌤️",
+  "version": "1.1.0",
+  "icon": "\ud83c\udf24\ufe0f",
   "allowedCommands": [],
   "network": true,
   "cli": {
@@ -27,8 +27,8 @@
       }
     ],
     "read": {
-      "state": "jsr app:state weather — tempC, city, humidity, windKmph",
-      "snapshot": "jsr app:snapshot weather — full render JSON tree"
+      "state": "jsr app:state weather \u2014 tempC, city, humidity, windKmph",
+      "snapshot": "jsr app:snapshot weather \u2014 full render JSON tree"
     },
     "examples": [
       "jsr app:run weather",
