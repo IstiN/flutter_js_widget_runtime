@@ -221,6 +221,25 @@ void main() {
     });
 
   });
+    test('GLB/GLTF src fails soft (no OBJ parse, object still added)', () {
+      final controller = createCube3dHost().createController(
+        'glb-guard',
+        <String, dynamic>{},
+      ) as Cube3dController;
+      controller.onSceneCreated(cube.Scene());
+      controller.apply(
+        const Js3dCommand(
+          kind: 'addModel',
+          sceneId: 'glb-guard',
+          modelId: 'helmet',
+          payload: {'src': 'https://x.test/helmet.glb'},
+        ),
+      );
+      // Misconfigured GLB on the cube host must not throw and must still
+      // register the model (empty placeholder object).
+      expect(controller.objects, contains('helmet'));
+    });
+
 }
 
 extension _TestableController on Cube3dController {

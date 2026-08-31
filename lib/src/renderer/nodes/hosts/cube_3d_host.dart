@@ -252,6 +252,19 @@ class Cube3dController extends RefCountedJs3dController {
     );
 
     if (src != null) {
+      final lower = src.toLowerCase();
+      if (lower.endsWith('.glb') || lower.endsWith('.gltf')) {
+        // GLB/GLTF needs the flame_3d host — the dispatcher normally routes
+        // it, but an explicit engine:'cube' + GLB src is a misconfig; fail
+        // soft instead of feeding binary GLB to the OBJ parser (crash).
+        debugPrint(
+          '[Cube3dHost] ignoring GLB/GLTF src "$src" — use engine "flame"',
+        );
+        _objects[modelId] = obj;
+        scene.world.add(obj);
+        scene.update();
+        return;
+      }
       final isAsset = src.startsWith('assets/');
       cube.loadObj(src, true, isAsset: isAsset).then((meshes) {
         if (meshes.isNotEmpty) {

@@ -115,6 +115,40 @@ void main() {
       fourth.dispose();
     });
   });
+    test('upgrades an uninformed cube controller to flame on GLB config', () {
+      final host = createJs3dHost() as Js3dDispatcherHost;
+      // Render side creates first with a config-poor call ({type, id}).
+      final c1 = host.createController('upg-scene', <String, dynamic>{
+        'type': 'scene3d',
+        'id': 'upg-scene',
+      });
+      expect(host.hostForScene('upg-scene').toString(), contains('Cube3dHost'));
+      // Bridge side arrives with a GLB src — the host must upgrade so GLB
+      // commands never reach the OBJ parser.
+      final c2 = host.createController('upg-scene', <String, dynamic>{
+        'payload': <String, dynamic>{'src': 'https://x.test/model.glb'},
+      });
+      expect(identical(c1, c2), isTrue);
+      expect(host.hostForScene('upg-scene').toString(), contains('Flame3dHost'));
+      c1.dispose();
+      c2.dispose();
+    });
+
+    test('does not upgrade after an addModel was applied', () {
+      final host = createJs3dHost() as Js3dDispatcherHost;
+      final c1 = host.createController('busy-scene', <String, dynamic>{
+        'type': 'scene3d',
+        'id': 'busy-scene',
+      });
+      c1.apply(const Js3dCommand(kind: 'addModel', sceneId: 'busy-scene',
+        payload: <String, dynamic>{'primitive': 'cube'}));
+      host.createController('busy-scene', <String, dynamic>{
+        'payload': <String, dynamic>{'src': 'https://x.test/model.glb'},
+      });
+      expect(host.hostForScene('busy-scene').toString(), contains('Cube3dHost'));
+      c1.dispose();
+    });
+
 }
 
 class _FakeController extends Js3dController {
@@ -171,3 +205,4 @@ class _TestHostedController extends Js3dController {
   @override
   void apply(Js3dCommand command) => controller.apply(command);
 }
+

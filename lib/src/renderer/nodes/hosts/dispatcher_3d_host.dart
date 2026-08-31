@@ -27,6 +27,11 @@ class Js3dDispatcherHost extends Js3dHost {
   /// routes to the same host even if the new config lacks engine/src.
   final Map<String, Js3dHost> _hostByScene = {};
 
+  /// The host currently bound to [sceneId] (test introspection).
+  @visibleForTesting
+  Js3dHost? hostForScene(String sceneId) =>
+      _controllers[sceneId]?.host ?? _hostByScene[sceneId];
+
   /// Returns the host that should handle the given [config].
   ///
   /// Explicit `engine: 'flame'` or a GLB/GLTF source selects `flame_3d`.
@@ -54,6 +59,12 @@ class Js3dDispatcherHost extends Js3dHost {
     return model?['src'] as String? ?? config['src'] as String?;
   }
 
+  /// True when [config] carries host-selection information (an explicit
+  /// `engine` or a model `src`). Render-side configs ({type, id, width,
+  /// height}) are uninformed and may be upgraded later.
+  bool _isInformed(Map<String, dynamic> config) =>
+      config['engine'] is String || _modelSrc(config) != null;
+
   @override
   Js3dController createController(
     String sceneId,
@@ -65,6 +76,23 @@ class Js3dDispatcherHost extends Js3dHost {
     // both sides mutate and observe the same host instance.
     final existing = _controllers[sceneId];
     if (existing != null && !existing.isDisposed) {
+      // Host upgrade: when the RENDER side created the controller first (its
+      // config only carries {type, id, ...} — no engine/src), the selection
+      // defaulted to Cube3dHost. A later bridge call that DOES carry a
+      // GLB/GLTF src or engine:'flame' must not forward GLB commands to the
+      // cube host (it would try to parse GLB as OBJ and crash). As long as no
+      // addModel has been applied yet, swapping the inner controller is free.
+      final selected = selectHost(config);
+      if (!identical(selected, existing.host) &&
+          !existing.hostInformed &&
+          !existing._sawAddModel) {
+        debugPrint(
+          '[Js3dDispatcher] upgrade host sceneId=$sceneId '
+          '${existing.host.runtimeType} -> ${selected.runtimeType}',
+        );
+        existing._upgrade(selected, sceneId, config);
+        _hostByScene[sceneId] = selected;
+      }
       // Reference counting matters here: when a scene3d node unmounts and
       // remounts within the same frame (per-frame scene rebuilds in the
       // yoclip video pipeline), the new State's initState runs BEFORE the old
@@ -88,6 +116,7 @@ class Js3dDispatcherHost extends Js3dHost {
     final wrapper = _HostedController(
       host: host,
       controller: inner,
+      hostInformed: _isInformed(config),
       onDispose: () {
         _controllers.remove(sceneId);
         // Keep _hostByScene entry — a controller recreated after dispose
@@ -122,17 +151,45 @@ class _HostedController extends Js3dController {
   _HostedController({
     required this.host,
     required this.controller,
+    required this.hostInformed,
     required this.onDispose,
   }) {
     controller.addListener(notifyListeners);
   }
 
-  final Js3dHost host;
-  final Js3dController controller;
+  Js3dHost host;
+  Js3dController controller;
   final VoidCallback onDispose;
 
+  /// Whether the creation config carried host-selection information
+  /// (engine/src). Uninformed (render-side-first) controllers may be
+  /// upgraded to a different host when an informed config arrives.
+  bool hostInformed;
+
+  /// Set once any addModel command has been forwarded — after that the
+  /// host must stay stable (the scene has content).
+  bool _sawAddModel = false;
+
   @override
-  void apply(Js3dCommand command) => controller.apply(command);
+  void apply(Js3dCommand command) {
+    if (command.kind == 'addModel') _sawAddModel = true;
+    controller.apply(command);
+  }
+
+  /// Swaps the inner controller to [newHost]. The wrapper identity (and its
+  /// refcount) stays stable, so renderer States holding this object keep
+  /// working; the scene3d node's next build reads the new [host].
+  void _upgrade(Js3dHost newHost, String sceneId, Map<String, dynamic> config) {
+    final old = controller;
+    final inner = newHost.createController(sceneId, config);
+    inner.addListener(notifyListeners);
+    host = newHost;
+    controller = inner;
+    hostInformed = true;
+    old.removeListener(notifyListeners);
+    old.dispose();
+    notifyListeners();
+  }
 
   @override
   Map<String, dynamic>? raycastAt(Offset ndc) => controller.raycastAt(ndc);
