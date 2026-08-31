@@ -332,12 +332,16 @@ class _PreviewPageState extends State<PreviewPage> {
 ///
 /// Contract (matches the app-side bridge):
 /// - `jsr.fa.asr.record({seconds})` → `Promise<{path, seconds}>` where
-///   `path` is a playable blob: URL. The browser mic-permission prompt
-///   appears on first call; a denial rejects the promise.
+///   `path` is a playable blob: URL. `seconds` is only the max guard;
+///   the browser mic-permission prompt appears on first call and a
+///   denial rejects the promise.
+/// - `jsr.fa.asr.stop()` → stops the active recording immediately (the
+///   record() promise then resolves) — the record/stop toggle UX.
 /// - `jsr.fa.asr.transcribe({path})` → `Promise<{text}>` — there is no
 ///   on-device ASR on web, so it resolves with an explanatory stub text.
 const String _kWebPlatformShims = r'''
 jsr.fa = jsr.fa || {};
+jsr.fa._asrActive = null;
 jsr.fa.asr = {
   record: function(opts) {
     var seconds = (opts && opts.seconds) || 5;
@@ -349,21 +353,34 @@ jsr.fa.asr = {
       navigator.mediaDevices.getUserMedia({ audio: true }).then(function(stream) {
         var rec = new MediaRecorder(stream);
         var chunks = [];
-        rec.ondataavailable = function(e) { if (e.data && e.data.size) chunks.push(e.data); };
-        rec.onerror = function(e) { reject(String(e.error || e)); };
-        rec.onstop = function() {
+        var active = { rec: rec, timer: null };
+        jsr.fa._asrActive = active;
+        function finish() {
+          if (jsr.fa._asrActive === active) jsr.fa._asrActive = null;
           stream.getTracks().forEach(function(t) { t.stop(); });
           var blob = new Blob(chunks, { type: rec.mimeType || 'audio/webm' });
           resolve({ path: URL.createObjectURL(blob), seconds: seconds });
-        };
+        }
+        rec.ondataavailable = function(e) { if (e.data && e.data.size) chunks.push(e.data); };
+        rec.onerror = function(e) { reject(String(e.error || e)); };
+        rec.onstop = finish;
         rec.start();
-        setTimeout(function() { if (rec.state !== 'inactive') rec.stop(); }, seconds * 1000);
+        active.timer = setTimeout(function() {
+          if (rec.state !== 'inactive') rec.stop();
+        }, seconds * 1000);
       }).catch(function(e) {
         reject(String((e && e.name) === 'NotAllowedError'
           ? 'microphone permission denied'
           : e));
       });
     });
+  },
+  stop: function() {
+    var active = jsr.fa._asrActive;
+    if (active && active.rec.state !== 'inactive') {
+      if (active.timer) clearTimeout(active.timer);
+      active.rec.stop();
+    }
   },
   transcribe: function() {
     return Promise.resolve({ text: '(transcription is unavailable in the web preview)' });
