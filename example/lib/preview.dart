@@ -31,6 +31,15 @@ import 'package:web/web.dart' as web;
 const String _defaultBaseUrl =
     'https://raw.githubusercontent.com/IstiN/fa_widgets/main/widgets';
 
+/// Canonical sources of the vendored (CORE) widgets. After the fa_widgets
+/// submodule migration the widget files no longer exist in the gallery
+/// repo tree (raw.githubusercontent does not follow submodules), so a
+/// direct `?widget=<id>` link for a CORE widget 404s at the default base
+/// and the runner falls back to this one.
+const String _canonicalBaseUrl =
+    'https://raw.githubusercontent.com/IstiN/flutter_js_widget_runtime/'
+    'main/example/widgets';
+
 /// Widget ids are directory names — reject anything that could escape the
 /// base URL (path traversal, absolute URLs, query injection).
 final RegExp _widgetIdPattern = RegExp(r'^[A-Za-z0-9_-]+$');
@@ -190,7 +199,7 @@ class PreviewPage extends StatefulWidget {
 }
 
 class _PreviewPageState extends State<PreviewPage> {
-  late final WidgetFileReader _reader;
+  late WidgetFileReader _reader;
   WidgetManifest? _manifest;
   String? _error;
 
@@ -218,6 +227,12 @@ class _PreviewPageState extends State<PreviewPage> {
     _load();
   }
 
+  /// True when the caller pinned the source explicitly (?base/?js) — in
+  /// that case a miss must NOT fall back to the canonical repo.
+  bool get _explicitSource =>
+      (widget.query['js'] ?? '').startsWith('http') ||
+      (widget.query['base'] ?? '').startsWith('http');
+
   Future<void> _load() async {
     final id = widget.query['widget'];
     if (id == null || !_widgetIdPattern.hasMatch(id)) {
@@ -225,8 +240,15 @@ class _PreviewPageState extends State<PreviewPage> {
       return;
     }
     try {
-      final manifest = await WidgetManifest.fromStorage(id, reader: _reader);
+      var manifest = await WidgetManifest.fromStorage(id, reader: _reader);
       if (!mounted) return;
+      if (manifest == null && !_explicitSource) {
+        // CORE widgets live only in the runtime repo after the submodule
+        // migration — retry against the canonical sources.
+        _reader = HttpWidgetFileReader(_canonicalBaseUrl);
+        manifest = await WidgetManifest.fromStorage(id, reader: _reader);
+        if (!mounted) return;
+      }
       if (manifest == null) {
         setState(() => _error = 'Widget "$id" not found.');
         return;
@@ -251,6 +273,8 @@ class _PreviewPageState extends State<PreviewPage> {
     // routes them, the host fails gracefully to the placeholder).
     js3dHost: createJs3dHost(),
     webViewHost: createIframeWebViewHost(),
+    // Media: HTML <video>/<audio> elements (web build of the preview).
+    mediaHost: createWebMediaHost(),
     // Honor the manifest: widgets that did not opt into network access
     // get no fetch capability in the preview either.
     isPermissionAllowed: (capability) =>
