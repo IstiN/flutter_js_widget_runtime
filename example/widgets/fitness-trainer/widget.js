@@ -217,7 +217,7 @@
 
   function homeScreen(t) {
     var mins = Math.round(totalSeconds() / 60);
-    return { type: 'safeArea', child: { type: 'column', crossAxisAlignment: 'stretch', children: [
+    return { type: 'safeArea', child: { type: 'listView', shrinkWrap: false, children: [
       header(t, 'Full body · ~' + mins + ' min', [
         chip(t, SVG.flame, state.stats.sessions + '', true)
       ]),
@@ -250,7 +250,7 @@
     for (var j = 0; j < state.step; j++) done += PLAN[j].dur;
     done += PLAN[state.step].dur - state.left;
     var total = totalSeconds();
-    return { type: 'safeArea', child: { type: 'column', crossAxisAlignment: 'stretch', children: [
+    return { type: 'safeArea', child: { type: 'listView', shrinkWrap: false, children: [
       header(t, isRest ? 'Rest' : step.name + ' · ' + step.detail, [
         chip(t, SVG.timer, fmt(state.left), state.left <= 5 && !isRest)
       ]),
@@ -286,7 +286,7 @@
   }
 
   function doneScreen(t) {
-    return { type: 'safeArea', child: { type: 'column', crossAxisAlignment: 'stretch', children: [
+    return { type: 'safeArea', child: { type: 'listView', shrinkWrap: false, children: [
       header(t, 'Workout complete', []),
       sceneBox(t, 250),
       { type: 'container', margin: [16, 10, 16, 0], padding: [18, 14, 18, 14], alignment: 'center',

@@ -26,8 +26,9 @@
 
     jsr.exportState({ tapCount: tapCount, scale: scale, bouncing: bouncing, hue: hue });
     jsr.render({
-      type: 'center',
-      child: {type: 'column', mainAxisSize: 'min', crossAxisAlignment: 'center', children: [
+      // Scrollable root (layout contract): hosts may allot ~150px height.
+      type: 'listView', shrinkWrap: false, padding: [16, 24, 16, 24],
+      children: [{type: 'column', mainAxisSize: 'min', crossAxisAlignment: 'center', children: [
         // Animated bouncing box
         {type: 'animatedContainer',
           duration: bouncing ? 50 : 300,
@@ -58,7 +59,7 @@
           {type: 'sizedBox', width: 8},
           {type: 'textButton', text: scale > 1 ? '⬇️ Shrink' : '⬆️ Grow', onTap: 'resize'},
         ]},
-      ]}
+      ]}]
     });
   }
 
