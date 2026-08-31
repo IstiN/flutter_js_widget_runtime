@@ -134,6 +134,25 @@ void main() {
       c2.dispose();
     });
 
+    test('upgrades on the FIRST addModel carrying a GLB src', () {
+      final host = createJs3dHost() as Js3dDispatcherHost;
+      // 3d-viewer flow: scene created with no engine/src anywhere; the GLB
+      // arrives only in the addModel command payload.
+      final c = host.createController('lazy-scene', <String, dynamic>{
+        'type': 'scene3d',
+        'id': 'lazy-scene',
+      });
+      expect(host.hostForScene('lazy-scene').toString(), contains('Cube3dHost'));
+      c.apply(const Js3dCommand(
+        kind: 'addModel',
+        sceneId: 'lazy-scene',
+        modelId: 'astronaut',
+        payload: {'src': 'https://x.test/Astronaut.glb'},
+      ));
+      expect(host.hostForScene('lazy-scene').toString(), contains('Flame3dHost'));
+      c.dispose();
+    });
+
     test('does not upgrade after an addModel was applied', () {
       final host = createJs3dHost() as Js3dDispatcherHost;
       final c1 = host.createController('busy-scene', <String, dynamic>{

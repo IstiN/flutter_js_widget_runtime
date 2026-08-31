@@ -65,6 +65,25 @@ class Js3dDispatcherHost extends Js3dHost {
   bool _isInformed(Map<String, dynamic> config) =>
       config['engine'] is String || _modelSrc(config) != null;
 
+  /// Routes the FIRST addModel of an uninformed scene to the right host.
+  ///
+  /// 3d-viewer creates its scene with no engine/src (model arrives only via
+  /// `jsr.scene3d.addModel` on LOAD), so neither the render-side nor the
+  /// bridge-side createController carries selection information — without
+  /// this hook a GLB addModel would land on the cube host's OBJ parser.
+  void _maybeUpgradeForAddModel(_HostedController w, Js3dCommand command) {
+    if (w.hostInformed) return;
+    final config = <String, dynamic>{'payload': command.payload};
+    final selected = selectHost(config);
+    if (identical(selected, w.host)) return;
+    debugPrint(
+      '[Js3dDispatcher] upgrade host sceneId=${command.sceneId} '
+      '${w.host.runtimeType} -> ${selected.runtimeType} (addModel)',
+    );
+    w._upgrade(selected, command.sceneId, config);
+    _hostByScene[command.sceneId] = selected;
+  }
+
   @override
   Js3dController createController(
     String sceneId,
@@ -117,6 +136,7 @@ class Js3dDispatcherHost extends Js3dHost {
       host: host,
       controller: inner,
       hostInformed: _isInformed(config),
+      onAddModel: _maybeUpgradeForAddModel,
       onDispose: () {
         _controllers.remove(sceneId);
         // Keep _hostByScene entry — a controller recreated after dispose
@@ -152,6 +172,7 @@ class _HostedController extends Js3dController {
     required this.host,
     required this.controller,
     required this.hostInformed,
+    required this.onAddModel,
     required this.onDispose,
   }) {
     controller.addListener(notifyListeners);
@@ -159,6 +180,7 @@ class _HostedController extends Js3dController {
 
   Js3dHost host;
   Js3dController controller;
+  final void Function(_HostedController, Js3dCommand) onAddModel;
   final VoidCallback onDispose;
 
   /// Whether the creation config carried host-selection information
@@ -172,7 +194,12 @@ class _HostedController extends Js3dController {
 
   @override
   void apply(Js3dCommand command) {
-    if (command.kind == 'addModel') _sawAddModel = true;
+    if (command.kind == 'addModel') {
+      // The first addModel may carry the only host-selection signal the
+      // scene ever gets (GLB src) — let the dispatcher upgrade first.
+      if (!_sawAddModel) onAddModel(this, command);
+      _sawAddModel = true;
+    }
     controller.apply(command);
   }
 
