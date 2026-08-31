@@ -10,6 +10,43 @@
     return s + Math.abs(n).toFixed(2);
   }
 
+  // Calm, theme-consistent failure view (same visual language as the
+  // runtime's 3D placeholder): fetch failures on web are CORS, not a crash.
+  function isFetchFailure(e) {
+    var msg = (e && (e.message || String(e))) || '';
+    return /failed to fetch|networkerror|network request failed|cors/i.test(msg) ||
+      (typeof TypeError !== 'undefined' && e instanceof TypeError);
+  }
+
+  function renderLoadError(e) {
+    var raw = (e && (e.message || String(e))) || 'unknown error';
+    var cors = isFetchFailure(e);
+    jsr.render({
+      type: 'listView', shrinkWrap: false,
+      children: [
+        {type:'padding', padding:[24,16,24,16], child:{
+          type:'column', crossAxisAlignment:'center', children:[
+            {type:'container', width:56, height:56,
+             decoration:{color:'#1e293b', borderRadius:16, borderColor:'#334155', borderWidth:1},
+             alignment:'center',
+             child:{type:'text', data:'$',
+                    style:{color:'#64748b', fontSize:24, fontWeight:'w700'}}},
+            {type:'sizedBox', height:14},
+            {type:'text', data:'Quotes unavailable',
+             style:{color:'#cbd5e1', fontSize:15, fontWeight:'w600', textAlign:'center'}},
+            {type:'sizedBox', height:6},
+            {type:'text', data: cors
+               ? 'The quote API does not allow cross-origin reads, so the web preview cannot load live prices. In the app it works over the host network.'
+               : 'Could not load stocks: ' + raw,
+             style:{color:'#475569', fontSize:12, textAlign:'center'}, maxLines:4},
+            {type:'sizedBox', height:14},
+            {type:'textButton', text:'Retry', onTap:'refresh'},
+          ],
+        }},
+      ],
+    });
+  }
+
   async function fetchQuote(sym) {
     var url = 'https://query2.finance.yahoo.com/v8/finance/chart/' + sym + '?interval=1d&range=5d';
     var data = await jsr.fetchJson(url, {
@@ -98,7 +135,7 @@
       });
     } catch(e) {
       jsr.exportState({ loading: false, symbols: symbols, error: e.message || String(e) });
-      jsr.showError('Could not load stocks:\n' + e.message);
+      renderLoadError(e);
     }
   }
 
@@ -174,7 +211,10 @@
         ]
       });
     } catch(e) {
-      jsr.showError('Could not load chart:\n' + e.message);
+      // Same calm treatment for the detail chart; 'back' returns to the list.
+      _chartSymbol = null;
+      jsr.exportState({ loading: false, symbols: symbols, error: e.message || String(e) });
+      renderLoadError(e);
     }
   }
 
