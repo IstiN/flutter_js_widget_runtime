@@ -191,9 +191,16 @@ Once flame_3d publishes a 3.47-compatible release:
 
 ## Adding New Widget Examples
 
+**`example/widgets/` is the single source of truth** for every widget that
+does not use host-specific bridge APIs. Downstream catalogs (fa_widgets)
+consume these files read-only via a git submodule pinned at release tags —
+never copy a shared widget's sources elsewhere. The canonical-manifest and
+overlay contract lives in `example/widgets/README.md`; any `widget.js` /
+`manifest.json` change must bump `version` and ship via a release tag.
+
 1. Create `example/widgets/<id>/manifest.json` and `example/widgets/<id>/widget.js`.
 2. Add the id to `example/lib/main.dart` in `_widgetIds`.
-3. Keep widget JS self-contained and ES5-compatible (no modules, no arrow functions).
+3. Keep widget JS self-contained and ES5-compatible (no modules, no arrow functions); icons are stylish inline SVG, not emoji.
 4. Add a small test if the widget introduces new renderer types.
 5. Refresh the README gallery (`doc/widgets/<id>.png` + a row in the README table).
 
