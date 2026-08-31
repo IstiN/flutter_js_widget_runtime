@@ -187,6 +187,8 @@ class JsRuntimeConfig {
         secretsSetHandler,
     Future<void> Function(String id, String path)? loadAssetHandler,
     Future<void> Function(String id, String cmd)? execHandler,
+    Future<Object?> Function(String name, Map<String, dynamic> args)?
+        onHostCall,
     void Function(String id)? intervalTickHandler,
     void Function(String id, int elapsedMs)? rafTickHandler,
     JsWidgetEngineBackend? backend,
@@ -212,6 +214,7 @@ class JsRuntimeConfig {
         secretsSetHandler: secretsSetHandler ?? this.secretsSetHandler,
         loadAssetHandler: loadAssetHandler ?? this.loadAssetHandler,
         execHandler: execHandler ?? this.execHandler,
+        onHostCall: onHostCall ?? this.onHostCall,
         intervalTickHandler: intervalTickHandler ?? this.intervalTickHandler,
         rafTickHandler: rafTickHandler ?? this.rafTickHandler,
         backend: backend ?? this.backend,
