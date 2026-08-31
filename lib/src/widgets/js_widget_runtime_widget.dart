@@ -31,6 +31,7 @@ class JsWidgetRuntimeWidget extends StatefulWidget {
 class _JsWidgetRuntimeWidgetState extends State<JsWidgetRuntimeWidget> {
   JsWidgetEngine? _engine;
   Map<String, dynamic>? _uiTree;
+  Size? _lastLayoutSize;
   Size? _reportedViewport;
 
   @override
@@ -67,8 +68,16 @@ class _JsWidgetRuntimeWidgetState extends State<JsWidgetRuntimeWidget> {
     );
     await _engine?.dispose();
     _engine = engine;
+    // The first layout usually happens while the engine is still starting,
+    // so that viewport report is dropped (engine == null). Re-report the
+    // last known size once the widget JS has booted.
+    _reportedViewport = null;
     try {
       await engine.run(widget.jsSource);
+      final size = _lastLayoutSize;
+      // Force: an earlier dispatch may have raced the worker bootstrap
+      // (dropped before __jsrHostEvent was defined).
+      if (mounted && size != null) _reportViewport(size, force: true);
     } catch (e, st) {
       widget.onError?.call(e, st);
     }
@@ -77,8 +86,9 @@ class _JsWidgetRuntimeWidgetState extends State<JsWidgetRuntimeWidget> {
   /// Reports the allotted size to JS (`jsr.viewport()` / `jsr.onViewport`)
   /// whenever the layout constraints change — covers panels, full screen
   /// and fixed-size board tiles alike.
-  void _reportViewport(Size size) {
-    if (_reportedViewport == size) return;
+  void _reportViewport(Size size, {bool force = false}) {
+    _lastLayoutSize = size;
+    if (!force && _reportedViewport == size) return;
     _reportedViewport = size;
     final engine = _engine;
     if (engine == null) return;
