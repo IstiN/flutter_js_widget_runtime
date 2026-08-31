@@ -49,6 +49,7 @@ const _widgetFiles = {
   'animation-showcase': 'example/widgets/animation-showcase/widget.js',
   'map': 'example/widgets/map/widget.js',
   '3d-showcase': 'example/widgets/3d-showcase/widget.js',
+  '3d-viewer': 'example/widgets/3d-viewer/widget.js',
   '3d-game-dodge': 'example/widgets/3d-game-dodge/widget.js',
   '3d-glb-showcase': 'example/widgets/3d-glb-showcase/widget.js',
   'fitness-trainer': 'example/widgets/fitness-trainer/widget.js',
