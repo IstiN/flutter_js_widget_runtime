@@ -86,6 +86,24 @@ jsr.yoloit = {
 
 Widgets that depend on the host extension can then call `jsr.yoloit.panel.setTitle('...')` or `jsr.yoloit.board.getPanels()`.
 
+### Async host capabilities: `jsr.hostCall`
+
+For capabilities that need a Dart implementation (microphone, platform
+services), the core ships a generic channel instead of per-host ones:
+
+- Bootstrap: `jsr.hostCall(name, args)` → Promise (`__jsr_host_call` +
+  the standard `__jsr_resolve` round trip — no engine-specific wiring).
+- `JsRuntimeConfig.onHostCall(name, args)` — the host's async handler;
+  resolve with any JSON-encodable value, throw to reject. Null handler →
+  'hostCall is not supported by this host'.
+- `JsWidgetBridge` gets it as a constructor param; all three engines
+  (flutter_js, quickjs, web worker) thread `config.onHostCall` through.
+
+Example: the web preview's `jsr.fa.asr` — `hostBootstrapJs` maps
+`record/stop/transcribe` to `jsr.hostCall('asr.*')`, and
+`example/lib/web_asr_handler.dart` implements the mic on the main thread
+(widget JS runs in a Worker without mic access).
+
 ## Important Notes
 
 - Keep `JsWidgetBridge` platform-agnostic. Never import `dart:io` or `dart:html` there.

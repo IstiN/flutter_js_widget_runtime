@@ -95,6 +95,18 @@ var jsr = {
     });
   },
 
+  // Generic host-provided async capability: jsr.hostCall('asr.record', {...})
+  // is routed to the host's onHostCall handler (JsRuntimeConfig). Host
+  // shims (jsr.fa.*, jsr.yoloit) build on this instead of hardcoding
+  // channels — the runtime stays free of host concepts.
+  hostCall: function(name,args){
+    return new Promise(function(resolve,reject){
+      var id=__nid();
+      __cbs[id]=function(r){if(r&&r.__error)reject(new Error(r.__error));else resolve(r);};
+      __send('__jsr_host_call', JSON.stringify({id:id,name:String(name),args:args||{}}));
+    });
+  },
+
   storage:{
     _c:{},
     get:function(key){

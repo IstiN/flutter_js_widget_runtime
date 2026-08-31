@@ -7,9 +7,11 @@ JsWidgetBridge _makeBridge({
   required Map<String, dynamic> resolved,
   Js3dHost? host,
   bool allowPermissions = true,
+  Future<Object?> Function(String name, Map<String, dynamic> args)? onHostCall,
 }) =>
     JsWidgetBridge(
       widgetId: 'test',
+      onHostCall: onHostCall,
       onRender: (_) {},
       onSetTitle: (_) {},
       onStorageUpdate: (_) {},
@@ -351,6 +353,37 @@ void main() {
         );
         noHost.dispose();
       });
+    });
+  });
+
+  group('hostCall', () {
+    test('resolves through the host onHostCall handler', () async {
+      final resolved = <String, dynamic>{};
+      final bridge = _makeBridge(
+        resolved: resolved,
+        onHostCall: (name, args) async => {'echo': name, 'seen': args['x']},
+      );
+      await bridge.dispatch(
+          '__jsr_host_call', '{"id":"h1","name":"asr.ping","args":{"x":7}}');
+      expect(resolved['h1'], {'echo': 'asr.ping', 'seen': 7});
+    });
+
+    test('rejects when the host throws', () async {
+      final resolved = <String, dynamic>{};
+      final bridge = _makeBridge(
+        resolved: resolved,
+        onHostCall: (_, __) async => throw StateError('mic denied'),
+      );
+      await bridge.dispatch('__jsr_host_call', '{"id":"h2","name":"asr.record","args":{}}');
+      expect((resolved['h2'] as Map)['__error'], contains('mic denied'));
+    });
+
+    test('rejects when no onHostCall is configured', () async {
+      final resolved = <String, dynamic>{};
+      final bridge = _makeBridge(resolved: resolved);
+      await bridge.dispatch('__jsr_host_call', '{"id":"h3","name":"x","args":{}}');
+      expect((resolved['h3'] as Map)['__error'],
+          contains('hostCall is not supported'));
     });
   });
 }

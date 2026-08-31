@@ -64,6 +64,7 @@ class JsWidgetBridge {
     required this.secretsSetHandler,
     required this.loadAssetHandler,
     required this.execHandler,
+    this.onHostCall,
     required this.intervalTickHandler,
     required this.rafTickHandler,
     this.js3dHost,
@@ -91,6 +92,11 @@ class JsWidgetBridge {
   final bool Function() isDisposed;
   final String? appDir;
   final JsPermissionChecker isPermissionAllowed;
+
+  /// Generic host capability behind `jsr.hostCall` — see
+  /// [JsRuntimeConfig.onHostCall].
+  final Future<Object?> Function(String name, Map<String, dynamic> args)?
+      onHostCall;
   JsResolveCallback resolveCallback;
   JsFetchHandler fetchHandler;
   JsSecretsReadHandler secretsGetHandler;
@@ -166,6 +172,7 @@ class JsWidgetBridge {
         '__jsr_secrets_set': _handleSecretsSet,
         '__jsr_load_asset': _handleLoadAsset,
         '__jsr_exec': _handleExec,
+        '__jsr_host_call': _handleHostCall,
       };
 
   /// Serializes [callEvent] invocations so rapid-fire gestures (tap-down,
@@ -281,6 +288,31 @@ class JsWidgetBridge {
     final method = (req['method'] as String? ?? 'GET').toUpperCase();
     final headers = (req['headers'] as Map?)?.cast<String, String>() ?? {};
     await fetchHandler(id, url, method, headers);
+  }
+
+  /// Routes `jsr.hostCall(name, args)` to the host's [onHostCall]. The
+  /// response (or thrown error) round-trips through the standard
+  /// resolveCallback → `__jsr_resolve` path, so it works identically on
+  /// the VM engines and the web worker.
+  Future<void> _handleHostCall(dynamic args) async {
+    final req = _parseArgs(args);
+    final id = req['id'] as String;
+    final handler = onHostCall;
+    if (handler == null) {
+      resolveCallback(id, {
+        '__error': 'hostCall is not supported by this host',
+      });
+      return;
+    }
+    try {
+      final result = await handler(
+        req['name'] as String,
+        (req['args'] as Map?)?.cast<String, dynamic>() ?? const {},
+      );
+      resolveCallback(id, result ?? const <String, dynamic>{});
+    } catch (e) {
+      resolveCallback(id, {'__error': e.toString()});
+    }
   }
 
   void _handleStorageGet(dynamic args) {
