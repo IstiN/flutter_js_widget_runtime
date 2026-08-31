@@ -2,7 +2,7 @@
   "id": "3d-viewer",
   "name": "3D Model Viewer",
   "description": "Interactive GLB/GLTF 3D model viewer demo using jsr.scene3d.",
-  "version": "1.0.1",
-  "icon": "🧊",
+  "version": "1.0.2",
+  "icon": "\ud83e\uddca",
   "network": true
 }
