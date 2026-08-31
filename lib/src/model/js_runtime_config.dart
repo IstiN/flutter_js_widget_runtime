@@ -50,6 +50,7 @@ class JsRuntimeConfig {
     this.secretsSetHandler,
     this.loadAssetHandler,
     this.execHandler,
+    this.onHostCall,
     this.intervalTickHandler,
     this.rafTickHandler,
     this.backend,
@@ -127,6 +128,17 @@ class JsRuntimeConfig {
 
   /// Handle `jsr.exec(cmd)`.
   final Future<void> Function(String id, String cmd)? execHandler;
+
+  /// Generic host capability invoked by `jsr.hostCall(name, args)`.
+  ///
+  /// Lets hosts expose async native features (microphone, platform
+  /// services) to widgets without hardcoding channels in the core:
+  /// the host's `hostBootstrapJs` builds its API (e.g. `jsr.fa.*`) on
+  /// top of `jsr.hostCall`. Resolve with any JSON-encodable value; throw
+  /// to reject the JS promise. When null, calls fail with
+  /// 'hostCall is not supported by this host'.
+  final Future<Object?> Function(String name, Map<String, dynamic> args)?
+      onHostCall;
 
   /// Dart-backed interval tick.
   final void Function(String id)? intervalTickHandler;

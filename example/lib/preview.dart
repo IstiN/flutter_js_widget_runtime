@@ -25,6 +25,8 @@ import 'dart:js_interop';
 import 'package:flutter/material.dart';
 
 import 'package:js_widget_runtime/js_widget_runtime.dart';
+
+import 'web_asr_handler.dart';
 import 'package:web/web.dart' as web;
 
 /// Default widget source: the fa_widgets gallery repo, raw main branch.
@@ -277,8 +279,9 @@ class _PreviewPageState extends State<PreviewPage> {
     mediaHost: createWebMediaHost(),
     // jsr.fa platform shims: make bridge-based widgets (voice-notes)
     // functional in the web preview where the browser offers the same
-    // capability (getUserMedia + MediaRecorder for the mic).
+    // capability (getUserMedia + MediaRecorder for the mic, main thread).
     hostBootstrapJs: _kWebPlatformShims,
+    onHostCall: _asrHandler.call,
     // Honor the manifest: widgets that did not opt into network access
     // get no fetch capability in the preview either.
     isPermissionAllowed: (capability) =>
@@ -326,64 +329,18 @@ class _PreviewPageState extends State<PreviewPage> {
 }
 
 /// Web shims for `jsr.fa.*` platform bridges, injected before the widget
-/// runs. Only capabilities with a real browser equivalent are provided;
-/// everything else stays undefined so bridge-guarded widgets keep
-/// rendering their "Runs in the Fa app" stubs.
-///
-/// Contract (matches the app-side bridge):
-/// - `jsr.fa.asr.record({seconds})` → `Promise<{path, seconds}>` where
-///   `path` is a playable blob: URL. `seconds` is only the max guard;
-///   the browser mic-permission prompt appears on first call and a
-///   denial rejects the promise.
-/// - `jsr.fa.asr.stop()` → stops the active recording immediately (the
-///   record() promise then resolves) — the record/stop toggle UX.
-/// - `jsr.fa.asr.transcribe({path})` → `Promise<{text}>` — there is no
-///   on-device ASR on web, so it resolves with an explanatory stub text.
+/// runs. Thin wrappers over the generic `jsr.hostCall` channel — the real
+/// work happens on the main thread in [WebAsrHandler] (widget JS lives in
+/// a Worker, which has no microphone access). Bridges without a browser
+/// equivalent stay undefined, so guarded widgets keep rendering their
+/// "Runs in the Fa app" stubs.
+final WebAsrHandler _asrHandler = WebAsrHandler();
+
 const String _kWebPlatformShims = r'''
 jsr.fa = jsr.fa || {};
-jsr.fa._asrActive = null;
 jsr.fa.asr = {
-  record: function(opts) {
-    var seconds = (opts && opts.seconds) || 5;
-    return new Promise(function(resolve, reject) {
-      if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-        reject('microphone is not available in this browser');
-        return;
-      }
-      navigator.mediaDevices.getUserMedia({ audio: true }).then(function(stream) {
-        var rec = new MediaRecorder(stream);
-        var chunks = [];
-        var active = { rec: rec, timer: null };
-        jsr.fa._asrActive = active;
-        function finish() {
-          if (jsr.fa._asrActive === active) jsr.fa._asrActive = null;
-          stream.getTracks().forEach(function(t) { t.stop(); });
-          var blob = new Blob(chunks, { type: rec.mimeType || 'audio/webm' });
-          resolve({ path: URL.createObjectURL(blob), seconds: seconds });
-        }
-        rec.ondataavailable = function(e) { if (e.data && e.data.size) chunks.push(e.data); };
-        rec.onerror = function(e) { reject(String(e.error || e)); };
-        rec.onstop = finish;
-        rec.start();
-        active.timer = setTimeout(function() {
-          if (rec.state !== 'inactive') rec.stop();
-        }, seconds * 1000);
-      }).catch(function(e) {
-        reject(String((e && e.name) === 'NotAllowedError'
-          ? 'microphone permission denied'
-          : e));
-      });
-    });
-  },
-  stop: function() {
-    var active = jsr.fa._asrActive;
-    if (active && active.rec.state !== 'inactive') {
-      if (active.timer) clearTimeout(active.timer);
-      active.rec.stop();
-    }
-  },
-  transcribe: function() {
-    return Promise.resolve({ text: '(transcription is unavailable in the web preview)' });
-  }
+  record: function(opts) { return jsr.hostCall('asr.record', opts || {}); },
+  stop: function() { jsr.hostCall('asr.stop', {}); },
+  transcribe: function(opts) { return jsr.hostCall('asr.transcribe', opts || {}); }
 };
 ''';

@@ -29,6 +29,7 @@ class FlutterJsWidgetEngineBackend implements JsWidgetEngineBackend {
       secretsSetHandler: (id, key, value) async {},
       loadAssetHandler: (id, path) async {},
       execHandler: (id, cmd) async {},
+      onHostCall: config.onHostCall,
       intervalTickHandler: (id) {},
       rafTickHandler: (id, elapsedMs) {},
       js3dHost: config.js3dHost,

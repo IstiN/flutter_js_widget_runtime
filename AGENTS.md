@@ -55,6 +55,11 @@ Core methods:
 - `jsr.storage.get(key)` / `jsr.storage.set(key, val)` — persistent storage.
 - `jsr.secrets.get(key)` / `jsr.secrets.set(key, val)` — secure storage.
 - `jsr.exec(cmd)` — run a shell command (host-dependent).
+- `jsr.hostCall(name, args)` — generic host-provided async capability routed to
+  `JsRuntimeConfig.onHostCall` (bridge channel `__jsr_host_call`, standard
+  resolve path, works on VM engines and the web worker). Host shims
+  (`jsr.fa.*`, `jsr.yoloit.*`) build on it instead of hardcoding channels;
+  when no handler is configured the promise rejects.
 - `jsr.loadAsset(path)` — load an asset file as string.
 - **Multi-file widgets**: relative ES-module-style imports are inlined at load time — `import './helpers.js'` / `import { x } from './lib/x.js'` (exports stripped, each file inlined once, `../` resolved). No manifest `files` list needed (it still works as an explicit ordered concat). `jsr.include('path')` inlines a file at the call site. No runtime module system: no bare package specifiers, no dynamic import.
 - `jsr.setTitle(title)` — update widget title.
