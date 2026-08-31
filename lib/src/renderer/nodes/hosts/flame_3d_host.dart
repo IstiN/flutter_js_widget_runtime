@@ -1,5 +1,6 @@
 // ignore_for_file: invalid_use_of_internal_member
 import 'dart:async';
+import 'dart:typed_data';
 
 import 'package:flame/game.dart';
 import 'package:flame_3d/camera.dart';
@@ -9,10 +10,16 @@ import 'package:flame_3d/graphics.dart';
 import 'package:flame_3d/model.dart';
 import 'package:flame_3d/parser.dart';
 import 'package:flame_3d/resources.dart';
+// Glb/GlbChunk are not re-exported by package:flame_3d/parser.dart; the
+// version is pinned, so reach into the parser internals for the URL-aware
+// GLB override below.
+import 'package:flame_3d/src/parser/glb_parser.dart' as glb_parser;
+import 'package:flame_3d/src/parser/gltf/glb_chunk.dart' as glb_chunk;
 import 'package:flutter/material.dart' hide Viewport;
 import 'package:js_widget_runtime/js_widget_runtime.dart';
 import 'package:js_widget_runtime/src/renderer/nodes/hosts/js_3d_host_utils.dart';
 import 'package:js_widget_runtime/src/renderer/nodes/hosts/js_3d_raycast.dart';
+import 'package:js_widget_runtime/src/renderer/nodes/hosts/js_3d_url_bytes.dart';
 import 'package:vector_math/vector_math_64.dart' as vm64;
 
 part 'flame_3d_controller_config.dart';
@@ -28,7 +35,14 @@ Js3dHost createFlame3dHost() => Flame3dHost.instance;
 /// {@endtemplate}
 class Flame3dHost extends Js3dHost
     with Js3dControllerRegistry<Flame3dController> {
-  Flame3dHost._();
+  Flame3dHost._() {
+    // URL-based GLB sources: the stock flame_3d parser reads only from the
+    // asset bundle ("assets/https://…" 404s). Swap in a GLB parser that
+    // fetches http(s) bytes first; asset paths still delegate to the stock
+    // implementation. Process-global (ModelParser.glb is a static) but
+    // strictly additive.
+    ModelParser.glb = Js3dUrlGlbParser();
+  }
 
   /// Singleton instance shared by the JS bridge and the widget renderer.
   static final Flame3dHost instance = Flame3dHost._();
@@ -1219,3 +1233,61 @@ extension _Vector3Let on Vector3 {
 /// The scene composites over other layers (backgrounds, board panels) —
 /// Flame's default black backdrop must not cover them.
 const _transparentBackdrop = Color(0x00000000);
+
+/// GLB parser that fetches http(s) sources as bytes before chunk-walking.
+///
+/// flame_3d's stock [GlbParser.parseGlb] reads via `Flame.assets` (the
+/// asset bundle), so a URL src fails with `Unable to load asset:
+/// assets/https://…`. Asset and relative paths delegate unchanged.
+class Js3dUrlGlbParser extends glb_parser.GlbParser {
+  @override
+  Future<glb_parser.Glb> parseGlb(String filePath) async {
+    if (!filePath.startsWith('http://') && !filePath.startsWith('https://')) {
+      return super.parseGlb(filePath);
+    }
+    final content = await js3dFetchBytes(filePath);
+    return parseGlbBytes(content, filePath);
+  }
+
+  /// Walks the GLB container header and chunks (Khronos glTF 2.0 §12).
+  @visibleForTesting
+  static glb_parser.Glb parseGlbBytes(Uint8List content, String filePath) {
+    var cursor = 0;
+    Uint8List read(int bytes) {
+      cursor += bytes;
+      return content.sublist(cursor - bytes, cursor);
+    }
+
+    String str(Uint8List b) => String.fromCharCodes(b);
+    int i32(Uint8List b) =>
+        ByteData.sublistView(b).getUint32(0, Endian.little);
+
+    final magic = str(read(4));
+    if (magic != 'glTF') {
+      throw Exception('Invalid magic number $magic');
+    }
+    final version = i32(read(4));
+    if (version != 2) {
+      throw Exception('Invalid version $version');
+    }
+    final length = i32(read(4));
+    final chunks = <glb_chunk.GlbChunk>[];
+    while (cursor < content.length) {
+      final chunkLength = i32(read(4));
+      final chunkType = str(read(4));
+      chunks.add(
+        glb_chunk.GlbChunk(
+          length: chunkLength,
+          type: chunkType,
+          data: read(chunkLength),
+        ),
+      );
+    }
+    return glb_parser.Glb(
+      prefix: ModelParser.prefix(filePath),
+      version: version,
+      length: length,
+      chunks: chunks,
+    );
+  }
+}
