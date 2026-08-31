@@ -33,14 +33,55 @@
     render();
   }
 
-  function transportButton(t, label, event, primary) {
+  // Transport glyphs — stylish inline SVG (no emoji).
+  function svgIcon(body, size, color) {
     return {
-      type: 'button',
-      text: label,
-      style: primary
-        ? { backgroundColor: t.accent, foregroundColor: t.onAccent }
-        : { backgroundColor: t.surfaceAlt, foregroundColor: t.text },
-      onTap: event
+      type: 'svg',
+      data: '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" ' +
+        'fill="none" stroke="' + color + '" stroke-width="1.8" ' +
+        'stroke-linecap="round" stroke-linejoin="round">' + body + '</svg>',
+      width: size, height: size
+    };
+  }
+  var GLYPHS = {
+    play: '<path d="M7 4.8v14.4L19.2 12Z"/>',
+    pause: '<path d="M8 5v14M16 5v14"/>',
+    prev: '<path d="M18 5.5v13L9.5 12Z"/><path d="M6.5 5.5v13"/>',
+    next: '<path d="M6 5.5v13L14.5 12Z"/><path d="M17.5 5.5v13"/>',
+    headphones: '<path d="M4 15v-2a8 8 0 0 1 16 0v2"/>' +
+      '<rect x="3" y="14" width="4" height="6.5" rx="1.8"/>' +
+      '<rect x="17" y="14" width="4" height="6.5" rx="1.8"/>',
+    speaker: '<path d="M11 5.5 6.5 9H3.8v6h2.7L11 18.5Z"/>' +
+      '<path d="M14.5 9.5a3.5 3.5 0 0 1 0 5M17 7a7 7 0 0 1 0 10"/>'
+  };
+
+  function transportButton(t, glyph, label, event, primary) {
+    var fg = primary ? t.onAccent : t.text;
+    return {
+      type: 'inkWell',
+      onTap: event,
+      borderRadius: 12,
+      child: {
+        type: 'container',
+        padding: [9, 14, 9, 14],
+        decoration: {
+          color: primary ? t.accent : t.surfaceAlt,
+          borderRadius: 12
+        },
+        child: {
+          type: 'row',
+          mainAxisSize: 'min',
+          crossAxisAlignment: 'center',
+          children: [
+            svgIcon(GLYPHS[glyph], 14, fg),
+            { type: 'sizedBox', width: 6 },
+            {
+              type: 'text', data: label,
+              style: { color: fg, fontSize: 12.5, fontWeight: 'w600' }
+            }
+          ]
+        }
+      }
     };
   }
 
@@ -77,7 +118,14 @@
                   child: {
                     type: 'column', crossAxisAlignment: 'center',
                     children: [
-                      { type: 'text', data: '🎧', style: { fontSize: 42 } },
+                      {
+                        type: 'container',
+                        width: 64, height: 64,
+                        decoration: {
+                          color: t.surfaceAlt, borderRadius: 18
+                        },
+                        child: { type: 'center', child: svgIcon(GLYPHS.headphones, 34, t.accent) }
+                      },
                       { type: 'sizedBox', height: 10 },
                       {
                         type: 'text', data: current().title,
@@ -93,18 +141,18 @@
                       {
                         type: 'row', mainAxisAlignment: 'center',
                         children: [
-                          transportButton(t, '⏮ Prev', 'prev', false),
+                          transportButton(t, 'prev', 'Prev', 'prev', false),
                           { type: 'sizedBox', width: 10 },
-                          transportButton(t, state.playing ? '⏸ Pause' : '▶ Play', 'play_pause', true),
+                          transportButton(t, state.playing ? 'pause' : 'play', state.playing ? 'Pause' : 'Play', 'play_pause', true),
                           { type: 'sizedBox', width: 10 },
-                          transportButton(t, 'Next ⏭', 'next', false)
+                          transportButton(t, 'next', 'Next', 'next', false)
                         ]
                       },
                       { type: 'sizedBox', height: 16 },
                       {
                         type: 'row',
                         children: [
-                          { type: 'text', data: '🔊', style: { fontSize: 14 } },
+                          { type: 'svg', data: '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="' + t.muted + '" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">' + GLYPHS.speaker + '</svg>', width: 16, height: 16 },
                           { type: 'sizedBox', width: 8 },
                           {
                             type: 'expanded',
@@ -147,7 +195,7 @@
                   children: TRACKS.map(function(tr, i) {
                     var tile = {
                       type: 'listTile',
-                      title: (i === state.track ? '● ' : '') + tr.title,
+                      title: tr.title,
                       onTap: 'select:' + i
                     };
                     if (i === state.track) {
@@ -191,7 +239,7 @@
     render();
   });
 
-  jsr.setTitle('🎧 Audio Player');
+  jsr.setTitle('Audio Player');
   setInterval(tick, 1000);
   render();
 })();

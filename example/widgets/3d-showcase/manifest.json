@@ -2,17 +2,29 @@
   "id": "3d-showcase",
   "name": "3D Showcase",
   "description": "Interactive procedural 3D scene with cube, sphere and torus",
-  "version": "1.0.0",
-  "icon": "🧊",
+  "version": "1.0.1",
+  "icon": "\ud83e\uddca",
   "allowedCommands": [],
   "network": false,
   "cli": {
     "summary": "Procedural 3D primitives demo",
     "events": [
-      { "id": "shape_<cube|sphere|torus>", "description": "Switch active primitive" },
-      { "id": "color_<hex>", "description": "Set model color" },
-      { "id": "toggle_rotation", "description": "Start/stop auto rotation" },
-      { "id": "set_speed", "description": "Set rotation speed" }
+      {
+        "id": "shape_<cube|sphere|torus>",
+        "description": "Switch active primitive"
+      },
+      {
+        "id": "color_<hex>",
+        "description": "Set model color"
+      },
+      {
+        "id": "toggle_rotation",
+        "description": "Start/stop auto rotation"
+      },
+      {
+        "id": "set_speed",
+        "description": "Set rotation speed"
+      }
     ],
     "read": {
       "state": "yoloit app:state 3d-showcase",

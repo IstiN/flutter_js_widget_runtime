@@ -11,6 +11,13 @@
 /// - `?theme=dark|light` — color theme, default `dark`.
 /// - `?base=<url>` — override the widget source base URL
 ///   (default: the `fa_widgets` repo raw main branch).
+/// - `?manifest=<url>&js=<url>` — fetch the manifest and widget.js from
+///   explicit URLs (fa1.dev passes these after the fa_widgets submodule
+///   migration: vendored widgets resolve to raw
+///   flutter_js_widget_runtime at the pinned sha, exactly the code in the
+///   install zip). Extra files of multi-file widgets resolve relative to
+///   the `js` URL's directory. When omitted, the `<base>/<id>/`
+///   convention applies.
 library;
 
 import 'dart:js_interop';
@@ -60,6 +67,51 @@ class HttpWidgetFileReader implements WidgetFileReader {
       return false;
     }
   }
+}
+
+/// [WidgetFileReader] that serves the manifest and widget.js from explicit
+/// URLs (`?manifest=`/`?js=` query parameters). Any other path of the
+/// widget (multi-file imports, assets) resolves relative to the `js` URL's
+/// directory, mirroring how the file would sit next to widget.js in the
+/// source repo.
+class _UrlMappedReader implements WidgetFileReader {
+  _UrlMappedReader({
+    required this.widgetId,
+    required this.manifestUrl,
+    required this.jsUrl,
+  });
+
+  final String widgetId;
+  final String manifestUrl;
+  final String jsUrl;
+
+  String get _jsDir => jsUrl.substring(0, jsUrl.lastIndexOf('/'));
+
+  String? _map(String path) {
+    final norm = path.replaceAll('\\', '/').replaceFirst(RegExp('^/+'), '');
+    if (norm == '$widgetId/manifest.json') return manifestUrl;
+    if (norm == '$widgetId/widget.js') return jsUrl;
+    if (norm.startsWith('$widgetId/')) {
+      return '$_jsDir/${norm.substring(widgetId.length + 1)}';
+    }
+    return null;
+  }
+
+  @override
+  Future<String?> readString(String path) async {
+    final url = _map(path);
+    if (url == null) return null;
+    try {
+      final response = await web.window.fetch(url.toJS).toDart;
+      if (!response.ok) return null;
+      return (await response.text().toDart).toDart;
+    } catch (_) {
+      return null;
+    }
+  }
+
+  @override
+  Future<bool> exists(String path) async => await readString(path) != null;
 }
 
 /// Dark theme injected as `jsr.theme` (mirrors the engine defaults).
@@ -138,17 +190,31 @@ class PreviewPage extends StatefulWidget {
 }
 
 class _PreviewPageState extends State<PreviewPage> {
-  late final HttpWidgetFileReader _reader;
+  late final WidgetFileReader _reader;
   WidgetManifest? _manifest;
   String? _error;
 
   @override
   void initState() {
     super.initState();
-    final base = widget.query['base'];
-    _reader = HttpWidgetFileReader(
-      base != null && base.startsWith('http') ? base : _defaultBaseUrl,
-    );
+    final js = widget.query['js'];
+    if (js != null && js.startsWith('http')) {
+      // Explicit source URLs (vendored widgets on fa1.dev). The manifest
+      // URL is optional — without it the loader derives defaults.
+      final manifest = widget.query['manifest'];
+      _reader = _UrlMappedReader(
+        widgetId: widget.query['widget'] ?? '',
+        manifestUrl: manifest != null && manifest.startsWith('http')
+            ? manifest
+            : '${js.substring(0, js.lastIndexOf('/'))}/manifest.json',
+        jsUrl: js,
+      );
+    } else {
+      final base = widget.query['base'];
+      _reader = HttpWidgetFileReader(
+        base != null && base.startsWith('http') ? base : _defaultBaseUrl,
+      );
+    }
     _load();
   }
 

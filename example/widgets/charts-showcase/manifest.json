@@ -2,8 +2,8 @@
   "id": "charts-showcase",
   "name": "Charts Showcase",
   "description": "fl_chart-backed charts from JSON nodes: line, bar, pie, radar, scatter.",
-  "version": "1.0.0",
-  "icon": "📊",
+  "version": "1.0.1",
+  "icon": "\ud83d\udcca",
   "allowedCommands": [],
   "network": false,
   "cli": {

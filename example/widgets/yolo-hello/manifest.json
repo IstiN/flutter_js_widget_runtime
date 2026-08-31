@@ -2,15 +2,21 @@
   "id": "yolo-hello",
   "name": "Hello Animated",
   "description": "Interactive demo: animations, gestures, requestAnimationFrame",
-  "version": "1.0.1",
-  "icon": "🎨",
+  "version": "1.0.2",
+  "icon": "\ud83c\udfa8",
   "allowedCommands": [],
   "network": false,
   "cli": {
     "summary": "Animation and gesture demo",
     "events": [
-      { "id": "tap_hello", "description": "Animate the hello label" },
-      { "id": "toggle_theme", "description": "Toggle light/dark demo colors" }
+      {
+        "id": "tap_hello",
+        "description": "Animate the hello label"
+      },
+      {
+        "id": "toggle_theme",
+        "description": "Toggle light/dark demo colors"
+      }
     ],
     "read": {
       "state": "jsr app:state yolo-hello",

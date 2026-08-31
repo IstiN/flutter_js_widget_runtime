@@ -2,8 +2,8 @@
   "id": "3d-game-dodge",
   "name": "Dodge Blocks 3D",
   "description": "Keyboard mini game: dodge falling blocks with Arrow keys or A/D, press R to restart",
-  "version": "1.0.0",
-  "icon": "🕹️",
+  "version": "1.0.1",
+  "icon": "\ud83d\udd79\ufe0f",
   "allowedCommands": [],
   "network": false,
   "cli": {

@@ -111,6 +111,6 @@
     render();
   });
 
-  jsr.setTitle('🌐 WebView');
+  jsr.setTitle('WebView');
   render();
 })();

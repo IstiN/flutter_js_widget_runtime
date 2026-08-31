@@ -198,11 +198,7 @@
                     }
                   },
                   { type: 'sizedBox', width: 8 },
-                  {
-                    type: 'button',
-                    text: rotating ? '⏸ Pause' : '▶ Rotate',
-                    onTap: 'toggle_rotation'
-                  }
+                  rotateButton(jsr.theme)
                 ]
               }
             ]
@@ -210,6 +206,53 @@
         }
       ]
     });
+  }
+
+
+  // Play/pause glyphs — inline SVG (no emoji).
+  function svgIcon(body, size, color) {
+    return {
+      type: 'svg',
+      data: '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" ' +
+        'fill="none" stroke="' + color + '" stroke-width="1.8" ' +
+        'stroke-linecap="round" stroke-linejoin="round">' + body + '</svg>',
+      width: size, height: size
+    };
+  }
+  var GLYPH_PLAY = '<path d="M7 4.8v14.4L19.2 12Z"/>';
+  var GLYPH_PAUSE = '<path d="M8 5v14M16 5v14"/>';
+
+  function rotateButton(t) {
+    var fg = t.accent;
+    return {
+      type: 'inkWell',
+      onTap: 'toggle_rotation',
+      borderRadius: 12,
+      child: {
+        type: 'container',
+        padding: [9, 14, 9, 14],
+        decoration: {
+          color: t.surface,
+          borderRadius: 12,
+          borderColor: t.border,
+          borderWidth: 1
+        },
+        child: {
+          type: 'row',
+          mainAxisSize: 'min',
+          crossAxisAlignment: 'center',
+          children: [
+            svgIcon(rotating ? GLYPH_PAUSE : GLYPH_PLAY, 15, fg),
+            { type: 'sizedBox', width: 6 },
+            {
+              type: 'text',
+              data: rotating ? 'Pause' : 'Rotate',
+              style: { color: t.text, fontSize: 12.5, fontWeight: 'w600' }
+            }
+          ]
+        }
+      }
+    };
   }
 
   function handleEvent(actionId, payload) {
@@ -232,6 +275,6 @@
   }
 
   jsr.onEvent(handleEvent);
-  jsr.setTitle('🧊 3D Showcase');
+  jsr.setTitle('3D Showcase');
   init();
 })();

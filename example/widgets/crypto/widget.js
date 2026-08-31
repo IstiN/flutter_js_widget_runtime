@@ -5,7 +5,7 @@
     {id:'ethereum',  sym:'ETH', icon:'Ξ',  color:'#818cf8'},
     {id:'solana',    sym:'SOL', icon:'◎',  color:'#34d399'},
     {id:'binancecoin',sym:'BNB',icon:'B',  color:'#fbbf24'},
-    {id:'ripple',    sym:'XRP', icon:'✕',  color:'#60a5fa'},
+    {id:'ripple',    sym:'XRP', icon:'X',  color:'#60a5fa'},
   ];
   var _chartCoin = null;
 

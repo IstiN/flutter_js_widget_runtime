@@ -885,15 +885,49 @@ class _ErrorWidget extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // A calm, theme-neutral placeholder — a missing model is expected in
+    // some environments (web preview without flutter_gpu, install-dir
+    // assets unavailable) and must not look like an alarm.
+    const muted = Color(0xFF94A3B8);
+    const faint = Color(0xFF64748B);
     return Center(
       child: Padding(
         padding: const EdgeInsets.all(16),
-        child: Text(
-          message,
-          textAlign: TextAlign.center,
-          style: const TextStyle(
-            color: Color.fromARGB(255, 239, 68, 68),
-          ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              width: 56,
+              height: 56,
+              decoration: BoxDecoration(
+                color: muted.withAlpha(20),
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(color: muted.withAlpha(60)),
+              ),
+              child: const Icon(
+                Icons.view_in_ar_outlined,
+                size: 28,
+                color: muted,
+              ),
+            ),
+            const SizedBox(height: 12),
+            const Text(
+              '3D preview unavailable',
+              style: TextStyle(
+                color: muted,
+                fontSize: 13,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+            const SizedBox(height: 4),
+            Text(
+              message,
+              textAlign: TextAlign.center,
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+              style: const TextStyle(color: faint, fontSize: 10.5),
+            ),
+          ],
         ),
       ),
     );

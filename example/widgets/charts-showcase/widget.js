@@ -73,6 +73,6 @@
   }
 
   jsr.onEvent(function() {});
-  jsr.setTitle('📊 Charts');
+  jsr.setTitle('Charts');
   render();
 })();
