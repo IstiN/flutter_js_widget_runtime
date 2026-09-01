@@ -88,6 +88,7 @@ Renderer effects ported from YoClip: radial gradients, box shadows, blur nodes, 
 
 - Add a `scene3d` node to the JSON tree and a `Js3dHost` to `JsRuntimeConfig.js3dHost`.
 - Ready-made hosts ship in the package: `createJs3dHost()` (dispatcher; routes GLB/`engine:'flame'` to `Flame3dHost`, primitives/OBJ to `Cube3dHost`), `createFlame3dHost()` (GLB/GLTF with PBR on Impeller platforms), `createCube3dHost()` (cross-platform primitives + OBJ via flutter_cube).
+- GLB source resolution (`Js3dUrlGlbParser`): `http(s)://` fetched as bytes → `createJs3dHost(fileBytesLoader: …)` / `createFlame3dHost(fileBytesLoader: …)` (`Js3dFileBytesLoader = Future<Uint8List?> Function(String src)` — for sandboxed installs outside the asset bundle, e.g. `Documents/fah_sandbox/apps/...`; return null to fall through) → existing local file path (optionally `file://`) read directly on the VM → stock asset-bundle parser.
 - `Js3dHost` is an abstraction; custom engines can be plugged by implementing it.
 - Examples: `example/widgets/3d-showcase/` (primitives), `example/widgets/3d-glb-showcase/` (DamagedHelmet GLB) and `example/widgets/3d-game-dodge/` (mini game).
 

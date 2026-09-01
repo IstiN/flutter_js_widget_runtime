@@ -19,7 +19,13 @@ export 'src/renderer/nodes/hosts/cube_3d_host.dart'
 export 'src/renderer/nodes/hosts/dispatcher_3d_host.dart'
     show Js3dDispatcherHost, createJs3dHost;
 export 'src/renderer/nodes/hosts/flame_3d_host.dart'
-    show Flame3dHost, Flame3dController, JsFlame3dGame, createFlame3dHost;
+    show
+        Flame3dHost,
+        Flame3dController,
+        JsFlame3dGame,
+        createFlame3dHost,
+        Js3dFileBytesLoader,
+        Js3dUrlGlbParser;
 export 'src/renderer/nodes/hosts/js_3d_capture_sync.dart' show Js3dCaptureSync;
 export 'src/renderer/nodes/js_3d_host.dart'
     show

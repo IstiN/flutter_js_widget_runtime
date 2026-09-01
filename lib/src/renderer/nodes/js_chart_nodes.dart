@@ -104,8 +104,12 @@ extension on JsonWidgetRenderer {
     );
   }
 
-  /// `pie` — `{sections: [{label?, value: num, color?}], centerSpaceRadius?
-  /// (default 32)}`; section titles are hidden.
+  /// `pie` — `{sections: [{label?, value: num, color?, radius?}],
+  /// centerSpaceRadius? (default 32)}`; section titles are hidden. Section
+  /// `radius` is the ring thickness in logical px — fl_chart defaults it to
+  /// an absolute 40, so a pie whose box is smaller than
+  /// `2 * (centerSpaceRadius + 40)` paints past its bounds unless every
+  /// section sets an explicit radius.
   Widget _flPieChart(Map<String, dynamic> m) {
     final rawSections = m['sections'] as List? ?? const <dynamic>[];
     final sections = <PieChartSectionData>[
@@ -129,6 +133,7 @@ extension on JsonWidgetRenderer {
     return PieChartSectionData(
       value: value,
       color: _flChartColor(raw['color'], index),
+      radius: jsDoubleOrNull(raw['radius']) ?? 40,
       showTitle: false,
     );
   }

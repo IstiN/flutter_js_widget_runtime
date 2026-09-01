@@ -6,7 +6,15 @@ import 'package:js_widget_runtime/js_widget_runtime.dart';
 /// Procedural primitives and OBJ models are rendered with the cross-platform
 /// `flutter_cube` host. GLB/GLTF models are routed to the `flame_3d` host
 /// (Android/iOS/macOS only) for PBR materials, animations, and shadows.
-Js3dHost createJs3dHost() => Js3dDispatcherHost.instance;
+///
+/// [fileBytesLoader] is forwarded to the flame host's GLB parser — see
+/// [Js3dFileBytesLoader] for the sandboxed-files contract.
+Js3dHost createJs3dHost({Js3dFileBytesLoader? fileBytesLoader}) {
+  if (fileBytesLoader != null) {
+    Js3dUrlGlbParser.fileBytesLoader = fileBytesLoader;
+  }
+  return Js3dDispatcherHost.instance;
+}
 
 /// {@template js3d_dispatcher_host}
 /// Dispatches `scene3d` nodes to either the `flutter_cube` host or the

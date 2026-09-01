@@ -212,6 +212,21 @@ class _RunningWidget {
     return renders.length > before ? renders.last : null;
   }
 
+  /// Delivers a host event (viewport, key, …) and waits for the re-render
+  /// it triggers, mirroring what JsWidgetRuntimeWidget does on layout.
+  Future<Map<String, dynamic>?> hostEvent(
+    String target,
+    Map<String, dynamic> payload, [
+    int waitFor = 20,
+  ]) async {
+    final before = renders.length;
+    backend.dispatchHostEvent(target, payload);
+    for (var i = 0; i < waitFor && renders.length <= before; i++) {
+      await Future<void>.delayed(const Duration(milliseconds: 10));
+    }
+    return renders.length > before ? renders.last : null;
+  }
+
   Future<void> dispose() => backend.dispose();
 }
 
@@ -299,6 +314,10 @@ Widget _host(Map<String, dynamic>? tree, [String? widgetId]) => MaterialApp(
 final Map<String, Map<String, dynamic>?> _trees = {};
 final Map<String, _RunningWidget> _runners = {};
 
+/// Trees captured after a host event (e.g. a tile-sized viewport report),
+/// computed in setUpAll on the real event loop like [_trees].
+final Map<String, Map<String, dynamic>?> _compactTrees = {};
+
 /// Golden comparator tolerant to sub-pixel platform differences: font
 /// rasterization (macOS CoreText vs Linux FreeType) produces slightly
 /// different anti-aliasing — typically under 0.5% of pixels, but enough to
@@ -376,6 +395,19 @@ void main() {
           await runner.dispose();
         }
       }
+      // Compact tile layout: pomodoro switches when the host is short.
+      // Boot a dedicated engine here (real event loop — the testWidgets
+      // fake-async zone would freeze `run`), deliver the tile viewport
+      // report and keep the re-rendered tree for the golden pump.
+      {
+        final js = File(_widgetFiles['pomodoro']!).readAsStringSync();
+        final runner = await _runWidget(js, 'pomodoro');
+        _compactTrees['pomodoro'] = await runner.hostEvent('viewport', {
+          'width': 420,
+          'height': 160,
+        });
+        await runner.dispose();
+      }
     }
     // Real fonts make goldens readable and reusable as README screenshots;
     // the TTF comes from the pinned Flutter SDK so it is identical on every
@@ -443,6 +475,28 @@ void main() {
       );
     });
   }
+
+  // Tile embedding: a short wide host (~160 px) must switch pomodoro to
+  // its compact strip layout instead of clipping the full ring column.
+  // The compact tree is precomputed in setUpAll (real event loop).
+  testWidgets('pomodoro switches to the compact layout in a tile',
+      (tester) async {
+    if (!_hasNativeLib) {
+      markTestSkipped('QuickJS native library not built');
+    }
+    await tester.binding.setSurfaceSize(const Size(420, 160));
+
+    final tree = _compactTrees['pomodoro'];
+    expect(tree, isNotNull, reason: 'pomodoro did not re-render compact');
+
+    await tester.pumpWidget(_host(tree!, 'pomodoro'));
+    await tester.pump(const Duration(milliseconds: 16));
+
+    await expectLater(
+      find.byType(MaterialApp),
+      matchesGoldenFile('goldens/pomodoro-compact.png'),
+    );
+  });
 
   // Interactive showcase walk: tap each animation-demo row in the menu and
   // capture the scene it opens. Verifies the whole event → JS → render

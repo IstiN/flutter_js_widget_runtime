@@ -28,7 +28,16 @@ part 'flame_3d_controller_config.dart';
 /// Supports GLB/GLTF/OBJ models with animations and lighting. This host
 /// requires Impeller + Flutter GPU, so it only runs on Android, iOS, and
 /// macOS. On other platforms the panel shows a fallback message.
-Js3dHost createFlame3dHost() => Flame3dHost.instance;
+///
+/// [fileBytesLoader] lets the host app resolve model sources that live
+/// outside the asset bundle (a sandboxed Documents tree, app-specific
+/// path mapping). See [Js3dFileBytesLoader].
+Js3dHost createFlame3dHost({Js3dFileBytesLoader? fileBytesLoader}) {
+  if (fileBytesLoader != null) {
+    Js3dUrlGlbParser.fileBytesLoader = fileBytesLoader;
+  }
+  return Flame3dHost.instance;
+}
 
 /// {@template flame3d_host}
 /// A [Js3dHost] that drives a `flame_3d` scene from JS commands.
@@ -1234,19 +1243,47 @@ extension _Vector3Let on Vector3 {
 /// Flame's default black backdrop must not cover them.
 const _transparentBackdrop = Color(0x00000000);
 
-/// GLB parser that fetches http(s) sources as bytes before chunk-walking.
+/// Loads model bytes for a source that lives outside the Flutter asset
+/// bundle — e.g. a sandboxed Documents tree on mobile, where installed
+/// widgets keep their files (`Documents/fah_sandbox/apps/...`).
+///
+/// Return the bytes to parse, or null to fall through to the built-in
+/// local-file read and then the asset bundle.
+typedef Js3dFileBytesLoader = Future<Uint8List?> Function(String src);
+
+/// GLB parser that resolves non-asset sources as bytes before
+/// chunk-walking.
 ///
 /// flame_3d's stock [GlbParser.parseGlb] reads via `Flame.assets` (the
-/// asset bundle), so a URL src fails with `Unable to load asset:
-/// assets/https://…`. Asset and relative paths delegate unchanged.
+/// asset bundle), so anything outside the bundle fails with `Unable to
+/// load asset: …`. Resolution order:
+/// 1. `http(s)://` — fetched over the network (CORS applies on web);
+/// 2. [fileBytesLoader] — host-provided sandbox resolution (VM hosts
+///    only; returning null falls through);
+/// 3. an existing local file path (optionally `file://`-schemed) — read
+///    directly on the VM;
+/// 4. otherwise the stock asset-bundle parser, unchanged.
 class Js3dUrlGlbParser extends glb_parser.GlbParser {
+  /// Host-provided byte loader, set via
+  /// `createFlame3dHost(fileBytesLoader: …)` /
+  /// `createJs3dHost(fileBytesLoader: …)` or directly. Process-global,
+  /// like the `ModelParser.glb` override itself.
+  static Js3dFileBytesLoader? fileBytesLoader;
+
   @override
   Future<glb_parser.Glb> parseGlb(String filePath) async {
-    if (!filePath.startsWith('http://') && !filePath.startsWith('https://')) {
-      return super.parseGlb(filePath);
+    if (filePath.startsWith('http://') || filePath.startsWith('https://')) {
+      final content = await js3dFetchBytes(filePath);
+      return parseGlbBytes(content, filePath);
     }
-    final content = await js3dFetchBytes(filePath);
-    return parseGlbBytes(content, filePath);
+    final loader = fileBytesLoader;
+    if (loader != null) {
+      final bytes = await loader(filePath);
+      if (bytes != null) return parseGlbBytes(bytes, filePath);
+    }
+    final local = await js3dReadLocalFileBytes(filePath);
+    if (local != null) return parseGlbBytes(local, filePath);
+    return super.parseGlb(filePath);
   }
 
   /// Walks the GLB container header and chunks (Khronos glTF 2.0 §12).
