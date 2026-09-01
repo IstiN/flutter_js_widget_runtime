@@ -1,0 +1,51 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <!-- js_widget_runtime app icon: JavaScript driving a stack of Flutter widgets -->
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#101F3C"/>
+      <stop offset="1" stop-color="#0A1428"/>
+    </linearGradient>
+    <linearGradient id="bar1" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#6FD3FF"/>
+      <stop offset="1" stop-color="#38B0F3"/>
+    </linearGradient>
+    <linearGradient id="bar2" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#3FB2F5"/>
+      <stop offset="1" stop-color="#1E88DD"/>
+    </linearGradient>
+    <linearGradient id="bar3" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#2288DC"/>
+      <stop offset="1" stop-color="#0F62B8"/>
+    </linearGradient>
+    <linearGradient id="tile" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#FFE24A"/>
+      <stop offset="1" stop-color="#F0D413"/>
+    </linearGradient>
+  </defs>
+
+  <!-- background tile -->
+  <rect x="16" y="16" width="480" height="480" rx="112" fill="url(#bg)"/>
+  <rect x="18.5" y="18.5" width="475" height="475" rx="109.5" fill="none"
+        stroke="#2B4C7E" stroke-width="3" opacity="0.55"/>
+
+  <!-- widget stack: three skewed Flutter-style bars cascading down-right -->
+  <g transform="skewX(-12)">
+    <rect x="252" y="118" width="216" height="62" rx="18" fill="url(#bar1)"/>
+    <rect x="288" y="204" width="180" height="62" rx="18" fill="url(#bar2)"/>
+    <rect x="324" y="290" width="144" height="62" rx="18" fill="url(#bar3)"/>
+  </g>
+  <!-- widget nodes: small dots hinting at a rendered UI tree -->
+  <circle cx="418" cy="149" r="9" fill="#EAF6FF" opacity="0.9"/>
+  <circle cx="386" cy="149" r="9" fill="#EAF6FF" opacity="0.55"/>
+  <circle cx="354" cy="149" r="9" fill="#EAF6FF" opacity="0.3"/>
+
+  <!-- JavaScript tile powering the stack -->
+  <g transform="rotate(-8 208 356)">
+    <rect x="122" y="272" width="172" height="172" rx="38" fill="url(#tile)"/>
+    <rect x="122" y="272" width="172" height="172" rx="38" fill="none"
+          stroke="#B99F06" stroke-width="2" opacity="0.5"/>
+    <text x="208" y="392" text-anchor="middle" fill="#0A1428"
+          font-family="Arial, Helvetica, sans-serif" font-weight="800"
+          font-size="96" letter-spacing="-2">JS</text>
+  </g>
+</svg>

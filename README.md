@@ -1,5 +1,9 @@
 # js_widget_runtime
 
+<p align="center">
+  <img src="doc/icon.svg" width="128" alt="js_widget_runtime icon — a JavaScript tile driving a stack of Flutter widget bars">
+</p>
+
 [![CI](https://github.com/IstiN/flutter_js_widget_runtime/actions/workflows/pr.yml/badge.svg)](https://github.com/IstiN/flutter_js_widget_runtime/actions/workflows/pr.yml)
 [![pub package](https://img.shields.io/pub/v/js_widget_runtime.svg)](https://pub.dev/packages/js_widget_runtime)
 [![pub points](https://img.shields.io/pub/points/js_widget_runtime)](https://pub.dev/packages/js_widget_runtime/score)
