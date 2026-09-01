@@ -55,6 +55,7 @@ jobs:
         run: |
           mkdir _site
           cp site/index.html _site/index.html
+          cp doc/icon.svg _site/icon.svg
           cp -r example/build/web _site/preview
 
       - name: Setup Pages
