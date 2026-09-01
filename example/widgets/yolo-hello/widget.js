@@ -20,6 +20,13 @@
     return '#' + f(0) + f(8) + f(4);
   }
 
+  // Container size: the demo box is 200px wide — clamp it for tiles.
+  var view = { w: 0, h: 0 };
+  function boxWidth() {
+    var avail = (view.w > 0 ? view.w : 390) - 48;
+    return Math.max(80, Math.min(200 * scale, avail));
+  }
+
   function render() {
     var bg = hslToHex(hue, 70, 45);
     var textColor = '#ffffff';
@@ -33,7 +40,7 @@
         {type: 'animatedContainer',
           duration: bouncing ? 50 : 300,
           curve: bouncing ? 'linear' : 'bounce',
-          width: 200 * scale,
+          width: boxWidth(),
           height: 120 * scale,
           transform: {translateY: bounceY, scale: scale},
           decoration: {color: bg, borderRadius: 16,
@@ -51,13 +58,11 @@
           }
         },
         {type: 'sizedBox', height: 20},
-        // Controls
-        {type: 'row', mainAxisSize: 'min', children: [
+        // Controls — wrap (tiles are too narrow for one row of buttons)
+        {type: 'wrap', spacing: 8, runSpacing: 0, alignment: 'center', children: [
           {type: 'textButton', text: 'Color', onTap: 'color'},
-          {type: 'sizedBox', width: 8},
           {type: 'textButton', text: 'Bounce', onTap: 'bounce'},
-          {type: 'sizedBox', width: 8},
-          {type: 'textButton', text: scale > 1 ? 'Shrink' : 'Grow', onTap: 'resize'},
+          {type: 'textButton', text: scale > 1 ? 'Shrink' : 'Grow', onTap: 'resize'}
         ]},
       ]}]
     });
@@ -111,6 +116,12 @@
         break;
     }
   }
+
+  jsr.onViewport(function (v) {
+    var changed = view.w !== v.width || view.h !== v.height;
+    view = { w: v.width, h: v.height };
+    if (changed) render();
+  });
 
   jsr.onEvent(handleEvent);
   jsr.setTitle('Hello Animated');

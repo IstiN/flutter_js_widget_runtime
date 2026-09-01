@@ -2,8 +2,8 @@
   "id": "stocks",
   "name": "Stock Prices",
   "description": "Real-time stock quotes",
-  "version": "1.0.2",
-  "icon": "\ud83d\udcc8",
+  "version": "1.0.3",
+  "icon": "📈",
   "allowedCommands": [],
   "network": true,
   "cli": {
@@ -31,7 +31,7 @@
       }
     ],
     "read": {
-      "state": "jsr app:state stocks \u2014 quotes[] with price and changePct",
+      "state": "jsr app:state stocks — quotes[] with price and changePct",
       "snapshot": "jsr app:snapshot stocks"
     },
     "examples": [

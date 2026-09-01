@@ -117,6 +117,26 @@ void main() {
       controller.dispose();
     });
 
+    test('warmUp initializes the game with no queued commands', () async {
+      Flame3dHost.instance.skipGpuInit = true;
+      addTearDown(() => Flame3dHost.instance.skipGpuInit = false);
+      final game = _RecordingGame();
+      final controller = Flame3dController(
+        'warmup',
+        const {},
+        Flame3dHost.instance,
+        gameFactory: (_, __) => game,
+      );
+      addTearDown(controller.dispose);
+
+      // Panel reopen: the remounted scene node may carry no model/camera
+      // config — warmUp must still start the game (loader-forever bug).
+      controller.warmUp();
+      await Future<void>.delayed(Duration.zero);
+      expect(controller.hasGame, isTrue);
+      expect(controller.pendingLength, 0);
+    });
+
     testWidgets('live game: same src → transform only, prune, reload',
         (tester) async {
       Flame3dHost.instance.skipGpuInit = true;

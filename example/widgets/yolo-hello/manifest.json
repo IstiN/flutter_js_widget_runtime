@@ -2,8 +2,8 @@
   "id": "yolo-hello",
   "name": "Hello Animated",
   "description": "Interactive demo: animations, gestures, requestAnimationFrame",
-  "version": "1.0.2",
-  "icon": "\ud83c\udfa8",
+  "version": "1.0.3",
+  "icon": "🎨",
   "allowedCommands": [],
   "network": false,
   "cli": {

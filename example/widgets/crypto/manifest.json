@@ -2,8 +2,8 @@
   "id": "crypto",
   "name": "Crypto Prices",
   "description": "Live BTC, ETH, SOL prices via CoinGecko",
-  "version": "1.0.2",
-  "icon": "\u20bf",
+  "version": "1.0.3",
+  "icon": "₿",
   "allowedCommands": [],
   "network": true,
   "cli": {
@@ -23,7 +23,7 @@
       }
     ],
     "read": {
-      "state": "jsr app:state crypto \u2014 prices[] with usd and change24h",
+      "state": "jsr app:state crypto — prices[] with usd and change24h",
       "snapshot": "jsr app:snapshot crypto"
     },
     "examples": [

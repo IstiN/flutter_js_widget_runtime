@@ -17,6 +17,8 @@
   var START_LIVES = 3;
 
   var state;
+  // Container size: the HUD hides the key hint on narrow tiles.
+  var view = { w: 0, h: 0 };
   var keys = { left: false, right: false };
   var lastTick = 0;
   var blockSeq = 0;
@@ -278,15 +280,17 @@
           color: jsr.theme.surface,
           padding: [10, 16, 10, 16],
           child: {
+            // Compact tiles: the key hint does not fit — SCORE/hearts/BEST only.
             type: 'row',
             mainAxisAlignment: 'spaceBetween',
             crossAxisAlignment: 'center',
             children: [
               statText('SCORE', state.score.toFixed(1) + 's'),
               { type: 'row', mainAxisSize: 'min', children: hearts() },
-              statText('BEST', state.best.toFixed(1) + 's'),
+              statText('BEST', state.best.toFixed(1) + 's')
+            ].concat(view.w >= 300 ? [
               { type: 'text', data: 'Arrows / A D', style: { fontSize: 11, color: jsr.theme.muted } }
-            ]
+            ] : [])
           }
         }
       ]
@@ -294,6 +298,12 @@
   }
 
   state = freshState();
+    jsr.onViewport(function (v) {
+    var changed = view.w !== v.width || view.h !== v.height;
+    view = { w: v.width, h: v.height };
+    if (changed) render();
+  });
+
   jsr.onEvent(function() {});
   jsr.setTitle('Dodge Blocks 3D');
   init();

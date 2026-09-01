@@ -20,8 +20,12 @@
   // and wide (~150 px) — the full 230 px ring column cannot fit there.
   var view = { width: 0, height: 0 };
 
-  function isCompact() {
-    return view.height > 0 && view.height < 260;
+  // Tile sizes: 2x2 ~170x170, 4x2 ~350x170, 4x4+ ~350 tall.
+  function layoutMode() {
+    if (view.height <= 0) return 'full'; // no viewport report yet
+    if (view.height < 200 && view.width < 260) return 'mini';
+    if (view.height < 260 && view.width >= 300) return 'strip';
+    return 'full';
   }
 
   function phaseSeconds() {
@@ -157,14 +161,30 @@
     };
   }
 
-  // Tile layout: a short wide strip — ring on the left, dots + controls
+  // 2x2 tile: just the face — ring + time + phase label, no controls
+  // (the host opens the full panel on tile tap).
+  function renderMini(t) {
+    var size = Math.max(96, Math.min(view.width, view.height) - 36);
+    return {
+      type: 'container',
+      color: t.bg,
+      child: {
+        type: 'listView', shrinkWrap: false, padding: [4, 4, 4, 4],
+        children: [
+          { type: 'center', child: ring(t, size) }
+        ]
+      }
+    };
+  }
+
+  // 4x2 tile: a short wide strip — ring on the left, dots + controls
   // stacked on the right. Everything the full mode has, minus the caption.
   function renderCompact(t) {
     return {
       type: 'container',
       color: t.bg,
       child: {
-        type: 'listView', shrinkWrap: false, padding: [6, 10, 6, 10],
+        type: 'listView', shrinkWrap: false, padding: [6, 8, 6, 8],
         children: [
           {
             type: 'center',
@@ -173,7 +193,7 @@
               crossAxisAlignment: 'center',
               children: [
                 ring(t, 104),
-                { type: 'sizedBox', width: 18 },
+                { type: 'sizedBox', width: 12 },
                 {
                   type: 'column', mainAxisSize: 'min',
                   crossAxisAlignment: 'center',
@@ -213,7 +233,12 @@
       running: state.running,
       completed: state.completed
     });
-    if (isCompact()) {
+    var mode = layoutMode();
+    if (mode === 'mini') {
+      jsr.render(renderMini(t));
+      return;
+    }
+    if (mode === 'strip') {
       jsr.render(renderCompact(t));
       return;
     }

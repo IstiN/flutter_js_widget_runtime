@@ -259,6 +259,14 @@
 
   function render() {
     var t = jsr.theme;
+    // Diagnostics breadcrumbs (fa1 118: no media-host lines at all on iOS —
+    // prove the widget renders and the video node is in the tree).
+    var sig = state.video + '|' + state.fit + '|' + state.playing + '|' + state.muted;
+    if (sig !== render._last) {
+      render._last = sig;
+      console.log('vp render: video=' + state.video + ' fit=' + state.fit +
+        ' playing=' + state.playing + ' node=video(src=' + VIDEOS[state.video].src + ')');
+    }
     jsr.exportState({ video: state.video, title: VIDEOS[state.video].title, fit: state.fit });
     jsr.render({
       type: 'container',

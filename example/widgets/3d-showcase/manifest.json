@@ -2,8 +2,8 @@
   "id": "3d-showcase",
   "name": "3D Showcase",
   "description": "Interactive procedural 3D scene with cube, sphere and torus",
-  "version": "1.0.1",
-  "icon": "\ud83e\uddca",
+  "version": "1.0.2",
+  "icon": "🧊",
   "allowedCommands": [],
   "network": false,
   "cli": {

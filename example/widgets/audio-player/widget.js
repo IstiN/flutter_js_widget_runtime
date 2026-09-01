@@ -55,6 +55,13 @@
       '<path d="M14.5 9.5a3.5 3.5 0 0 1 0 5M17 7a7 7 0 0 1 0 10"/>'
   };
 
+  // Container size: at 2x2 tiles the pill transport row cannot fit —
+  // switch to icon-only buttons and tighter paddings.
+  var view = { w: 0, h: 0 };
+  function isCompact() {
+    return view.w > 0 && view.w < 260;
+  }
+
   function transportButton(t, glyph, label, event, primary) {
     var fg = primary ? t.onAccent : t.text;
     return {
@@ -63,7 +70,7 @@
       borderRadius: 12,
       child: {
         type: 'container',
-        padding: [9, 14, 9, 14],
+        padding: isCompact() ? [7, 9, 7, 9] : [9, 14, 9, 14],
         decoration: {
           color: primary ? t.accent : t.surfaceAlt,
           borderRadius: 12
@@ -72,14 +79,17 @@
           type: 'row',
           mainAxisSize: 'min',
           crossAxisAlignment: 'center',
-          children: [
-            svgIcon(GLYPHS[glyph], 14, fg),
-            { type: 'sizedBox', width: 6 },
-            {
-              type: 'text', data: label,
-              style: { color: fg, fontSize: 12.5, fontWeight: 'w600' }
+          children: (function () {
+            var kids = [svgIcon(GLYPHS[glyph], isCompact() ? 16 : 14, fg)];
+            if (!isCompact()) {
+              kids.push({ type: 'sizedBox', width: 6 });
+              kids.push({
+                type: 'text', data: label,
+                style: { color: fg, fontSize: 12.5, fontWeight: 'w600' }
+              });
             }
-          ]
+            return kids;
+          })()
         }
       }
     };
@@ -101,7 +111,8 @@
       // The zero-size audio_player driver node sits inside the scrollable
       // root as its first child: the host plays `src` and follows its props.
       child: {
-        type: 'listView', shrinkWrap: false, padding: [16, 24, 16, 24],
+        type: 'listView', shrinkWrap: false,
+        padding: isCompact() ? [10, 10, 10, 12] : [16, 24, 16, 24],
         children: [
           {
             type: 'audio_player',
@@ -114,7 +125,7 @@
               {
                 type: 'card', color: t.surface,
                 child: {
-                  type: 'container', padding: 20,
+                  type: 'container', padding: isCompact() ? 10 : 20,
                   child: {
                     type: 'column', crossAxisAlignment: 'center',
                     children: [
@@ -210,7 +221,13 @@
     });
   }
 
-  jsr.onEvent(function(name, payload) {
+    jsr.onViewport(function (v) {
+    var changed = view.w !== v.width || view.h !== v.height;
+    view = { w: v.width, h: v.height };
+    if (changed) render();
+  });
+
+jsr.onEvent(function(name, payload) {
     var value = payload && payload.value;
     if (name === 'play_pause') {
       state.playing = !state.playing;

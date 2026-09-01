@@ -114,12 +114,70 @@
     return { type: 'sizedBox', height: 0 };
   }
 
+  // Compact tile (2x2/4x2 ~170px tall): the live demo does not fit —
+  // render a launcher card instead (the host opens the panel on tap).
+  var view = { w: 0, h: 0 };
+  function isTile() {
+    return view.h > 0 && view.h < 260;
+  }
+  function tileCard(t, icon, title, subtitle) {
+    return {
+      type: 'container',
+      color: t.bg,
+      child: {
+        type: 'center',
+        child: {
+          type: 'container',
+          padding: [10, 12, 10, 12],
+          decoration: {
+            color: t.surface,
+            borderRadius: 14,
+            borderColor: t.border,
+            borderWidth: 1
+          },
+          child: {
+            type: 'row', mainAxisSize: 'min', crossAxisAlignment: 'center',
+            children: [
+              {
+                type: 'container',
+                width: 40, height: 40,
+                decoration: { color: '#22' + t.accent.replace('#', ''), borderRadius: 12 },
+                child: { type: 'center', child: { type: 'icon',
+                  name: icon, size: 22, color: t.accent } }
+              },
+              { type: 'sizedBox', width: 10 },
+              {
+                type: 'column', crossAxisAlignment: 'start', mainAxisSize: 'min',
+                children: [
+                  { type: 'text', data: title,
+                    style: { color: t.text, fontSize: 14, fontWeight: 'w700' } },
+                  { type: 'text', data: subtitle,
+                    style: { color: t.muted, fontSize: 11 } }
+                ]
+              }
+            ]
+          }
+        }
+      }
+    };
+  }
+  function viewportRerender(rerender) {
+    jsr.onViewport(function (v) {
+      var changed = view.w !== v.width || view.h !== v.height;
+      view = { w: v.width, h: v.height };
+      if (changed) rerender();
+    });
+  }
   function render() {
     var t = jsr.theme;
     jsr.exportState({
       nav: state.nav, rail: state.rail, seg: state.seg, radio: state.radio,
       created: state.created, banner: state.banner, lastMenu: state.lastMenu
     });
+    if (isTile()) {
+      jsr.render(tileCard(t, 'widgets', 'M3 Showcase', 'Material 3 demo'));
+      return;
+    }
     jsr.render({
       type: 'drawer',
       drawer: drawerNode(t),
@@ -175,10 +233,9 @@
                 card(t, [
                   caption(t, 'RADIO'),
                   {
-                    type: 'row',
+                    type: 'wrap', spacing: 8, runSpacing: 8,
                     children: [
                       { type: 'radio', value: 'standard', groupValue: state.radio, label: 'Standard', onChanged: 'radio_changed' },
-                      { type: 'sizedBox', width: 8 },
                       { type: 'radio', value: 'compact', groupValue: state.radio, label: 'Compact', onChanged: 'radio_changed' }
                     ]
                   }
@@ -186,12 +243,10 @@
                 card(t, [
                   caption(t, 'BUTTONS · TOOLTIP · POPUPMENU'),
                   {
-                    type: 'row',
+                    type: 'wrap', spacing: 8, runSpacing: 8,
                     children: [
                       { type: 'button', text: 'Filled', onTap: 'noop' },
-                      { type: 'sizedBox', width: 8 },
                       { type: 'outlinedButton', text: 'Outlined', onTap: 'noop' },
-                      { type: 'sizedBox', width: 8 },
                       { type: 'textButton', text: 'Text', onTap: 'noop' }
                     ]
                   },
@@ -323,19 +378,14 @@
                 card(t, [
                   caption(t, 'FLOATINGACTIONBUTTON'),
                   {
-                    type: 'row',
+                    type: 'wrap', spacing: 12, runSpacing: 8, crossAxisAlignment: 'center',
                     children: [
                       { type: 'fab', icon: 'add', label: 'Create', onTap: 'fab_tap' },
-                      { type: 'sizedBox', width: 12 },
                       { type: 'fab', icon: 'remove', mini: true, onTap: 'fab_remove' },
-                      { type: 'sizedBox', width: 12 },
                       {
-                        type: 'expanded',
-                        child: {
-                          type: 'text',
-                          data: 'Created: ' + state.created,
-                          style: { color: t.text, fontSize: 13 }
-                        }
+                        type: 'text',
+                        data: 'Created: ' + state.created,
+                        style: { color: t.text, fontSize: 13 }
                       }
                     ]
                   }
@@ -343,21 +393,12 @@
                 card(t, [
                   caption(t, 'OVERLAYS'),
                   {
-                    type: 'row',
+                    type: 'wrap', spacing: 8, runSpacing: 8,
                     children: [
                       { type: 'outlinedButton', text: 'Sheet', onTap: 'show_sheet' },
-                      { type: 'sizedBox', width: 8 },
                       { type: 'outlinedButton', text: 'Dialog', onTap: 'show_dialog' },
-                      { type: 'sizedBox', width: 8 },
-                      { type: 'outlinedButton', text: 'Snack', onTap: 'show_snack' }
-                    ]
-                  },
-                  { type: 'sizedBox', height: 8 },
-                  {
-                    type: 'row',
-                    children: [
+                      { type: 'outlinedButton', text: 'Snack', onTap: 'show_snack' },
                       { type: 'outlinedButton', text: 'Date', onTap: 'show_date' },
-                      { type: 'sizedBox', width: 8 },
                       { type: 'outlinedButton', text: 'Time', onTap: 'show_time' }
                     ]
                   }
@@ -435,6 +476,8 @@
     if (name === 'date_picked' || name === 'time_picked') state.overlay = null;
     render();
   });
+
+  viewportRerender(render);
 
   jsr.setTitle('M3 Showcase');
   render();
