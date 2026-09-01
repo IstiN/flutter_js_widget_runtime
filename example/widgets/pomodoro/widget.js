@@ -16,6 +16,14 @@
     endsAt: 0           // Date.now() timestamp when the phase ends (running only)
   };
 
+  // Host-allotted size, fed by jsr.viewport()/onViewport. Tiles are short
+  // and wide (~150 px) — the full 230 px ring column cannot fit there.
+  var view = { width: 0, height: 0 };
+
+  function isCompact() {
+    return view.height > 0 && view.height < 260;
+  }
+
   function phaseSeconds() {
     if (state.mode === 'focus') return FOCUS_SEC;
     // Every 4th break is a long one.
@@ -57,23 +65,36 @@
     render();
   }
 
-  function ring(t) {
+  function ring(t, size) {
     var total = phaseSeconds();
     var done = total - state.remaining;
     var accent = state.mode === 'focus' ? t.accent : t.accent2;
+    var compact = size < 200;
+    // fl_chart section radius is ABSOLUTE (default 40) and the painter
+    // draws at centerSpace + radius — pass the exact ring thickness or the
+    // pie paints past its sizedBox (sqrt(2) overshoot measured in goldens).
+    var centerR = compact ? size * 0.36 : 96;
+    var ringThickness = size / 2 - centerR;
+    // No 0.0001 placeholder slivers: they draw a 1 px boundary line at
+    // angle 0. A truly-empty ring is a single full-value section.
+    var sections = done <= 0
+      ? [{ value: total, color: t.surfaceAlt, radius: ringThickness }]
+      : state.remaining <= 0
+        ? [{ value: total, color: accent, radius: ringThickness }]
+        : [
+            { value: done, color: accent, radius: ringThickness },
+            { value: state.remaining, color: t.surfaceAlt, radius: ringThickness }
+          ];
     return {
-      type: 'sizedBox', width: 230, height: 230,
+      type: 'sizedBox', width: size, height: size,
       child: {
         type: 'stack',
         children: [
           {
             type: 'flChart',
             chartType: 'pie',
-            centerSpaceRadius: 96,
-            sections: [
-              { value: done > 0 ? done : 0.0001, color: accent },
-              { value: state.remaining > 0 ? state.remaining : 0.0001, color: t.surfaceAlt }
-            ]
+            centerSpaceRadius: centerR,
+            sections: sections
           },
           {
             type: 'center',
@@ -82,13 +103,13 @@
               children: [
                 {
                   type: 'text', data: mmss(state.remaining),
-                  style: { color: t.text, fontSize: 44, fontWeight: 'w700', letterSpacing: 2.0 }
+                  style: { color: t.text, fontSize: compact ? 24 : 44, fontWeight: 'w700', letterSpacing: 2.0 }
                 },
                 { type: 'sizedBox', height: 4 },
                 {
                   type: 'text',
                   data: state.mode === 'focus' ? 'FOCUS' : (phaseSeconds() === LONG_BREAK_SEC ? 'LONG BREAK' : 'BREAK'),
-                  style: { color: accent, fontSize: 12, fontWeight: 'w600', letterSpacing: 2.5 }
+                  style: { color: accent, fontSize: compact ? 9 : 12, fontWeight: 'w600', letterSpacing: 2.5 }
                 }
               ]
             }
@@ -98,7 +119,7 @@
     };
   }
 
-  function cycleDots(t) {
+  function cycleDots(t, dotSize) {
     // One dot per pomodoro in the current 4-cycle; filled = done.
     var filled = state.completed % 4;
     if (state.completed > 0 && filled === 0) filled = 4; // just finished a full cycle
@@ -112,10 +133,76 @@
       '" stroke-width="1.8"/></svg>';
     var dots = [];
     for (var i = 0; i < 4; i++) {
-      dots.push({ type: 'svg', data: i < filled ? TOMATO : CIRCLE, width: 18, height: 18 });
+      dots.push({ type: 'svg', data: i < filled ? TOMATO : CIRCLE, width: dotSize, height: dotSize });
       if (i < 3) dots.push({ type: 'sizedBox', width: 6 });
     }
     return { type: 'row', mainAxisAlignment: 'center', children: dots };
+  }
+
+  function controls(t) {
+    return {
+      type: 'row', mainAxisAlignment: 'center',
+      children: [
+        {
+          type: 'button',
+          text: state.running ? 'Pause' : 'Start',
+          style: { backgroundColor: state.mode === 'focus' ? t.accent : t.accent2, foregroundColor: t.onAccent },
+          onTap: 'start_pause'
+        },
+        { type: 'sizedBox', width: 10 },
+        { type: 'outlinedButton', text: 'Reset', onTap: 'reset' },
+        { type: 'sizedBox', width: 10 },
+        { type: 'textButton', text: 'Skip', onTap: 'skip' }
+      ]
+    };
+  }
+
+  // Tile layout: a short wide strip — ring on the left, dots + controls
+  // stacked on the right. Everything the full mode has, minus the caption.
+  function renderCompact(t) {
+    return {
+      type: 'container',
+      color: t.bg,
+      child: {
+        type: 'listView', shrinkWrap: false, padding: [6, 10, 6, 10],
+        children: [
+          {
+            type: 'center',
+            child: {
+              type: 'row', mainAxisSize: 'min',
+              crossAxisAlignment: 'center',
+              children: [
+                ring(t, 104),
+                { type: 'sizedBox', width: 18 },
+                {
+                  type: 'column', mainAxisSize: 'min',
+                  crossAxisAlignment: 'center',
+                  children: [
+                    cycleDots(t, 13),
+                    { type: 'sizedBox', height: 10 },
+                    {
+                      type: 'row', mainAxisAlignment: 'center',
+                      children: [
+                        {
+                          type: 'button',
+                          text: state.running ? 'Pause' : 'Start',
+                          style: { backgroundColor: state.mode === 'focus' ? t.accent : t.accent2, foregroundColor: t.onAccent },
+                          onTap: 'start_pause'
+                        },
+                        { type: 'sizedBox', width: 8 },
+                        { type: 'textButton', text: 'Reset', onTap: 'reset' },
+                        { type: 'sizedBox', width: 4 },
+                        { type: 'textButton', text: 'Skip', onTap: 'skip' }
+                      ]
+                    }
+                  ]
+                }
+              ]
+            }
+          }
+        ]
+      }
+    };
   }
 
   function render() {
@@ -126,6 +213,10 @@
       running: state.running,
       completed: state.completed
     });
+    if (isCompact()) {
+      jsr.render(renderCompact(t));
+      return;
+    }
     jsr.render({
       type: 'container',
       color: t.bg,
@@ -134,25 +225,11 @@
       child: {
         type: 'listView', shrinkWrap: false, padding: [16, 40, 16, 24],
         children: [
-          { type: 'center', child: ring(t) },
+          { type: 'center', child: ring(t, 230) },
           { type: 'sizedBox', height: 20 },
-          cycleDots(t),
+          cycleDots(t, 18),
           { type: 'sizedBox', height: 20 },
-          {
-            type: 'row', mainAxisAlignment: 'center',
-            children: [
-              {
-                type: 'button',
-                text: state.running ? 'Pause' : 'Start',
-                style: { backgroundColor: state.mode === 'focus' ? t.accent : t.accent2, foregroundColor: t.onAccent },
-                onTap: 'start_pause'
-              },
-              { type: 'sizedBox', width: 10 },
-              { type: 'outlinedButton', text: 'Reset', onTap: 'reset' },
-              { type: 'sizedBox', width: 10 },
-              { type: 'textButton', text: 'Skip', onTap: 'skip' }
-            ]
-          },
+          controls(t),
           { type: 'sizedBox', height: 16 },
           {
             type: 'text',
@@ -194,6 +271,16 @@
   });
 
   jsr.setTitle('Pomodoro');
+  // Track the host-allotted size: a short tile switches to the compact
+  // strip layout, a tall panel keeps the full ring column.
+  var initialView = jsr.viewport();
+  if (initialView) view = initialView;
+  jsr.onViewport(function(v) {
+    if (v && (v.width !== view.width || v.height !== view.height)) {
+      view = v;
+      render();
+    }
+  });
   setInterval(tick, 1000);
   render();
 })();

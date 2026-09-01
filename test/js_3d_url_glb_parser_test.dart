@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:io';
 import 'dart:typed_data';
 
 import 'package:flutter_test/flutter_test.dart';
@@ -47,5 +48,40 @@ void main() {
       () => Js3dUrlGlbParser.parseGlbBytes(bytes, 'https://x.test/m.glb'),
       throwsA(isA<Exception>()),
     );
+  });
+
+  group('non-URL resolution order', () {
+    tearDown(() => Js3dUrlGlbParser.fileBytesLoader = null);
+
+    test('fileBytesLoader bytes win over everything else', () async {
+      Js3dUrlGlbParser.fileBytesLoader =
+          (src) async => src == 'apps/x/coach.glb' ? _syntheticGlb() : null;
+      final glb = await Js3dUrlGlbParser().parseGlb('apps/x/coach.glb');
+      expect(glb.prefix, 'apps/x/');
+      expect(glb.jsonChunk()['asset'], isA<Map>());
+    });
+
+    test('loader null falls through to a real local file', () async {
+      Js3dUrlGlbParser.fileBytesLoader = (_) async => null;
+      final tmp = File(
+        '${Directory.systemTemp.path}/jsr_test_model.glb',
+      );
+      tmp.writeAsBytesSync(_syntheticGlb());
+      addTearDown(() => tmp.deleteSync());
+      final glb = await Js3dUrlGlbParser().parseGlb(tmp.path);
+      expect(glb.jsonChunk()['asset'], isA<Map>());
+      // file:// scheme is stripped before the filesystem read.
+      final viaScheme = await Js3dUrlGlbParser().parseGlb('file://${tmp.path}');
+      expect(viaScheme.jsonChunk()['asset'], isA<Map>());
+    });
+
+    test('no loader and no local file delegates to the asset parser', () async {
+      // The stock asset-bundle parser throws on a missing asset — proof we
+      // reached the delegate branch rather than returning early.
+      await expectLater(
+        Js3dUrlGlbParser().parseGlb('no/such/file.glb'),
+        throwsA(anything),
+      );
+    });
   });
 }

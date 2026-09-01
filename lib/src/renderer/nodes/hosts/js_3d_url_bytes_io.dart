@@ -19,3 +19,18 @@ Future<Uint8List> js3dFetchBytes(String url) async {
     client.close();
   }
 }
+
+/// Reads model bytes from the local filesystem (VM).
+///
+/// Returns null when [path] is not an existing file — the caller falls
+/// back to the asset bundle. A `file://` scheme is stripped first.
+Future<Uint8List?> js3dReadLocalFileBytes(String path) async {
+  var local = path;
+  if (local.startsWith('file://')) {
+    local = Uri.parse(local).toFilePath();
+  }
+  if (local.isEmpty) return null;
+  final file = File(local);
+  if (!file.existsSync()) return null;
+  return file.readAsBytes();
+}

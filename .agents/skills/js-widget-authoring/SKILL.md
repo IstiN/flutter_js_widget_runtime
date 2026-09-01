@@ -350,7 +350,11 @@ on its dismiss event set `state.overlay = null` and re-render.
 - `'line'`: `{series: [{label?, color?, points: [y...]}], minY?, maxY?,
   showGrid? (true), curved? (true)}`
 - `'bar'`: `{values: [y...], color?}`
-- `'pie'`: `{sections: [{label?, value, color?}], centerSpaceRadius? (32)}`
+- `'pie'`: `{sections: [{label?, value, color?, radius?}], centerSpaceRadius? (32)}` —
+  section `radius` is the ring thickness in px. fl_chart defaults it to an
+  absolute 40 and paints at `centerSpaceRadius + radius`, so a donut inside a
+  `sizedBox` must pass `radius: size/2 - centerSpaceRadius` explicitly or the
+  pie bleeds past its box.
 - `'radar'`: `{features: [names], entries: [{label?, color?, values}]}` (≥3
   features; short value lists are zero-padded)
 - `'scatter'`: `{points: [{x, y, radius?, color?}], minX?/maxX?/minY?/maxY?}`
