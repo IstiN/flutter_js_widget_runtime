@@ -70,11 +70,10 @@
 
   function shapeButton(label, value) {
     var active = shape === value;
+    // Wrap child: Expanded is illegal inside Wrap — size naturally.
     return {
-      type: 'expanded',
-      child: {
-        type: 'inkWell',
-        onTap: 'shape_' + value,
+      type: 'inkWell',
+      onTap: 'shape_' + value,
         borderRadius: 8,
         child: {
           type: 'container',
@@ -98,7 +97,6 @@
             }
           }
         }
-      }
     };
   }
 
@@ -127,8 +125,66 @@
     jsr.exportState({ shape: shape, color: color, rotating: rotating, speed: speed });
   }
 
+  // Compact tile (2x2/4x2 ~170px tall): the live demo does not fit —
+  // render a launcher card instead (the host opens the panel on tap).
+  var view = { w: 0, h: 0 };
+  function isTile() {
+    return view.h > 0 && view.h < 260;
+  }
+  function tileCard(t, icon, title, subtitle) {
+    return {
+      type: 'container',
+      color: t.bg,
+      child: {
+        type: 'center',
+        child: {
+          type: 'container',
+          padding: [10, 12, 10, 12],
+          decoration: {
+            color: t.surface,
+            borderRadius: 14,
+            borderColor: t.border,
+            borderWidth: 1
+          },
+          child: {
+            type: 'row', mainAxisSize: 'min', crossAxisAlignment: 'center',
+            children: [
+              {
+                type: 'container',
+                width: 40, height: 40,
+                decoration: { color: '#22' + t.accent.replace('#', ''), borderRadius: 12 },
+                child: { type: 'center', child: { type: 'icon',
+                  name: icon, size: 22, color: t.accent } }
+              },
+              { type: 'sizedBox', width: 10 },
+              {
+                type: 'column', crossAxisAlignment: 'start', mainAxisSize: 'min',
+                children: [
+                  { type: 'text', data: title,
+                    style: { color: t.text, fontSize: 14, fontWeight: 'w700' } },
+                  { type: 'text', data: subtitle,
+                    style: { color: t.muted, fontSize: 11 } }
+                ]
+              }
+            ]
+          }
+        }
+      }
+    };
+  }
+  function viewportRerender(rerender) {
+    jsr.onViewport(function (v) {
+      var changed = view.w !== v.width || view.h !== v.height;
+      view = { w: v.width, h: v.height };
+      if (changed) rerender();
+    });
+  }
   function render() {
     exportNow();
+    if (isTile()) {
+      jsr.render(tileCard(jsr.theme, 'view_in_ar', '3D Shapes', 'Primitives demo'));
+      return;
+    }
     jsr.render({
       type: 'column',
       crossAxisAlignment: 'stretch',
@@ -152,21 +208,17 @@
             mainAxisSize: 'min',
             children: [
               {
-                type: 'row',
+                type: 'wrap', spacing: 8, runSpacing: 8,
                 children: [
                   shapeButton('Cube', 'cube'),
-                  { type: 'sizedBox', width: 8 },
                   shapeButton('Sphere', 'sphere'),
-                  { type: 'sizedBox', width: 8 },
                   shapeButton('Torus', 'torus'),
-                  { type: 'sizedBox', width: 8 },
                   shapeButton('City', 'city')
                 ]
               },
               { type: 'sizedBox', height: 12 },
               {
-                type: 'row',
-                mainAxisAlignment: 'center',
+                type: 'wrap', spacing: 8, runSpacing: 8, alignment: 'center',
                 children: palette.map(colorDot)
               },
               { type: 'sizedBox', height: 12 },
@@ -275,6 +327,7 @@
   }
 
   jsr.onEvent(handleEvent);
+  viewportRerender(render);
   jsr.setTitle('3D Showcase');
   init();
 })();

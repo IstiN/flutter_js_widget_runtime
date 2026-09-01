@@ -192,11 +192,10 @@
     var fg = !enabled ? alpha(t.muted, '#80')
       : primary ? t.onAccent
       : t.accent;
+    // Wrap child: Expanded is illegal inside Wrap — size naturally.
     return {
-      type: 'expanded',
-      child: {
-        type: 'inkWell',
-        onTap: action,
+      type: 'inkWell',
+      onTap: action,
         borderRadius: 13,
         child: {
           type: 'container',
@@ -226,11 +225,67 @@
             ]
           }
         }
-      }
     };
   }
 
+  // Compact tile (2x2/4x2 ~170px tall): the live demo does not fit —
+  // render a launcher card instead (the host opens the panel on tap).
+  var view = { w: 0, h: 0 };
+  function isTile() {
+    return view.h > 0 && view.h < 260;
+  }
+  function tileCard(t, icon, title, subtitle) {
+    return {
+      type: 'container',
+      color: t.bg,
+      child: {
+        type: 'center',
+        child: {
+          type: 'container',
+          padding: [10, 12, 10, 12],
+          decoration: {
+            color: t.surface,
+            borderRadius: 14,
+            borderColor: t.border,
+            borderWidth: 1
+          },
+          child: {
+            type: 'row', mainAxisSize: 'min', crossAxisAlignment: 'center',
+            children: [
+              {
+                type: 'container',
+                width: 40, height: 40,
+                decoration: { color: '#22' + t.accent.replace('#', ''), borderRadius: 12 },
+                child: { type: 'center', child: { type: 'icon',
+                  name: icon, size: 22, color: t.accent } }
+              },
+              { type: 'sizedBox', width: 10 },
+              {
+                type: 'column', crossAxisAlignment: 'start', mainAxisSize: 'min',
+                children: [
+                  { type: 'text', data: title,
+                    style: { color: t.text, fontSize: 14, fontWeight: 'w700' } },
+                  { type: 'text', data: subtitle,
+                    style: { color: t.muted, fontSize: 11 } }
+                ]
+              }
+            ]
+          }
+        }
+      }
+    };
+  }
+  function viewportRerender(rerender) {
+    jsr.onViewport(function (v) {
+      var changed = view.w !== v.width || view.h !== v.height;
+      view = { w: v.width, h: v.height };
+      if (changed) rerender();
+    });
+  }
   function buildUI() {
+    if (isTile()) {
+      return tileCard(jsr.theme, 'view_in_ar', 'GLB Viewer', '3D model demo');
+    }
     var t = jsr.theme;
     return {
       type: 'container',
@@ -244,12 +299,10 @@
           sceneCard(),
           { type: 'sizedBox', height: 12 },
           {
-            type: 'row',
+            type: 'wrap', spacing: 8, runSpacing: 8,
             children: [
               controlButton(ICONS.load, loaded ? 'RELOAD' : 'LOAD', 'load', true),
-              { type: 'sizedBox', width: 8 },
               controlButton(ICONS.rotate, 'ROTATE', 'rotate', loaded),
-              { type: 'sizedBox', width: 8 },
               controlButton(ICONS.reset, 'RESET', 'reset', loaded)
             ]
           }
@@ -257,6 +310,8 @@
       }
     };
   }
+
+  viewportRerender(function () { jsr.render(buildUI()); });
 
   jsr.onEvent(function(actionId) {
     if (actionId === 'load') {

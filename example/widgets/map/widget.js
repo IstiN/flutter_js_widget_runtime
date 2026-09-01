@@ -142,8 +142,30 @@
     };
   }
 
+  // Container size: compact tiles (2x2/4x2) hide the fixed-height chrome
+  // below the map so the tile cannot overflow.
+  var view = { w: 0, h: 0 };
+  function isCompact() {
+    return view.h > 0 && view.h < 380;
+  }
+
   function render() {
     var selected = selectedId ? findMarker(selectedId) : null;
+    // Fixed sections under the expanded map only fit on tall hosts.
+    var bottom = [];
+    if (!isCompact()) {
+      bottom.push({ type: 'padding', padding: [16, 6, 16, 4], child: {
+        type: 'text',
+        data: 'Tap the map to drop a pin \u00b7 tap a marker for details',
+        style: { color: t.muted, fontSize: 11, textAlign: 'center' } } });
+      bottom.push({ type: 'padding', padding: [16, 4, 16, 12], child: {
+        type: 'container',
+        decoration: { color: t.surface, borderRadius: 12,
+          border: { color: t.border, width: 1 } },
+        padding: [6, 6, 6, 6],
+        child: { type: 'column', crossAxisAlignment: 'stretch',
+          children: allMarkers().map(markerRow) } } });
+    }
     jsr.render({
       type: 'column', crossAxisAlignment: 'stretch', children: [
         // Header: title + zoom controls
@@ -161,29 +183,19 @@
             { type: 'sizedBox', width: 8 },
             zoomButton('+', 'zoom_in'),
           ] } },
-        // The map — fills whatever height the host allots (expanded),
-        // no hardcoded pixel height.
-        { type: 'expanded', child: { type: 'padding', padding: [12, 0, 12, 0], child: {
-          type: 'container',
-          decoration: { borderRadius: 12,
-            border: { color: t.border, width: 1 } },
-          child: { type: 'clipRRect', borderRadius: 12, child: mapNode() },
-        } } },
-        { type: 'padding', padding: [16, 6, 16, 4], child: {
-          type: 'text',
-          data: 'Tap the map to drop a pin · tap a marker for details',
-          style: { color: t.muted, fontSize: 11, textAlign: 'center' } } },
-        selected ? detailCard(selected) : { type: 'sizedBox', height: 0 },
-        // Marker list
-        { type: 'padding', padding: [16, 4, 16, 12], child: {
-          type: 'container',
-          decoration: { color: t.surface, borderRadius: 12,
-            border: { color: t.border, width: 1 } },
-          padding: [6, 6, 6, 6],
-          child: { type: 'column', crossAxisAlignment: 'stretch',
-            children: allMarkers().map(markerRow) },
-        } },
-      ],
+        // Compact tile: the picked-marker card replaces the map (tap the
+        // header back row to clear the selection and return to the map).
+        selected && isCompact()
+          ? { type: 'expanded', child: { type: 'padding',
+              padding: [12, 0, 12, 0], child: detailCard(selected) } }
+          : { type: 'expanded', child: { type: 'padding',
+              padding: [12, 0, 12, 0], child: {
+                type: 'container',
+                decoration: { borderRadius: 12,
+                  border: { color: t.border, width: 1 } },
+                child: { type: 'clipRRect', borderRadius: 12,
+                  child: mapNode() } } } },
+      ].concat(bottom),
     });
     jsr.exportState({
       zoom: zoom,
@@ -193,6 +205,12 @@
       selected: selectedId,
     });
   }
+
+  jsr.onViewport(function (v) {
+    var changed = view.w !== v.width || view.h !== v.height;
+    view = { w: v.width, h: v.height };
+    if (changed) render();
+  });
 
   function handleEvent(actionId, payload) {
     if (actionId === 'zoom_in' || actionId === 'zoom_out') {

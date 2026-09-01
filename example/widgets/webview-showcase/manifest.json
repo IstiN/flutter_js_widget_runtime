@@ -2,8 +2,8 @@
   "id": "webview-showcase",
   "name": "WebView Showcase",
   "description": "Embeds web content via the webView node (host JsWebViewHost: flutter_inappwebview on VM, iframe on web): URL bar, preset sites, page-to-widget message bridge.",
-  "version": "1.0.1",
-  "icon": "\ud83c\udf10",
+  "version": "1.0.2",
+  "icon": "🌐",
   "allowedCommands": [],
   "network": true,
   "cli": {

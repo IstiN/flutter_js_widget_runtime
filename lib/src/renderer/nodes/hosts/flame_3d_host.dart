@@ -123,6 +123,9 @@ class _Flame3dDeclarativeNodeState extends State<_Flame3dDeclarativeNode> {
   void initState() {
     super.initState();
     widget.controller.addListener(_onChanged);
+    // Panel reopen: the remounted node may carry no model/camera config, so
+    // no apply would ever fire — start the game anyway (see [warmUp]).
+    widget.controller.warmUp();
     _apply();
   }
 
@@ -276,6 +279,14 @@ class Flame3dController extends RefCountedJs3dController {
     final initFuture = _initGame();
     Js3dCaptureSync.track(initFuture);
   }
+
+  /// Starts game initialization without any queued command.
+  ///
+  /// A remounted scene node (panel reopen, engine reuse) may carry no
+  /// camera/model config at all, so no [apply] ever fires and the scene
+  /// would sit on the loader forever. The game object is only constructed
+  /// here — no layout mutations — so it is safe before the first frame.
+  void warmUp() => _initGameIfNeeded();
 
   Future<void> _initGame() async {
     try {

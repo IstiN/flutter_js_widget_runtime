@@ -18,6 +18,9 @@
     colors: '<svg viewBox="0 0 24 24"><path d="M4 16a5 5 0 0 1 5-5h6a5 5 0 0 1 0 10H9a5 5 0 0 1-5-5z" fill="#60a5fa"/><path d="M6.5 12.5a5 5 0 0 1 5-5h1a5 5 0 0 1 0 10" fill="#34d399" opacity="0.9"/><path d="M9 9a5 5 0 0 1 5-5 5 5 0 0 1 5 5 5 5 0 0 1-5 5" fill="#fbbf24" opacity="0.9"/><circle cx="6" cy="8.5" r="2.6" fill="#e2e8f0"/><circle cx="7" cy="7.8" r="0.8" fill="#1e293b"/></svg>',
   };
 
+  // Container size: the 2x2 tile cannot fit the 18px header title.
+  var view = { w: 0, h: 0 };
+
   function renderMenu() {
     var demos = [
       {id:'fade',     title:'Fade In/Out',       desc:'animatedOpacity toggle'},
@@ -52,7 +55,7 @@
         {type:'svg', data:'<svg viewBox="0 0 24 24"><rect x="2.5" y="6" width="19" height="13" rx="2.5" fill="#334155"/><circle cx="8" cy="12.5" r="2.4" fill="#94a3b8"/><circle cx="13.2" cy="12.5" r="2.4" fill="#94a3b8"/><circle cx="18.4" cy="12.5" r="2.4" fill="#94a3b8"/><rect x="4" y="8.8" width="7" height="1.6" rx="0.8" fill="#1e293b"/></svg>', size:22},
         {type:'sizedBox', width:8},
         {type:'text', data:'Animation Demos',
-        style:{color: jsr.theme.text, fontSize:18, fontWeight:'w700'}},
+        style:{color: jsr.theme.text, fontSize: view.w > 0 && view.w < 260 ? 14 : 18, fontWeight:'w700'}},
       ]}},
       {type:'expanded', child:{type:'listView', shrinkWrap:false, padding:[12,0,12,12], children:items}},
     ]});
@@ -345,6 +348,15 @@
   function exportNow() {
     jsr.exportState({ scene: currentScene });
   }
+
+  jsr.onViewport(function (v) {
+    var changed = view.w !== v.width || view.h !== v.height;
+    view = { w: v.width, h: v.height };
+    if (changed) {
+      if (currentScene === 'menu') { renderMenu(); }
+      else { handleEvent('go_' + currentScene); }
+    }
+  });
 
   jsr.onEvent(handleEvent);
   jsr.setTitle('Animation Showcase');

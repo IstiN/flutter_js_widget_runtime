@@ -109,7 +109,14 @@ class Js3dDispatcherHost extends Js3dHost {
       // GLB/GLTF src or engine:'flame' must not forward GLB commands to the
       // cube host (it would try to parse GLB as OBJ and crash). As long as no
       // addModel has been applied yet, swapping the inner controller is free.
-      final selected = selectHost(config);
+      //
+      // Uninformed configs never DOWNGRADE: they select the remembered host
+      // for the scene. A re-render or remount of a Flame scene (panel
+      // reopen) sends {type, id} again — selecting Cube3dHost there tore the
+      // loaded GLB scene down and fed its later addModel to the OBJ parser.
+      final selected = _isInformed(config)
+          ? selectHost(config)
+          : (_hostByScene[sceneId] ?? selectHost(config));
       if (!identical(selected, existing.host) &&
           !existing.hostInformed &&
           !existing._sawAddModel) {

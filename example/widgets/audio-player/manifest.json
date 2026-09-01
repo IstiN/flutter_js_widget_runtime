@@ -2,8 +2,8 @@
   "id": "audio-player",
   "name": "Audio Player",
   "description": "Playlist audio player: play/pause/prev/next, volume slider, loop toggle. Playback runs through the zero-size audio_player node backed by the host JsMediaHost (audioplayers in the demo app).",
-  "version": "1.0.1",
-  "icon": "\ud83c\udfa7",
+  "version": "1.0.2",
+  "icon": "🎧",
   "allowedCommands": [],
   "network": true,
   "cli": {

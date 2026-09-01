@@ -248,6 +248,19 @@ Rules of thumb: switching whole subtrees → `adaptive` node; deriving scalar
 props → `jsr.adaptive`; reacting to resize → `jsr.onViewport`. Reference:
 `example/widgets/adaptive-dashboard`.
 
+**Tile layout modes** (Fa app tiles: 2x2 ≈ 170x170, 4x2 ≈ 350x170,
+4x4 ≈ 350x350): interactive widgets should pick a layout per aspect, not one
+threshold — see `example/widgets/pomodoro/widget.js`:
+`height < 200 && width < 260` → mini face (ring + time only, host opens the
+panel on tap); `height < 260 && width >= 300` → horizontal strip; otherwise
+the full column. Verify every mode with the tile snapshot matrix:
+
+```sh
+JSR_TILE_MATRIX=1 flutter test test/tile_snapshot_matrix_test.dart --update-goldens
+```
+
+then eyeball `doc/tile-matrix/<widget>-<2x2|4x2|4x4>.png` (committed).
+
 ## 5b. Layout contract (root scrollability)
 
 Hosts embed widgets at arbitrary heights (~150 px landing cards, panels,

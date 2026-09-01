@@ -40,6 +40,30 @@ void main() {
       expect(selected.toString(), contains('Cube3dHost'));
     });
 
+    test('uninformed re-create does not downgrade a remembered Flame scene',
+        () {
+      final host = createJs3dHost() as Js3dDispatcherHost;
+      const sceneId = 'reopen-no-downgrade';
+
+      // First open: informed GLB create — the scene resolves to Flame.
+      final bridge = host.createController(sceneId, {'engine': 'flame'});
+      expect(host.hostForScene(sceneId).toString(), contains('Flame3dHost'));
+
+      // Reopen re-render: an uninformed {type, id} config arrives while the
+      // controller is still alive. It must keep the remembered Flame host —
+      // selecting Cube3dHost here tore down the loaded GLB scene and fed its
+      // later addModel to the OBJ parser.
+      final renderer = host.createController(sceneId, {
+        'type': 'scene3d',
+        'id': sceneId,
+      });
+      expect(identical(bridge, renderer), isTrue);
+      expect(host.hostForScene(sceneId).toString(), contains('Flame3dHost'));
+
+      bridge.dispose();
+      renderer.dispose();
+    });
+
     test('forwards apply calls to the inner controller', () {
       final inner = _FakeController();
       final fakeHost = _FakeHost(inner);

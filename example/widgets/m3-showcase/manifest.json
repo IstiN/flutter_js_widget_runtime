@@ -2,8 +2,8 @@
   "id": "m3-showcase",
   "name": "M3 Showcase",
   "description": "Material 3 components rendered from a single JSON tree: drawer, appBar, banner, searchBar, segmentedButton, radio, navigationRail, carousel, bottomAppBar, tabBar, fab, popupMenu, tooltip, navigationBar + overlays.",
-  "version": "1.0.1",
-  "icon": "\ud83e\udde9",
+  "version": "1.0.2",
+  "icon": "🧩",
   "allowedCommands": [],
   "network": false,
   "cli": {
