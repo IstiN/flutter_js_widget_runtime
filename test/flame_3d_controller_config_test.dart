@@ -1,5 +1,5 @@
 
-import 'package:flame_3d/game.dart' show Vector3;
+import 'package:js_widget_runtime/src/flame_3d_vendor/game.dart' show Vector3;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:js_widget_runtime/src/renderer/nodes/hosts/flame_3d_host.dart';
 import 'package:js_widget_runtime/src/renderer/nodes/js_3d_host.dart';

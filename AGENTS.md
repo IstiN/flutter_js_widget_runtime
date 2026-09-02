@@ -142,32 +142,36 @@ flutter pub publish --force
 - PRs and pushes to `main` run `.github/workflows/pr.yml` (quality gates).
 - Pushes to `main` run `.github/workflows/publish.yml`, which bumps the version, tags it, and publishes to pub.dev via OIDC automated publishing.
 
-## Flutter Version / flame_3d Branch Strategy
+## Flutter Version / flame_3d Vendoring
 
-CI on `main` is pinned to Flutter 3.44.4 because hosted `flame_3d 0.3.0`
-does not compile against the `flutter_gpu` API of Flutter 3.47+ (fixed
-upstream in flame-engine/flame#3995 but not yet published to pub.dev).
+The package compiles and tests on current Flutter stable (3.47.x). Hosted
+`flame_3d 0.3.0` does not compile against the `flutter_gpu` API of Flutter
+3.47+ (fixed upstream in flame-engine/flame#3995 but not yet published to
+pub.dev), and pub.dev forbids git dependencies in published packages — so the
+flame_3d-backed GLB/glTF host uses **vendored** flame_3d sources instead of a
+hosted dependency:
 
-Two tracks are maintained until the upstream fix is published:
+- `lib/src/flame_3d_vendor/` — flame_3d 0.3.0 + the #3995 backport (source:
+  IstiN/flame fork commit `fad05ce`), with `package:flame_3d/…` imports
+  rewritten to the vendor path. See `lib/src/flame_3d_vendor/VENDOR.md`.
+- `assets/flame_3d/shaders/` — the shader bundles, declared in pubspec;
+  asset keys are rewritten accordingly. The quality gates (jscpd, lcov
+  coverage, crap4dart) exclude the vendor directory.
+- pubspec declares flame_3d's transitive deps explicitly (`collection`,
+  `meta`, `ordered_set`, `flutter_gpu`).
 
-- `main` — hosted `flame_3d: ^0.3.0`, CI pinned to Flutter 3.44.4, publishes
-  to pub.dev (pub.dev forbids git dependencies in published packages).
-- `flame-3.47` — `flame_3d` from the `IstiN/flame` fork (branch
-  `flame_3d-0.3.0-flutter-3.47`, a backport of flame-engine/flame#3995 onto
-  0.3.0), CI on Flutter 3.47.0, not published.
-
-`.github/workflows/automerge-main.yml` merges every push to `main` into
-`flame-3.47` automatically. If the merge conflicts, it opens (or updates) a
-PR `main` → `flame-3.47` for manual resolution. Do not delete the
-`flame-3.47` branch while the automerge workflow is active.
+Do not hand-edit vendored files except to carry upstream flame_3d commits.
+Maintenance rules and the drop-the-vendor checklist live in VENDOR.md.
 
 Once flame_3d publishes a 3.47-compatible release:
 
-1. Merge `flame-3.47` into `main` (resolve any fallout).
-2. Restore `flame_3d: ^0.3.x` from pub.dev in `pubspec.yaml`.
-3. Remove the `flutter-version` pin from `pr.yml` and `publish.yml`.
-4. Delete `.github/workflows/automerge-main.yml` and the `flame-3.47` branch.
-5. Remove this section from `AGENTS.md`.
+1. Delete `lib/src/flame_3d_vendor/` and `assets/flame_3d/`.
+2. Restore `flame_3d: ^<published>` in `pubspec.yaml` and remove the
+   vendored-only dependencies if nothing else uses them.
+3. Re-point the shader asset keys / imports per VENDOR.md and remove the
+   vendor excludes from `.jscpd.json`, `crap4dart.yaml`, `scripts/pre-commit`
+   and `pr.yml`.
+4. Remove this section from `AGENTS.md`.
 
 ## Embedded Web Content
 

@@ -1,3 +1,15 @@
+## 0.4.110
+
+- Fix compilation on Flutter 3.47+ stable: the flame_3d-backed GLB/glTF host
+  now uses vendored `flame_3d` sources (`lib/src/flame_3d_vendor`, see
+  VENDOR.md) carrying the flutter_gpu API fix (flame-engine/flame#3995
+  backport) instead of hosted `flame_3d: ^0.3.0`, which no longer compiles
+  against the Flutter 3.47 flutter_gpu API. No public API changes; `createJs3dHost`,
+  `createFlame3dHost`, and the shader assets keep working unchanged.
+- Requires Flutter 3.47+ now (`environment.flutter >=3.47.0`); CI moved from
+  the 3.44.4 pin to 3.47.1 and the `flame-3.47` branch/automerge workflow are
+  retired.
+
 ## 0.4.109
 
 - Automated patch bump.

@@ -1,8 +1,8 @@
 import 'dart:ui';
 
-import 'package:flame_3d/game.dart';
-import 'package:flame_3d/model.dart';
-import 'package:flame_3d/resources.dart';
+import 'package:js_widget_runtime/src/flame_3d_vendor/game.dart';
+import 'package:js_widget_runtime/src/flame_3d_vendor/model.dart';
+import 'package:js_widget_runtime/src/flame_3d_vendor/resources.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:js_widget_runtime/src/renderer/nodes/hosts/js_3d_host_utils.dart';
 

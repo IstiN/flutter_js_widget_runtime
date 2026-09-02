@@ -3,18 +3,18 @@ import 'dart:async';
 import 'dart:typed_data';
 
 import 'package:flame/game.dart';
-import 'package:flame_3d/camera.dart';
-import 'package:flame_3d/components.dart';
-import 'package:flame_3d/game.dart';
-import 'package:flame_3d/graphics.dart';
-import 'package:flame_3d/model.dart';
-import 'package:flame_3d/parser.dart';
-import 'package:flame_3d/resources.dart';
-// Glb/GlbChunk are not re-exported by package:flame_3d/parser.dart; the
+import 'package:js_widget_runtime/src/flame_3d_vendor/camera.dart';
+import 'package:js_widget_runtime/src/flame_3d_vendor/components.dart';
+import 'package:js_widget_runtime/src/flame_3d_vendor/game.dart';
+import 'package:js_widget_runtime/src/flame_3d_vendor/graphics.dart';
+import 'package:js_widget_runtime/src/flame_3d_vendor/model.dart';
+import 'package:js_widget_runtime/src/flame_3d_vendor/parser.dart';
+import 'package:js_widget_runtime/src/flame_3d_vendor/resources.dart';
+// Glb/GlbChunk are not re-exported by the vendored flame_3d parser barrel; the
 // version is pinned, so reach into the parser internals for the URL-aware
 // GLB override below.
-import 'package:flame_3d/src/parser/glb_parser.dart' as glb_parser;
-import 'package:flame_3d/src/parser/gltf/glb_chunk.dart' as glb_chunk;
+import 'package:js_widget_runtime/src/flame_3d_vendor/src/parser/glb_parser.dart' as glb_parser;
+import 'package:js_widget_runtime/src/flame_3d_vendor/src/parser/gltf/glb_chunk.dart' as glb_chunk;
 import 'package:flutter/material.dart' hide Viewport;
 import 'package:js_widget_runtime/js_widget_runtime.dart';
 import 'package:js_widget_runtime/src/renderer/nodes/hosts/js_3d_host_utils.dart';
