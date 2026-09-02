@@ -1,7 +1,7 @@
 import 'dart:ui';
 
-import 'package:flame_3d/model.dart';
-import 'package:flame_3d/resources.dart';
+import 'package:js_widget_runtime/src/flame_3d_vendor/model.dart';
+import 'package:js_widget_runtime/src/flame_3d_vendor/resources.dart';
 import 'package:js_widget_runtime/js_widget_runtime.dart';
 import 'package:vector_math/vector_math.dart' as vm32;
 import 'package:vector_math/vector_math_64.dart' as vm64;

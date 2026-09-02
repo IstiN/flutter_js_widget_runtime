@@ -6,6 +6,7 @@
     "**/generated/**",
     "**/example/**",
     "lib/src/runtime/js_widget_engine_flutter_js.dart",
-    "lib/src/runtime/js_widget_engine_web_worker.dart"
+    "lib/src/runtime/js_widget_engine_web_worker.dart",
+    "**/flame_3d_vendor/**"
   ]
 }

@@ -1,12 +1,12 @@
 name: js_widget_runtime
 description: Run JavaScript widgets as Flutter widgets using QuickJS (VM) or Web Workers (web).
-version: 0.4.109
+version: 0.4.110
 homepage: https://github.com/IstiN/flutter_js_widget_runtime
 documentation: https://github.com/IstiN/flutter_js_widget_runtime/tree/main
 
 environment:
   sdk: '>=3.12.0 <4.0.0'
-  flutter: '>=3.19.0'
+  flutter: '>=3.47.0'
 
 dependencies:
   flutter:
@@ -28,11 +28,20 @@ dependencies:
   latlong2: ^0.9.1
 
   # 3D scene hosts (scene3d node): flutter_cube for procedural primitives and
-  # OBJ models (cross-platform), flame_3d for GLB/GLTF with PBR materials.
+  # OBJ models (cross-platform), vendored flame_3d (lib/src/flame_3d_vendor)
+  # for GLB/GLTF with PBR materials — see VENDOR.md there for why it is
+  # vendored (hosted 0.3.0 does not compile on Flutter 3.47+).
   flutter_cube: ^0.1.1
   flame: ^1.38.0
-  flame_3d: ^0.3.0
+  flutter_gpu:
+    sdk: flutter
   vector_math: ^2.1.4
+
+  # Transitive deps of the vendored flame_3d copy (declared explicitly
+  # because the vendored sources import them directly).
+  collection: ^1.19.1
+  meta: ^1.12.0
+  ordered_set: ^8.0.0
 
   # Conditional platform helpers; imported only on web.
   # shared_preferences is used by the web engine for storage fallback.
@@ -48,4 +57,5 @@ dev_dependencies:
 flutter:
   uses-material-design: true
   assets:
+    - assets/flame_3d/shaders/
     - test/assets/

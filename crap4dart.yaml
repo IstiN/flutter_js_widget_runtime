@@ -3,6 +3,8 @@
 
 sources: [lib, bin]
 exclude:
+  # Vendored third-party code (flame_3d, see lib/src/flame_3d_vendor/VENDOR.md)
+  - 'lib/src/flame_3d_vendor/**'
   - 'example/**'
   - 'tool/**'
   - '**.g.dart'
