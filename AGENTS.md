@@ -118,6 +118,34 @@ See the dedicated skill in `.agents/skills/js-widget-authoring/SKILL.md` for the
 
 See the dedicated skill in `.agents/skills/js-widget-engine/SKILL.md` for how to extend the engine.
 
+## Agent Memory (git-backed)
+
+Agent memory for this repo lives INSIDE the repository — the repo IS the
+memory (same convention as flutter_agent):
+
+- `.fah/config.yaml` (committed) points the project memory at the committed
+  `memory/` directory (`memory: {projectPath: ./memory}`); a project config
+  wins over `~/.fah/config.yaml`. Clone the repo, get its memory.
+- `memory/note/` holds the notes (YAML frontmatter + body); ids are
+  merge-friendly (`n_0001_abcd` = sequential index + 4-hex md5 of the
+  normalized text). `memory/DELETIONS.md` is the append-only tombstone
+  ledger (`.gitattributes`: `merge=union`). Derived artifacts (`GRAPH.md`,
+  `INDEX.md`, `MEMORY.revision`, `.last_maintenance`) are rebuilt on load —
+  never commit them (`memory/.gitignore`).
+- `.gitignore` tracks only a curated `.fah` subset (`config.yaml` now; add
+  `rules.yaml`/`lsp.json`/`mcp.json`/`agents/`/`skills/`/`packages.yaml`
+  when they appear) — `bash_jobs/`, logs and sessions stay local.
+- Policy (mirrors the `memory_add` tool policy): project-scope memory is
+  PUBLIC — durable facts only (conventions, architecture decisions and
+  their rationale, env gotchas that survive sessions); no secrets,
+  credentials or personal data. Supersede solved problems via delete+add;
+  never leave solved workarounds to rot.
+- Commit memory updates together with the task that produced them, or
+  alone with a `memory:` commit-message prefix.
+- Note: any push to `main` triggers the publish workflow (version
+  auto-bump + pub.dev release). Bundle memory-only commits with the next
+  real change, or accept a `chore` patch bump.
+
 ## Commands
 
 ```bash
