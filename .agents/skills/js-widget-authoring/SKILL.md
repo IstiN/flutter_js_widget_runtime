@@ -283,15 +283,22 @@ Every node is `{type: '...', ...props}`. Children go in `child` (single) or
 `listView`, `gridView`, `aspectRatio`, `clipRRect`, `fill` (solid color layer),
 `overlay` (stack layer with `positioned`).
 
+- `column`/`row`/`stack`/`wrap` honor `width`/`height` (capped via SizedBox,
+  same loose-constraint semantics as `container` — under tight parents the
+  parent wins). Give a column a `width` when its children should center
+  across a fixed span; a hug-width column centers across its widest child.
 - `stack` children may use `positioned: {left, top, right, bottom}`.
 - Alignment strings: `'start'|'center'|'end'|'stretch'|'spaceBetween'|...`
-  (camelCase, matching Flutter).
+  (camelCase, matching Flutter). Flex cross-axis default is `start`.
 
 ### Text & display
 
-- `text` — `{data, style: {color, fontSize, fontWeight ('w400'..'w700'),
-  letterSpacing, textAlign, fontStyle}, maxLines, overflow: 'ellipsis',
-  textTransform: 'uppercase'|'lowercase', textShadows: [{color, blur, dx, dy}]}`
+- `text` — `{data, width, height, style: {color, fontSize, fontWeight
+  ('w400'..'w700'), letterSpacing, textAlign, fontStyle}, maxLines,
+  overflow: 'ellipsis', textTransform: 'uppercase'|'lowercase',
+  textShadows: [{color, blur, dx, dy}]}` — `width` makes the text BOX that
+  wide so `textAlign: 'center'` centers across the box (not the intrinsic
+  label width) at any nesting depth.
 - `icon` — `{icon: '<material name>'}` (star, home, settings, search, add,
   refresh, menu, more_vert, trending_up, attach_money, show_chart, bar_chart,
   notifications, lock, …) — for custom marks prefer `svg`.

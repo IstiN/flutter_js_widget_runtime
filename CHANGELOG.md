@@ -1,3 +1,14 @@
+## 0.4.111
+
+- `text` nodes honor `width`/`height`: the text box gets exactly that size,
+  so `textAlign: 'center'` centers across the requested box instead of the
+  intrinsic label width, at any nesting depth (CSS-style box semantics).
+- `column`/`row`/`stack`/`wrap` nodes honor `width`/`height` (SizedBox cap,
+  same loose-constraint semantics as `container`): siblings center across the
+  requested span instead of the parent's full width. Reported via the yoclip
+  deck renderer, where scenes place `width` + `textAlign: 'center'` on
+  captions nested in columns.
+
 ## 0.4.110
 
 - Fix compilation on Flutter 3.47+ stable: the flame_3d-backed GLB/glTF host

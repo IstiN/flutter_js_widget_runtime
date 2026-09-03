@@ -44,6 +44,19 @@ extension on JsonWidgetRenderer {
         child: textWidget,
       );
     }
+    // Honor `width`/`height` on text (CSS-style box): the SizedBox tightens
+    // the paragraph so `textAlign` centers within the requested box instead
+    // of the intrinsic label width. Consistent with `container` sizing —
+    // under tight parent constraints the parent wins.
+    final boxWidth = _doubleOrNull(m['width']);
+    final boxHeight = _doubleOrNull(m['height']);
+    if (boxWidth != null || boxHeight != null) {
+      textWidget = SizedBox(
+        width: boxWidth,
+        height: boxHeight,
+        child: textWidget,
+      );
+    }
 
     final family = style?.fontFamily;
     final fontResolver = this.fontResolver;
@@ -70,10 +83,7 @@ extension on JsonWidgetRenderer {
     if (name.runes.any((r) => r > 127)) {
       return Text(
         name,
-        style: TextStyle(
-          fontSize: size,
-          fontFamilyFallback: _emojiFallback,
-        ),
+        style: TextStyle(fontSize: size, fontFamilyFallback: _emojiFallback),
       );
     }
     return Icon(_iconData(name), size: size, color: color);
