@@ -6,21 +6,39 @@ part of '../json_widget_renderer.dart';
 extension on JsonWidgetRenderer {
   // ── Layout ────────────────────────────────────────────────────────────────
 
-  Widget _column(Map<String, dynamic> m) => Column(
+  /// Caps a built flex/stack node to the node's `width`/`height` props.
+  ///
+  /// Same loose-constraint semantics as `container`: under a bounded-loose
+  /// parent (panel, column cross axis) the box is exactly this size, so
+  /// `crossAxisAlignment: 'center'` centers siblings across the requested
+  /// span instead of the parent's full width; under tight constraints the
+  /// parent wins.
+  Widget _flexSize(Widget child, Map<String, dynamic> m) {
+    final w = _doubleOrNull(m['width']);
+    final h = _doubleOrNull(m['height']);
+    if (w == null && h == null) return child;
+    return SizedBox(width: w, height: h, child: child);
+  }
+
+  Widget _column(Map<String, dynamic> m) => _flexSize(_columnCore(m), m);
+
+  Widget _row(Map<String, dynamic> m) => _flexSize(_rowCore(m), m);
+
+  Widget _columnCore(Map<String, dynamic> m) => Column(
     mainAxisAlignment: _mainAxis(m['mainAxisAlignment']),
     crossAxisAlignment: _crossAxis(m['crossAxisAlignment']),
     mainAxisSize: _mainSize(m['mainAxisSize']),
     children: _children(m),
   );
 
-  Widget _row(Map<String, dynamic> m) => Row(
+  Widget _rowCore(Map<String, dynamic> m) => Row(
     mainAxisAlignment: _mainAxis(m['mainAxisAlignment']),
     crossAxisAlignment: _crossAxis(m['crossAxisAlignment']),
     mainAxisSize: _mainSize(m['mainAxisSize']),
     children: _children(m),
   );
 
-  Widget _stack(Map<String, dynamic> m) {
+  Widget _stackCore(Map<String, dynamic> m) {
     final children = (m['children'] as List? ?? []).map((c) {
       final cm = (c as Map?)?.cast<String, dynamic>() ?? {};
       if (cm['positioned'] != null) {
@@ -47,7 +65,11 @@ extension on JsonWidgetRenderer {
     );
   }
 
-  Widget _wrap(Map<String, dynamic> m) => Wrap(
+  Widget _stack(Map<String, dynamic> m) => _flexSize(_stackCore(m), m);
+
+  Widget _wrap(Map<String, dynamic> m) => _flexSize(_wrapCore(m), m);
+
+  Widget _wrapCore(Map<String, dynamic> m) => Wrap(
     spacing: _double(m['spacing'], 4),
     runSpacing: _double(m['runSpacing'], 4),
     alignment: _wrapAlignment(m['alignment']),
@@ -107,7 +129,10 @@ extension on JsonWidgetRenderer {
   Widget _container(Map<String, dynamic> m) {
     Widget child = _buildBox(Container.new, m);
     if (m['clip'] == true) {
-      final radius = _containerBorderRadius(_containerDecoration(m), m['borderRadius']);
+      final radius = _containerBorderRadius(
+        _containerDecoration(m),
+        m['borderRadius'],
+      );
       if (radius != null) {
         child = ClipRRect(borderRadius: radius, child: child);
       }
@@ -127,7 +152,8 @@ extension on JsonWidgetRenderer {
       Decoration? decoration,
       Matrix4? transform,
       Widget? child,
-    }) ctor,
+    })
+    ctor,
     Map<String, dynamic> m,
   ) {
     final p = _containerProps(m);
@@ -296,22 +322,25 @@ extension on JsonWidgetRenderer {
   /// the nearest defined one.
   Widget _adaptive(Map<String, dynamic> m) {
     final bps = m['breakpoints'] as List?;
-    final compactMax =
-        bps != null && bps.isNotEmpty ? (bps[0] as num).toDouble() : 600.0;
-    final mediumMax =
-        bps != null && bps.length > 1 ? (bps[1] as num).toDouble() : 840.0;
+    final compactMax = bps != null && bps.isNotEmpty
+        ? (bps[0] as num).toDouble()
+        : 600.0;
+    final mediumMax = bps != null && bps.length > 1
+        ? (bps[1] as num).toDouble()
+        : 840.0;
     return LayoutBuilder(
       builder: (context, constraints) {
         final w = constraints.maxWidth;
         final bp = w < compactMax
             ? 'compact'
             : (w < mediumMax ? 'medium' : 'expanded');
-        final child = m[bp] ??
+        final child =
+            m[bp] ??
             (bp == 'expanded'
                 ? (m['medium'] ?? m['compact'])
                 : bp == 'medium'
-                    ? (m['compact'] ?? m['expanded'])
-                    : (m['medium'] ?? m['expanded']));
+                ? (m['compact'] ?? m['expanded'])
+                : (m['medium'] ?? m['expanded']));
         if (child == null) return const SizedBox.shrink();
         return _build(child);
       },
