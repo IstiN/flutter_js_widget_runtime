@@ -75,4 +75,17 @@ native/quickjs/*.so
 # crap4dart profiling
 profile-reports/
 .crap_profile_temp/
-.fah/
+
+# .fah holds local-only junk (bash_jobs, sessions, logs, scratch) — but a
+# curated subset is committed on purpose: the project config (and
+# rules/lsp/mcp/agents/skills/packages when they appear). The memory/ dir
+# at the repo root is the committed agent memory (see .fah/config.yaml and
+# the "Agent Memory" section in AGENTS.md).
+.fah/*
+!.fah/config.yaml
+!.fah/rules.yaml
+!.fah/lsp.json
+!.fah/mcp.json
+!.fah/agents/
+!.fah/skills/
+!.fah/packages.yaml
