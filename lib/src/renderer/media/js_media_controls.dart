@@ -4,8 +4,9 @@ import 'package:js_widget_runtime/src/renderer/media/js_media_controller_mixin.d
 
 /// Shared transport controls for audio/video widgets.
 ///
-/// Renders a play/pause toggle, a position slider and a `position / duration`
-/// label. The widget is intentionally minimal so hosts can style it further.
+/// Renders a play/pause toggle, a position slider, a `position / duration`
+/// label and — when [onFullscreen] is provided — a fullscreen toggle. The
+/// widget is intentionally minimal so hosts can style it further.
 class JsMediaTransportControls extends StatelessWidget {
   const JsMediaTransportControls({
     super.key,
@@ -14,6 +15,7 @@ class JsMediaTransportControls extends StatelessWidget {
     required this.duration,
     required this.onToggle,
     required this.onSeek,
+    this.onFullscreen,
     this.padding = const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
     this.iconSize,
     this.constraints,
@@ -24,6 +26,10 @@ class JsMediaTransportControls extends StatelessWidget {
   final Duration duration;
   final VoidCallback onToggle;
   final ValueChanged<double> onSeek;
+
+  /// When non-null, a fullscreen button is appended to the row. Video nodes
+  /// wire it to an in-app fullscreen route; audio nodes leave it off.
+  final VoidCallback? onFullscreen;
   final EdgeInsets padding;
   final double? iconSize;
   final BoxConstraints? constraints;
@@ -59,6 +65,15 @@ class JsMediaTransportControls extends StatelessWidget {
               textAlign: TextAlign.end,
             ),
           ),
+          if (onFullscreen != null)
+            IconButton(
+              icon: const Icon(Icons.fullscreen),
+              iconSize: iconSize,
+              padding: EdgeInsets.zero,
+              constraints: constraints,
+              tooltip: 'Fullscreen',
+              onPressed: onFullscreen,
+            ),
         ],
       ),
     );

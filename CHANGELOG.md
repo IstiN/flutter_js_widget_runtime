@@ -1,3 +1,16 @@
+## 0.4.112
+
+- `video` node: `fit` now actually maps the picture when the parent reserved
+  a fixed box (`aspectRatio`/`sizedBox` w+h/`stack` → tight constraints).
+  Previously the surface was always wrapped in a natural-aspect
+  `AspectRatio`, so `contain`/`cover`/`fill` rendered identically
+  (everything letterboxed) and fit buttons looked dead. Loose parents
+  (column/row children) keep the natural-shape behavior.
+- `video` node: real fullscreen — the transport controls gain a fullscreen
+  button (hidden with `fullscreenButton: false`) that pushes an in-app
+  fullscreen route reusing the SAME media controller, so playback continues
+  seamlessly and position/volume survive the round trip.
+
 ## 0.4.111
 
 - `text` nodes honor `width`/`height`: the text box gets exactly that size,
