@@ -1,8 +1,8 @@
 {
   "id": "pomodoro",
   "name": "Pomodoro",
-  "description": "Pomodoro timer: 25 min focus / 5 min break cycles (every 4th break is 15 min), start/pause/reset/skip, completed counter persisted in storage, donut progress ring.",
-  "version": "1.0.5",
+  "description": "Pomodoro timer: 25 min focus / 5 min break cycles (every 4th break is 15 min), start/pause/reset/skip, completed counter persisted in storage, donut progress ring. Live state syncs across sibling app engines via the reserved __state key + state.sync events.",
+  "version": "1.0.6",
   "icon": "\ud83c\udf45",
   "allowedCommands": [],
   "network": false,
