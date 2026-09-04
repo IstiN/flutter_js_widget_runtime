@@ -102,10 +102,14 @@ class WidgetLogicHarness {
 /// Boots a demo widget from `example/widgets/<id>/widget.js` on the QuickJS
 /// backend. When [fetchResponses] is provided, `jsr.fetchJson` calls are
 /// intercepted and resolved with the matching value (keyed by URL substring).
+/// [onStorageUpdate] / [onRender] observe host-side storage writes and
+/// rendered trees — used to simulate host state-sync broadcasts in tests.
 Future<WidgetLogicHarness> bootWidget(
   String widgetId, {
   Map<String, dynamic> initialStorage = const {},
   Map<String, dynamic> fetchResponses = const {},
+  void Function(Map<String, dynamic> storage)? onStorageUpdate,
+  void Function(Map<String, dynamic> tree)? onRender,
 }) async {
   TestWidgetsFlutterBinding.ensureInitialized();
   void Function(String id, dynamic value)? resolve;
@@ -113,9 +117,9 @@ Future<WidgetLogicHarness> bootWidget(
     config: JsRuntimeConfig(
       widgetId: widgetId,
       instanceId: 'logic-test-$widgetId',
-      onRender: (_) {},
+      onRender: onRender ?? (_) {},
       onSetTitle: (_) {},
-      onStorageUpdate: (_) {},
+      onStorageUpdate: onStorageUpdate ?? (_) {},
       initialStorage: initialStorage,
       onResolveReady: (r) => resolve = r,
       fetchHandler: (id, url, method, headers) async {
