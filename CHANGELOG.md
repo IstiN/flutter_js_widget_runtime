@@ -1,3 +1,7 @@
+## 0.4.113
+
+- Automated patch bump.
+
 ## 0.4.112
 
 - `video` node: `fit` now actually maps the picture when the parent reserved
