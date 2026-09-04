@@ -270,6 +270,33 @@ for a bounded root) plus `padding`, or a `scroll` node. A fixed centered
 `column` overflows in a short host (BOTTOM OVERFLOWED stripes). The
 renderer does not auto-wrap roots; scrollability is the widget's job.
 
+## 5c. Live state sync across sibling engines
+
+Hosts may run SEVERAL live engines of the same widget at once (a board tile
+plus the fullscreen app). To share state between them, use the reserved
+state-sync convention (host side: the app broadcasts every `jsr.storage.set`
+diff to sibling engines as a reserved `state.sync` event, and boot always
+hydrates from storage first — full doc: `fa_widgets/docs/state-sync.md`):
+
+- Reserved storage key `__state` = one JSON snapshot of the syncable state:
+  `{v: 1, rev: <int>, writer: '<id>', ...payload}`. Nothing else may be
+  stored under it.
+- On EVERY local transition: `rev = Math.max(localRev, seenRev) + 1`,
+  `writer = myId` (instanceId + random token), then `jsr.storage.set('__state',
+  snapshot)`. The host fans the write out to siblings.
+- In `jsr.onEvent`: reserved names `state.sync`, `back`, `llm.delta`,
+  `tile.refresh` are host traffic, never UI actions — guard them first. On
+  `state.sync` with `payload.key === '__state'`: ignore own echoes
+  (`value.writer === myId`) and stale writes (`value.rev <= seenRev`);
+  otherwise adopt the fields (writer/rev included) and re-render. Tolerate
+  `payload.value` being either a parsed object or a JSON string.
+- Put a wall-clock `endsAt` (epoch ms, 0 when paused) in the snapshot and
+  derive countdowns from it, so instances that missed the live broadcast
+  still converge on boot: hydrate from `__state` and resolve missed
+  expiries locally (persist the bumped rev).
+
+Reference implementation: `example/widgets/pomodoro/widget.js`.
+
 ## 6. UI tree — node catalog
 
 Every node is `{type: '...', ...props}`. Children go in `child` (single) or
