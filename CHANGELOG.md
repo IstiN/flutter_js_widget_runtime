@@ -1,3 +1,7 @@
+## 0.4.116
+
+- Automated patch bump.
+
 ## 0.4.115
 
 - New declarative shape nodes from the Motion-Canvas port (yoclip#1):
