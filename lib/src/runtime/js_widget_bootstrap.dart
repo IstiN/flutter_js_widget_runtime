@@ -63,16 +63,75 @@ var requestAnimationFrame = function(fn){ var id=__nid(); __raf_cbs[id]=fn; __se
 var cancelAnimationFrame = function(id){ delete __raf_cbs[String(id)]; __send('__jsr_caf', String(id)); };
 
 var jsr = {
-  // Easing helpers for animations and tweening in widget code.
+  // Easing helpers for animations and tweening in widget code. The short
+  // names (easeIn, backOut, bounce, elastic) are the originals; the
+  // canonical long names are aliases assigned right after the literal.
   ease: {
     linear: function(t){ return t; },
     easeIn: function(t){ return t*t; },
     easeOut: function(t){ return 1-(1-t)*(1-t); },
     easeInOut: function(t){ return t<0.5?2*t*t:1-Math.pow(-2*t+2,2)/2; },
+    easeInOutCubic: function(t){ return t<0.5?4*t*t*t:1-Math.pow(-2*t+2,3)/2; },
+    easeInOutQuart: function(t){ return t<0.5?8*t*t*t*t:1-Math.pow(-2*t+2,4)/2; },
+    easeOutExpo: function(t){ return t===1?1:1-Math.pow(2,-10*t); },
     bounce: function(t){ var n=7.5625,d=2.75; if(t<1/d){ return n*t*t; } else if(t<2/d){ t-=1.5/d; return n*t*t+0.75; } else if(t<2.5/d){ t-=2.25/d; return n*t*t+0.9375; } else { t-=2.625/d; return n*t*t+0.984375; } },
     elastic: function(t){ if(t===0||t===1)return t; var c4=(2*Math.PI)/3; return -Math.pow(2,10*t-10)*Math.sin((t*10-10.75)*c4); },
     backIn: function(t){ var c1=1.70158,c3=c1+1; return c3*t*t*t-c1*t*t; },
     backOut: function(t){ var c1=1.70158,c3=c1+1; return 1+c3*Math.pow(t-1,3)+c1*Math.pow(t-1,2); },
+    // cubicBezier(x1, y1, x2, y2) -> easing function(t), CSS-style timing
+    // curve. x1/x2 must be within [0,1] (CSS restriction, not enforced);
+    // y is unconstrained, so overshoot curves work. Solved with
+    // Newton-Raphson and a bisection fallback for flat derivatives.
+    cubicBezier: function(x1,y1,x2,y2){
+      var cx=3*x1, bx=3*(x2-x1)-cx, ax=1-cx-bx;
+      var cy=3*y1, by=3*(y2-y1)-cy, ay=1-cy-by;
+      var sampleX=function(t){ return ((ax*t+bx)*t+cx)*t; };
+      var sampleY=function(t){ return ((ay*t+by)*t+cy)*t; };
+      var slopeX=function(t){ return (3*ax*t+2*bx)*t+cx; };
+      return function(x){
+        if(x<=0)return 0; if(x>=1)return 1;
+        var t=x, i, e, d, lo, hi, cur;
+        for(i=0;i<8;i++){ e=sampleX(t)-x; if(Math.abs(e)<1e-6) return sampleY(t); d=slopeX(t); if(Math.abs(d)<1e-6) break; t-=e/d; }
+        lo=0; hi=1; t=x;
+        for(i=0;i<24;i++){ cur=sampleX(t); if(Math.abs(cur-x)<1e-6) break; if(x>cur) lo=t; else hi=t; t=(lo+hi)/2; }
+        return sampleY(t);
+      };
+    },
+  },
+
+  // Declarative motion helpers (Motion-Canvas-style tweening). All time
+  // values are ELAPSED MILLISECONDS (requestAnimationFrame units). tween
+  // clamps to from/to outside its window, so results can be assigned
+  // straight into the rendered tree; easing is an easing function or the
+  // STRING name of a jsr.ease entry (default: linear).
+  motion: {
+    tween: function(ms, startMs, durationMs, from, to, easing){
+      var t = durationMs > 0 ? (ms - startMs) / durationMs : 1;
+      if (t < 0) t = 0; else if (t > 1) t = 1;
+      return from + (to - from) * jsr._easeFn(easing)(t);
+    },
+    // Clamps v into [inMin, inMax], then maps through the easing onto
+    // [outMin, outMax]. Reversed output ranges work (outMin > outMax).
+    mapRange: function(v, inMin, inMax, outMin, outMax, easing){
+      if (inMax === inMin) return outMin;
+      var t = (v - inMin) / (inMax - inMin);
+      if (t < 0) t = 0; else if (t > 1) t = 1;
+      return outMin + (outMax - outMin) * jsr._easeFn(easing)(t);
+    },
+    clamp: function(v, min, max){ return Math.min(Math.max(v, min), max); },
+    // Zero-centered sine for beat-synced motion:
+    // amplitude * sin(2*pi * ms / periodMs + phase) — phase in radians.
+    wave: function(ms, periodMs, amplitude, phase){
+      return amplitude * Math.sin((2 * Math.PI * ms) / periodMs + (phase || 0));
+    },
+  },
+
+  // Resolves an easing argument: function passes through, a string names a
+  // jsr.ease entry, anything else falls back to linear.
+  _easeFn: function(e){
+    if (typeof e === 'function') return e;
+    if (typeof e === 'string' && jsr.ease[e]) return jsr.ease[e];
+    return jsr.ease.linear;
   },
 
   render: function(tree){ try{ tree.__iid = __IID; }catch(e){} __send('__jsr_render', JSON.stringify(tree)); },
@@ -275,6 +334,12 @@ var jsr = {
     }
   }
 };
+
+// Canonical easing-name aliases: the same curves under the long names the
+// Motion-Canvas port standardized on. Old short names stay forever.
+jsr.ease.easeOutBack = jsr.ease.backOut;
+jsr.ease.easeOutBounce = jsr.ease.bounce;
+jsr.ease.easeOutElastic = jsr.ease.elastic;
 
 // Fire-and-forget host-originated events (keyboard, scene3d tap picking).
 // The Dart engine calls this global; it never crosses the bridge channels.
