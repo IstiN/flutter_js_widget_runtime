@@ -1,3 +1,14 @@
+## 0.4.115
+
+- New declarative shape nodes from the Motion-Canvas port (yoclip#1):
+  `rect` ({width, height, radius?, fill, stroke?, strokeWidth?, opacity?}),
+  `circle` ({size, fill, stroke?, strokeWidth?, opacity?}), `line`
+  ({x1, y1, x2, y2, stroke, strokeWidth? (default 2), opacity?}) and
+  `polygon` ({points, fill, stroke?, strokeWidth?, opacity?} — `points` is
+  a FLAT [x1, y1, x2, y2, ...] array). `rect`/`circle` size to their box
+  with inside strokes; `line`/`polygon` size to the tight geometry bounds
+  plus stroke inset. Pure CustomPaint — no web-view or SVG parsing.
+
 ## 0.4.114
 
 - New `jsr.motion` builtins for declarative, Motion-Canvas-style animation

@@ -25,6 +25,7 @@ import 'package:js_widget_runtime/src/renderer/nodes/js_animation_nodes.dart';
 import 'package:js_widget_runtime/src/renderer/nodes/js_map_node.dart';
 import 'package:js_widget_runtime/src/renderer/nodes/js_node_helpers.dart';
 import 'package:js_widget_runtime/src/renderer/nodes/js_path_node.dart';
+import 'package:js_widget_runtime/src/renderer/nodes/js_shape_nodes.dart';
 import 'package:js_widget_runtime/src/renderer/nodes/js_scene3d_mesh_node.dart';
 import 'package:js_widget_runtime/src/renderer/nodes/js_scene3d_node.dart';
 import 'package:js_widget_runtime/src/renderer/ui_view_field_registry.dart';
@@ -287,6 +288,10 @@ class JsonWidgetRenderer with JsonWidgetDecoration {
 
       // New nodes
       'path' => buildJsPathNode(m),
+      'rect' => buildJsRectNode(m),
+      'circle' => buildJsCircleNode(m),
+      'line' => buildJsLineNode(m),
+      'polygon' => buildJsPolygonNode(m),
       'map' => buildJsMapNode(m, onEvent, tileProvider: mapTileProvider),
       'absoluteFill' || 'fill' => _absoluteFill(m),
       'video' => _video(m),
