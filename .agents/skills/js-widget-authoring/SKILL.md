@@ -363,6 +363,29 @@ Every node is `{type: '...', ...props}`. Children go in `child` (single) or
   `badge` ({label, child}), `linearProgressIndicator` ({value}), 
   `circularProgressIndicator`.
 
+### Shapes (`rect`, `circle`, `line`, `polygon`)
+
+First-class painted shapes (Motion-Canvas port, yoclip#1) — pure painters,
+no HTML-bridge overhead:
+
+```js
+{ type: 'rect', width: 120, height: 40, radius: 8, fill: t.accent,
+  stroke: t.borderBright, strokeWidth: 2, opacity: 1 }
+{ type: 'circle', size: 36, fill: t.accent2 }
+{ type: 'line', x1: 0, y1: 0, x2: 100, y2: 40, stroke: t.text, strokeWidth: 2 }
+{ type: 'polygon', points: [50, 0, 100, 40, 0, 40], fill: t.surfaceAlt }
+```
+
+- `rect`/`circle` size exactly to their box, stroke drawn INSIDE
+  (Container semantics). `line`/`polygon` size to the tight bounds of the
+  geometry plus the stroke inset; coordinates are relative to the node.
+- `polygon.points` is a FLAT array `[x1, y1, x2, y2, ...]` (>= 3 pairs;
+  trailing odd coordinate ignored). `line` has one canonical form
+  (`x1/y1/x2/y2`) — length/angle is derivable in JS.
+- `opacity` (0..1) multiplies the alpha of fill and stroke; missing fill
+  AND stroke renders nothing. Tween them with `jsr.motion.*` for animated
+  scenes.
+
 ### Containers & surfaces
 
 - `container` — `{color, padding, margin, width, height, alignment, child,
