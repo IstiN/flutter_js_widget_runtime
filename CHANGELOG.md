@@ -1,3 +1,19 @@
+## 0.4.114
+
+- New `jsr.motion` builtins for declarative, Motion-Canvas-style animation
+  (agreed with the yoclip port, IstiN/yoclip#1): `tween(ms, startMs, durMs,
+  from, to, easing?)` — eased scalar clamped to `from`/`to` outside its
+  window so results drop straight into the tree; `mapRange(v, inMin, inMax,
+  outMin, outMax, easing?)` with clamped input; `clamp(v, min, max)`; and
+  `wave(ms, periodMs, amplitude, phase?)` — a zero-centered sine for
+  beat-synced motion. All times are elapsed milliseconds; `easing?` accepts
+  a function or a `jsr.ease` name string (default `linear`).
+- Extended `jsr.ease`: new curves `easeInOutCubic`, `easeInOutQuart`,
+  `easeOutExpo`, plus canonical-name aliases `easeOutBack`/`easeOutBounce`/
+  `easeOutElastic` (the original short names stay), and
+  `cubicBezier(x1, y1, x2, y2)` — a factory for arbitrary CSS-style timing
+  curves (Newton-Raphson solve with a bisection fallback, overshoot-safe).
+
 ## 0.4.113
 
 - Automated patch bump.

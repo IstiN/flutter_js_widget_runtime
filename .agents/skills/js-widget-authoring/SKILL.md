@@ -193,8 +193,34 @@ Hardcode hex colors only for brand/data colors (chart series, status dots).
 
 ### Easing — `jsr.ease.*`
 
-`linear`, `easeIn`, `easeOut`, `easeInOut`, `bounce`, `elastic`, `backIn`,
-`backOut` — functions `f(t) → t'` for hand-rolled JS animation.
+`linear`, `easeIn`, `easeOut`, `easeInOut`, `easeInOutCubic`,
+`easeInOutQuart`, `easeOutExpo`, `bounce` (a.k.a. `easeOutBounce`),
+`elastic` (a.k.a. `easeOutElastic`), `backIn`, `backOut` (a.k.a.
+`easeOutBack`) — functions `f(t) → t'` for hand-rolled JS animation. The
+long canonical names are aliases of the original short ones; both work.
+`jsr.ease.cubicBezier(x1, y1, x2, y2)` returns an easing function for any
+CSS-style timing curve (x within `[0,1]`, y unconstrained — overshoot
+curves work).
+
+### Motion — `jsr.motion.*`
+
+Declarative motion timing, all time values in **elapsed ms**
+(requestAnimationFrame units; yoclip scenes convert their frame numbers in
+their own wrapper):
+
+```js
+var m = jsr.motion;
+m.tween(ms, startMs, durMs, from, to, easing?)   // eased scalar; clamped to
+                                                 // from/to outside the window
+m.mapRange(v, inMin, inMax, outMin, outMax, easing?) // input clamped
+m.clamp(v, min, max)
+m.wave(ms, periodMs, amplitude, phase?)  // amplitude*sin(2π·ms/periodMs+phase),
+                                         // phase in radians
+```
+
+`easing?` is an easing function or the STRING name of a `jsr.ease` entry
+(default `linear`). Clamped windows mean results can be assigned straight
+into the tree: `{ type: 'opacity', value: m.tween(now, t0, 300, 0, 1) }`.
 
 ### 3D — `jsr.scene3d.*`
 
