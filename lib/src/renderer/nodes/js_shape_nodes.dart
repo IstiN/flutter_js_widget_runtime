@@ -353,7 +353,24 @@ class JsPolygonPainter extends CustomPainter with _StrokedShapePaint {
     applyOrigin(canvas);
     final path = Path()..addPolygon(points, true);
     final fp = fillPaint(fill);
-    if (fp != null) canvas.drawPath(path, fp);
+    if (fp != null) {
+      canvas.drawPath(path, fp);
+      // Impeller's convex-path fast path mis-tessellates filled polygons
+      // with near-degenerate edges (e.g. a miter-tip quad that tapers to a
+      // sub-unit sliver): the acute region renders as a rounded blob in
+      // Metal instead of a sharp corner. Skia and the Flutter tester draw
+      // the same path fine, so the artifact only shows in the live player.
+      // Re-stroking the outline with the fill color at a hairline width
+      // forces the boundary through the stroke pipeline, which resolves
+      // the true geometry; visually it is invisible (same color, <=1 px).
+      final heal = Paint()
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 0.75
+        ..strokeJoin = StrokeJoin.round
+        ..strokeCap = StrokeCap.round
+        ..color = fp.color;
+      canvas.drawPath(path, heal);
+    }
     final sp = strokePaint(stroke);
     if (sp != null) canvas.drawPath(path, sp);
   }
