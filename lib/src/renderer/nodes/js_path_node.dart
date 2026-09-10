@@ -111,7 +111,7 @@ class JsPathPainter extends CustomPainter {
     final paint = Paint()
       ..color = color
       ..style = PaintingStyle.stroke
-      ..strokeWidth = strokeWidth / scale
+      ..strokeWidth = strokeWidth
       ..strokeCap = cap
       ..strokeJoin = join;
 
