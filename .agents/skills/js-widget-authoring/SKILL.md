@@ -152,13 +152,21 @@ The `cli` block is how coding agents discover your widget — fill it in:
 ### Data
 
 - `jsr.fetchJson(url, opts?)` → Promise — HTTP JSON (host permission-gated).
-  Always `.catch()`.
+  `opts` supports `{method? ('GET'), headers?}` only — no request body at the
+  shim level; for POST-style APIs go through `jsr.hostCall`. Always `.catch()`.
 - `jsr.storage.get(key)` / `jsr.storage.set(key, value)` → Promise — persistent
   per-widget storage.
-- `jsr.secrets.get/set(key, value)` → Promise — secure storage.
+- `jsr.secrets.get(key)` / `set(key, value)` / `delete(key)` → Promise —
+  secure storage.
 - `jsr.loadAsset(path)` → Promise<string> — read a bundled asset file.
-- `jsr.exec(cmd)` → Promise — shell command (host-dependent, usually gated).
-- `jsr.log(msg)` / `console.log` — debug output to the host log.
+- `jsr.exec(cmd)` → Promise — shell command (host-dependent, gated by the
+  manifest `allowedCommands`).
+- `jsr.hostCall(name, args?)` → Promise — generic host capability: routed to
+  the host's `JsRuntimeConfig.onHostCall`; rejects when no handler is
+  configured. Host-provided shims (`jsr.fa.*`, `jsr.yoloit.*`) are built on
+  it — prefer those when your host defines them.
+- `console.log/warn/error` — debug output to the host log (there is no
+  separate `jsr.log`).
 
 ### Input
 
@@ -333,8 +341,9 @@ Every node is `{type: '...', ...props}`. Children go in `child` (single) or
 
 `column`, `row`, `stack`, `wrap`, `center`, `align`, `expanded`, `flexible`,
 `padding`, `sizedBox` ({width, height}), `spacer`, `safeArea`, `scroll`,
-`listView`, `gridView`, `aspectRatio`, `clipRRect`, `fill` (solid color layer),
-`overlay` (stack layer with `positioned`).
+`listView`, `gridView`, `aspectRatio`, `clipRRect`,
+`blur` (`{sigma, child}`), `fill` a.k.a. `absoluteFill` (edge-to-edge color
+layer: `{color, child?}`).
 
 - `column`/`row`/`stack`/`wrap` honor `width`/`height` (capped via SizedBox,
   same loose-constraint semantics as `container` — under tight parents the
@@ -344,6 +353,23 @@ Every node is `{type: '...', ...props}`. Children go in `child` (single) or
 - Alignment strings: `'start'|'center'|'end'|'stretch'|'spaceBetween'|...`
   (camelCase, matching Flutter). Flex cross-axis default is `start`.
 
+### Universal effect props (any node)
+
+Every node — whatever its `type` — accepts flat `opacity` (0..1), `blur`
+(sigma), `scale`, `rotation` (radians) and `offsetX`/`offsetY` (px). The
+renderer wraps the built child, so you can fade, shrink or nudge a single
+text/icon/column without adding a wrapper node:
+
+```js
+{ type: 'text', data: 'ghost', opacity: 0.4, rotation: 0.1 },
+{ type: 'icon', icon: 'star', scale: 1.5 }
+```
+
+Exceptions: `expanded`/`flexible`/`spacer` pass through untouched (they must
+remain direct Flex children), and `animatedOpacity` owns its `opacity` prop.
+For ANIMATED effects use `animatedContainer`/`animatedOpacity`/`animatedPositioned`
+instead — the flat props snap instantly.
+
 ### Text & display
 
 - `text` — `{data, width, height, style: {color, fontSize, fontWeight
@@ -352,9 +378,14 @@ Every node is `{type: '...', ...props}`. Children go in `child` (single) or
   textShadows: [{color, blur, dx, dy}]}` — `width` makes the text BOX that
   wide so `textAlign: 'center'` centers across the box (not the intrinsic
   label width) at any nesting depth.
-- `icon` — `{icon: '<material name>'}` (star, home, settings, search, add,
-  refresh, menu, more_vert, trending_up, attach_money, show_chart, bar_chart,
-  notifications, lock, …) — for custom marks prefer `svg`.
+- `icon` — `{icon: '<name>'}`. Supported names (lowercased; unknown names fall
+  back to a generic glyph): `star favorite home settings search add remove
+  delete edit info check close arrow_forward arrow_back refresh share download
+  upload cloud person menu more_vert trending_up trending_down attach_money
+  show_chart bar_chart notifications lock key language thermostat water_drop
+  air wb_sunny nights_stay umbrella calculate timer calendar_today warning
+  error done play_arrow pause stop skip_next skip_previous` — for anything
+  else prefer `svg`.
 - `svg` — `{data: '<svg …/>', width, height, color}`. `color` tints via srcIn —
   the SVG must actually PAINT pixels (stroked icons need `stroke="#fff"`; SVG's
   default stroke is `none` → invisible).
@@ -398,9 +429,15 @@ no HTML-bridge overhead:
 
 - `button` (`{text|label, icon?, style: {backgroundColor, foregroundColor},
   onTap|onPressed}`), `textButton`, `outlinedButton`, `iconButton`
-  (`{icon, onTap, tooltip?}`).
-- `textField` / `textArea` — `{hint|placeholder, value, onChange, onSubmit,
-  obscure}`; events post `{value: 'text'}`.
+  (`{icon, onTap, tooltip?}`). All tap nodes also accept a static
+  `payload: {…}` delivered verbatim with the event (see Gestures).
+- `textField` / `textArea` — `{hint|placeholder, value (a.k.a.
+  `initialValue`), onChange|onChanged, onSubmit, obscure, minLines, maxLines}`;
+  events post `{value: 'text'}`. In `textArea`, `onSubmit` shows a `done`
+  keyboard action (without it Enter inserts a newline). Give the field an
+  `id`/`name`/`storageKey` to register its LIVE value with the host field
+  registry — hosts (boards, automation) can read what the user typed without
+  waiting for an event.
 - `switch`, `checkbox` ({value, label?, onChanged → `{value: bool}`}),
   `slider` ({value, min, max, divisions, onChanged → `{value: num}`}),
   `dropdown` ({items: [strings|{value,label}], value, onChanged}).
@@ -416,6 +453,7 @@ no HTML-bridge overhead:
 | `segmentedButton` | `segments: [{value, label, icon?}], selected: [...], multiSelect?, onChanged` | `{value}` or `{value: [...]}` |
 | `radio` | `value, groupValue, label?, onChanged` | `{value}` |
 | `searchBar` | `hint, onChanged, onSubmitted` | `{value: text}` |
+| `listTile` | `title|data|label, subtitle?, leading? (node or icon name), trailing? (node or icon name), dense?, enabled?, onTap, payload?` | tap (payload) |
 | `tooltip` | `message, child` | — |
 | `popupMenu` | `items: [{value, label, icon?}], icon?, onSelected` | `{value}` |
 | `banner` | `message, icon?, actions: [{label, onTap}]` | taps |
@@ -488,21 +526,35 @@ prefer `flChart` for anything user-facing.
 
 ### Gestures
 
-`gestureDetector` — `{onTap, onTapDown, onTapUp, onPanStart, onPanUpdate (→
-{dx, dy}), onPanEnd, onLongPress, child}`. `inkWell` for simple taps with ripple.
+`gestureDetector` — `{onTap, onTapDown, onTapUp, onPanStart, onPanUpdate,
+onPanEnd, child}` (no `onLongPress`). Payloads: `onTapDown`/`onTapUp`/
+`onPanStart` → `{x, y}`; `onPanUpdate` → `{x, y, dx, dy}`; `onPanEnd` →
+`{velocityX, velocityY}`. `inkWell` for simple taps with ripple.
+
+**Static payloads**: every tap-carrying node also accepts `payload: {…}` —
+the map is delivered verbatim as the event payload, so one handler can serve
+many buttons:
+
+```js
+{ type: 'button', text: 'Sintel', onTap: 'pick', payload: {index: 2} }
+// → handleEvent('pick', {index: 2})
+```
 
 ### Animation nodes
 
 - Implicit: `animatedContainer`, `animatedOpacity`, `animatedPositioned` —
   `{duration (ms), curve, ...target props}`; change props → animates.
-- Mount: `entrance` — `{kind: 'fade'|'slideUp'|'scale'|…, delay, duration, child}`.
+- Mount: `entrance` — `{kind, delay, duration, child}`; `kind` is one of
+  `fade`, `slideUp`, `slideDown`, `slideLeft`, `slideRight`, `scale`,
+  `fadeScale`, `list` (staggered children).
 - Switch: `animatedSwitcher` — `{switchKey, duration, child}` — crossfades when
   `switchKey` changes.
 - `curve` accepts: `linear`, `easeIn`, `easeOut`, `easeInOut`, `bounce(In)`,
   `elastic(In)`, `decelerate`, `fastOutSlowIn`, and M3 motion tokens
   `emphasized`, `emphasizedAccelerate`, `emphasizedDecelerate`, `standard`,
   `standardAccelerate`, `standardDecelerate` (approximated — Flutter 3.44
-  predates the real `Easing.*` tokens).
+  predates the real `Easing.*` tokens). An unknown curve name falls back to
+  `easeInOut`.
 
 ## 7. Event payloads (cheat sheet)
 
@@ -517,7 +569,8 @@ prefer `flChart` for anything user-facing.
 | `segmentedButton` | `{value: 'a'}` or `{value: ['a','b']}` (multi) |
 | pickers | `{value: 'YYYY-MM-DD'}` / `{value: 'HH:MM'}` |
 | overlay dismiss | `{}` to `onDismiss` |
-| `gestureDetector` pans | `{dx, dy}` |
+| `gestureDetector` pan move / end | `{x, y, dx, dy}` / `{velocityX, velocityY}` |
+| tap node with static `payload` | the payload map verbatim |
 | `jsr.onKey` | `{key, code, down, repeat}` |
 | `scene3d.onTap` | `{modelId, point:[x,y,z]}` or `{modelId: null}` |
 
