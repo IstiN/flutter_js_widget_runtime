@@ -71,11 +71,11 @@ class JsPathPainter extends CustomPainter {
       // Invalid path data: nothing to draw.
       return;
     }
-    // Scale the path to fit the canvas while preserving aspect ratio. The
-    // stroke extends `strokeWidth / 2` beyond the path bounds, so inset the
-    // available area by the stroke width to keep the stroke inside the box.
+    // A pure horizontal or vertical stroke has a zero-size axis (Rect.isEmpty
+    // treats that as empty) but is still perfectly drawable — the other axis
+    // drives the fit scale. Only bail when BOTH axes are degenerate.
     final bounds = source.getBounds();
-    if (bounds.isEmpty) return;
+    if (bounds.width <= 0 && bounds.height <= 0) return;
 
     final availW = max(1.0, size.width - strokeWidth);
     final availH = max(1.0, size.height - strokeWidth);
