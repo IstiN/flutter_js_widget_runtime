@@ -64,7 +64,7 @@
       '<path d="M2.5 9.5 h19"/>'
   };
 
-  var state = { video: 0, fit: 'contain' };
+  var state = { video: 0, fit: 'contain', videoError: null };
 
   // '#rrggbb' + alpha suffix → Flutter '#aarrggbb'.
   function alpha(hex, a) {
@@ -211,7 +211,8 @@
               src: v.url,
               controls: true,
               autoPlay: false,
-              fit: state.fit
+              fit: state.fit,
+              onError: 'videoError'
             }
           },
           {
@@ -257,6 +258,37 @@
     };
   }
 
+  // Inline playback-failure card. Filled by the video node's onError event
+  // (host-side init/network/codec failures used to be a silent black box).
+  function errorBanner(message) {
+    var t = jsr.theme;
+    return {
+      type: 'column', crossAxisAlignment: 'stretch',
+      children: [
+        {
+          type: 'container',
+          padding: [10, 12, 10, 12],
+          decoration: {
+            color: t.surfaceAlt,
+            borderRadius: 12,
+            border: { color: '#ef4444', width: 1 }
+          },
+          child: {
+            type: 'row', crossAxisAlignment: 'center',
+            children: [
+              { type: 'icon', icon: 'warning', size: 18, color: '#ef4444' },
+              { type: 'sizedBox', width: 10 },
+              { type: 'expanded', child: {
+                type: 'text', data: String(message),
+                style: { color: t.text, fontSize: 12 }
+              } }
+            ]
+          }
+        }
+      ]
+    };
+  }
+
   function render() {
     var t = jsr.theme;
     // Diagnostics breadcrumbs (fa1 118: no media-host lines at all on iOS —
@@ -267,15 +299,21 @@
       console.log('vp render: video=' + state.video + ' fit=' + state.fit +
         ' playing=' + state.playing + ' node=video(src=' + VIDEOS[state.video].src + ')');
     }
-    jsr.exportState({ video: state.video, title: VIDEOS[state.video].title, fit: state.fit });
+    jsr.exportState({
+      video: state.video,
+      title: VIDEOS[state.video].title,
+      fit: state.fit,
+      videoError: state.videoError
+    });
     jsr.render({
       type: 'container',
       color: t.bg,
       child: {
         type: 'listView', shrinkWrap: false, padding: [16, 16, 16, 24],
-        children: [
-          heroCard(),
-          { type: 'sizedBox', height: 18 },
+        children: [heroCard()].concat(state.videoError ? [
+          errorBanner(state.videoError),
+          { type: 'sizedBox', height: 12 }
+        ] : []).concat([
           sectionHeader(ICONS.film, 'SOURCE'),
           { type: 'sizedBox', height: 8 },
           sourceCard(VIDEOS[0], 0),
@@ -296,7 +334,7 @@
               fitChip('fill')
             ]
           }
-        ]
+        ])
       }
     });
   }
@@ -307,10 +345,14 @@
       // Payload may be a scalar or a single-element list.
       var v = value instanceof Array ? value[0] : value;
       state.video = Math.max(0, Math.min(VIDEOS.length - 1, parseInt(v, 10) || 0));
+      state.videoError = null; // new source, new chance
     }
     if (name === 'select_fit') {
       var f = value instanceof Array ? value[0] : value;
       if (FITS.indexOf(f) >= 0) state.fit = f;
+    }
+    if (name === 'videoError') {
+      state.videoError = value != null ? String(value) : 'Playback error';
     }
     render();
   });

@@ -227,12 +227,18 @@ class WidgetManifest {
     return parts.isEmpty ? normalized : parts.last;
   }
 
+  /// Returns `raw[key]` cast to [T] when it actually is one, else [fallback].
+  ///
+  /// Keeps manifest parsing tolerant: one wrong-typed field (LLM-authored or
+  /// hand-edited JSON) degrades that field instead of losing the manifest.
+  static T _typedOr<T>(Map<String, dynamic> raw, String key, T fallback) =>
+      raw[key] is T ? raw[key] as T : fallback;
+
   /// Creates a manifest from a storage base path (directory).
   static Future<WidgetManifest?> fromStorage(
     String basePath, {
     required WidgetFileReader reader,
-  }) async {
-    final normalized = _normalizePath(basePath);
+  }) async {    final normalized = _normalizePath(basePath);
     final jsPath = '$normalized/widget.js';
     if (!await reader.exists(jsPath)) return null;
 
@@ -242,25 +248,28 @@ class WidgetManifest {
     if (manifestRaw != null) {
       try {
         final raw = jsonDecode(manifestRaw) as Map<String, dynamic>;
-        final filesList = raw['files'] as List?;
+        // Tolerant field reads: a wrong-typed value (e.g. a localization map
+        // under the legacy `name`) degrades that ONE field to its fallback
+        // instead of discarding the whole manifest. Additive i18n keys
+        // (`nameI18n`/`descriptionI18n`) are unknown to the core and simply
+        // ignored here — hosts resolve localized display values.
         final cliRaw = raw['cli'];
         return WidgetManifest(
-          id: (raw['id'] as String? ?? id).trim(),
-          name: (raw['name'] as String? ?? id),
-          description: raw['description'] as String? ?? '',
-          version: raw['version'] as String? ?? defaultWidgetVersion,
-          icon: raw['icon'] as String? ?? '🔧',
+          id: (_typedOr(raw, 'id', id)).trim(),
+          name: _typedOr(raw, 'name', id),
+          description: _typedOr(raw, 'description', ''),
+          version: _typedOr(raw, 'version', defaultWidgetVersion),
+          icon: _typedOr(raw, 'icon', '🔧'),
           allowedCommands: List<String>.from(
-            raw['allowedCommands'] as List? ?? [],
+            _typedOr<List<dynamic>>(raw, 'allowedCommands', const <dynamic>[]),
           ),
-          networkEnabled: raw['network'] as bool? ?? true,
+          networkEnabled: _typedOr(raw, 'network', true),
           widgetPath: normalized,
           isSingleFile: false,
-          files: filesList != null ? List<String>.from(filesList) : null,
-          cli:
-              cliRaw is Map
-                  ? Map<String, dynamic>.from(cliRaw)
-                  : null,
+          files: raw['files'] is List
+              ? List<String>.from(raw['files'] as List)
+              : null,
+          cli: cliRaw is Map ? Map<String, dynamic>.from(cliRaw) : null,
         );
       } catch (_) {}
     }

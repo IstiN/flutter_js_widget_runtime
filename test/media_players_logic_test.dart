@@ -97,5 +97,15 @@ void main() {
       await h.callEvent('select_fit', payload: {'value': 'bogus'});
       expect(h.state!['fit'], 'cover'); // unchanged
     });
+
+    test('videoError surfaces the host failure and clears on source switch',
+        () async {
+      await h.callEvent('videoError', payload: {'value': 'network dropped'});
+      expect(h.state!['videoError'], 'network dropped');
+
+      // A new source resets the error banner.
+      await h.callEvent('select_video', payload: {'value': '1'});
+      expect(h.state!['videoError'], isNull);
+    });
   });
 }
