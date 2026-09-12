@@ -1,6 +1,24 @@
+## 0.4.121
+
+- `video` node: new `onError: '<actionId>'` prop — host playback failures
+  (controller init, network, codec) arrive as `{value: message}` instead of a
+  silent black box. Backed by the optional `JsMediaController.errorStream`
+  (default null — existing hosts stay source-compatible); the reference
+  `video_player` host publishes `errorDescription` + init failures, the web
+  host the element `error` event. A synchronously throwing
+  `createVideoController` no longer crashes the build — it fires `onError`.
+- `WidgetManifest.fromStorage` parses tolerantly: a wrong-typed legacy field
+  (e.g. a localization map under `name`) degrades that field to its fallback
+  instead of discarding the whole manifest. Additive i18n keys
+  (`nameI18n`/`descriptionI18n`) parse without loss — compat tests lock the
+  host-side i18n schema contract.
+- `video-player` example widget (1.0.7) wires `onError` to an inline error
+  banner and exports `videoError` for headless tests/CLI.
+
 ## 0.4.120
 
-- Automated patch bump.
+- `path` node: JsPathPainter supports pure vertical/horizontal strokes with
+  zero-width bounds (previously rendered nothing).
 
 ## 0.4.119
 
@@ -48,20 +66,6 @@
 ## 0.4.113
 
 - Automated patch bump.
-
-## Unreleased
-
-- `video` node: new `onError: '<actionId>'` prop — host playback failures
-  (controller init, network, codec) arrive as `{value: message}` instead of a
-  silent black box. Backed by the optional `JsMediaController.errorStream`
-  (default null — existing hosts stay source-compatible); the reference
-  `video_player` host publishes `errorDescription` + init failures, the web
-  host the element `error` event. A synchronously throwing
-  `createVideoController` no longer crashes the build — it fires `onError`.
-- Docs: `js-widget-authoring` skill synced with the actual API surface
-  (universal effect props, static `payload`, `listTile`, icon name list,
-  gesture payloads, entrance kinds; removed stale `overlay` node,
-  `jsr.log`, `onLongPress`).
 
 ## 0.4.112
 
