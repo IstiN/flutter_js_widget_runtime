@@ -511,13 +511,18 @@ prefer `flChart` for anything user-facing.
   `{value: string}` (iframe: `postMessage({type:'jsr', data})`; inappwebview:
   `callHandler('jsr', data)`).
 - `video` — `{src, autoPlay?, loop?, controls? (true), fit?, width?, height?,
-  fullscreenButton? (true)}`. `fit` (`contain`/`cover`/`fill`/`fitWidth`/
-  `fitHeight`/`none`) maps the picture when the parent reserved a fixed box
-  (`aspectRatio`/`sizedBox` w+h/`stack`); in loose parents (column/row
-  children) the surface keeps the video's natural aspect. `controls: true`
-  transport includes a fullscreen button that opens an in-app fullscreen
-  route on the SAME controller (playback continues; hide with
-  `fullscreenButton: false`); `audio`; `audio_player` — zero-size driver
+  fullscreenButton? (true), onError?}`. `fit` (`contain`/`cover`/`fill`/
+  `fitWidth`/`fitHeight`/`none`) maps the picture when the parent reserved a
+  fixed box (`aspectRatio`/`sizedBox` w+h/`stack`); in loose parents
+  (column/row children) the surface keeps the video's natural aspect.
+  `controls: true` transport includes a fullscreen button that opens an
+  in-app fullscreen route on the SAME controller (playback continues; hide
+  with `fullscreenButton: false`). `onError: '<actionId>'` surfaces host
+  playback failures (init/network/codec) as `{value: message}` — without it
+  a failed player is a silent black box. Hosts that can observe errors
+  should override the optional `JsMediaController.errorStream` (default
+  null; reference: `example/lib/media_host.dart`); `audio`; `audio_player`
+  — zero-size driver
   `{src, playing?, volume?, loop?,
   seekToMs?}`: recompute props every render, host follows them. All three need
   a host `JsMediaHost` (`JsRuntimeConfig.mediaHost`) or they render

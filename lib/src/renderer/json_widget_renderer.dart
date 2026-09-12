@@ -431,7 +431,7 @@ class JsonWidgetRenderer with JsonWidgetDecoration {
   Widget _video(Map<String, dynamic> m) {
     final host = mediaHost;
     if (host == null) return _mediaPlaceholder(m, Icons.videocam);
-    return JsVideoWidget(host: host, node: m);
+    return JsVideoWidget(host: host, node: m, onEvent: onEvent);
   }
 
   Widget _audio(Map<String, dynamic> m) {

@@ -39,6 +39,7 @@ mixin _ElementController<T extends web.HTMLMediaElement>
   final _positionCtrl = StreamController<Duration>.broadcast();
   final _durationCtrl = StreamController<Duration>.broadcast();
   final _playingCtrl = StreamController<bool>.broadcast();
+  final _errorCtrl = StreamController<Object?>.broadcast();
   bool _disposed = false;
 
   void initElement(T el, String src) {
@@ -71,6 +72,15 @@ mixin _ElementController<T extends web.HTMLMediaElement>
     on('ended', () {
       if (!_disposed) _playingCtrl.add(false);
     });
+    on('error', () {
+      if (_disposed) return;
+      final err = el.error;
+      _errorCtrl.add(
+        err == null
+            ? 'media error'
+            : 'MediaError code ${err.code}: ${err.message}',
+      );
+    });
   }
 
   @override
@@ -79,6 +89,8 @@ mixin _ElementController<T extends web.HTMLMediaElement>
   Stream<Duration> get durationStream => _durationCtrl.stream;
   @override
   Stream<bool> get playingStream => _playingCtrl.stream;
+  @override
+  Stream<Object?>? get errorStream => _errorCtrl.stream;
 
   @override
   Future<void> play() async {
@@ -118,6 +130,7 @@ mixin _ElementController<T extends web.HTMLMediaElement>
     await _positionCtrl.close();
     await _durationCtrl.close();
     await _playingCtrl.close();
+    await _errorCtrl.close();
   }
 }
 

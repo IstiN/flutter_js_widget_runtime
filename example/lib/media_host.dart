@@ -39,6 +39,11 @@ class VideoPlayerJsController extends JsVideoController {
       _durationCtrl.add(_controller.value.duration);
       _onUpdate();
     });
+    // Init failures never reach the value listener — observe them here so
+    // the renderer's `onError` event can surface them.
+    unawaited(
+      _initFuture.then((_) {}, onError: _emitError),
+    );
   }
 
   late final VideoPlayerController _controller;
@@ -48,7 +53,16 @@ class VideoPlayerJsController extends JsVideoController {
   final _durationCtrl = StreamController<Duration>.broadcast();
   final _playingCtrl = StreamController<bool>.broadcast();
   final _aspectCtrl = StreamController<double?>.broadcast();
+  final _errorCtrl = StreamController<Object?>.broadcast();
+  String? _lastError;
   double? _aspect;
+
+  void _emitError(Object e) {
+    final message = e.toString();
+    if (message == _lastError) return;
+    _lastError = message;
+    _errorCtrl.add(message);
+  }
 
   void _onUpdate() {
     final v = _controller.value;
@@ -56,6 +70,8 @@ class VideoPlayerJsController extends JsVideoController {
     _positionCtrl.add(v.position);
     _durationCtrl.add(v.duration);
     _playingCtrl.add(v.isPlaying);
+    final error = v.errorDescription;
+    if (error != null) _emitError(error);
   }
 
   @override
@@ -63,6 +79,9 @@ class VideoPlayerJsController extends JsVideoController {
 
   @override
   Stream<double?> get aspectRatioStream => _aspectCtrl.stream;
+
+  @override
+  Stream<Object?>? get errorStream => _errorCtrl.stream;
 
   @override
   Stream<Duration> get positionStream => _positionCtrl.stream;
@@ -132,6 +151,7 @@ class VideoPlayerJsController extends JsVideoController {
     await _durationCtrl.close();
     await _playingCtrl.close();
     await _aspectCtrl.close();
+    await _errorCtrl.close();
   }
 }
 

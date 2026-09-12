@@ -26,6 +26,11 @@ mixin JsMediaControllerMixin<C extends JsMediaController, T extends StatefulWidg
   /// Called when aspect ratio updates. Does nothing by default.
   void onAspectRatioChanged(double? value) {}
 
+  /// Called when the controller reports a terminal playback error (init
+  /// failure, network drop, codec problem). No-op by default; the video
+  /// widget overrides it to fire the node's `onError` event.
+  void onControllerError(Object? error) {}
+
   String get src;
   bool get autoPlay;
   bool get loop;
@@ -85,7 +90,15 @@ mixin JsMediaControllerMixin<C extends JsMediaController, T extends StatefulWidg
 
   Future<void> _initController() async {
     if (src.isEmpty) return;
-    final controller = createController(src);
+    final C controller;
+    try {
+      controller = createController(src);
+    } catch (e) {
+      // Host controllers can reject synchronously (unsupported source,
+      // missing native setup). Surface it instead of crashing the build.
+      onControllerError(e);
+      return;
+    }
     _controller = controller;
     _subs
       ..add(
@@ -103,6 +116,14 @@ mixin JsMediaControllerMixin<C extends JsMediaController, T extends StatefulWidg
           (p) => mounted ? setState(() => _isPlaying = p) : null,
         ),
       );
+    final errorStream = controller.errorStream;
+    if (errorStream != null) {
+      _subs.add(
+        errorStream.listen(
+          (e) => mounted ? onControllerError(e) : null,
+        ),
+      );
+    }
     final ratioStream = aspectRatioStream;
     if (ratioStream != null) {
       _subs.add(

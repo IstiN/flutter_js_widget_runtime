@@ -49,6 +49,20 @@
 
 - Automated patch bump.
 
+## Unreleased
+
+- `video` node: new `onError: '<actionId>'` prop — host playback failures
+  (controller init, network, codec) arrive as `{value: message}` instead of a
+  silent black box. Backed by the optional `JsMediaController.errorStream`
+  (default null — existing hosts stay source-compatible); the reference
+  `video_player` host publishes `errorDescription` + init failures, the web
+  host the element `error` event. A synchronously throwing
+  `createVideoController` no longer crashes the build — it fires `onError`.
+- Docs: `js-widget-authoring` skill synced with the actual API surface
+  (universal effect props, static `payload`, `listTile`, icon name list,
+  gesture payloads, entrance kinds; removed stale `overlay` node,
+  `jsr.log`, `onLongPress`).
+
 ## 0.4.112
 
 - `video` node: `fit` now actually maps the picture when the parent reserved
