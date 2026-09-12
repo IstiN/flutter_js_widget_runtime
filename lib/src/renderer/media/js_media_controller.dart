@@ -42,6 +42,16 @@ abstract class JsMediaController {
   /// Concrete no-op default so existing hosts stay source-compatible;
   /// hosts that support looping override this.
   Future<void> setLoop(bool loop) async {}
+
+  /// Optional stream of terminal playback errors (init failures, network
+  /// drops, codec problems). The renderer's media widgets subscribe and
+  /// re-publish messages to the node's `onError` event when configured —
+  /// without this the failure is a silent black box.
+  ///
+  /// Concrete null default so existing hosts stay source-compatible; hosts
+  /// that can observe errors override this (video_player:
+  /// `value.errorDescription`; web: the element `error` event).
+  Stream<Object?>? get errorStream => null;
 }
 
 /// Controller for video nodes.

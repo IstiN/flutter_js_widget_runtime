@@ -22,10 +22,14 @@ class JsVideoWidget extends StatefulWidget {
     super.key,
     required this.host,
     required this.node,
+    this.onEvent,
   });
 
   final JsMediaHost host;
   final Map<String, dynamic> node;
+
+  /// Renderer event sink — used to deliver the node's `onError` event.
+  final void Function(String actionId, Map<String, dynamic> payload)? onEvent;
 
   @override
   State<JsVideoWidget> createState() => _JsVideoWidgetState();
@@ -68,6 +72,22 @@ class _JsVideoWidgetState extends State<JsVideoWidget>
 
   @override
   void onAspectRatioChanged(double? value) => _aspectRatio = value;
+
+  /// Terminal playback errors from the host controller → the node's
+  /// `onError` event with `{value: message}`. Without an `onError` action id
+  /// the error stays silent (back-compat).
+  @override
+  void onControllerError(Object? error) {
+    final id = widget.node['onError'];
+    if (id is! String || id.isEmpty || !mounted) return;
+    final String message;
+    if (error is Map && error['message'] != null) {
+      message = error['message'].toString();
+    } else {
+      message = error?.toString() ?? 'unknown playback error';
+    }
+    widget.onEvent?.call(id, <String, dynamic>{'value': message});
+  }
 
   @override
   Widget build(BuildContext context) {
