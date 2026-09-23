@@ -1,3 +1,10 @@
+## 0.4.122
+
+- Maintenance release: the in-repo agent memory store is refreshed
+  (fa_widgets pins-only publish contract, flutter_agent coordination
+  notes, live state-sync protocol references). No API or renderer
+  changes — 0.4.121 remains the last functional release.
+
 ## 0.4.121
 
 - `video` node: new `onError: '<actionId>'` prop — host playback failures
