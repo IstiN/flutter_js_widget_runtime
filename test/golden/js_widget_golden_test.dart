@@ -14,6 +14,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:js_widget_runtime/js_widget_runtime.dart';
 import 'package:js_widget_runtime/src/runtime/js_widget_engine_quickjs.dart';
 import 'package:quickjs_runtime/quickjs_runtime.dart';
+import '../support/running_widget.dart';
 
 /// Golden tests for the example JS widgets: each widget's real JavaScript
 /// runs on the QuickJS backend (the same engine production hosts use) and
@@ -187,19 +188,10 @@ dynamic _fixtureFor(String widget, String url) {
 }
 
 /// A running widget engine plus its render log — lets golden tests drive
-/// events (button taps) and capture the resulting tree.
-class _RunningWidget {
-  _RunningWidget(this.backend, this.renders);
-
-  final QuickjsWidgetEngineBackend backend;
-  final List<Map<String, dynamic>> renders;
-
-  /// Stops the JS engine's RAF ticker and interval timers without disposing
-  /// the bridge or its scene controllers — the scene3d golden still needs
-  /// the controller alive. Widgets with infinite RAF/timer loops (showcase,
-  /// 3D games) would otherwise trip the "animation still running after the
-  /// tree was disposed" test invariant.
-  void stopEngineTimers() => backend.debugStopTimers();
+/// events (button taps) and capture the resulting tree. Engine plumbing
+/// (hostEvent/dispose/timers) lives in the shared [RunningWidget].
+class _RunningWidget extends RunningWidget {
+  _RunningWidget(super.backend, super.renders);
 
   /// Fires the widget's event handler (as a button tap would) and waits
   /// for the next render it produces.
@@ -211,23 +203,6 @@ class _RunningWidget {
     }
     return renders.length > before ? renders.last : null;
   }
-
-  /// Delivers a host event (viewport, key, …) and waits for the re-render
-  /// it triggers, mirroring what JsWidgetRuntimeWidget does on layout.
-  Future<Map<String, dynamic>?> hostEvent(
-    String target,
-    Map<String, dynamic> payload, [
-    int waitFor = 20,
-  ]) async {
-    final before = renders.length;
-    backend.dispatchHostEvent(target, payload);
-    for (var i = 0; i < waitFor && renders.length <= before; i++) {
-      await Future<void>.delayed(const Duration(milliseconds: 10));
-    }
-    return renders.length > before ? renders.last : null;
-  }
-
-  Future<void> dispose() => backend.dispose();
 }
 
 /// Runs [widgetJs] once and returns the tree of the render call that
