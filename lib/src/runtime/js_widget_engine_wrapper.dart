@@ -3,7 +3,7 @@ import 'dart:convert';
 import 'package:js_widget_runtime/src/model/js_runtime_config.dart';
 import 'package:js_widget_runtime/src/runtime/js_widget_engine_backend.dart';
 import 'package:js_widget_runtime/src/runtime/js_widget_engine_default.dart'
-    if (dart.library.html) 'package:js_widget_runtime/src/runtime/js_widget_engine_default_web.dart';
+    if (dart.library.js_interop) 'package:js_widget_runtime/src/runtime/js_widget_engine_default_web.dart';
 
 int _instanceCounter = 0;
 
