@@ -19,7 +19,7 @@ import 'package:js_widget_runtime/src/renderer/media/js_video_widget.dart';
 import 'package:js_widget_runtime/src/renderer/webview/js_web_view_host.dart';
 import 'package:js_widget_runtime/src/renderer/nodes/image_provider_resolver_stub.dart'
     if (dart.library.io) 'package:js_widget_runtime/src/renderer/nodes/image_provider_resolver_io.dart'
-    if (dart.library.html) 'package:js_widget_runtime/src/renderer/nodes/image_provider_resolver_web.dart';
+    if (dart.library.js_interop) 'package:js_widget_runtime/src/renderer/nodes/image_provider_resolver_web.dart';
 import 'package:js_widget_runtime/src/renderer/nodes/js_3d_host.dart';
 import 'package:js_widget_runtime/src/renderer/nodes/js_animation_nodes.dart';
 import 'package:js_widget_runtime/src/renderer/nodes/js_map_node.dart';
