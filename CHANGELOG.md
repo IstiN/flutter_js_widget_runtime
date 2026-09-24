@@ -1,3 +1,7 @@
+## 0.4.123
+
+- Automated patch bump.
+
 ## 0.4.122
 
 - Maintenance release: the in-repo agent memory store is refreshed
