@@ -13,6 +13,7 @@ import 'package:js_widget_runtime/js_widget_runtime.dart';
 import 'package:js_widget_runtime/src/renderer/nodes/hosts/cube_3d_host.dart';
 import 'package:js_widget_runtime/src/runtime/js_widget_engine_quickjs.dart';
 import 'package:quickjs_runtime/quickjs_runtime.dart';
+import '../support/running_widget.dart';
 
 /// Tile snapshot matrix: renders every example widget at the tile sizes the
 /// Fa app uses (2x2 ~170x170, 4x2 ~350x170, 4x4 ~350x350) and writes the
@@ -225,28 +226,8 @@ Future<void> _loadFonts() async {
   await load('test/golden/NotoSansSymbols2-Regular.ttf', 'NotoSansSymbols2');
 }
 
-class _RunningWidget {
-  _RunningWidget(this.backend, this.renders);
-
-  final QuickjsWidgetEngineBackend backend;
-  final List<Map<String, dynamic>> renders;
-
-  void stopEngineTimers() => backend.debugStopTimers();
-
-  Future<void> dispose() => backend.dispose();
-
-  Future<Map<String, dynamic>?> hostEvent(
-    String target,
-    Map<String, dynamic> payload, [
-    int waitFor = 20,
-  ]) async {
-    final before = renders.length;
-    backend.dispatchHostEvent(target, payload);
-    for (var i = 0; i < waitFor && renders.length <= before; i++) {
-      await Future<void>.delayed(const Duration(milliseconds: 10));
-    }
-    return renders.length > before ? renders.last : null;
-  }
+class _RunningWidget extends RunningWidget {
+  _RunningWidget(super.backend, super.renders);
 }
 
 /// Boots [widgetJs] on the QuickJS backend on the real event loop (same

@@ -2,6 +2,25 @@ import 'package:fake_async/fake_async.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:js_widget_runtime/js_widget_runtime.dart';
 
+/// Creates a default controller on 's1' and queues the helmet addModel
+/// command — the scaffold every queueing-behaviour test starts from.
+Flame3dController _queuedHelmetController() {
+  final controller = Flame3dHost.instance.createController(
+    's1',
+    <String, dynamic>{},
+  ) as Flame3dController;
+
+  controller.apply(
+    const Js3dCommand(
+      kind: 'addModel',
+      sceneId: 's1',
+      modelId: 'helmet',
+      payload: {'src': 'models/helmet.glb'},
+    ),
+  );
+  return controller;
+}
+
 void main() {
   group('createFlame3dHost', () {
     test('creates a Flame3dHost', () {
@@ -12,19 +31,7 @@ void main() {
   group('Flame3dController', () {
     test('queues commands while GPU initializes', () {
       fakeAsync((async) {
-        final controller = Flame3dHost.instance.createController(
-          's1',
-          <String, dynamic>{},
-        ) as Flame3dController;
-
-        controller.apply(
-          const Js3dCommand(
-            kind: 'addModel',
-            sceneId: 's1',
-            modelId: 'helmet',
-            payload: {'src': 'models/helmet.glb'},
-          ),
-        );
+        final controller = _queuedHelmetController();
 
         // The command should be queued synchronously before async init runs.
         expect(controller.pendingLength, 1);
@@ -43,19 +50,7 @@ void main() {
 
     test('multiple commands are queued and initialization starts once', () {
       fakeAsync((async) {
-        final controller = Flame3dHost.instance.createController(
-          's1',
-          <String, dynamic>{},
-        ) as Flame3dController;
-
-        controller.apply(
-          const Js3dCommand(
-            kind: 'addModel',
-            sceneId: 's1',
-            modelId: 'helmet',
-            payload: {'src': 'models/helmet.glb'},
-          ),
-        );
+        final controller = _queuedHelmetController();
         controller.apply(
           const Js3dCommand(
             kind: 'playAnimation',
