@@ -80,8 +80,10 @@ Then register the id in `example/lib/main.dart` (`_widgetIds`) and
 **Rules that will bite you if skipped:**
 
 1. ES5 style only: `var`, `function`, no arrow functions, no `async/await`
-   (Promise chains are fine — the engine supports ES2020, but the repo style is
-   ES5 and it keeps every engine happy).
+   (Promise chains are fine and reactions settle automatically — the QuickJS
+   backend runs `quickjs_runtime ^0.3.3`, which drains the microtask queue
+   after every successful eval; the repo style is still ES5 and it keeps every
+   engine happy).
 2. Wrap everything in one `(function() { ... })();` IIFE.
 3. Call `jsr.onEvent(...)` **before** the first `render()`.
 4. `jsr.render` replaces the whole UI — always render the complete tree.
@@ -178,7 +180,13 @@ The `cli` block is how coding agents discover your widget — fill it in:
 ### Timers (shimmed)
 
 `setTimeout`, `setInterval`, `clearInterval`, `requestAnimationFrame` — RAF gets an
-elapsed-ms argument; drive game loops with it (`dt = (now - last) / 1000`).
+elapsed-ms argument; drive game loops with it (`dt = (now - last) / 1000`). Timers
+are host-driven (Flutter ticker), not event-loop driven: callbacks fire between
+host ticks, never mid-render. Promise microtasks need no pumping — the runtime
+drains them after each eval.
+
+**No Node globals:** `Buffer`, `URL`, `process`, `require`, `fetch` do not exist
+in widget JS — use the `jsr` API above (`jsr.fetchJson`, `jsr.loadAsset`, …).
 
 ### Theme — `jsr.theme`
 

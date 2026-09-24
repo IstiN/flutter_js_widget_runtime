@@ -135,16 +135,18 @@ void main() {
       expect(rt.eval('40+2'), '42');
     });
 
-    test('executePendingJobs settles promise chains', () {
+    test('promise chains settle automatically after eval (0.3.x auto-drain)', () {
       final rt = QuickjsRuntime();
       addTearDown(rt.close);
       rt.eval(
         'var __r = null; '
         'Promise.resolve(41).then(function(v){ __r = v + 1; });',
       );
-      expect(rt.eval('__r'), 'null');
-      expect(rt.executePendingJobs(), greaterThanOrEqualTo(1));
+      // quickjs_runtime >= 0.3.0 drains the microtask queue after every
+      // successful eval, so the reaction has already run — no manual
+      // executePendingJobs() needed.
       expect(rt.eval('__r'), '42');
+      expect(rt.executePendingJobs(), 0);
     });
 
     test('close is idempotent', () {
