@@ -107,7 +107,13 @@ Example: the web preview's `jsr.fa.asr` — `hostBootstrapJs` maps
 ## Important Notes
 
 - Keep `JsWidgetBridge` platform-agnostic. Never import `dart:io` or `dart:html` there.
-- VM engine uses `rt.evaluate()` and `rt.executePendingJob()` after every JS call.
+- The VM engine runs on `quickjs_runtime ^0.3.3`: every successful `eval`
+  auto-drains the microtask queue (promise reactions settle without manual
+  pumping). The explicit `rt.executePendingJobs()` calls after evals are
+  retained as defense for *failed* evals (auto-drain only runs on success).
+- Do not pin `quickjs_runtime` with a 0.x caret below the current minor —
+  `^0.1.0` silently held the engine on 0.1.x (no loader fix, no auto-drain,
+  no conformance-verified core). Bump deliberately and read the CHANGELOG.
 - Web engine uses prefixed string messages (`__jsr__`) via `postMessage`.
 - The bootstrap is shared verbatim between VM and Web; do not use platform-specific globals inside it other than `sendMessage`, which both engines provide.
 - Permission capabilities are: `fetch`, `storage`, `secrets`, `exec`. Reuse these before adding new ones.
