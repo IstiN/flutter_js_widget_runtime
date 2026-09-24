@@ -13,7 +13,7 @@ import 'package:js_widget_runtime/js_widget_runtime.dart';
 import 'package:js_widget_runtime/src/renderer/nodes/hosts/cube_3d_host.dart';
 import 'package:js_widget_runtime/src/runtime/js_widget_engine_quickjs.dart';
 import 'package:quickjs_runtime/quickjs_runtime.dart';
-import '../support/running_widget.dart';
+import 'support/running_widget.dart';
 
 /// Tile snapshot matrix: renders every example widget at the tile sizes the
 /// Fa app uses (2x2 ~170x170, 4x2 ~350x170, 4x4 ~350x350) and writes the
