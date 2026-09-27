@@ -116,6 +116,15 @@ Example: the web preview's `jsr.fa.asr` — `hostBootstrapJs` maps
   no conformance-verified core). Bump deliberately and read the CHANGELOG.
 - Web engine uses prefixed string messages (`__jsr__`) via `postMessage`.
 - The bootstrap is shared verbatim between VM and Web; do not use platform-specific globals inside it other than `sendMessage`, which both engines provide.
+- Web conditional exports use `if (dart.library.js_interop)` — NOT
+  `dart.library.html` (0.4.124+): `dart:html` availability was dropped
+  from current web platform libraries, so `dart.library.html`
+  conditionals stopped selecting web variants and web builds compiled
+  the `dart:ffi` branches instead. `js_interop` holds across dart2js and
+  dart2wasm. If you add a web-variant file, wire it with the
+  `js_interop` condition (see `json_widget_renderer.dart` for the
+  pattern) — and hosts writing their own conditional imports must do
+  the same.
 - Permission capabilities are: `fetch`, `storage`, `secrets`, `exec`. Reuse these before adding new ones.
 
 ## Testing the Engine
