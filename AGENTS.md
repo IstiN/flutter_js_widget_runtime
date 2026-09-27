@@ -153,6 +153,12 @@ memory (same convention as flutter_agent):
 # Install dependencies
 flutter pub get
 
+# Headless widget verification (no Dart test files needed)
+dart run bin/jsr_widget.dart test <widget-dir> \
+    --event <actionId> --expect-state '{"key": "value"}' --json
+dart run bin/jsr_widget.dart screenshot <widget-dir> \
+    --width 420 --height 300 --out shot.png
+
 # Run tests with coverage
 flutter test --coverage
 
