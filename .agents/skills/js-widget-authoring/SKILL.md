@@ -114,10 +114,43 @@ import { formatMoney } from './lib/money.js';
 |---|---|---|
 | `id` | yes | must equal the folder name |
 | `name`, `description`, `version`, `icon` | yes | catalog display |
+| `nameI18n`, `descriptionI18n` | no | localized catalog display — see below |
 | `network` | no | informational; real enforcement is host-side |
 | `allowedCommands` | no | host-specific `jsr.exec` allow-list; keep `[]` |
 | `files` | no | explicit ordered concat list (see imports above) |
 | `cli` | no | agent-facing metadata — see below |
+
+### Localized display (0.4.121+): `nameI18n` / `descriptionI18n`
+
+The catalog can show localized names/descriptions. Both keys take a map
+from BCP-47 locale to a string, or to `{"file": "./relative/path.md"}`
+(a markdown file resolved relative to the manifest — validated at
+install time):
+
+```json
+{
+  "name": "Pomodoro",
+  "description": "Focus timer",
+  "nameI18n": {
+    "en": "Pomodoro",
+    "ru": "Помодоро",
+    "pt-BR": "Pomodoro"
+  },
+  "descriptionI18n": {
+    "ru": {"file": "./desc.ru.md"}
+  }
+}
+```
+
+Rules:
+
+- The plain `name`/`description` scalars stay REQUIRED — they are the
+  default-locale fallback and the source of truth for tools.
+- A map placed under the legacy `name`/`description` key is NOT treated
+  as localization: the manifest model degrades that field to its fallback
+  instead of losing the manifest (tolerant parsing, 0.4.121+).
+- Locale resolution walks most-specific first: `pt-BR` → `pt` → `en` →
+  the scalar default → the first available entry.
 
 Host-specific extension keys are allowed — the runtime manifest model
 ignores unknown fields. Example (Fa host): `"widget": {"interactive": true}`
