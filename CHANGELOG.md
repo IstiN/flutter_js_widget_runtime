@@ -1,3 +1,18 @@
+## 0.4.126
+
+- New `jsr_widget` CLI for headless widget verification by agents and
+  humans: `dart run bin/jsr_widget.dart test <widget-dir>` runs the
+  widget's real JavaScript on the QuickJS backend with NO rendering —
+  dispatch events (`--event`, repeatable), seed storage, inject
+  `fetchJson` fixtures, assert the final `jsr.exportState` (deep-subset
+  match) and console output; `--json` prints a machine report and the
+  exit code is 0/1. `... screenshot <widget-dir>` pumps the rendered
+  tree through the production renderer and writes a PNG (width/height/
+  scale/theme, `--freeze-clock` for determinism). Works from any project
+  depending on the package; the QuickJS native library is auto-discovered
+  from the pub cache when `JSR_QUICKJS_LIB` is unset. Documented in the
+  authoring skill section 8.3.
+
 ## 0.4.125
 
 - Automated patch bump.

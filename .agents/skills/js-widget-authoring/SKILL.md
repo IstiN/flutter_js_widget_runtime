@@ -722,7 +722,52 @@ expect(last['type'], 'column');
 
 Helpers: search by `type`/`data` recursively; the golden suite has examples.
 
-### 8.3 Golden tests (visual, double as README gallery)
+### 8.3 The `jsr_widget` CLI — headless tests & screenshots (no test file)
+
+The package ships a CLI so agents (and humans) verify a widget WITHOUT
+writing any Dart test — the two commands every widget author needs:
+
+```bash
+# Logic test: run the widget's real JS on the QuickJS backend headlessly,
+# dispatch events, assert the exported state / console output. Exit 0/1.
+dart run bin/jsr_widget.dart test example/widgets/calculator \
+    --event btn_7 --event btn_* --event btn_6 --event btn_= \
+    --expect-state '{"display": "42"}' --json
+
+# Screenshot: render through the PRODUCTION renderer to a PNG.
+dart run bin/jsr_widget.dart screenshot <widget-dir> \
+    --width 420 --height 300 --theme dark --out shot.png
+```
+
+Options worth knowing:
+
+- `--event <id|json>` (repeatable) — bare actionId, or
+  `{"id": "tap", "payload": {"x": 1}}`.
+- `--expect-state <json>` — deep-subset match against the last
+  `jsr.exportState(...)`; `--expect-console <substr>` — console capture.
+- `--fixture <url-substr>=<json>` (repeatable) — fetchJson fixtures, no
+  network; `--storage <json>` — seed `jsr.storage`.
+- `--freeze-clock` — pin `Date.now` (deterministic screenshots of clocks).
+- `--settle-ms <ms>` — per-event re-render window (default 1000).
+- `--json` — print only the machine report (`ok`, `state`, `console`,
+  `failures`, `screenshot`) — the format agents should parse.
+- screenshot: `--scale <x>` for @2x PNGs, `--out <file>`.
+
+Requirements: the Flutter SDK on PATH (the harness runs as a generated
+`flutter test`), and the QuickJS native library — auto-discovered from
+the pub cache when `JSR_QUICKJS_LIB` is unset. The CLI works from any
+project that depends on `js_widget_runtime` (it resolves the package
+root from `.dart_tool/package_config.json`), not only from the jsr
+checkout. In the Fa ecosystem the `jsr` CLI surfaces the same flows as
+`jsr widget:test` / `jsr widget:screenshot` pass-throughs.
+
+When to use what: `flutter test` golden suites for pixel-stable gallery
+images; `jsr_widget test` for fast behavioral checks (state machine,
+event handling); `jsr_widget screenshot` for "what does it actually look
+like" — during development, in CI smoke checks, or for attaching a
+preview to a bug report.
+
+### 8.4 Golden tests (visual, double as README gallery)
 
 `test/golden/js_widget_golden_test.dart` renders each widget's tree through
 `JsonWidgetRenderer` and compares a PNG (tolerant comparator, 0.5% pixels).
