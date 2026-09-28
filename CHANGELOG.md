@@ -1,3 +1,17 @@
+## Unreleased
+
+- New `voxel` renderer node: a chunked voxel world rendered by a pure-Dart
+  software pipeline on `CustomPaint` (no native deps, no new packages).
+  Widget JS pushes per-chunk vertex buffers with
+  `jsr.hostCall('voxel.mesh', {id, key, origin, positions, colors,
+  indices})` — plain arrays, rebuilt only on edit — and steers the camera
+  with `jsr.hostCall('voxel.camera', {id, position, yaw, pitch, light,
+  skyColor})`. `voxel.attach` probes support (older runtimes reject, so
+  widgets degrade gracefully). The world state is bridge-owned (core
+  capability): `voxel.*` host calls are intercepted before the host
+  handler and feed the renderer's `voxel` nodes. Example:
+  `example/widgets/voxel-sandbox/`.
+
 ## 0.4.126
 
 - New `jsr_widget` CLI for headless widget verification by agents and

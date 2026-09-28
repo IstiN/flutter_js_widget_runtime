@@ -5,6 +5,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/scheduler.dart';
 
 import 'package:js_widget_runtime/src/renderer/nodes/js_3d_host.dart';
+import 'package:js_widget_runtime/src/renderer/nodes/js_voxel_node.dart';
 
 /// Callback invoked to check whether a capability is allowed.
 /// Capabilities: 'fetch', 'storage', 'secrets', 'exec'.
@@ -109,6 +110,10 @@ class JsWidgetBridge {
 
   late final JsStorageChannel _store;
   final Map<String, Js3dController> _sceneControllers = {};
+
+  /// Voxel world state backing `jsr.hostCall('voxel.*')` and the `voxel`
+  /// renderer node. Owned by the bridge — core capability, always present.
+  final JsVoxelWorld voxelWorld = JsVoxelWorld();
 
   final JsIntervalScheduler _intervals = JsIntervalScheduler();
   final JsRafScheduler _raf = JsRafScheduler();
@@ -294,9 +299,30 @@ class JsWidgetBridge {
   /// response (or thrown error) round-trips through the standard
   /// resolveCallback → `__jsr_resolve` path, so it works identically on
   /// the VM engines and the web worker.
+  ///
+  /// `voxel.*` names are intercepted first: the voxel world is a core
+  /// capability (bridge-owned [voxelWorld] feeding the `voxel` renderer
+  /// node), not a host capability. Older runtimes without the interceptor
+  /// reject these names when no host handler exists — widgets probe with
+  /// `voxel.attach` and degrade gracefully.
   Future<void> _handleHostCall(dynamic args) async {
     final req = _parseArgs(args);
     final id = req['id'] as String;
+    final name = req['name'] as String? ?? '';
+    if (name.startsWith('voxel.')) {
+      try {
+        resolveCallback(
+          id,
+          voxelWorld.handleHostCall(
+            name,
+            (req['args'] as Map?)?.cast<String, dynamic>() ?? const {},
+          ),
+        );
+      } catch (e) {
+        resolveCallback(id, {'__error': e.toString()});
+      }
+      return;
+    }
     final handler = onHostCall;
     if (handler == null) {
       resolveCallback(id, {

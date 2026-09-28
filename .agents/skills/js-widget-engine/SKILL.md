@@ -55,6 +55,18 @@ Follow these steps in order:
 3. Add a widget test in `test/json_widget_renderer_test.dart`.
 4. Document the new type in `.agents/skills/js-widget-authoring/SKILL.md`.
 
+## Core-Capability hostCall Names (`voxel.*`)
+
+Most `jsr.hostCall` names route to the host's `onHostCall`. The `voxel.*`
+namespace is different: `JsWidgetBridge._handleHostCall` intercepts it
+BEFORE the host handler and serves it from the bridge-owned `voxelWorld`
+(a `JsVoxelWorld`), which also backs the `voxel` renderer node. This makes
+voxel a core capability: no host wiring, and hosts without the
+interceptor (older runtimes) reject `voxel.*` so widgets can probe with
+`voxel.attach` and degrade. When adding a renderer node that needs JS-side
+state without a host object, follow this pattern instead of a new channel
+— it reuses `__jsr_host_call` and needs no bootstrap or engine changes.
+
 ## Engine Lifecycle
 
 - `JsWidgetEngine.run(widgetJs)` starts the runtime, evaluates bootstrap + optional host bootstrap + widget JS.

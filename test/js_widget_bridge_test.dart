@@ -385,6 +385,32 @@ void main() {
       expect((resolved['h3'] as Map)['__error'],
           contains('hostCall is not supported'));
     });
+
+    test('voxel.* names resolve without a host handler (core capability)',
+        () async {
+      final resolved = <String, dynamic>{};
+      final bridge = _makeBridge(resolved: resolved);
+      await bridge.dispatch(
+        '__jsr_host_call',
+        '{"id":"v1","name":"voxel.mesh","args":{"id":"w","key":"k",'
+        '"origin":[0,0,0],"positions":[0,0,1,1,0,1,1,1,1,0,1,1],'
+        '"colors":[1,0,0,1,0,0,1,0,0,1,0,0],"indices":[0,1,2,0,2,3]}}',
+      );
+      expect(resolved['v1'], {'ok': true, 'faces': 2});
+      expect(bridge.voxelWorld.chunksOf('w')['k'], isNotNull);
+    });
+
+    test('voxel.attach reports the world; errors resolve as __error',
+        () async {
+      final resolved = <String, dynamic>{};
+      final bridge = _makeBridge(resolved: resolved);
+      await bridge.dispatch(
+          '__jsr_host_call', '{"id":"v2","name":"voxel.attach","args":{}}');
+      expect(resolved['v2'], {'ok': true});
+      await bridge.dispatch(
+          '__jsr_host_call', '{"id":"v3","name":"voxel.mesh","args":[]}');
+      expect((resolved['v3'] as Map)['__error'], isNotNull);
+    });
   });
 }
 

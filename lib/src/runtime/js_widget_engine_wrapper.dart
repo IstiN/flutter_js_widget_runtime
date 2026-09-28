@@ -1,6 +1,7 @@
 import 'dart:convert';
 
 import 'package:js_widget_runtime/src/model/js_runtime_config.dart';
+import 'package:js_widget_runtime/src/renderer/nodes/js_voxel_node.dart';
 import 'package:js_widget_runtime/src/runtime/js_widget_engine_backend.dart';
 import 'package:js_widget_runtime/src/runtime/js_widget_engine_default.dart'
     if (dart.library.js_interop) 'package:js_widget_runtime/src/runtime/js_widget_engine_default_web.dart';
@@ -70,6 +71,10 @@ class JsWidgetEngine {
 
   /// Last structured state exported via `jsr.exportState(...)`.
   Map<String, dynamic>? get exportedState => _backend.exportedState;
+
+  /// Voxel world state behind `jsr.hostCall('voxel.*')` and `voxel`
+  /// nodes; null on minimal custom backends.
+  JsVoxelWorld? get voxelWorld => _backend.voxelWorld;
 }
 
 JsWidgetEngineBackend _defaultBackend(JsRuntimeConfig config) {

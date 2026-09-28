@@ -57,6 +57,7 @@ class _DemoHomeState extends State<DemoHome> {
     'adaptive-dashboard',
     'charts-showcase',
     'map',
+    'voxel-sandbox',
   ];
 
   @override

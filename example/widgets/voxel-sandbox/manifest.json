@@ -1,0 +1,51 @@
+{
+  "id": "voxel-sandbox",
+  "name": "Voxel Sandbox",
+  "description": "Chunked voxel terrain rendered by the pure-Dart voxel node: vertex buffers per chunk pushed from JS, dig/build edits re-upload only the dirty chunk.",
+  "version": "1.0.0",
+  "icon": "⛏️",
+  "allowedCommands": [],
+  "network": false,
+  "cli": {
+    "summary": "Voxel chunk-mesh sandbox with dig/build edits",
+    "events": [
+      {
+        "id": "cam_left",
+        "description": "Orbit camera left"
+      },
+      {
+        "id": "cam_right",
+        "description": "Orbit camera right"
+      },
+      {
+        "id": "cam_up",
+        "description": "Raise camera pitch"
+      },
+      {
+        "id": "cam_down",
+        "description": "Lower camera pitch"
+      },
+      {
+        "id": "dig",
+        "description": "Dig the center column"
+      },
+      {
+        "id": "build",
+        "description": "Build on the center column"
+      }
+    ],
+    "read": {
+      "state": "jsr app:state voxel-sandbox",
+      "snapshot": "jsr app:snapshot voxel-sandbox"
+    },
+    "examples": [
+      "jsr app:run voxel-sandbox",
+      "jsr app:execute voxel-sandbox dig"
+    ]
+  },
+  "widget": {
+    "entry": "widget.js",
+    "size": "4x3",
+    "interactive": true
+  }
+}

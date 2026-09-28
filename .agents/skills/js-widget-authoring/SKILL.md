@@ -199,7 +199,9 @@ The `cli` block is how coding agents discover your widget — fill it in:
 - `jsr.hostCall(name, args?)` → Promise — generic host capability: routed to
   the host's `JsRuntimeConfig.onHostCall`; rejects when no handler is
   configured. Host-provided shims (`jsr.fa.*`, `jsr.yoloit.*`) are built on
-  it — prefer those when your host defines them.
+  it — prefer those when your host defines them. Exception: `voxel.*`
+  names are a CORE capability (intercepted before the host handler; always
+  available) — see the voxel node below.
 - `console.log/warn/error` — debug output to the host log (there is no
   separate `jsr.log`).
 
@@ -569,6 +571,17 @@ prefer `flChart` for anything user-facing.
   a host `JsMediaHost` (`JsRuntimeConfig.mediaHost`) or they render
   placeholders; reference impl `example/lib/media_host.dart`.
 - `scene3d` — `{id, width?, height?, interactive?}` bound to `jsr.scene3d.*`.
+- `voxel` — `{id, width?, height?}` — chunked voxel world rendered by a
+  pure-Dart software rasterizer (no host object needed). Widget JS owns the
+  world state through `jsr.hostCall` (always available):
+  `voxel.attach {id}` → `{ok:true}` probe (older runtimes reject — degrade
+  gracefully); `voxel.mesh {id, key, origin, positions, colors, indices}`
+  pushes ONE chunk's vertex buffers as plain flat arrays (positions xyz ×3
+  per vertex, colors rgb, quad/tri indices, CCW-from-outside winding) —
+  rebuild and re-push only chunks touched by an edit; `voxel.camera
+  {id, position, yaw, pitch, fov?, light?, skyColor?}` steers the view
+  (Minecraft yaw/pitch convention) and repaints the node. Reference:
+  `example/widgets/voxel-sandbox/`.
 
 ### Gestures
 

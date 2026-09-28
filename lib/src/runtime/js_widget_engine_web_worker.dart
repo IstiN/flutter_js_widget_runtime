@@ -8,6 +8,7 @@ import 'package:web/web.dart' as web;
 import 'package:js_widget_runtime/src/model/js_runtime_config.dart';
 import 'package:js_widget_runtime/src/runtime/js_widget_bootstrap.dart';
 import 'package:js_widget_runtime/src/runtime/js_widget_bridge.dart';
+import 'package:js_widget_runtime/src/renderer/nodes/js_voxel_node.dart';
 import 'package:js_widget_runtime/src/runtime/js_widget_engine_backend.dart';
 import 'package:js_widget_runtime/src/runtime/js_widget_engine_message.dart';
 import 'package:js_widget_runtime/src/defaults/web_default_handlers.dart';
@@ -85,6 +86,9 @@ class WebWorkerJsWidgetEngineBackend implements JsWidgetEngineBackend {
 
   @override
   Map<String, dynamic>? get exportedState => _bridge.exportedState;
+
+  @override
+  JsVoxelWorld? get voxelWorld => _bridge.voxelWorld;
 
   @override
   Future<void> run(
