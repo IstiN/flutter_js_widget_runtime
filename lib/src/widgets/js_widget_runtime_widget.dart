@@ -114,6 +114,7 @@ class _JsWidgetRuntimeWidgetState extends State<JsWidgetRuntimeWidget> {
         js3dHost: widget.config.js3dHost,
         mediaHost: widget.config.mediaHost,
         webViewHost: widget.config.webViewHost,
+        voxelWorld: _engine?.voxelWorld,
         onScene3dTap: (sceneId, payload) =>
             _engine?.dispatchHostEvent('scene3d.tap:$sceneId', payload),
       );
