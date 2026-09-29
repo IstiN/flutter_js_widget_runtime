@@ -202,6 +202,11 @@ The `cli` block is how coding agents discover your widget — fill it in:
   it — prefer those when your host defines them. Exception: `voxel.*`
   names are a CORE capability (intercepted before the host handler; always
   available) — see the voxel node below.
+- `jsr.capture(opts?)` → Promise<{path, width, height}> — self-screenshot
+  of the widget's CURRENT rendered tree. Core capability, host-dependent:
+  the jsr_widget CLI resolves a PNG path under `--capture-dir` (see
+  §8.3); hosts without a capture handler reject — `.catch()` and degrade.
+  Fire-and-forget safe: the promise never blocks the message queue.
 - `console.log/warn/error` — debug output to the host log (there is no
   separate `jsr.log`).
 
@@ -765,6 +770,21 @@ Options worth knowing:
 - `--json` — print only the machine report (`ok`, `state`, `console`,
   `failures`, `screenshot`) — the format agents should parse.
 - screenshot: `--scale <x>` for @2x PNGs, `--out <file>`.
+- `--capture-dir <dir>` — where `jsr.capture()` PNGs land (default
+  `jsr-captures/`). The widget self-photographs at the exact moment of
+  its logic, and the report's `captures[]` lists the files:
+
+  ```js
+  // inside an event handler — resolves immediately with the path
+  jsr.capture({name: 'city'}).then(function (shot) {
+    console.log('SELFIE ' + shot.path);
+  });
+  ```
+
+  ```bash
+  dart run bin/jsr_widget.dart test my-widget --event build_city \
+      --expect-console 'SELFIE ' --capture-dir shots --json
+  ```
 
 Requirements: the Flutter SDK on PATH (the harness runs as a generated
 `flutter test`), and the QuickJS native library — auto-discovered from

@@ -27,6 +27,22 @@ class JsVoxelChunk {
   /// (wrong arities, out-of-range indices) so a single bad upload cannot
   /// wedge the renderer.
   static JsVoxelChunk? fromDynamic(Map<String, dynamic> args) {
+    final buffers = _parseBuffers(args);
+    if (buffers == null) return null;
+    if (!_indicesInBounds(buffers.$3, buffers.$1.length ~/ 3)) return null;
+    return JsVoxelChunk(
+      positions: buffers.$1,
+      colors: buffers.$2,
+      indices: buffers.$3,
+      origin: buffers.$4,
+    );
+  }
+
+  /// (positions, colors, indices, origin) or null when any buffer is
+  /// missing or shaped wrong.
+  static (Float32List, Float32List, Uint32List, Float32List)? _parseBuffers(
+    Map<String, dynamic> args,
+  ) {
     final positions = _floats(args['positions']);
     final colors = _floats(args['colors']);
     final indices = _ints(args['indices']);
@@ -40,16 +56,14 @@ class JsVoxelChunk {
         indices.length % 3 != 0) {
       return null;
     }
-    final vertexCount = positions.length ~/ 3;
+    return (positions, colors, indices, origin);
+  }
+
+  static bool _indicesInBounds(Uint32List indices, int vertexCount) {
     for (final i in indices) {
-      if (i < 0 || i >= vertexCount) return null;
+      if (i < 0 || i >= vertexCount) return false;
     }
-    return JsVoxelChunk(
-      positions: positions,
-      colors: colors,
-      indices: indices,
-      origin: origin,
-    );
+    return true;
   }
 
   final Float32List positions;

@@ -55,6 +55,10 @@ Core methods:
 - `jsr.storage.get(key)` / `jsr.storage.set(key, val)` — persistent storage.
 - `jsr.secrets.get(key)` / `jsr.secrets.set(key, val)` — secure storage.
 - `jsr.exec(cmd)` — run a shell command (host-dependent).
+- `jsr.capture(opts?)` — self-screenshot of the widget's rendered tree;
+  resolves `{path, width, height}` where the host supports it (the
+  jsr_widget CLI writes PNGs under `--capture-dir`), rejects otherwise —
+  `.catch()` and degrade.
 - `jsr.hostCall(name, args)` — generic host-provided async capability routed to
   `JsRuntimeConfig.onHostCall` (bridge channel `__jsr_host_call`, standard
   resolve path, works on VM engines and the web worker). Host shims

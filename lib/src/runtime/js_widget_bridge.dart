@@ -66,6 +66,7 @@ class JsWidgetBridge {
     required this.loadAssetHandler,
     required this.execHandler,
     this.onHostCall,
+    this.captureHandler,
     required this.intervalTickHandler,
     required this.rafTickHandler,
     this.js3dHost,
@@ -98,6 +99,13 @@ class JsWidgetBridge {
   /// [JsRuntimeConfig.onHostCall].
   final Future<Object?> Function(String name, Map<String, dynamic> args)?
       onHostCall;
+
+  /// Self-screenshot capability behind `jsr.capture()` — see
+  /// [JsRuntimeConfig.captureHandler]. Mutable: the jsr_widget CLI harness
+  /// sets it after construction (capture requests resolve once the test
+  /// binding can rasterize the tree).
+  Future<Map<String, dynamic>> Function(Map<String, dynamic> opts)?
+      captureHandler;
   JsResolveCallback resolveCallback;
   JsFetchHandler fetchHandler;
   JsSecretsReadHandler secretsGetHandler;
@@ -161,6 +169,7 @@ class JsWidgetBridge {
     '__jsr_set_title': _handleSetTitle,
     '__jsr_event_done': _handleEventDone,
     '__jsr_export_state': _handleExportState,
+    '__jsr_capture': _handleCapture,
     '__jsr_log': _handleLog,
     '__jsr_set_interval': _handleSetInterval,
     '__jsr_clear_interval': _handleClearInterval,
@@ -336,6 +345,38 @@ class JsWidgetBridge {
         (req['args'] as Map?)?.cast<String, dynamic>() ?? const {},
       );
       resolveCallback(id, result ?? const <String, dynamic>{});
+    } catch (e) {
+      resolveCallback(id, {'__error': e.toString()});
+    }
+  }
+
+  /// `jsr.capture()` — self-screenshot of the widget's rendered tree.
+  /// Fire-and-forget at the bridge level ON PURPOSE: a host may complete
+  /// the capture much later (the CLI rasterizes in a separate test phase),
+  /// and an awaited channel would stall the whole message queue until it
+  /// finishes (starving `__jsr_event_done` → every callEvent hangs). The
+  /// JS promise resolves via resolveCallback whenever the work is done.
+  void _handleCapture(dynamic args) {
+    unawaited(_handleCaptureAsync(args));
+  }
+
+  Future<void> _handleCaptureAsync(dynamic args) async {
+    final req = _parseArgs(args);
+    final id = req['id'] as String;
+    final handler = captureHandler;
+    if (handler == null) {
+      resolveCallback(id, {
+        '__error': 'capture is not supported by this host',
+      });
+      return;
+    }
+    try {
+      resolveCallback(
+        id,
+        await handler(
+          (req['opts'] as Map?)?.cast<String, dynamic>() ?? const {},
+        ),
+      );
     } catch (e) {
       resolveCallback(id, {'__error': e.toString()});
     }
