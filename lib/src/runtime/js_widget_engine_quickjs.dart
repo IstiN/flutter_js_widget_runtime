@@ -8,6 +8,7 @@ import 'package:js_widget_runtime/src/defaults/vm_default_handlers.dart';
 import 'package:js_widget_runtime/src/model/js_runtime_config.dart';
 import 'package:js_widget_runtime/src/runtime/js_widget_bootstrap.dart';
 import 'package:js_widget_runtime/src/runtime/js_widget_bridge.dart';
+import 'package:js_widget_runtime/src/renderer/nodes/js_voxel_node.dart';
 import 'package:js_widget_runtime/src/runtime/js_widget_engine_backend.dart';
 import 'package:quickjs_runtime/quickjs_runtime.dart';
 
@@ -83,6 +84,9 @@ class QuickjsWidgetEngineBackend implements JsWidgetEngineBackend {
 
   @override
   Map<String, dynamic>? get exportedState => _bridge.exportedState;
+
+  @override
+  JsVoxelWorld? get voxelWorld => _bridge.voxelWorld;
 
   @override
   void updateTheme(Map<String, dynamic> colors) {

@@ -43,6 +43,15 @@ export 'src/renderer/nodes/js_scene3d_mesh_node.dart'
         Scene3dProjector,
         Scene3dMeshPainter,
         parseScene3dConfig;
+export 'src/renderer/nodes/js_voxel_node.dart'
+    show
+        JsVoxelNode,
+        JsVoxelWorld,
+        JsVoxelChunk,
+        JsVoxelCamera,
+        VoxelNodeConfig,
+        VoxelPainter,
+        parseVoxelNodeConfig;
 export 'src/renderer/media/js_media_controller.dart'
     show JsMediaController, JsVideoController, JsAudioController;
 export 'src/renderer/media/js_media_host.dart' show JsMediaHost;

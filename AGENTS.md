@@ -93,6 +93,20 @@ Renderer effects ported from YoClip: radial gradients, box shadows, blur nodes, 
 - `Js3dHost` is an abstraction; custom engines can be plugged by implementing it.
 - Examples: `example/widgets/3d-showcase/` (primitives), `example/widgets/3d-glb-showcase/` (DamagedHelmet GLB) and `example/widgets/3d-game-dodge/` (mini game).
 
+## Voxel Support
+
+- Add a `voxel` node to the JSON tree — no host object needed. The world
+  state is bridge-owned; widget JS fills it with `jsr.hostCall('voxel.mesh',
+  {id, key, origin, positions, colors, indices})` per chunk (plain flat
+  arrays; rebuild only dirty chunks on edit) and steers the camera with
+  `jsr.hostCall('voxel.camera', {id, position, yaw, pitch, light,
+  skyColor})`. `voxel.attach` probes support on older runtimes.
+- Rendering is a pure-Dart software pipeline on `CustomPaint`
+  (`lib/src/renderer/nodes/js_voxel_node.dart`): frustum culling per
+  chunk, near-plane clipping, painter's-order depth sort. No native deps.
+- Example: `example/widgets/voxel-sandbox/` (chunked terrain, dig/build
+  edits re-upload only the dirty chunk).
+
 ## Building Games
 
 The runtime ships a small game-oriented input/output surface on top of `scene3d`:

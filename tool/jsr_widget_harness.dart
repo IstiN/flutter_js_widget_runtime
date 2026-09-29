@@ -205,7 +205,10 @@ Widget screenshotHost(JsrToolSpec spec) {
         child: SizedBox(
           width: spec.width.toDouble(),
           height: spec.height.toDouble(),
-          child: JsonWidgetRenderer(onEvent: (_, __) {}).build(_screenshotTree),
+          child: JsonWidgetRenderer(
+            onEvent: (_, __) {},
+            voxelWorld: _screenshotSession?.backend.voxelWorld,
+          ).build(_screenshotTree),
         ),
       ),
     ),

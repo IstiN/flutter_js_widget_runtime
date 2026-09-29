@@ -28,6 +28,7 @@ import 'package:js_widget_runtime/src/renderer/nodes/js_path_node.dart';
 import 'package:js_widget_runtime/src/renderer/nodes/js_shape_nodes.dart';
 import 'package:js_widget_runtime/src/renderer/nodes/js_scene3d_mesh_node.dart';
 import 'package:js_widget_runtime/src/renderer/nodes/js_scene3d_node.dart';
+import 'package:js_widget_runtime/src/renderer/nodes/js_voxel_node.dart';
 import 'package:js_widget_runtime/src/renderer/ui_view_field_registry.dart';
 
 part 'json_widget_decoration.dart';
@@ -97,6 +98,7 @@ class JsonWidgetRenderer with JsonWidgetDecoration {
     this.webViewHost,
     this.js3dHost,
     this.onScene3dTap,
+    this.voxelWorld,
     this.externalAssetResolver,
     this.fontResolver,
     this.mapTileProvider,
@@ -136,6 +138,11 @@ class JsonWidgetRenderer with JsonWidgetDecoration {
   /// `{modelId, point: [x, y, z]}` or `{modelId: null}` on a miss.
   final void Function(String sceneId, Map<String, dynamic> payload)?
   onScene3dTap;
+
+  /// Voxel world state behind `voxel` nodes (`jsr.hostCall('voxel.*')`).
+  /// Engines expose their bridge-owned world; hosts rendering trees
+  /// without an engine pass the world they fill.
+  final JsVoxelWorld? voxelWorld;
 
   /// Optional resolver for `external:<id>` asset sources.
   final ExternalAssetResolver? externalAssetResolver;
@@ -299,6 +306,7 @@ class JsonWidgetRenderer with JsonWidgetDecoration {
       'audio_player' => _audioPlayer(m),
       'webView' => _webView(m),
       'scene3d' => _scene3d(m),
+      'voxel' => _voxel(m),
 
       _ => _unknownType(m),
     };
@@ -479,6 +487,13 @@ class JsonWidgetRenderer with JsonWidgetDecoration {
       config: Map<String, dynamic>.from(m),
       onSceneTap: onScene3dTap,
     );
+  }
+
+  Widget _voxel(Map<String, dynamic> m) {
+    if (voxelWorld == null) {
+      return _mediaPlaceholder(m, Icons.landscape, label: 'Voxel world');
+    }
+    return JsVoxelNode(world: voxelWorld!, config: parseVoxelNodeConfig(m));
   }
 
   Widget _svg(Map<String, dynamic> m) {

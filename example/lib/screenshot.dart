@@ -106,6 +106,7 @@ class _CaptureFrameState extends State<_CaptureFrame> {
             : JsonWidgetRenderer(
                 onEvent: (_, __) {},
                 js3dHost: createJs3dHost(),
+                voxelWorld: _engine?.voxelWorld,
               ).build(_tree),
       ),
     );
