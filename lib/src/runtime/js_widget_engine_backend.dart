@@ -1,5 +1,7 @@
 import 'dart:async';
 
+import 'package:js_widget_runtime/src/renderer/nodes/js_voxel_node.dart';
+
 /// Abstract backend for the JS widget engine.
 ///
 /// Implementations can use any JavaScript execution technology:
@@ -47,4 +49,9 @@ abstract class JsWidgetEngineBackend {
 
   /// Last structured state exported via `jsr.exportState(...)`.
   Map<String, dynamic>? get exportedState;
+
+  /// Voxel world state behind `jsr.hostCall('voxel.*')` and `voxel` nodes.
+  /// Bridge-owned; default null so minimal custom backends stay
+  /// source-compatible (those widgets render their placeholder).
+  JsVoxelWorld? get voxelWorld => null;
 }
