@@ -166,6 +166,17 @@ var jsr = {
     });
   },
 
+  // Self-screenshot: resolves with a host-produced capture of the widget's
+  // rendered tree ({path, width, height} where supported). Hosts without a
+  // capture handler reject — probe or try/catch and degrade.
+  capture: function(opts){
+    return new Promise(function(resolve,reject){
+      var id=__nid();
+      __cbs[id]=function(r){if(r&&r.__error)reject(new Error(r.__error));else resolve(r);};
+      __send('__jsr_capture', JSON.stringify({id:id,opts:opts||{}}));
+    });
+  },
+
   storage:{
     _c:{},
     get:function(key){

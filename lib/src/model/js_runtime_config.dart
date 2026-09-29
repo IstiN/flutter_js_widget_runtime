@@ -51,6 +51,7 @@ class JsRuntimeConfig {
     this.loadAssetHandler,
     this.execHandler,
     this.onHostCall,
+    this.captureHandler,
     this.intervalTickHandler,
     this.rafTickHandler,
     this.backend,
@@ -140,6 +141,14 @@ class JsRuntimeConfig {
   final Future<Object?> Function(String name, Map<String, dynamic> args)?
       onHostCall;
 
+  /// Self-screenshot capability behind `jsr.capture()`. The handler
+  /// rasterizes the widget's CURRENT rendered tree and resolves with a
+  /// host-specific result (the jsr_widget CLI resolves `{path, width,
+  /// height}` and writes the PNG). Null = unsupported: the promise rejects
+  /// with a clear error so widgets can degrade gracefully.
+  final Future<Map<String, dynamic>> Function(Map<String, dynamic> opts)?
+      captureHandler;
+
   /// Dart-backed interval tick.
   final void Function(String id)? intervalTickHandler;
 
@@ -189,6 +198,8 @@ class JsRuntimeConfig {
     Future<void> Function(String id, String cmd)? execHandler,
     Future<Object?> Function(String name, Map<String, dynamic> args)?
         onHostCall,
+    Future<Map<String, dynamic>> Function(Map<String, dynamic> opts)?
+        captureHandler,
     void Function(String id)? intervalTickHandler,
     void Function(String id, int elapsedMs)? rafTickHandler,
     JsWidgetEngineBackend? backend,
@@ -215,6 +226,7 @@ class JsRuntimeConfig {
         loadAssetHandler: loadAssetHandler ?? this.loadAssetHandler,
         execHandler: execHandler ?? this.execHandler,
         onHostCall: onHostCall ?? this.onHostCall,
+        captureHandler: captureHandler ?? this.captureHandler,
         intervalTickHandler: intervalTickHandler ?? this.intervalTickHandler,
         rafTickHandler: rafTickHandler ?? this.rafTickHandler,
         backend: backend ?? this.backend,

@@ -10,6 +10,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:js_widget_runtime/js_widget_runtime.dart';
 import 'package:js_widget_runtime/src/runtime/js_widget_engine_quickjs.dart';
 import 'package:js_widget_runtime/src/tooling/jsr_widget_tool_core.dart';
+import 'package:path/path.dart' as p;
 
 /// The Flutter side of the `jsr_widget` CLI (see
 /// lib/src/tooling/jsr_widget_tool_core.dart for the Flutter-free core).
@@ -31,6 +32,24 @@ class _Session {
   final String widgetId;
 }
 
+/// A `jsr.capture()` request queued by the harness capture handler: the
+/// tree snapshot at call time plus the path the PNG will have once the
+/// capture phase rasterizes it. The JS promise resolves IMMEDIATELY with
+/// that path (the voxel.mesh sync-resolve pattern) — a promise held
+/// pending across the tester phase re-enters the QuickJS runtime from a
+/// native-callback context and deadlocks the isolate.
+class _CaptureRequest {
+  _CaptureRequest(this.name, this.tree, this.result);
+
+  final String name;
+  final Map<String, dynamic>? tree;
+  final Map<String, dynamic> result;
+}
+
+final List<_CaptureRequest> _captureQueue = [];
+final List<Map<String, dynamic>> _captureResults = [];
+_Session? _testSession;
+
 /// Boots the widget's engine on the real event loop and waits for the
 /// first `jsr.render` (or [JsrToolSpec.bootTimeoutMs]).
 Future<_Session> _boot(JsrToolSpec spec) async {
@@ -45,6 +64,28 @@ Future<_Session> _boot(JsrToolSpec spec) async {
       onSetTitle: (_) {},
       onStorageUpdate: (_) {},
       onResolveReady: (fn) => resolve = fn,
+      captureHandler: (opts) {
+        final base = ((opts['name'] as String?) ?? 'capture').replaceAll(
+            RegExp(r'[^a-zA-Z0-9_-]'), '-');
+        final taken = _captureQueue.map((r) => r.name).toSet();
+        final name =
+            taken.contains(base) ? '$base-${taken.length + 1}' : base;
+        final path = p.join(spec.captureDir, '$name.png');
+        final request = _CaptureRequest(
+          name,
+          renders.isEmpty ? null : renders.last,
+          {
+            'path': File(path).absolute.path,
+            'width': spec.width,
+            'height': spec.height,
+          },
+        );
+        _captureQueue.add(request);
+        // Immediate resolve on the same eval loop (voxel.mesh pattern) —
+        // the PNG itself is written by the capture phase before the CLI
+        // reports.
+        return Future.value(request.result);
+      },
       fetchHandler: spec.fixtures.isEmpty
           ? null
           : (id, url, method, headers) async {
@@ -86,71 +127,149 @@ Future<void> _waitForRender(
   }
 }
 
-/// TEST MODE — headless logic run. Returns the machine-readable report.
-Future<Map<String, dynamic>> runTestMode(JsrToolSpec spec) async {
+/// TEST MODE, phase 1 — boot, events, logic. Capture requests made by
+/// `jsr.capture()` queue up here and resolve in [processTestCaptures], once
+/// a widget tester can rasterize the tree.
+Future<Map<String, dynamic>> prepareTestRun(JsrToolSpec spec) async {
   final sw = Stopwatch()..start();
-  final failures = <Map<String, dynamic>>[];
-  List<Map<String, dynamic>> logs = const [];
-  Map<String, dynamic>? state;
-  var renderCount = 0;
-  _Session? session;
-  try {
-    session = await _boot(spec);
-  } catch (e) {
-    failures.add({
-      'check': 'boot',
-      'expected': 'engine boots and renders',
-      'actual': '$e',
-    });
+  final session = await _boot(spec);
+  for (final event in spec.events) {
+    final (id, payload) = eventParts(event);
+    final before = session.renders.length;
+    await session.backend.callEvent(id, payload);
+    await _waitForRender(session.renders, before, spec.settleMs);
   }
-  if (session != null) {
-    try {
-      for (final event in spec.events) {
-        final (id, payload) = eventParts(event);
-        final before = session.renders.length;
-        await session.backend.callEvent(id, payload);
-        await _waitForRender(session.renders, before, spec.settleMs);
-      }
-      state = session.backend.exportedState;
-      logs = session.backend.peekLogs();
-      renderCount = session.renders.length;
+  _testSession = session;
+  return buildReport(
+    ok: true,
+    widgetId: session.widgetId,
+    mode: 'test',
+    logs: session.backend.peekLogs(),
+    state: session.backend.exportedState,
+    renderCount: session.renders.length,
+    failures: const [],
+    durationMs: sw.elapsedMilliseconds,
+  );
+}
 
-      final expectedState = spec.expectState;
-      if (expectedState != null &&
-          !jsonContains(state ?? <String, dynamic>{}, expectedState)) {
-        failures.add({
-          'check': 'state',
-          'expected': expectedState,
-          'actual': state,
-        });
-      }
-      final consoleText = [
-        for (final log in logs) log['message'] ?? jsonEncode(log),
-      ].join('\n');
-      for (final substr in spec.expectConsole) {
-        if (!consoleText.contains(substr)) {
-          failures.add({
-            'check': 'console',
-            'expected': 'output contains "$substr"',
-            'actual': consoleText,
-          });
-        }
-      }
+/// TEST MODE, phase 2 — rasterize queued `jsr.capture()` requests. MUST
+/// run inside `testWidgets` (pixels need the tester) — the engine is NOT
+/// touched here: disposing inside the fake-async zone never completes.
+/// Expectations and disposal live in [finishTestRun] (real event loop).
+Future<void> processTestCaptures(JsrToolSpec spec, WidgetTester tester) async {
+  Directory(spec.captureDir).createSync(recursive: true);
+  for (final request in _captureQueue) {
+    if (request.tree == null) {
+      continue;
+    }
+    final out = p.join(spec.captureDir, '${request.name}.png');
+    final previousTree = _screenshotTree;
+    _screenshotTree = request.tree;
+    try {
+      tester.view.devicePixelRatio = spec.scale;
+      tester.view.physicalSize = Size(
+        spec.width * spec.scale,
+        spec.height * spec.scale,
+      );
+      addTearDown(tester.view.reset);
+      await tester.pumpWidget(screenshotHost(spec));
+      await tester.pump(const Duration(milliseconds: 16));
+      await tester.pump(const Duration(milliseconds: 16));
+      // PNG encoding is REAL async — run outside the fake-async zone.
+      final png = await tester.runAsync(() async {
+        final image = await captureImage(
+          find.byType(MaterialApp).evaluate().single,
+        );
+        final bytes = await image.toByteData(format: ui.ImageByteFormat.png);
+        final data = bytes!.buffer.asUint8List();
+        image.dispose();
+        return data;
+      });
+      File(out).writeAsBytesSync(png!);
+      _captureResults.add({'name': request.name, ...request.result});
+    } catch (e) {
+      _captureResults.add({
+        'name': request.name,
+        '__error': 'capture failed: $e',
+      });
     } finally {
-      await session.backend.dispose();
+      _screenshotTree = previousTree;
     }
   }
+}
+
+/// TEST MODE, phase 3 — run in a PLAIN test (real event loop): settle the
+/// JS continuations the resolved captures queued, judge expectations over
+/// the final console/state, dispose the engine, build the report.
+Future<Map<String, dynamic>> finishTestRun(JsrToolSpec spec) async {
+  final sw = Stopwatch()..start();
+  final session = _testSession!;
+  final failures = <Map<String, dynamic>>[];
+
+  // Immediate resolves may have queued continuations (console.log of the
+  // path) inside the last eval's drain — settle briefly before judging.
+  await Future<void>.delayed(const Duration(milliseconds: 50));
+  final captures = List<Map<String, dynamic>>.from(_captureResults);
+  _captureResults.clear();
+  _captureQueue.clear();
+
+  final state = session.backend.exportedState;
+  final logs = session.backend.peekLogs();
+
+  final expectedState = spec.expectState;
+  if (expectedState != null &&
+      !jsonContains(state ?? <String, dynamic>{}, expectedState)) {
+    failures.add({
+      'check': 'state',
+      'expected': expectedState,
+      'actual': state,
+    });
+  }
+  final consoleText = [
+    for (final log in logs) log['message'] ?? jsonEncode(log),
+  ].join('\n');
+  for (final substr in spec.expectConsole) {
+    if (!consoleText.contains(substr)) {
+      failures.add({
+        'check': 'console',
+        'expected': 'output contains "$substr"',
+        'actual': consoleText,
+      });
+    }
+  }
+
+  final widgetId = session.widgetId;
+  final renderCount = session.renders.length;
+  await session.backend.dispose();
+  _testSession = null;
   return buildReport(
     ok: failures.isEmpty,
-    widgetId: session?.widgetId ?? spec.target,
+    widgetId: widgetId,
     mode: 'test',
     logs: logs,
     state: state,
     renderCount: renderCount,
     failures: failures,
     durationMs: sw.elapsedMilliseconds,
+    captures: captures,
   );
 }
+
+/// TEST MODE — headless logic run in one call. In-process tests without a
+/// widget tester use this: `jsr.capture()` requests (none in plain logic
+/// runs) would resolve with an error — the two-phase CLI flow is what can
+/// produce pixels.
+Future<Map<String, dynamic>> runTestMode(
+  JsrToolSpec spec, [
+  WidgetTester? tester,
+]) async {
+  await prepareTestRun(spec);
+  if (tester != null && _captureQueue.isNotEmpty) {
+    await processTestCaptures(spec, tester);
+  }
+  return finishTestRun(spec);
+}
+
 
 /// Screenshot state shared between the boot phase (plain test, real event
 /// loop) and the pump phase (testWidgets, fake-async safe capture).

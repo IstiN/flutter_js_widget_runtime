@@ -75,12 +75,15 @@ void main() {
         'api.example.com/data={"a":1}',
         '--storage',
         '{"seen":true}',
+        '--capture-dir',
+        'out/shots',
         '--freeze-clock',
       ]);
       expect(spec.expectState, {'counter': 3});
       expect(spec.expectConsole, ['ready']);
       expect(spec.fixtures, {'api.example.com/data': {'a': 1}});
       expect(spec.seedStorage, {'seen': true});
+      expect(spec.captureDir, 'out/shots');
       expect(spec.freezeClock, isTrue);
     });
 
@@ -190,6 +193,26 @@ void main() {
       expect(source, contains('jsr.render'));
     });
 
+    test('an unreadable manifest falls back to the folder name', () {
+      Directory(p.join(dir.path, 'broken')).createSync();
+      File(p.join(dir.path, 'broken', 'widget.js'))
+          .writeAsStringSync('jsr.render({});');
+      File(p.join(dir.path, 'broken', 'manifest.json'))
+          .writeAsStringSync('{not json');
+      final (source, id) = loadWidgetSource(p.join(dir.path, 'broken'));
+      expect(id, 'broken');
+      expect(source, contains('jsr.render'));
+    });
+
+    test('a manifest without an id falls back to the folder name', () {
+      Directory(p.join(dir.path, 'idless')).createSync();
+      File(p.join(dir.path, 'idless', 'widget.js')).writeAsStringSync('//');
+      File(p.join(dir.path, 'idless', 'manifest.json'))
+          .writeAsStringSync('{"version":"1.0.0"}');
+      final (_, id) = loadWidgetSource(p.join(dir.path, 'idless'));
+      expect(id, 'idless');
+    });
+
     test('a bare .js file uses the file name', () {
       File(p.join(dir.path, 'standalone.js')).writeAsStringSync('// hi');
       final (source, id) = loadWidgetSource(p.join(dir.path, 'standalone.js'));
@@ -208,6 +231,66 @@ void main() {
         throwsA(isA<JsrToolUsageException>()),
       );
     });
+  });
+
+  /// A fake pub cache with `quickjs_runtime-<version>` dirs; only the
+  /// entries with `built: true` contain a compiled bridge.
+  Directory makeCache(List<(String, bool)> versions) {
+    final cache = Directory.systemTemp.createTempSync('jsr_pubcache');
+    addTearDown(() => cache.delete(recursive: true));
+    for (final (version, built) in versions) {
+      final bridge = File(p.join(
+        cache.path,
+        'hosted/pub.dev',
+        'quickjs_runtime-$version',
+        'native/quickjs',
+        'libquickjs_bridge.so',
+      ));
+      if (built) bridge.createSync(recursive: true);
+    }
+    return cache;
+  }
+
+  test('no hosted dir → no env', () {
+    final cache = Directory.systemTemp.createTempSync('jsr_empty');
+    addTearDown(() => cache.delete(recursive: true));
+    expect(
+      defaultQuickjsLibEnv(cacheRoot: cache.path, env: const {}),
+      isEmpty,
+    );
+  });
+
+  test('picks the newest built version', () {
+    final cache = makeCache([('0.3.0', true), ('0.3.4', true)]);
+    final env = defaultQuickjsLibEnv(cacheRoot: cache.path, env: const {});
+    expect(env['JSR_QUICKJS_LIB'], contains('quickjs_runtime-0.3.4'));
+  });
+
+  test('falls back to an older version when the newest is unbuilt', () {
+    final cache = makeCache([('0.3.0', true), ('0.3.4', false)]);
+    final env = defaultQuickjsLibEnv(cacheRoot: cache.path, env: const {});
+    expect(env['JSR_QUICKJS_LIB'], contains('quickjs_runtime-0.3.0'));
+  });
+
+  test('unparsable version names are ignored', () {
+    final cache = Directory.systemTemp.createTempSync('jsr_weird');
+    addTearDown(() => cache.delete(recursive: true));
+    Directory(p.join(cache.path, 'hosted/pub.dev/quickjs_runtime-junk'))
+        .createSync(recursive: true);
+    File(p.join(cache.path, 'hosted/pub.dev/quickjs_runtime-junk',
+            'native/quickjs/libquickjs_bridge.so'))
+        .createSync(recursive: true);
+    expect(
+      defaultQuickjsLibEnv(cacheRoot: cache.path, env: const {}),
+      isEmpty,
+    );
+  });
+
+  test('an explicit JSR_QUICKJS_LIB wins over the cache walk', () {
+    expect(
+      defaultQuickjsLibEnv(env: {'JSR_QUICKJS_LIB': '/opt/lib.so'}),
+      isEmpty,
+    );
   });
 
   test('defaultQuickjsLibEnv finds a built bridge in the pub cache', () {

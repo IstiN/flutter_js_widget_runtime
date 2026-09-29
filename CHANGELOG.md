@@ -1,8 +1,21 @@
+## 0.4.128
+
+- New `jsr.capture(opts?)` — widgets can photograph their own rendered
+  tree from inside their JS (`{name}` option names the file). Core
+  bridge channel, host-dependent: the jsr_widget CLI implements it —
+  `--capture-dir <dir>` writes the PNGs and the `--json` report lists
+  them under `captures[]`, so agent-authored widgets self-screenshot at
+  the exact moment of their logic mid-event. Hosts without a handler
+  reject the promise (graceful degradation). Fire-and-forget channel:
+  a slow/unavailable capture can never stall the message queue.
+
 ## 0.4.127
 
 - Automated patch bump.
 
-## Unreleased
+## 0.4.127
+
+- Automated patch bump.
 
 - New `voxel` renderer node: a chunked voxel world rendered by a pure-Dart
   software pipeline on `CustomPaint` (no native deps, no new packages).

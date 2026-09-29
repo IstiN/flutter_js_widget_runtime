@@ -26,8 +26,21 @@ void main() {
   const timeout = Timeout(Duration(minutes: 3));
 
   if (spec.mode == JsrToolMode.test) {
-    test('headless widget run', () async {
-      final report = await runTestMode(spec);
+    test('headless widget run (logic)', () async {
+      final report = await prepareTestRun(spec);
+      expect(
+        report['failures'],
+        isEmpty,
+        reason: 'boot failed: ${jsonEncode(report['failures'])}',
+      );
+    }, timeout: timeout);
+
+    testWidgets('headless widget run (captures)', (tester) async {
+      await processTestCaptures(spec, tester);
+    }, timeout: timeout);
+
+    test('headless widget run (checks)', () async {
+      final report = await finishTestRun(spec);
       final line = '$kJsrToolResultMarker ${jsonEncode(report)}';
       // A bare line so the CLI wrapper can grep it from the runner output.
       // ignore: avoid_print
