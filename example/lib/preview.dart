@@ -42,6 +42,15 @@ const String _canonicalBaseUrl =
     'https://raw.githubusercontent.com/IstiN/flutter_js_widget_runtime/'
     'main/example/widgets';
 
+/// Widgets mirrored from external repos as SUBMODULES under
+/// example/widgets/: raw.githubusercontent does not follow gitlinks, so
+/// a bare link for one of these ids resolves from the SOURCE repo at the
+/// pinned commit. Keep each pin in lockstep with the submodule pin.
+const Map<String, String> _submoduleWidgetBases = {
+  'fa-craft': 'https://raw.githubusercontent.com/IstiN/fa_craft/'
+      'a315c734845fa5c6bfb2fe8fcfde0199be23083e',
+};
+
 /// Widget ids are directory names — reject anything that could escape the
 /// base URL (path traversal, absolute URLs, query injection).
 final RegExp _widgetIdPattern = RegExp(r'^[A-Za-z0-9_-]+$');
@@ -250,6 +259,17 @@ class _PreviewPageState extends State<PreviewPage> {
         _reader = HttpWidgetFileReader(_canonicalBaseUrl);
         manifest = await WidgetManifest.fromStorage(id, reader: _reader);
         if (!mounted) return;
+      }
+      if (manifest == null && !_explicitSource) {
+        // Mirrored-as-submodule widgets (e.g. fa-craft) do not exist in
+        // this repo's tree either (raw does not follow gitlinks) — fall
+        // back to the source repo at the submodule's pinned commit.
+        final submoduleBase = _submoduleWidgetBases[id];
+        if (submoduleBase != null) {
+          _reader = HttpWidgetFileReader(submoduleBase);
+          manifest = await WidgetManifest.fromStorage(id, reader: _reader);
+          if (!mounted) return;
+        }
       }
       if (manifest == null) {
         setState(() => _error = 'Widget "$id" not found.');
