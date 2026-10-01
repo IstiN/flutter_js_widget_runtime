@@ -19,6 +19,11 @@ mixin JsonWidgetDecoration {
     if (child is Expanded || child is Flexible || child is Spacer) {
       return child;
     }
+    // Overlay labels (hints, crosshairs, badges) must never eat gestures
+    // meant for the interactive layer below them.
+    if (m['ignorePointer'] == true) {
+      child = IgnorePointer(child: child);
+    }
     // Fast path: the vast majority of nodes carry no effect props at all —
     // one null-check per key beats parsing each value on every rebuild.
     if (_hasNoEffectProps(m)) return child;

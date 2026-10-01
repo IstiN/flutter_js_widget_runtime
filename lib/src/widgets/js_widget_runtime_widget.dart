@@ -111,6 +111,8 @@ class _JsWidgetRuntimeWidgetState extends State<JsWidgetRuntimeWidget> {
     } else {
       final renderer = JsonWidgetRenderer(
         onEvent: (actionId, payload) => _engine?.callEvent(actionId, payload),
+        onGestureEvent: (actionId, payload) =>
+            _engine?.dispatchHostEvent('gesture:$actionId', payload),
         js3dHost: widget.config.js3dHost,
         mediaHost: widget.config.mediaHost,
         webViewHost: widget.config.webViewHost,

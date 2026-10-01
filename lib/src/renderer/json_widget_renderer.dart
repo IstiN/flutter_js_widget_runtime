@@ -91,6 +91,7 @@ class JsonWidgetRenderer with JsonWidgetDecoration {
   // Not const: owns the per-instance widget memo cache.
   JsonWidgetRenderer({
     required this.onEvent,
+    this.onGestureEvent,
     this.fieldRegistry,
     this.theme,
     this.imageResolver,
@@ -107,6 +108,16 @@ class JsonWidgetRenderer with JsonWidgetDecoration {
 
   /// Called when a user-triggered event fires (e.g. button tap).
   final void Function(String actionId, Map<String, dynamic> payload) onEvent;
+
+  /// Optional fire-and-forget sink for HIGH-FREQUENCY gesture streams
+  /// (`onPanUpdate`, `onScroll`). The default [onEvent] path is serialized
+  /// and round-trip-awaited per event — at 60–120 drag/scroll events per
+  /// second under load the queue lags behind the finger and the widget
+  /// visibly "catches up" after release. This sink skips the queue (the
+  /// worker still processes messages in arrival order). Falls back to
+  /// [onEvent] when null.
+  final void Function(String actionId, Map<String, dynamic> payload)?
+  onGestureEvent;
   final UiViewFieldRegistry? fieldRegistry;
 
   /// Optional theme overrides. Defaults to [JsonWidgetTheme.fromAccent].
@@ -563,6 +574,10 @@ class JsonWidgetRenderer with JsonWidgetDecoration {
     // tracking pipeline — prevents !_debugDuringDeviceUpdate assertion.
     void fire(String event, Map<String, dynamic> payload) =>
         scheduleMicrotask(() => onEvent(event, payload));
+    // High-frequency streams (pan/scroll) bypass the serialized round-trip
+    // queue when the host provides a fire-and-forget sink.
+    void fireFast(String event, Map<String, dynamic> payload) =>
+        scheduleMicrotask(() => (onGestureEvent ?? onEvent)(event, payload));
     final gd = GestureDetector(
       behavior: HitTestBehavior.opaque,
       onTap: m['onTap'] != null ? () => fire(m['onTap'] as String, {}) : null,
@@ -585,7 +600,7 @@ class JsonWidgetRenderer with JsonWidgetDecoration {
             })
           : null,
       onPanUpdate: m['onPanUpdate'] != null
-          ? (d) => fire(m['onPanUpdate'] as String, {
+          ? (d) => fireFast(m['onPanUpdate'] as String, {
               'x': d.localPosition.dx,
               'y': d.localPosition.dy,
               'dx': d.delta.dx,
@@ -615,7 +630,8 @@ class JsonWidgetRenderer with JsonWidgetDecoration {
       onPointerSignal: (event) {
         if (event is PointerScrollEvent) {
           // Defer outside Flutter's pointer pipeline (same reason as fire()).
-          scheduleMicrotask(() => onEvent(onScroll as String, {
+          final sink = onGestureEvent ?? onEvent;
+          scheduleMicrotask(() => sink(onScroll as String, {
             'dx': event.scrollDelta.dx,
             'dy': event.scrollDelta.dy,
           }));

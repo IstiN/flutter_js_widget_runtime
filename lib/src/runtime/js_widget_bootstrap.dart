@@ -364,6 +364,17 @@ var __jsrHostEvent = function(target, payload) {
     } else if (target.indexOf('scene3d.tap:') === 0) {
       var h = jsr.scene3d._tapHandlers[target.substring('scene3d.tap:'.length)];
       if (h) h(payload);
+    } else if (target.indexOf('gesture:') === 0) {
+      // High-frequency gesture streams (drag/scroll look): invoke the event
+      // handler WITHOUT the event_done round trip — the serialized callEvent
+      // queue lags behind the finger at 60-120 events/sec and the widget
+      // keeps "catching up" after release. Message order is still preserved
+      // (single worker queue); errors are logged, not surfaced.
+      var gh = jsr._handler || (typeof handleEvent === 'function' ? handleEvent : null);
+      if (gh) {
+        var gr = gh(target.substring(8), payload);
+        if (gr && typeof gr.catch === 'function') gr.catch(function(){});
+      }
     }
   } catch (e) {
     console.error('jsr host event error: ' + (e && e.message ? e.message : String(e)));
