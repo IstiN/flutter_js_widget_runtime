@@ -216,6 +216,9 @@ class JsVoxelWorld extends ChangeNotifier {
   ///   malformed upload so one bad chunk never degrades the session.
   /// - `voxel.camera {id, position, yaw, pitch, light, skyColor}` →
   ///   `{ok: true}`.
+  /// - `voxel.chunkRemove {id, key}` → `{ok: true, removed: bool}` —
+  ///   drops a resident chunk so long sessions can evict off-ring chunks
+  ///   instead of growing the world forever.
   Map<String, dynamic> handleHostCall(String name, Map<String, dynamic> args) {
     switch (name) {
       case 'voxel.attach':
@@ -238,6 +241,12 @@ class JsVoxelWorld extends ChangeNotifier {
         _cameras[id] = JsVoxelCamera.fromDynamic(args);
         notifyListeners();
         return const {'ok': true};
+      case 'voxel.chunkRemove':
+        final id = _instanceId(args);
+        final key = args['key']?.toString() ?? '';
+        final removed = _chunksByInstance[id]?.remove(key) != null;
+        if (removed) notifyListeners();
+        return {'ok': true, 'removed': removed};
       default:
         throw UnsupportedError('unknown voxel capability: $name');
     }
@@ -334,13 +343,17 @@ class JsVoxelNode extends StatelessWidget {
   }
 }
 
-/// One painter-sorted triangle: view-space depth plus screen-space points
-/// and fill color. Pooled — the paint loop reuses [VoxelPainter._tris]
-/// instead of allocating per frame.
+/// One painter-sorted triangle: view-space depth, packed sort key, screen
+/// points (flat x0,y0,x1,y1,x2,y2) and the light-multiplied ARGB fill.
+/// Pooled — the paint loop reuses [VoxelPainter._tris] instead of
+/// allocating per frame; flat storage avoids 3 Offset + 1 Color
+/// allocations per triangle per frame (that churn alone dominated the
+/// web build's frame time).
 class _Tri {
-  final points = List<Offset>.filled(3, Offset.zero);
+  final Float32List pts = Float32List(6);
   double depth = 0;
-  Color color = const Color(0xFF90CAF9);
+  double sortKey = 0;
+  int argb = 0xFF90CAF9;
 }
 
 /// Software rasterizer for [JsVoxelNode]: per-chunk frustum culling against
@@ -379,10 +392,35 @@ class VoxelPainter extends CustomPainter {
     chunks = world.chunksOf(id);
     if (chunks.isEmpty) return;
     camera = world.cameraOf(id);
-    final sky = camera.skyColor;
-    canvas.drawRect(Offset.zero & size, Paint()..color = sky);
+    canvas.drawRect(Offset.zero & size, Paint()..color = camera.skyColor);
+    _buildCameraBasis();
 
-    // Basis from yaw/pitch (Minecraft convention, matches consumers).
+    final ex = camera.position[0];
+    final ey = camera.position[1];
+    final ez = camera.position[2];
+    final halfH = size.height / 2;
+    final halfW = size.width / 2;
+
+    // View-frustum planes (normal, d) in world space for chunk culling:
+    // 4 side planes + near. Plane pick: right = ±screen x bound etc.
+    final tanHalf = math.tan((camera.fov * math.pi / 180) / 2);
+    final planes = _frustumPlanes(tanHalf, size.aspectRatio);
+
+    var cursor = 0;
+    for (final chunk in chunks.values) {
+      if (_chunkOutsideFrustum(chunk, ex, ey, ez, planes)) continue;
+      cursor = _collectChunk(
+        chunk, cursor, ex, ey, ez, halfW, halfH,
+      );
+    }
+    if (cursor == 0) return;
+    _sortAndDraw(canvas, cursor);
+  }
+
+  /// Recomputes the camera basis (right/up/forward + focal) from the
+  /// camera's yaw/pitch/fov. Minecraft yaw/pitch convention, matching the
+  /// widgets that push [JsVoxelCamera] payloads.
+  void _buildCameraBasis() {
     final cp = math.cos(camera.pitch);
     final fx = -math.sin(camera.yaw) * cp;
     final fy = math.sin(camera.pitch);
@@ -406,39 +444,57 @@ class VoxelPainter extends CustomPainter {
       _right[0] * fy - _right[1] * fx,
     ]);
     _focal = 1 / math.tan((camera.fov * math.pi / 180) / 2);
+  }
 
-    final ex = camera.position[0];
-    final ey = camera.position[1];
-    final ez = camera.position[2];
-    final halfH = size.height / 2;
-    final halfW = size.width / 2;
-
-    // View-frustum planes (normal, d) in world space for chunk culling:
-    // 4 side planes + near. Plane pick: right = ±screen x bound etc.
-    final tanHalf = math.tan((camera.fov * math.pi / 180) / 2);
-    final planes = _frustumPlanes(tanHalf, size.aspectRatio);
-
-    var cursor = 0;
-    for (final chunk in chunks.values) {
-      if (_chunkOutsideFrustum(chunk, ex, ey, ez, planes)) continue;
-      cursor = _collectChunk(
-        chunk, cursor, ex, ey, ez, halfW, halfH,
-      );
-    }
-    if (cursor == 0) return;
-
-    // Painter's algorithm: far → near.
+  /// Painter's algorithm, bucketed: one arithmetic-packed sort key per
+  /// triangle — (inverted depth bucket) * 2^32 + argb — so a single
+  /// ascending sort yields far→near buckets AND same-color runs inside
+  /// each bucket, and the draw loop emits ONE Path per (bucket, color)
+  /// run instead of one Path per triangle. Multi-hundred-K triangle
+  /// scenes were bound by per-triangle drawPath calls; bucket granularity
+  /// is ~1/1000 of the view depth, far below a visible ordering error.
+  /// The key is packed arithmetically, not bitwise — dart2js bitwise ops
+  /// are 32-bit and would shred the high bits.
+  void _sortAndDraw(Canvas canvas, int cursor) {
     _tris.length = cursor;
-    _tris.sort((a, b) => b.depth.compareTo(a.depth));
-    final paint = Paint()..isAntiAlias = false;
+    var dMin = double.infinity;
+    var dMax = double.negativeInfinity;
+    for (var i = 0; i < cursor; i++) {
+      final d = _tris[i].depth;
+      if (d < dMin) dMin = d;
+      if (d > dMax) dMax = d;
+    }
+    final span = dMax - dMin < 1e-6 ? 1e-6 : dMax - dMin;
+    const buckets = 1024;
     for (var i = 0; i < cursor; i++) {
       final t = _tris[i];
-      final path = Path()
-        ..moveTo(t.points[0].dx, t.points[0].dy)
-        ..lineTo(t.points[1].dx, t.points[1].dy)
-        ..lineTo(t.points[2].dx, t.points[2].dy)
+      final b =
+          ((t.depth - dMin) / span * (buckets - 1)).floor().clamp(0, 1023);
+      t.sortKey = (buckets - 1 - b) * 4294967296.0 + t.argb;
+    }
+    _tris.sort((a, b) => a.sortKey.compareTo(b.sortKey));
+    final paint = Paint()..isAntiAlias = false;
+    final path = Path();
+    var runArgb = -1;
+    for (var i = 0; i < cursor; i++) {
+      final t = _tris[i];
+      if (t.argb != runArgb) {
+        if (runArgb != -1) {
+          paint.color = Color(runArgb);
+          canvas.drawPath(path, paint);
+        }
+        path.reset();
+        runArgb = t.argb;
+      }
+      final p = t.pts;
+      path
+        ..moveTo(p[0], p[1])
+        ..lineTo(p[2], p[3])
+        ..lineTo(p[4], p[5])
         ..close();
-      paint.color = t.color;
+    }
+    if (runArgb != -1) {
+      paint.color = Color(runArgb);
       canvas.drawPath(path, paint);
     }
   }
@@ -537,39 +593,30 @@ class VoxelPainter extends CustomPainter {
       for (var k = 0; k + 2 < tri.length; k += 3) {
         if (cursor >= _tris.length) _tris.add(_Tri());
         final t = _tris[cursor];
+        final p = t.pts;
         var depth = 0.0;
-        double ax = 0, ay = 0, bx = 0, by = 0;
         for (var v = 0; v < 3; v++) {
           final j = tri[v + k] * 3;
           final vz = view[j + 2];
           final invZ = _focal / vz;
-          final sx = halfW + view[j] * invZ * halfH;
-          final sy = halfH - view[j + 1] * invZ * halfH;
-          t.points[v] = Offset(sx, sy);
+          p[v * 2] = halfW + view[j] * invZ * halfH;
+          p[v * 2 + 1] = halfH - view[j + 1] * invZ * halfH;
           depth += vz;
-          switch (v) {
-            case 0:
-              ax = sx;
-              ay = sy;
-            case 1:
-              bx = sx;
-              by = sy;
-          }
         }
         depth /= 3;
-        // Backface cull: faces wound CCW from outside project with
-        // negative screen-space signed area (screen y is flipped).
-        final area = (bx - ax) * (t.points[2].dy - ay) -
-            (t.points[2].dx - ax) * (by - ay);
-        if (area >= 0) continue;
+        // Backface cull + subpixel cull in one compare: faces wound CCW
+        // from outside project with negative screen-space signed area
+        // (screen y is flipped), and a triangle covering under ~1/8 px²
+        // is invisible anyway (dense far terrain is mostly subpixel).
+        final area = (p[2] - p[0]) * (p[5] - p[1]) -
+            (p[4] - p[0]) * (p[3] - p[1]);
+        if (area > -0.25) continue;
         t.depth = depth;
         final ci = indices[f] * 3;
-        t.color = Color.fromARGB(
-          255,
-          (col[ci] * light * 255).round().clamp(0, 255),
-          (col[ci + 1] * light * 255).round().clamp(0, 255),
-          (col[ci + 2] * light * 255).round().clamp(0, 255),
-        );
+        final r = (col[ci] * light * 255).round().clamp(0, 255);
+        final g = (col[ci + 1] * light * 255).round().clamp(0, 255);
+        final bl = (col[ci + 2] * light * 255).round().clamp(0, 255);
+        t.argb = 0xFF000000 | (r << 16) | (g << 8) | bl;
         cursor++;
       }
     }

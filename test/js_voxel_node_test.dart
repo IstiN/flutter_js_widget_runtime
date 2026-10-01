@@ -141,6 +141,34 @@ void main() {
       );
     });
 
+    test('chunkRemove drops a resident chunk and reports the removal', () {
+      final world = JsVoxelWorld();
+      var notifications = 0;
+      world.addListener(() => notifications++);
+      world.handleHostCall('voxel.attach', {'id': 'w'});
+      world.handleHostCall('voxel.mesh', _meshArgs(_facingQuad(), '0,0'));
+      world.handleHostCall('voxel.mesh', _meshArgs(_facingQuad(), '1,0'));
+
+      expect(
+        world.handleHostCall('voxel.chunkRemove', {'id': 'w', 'key': '0,0'}),
+        {'ok': true, 'removed': true},
+      );
+      expect(world.chunksOf('w'), hasLength(1));
+      expect(notifications, 3, reason: 'attach-free: mesh×2 + removal');
+
+      expect(
+        world.handleHostCall('voxel.chunkRemove', {'id': 'w', 'key': '0,0'}),
+        {'ok': true, 'removed': false},
+        reason: 'double-remove is a soft no-op',
+      );
+      expect(notifications, 3, reason: 'no repaint when nothing was removed');
+      expect(
+        world.handleHostCall('voxel.chunkRemove', {'id': 'nope', 'key': 'x'}),
+        {'ok': true, 'removed': false},
+        reason: 'unknown instance is a soft no-op too',
+      );
+    });
+
     test('instances are namespaced by id; unknown names throw', () {
       final world = JsVoxelWorld();
       world.handleHostCall('voxel.attach', {'id': 'a'});

@@ -3,6 +3,7 @@ import 'dart:typed_data';
 import 'dart:ui' show ImageFilter;
 
 import 'package:fl_chart/fl_chart.dart';
+import 'package:flutter/gestures.dart' show PointerScrollEvent;
 import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart' show TileProvider;
 import 'package:flutter_markdown_plus/flutter_markdown_plus.dart';
@@ -562,7 +563,7 @@ class JsonWidgetRenderer with JsonWidgetDecoration {
     // tracking pipeline — prevents !_debugDuringDeviceUpdate assertion.
     void fire(String event, Map<String, dynamic> payload) =>
         scheduleMicrotask(() => onEvent(event, payload));
-    return GestureDetector(
+    final gd = GestureDetector(
       behavior: HitTestBehavior.opaque,
       onTap: m['onTap'] != null ? () => fire(m['onTap'] as String, {}) : null,
       onTapDown: m['onTapDown'] != null
@@ -598,6 +599,29 @@ class JsonWidgetRenderer with JsonWidgetDecoration {
             })
           : null,
       child: child,
+    );
+    return _maybePointerSignal(m, gd);
+  }
+
+  /// Two-finger trackpad swipe (and the mouse wheel) arrive as pointer
+  /// scroll SIGNALS, not drag gestures — surface them as `onScroll`
+  /// `{dx, dy}` so widgets can drive look/scroll actions without a
+  /// pressed button. (GestureDetector has no signal surface — Listener.)
+  Widget _maybePointerSignal(Map<String, dynamic> m, Widget built) {
+    final onScroll = m['onScroll'];
+    if (onScroll == null) return built;
+    return Listener(
+      behavior: HitTestBehavior.opaque,
+      onPointerSignal: (event) {
+        if (event is PointerScrollEvent) {
+          // Defer outside Flutter's pointer pipeline (same reason as fire()).
+          scheduleMicrotask(() => onEvent(onScroll as String, {
+            'dx': event.scrollDelta.dx,
+            'dy': event.scrollDelta.dy,
+          }));
+        }
+      },
+      child: built,
     );
   }
 }
