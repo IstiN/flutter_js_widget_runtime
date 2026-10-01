@@ -1,0 +1,3 @@
+[submodule "example/widgets/fa-craft"]
+	path = example/widgets/fa-craft
+	url = https://github.com/IstiN/fa_craft
