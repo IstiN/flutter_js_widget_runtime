@@ -1,3 +1,7 @@
+## 0.4.129
+
+- Automated patch bump.
+
 ## 0.4.128
 
 - New `jsr.capture(opts?)` — widgets can photograph their own rendered
