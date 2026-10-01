@@ -356,6 +356,31 @@ void main() {
     });
   });
 
+  group('JsRafScheduler', () {
+    testWidgets('timestamps stay monotonic across idle ticker restarts',
+        (tester) async {
+      final ticks = <int>[];
+      final raf = JsRafScheduler(onTick: (_, ms) => ticks.add(ms));
+      addTearDown(raf.dispose);
+      raf.requestFrame('a');
+      await tester.pump(const Duration(milliseconds: 16)); // first tick
+      // No re-request: after the grace ticks the scheduler stops the
+      // Ticker. The NEXT request restarts it — the widget must still see a
+      // monotonic timestamp (a Ticker-elapsed reset used to send time
+      // backwards, widgets clamped dt to 0, and movement silently slowed).
+      await tester.pump(const Duration(milliseconds: 200));
+      raf.requestFrame('a');
+      await tester.pump(const Duration(milliseconds: 16));
+      expect(ticks.length, 2);
+      expect(
+        ticks[1],
+        greaterThan(ticks[0]),
+        reason: 'rAF time must never run backwards across ticker restarts',
+      );
+      raf.dispose(); // inside the body: teardown runs after the no-ticker check
+    });
+  });
+
   group('hostCall', () {
     test('resolves through the host onHostCall handler', () async {
       final resolved = <String, dynamic>{};
