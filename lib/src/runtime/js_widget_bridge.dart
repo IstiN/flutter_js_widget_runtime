@@ -143,6 +143,7 @@ class JsWidgetBridge {
   /// Dispatches a message coming from the JS runtime.
   Future<void> dispatch(String channel, dynamic payload) async {
     if (isDisposed()) return;
+    _trackTraffic(channel);
     // The shared bootstrap tags every sendMessage payload with the engine
     // `iid` for the JSC cross-engine router. By the time a message reaches
     // THIS bridge it is already routed to the right engine — strip the tag
@@ -159,6 +160,28 @@ class JsWidgetBridge {
       return;
     }
     _syncChannelHandlers[channel]?.call(payload);
+  }
+
+  // Rolling bridge-traffic stats: one console line every 15 s with
+  // per-channel message counts. Together with the widget-side JS profiler
+  // and VoxelPainter's paint telemetry this closes the last unmeasured
+  // link (host-side channel volume). Counts only — byte sizes are logged
+  // widget-side already, and re-encoding payloads here would add the very
+  // cost being measured.
+  final Map<String, int> _trafficCounts = <String, int>{};
+  DateTime _trafficSince = DateTime.now();
+
+  void _trackTraffic(String channel) {
+    _trafficCounts[channel] = (_trafficCounts[channel] ?? 0) + 1;
+    final now = DateTime.now();
+    if (now.difference(_trafficSince).inSeconds >= 15) {
+      final parts = _trafficCounts.entries
+          .map((e) => '${e.key}:${e.value}')
+          .join(' ');
+      debugPrint('[jsr-bridge] $parts');
+      _trafficCounts.clear();
+      _trafficSince = now;
+    }
   }
 
   /// Fire-and-forget `__jsr_*` channels — handled inline in [dispatch].
