@@ -18,8 +18,17 @@ void main() {
       );
     });
 
-    Widget buildTree(Map<String, dynamic>? tree) {
-      return MaterialApp(home: Scaffold(body: renderer.build(tree)));
+    Widget buildTree(
+      Map<String, dynamic>? tree, {
+      void Function(String, Map<String, dynamic>)? onGestureEvent,
+    }) {
+      final r = onGestureEvent == null
+          ? renderer
+          : JsonWidgetRenderer(
+              onEvent: (id, payload) => events.add((id, payload)),
+              onGestureEvent: onGestureEvent,
+            );
+      return MaterialApp(home: Scaffold(body: r.build(tree)));
     }
 
     testWidgets('build returns SizedBox.shrink for null', (tester) async {
@@ -568,6 +577,59 @@ void main() {
       expect(look, hasLength(1), reason: 'scroll signal maps to onScroll');
       expect(look.single.$2['dx'], 12);
       expect(look.single.$2['dy'], -8);
+    });
+
+    testWidgets('high-frequency gestures prefer the fire-and-forget sink',
+        (tester) async {
+      final fast = <String>[];
+      await tester.pumpWidget(
+        buildTree(
+          {
+            'type': 'gestureDetector',
+            'onScroll': 'look',
+            'onPanUpdate': 'drag',
+            'child': {'type': 'text', 'data': 'pad'},
+          },
+          onGestureEvent: (id, _) => fast.add(id),
+        ),
+      );
+      final center = tester.getCenter(find.text('pad'));
+      await tester.sendEventToBinding(
+        PointerScrollEvent(position: center, scrollDelta: const Offset(4, 4)),
+      );
+      await tester.pump();
+      await tester.runAsync(() => Future<void>.delayed(Duration.zero));
+      await tester.pump();
+      expect(fast, ['look'], reason: 'scroll uses the fire-and-forget sink');
+      expect(events.where((e) => e.$1 == 'look'), isEmpty,
+          reason: '…and does not enter the serialized queue');
+    });
+
+    testWidgets('ignorePointer prop lets gestures fall through overlays',
+        (tester) async {
+      await tester.pumpWidget(
+        buildTree({
+          'type': 'stack',
+          'children': [
+            {
+              'type': 'gestureDetector',
+              'onTap': 'hit',
+              'child': {'type': 'sizedBox', 'width': 100, 'height': 100},
+            },
+            {
+              'type': 'center',
+              'ignorePointer': true,
+              'child': {'type': 'text', 'data': 'overlay'},
+            },
+          ],
+        }),
+      );
+      await tester.tap(find.text('overlay'));
+      await tester.pump();
+      await tester.runAsync(() => Future<void>.delayed(Duration.zero));
+      await tester.pump();
+      expect(events.map((e) => e.$1), contains('hit'),
+          reason: 'tap passes through the ignorePointer overlay');
     });
 
     testWidgets('chart renders CustomPaint', (tester) async {
