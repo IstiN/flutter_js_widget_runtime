@@ -1,6 +1,6 @@
 import 'dart:math' as math;
 import 'dart:typed_data';
-import 'dart:ui' show VertexMode, Vertices;
+import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
 
@@ -19,6 +19,7 @@ class JsVoxelChunk {
     required this.colors,
     required this.indices,
     required this.origin,
+    this.overlay = false,
   }) : vertexCount = positions.length ~/ 3,
        faceCount = indices.length ~/ 3,
        aabbMin = _boundsMin(positions),
@@ -36,6 +37,7 @@ class JsVoxelChunk {
       colors: buffers.$2,
       indices: buffers.$3,
       origin: buffers.$4,
+      overlay: args['overlay'] == true,
     );
   }
 
@@ -72,6 +74,10 @@ class JsVoxelChunk {
   final Uint32List indices;
   final Float32List origin;
   final int vertexCount;
+
+  /// Overlay chunks (aim markers, ghosts) depth-bias toward the camera so
+  /// they win the painter's sort against the coplanar geometry they hug.
+  final bool overlay;
   final int faceCount;
 
   /// Tight bounds computed once at upload — the painter uses them for
@@ -141,12 +147,13 @@ class JsVoxelCamera {
     this.pitch = -0.6,
     this.light = 1,
     this.fov = 70,
+    this.texture = false,
     Color? skyColor,
   }) : position = Float32List.fromList(position),
        skyColor = skyColor ?? const Color(0xFF87CEEB);
 
   factory JsVoxelCamera.fromDynamic(Map<String, dynamic> args) {
-    final cam = JsVoxelCamera();
+    final cam = JsVoxelCamera(texture: args['texture'] == true);
     final position = _vec3(args['position']);
     if (position != null) cam.position = position;
     final yaw = args['yaw'];
@@ -165,6 +172,10 @@ class JsVoxelCamera {
   Float32List position;
   double yaw;
   double pitch;
+
+  /// Pixelated block texturing: the painter modulates triangles with a
+  /// procedural 16px-per-block noise texture when the widget opts in.
+  bool texture;
   double light;
   double fov;
   Color skyColor;
@@ -353,6 +364,7 @@ class JsVoxelNode extends StatelessWidget {
 /// churn alone dominated the web build's frame time).
 class _Tri {
   final Float32List pts = Float32List(6);
+  final Float32List uvs = Float32List(6);
   final Int32List argbs = Int32List(3);
   double depth = 0;
   double sortKey = 0;
@@ -508,34 +520,69 @@ class VoxelPainter extends CustomPainter {
     }
     _tris.sort((a, b) => a.sortKey.compareTo(b.sortKey));
     final vCount = cursor * 3;
-    if (_vertPositions.length < vCount * 2) {
-      _vertPositions = Float32List(vCount * 2);
-      _vertColors = Int32List(vCount);
+    final textured = camera.texture;
+    _bufferPage = 1 - _bufferPage;
+    var pos = _vertPositions[_bufferPage];
+    var cols = _vertColors[_bufferPage];
+    var uvs = _vertUvs[_bufferPage];
+    if (pos.length < vCount * 2) {
+      pos = _vertPositions[_bufferPage] = Float32List(vCount * 2);
+      cols = _vertColors[_bufferPage] = Int32List(vCount);
+      uvs = _vertUvs[_bufferPage] = Float32List(vCount * 2);
     }
     for (var i = 0; i < cursor; i++) {
       final t = _tris[i];
       final o = i * 6;
-      _vertPositions[o] = t.pts[0];
-      _vertPositions[o + 1] = t.pts[1];
-      _vertPositions[o + 2] = t.pts[2];
-      _vertPositions[o + 3] = t.pts[3];
-      _vertPositions[o + 4] = t.pts[4];
-      _vertPositions[o + 5] = t.pts[5];
+      pos[o] = t.pts[0];
+      pos[o + 1] = t.pts[1];
+      pos[o + 2] = t.pts[2];
+      pos[o + 3] = t.pts[3];
+      pos[o + 4] = t.pts[4];
+      pos[o + 5] = t.pts[5];
       final c = i * 3;
-      _vertColors[c] = t.argbs[0];
-      _vertColors[c + 1] = t.argbs[1];
-      _vertColors[c + 2] = t.argbs[2];
+      cols[c] = t.argbs[0];
+      cols[c + 1] = t.argbs[1];
+      cols[c + 2] = t.argbs[2];
+      if (textured) {
+        uvs[o] = t.uvs[0];
+        uvs[o + 1] = t.uvs[1];
+        uvs[o + 2] = t.uvs[2];
+        uvs[o + 3] = t.uvs[3];
+        uvs[o + 4] = t.uvs[4];
+        uvs[o + 5] = t.uvs[5];
+      }
     }
-    final vertices = Vertices.raw(
-      VertexMode.triangles,
-      Float32List.sublistView(_vertPositions, 0, vCount * 2),
-      colors: Int32List.sublistView(_vertColors, 0, vCount),
+    final paint = Paint();
+    Float32List? uvView;
+    if (textured) {
+      final tex = _noiseTexture();
+      if (tex != null) {
+        uvView = Float32List.sublistView(uvs, 0, vCount * 2);
+        paint.shader = ui.ImageShader(
+          tex,
+          ui.TileMode.repeated,
+          ui.TileMode.repeated,
+          Matrix4.identity().storage,
+        );
+      }
+    }
+    final vertices = ui.Vertices.raw(
+      ui.VertexMode.triangles,
+      Float32List.sublistView(pos, 0, vCount * 2),
+      textureCoordinates: uvView,
+      colors: Int32List.sublistView(cols, 0, vCount),
     );
-    canvas.drawVertices(vertices, BlendMode.modulate, Paint());
+    canvas.drawVertices(vertices, BlendMode.modulate, paint);
   }
 
-  Float32List _vertPositions = Float32List(0);
-  Int32List _vertColors = Int32List(0);
+  // Double-buffered draw arrays: a recorded picture may rasterize AFTER the
+  // next paint() has run (async raster, routine under fast swipes), so the
+  // buffers the previous frame's Vertices points at must stay untouched for
+  // one full frame. Alternating two sets guarantees that.
+  final List<Float32List> _vertPositions = [Float32List(0), Float32List(0)];
+  final List<Int32List> _vertColors = [Int32List(0), Int32List(0)];
+  final List<Float32List> _vertUvs = [Float32List(0), Float32List(0)];
+  int _bufferPage = 0;
 
   /// View-frustum planes in world space: each normal points INTO the
   /// visible volume (chunks behind the plane are outside), planes pass
@@ -616,9 +663,13 @@ class VoxelPainter extends CustomPainter {
 
     // View-space scratch: 3 input verts (0..8) + up to 3 clipped
     // intersection verts (9..17); cview mirrors it with raw rgb per slot
-    // (clipped verts lerp colors along the edge).
+    // (clipped verts lerp colors along the edge). uvs carries per-slot
+    // texture coordinates when the camera opts into block texturing.
+    final textured = camera.texture;
     final view = Float32List(18);
     final cview = Float32List(18);
+    final uvs = Float32List(12);
+    final wpos = Float32List(9);
     for (var f = 0; f + 2 < indices.length; f += 3) {
       for (var v = 0; v < 3; v++) {
         final p = indices[f + v] * 3;
@@ -630,7 +681,10 @@ class VoxelPainter extends CustomPainter {
         cview[v * 3 + 1] = col[p + 1];
         cview[v * 3 + 2] = col[p + 2];
       }
-      final tri = _clipAgainstNear(view, cview);
+      if (textured) {
+        _fillTriUv(pos, indices, f, chunk.origin, wpos, uvs);
+      }
+      final tri = _clipAgainstNear(view, cview, textured ? uvs : null);
       if (tri == null) continue;
 
       for (var k = 0; k + 2 < tri.length; k += 3) {
@@ -644,6 +698,11 @@ class VoxelPainter extends CustomPainter {
           final invZ = _focal / vz;
           p[v * 2] = halfW + view[j] * invZ * halfH;
           p[v * 2 + 1] = halfH - view[j + 1] * invZ * halfH;
+          if (textured) {
+            final ju = tri[v + k] * 2;
+            t.uvs[v * 2] = uvs[ju];
+            t.uvs[v * 2 + 1] = uvs[ju + 1];
+          }
           depth += vz;
           final r = (cview[j] * light * 255).round().clamp(0, 255);
           final g = (cview[j + 1] * light * 255).round().clamp(0, 255);
@@ -658,7 +717,10 @@ class VoxelPainter extends CustomPainter {
         final area = (p[2] - p[0]) * (p[5] - p[1]) -
             (p[4] - p[0]) * (p[3] - p[1]);
         if (area > -0.25) continue;
-        t.depth = depth;
+        // Overlay chunks (aim markers) hug coplanar block faces well inside
+        // a depth bucket — bias them toward the camera so they always win
+        // the painter's sort instead of patch-interleaving by centroid.
+        t.depth = depth + (chunk.overlay ? -0.75 : 0);
         cursor++;
       }
     }
@@ -676,6 +738,71 @@ class VoxelPainter extends CustomPainter {
     view[o + 2] = _forward[0] * x + _forward[1] * y + _forward[2] * z;
   }
 
+  /// Computes per-vertex texture coordinates for one triangle: the
+  /// dominant world-space normal axis picks the two in-plane world
+  /// coordinates, so uv units are BLOCKS (TileMode.repeated makes one
+  /// repeat per block → 16 texels/block for the 16px noise tile).
+  void _fillTriUv(
+    Float32List pos,
+    Uint32List indices,
+    int f,
+    Float32List origin,
+    Float32List wpos,
+    Float32List uvs,
+  ) {
+    for (var v = 0; v < 3; v++) {
+      final pi = indices[f + v] * 3;
+      wpos[v * 3] = pos[pi] + origin[0];
+      wpos[v * 3 + 1] = pos[pi + 1] + origin[1];
+      wpos[v * 3 + 2] = pos[pi + 2] + origin[2];
+    }
+    final ax = wpos[3] - wpos[0], ay = wpos[4] - wpos[1], az = wpos[5] - wpos[2];
+    final bx = wpos[6] - wpos[0], by = wpos[7] - wpos[1], bz = wpos[8] - wpos[2];
+    final nx = (ay * bz - az * by).abs();
+    final ny = (az * bx - ax * bz).abs();
+    final nz = (ax * by - ay * bx).abs();
+    for (var v = 0; v < 3; v++) {
+      final o = v * 3;
+      if (ny >= nx && ny >= nz) {
+        uvs[v * 2] = wpos[o]; uvs[v * 2 + 1] = wpos[o + 2]; // top/bottom: x,z
+      } else if (nx >= nz) {
+        uvs[v * 2] = wpos[o + 2]; uvs[v * 2 + 1] = wpos[o + 1]; // sides: z,y
+      } else {
+        uvs[v * 2] = wpos[o]; uvs[v * 2 + 1] = wpos[o + 1]; // front: x,y
+      }
+    }
+  }
+
+  /// Procedural 16x16 grayscale noise tile (deterministic LCG, values
+  /// 212..255) — multiplied over vertex colors it reads as pixelated
+  /// block texture without shipping a single asset.
+  static ui.Image? _noiseTex;
+  static bool _noiseTexStarted = false;
+  static ui.Image? _noiseTexture() {
+    if (_noiseTex == null && !_noiseTexStarted) {
+      _noiseTexStarted = true;
+      const n = 16;
+      final rgba = Uint8List(n * n * 4);
+      var h = 0x2b992eb;
+      for (var i = 0; i < n * n; i++) {
+        h = (h * 1664525 + 1013904223) & 0x3fffffff;
+        final v = 212 + h % 44;
+        rgba[i * 4] = v;
+        rgba[i * 4 + 1] = v;
+        rgba[i * 4 + 2] = v;
+        rgba[i * 4 + 3] = 255;
+      }
+      ui.decodeImageFromPixels(
+        rgba,
+        n,
+        n,
+        ui.PixelFormat.rgba8888,
+        (img) => _noiseTex = img,
+      );
+    }
+    return _noiseTex;
+  }
+
   /// Sutherland–Hodgman clip of the triangle in view scratch slots 0..8
   /// (3 verts) against the near plane. Clipped intersection verts are
   /// written to scratch slots 9..17 and addressed as vertex indices 3..5;
@@ -683,7 +810,11 @@ class VoxelPainter extends CustomPainter {
   /// Returns the fan-triangulated vertex indices, or null when fully
   /// culled. Uint32List, not Int64List — Int64List is unsupported on web
   /// (dart2js throws) and the voxel pipeline must render there too.
-  Uint32List? _clipAgainstNear(Float32List view, Float32List cview) {
+  Uint32List? _clipAgainstNear(
+    Float32List view,
+    Float32List cview,
+    Float32List? uvs,
+  ) {
     const near = nearPlane;
     final d0 = view[2] - near;
     final d1 = view[5] - near;
@@ -697,15 +828,7 @@ class VoxelPainter extends CustomPainter {
       final j = (i + 1) % 3;
       if (pd[i] > 0) emitted.add(i);
       if ((pd[i] > 0) != (pd[j] > 0)) {
-        final t = pd[i] / (pd[i] - pd[j]);
-        final o = i * 3;
-        final p = j * 3;
-        view[9 + i * 3] = view[o] + (view[p] - view[o]) * t;
-        view[10 + i * 3] = view[o + 1] + (view[p + 1] - view[o + 1]) * t;
-        view[11 + i * 3] = view[o + 2] + (view[p + 2] - view[o + 2]) * t;
-        cview[9 + i * 3] = cview[o] + (cview[p] - cview[o]) * t;
-        cview[10 + i * 3] = cview[o + 1] + (cview[p + 1] - cview[o + 1]) * t;
-        cview[11 + i * 3] = cview[o + 2] + (cview[p + 2] - cview[o + 2]) * t;
+        _lerpIntersection(view, cview, uvs, i, j, pd[i] / (pd[i] - pd[j]));
         emitted.add(3 + i);
       }
     }
@@ -719,5 +842,29 @@ class VoxelPainter extends CustomPainter {
         ..add(emitted[k + 1]);
     }
     return Uint32List.fromList(polys);
+  }
+
+  /// Edge/plane intersection for slot i..j written to slot 3+i: position,
+  /// color, and uv all lerp with the same parameter t.
+  void _lerpIntersection(
+    Float32List view,
+    Float32List cview,
+    Float32List? uvs,
+    int i,
+    int j,
+    double t,
+  ) {
+    final o = i * 3;
+    final p = j * 3;
+    final d = 9 + i * 3;
+    for (var c = 0; c < 3; c++) {
+      view[d + c] = view[o + c] + (view[p + c] - view[o + c]) * t;
+      cview[d + c] = cview[o + c] + (cview[p + c] - cview[o + c]) * t;
+    }
+    if (uvs != null) {
+      final uo = i * 2, up = j * 2, ud = 6 + i * 2;
+      uvs[ud] = uvs[uo] + (uvs[up] - uvs[uo]) * t;
+      uvs[ud + 1] = uvs[uo + 1] + (uvs[up + 1] - uvs[uo + 1]) * t;
+    }
   }
 }
