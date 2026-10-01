@@ -31,6 +31,12 @@
 
   <title>jsr widget preview</title>
   <link rel="manifest" href="manifest.json">
+  <style>
+    /* Game-style widgets drive the camera with two-finger trackpad swipes;
+       without this, Chrome/macOS interprets horizontal swipes as the
+       history back/forward gesture and shows the page-nav arrow mid-game. */
+    html, body { overscroll-behavior: none; touch-action: none; }
+  </style>
 </head>
 <body>
   <!--

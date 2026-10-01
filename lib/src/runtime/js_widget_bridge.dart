@@ -695,6 +695,24 @@ class JsRafScheduler {
   Ticker? _ticker;
   final _pending = <String, bool>{};
 
+  // Monotonic timestamp folding. The Ticker's elapsed resets when the
+  // ticker restarts (it stops after a few idle frames — a slow
+  // host->worker->host rAF re-request round trip under load used to send
+  // timestamps BACKWARDS, widgets clamped dt to 0, and movement silently
+  // slowed under raster pressure). We keep the ticker's own clock (it is
+  // the fake test clock under flutter_test — a wall Stopwatch would freeze
+  // game time in pumped tests) and fold each restart into an epoch base.
+  int _tickerEpochBase = 0;
+  int _lastTickerElapsed = -1;
+  int _lastSentMs = -1;
+
+  // Grace frames before stopping an idle ticker: a widget that re-requests
+  // rAF every frame can legitimately miss a vsync when the worker round
+  // trip lags; stopping+restarting the Ticker every time costs more than
+  // a few no-op ticks.
+  int _emptyTicks = 0;
+  static const int _stopAfterEmptyTicks = 3;
+
   void requestFrame(String id) {
     _pending[id] = true;
     _ensureTicker();
@@ -721,11 +739,21 @@ class JsRafScheduler {
   }
 
   void _onTick(Duration elapsed) {
-    if ((shouldStop?.call() ?? false) || _pending.isEmpty) {
+    if (shouldStop?.call() ?? false) {
       _ticker?.stop();
       return;
     }
-    final ms = elapsed.inMilliseconds;
+    if (_pending.isEmpty) {
+      if (++_emptyTicks >= _stopAfterEmptyTicks) _ticker?.stop();
+      return;
+    }
+    _emptyTicks = 0;
+    final e = elapsed.inMilliseconds;
+    if (e < _lastTickerElapsed) _tickerEpochBase += _lastTickerElapsed + 1;
+    _lastTickerElapsed = e;
+    var ms = _tickerEpochBase + e;
+    if (ms <= _lastSentMs) ms = _lastSentMs + 1;
+    _lastSentMs = ms;
     final ids = List<String>.from(_pending.keys);
     _pending.clear();
     for (final id in ids) {
