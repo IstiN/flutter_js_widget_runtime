@@ -389,6 +389,33 @@ class VoxelPainter extends CustomPainter {
 
   @override
   void paint(Canvas canvas, Size size) {
+    // Rolling paint-cost stats, logged every 300 paints — on web these land
+    // in the browser console, giving field reports ("fps dips while
+    // walking") their Dart-side counterpart next to the widget's own
+    // [facraft] JS-side numbers.
+    final sw = Stopwatch()..start();
+    _paintBody(canvas, size);
+    sw.stop();
+    _paintCount++;
+    _paintUs += sw.elapsedMicroseconds;
+    _paintTris += _lastTriCount;
+    if (_paintCount >= 300) {
+      debugPrint(
+        '[voxel] paint=${(_paintUs / _paintCount / 1000).toStringAsFixed(1)}ms '
+        'tris=${(_paintTris / _paintCount).round()}',
+      );
+      _paintCount = 0;
+      _paintUs = 0;
+      _paintTris = 0;
+    }
+  }
+
+  static int _paintCount = 0;
+  static int _paintUs = 0;
+  static int _paintTris = 0;
+  int _lastTriCount = 0;
+
+  void _paintBody(Canvas canvas, Size size) {
     chunks = world.chunksOf(id);
     if (chunks.isEmpty) return;
     camera = world.cameraOf(id);
@@ -414,6 +441,7 @@ class VoxelPainter extends CustomPainter {
       );
     }
     if (cursor == 0) return;
+    _lastTriCount = cursor;
     _sortAndDraw(canvas, cursor);
   }
 
