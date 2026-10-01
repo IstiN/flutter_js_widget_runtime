@@ -591,14 +591,15 @@ class VoxelPainter extends CustomPainter {
   /// (3 verts) against the near plane. Clipped intersection verts are
   /// written to scratch slots 9..17 and addressed as vertex indices 3..5.
   /// Returns the fan-triangulated vertex indices, or null when fully
-  /// culled.
-  Int64List? _clipAgainstNear(Float32List view) {
+  /// culled. Uint32List, not Int64List — Int64List is unsupported on web
+  /// (dart2js throws) and the voxel pipeline must render there too.
+  Uint32List? _clipAgainstNear(Float32List view) {
     const near = nearPlane;
     final d0 = view[2] - near;
     final d1 = view[5] - near;
     final d2 = view[8] - near;
     if (d0 <= 0 && d1 <= 0 && d2 <= 0) return null;
-    if (d0 > 0 && d1 > 0 && d2 > 0) return Int64List.fromList([0, 1, 2]);
+    if (d0 > 0 && d1 > 0 && d2 > 0) return Uint32List.fromList([0, 1, 2]);
 
     final pd = [d0, d1, d2];
     final emitted = <int>[];
@@ -624,6 +625,6 @@ class VoxelPainter extends CustomPainter {
         ..add(emitted[k])
         ..add(emitted[k + 1]);
     }
-    return Int64List.fromList(polys);
+    return Uint32List.fromList(polys);
   }
 }
