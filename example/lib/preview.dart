@@ -51,7 +51,7 @@ const String _canonicalBaseUrl =
 /// reader strips the `<id>/` segment the loader always prepends.
 const Map<String, String> _submoduleWidgetBases = {
   'fa-craft': 'https://raw.githubusercontent.com/IstiN/fa_craft/'
-      'df36f98cf902a8a5d9b8218cd23ca373f02c92be',
+      '7e21b7a7d9aee557897dee3948289cfad1a1a731',
 };
 
 /// Widget ids are directory names — reject anything that could escape the
@@ -275,9 +275,16 @@ class _PreviewPageState extends State<PreviewPage> {
       return;
     }
     try {
-      var manifest = await WidgetManifest.fromStorage(id, reader: _reader);
+      // Submodule-mirrored widgets (fa-craft) are served straight from
+      // their pinned source repo — probing the two canonical bases first
+      // only produced two guaranteed 404s in the console on every open.
+      var manifest = (!_explicitSource &&
+              _submoduleWidgetBases.containsKey(id))
+          ? null
+          : await WidgetManifest.fromStorage(id, reader: _reader);
       if (!mounted) return;
-      if (manifest == null && !_explicitSource) {
+      if (manifest == null && !_explicitSource &&
+          !_submoduleWidgetBases.containsKey(id)) {
         // CORE widgets live only in the runtime repo after the submodule
         // migration — retry against the canonical sources.
         _reader = HttpWidgetFileReader(_canonicalBaseUrl);

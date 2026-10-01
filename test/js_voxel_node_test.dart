@@ -347,4 +347,102 @@ void main() {
       expect(sized.height, 80);
     });
   });
+
+  group('rasterization robustness', () {
+    test('texture camera flag modulates blocks with the noise tile',
+        () async {
+      final world = JsVoxelWorld();
+      world.handleHostCall('voxel.attach', {'id': 'w'});
+      world.handleHostCall('voxel.mesh', {
+        'id': 'w',
+        'key': '0,0',
+        'origin': [0, 0, 0],
+        'positions': [-64, 0, -64, -64, 0, 80, 80, 0, 80, 80, 0, -64],
+        'colors': [
+          0.2, 0.8, 0.2, 0.2, 0.8, 0.2, 0.2, 0.8, 0.2, 0.2, 0.8, 0.2
+        ],
+        'indices': [0, 1, 2, 0, 2, 3],
+      });
+      world.handleHostCall('voxel.camera', {
+        'id': 'w',
+        'position': [8, 6, 8],
+        'yaw': 0,
+        'pitch': -0.6,
+        'light': 1,
+        'skyColor': '#102030',
+        'texture': true,
+      });
+      expect(world.cameraOf('w').texture, isTrue, reason: 'flag parsed');
+      const size = 200.0;
+      // First paint kicks the async noise-tile decode; give it an event
+      // loop turn, then paint again with the texture live.
+      final rec1 = ui.PictureRecorder();
+      _painterFor(world).paint(ui.Canvas(rec1), const Size(size, size));
+      await rec1.endRecording().toImage(size.toInt(), size.toInt());
+      await Future<void>.delayed(const Duration(milliseconds: 100));
+      final rec2 = ui.PictureRecorder();
+      _painterFor(world).paint(ui.Canvas(rec2), const Size(size, size));
+      final image =
+          await rec2.endRecording().toImage(size.toInt(), size.toInt());
+      final data = (await image.toByteData(
+          format: ui.ImageByteFormat.rawStraightRgba))!;
+      final o = (100 * size.toInt() + 100) * 4;
+      final g = data.getUint8(o + 1);
+      expect(g, greaterThan(60), reason: 'block rendered, not sky');
+      expect(g, lessThanOrEqualTo(210),
+          reason: 'noise tile modulates the green down');
+    });
+
+    test('no sky holes while sweeping yaw over a merged mega-quad',
+        () async {
+      final world = JsVoxelWorld();
+      world.handleHostCall('voxel.attach', {'id': 'w'});
+      // One greedy-merged mega-plate centered under the camera: every ray
+      // in the scanned center window must hit it at ANY yaw (pitch is
+      // down). The plate spans behind the eye, exercising the near-plane
+      // clip of huge quads — the shape that exposed holes.
+      world.handleHostCall('voxel.mesh', {
+        'id': 'w',
+        'key': '0,0',
+        'origin': [0, 0, 0],
+        'positions': [-64, 0, -64, -64, 0, 80, 80, 0, 80, 80, 0, -64],
+        'colors': [
+          0.2, 0.8, 0.2, 0.2, 0.8, 0.2, 0.2, 0.8, 0.2, 0.2, 0.8, 0.2
+        ],
+        'indices': [0, 1, 2, 0, 2, 3],
+      });
+      const sky = 0xFF102030;
+      for (var step = 0; step < 36; step++) {
+        world.handleHostCall('voxel.camera', {
+          'id': 'w',
+          'position': [8, 6, 8],
+          'yaw': step * math.pi / 18,
+          'pitch': -0.6,
+          'light': 1,
+          'skyColor': '#102030',
+        });
+        // Rasterize and scan the center region for sky-colored holes.
+        const size = 200.0;
+        final recorder = ui.PictureRecorder();
+        _painterFor(world).paint(ui.Canvas(recorder), const Size(size, size));
+        final image =
+            await recorder.endRecording().toImage(size.toInt(), size.toInt());
+        final data =
+            (await image.toByteData(format: ui.ImageByteFormat.rawStraightRgba))!;
+        var skyPixels = 0;
+        for (var y = 60; y < 140; y += 4) {
+          for (var x = 60; x < 140; x += 4) {
+            final o = (y * size.toInt() + x) * 4;
+            final argb = (data.getUint8(o + 3) << 24) |
+                (data.getUint8(o) << 16) |
+                (data.getUint8(o + 1) << 8) |
+                data.getUint8(o + 2);
+            if (argb == sky) skyPixels++;
+          }
+        }
+        expect(skyPixels, 0,
+            reason: 'yaw ${step * 10}°: sky shows through the plate');
+      }
+    });
+  });
 }
