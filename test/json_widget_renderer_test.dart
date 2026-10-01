@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/gestures.dart' show PointerScrollEvent;
 import 'package:flutter_markdown_plus/flutter_markdown_plus.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -544,6 +545,29 @@ void main() {
       await tester.pump();
       expect(events.any((e) => e.$1 == 'tap'), isTrue);
       expect(events.any((e) => e.$1 == 'tapDown'), isTrue);
+    });
+
+    testWidgets('gestureDetector fires onScroll for pointer scroll signals',
+        (tester) async {
+      await tester.pumpWidget(
+        buildTree({
+          'type': 'gestureDetector',
+          'onScroll': 'look',
+          'child': {'type': 'text', 'data': 'scrollable'},
+        }),
+      );
+      final center = tester.getCenter(find.text('scrollable'));
+      // A two-finger trackpad swipe arrives as a pointer scroll signal.
+      await tester.sendEventToBinding(
+        PointerScrollEvent(position: center, scrollDelta: const Offset(12, -8)),
+      );
+      await tester.pump();
+      await tester.runAsync(() => Future<void>.delayed(Duration.zero));
+      await tester.pump();
+      final look = events.where((e) => e.$1 == 'look').toList();
+      expect(look, hasLength(1), reason: 'scroll signal maps to onScroll');
+      expect(look.single.$2['dx'], 12);
+      expect(look.single.$2['dy'], -8);
     });
 
     testWidgets('chart renders CustomPaint', (tester) async {
