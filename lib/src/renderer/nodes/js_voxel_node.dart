@@ -1,5 +1,6 @@
 import 'dart:math' as math;
 import 'dart:typed_data';
+import 'dart:ui' show VertexMode, Vertices;
 
 import 'package:flutter/material.dart';
 
@@ -344,16 +345,17 @@ class JsVoxelNode extends StatelessWidget {
 }
 
 /// One painter-sorted triangle: view-space depth, packed sort key, screen
-/// points (flat x0,y0,x1,y1,x2,y2) and the light-multiplied ARGB fill.
-/// Pooled — the paint loop reuses [VoxelPainter._tris] instead of
-/// allocating per frame; flat storage avoids 3 Offset + 1 Color
-/// allocations per triangle per frame (that churn alone dominated the
-/// web build's frame time).
+/// points (flat x0,y0,x1,y1,x2,y2) and per-vertex light-multiplied ARGB
+/// fills (interpolation across the triangle is what gives merged greedy
+/// quads their per-block texture). Pooled — the paint loop reuses
+/// [VoxelPainter._tris] instead of allocating per frame; flat storage
+/// avoids 3 Offset + 1 Color allocations per triangle per frame (that
+/// churn alone dominated the web build's frame time).
 class _Tri {
   final Float32List pts = Float32List(6);
+  final Int32List argbs = Int32List(3);
   double depth = 0;
   double sortKey = 0;
-  int argb = 0xFF90CAF9;
 }
 
 /// Software rasterizer for [JsVoxelNode]: per-chunk frustum culling against
@@ -475,12 +477,16 @@ class VoxelPainter extends CustomPainter {
   }
 
   /// Painter's algorithm, bucketed: one arithmetic-packed sort key per
-  /// triangle — (inverted depth bucket) * 2^32 + argb — so a single
-  /// ascending sort yields far→near buckets AND same-color runs inside
-  /// each bucket, and the draw loop emits ONE Path per (bucket, color)
-  /// run instead of one Path per triangle. Multi-hundred-K triangle
-  /// scenes were bound by per-triangle drawPath calls; bucket granularity
-  /// is ~1/1000 of the view depth, far below a visible ordering error.
+  /// triangle — (inverted depth bucket) * 2^20 + insertion index — so a
+  /// single ascending sort yields far→near buckets AND a stable
+  /// chunk-upload order inside each bucket. The insertion tiebreak is what
+  /// keeps a widget's late-uploaded overlay chunk (fa-craft's '__hl' aim
+  /// marker) on top of the coplanar block face instead of z-fighting —
+  /// bucket granularity (~1/1024 of the view depth) is far coarser than
+  /// the marker's 0.02-block offset. Drawing is ONE drawVertices call with
+  /// per-vertex colors (modulated over a white paint): no per-color-run
+  /// Path batching, and vertex colors interpolate across triangles —
+  /// merged greedy-mesh quads get smooth per-block tonal gradients.
   /// The key is packed arithmetically, not bitwise — dart2js bitwise ops
   /// are 32-bit and would shred the high bits.
   void _sortAndDraw(Canvas canvas, int cursor) {
@@ -498,34 +504,38 @@ class VoxelPainter extends CustomPainter {
       final t = _tris[i];
       final b =
           ((t.depth - dMin) / span * (buckets - 1)).floor().clamp(0, 1023);
-      t.sortKey = (buckets - 1 - b) * 4294967296.0 + t.argb;
+      t.sortKey = (buckets - 1 - b) * 1048576.0 + i;
     }
     _tris.sort((a, b) => a.sortKey.compareTo(b.sortKey));
-    final paint = Paint()..isAntiAlias = false;
-    final path = Path();
-    var runArgb = -1;
+    final vCount = cursor * 3;
+    if (_vertPositions.length < vCount * 2) {
+      _vertPositions = Float32List(vCount * 2);
+      _vertColors = Int32List(vCount);
+    }
     for (var i = 0; i < cursor; i++) {
       final t = _tris[i];
-      if (t.argb != runArgb) {
-        if (runArgb != -1) {
-          paint.color = Color(runArgb);
-          canvas.drawPath(path, paint);
-        }
-        path.reset();
-        runArgb = t.argb;
-      }
-      final p = t.pts;
-      path
-        ..moveTo(p[0], p[1])
-        ..lineTo(p[2], p[3])
-        ..lineTo(p[4], p[5])
-        ..close();
+      final o = i * 6;
+      _vertPositions[o] = t.pts[0];
+      _vertPositions[o + 1] = t.pts[1];
+      _vertPositions[o + 2] = t.pts[2];
+      _vertPositions[o + 3] = t.pts[3];
+      _vertPositions[o + 4] = t.pts[4];
+      _vertPositions[o + 5] = t.pts[5];
+      final c = i * 3;
+      _vertColors[c] = t.argbs[0];
+      _vertColors[c + 1] = t.argbs[1];
+      _vertColors[c + 2] = t.argbs[2];
     }
-    if (runArgb != -1) {
-      paint.color = Color(runArgb);
-      canvas.drawPath(path, paint);
-    }
+    final vertices = Vertices.raw(
+      VertexMode.triangles,
+      Float32List.sublistView(_vertPositions, 0, vCount * 2),
+      colors: Int32List.sublistView(_vertColors, 0, vCount),
+    );
+    canvas.drawVertices(vertices, BlendMode.modulate, Paint());
   }
+
+  Float32List _vertPositions = Float32List(0);
+  Int32List _vertColors = Int32List(0);
 
   /// View-frustum planes in world space: each normal points INTO the
   /// visible volume (chunks behind the plane are outside), planes pass
@@ -605,8 +615,10 @@ class VoxelPainter extends CustomPainter {
     final indices = chunk.indices;
 
     // View-space scratch: 3 input verts (0..8) + up to 3 clipped
-    // intersection verts (9..17).
+    // intersection verts (9..17); cview mirrors it with raw rgb per slot
+    // (clipped verts lerp colors along the edge).
     final view = Float32List(18);
+    final cview = Float32List(18);
     for (var f = 0; f + 2 < indices.length; f += 3) {
       for (var v = 0; v < 3; v++) {
         final p = indices[f + v] * 3;
@@ -614,8 +626,11 @@ class VoxelPainter extends CustomPainter {
         view[v * 3 + 1] = pos[p + 1] + oy;
         view[v * 3 + 2] = pos[p + 2] + oz;
         _toView(view, v * 3);
+        cview[v * 3] = col[p];
+        cview[v * 3 + 1] = col[p + 1];
+        cview[v * 3 + 2] = col[p + 2];
       }
-      final tri = _clipAgainstNear(view);
+      final tri = _clipAgainstNear(view, cview);
       if (tri == null) continue;
 
       for (var k = 0; k + 2 < tri.length; k += 3) {
@@ -630,6 +645,10 @@ class VoxelPainter extends CustomPainter {
           p[v * 2] = halfW + view[j] * invZ * halfH;
           p[v * 2 + 1] = halfH - view[j + 1] * invZ * halfH;
           depth += vz;
+          final r = (cview[j] * light * 255).round().clamp(0, 255);
+          final g = (cview[j + 1] * light * 255).round().clamp(0, 255);
+          final bl = (cview[j + 2] * light * 255).round().clamp(0, 255);
+          t.argbs[v] = 0xFF000000 | (r << 16) | (g << 8) | bl;
         }
         depth /= 3;
         // Backface cull + subpixel cull in one compare: faces wound CCW
@@ -640,11 +659,6 @@ class VoxelPainter extends CustomPainter {
             (p[4] - p[0]) * (p[3] - p[1]);
         if (area > -0.25) continue;
         t.depth = depth;
-        final ci = indices[f] * 3;
-        final r = (col[ci] * light * 255).round().clamp(0, 255);
-        final g = (col[ci + 1] * light * 255).round().clamp(0, 255);
-        final bl = (col[ci + 2] * light * 255).round().clamp(0, 255);
-        t.argb = 0xFF000000 | (r << 16) | (g << 8) | bl;
         cursor++;
       }
     }
@@ -664,11 +678,12 @@ class VoxelPainter extends CustomPainter {
 
   /// Sutherland–Hodgman clip of the triangle in view scratch slots 0..8
   /// (3 verts) against the near plane. Clipped intersection verts are
-  /// written to scratch slots 9..17 and addressed as vertex indices 3..5.
+  /// written to scratch slots 9..17 and addressed as vertex indices 3..5;
+  /// [cview] carries per-slot rgb and is lerped along clipped edges.
   /// Returns the fan-triangulated vertex indices, or null when fully
   /// culled. Uint32List, not Int64List — Int64List is unsupported on web
   /// (dart2js throws) and the voxel pipeline must render there too.
-  Uint32List? _clipAgainstNear(Float32List view) {
+  Uint32List? _clipAgainstNear(Float32List view, Float32List cview) {
     const near = nearPlane;
     final d0 = view[2] - near;
     final d1 = view[5] - near;
@@ -688,6 +703,9 @@ class VoxelPainter extends CustomPainter {
         view[9 + i * 3] = view[o] + (view[p] - view[o]) * t;
         view[10 + i * 3] = view[o + 1] + (view[p + 1] - view[o + 1]) * t;
         view[11 + i * 3] = view[o + 2] + (view[p + 2] - view[o + 2]) * t;
+        cview[9 + i * 3] = cview[o] + (cview[p] - cview[o]) * t;
+        cview[10 + i * 3] = cview[o + 1] + (cview[p + 1] - cview[o + 1]) * t;
+        cview[11 + i * 3] = cview[o + 2] + (cview[p + 2] - cview[o + 2]) * t;
         emitted.add(3 + i);
       }
     }
