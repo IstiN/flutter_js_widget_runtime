@@ -46,6 +46,9 @@ const String _canonicalBaseUrl =
 /// example/widgets/: raw.githubusercontent does not follow gitlinks, so
 /// a bare link for one of these ids resolves from the SOURCE repo at the
 /// pinned commit. Keep each pin in lockstep with the submodule pin.
+/// NOTE: fa_craft uses a ROOT layout (manifest.json and widget.js at the
+/// repo root, the code under game/ — see its issue #6 rework), so the
+/// reader strips the `<id>/` segment the loader always prepends.
 const Map<String, String> _submoduleWidgetBases = {
   'fa-craft': 'https://raw.githubusercontent.com/IstiN/fa_craft/'
       'a315c734845fa5c6bfb2fe8fcfde0199be23083e',
@@ -87,6 +90,27 @@ class HttpWidgetFileReader implements WidgetFileReader {
       return false;
     }
   }
+}
+
+/// Reader for ROOT-layout source repos (e.g. fa_craft keeps
+/// manifest.json / widget.js / game/ at the repo root): the loader always
+/// addresses widget files as `<id>/...`, so strip that prefix before
+/// delegating to the underlying HTTP reader.
+class _RootLayoutReader implements WidgetFileReader {
+  _RootLayoutReader(this._inner, this._widgetId);
+
+  final HttpWidgetFileReader _inner;
+  final String _widgetId;
+
+  String _strip(String path) => path.startsWith('$_widgetId/')
+      ? path.substring(_widgetId.length + 1)
+      : path;
+
+  @override
+  Future<String?> readString(String path) => _inner.readString(_strip(path));
+
+  @override
+  Future<bool> exists(String path) => _inner.exists(_strip(path));
 }
 
 /// [WidgetFileReader] that serves the manifest and widget.js from explicit
@@ -266,7 +290,12 @@ class _PreviewPageState extends State<PreviewPage> {
         // back to the source repo at the submodule's pinned commit.
         final submoduleBase = _submoduleWidgetBases[id];
         if (submoduleBase != null) {
-          _reader = HttpWidgetFileReader(submoduleBase);
+          // Root-layout repo: manifest.json/widget.js live at the source
+          // repo root, so strip the `<id>/` segment (see _RootLayoutReader).
+          _reader = _RootLayoutReader(
+            HttpWidgetFileReader(submoduleBase),
+            id,
+          );
           manifest = await WidgetManifest.fromStorage(id, reader: _reader);
           if (!mounted) return;
         }
