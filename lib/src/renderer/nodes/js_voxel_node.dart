@@ -661,70 +661,233 @@ class VoxelPainter extends CustomPainter {
     final light = camera.light;
     final indices = chunk.indices;
 
-    // View-space scratch: 3 input verts (0..8) + up to 3 clipped
-    // intersection verts (9..17); cview mirrors it with raw rgb per slot
-    // (clipped verts lerp colors along the edge). uvs carries per-slot
-    // texture coordinates when the camera opts into block texturing.
+    // Scratch: wpos/crgb hold the input tri in WORLD space (subdivision
+    // and uv need it); view/cview are the clip scratch (3 input slots +
+    // up to 3 intersection slots); uvs carries per-slot texture coords
+    // when the camera opts into block texturing.
     final textured = camera.texture;
     final view = Float32List(18);
     final cview = Float32List(18);
     final uvs = Float32List(12);
     final wpos = Float32List(9);
+    final crgb = Float32List(9);
     for (var f = 0; f + 2 < indices.length; f += 3) {
       for (var v = 0; v < 3; v++) {
         final p = indices[f + v] * 3;
-        view[v * 3] = pos[p] + ox;
-        view[v * 3 + 1] = pos[p + 1] + oy;
-        view[v * 3 + 2] = pos[p + 2] + oz;
-        _toView(view, v * 3);
-        cview[v * 3] = col[p];
-        cview[v * 3 + 1] = col[p + 1];
-        cview[v * 3 + 2] = col[p + 2];
+        wpos[v * 3] = pos[p] + ox + ex;
+        wpos[v * 3 + 1] = pos[p + 1] + oy + ey;
+        wpos[v * 3 + 2] = pos[p + 2] + oz + ez;
+        crgb[v * 3] = col[p];
+        crgb[v * 3 + 1] = col[p + 1];
+        crgb[v * 3 + 2] = col[p + 2];
       }
-      if (textured) {
-        _fillTriUv(pos, indices, f, chunk.origin, wpos, uvs);
-      }
-      final tri = _clipAgainstNear(view, cview, textured ? uvs : null);
-      if (tri == null) continue;
-
-      for (var k = 0; k + 2 < tri.length; k += 3) {
-        if (cursor >= _tris.length) _tris.add(_Tri());
-        final t = _tris[cursor];
-        final p = t.pts;
-        var depth = 0.0;
-        for (var v = 0; v < 3; v++) {
-          final j = tri[v + k] * 3;
-          final vz = view[j + 2];
-          final invZ = _focal / vz;
-          p[v * 2] = halfW + view[j] * invZ * halfH;
-          p[v * 2 + 1] = halfH - view[j + 1] * invZ * halfH;
-          if (textured) {
-            final ju = tri[v + k] * 2;
-            t.uvs[v * 2] = uvs[ju];
-            t.uvs[v * 2 + 1] = uvs[ju + 1];
-          }
-          depth += vz;
-          final r = (cview[j] * light * 255).round().clamp(0, 255);
-          final g = (cview[j + 1] * light * 255).round().clamp(0, 255);
-          final bl = (cview[j + 2] * light * 255).round().clamp(0, 255);
-          t.argbs[v] = 0xFF000000 | (r << 16) | (g << 8) | bl;
-        }
-        depth /= 3;
-        // Backface cull + subpixel cull in one compare: faces wound CCW
-        // from outside project with negative screen-space signed area
-        // (screen y is flipped), and a triangle covering under ~1/8 px²
-        // is invisible anyway (dense far terrain is mostly subpixel).
-        final area = (p[2] - p[0]) * (p[5] - p[1]) -
-            (p[4] - p[0]) * (p[3] - p[1]);
-        if (area > -0.25) continue;
-        // Overlay chunks (aim markers) hug coplanar block faces well inside
-        // a depth bucket — bias them toward the camera so they always win
-        // the painter's sort instead of patch-interleaving by centroid.
-        t.depth = depth + (chunk.overlay ? -0.75 : 0);
-        cursor++;
-      }
+      cursor = _emitWorldTri(
+        chunk,
+        cursor,
+        wpos,
+        crgb,
+        ex,
+        ey,
+        ez,
+        halfW,
+        halfH,
+        light,
+        textured,
+        view,
+        cview,
+        uvs,
+        0,
+      );
     }
     return cursor;
+  }
+
+  /// Processes one world-space triangle: optionally subdivides it for
+  /// perspective-faithful texturing, then transforms, clips and projects
+  /// it into the [_tris] pool.
+  int _emitWorldTri(
+    JsVoxelChunk chunk,
+    int cursor,
+    Float32List wpos,
+    Float32List crgb,
+    double ex,
+    double ey,
+    double ez,
+    double halfW,
+    double halfH,
+    double light,
+    bool textured,
+    Float32List view,
+    Float32List cview,
+    Float32List uvs,
+    int depth,
+  ) {
+    // Affine uv interpolation is only correct per-fragment; on huge
+    // greedy-merged triangles it shears ("swimming" textures). Splitting
+    // big triangles down to ~4-block edges makes the error invisible.
+    if (textured && depth < 4 && _maxEdgeSq(wpos) > 16) {
+      final sub = _subdivide(wpos, crgb);
+      for (var i = 0; i < 4; i++) {
+        cursor = _emitWorldTri(
+          chunk,
+          cursor,
+          sub[i],
+          sub[i + 4],
+          ex,
+          ey,
+          ez,
+          halfW,
+          halfH,
+          light,
+          textured,
+          view,
+          cview,
+          uvs,
+          depth + 1,
+        );
+      }
+      return cursor;
+    }
+    for (var v = 0; v < 3; v++) {
+      view[v * 3] = wpos[v * 3] - ex;
+      view[v * 3 + 1] = wpos[v * 3 + 1] - ey;
+      view[v * 3 + 2] = wpos[v * 3 + 2] - ez;
+      _toView(view, v * 3);
+      cview[v * 3] = crgb[v * 3];
+      cview[v * 3 + 1] = crgb[v * 3 + 1];
+      cview[v * 3 + 2] = crgb[v * 3 + 2];
+    }
+    if (textured) _fillTriUv(wpos, uvs);
+    final tri = _clipAgainstNear(view, cview, textured ? uvs : null);
+    if (tri == null) return cursor;
+    return _projectTris(
+      chunk,
+      cursor,
+      tri,
+      view,
+      cview,
+      uvs,
+      halfW,
+      halfH,
+      light,
+      textured,
+    );
+  }
+
+  /// Longest world-space edge of the triangle, squared.
+  double _maxEdgeSq(Float32List w) {
+    var m = 0.0;
+    for (var i = 0; i < 3; i++) {
+      final j = (i + 1) % 3;
+      final dx = w[j * 3] - w[i * 3];
+      final dy = w[j * 3 + 1] - w[i * 3 + 1];
+      final dz = w[j * 3 + 2] - w[i * 3 + 2];
+      final d = dx * dx + dy * dy + dz * dz;
+      if (d > m) m = d;
+    }
+    return m;
+  }
+
+  /// 4-way midpoint split. Returns 8 lists: 4 sub-triangle world
+  /// positions then their 4 color sets (colors lerp linearly — exact
+  /// for the planar quads the mesher emits).
+  List<Float32List> _subdivide(Float32List w, Float32List c) {
+    Float32List mid(Float32List s, int a, int b) => Float32List.fromList(
+        [(s[a] + s[b]) / 2, (s[a + 1] + s[b + 1]) / 2, (s[a + 2] + s[b + 2]) / 2]);
+    Float32List vert(Float32List s, int o) =>
+        Float32List.fromList([s[o], s[o + 1], s[o + 2]]);
+    Float32List triOf(List<Float32List> pts) => Float32List.fromList([
+          pts[0][0], pts[0][1], pts[0][2],
+          pts[1][0], pts[1][1], pts[1][2],
+          pts[2][0], pts[2][1], pts[2][2],
+        ]);
+    final wv = [vert(w, 0), vert(w, 3), vert(w, 6)];
+    final cv = [vert(c, 0), vert(c, 3), vert(c, 6)];
+    final wm = [mid(w, 0, 3), mid(w, 3, 6), mid(w, 6, 0)];
+    final cm = [mid(c, 0, 3), mid(c, 3, 6), mid(c, 6, 0)];
+    return [
+      triOf([wv[0], wm[0], wm[2]]),
+      triOf([wm[0], wv[1], wm[1]]),
+      triOf([wm[2], wm[1], wv[2]]),
+      triOf([wm[0], wm[1], wm[2]]),
+      triOf([cv[0], cm[0], cm[2]]),
+      triOf([cm[0], cv[1], cm[1]]),
+      triOf([cm[2], cm[1], cv[2]]),
+      triOf([cm[0], cm[1], cm[2]]),
+    ];
+  }
+
+  /// Clips-space → screen projection, culling and pool append for one
+  /// (possibly clipped) polygon. Shared by direct and subdivided tris.
+  int _projectTris(
+    JsVoxelChunk chunk,
+    int cursor,
+    Uint32List tri,
+    Float32List view,
+    Float32List cview,
+    Float32List uvs,
+    double halfW,
+    double halfH,
+    double light,
+    bool textured,
+  ) {
+    for (var k = 0; k + 2 < tri.length; k += 3) {
+      if (cursor >= _tris.length) _tris.add(_Tri());
+      final t = _tris[cursor];
+      final p = t.pts;
+      var depth = 0.0;
+      for (var v = 0; v < 3; v++) {
+        final j = tri[v + k] * 3;
+        final vz = view[j + 2];
+        final invZ = _focal / vz;
+        p[v * 2] = halfW + view[j] * invZ * halfH;
+        p[v * 2 + 1] = halfH - view[j + 1] * invZ * halfH;
+        if (textured) {
+          final ju = tri[v + k] * 2;
+          t.uvs[v * 2] = uvs[ju];
+          t.uvs[v * 2 + 1] = uvs[ju + 1];
+        }
+        depth += vz;
+        final r = (cview[j] * light * 255).round().clamp(0, 255);
+        final g = (cview[j + 1] * light * 255).round().clamp(0, 255);
+        final bl = (cview[j + 2] * light * 255).round().clamp(0, 255);
+        t.argbs[v] = 0xFF000000 | (r << 16) | (g << 8) | bl;
+      }
+      depth /= 3;
+      // Backface cull + subpixel cull in one compare: faces wound CCW
+      // from outside project with negative screen-space signed area
+      // (screen y is flipped), and a triangle covering under ~1/8 px²
+      // is invisible anyway (dense far terrain is mostly subpixel).
+      final area = (p[2] - p[0]) * (p[5] - p[1]) -
+          (p[4] - p[0]) * (p[3] - p[1]);
+      if (area > -0.25) continue;
+      _expand(p);
+      // Overlay chunks (aim markers) hug coplanar block faces well inside
+      // a depth bucket — bias them toward the camera so they always win
+      // the painter's sort instead of patch-interleaving by centroid.
+      t.depth = depth + (chunk.overlay ? -0.75 : 0);
+      cursor++;
+    }
+    return cursor;
+  }
+
+  /// Conservative-raster crack fill: greedily merged rectangles meet at
+  /// T-junctions whose endpoints do not coincide, and the rasterizer
+  /// leaves hairline gaps there that leak the sky color. Growing each
+  /// triangle ~3/4 px outward from its centroid covers the seams —
+  /// coplanar neighbors overlap invisibly (stable painter order, same
+  /// colors).
+  void _expand(Float32List p) {
+    final cx = (p[0] + p[2] + p[4]) / 3;
+    final cy = (p[1] + p[3] + p[5]) / 3;
+    for (var v = 0; v < 3; v++) {
+      final dx = p[v * 2] - cx;
+      final dy = p[v * 2 + 1] - cy;
+      final len = math.sqrt(dx * dx + dy * dy);
+      if (len < 1e-3) continue;
+      p[v * 2] += dx / len * 0.75;
+      p[v * 2 + 1] += dy / len * 0.75;
+    }
   }
 
   /// Transforms the vertex at scratch offset [o] from world (already
@@ -742,20 +905,7 @@ class VoxelPainter extends CustomPainter {
   /// dominant world-space normal axis picks the two in-plane world
   /// coordinates, so uv units are BLOCKS (TileMode.repeated makes one
   /// repeat per block → 16 texels/block for the 16px noise tile).
-  void _fillTriUv(
-    Float32List pos,
-    Uint32List indices,
-    int f,
-    Float32List origin,
-    Float32List wpos,
-    Float32List uvs,
-  ) {
-    for (var v = 0; v < 3; v++) {
-      final pi = indices[f + v] * 3;
-      wpos[v * 3] = pos[pi] + origin[0];
-      wpos[v * 3 + 1] = pos[pi + 1] + origin[1];
-      wpos[v * 3 + 2] = pos[pi + 2] + origin[2];
-    }
+  void _fillTriUv(Float32List wpos, Float32List uvs) {
     final ax = wpos[3] - wpos[0], ay = wpos[4] - wpos[1], az = wpos[5] - wpos[2];
     final bx = wpos[6] - wpos[0], by = wpos[7] - wpos[1], bz = wpos[8] - wpos[2];
     final nx = (ay * bz - az * by).abs();
