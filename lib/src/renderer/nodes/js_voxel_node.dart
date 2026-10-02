@@ -722,42 +722,6 @@ class VoxelPainter extends CustomPainter {
     Float32List uvs,
     int depth,
   ) {
-    // Affine uv interpolation is only correct per-fragment; on huge
-    // greedy-merged triangles it shears ("swimming" textures), and the
-    // sub-triangle diagonals read as wavy seams. Split big triangles —
-    // to ~2.5-block edges right under the camera (where the warp shows),
-    // ~4-block beyond 9 blocks (where it is sub-texel anyway). The tight
-    // near radius keeps the tri budget sane.
-    var limitSq = 16.0;
-    if (textured) {
-      final mx = (wpos[0] + wpos[3] + wpos[6]) / 3 - ex;
-      final my = (wpos[1] + wpos[4] + wpos[7]) / 3 - ey;
-      final mz = (wpos[2] + wpos[5] + wpos[8]) / 3 - ez;
-      if (mx * mx + my * my + mz * mz < 81) limitSq = 6.25;
-    }
-    if (textured && depth < 6 && _maxEdgeSq(wpos) > limitSq) {
-      final sub = _subdivide(wpos, crgb);
-      for (var i = 0; i < 4; i++) {
-        cursor = _emitWorldTri(
-          chunk,
-          cursor,
-          sub[i],
-          sub[i + 4],
-          ex,
-          ey,
-          ez,
-          halfW,
-          halfH,
-          light,
-          textured,
-          view,
-          cview,
-          uvs,
-          depth + 1,
-        );
-      }
-      return cursor;
-    }
     for (var v = 0; v < 3; v++) {
       view[v * 3] = wpos[v * 3] - ex;
       view[v * 3 + 1] = wpos[v * 3 + 1] - ey;
@@ -766,6 +730,26 @@ class VoxelPainter extends CustomPainter {
       cview[v * 3] = crgb[v * 3];
       cview[v * 3 + 1] = crgb[v * 3 + 1];
       cview[v * 3 + 2] = crgb[v * 3 + 2];
+    }
+    // Fully behind the near plane → the clip would drop it; bail BEFORE
+    // paying for subdivision (half the ring is behind the camera).
+    if (view[2] < nearPlane && view[5] < nearPlane && view[8] < nearPlane) {
+      return cursor;
+    }
+    // Affine uv interpolation is only correct per-fragment; on huge
+    // greedy-merged triangles it shears ("swimming" textures), and the
+    // sub-triangle diagonals read as wavy seams. Split big triangles —
+    // to ~2.5-block edges near the camera (where the warp shows),
+    // ~4-block beyond 9 blocks (where it is sub-texel anyway).
+    if (textured && depth < 6) {
+      final near = math.min(view[2], math.min(view[5], view[8]));
+      final limitSq = near < 9 ? 6.25 : 16.0;
+      if (_maxEdgeSq(wpos) > limitSq) {
+        return _splitAndRecurse(
+          chunk, cursor, wpos, crgb, ex, ey, ez, halfW, halfH,
+          light, textured, view, cview, uvs, depth,
+        );
+      }
     }
     if (textured) _fillTriUv(wpos, uvs);
     final tri = _clipAgainstNear(view, cview, textured ? uvs : null);
@@ -784,6 +768,35 @@ class VoxelPainter extends CustomPainter {
     );
   }
 
+  /// Splits the triangle 4-way and recurses into [_emitWorldTri] for
+  /// each sub-triangle (texture detail subdivision).
+  int _splitAndRecurse(
+    JsVoxelChunk chunk,
+    int cursor,
+    Float32List wpos,
+    Float32List crgb,
+    double ex,
+    double ey,
+    double ez,
+    double halfW,
+    double halfH,
+    double light,
+    bool textured,
+    Float32List view,
+    Float32List cview,
+    Float32List uvs,
+    int depth,
+  ) {
+    final sub = _subdivide(wpos, crgb, depth);
+    for (var i = 0; i < 4; i++) {
+      cursor = _emitWorldTri(
+        chunk, cursor, sub[i], sub[i + 4], ex, ey, ez, halfW, halfH,
+        light, textured, view, cview, uvs, depth + 1,
+      );
+    }
+    return cursor;
+  }
+
   /// Longest world-space edge of the triangle, squared.
   double _maxEdgeSq(Float32List w) {
     var m = 0.0;
@@ -798,33 +811,33 @@ class VoxelPainter extends CustomPainter {
     return m;
   }
 
-  /// 4-way midpoint split. Returns 8 lists: 4 sub-triangle world
-  /// positions then their 4 color sets (colors lerp linearly — exact
-  /// for the planar quads the mesher emits).
-  List<Float32List> _subdivide(Float32List w, Float32List c) {
-    Float32List mid(Float32List s, int a, int b) => Float32List.fromList(
-        [(s[a] + s[b]) / 2, (s[a + 1] + s[b + 1]) / 2, (s[a + 2] + s[b + 2]) / 2]);
-    Float32List vert(Float32List s, int o) =>
-        Float32List.fromList([s[o], s[o + 1], s[o + 2]]);
-    Float32List triOf(List<Float32List> pts) => Float32List.fromList([
-          pts[0][0], pts[0][1], pts[0][2],
-          pts[1][0], pts[1][1], pts[1][2],
-          pts[2][0], pts[2][1], pts[2][2],
-        ]);
-    final wv = [vert(w, 0), vert(w, 3), vert(w, 6)];
-    final cv = [vert(c, 0), vert(c, 3), vert(c, 6)];
-    final wm = [mid(w, 0, 3), mid(w, 3, 6), mid(w, 6, 0)];
-    final cm = [mid(c, 0, 3), mid(c, 3, 6), mid(c, 6, 0)];
-    return [
-      triOf([wv[0], wm[0], wm[2]]),
-      triOf([wm[0], wv[1], wm[1]]),
-      triOf([wm[2], wm[1], wv[2]]),
-      triOf([wm[0], wm[1], wm[2]]),
-      triOf([cv[0], cm[0], cm[2]]),
-      triOf([cm[0], cv[1], cm[1]]),
-      triOf([cm[2], cm[1], cv[2]]),
-      triOf([cm[0], cm[1], cm[2]]),
-    ];
+  /// 4-way midpoint split into a per-depth POOL (zero allocation in the
+  /// steady state — recursion level d reads pool[d] and writes
+  /// pool[d+1]). Returns 8 lists: 4 sub-triangle world positions then
+  /// their 4 color sets (colors lerp linearly — exact for planar quads).
+  final List<List<Float32List>> _subPool = [];
+  List<Float32List> _subdivide(Float32List w, Float32List c, int depth) {
+    while (_subPool.length <= depth) {
+      _subPool.add(List<Float32List>.generate(8, (_) => Float32List(9)));
+    }
+    final out = _subPool[depth];
+    for (var k = 0; k < 3; k++) {
+      final m01 = (w[k] + w[3 + k]) / 2;
+      final m12 = (w[3 + k] + w[6 + k]) / 2;
+      final m20 = (w[6 + k] + w[k]) / 2;
+      out[0][k] = w[k]; out[0][3 + k] = m01; out[0][6 + k] = m20;
+      out[1][k] = m01; out[1][3 + k] = w[3 + k]; out[1][6 + k] = m12;
+      out[2][k] = m20; out[2][3 + k] = m12; out[2][6 + k] = w[6 + k];
+      out[3][k] = m01; out[3][3 + k] = m12; out[3][6 + k] = m20;
+      final c01 = (c[k] + c[3 + k]) / 2;
+      final c12 = (c[3 + k] + c[6 + k]) / 2;
+      final c20 = (c[6 + k] + c[k]) / 2;
+      out[4][k] = c[k]; out[4][3 + k] = c01; out[4][6 + k] = c20;
+      out[5][k] = c01; out[5][3 + k] = c[3 + k]; out[5][6 + k] = c12;
+      out[6][k] = c20; out[6][3 + k] = c12; out[6][6 + k] = c[6 + k];
+      out[7][k] = c01; out[7][3 + k] = c12; out[7][6 + k] = c20;
+    }
+    return out;
   }
 
   /// Clips-space → screen projection, culling and pool append for one
@@ -871,7 +884,6 @@ class VoxelPainter extends CustomPainter {
       final area = (p[2] - p[0]) * (p[5] - p[1]) -
           (p[4] - p[0]) * (p[3] - p[1]);
       if (area > -0.25) continue;
-      _expand(p);
       // Overlay chunks (aim markers) hug coplanar block faces well inside
       // a depth bucket — bias them toward the camera so they always win
       // the painter's sort instead of patch-interleaving by centroid.
@@ -879,25 +891,6 @@ class VoxelPainter extends CustomPainter {
       cursor++;
     }
     return cursor;
-  }
-
-  /// Conservative-raster crack fill: greedily merged rectangles meet at
-  /// T-junctions whose endpoints do not coincide, and the rasterizer
-  /// leaves hairline gaps there that leak the sky color. Growing each
-  /// triangle ~3/4 px outward from its centroid covers the seams —
-  /// coplanar neighbors overlap invisibly (stable painter order, same
-  /// colors).
-  void _expand(Float32List p) {
-    final cx = (p[0] + p[2] + p[4]) / 3;
-    final cy = (p[1] + p[3] + p[5]) / 3;
-    for (var v = 0; v < 3; v++) {
-      final dx = p[v * 2] - cx;
-      final dy = p[v * 2 + 1] - cy;
-      final len = math.sqrt(dx * dx + dy * dy);
-      if (len < 1e-3) continue;
-      p[v * 2] += dx / len * 0.75;
-      p[v * 2 + 1] += dy / len * 0.75;
-    }
   }
 
   /// Transforms the vertex at scratch offset [o] from world (already
