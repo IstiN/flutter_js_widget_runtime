@@ -393,6 +393,102 @@ void main() {
           reason: 'noise tile modulates the green down');
     });
 
+    test('T-junction seams do not leak sky (crack fill)', () async {
+      final world = JsVoxelWorld();
+      world.handleHostCall('voxel.attach', {'id': 'w'});
+      // Quad A spans the full z range on one side of the x=16 seam;
+      // quads B and C stack z -48..16 / 16..80 on the other — a classic
+      // greedy-meshing T-junction at (16, 0, 16).
+      world.handleHostCall('voxel.mesh', {
+        'id': 'w',
+        'key': '0,0',
+        'origin': [0, 0, 0],
+        'positions': [
+          -48, 0, -48, -48, 0, 80, 16, 0, 80, 16, 0, -48, // A
+          16, 0, -48, 16, 0, 16, 80, 0, 16, 80, 0, -48, // B
+          16, 0, 16, 16, 0, 80, 80, 0, 80, 80, 0, 16, // C
+        ],
+        'colors': List<double>.filled(36, 0.5),
+        'indices': [0, 1, 2, 0, 2, 3, 4, 5, 6, 4, 6, 7, 8, 9, 10, 8, 10, 11],
+      });
+      const size = 200.0;
+      const sky = 0xFF102030;
+      for (var step = 0; step < 36; step++) {
+        world.handleHostCall('voxel.camera', {
+          'id': 'w',
+          'position': [16, 6, 16],
+          'yaw': step * math.pi / 18,
+          'pitch': -0.7,
+          'light': 1,
+          'skyColor': '#102030',
+        });
+        final recorder = ui.PictureRecorder();
+        _painterFor(world).paint(ui.Canvas(recorder), const Size(size, size));
+        final image =
+            await recorder.endRecording().toImage(size.toInt(), size.toInt());
+        final data = (await image.toByteData(
+            format: ui.ImageByteFormat.rawStraightRgba))!;
+        var skyPixels = 0;
+        for (var y = 60; y < 140; y += 2) {
+          for (var x = 60; x < 140; x += 2) {
+            final o = (y * size.toInt() + x) * 4;
+            final argb = (data.getUint8(o + 3) << 24) |
+                (data.getUint8(o) << 16) |
+                (data.getUint8(o + 1) << 8) |
+                data.getUint8(o + 2);
+            if (argb == sky) skyPixels++;
+          }
+        }
+        expect(skyPixels, 0,
+            reason: 'yaw step $step: T-junction seam leaks sky');
+      }
+    });
+
+    test('texture subdivision: big tris split so uv stays faithful', () async {
+      final world = JsVoxelWorld();
+      world.handleHostCall('voxel.attach', {'id': 'w'});
+      world.handleHostCall('voxel.mesh', {
+        'id': 'w',
+        'key': '0,0',
+        'origin': [0, 0, 0],
+        'positions': [-64, 0, -64, -64, 0, 80, 80, 0, 80, 80, 0, -64],
+        'colors': [
+          0.2, 0.8, 0.2, 0.2, 0.8, 0.2, 0.2, 0.8, 0.2, 0.2, 0.8, 0.2
+        ],
+        'indices': [0, 1, 2, 0, 2, 3],
+      });
+      Map<String, Object?> cam(bool tex) => {
+            'id': 'w',
+            'position': [8, 6, 8],
+            'yaw': 0,
+            'pitch': -0.6,
+            'light': 1,
+            'skyColor': '#102030',
+            if (tex) 'texture': true,
+          };
+      const size = 200.0;
+      // Untextured: the mega-quad stays 2 tris. Textured: subdivided.
+      world.handleHostCall('voxel.camera', cam(false));
+      final rec1 = ui.PictureRecorder();
+      _painterFor(world).paint(ui.Canvas(rec1), const Size(size, size));
+      await rec1.endRecording().toImage(size.toInt(), size.toInt());
+      world.handleHostCall('voxel.camera', cam(true));
+      final rec2 = ui.PictureRecorder();
+      _painterFor(world).paint(ui.Canvas(rec2), const Size(size, size));
+      final image =
+          await rec2.endRecording().toImage(size.toInt(), size.toInt());
+      final data = (await image.toByteData(
+          format: ui.ImageByteFormat.rawStraightRgba))!;
+      // Subdivision must not punch holes: center is green, not sky.
+      final o = (100 * size.toInt() + 100) * 4;
+      expect(data.getUint8(o + 1), greaterThan(60));
+      // …and the uv window matches the tile: adjacent blocks sample
+      // DIFFERENT noise values (texture scrolls with the world).
+      final o2 = (140 * size.toInt() + 60) * 4;
+      expect((data.getUint8(o + 1) - data.getUint8(o2 + 1)).abs() < 200,
+          isTrue);
+    });
+
     test('no sky holes while sweeping yaw over a merged mega-quad',
         () async {
       final world = JsVoxelWorld();
