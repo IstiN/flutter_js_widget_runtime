@@ -54,6 +54,39 @@ Future<Color> _pixel(VoxelPainter painter, double size, Offset at) async {
 VoxelPainter _painterFor(JsVoxelWorld world) =>
     VoxelPainter(world: world, id: 'w');
 
+/// Paints the world's current camera at [size]x[size] and counts pixels
+/// exactly equal to [sky] inside the (x0..x1, y0..y1) window — the
+/// shared hole/crack probe for the rasterization robustness tests.
+Future<int> _skyPixelsInWindow(
+  JsVoxelWorld world,
+  int size,
+  int x0,
+  int y0,
+  int x1,
+  int y1,
+  int step,
+  int sky,
+) async {
+  final recorder = ui.PictureRecorder();
+  _painterFor(world)
+      .paint(ui.Canvas(recorder), Size(size.toDouble(), size.toDouble()));
+  final image = await recorder.endRecording().toImage(size, size);
+  final data =
+      (await image.toByteData(format: ui.ImageByteFormat.rawStraightRgba))!;
+  var count = 0;
+  for (var y = y0; y < y1; y += step) {
+    for (var x = x0; x < x1; x += step) {
+      final o = (y * size + x) * 4;
+      final argb = (data.getUint8(o + 3) << 24) |
+          (data.getUint8(o) << 16) |
+          (data.getUint8(o + 1) << 8) |
+          data.getUint8(o + 2);
+      if (argb == sky) count++;
+    }
+  }
+  return count;
+}
+
 void main() {
   group('JsVoxelChunk', () {
     test('parses a valid payload and computes bounds', () {
@@ -411,7 +444,6 @@ void main() {
         'colors': List<double>.filled(36, 0.5),
         'indices': [0, 1, 2, 0, 2, 3, 4, 5, 6, 4, 6, 7, 8, 9, 10, 8, 10, 11],
       });
-      const size = 200.0;
       const sky = 0xFF102030;
       for (var step = 0; step < 36; step++) {
         world.handleHostCall('voxel.camera', {
@@ -422,23 +454,8 @@ void main() {
           'light': 1,
           'skyColor': '#102030',
         });
-        final recorder = ui.PictureRecorder();
-        _painterFor(world).paint(ui.Canvas(recorder), const Size(size, size));
-        final image =
-            await recorder.endRecording().toImage(size.toInt(), size.toInt());
-        final data = (await image.toByteData(
-            format: ui.ImageByteFormat.rawStraightRgba))!;
-        var skyPixels = 0;
-        for (var y = 60; y < 140; y += 2) {
-          for (var x = 60; x < 140; x += 2) {
-            final o = (y * size.toInt() + x) * 4;
-            final argb = (data.getUint8(o + 3) << 24) |
-                (data.getUint8(o) << 16) |
-                (data.getUint8(o + 1) << 8) |
-                data.getUint8(o + 2);
-            if (argb == sky) skyPixels++;
-          }
-        }
+        final skyPixels =
+            await _skyPixelsInWindow(world, 200, 60, 60, 140, 140, 2, sky);
         expect(skyPixels, 0,
             reason: 'yaw step $step: T-junction seam leaks sky');
       }
@@ -518,24 +535,8 @@ void main() {
           'skyColor': '#102030',
         });
         // Rasterize and scan the center region for sky-colored holes.
-        const size = 200.0;
-        final recorder = ui.PictureRecorder();
-        _painterFor(world).paint(ui.Canvas(recorder), const Size(size, size));
-        final image =
-            await recorder.endRecording().toImage(size.toInt(), size.toInt());
-        final data =
-            (await image.toByteData(format: ui.ImageByteFormat.rawStraightRgba))!;
-        var skyPixels = 0;
-        for (var y = 60; y < 140; y += 4) {
-          for (var x = 60; x < 140; x += 4) {
-            final o = (y * size.toInt() + x) * 4;
-            final argb = (data.getUint8(o + 3) << 24) |
-                (data.getUint8(o) << 16) |
-                (data.getUint8(o + 1) << 8) |
-                data.getUint8(o + 2);
-            if (argb == sky) skyPixels++;
-          }
-        }
+        final skyPixels =
+            await _skyPixelsInWindow(world, 200, 60, 60, 140, 140, 4, sky);
         expect(skyPixels, 0,
             reason: 'yaw ${step * 10}°: sky shows through the plate');
       }
