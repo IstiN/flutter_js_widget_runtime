@@ -51,7 +51,7 @@ const String _canonicalBaseUrl =
 /// reader strips the `<id>/` segment the loader always prepends.
 const Map<String, String> _submoduleWidgetBases = {
   'fa-craft': 'https://raw.githubusercontent.com/IstiN/fa_craft/'
-      '8c1f50fe5ce5c7a7b1f4772177b6c0330b054a9e',
+      '794e1c24093709f21c24d7048379298d4b3caac1',
 };
 
 /// Widget ids are directory names — reject anything that could escape the

@@ -723,9 +723,18 @@ class VoxelPainter extends CustomPainter {
     int depth,
   ) {
     // Affine uv interpolation is only correct per-fragment; on huge
-    // greedy-merged triangles it shears ("swimming" textures). Splitting
-    // big triangles down to ~4-block edges makes the error invisible.
-    if (textured && depth < 4 && _maxEdgeSq(wpos) > 16) {
+    // greedy-merged triangles it shears ("swimming" textures), and the
+    // sub-triangle diagonals read as wavy seams. Split big triangles —
+    // to ~2-block edges near the camera (where the warp shows), ~4-block
+    // far away (where it is sub-texel anyway).
+    var limitSq = 16.0;
+    if (textured) {
+      final mx = (wpos[0] + wpos[3] + wpos[6]) / 3 - ex;
+      final my = (wpos[1] + wpos[4] + wpos[7]) / 3 - ey;
+      final mz = (wpos[2] + wpos[5] + wpos[8]) / 3 - ez;
+      if (mx * mx + my * my + mz * mz < 400) limitSq = 4;
+    }
+    if (textured && depth < 6 && _maxEdgeSq(wpos) > limitSq) {
       final sub = _subdivide(wpos, crgb);
       for (var i = 0; i < 4; i++) {
         cursor = _emitWorldTri(
