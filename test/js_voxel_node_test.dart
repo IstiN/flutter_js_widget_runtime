@@ -506,6 +506,39 @@ void main() {
           isTrue);
     });
 
+    test('overlay chunk renders with AA edge strokes', () async {
+      final world = JsVoxelWorld();
+      world.handleHostCall('voxel.attach', {'id': 'w'});
+      world.handleHostCall('voxel.mesh', {
+        'id': 'w',
+        'key': '__hl',
+        'origin': [0, 0, 0],
+        'overlay': true,
+        'positions': [-16, 0, -16, -16, 0, 32, 32, 0, 32, 32, 0, -16],
+        'colors': List<double>.filled(12, 1.0),
+        'indices': [0, 1, 2, 0, 2, 3],
+      });
+      world.handleHostCall('voxel.camera', {
+        'id': 'w',
+        'position': [8, 6, 8],
+        'yaw': 0,
+        'pitch': -0.6,
+        'light': 1,
+        'skyColor': '#102030',
+      });
+      const size = 200.0;
+      final recorder = ui.PictureRecorder();
+      _painterFor(world).paint(ui.Canvas(recorder), const Size(size, size));
+      final image =
+          await recorder.endRecording().toImage(size.toInt(), size.toInt());
+      final data = (await image.toByteData(
+          format: ui.ImageByteFormat.rawStraightRgba))!;
+      final o = (100 * size.toInt() + 100) * 4;
+      expect(data.getUint8(o), greaterThan(200),
+          reason: 'white overlay face rendered');
+      expect(data.getUint8(o + 3), 255, reason: 'opaque');
+    });
+
     test('no sky holes while sweeping yaw over a merged mega-quad',
         () async {
       final world = JsVoxelWorld();
