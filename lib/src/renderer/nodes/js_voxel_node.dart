@@ -800,7 +800,7 @@ class VoxelPainter extends CustomPainter {
     // edge length: the criterion changes smoothly as the camera moves,
     // unlike a world-distance threshold whose hard band boundary sweeps
     // across the terrain as a visible wave when walking.
-    if (_needsSubdivide(textured, depth, view, halfH)) {
+    if (_needsSubdivide(textured, depth, view, wpos, halfH)) {
       return _splitAndRecurse(
         chunk, cursor, wpos, crgb, ex, ey, ez, halfW, halfH,
         light, textured, view, cview, uvs, depth,
@@ -823,8 +823,13 @@ class VoxelPainter extends CustomPainter {
     );
   }
 
-  /// Splits the triangle 4-way and recurses into [_emitWorldTri] for
-  /// each sub-triangle (texture detail subdivision).
+  /// Splits the triangle in two along its longest world edge and
+  /// recurses into [_emitWorldTri] for each half (texture detail
+  /// subdivision). Binary bisection, not a 4-way split: 4-way grows as
+  /// 4^depth and exploded to 60k+ triangles (45ms paints, rAF
+  /// starvation) on the huge greedy-merged quads that fill the screen
+  /// near the camera; bisection grows as 2^depth for the same screen
+  /// precision.
   int _splitAndRecurse(
     JsVoxelChunk chunk,
     int cursor,
@@ -842,10 +847,10 @@ class VoxelPainter extends CustomPainter {
     Float32List uvs,
     int depth,
   ) {
-    final sub = _subdivide(wpos, crgb, depth);
-    for (var i = 0; i < 4; i++) {
+    final sub = _bisect(wpos, crgb, depth);
+    for (var i = 0; i < 2; i++) {
       cursor = _emitWorldTri(
-        chunk, cursor, sub[i], sub[i + 4], ex, ey, ez, halfW, halfH,
+        chunk, cursor, sub[i], sub[i + 2], ex, ey, ez, halfW, halfH,
         light, textured, view, cview, uvs, depth + 1,
       );
     }
@@ -858,16 +863,40 @@ class VoxelPainter extends CustomPainter {
   /// under affine interpolation.
   static const double _subdScreenPx = 24;
 
+  /// World-space subdivision floor (blocks): halves the bisection depth
+  /// on close-ups and bounds the per-quad triangle count regardless of
+  /// screen size. Half a block is 8 texture texels — finer detail is
+  /// imperceptible.
+  static const double _subdWorldFloor = 0.5;
+
   bool _needsSubdivide(
-      bool textured, int depth, Float32List view, double halfH) {
-    if (!textured || depth >= 6) return false;
+      bool textured, int depth, Float32List view, Float32List wpos,
+      double halfH) {
+    if (!textured || depth >= 10) return false;
     // Vertices at/behind the near plane skip subdivision — the clip
     // produces the visible polygon and subdividing here would recurse on
     // exploded projections.
     for (var v = 0; v < 3; v++) {
       if (view[v * 3 + 2] <= nearPlane * 2) return false;
     }
+    if (_maxWorldEdgeSq(wpos) <= _subdWorldFloor * _subdWorldFloor) {
+      return false;
+    }
     return _maxScreenEdgeSq(view, halfH) > _subdScreenPx * _subdScreenPx;
+  }
+
+  /// Longest world-space edge of the triangle, squared.
+  double _maxWorldEdgeSq(Float32List w) {
+    var m = 0.0;
+    for (var i = 0; i < 3; i++) {
+      final j = (i + 1) % 3;
+      final dx = w[j * 3] - w[i * 3];
+      final dy = w[j * 3 + 1] - w[i * 3 + 1];
+      final dz = w[j * 3 + 2] - w[i * 3 + 2];
+      final d = dx * dx + dy * dy + dz * dz;
+      if (d > m) m = d;
+    }
+    return m;
   }
 
   /// Longest projected edge of the view-space triangle, squared (screen
@@ -887,33 +916,54 @@ class VoxelPainter extends CustomPainter {
     return m;
   }
 
-  /// 4-way midpoint split into a per-depth POOL (zero allocation in the
-  /// steady state — recursion level d reads pool[d] and writes
-  /// pool[d+1]). Returns 8 lists: 4 sub-triangle world positions then
-  /// their 4 color sets (colors lerp linearly — exact for planar quads).
+  /// Binary longest-edge bisection into a per-depth POOL (zero
+  /// allocation in the steady state — recursion level d reads pool[d]
+  /// and writes pool[d+1]). Returns 4 lists: 2 sub-triangle world
+  /// positions then their 2 color sets (colors lerp linearly — exact
+  /// for planar faces). The longest WORLD edge is halved so the
+  /// triangulation is camera-independent and stable across frames; a
+  /// screen-space longest-edge choice could flip between frames and
+  /// re-triangulate visibly.
   final List<List<Float32List>> _subPool = [];
-  List<Float32List> _subdivide(Float32List w, Float32List c, int depth) {
+  List<Float32List> _bisect(Float32List w, Float32List c, int depth) {
     while (_subPool.length <= depth) {
-      _subPool.add(List<Float32List>.generate(8, (_) => Float32List(9)));
+      _subPool.add(List<Float32List>.generate(4, (_) => Float32List(9)));
     }
     final out = _subPool[depth];
-    for (var k = 0; k < 3; k++) {
-      final m01 = (w[k] + w[3 + k]) / 2;
-      final m12 = (w[3 + k] + w[6 + k]) / 2;
-      final m20 = (w[6 + k] + w[k]) / 2;
-      out[0][k] = w[k]; out[0][3 + k] = m01; out[0][6 + k] = m20;
-      out[1][k] = m01; out[1][3 + k] = w[3 + k]; out[1][6 + k] = m12;
-      out[2][k] = m20; out[2][3 + k] = m12; out[2][6 + k] = w[6 + k];
-      out[3][k] = m01; out[3][3 + k] = m12; out[3][6 + k] = m20;
-      final c01 = (c[k] + c[3 + k]) / 2;
-      final c12 = (c[3 + k] + c[6 + k]) / 2;
-      final c20 = (c[6 + k] + c[k]) / 2;
-      out[4][k] = c[k]; out[4][3 + k] = c01; out[4][6 + k] = c20;
-      out[5][k] = c01; out[5][3 + k] = c[3 + k]; out[5][6 + k] = c12;
-      out[6][k] = c20; out[6][3 + k] = c12; out[6][6 + k] = c[6 + k];
-      out[7][k] = c01; out[7][3 + k] = c12; out[7][6 + k] = c20;
+    var ei = 0;
+    var best = -1.0;
+    for (var i = 0; i < 3; i++) {
+      final j = (i + 1) % 3;
+      final dx = w[j * 3] - w[i * 3];
+      final dy = w[j * 3 + 1] - w[i * 3 + 1];
+      final dz = w[j * 3 + 2] - w[i * 3 + 2];
+      final d = dx * dx + dy * dy + dz * dz;
+      if (d > best) {
+        best = d;
+        ei = i;
+      }
     }
+    final i = ei, j = (ei + 1) % 3, k = (ei + 2) % 3;
+    // Sub A = (i, mid, k), sub B = (mid, j, k) — same winding.
+    _bisectHalf(w, out[0], i, j, k, false);
+    _bisectHalf(w, out[1], i, j, k, true);
+    _bisectHalf(c, out[2], i, j, k, false);
+    _bisectHalf(c, out[3], i, j, k, true);
     return out;
+  }
+
+  /// Copies triangle (i, j, k) from [src] to [dst], replacing the
+  /// first-half ([secondHalf] = false → j) or second-half (true → i)
+  /// endpoint with the midpoint of edge i..j.
+  void _bisectHalf(
+      Float32List src, Float32List dst, int i, int j, int k,
+      bool secondHalf) {
+    for (var a = 0; a < 3; a++) {
+      final mid = (src[i * 3 + a] + src[j * 3 + a]) / 2;
+      dst[i * 3 + a] = secondHalf ? mid : src[i * 3 + a];
+      dst[j * 3 + a] = secondHalf ? src[j * 3 + a] : mid;
+      dst[k * 3 + a] = src[k * 3 + a];
+    }
   }
 
   /// Clips-space → screen projection, culling and pool append for one
