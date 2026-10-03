@@ -857,17 +857,21 @@ class VoxelPainter extends CustomPainter {
     return cursor;
   }
 
-  /// Textured triangles split until their longest PROJECTED edge fits in
-  /// this many screen pixels (~1.5 texture texels of residual warp —
-  /// invisible). Untextured triangles never split: flat colors are exact
-  /// under affine interpolation.
-  static const double _subdScreenPx = 24;
+  /// Subdivision stop criterion, in screen pixels of perspective-uv
+  /// warp: a textured triangle splits while
+  /// `screenEdgePx × (zMax−zMin)/(zMax+zMin) > _subdWarpPx`. The
+  /// derivation: affine-vs-projective uv error along an edge in texels
+  /// is `blocks × texels × aniso / 2`; multiplied by the on-screen
+  /// texel size the block/texel factors cancel, leaving screen edge ×
+  /// anisotropy. Flat-facing triangles (zMax≈zMin) have ~zero warp no
+  /// matter how huge they project and are NEVER split — a raw
+  /// screen-size criterion exploded to 40-60k tris (30ms paints) on the
+  /// ground plane under the camera.
+  static const double _subdWarpPx = 2;
 
-  /// World-space subdivision floor (blocks): halves the bisection depth
-  /// on close-ups and bounds the per-quad triangle count regardless of
-  /// screen size. Half a block is 8 texture texels — finer detail is
-  /// imperceptible.
-  static const double _subdWorldFloor = 0.5;
+  /// World-space subdivision floor (blocks): a hard safety bound on
+  /// bisection depth regardless of the warp estimate.
+  static const double _subdWorldFloor = 0.25;
 
   bool _needsSubdivide(
       bool textured, int depth, Float32List view, Float32List wpos,
@@ -876,13 +880,19 @@ class VoxelPainter extends CustomPainter {
     // Vertices at/behind the near plane skip subdivision — the clip
     // produces the visible polygon and subdividing here would recurse on
     // exploded projections.
+    var zMin = double.infinity;
+    var zMax = 0.0;
     for (var v = 0; v < 3; v++) {
-      if (view[v * 3 + 2] <= nearPlane * 2) return false;
+      final z = view[v * 3 + 2];
+      if (z <= nearPlane * 2) return false;
+      if (z < zMin) zMin = z;
+      if (z > zMax) zMax = z;
     }
     if (_maxWorldEdgeSq(wpos) <= _subdWorldFloor * _subdWorldFloor) {
       return false;
     }
-    return _maxScreenEdgeSq(view, halfH) > _subdScreenPx * _subdScreenPx;
+    final aniso = (zMax - zMin) / (zMax + zMin);
+    return math.sqrt(_maxScreenEdgeSq(view, halfH)) * aniso > _subdWarpPx;
   }
 
   /// Longest world-space edge of the triangle, squared.
