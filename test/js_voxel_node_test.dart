@@ -54,6 +54,48 @@ Future<Color> _pixel(VoxelPainter painter, double size, Offset at) async {
 VoxelPainter _painterFor(JsVoxelWorld world) =>
     VoxelPainter(world: world, id: 'w');
 
+/// One paint pass at [size], returned as raw RGBA bytes.
+Future<ByteData> _renderFrame(JsVoxelWorld world, double size) async {
+  final recorder = ui.PictureRecorder();
+  _painterFor(world).paint(ui.Canvas(recorder), Size(size, size));
+  final image =
+      await recorder.endRecording().toImage(size.toInt(), size.toInt());
+  return (await image.toByteData(
+      format: ui.ImageByteFormat.rawStraightRgba))!;
+}
+
+/// The common 'one flat quad, camera above it' world used by the
+/// paint-smoke tests.
+JsVoxelWorld _quadWorld({
+  String key = '0,0',
+  bool overlay = false,
+  List<double> colors = const [0.2, 0.8, 0.2, 0.2, 0.8, 0.2, 0.2, 0.8, 0.2, 0.2, 0.8, 0.2],
+  List<double> positions = const [-64, 0, -64, -64, 0, 80, 80, 0, 80, 80, 0, -64],
+  bool texture = false,
+}) {
+  final world = JsVoxelWorld();
+  world.handleHostCall('voxel.attach', {'id': 'w'});
+  world.handleHostCall('voxel.mesh', {
+    'id': 'w',
+    'key': key,
+    'origin': [0, 0, 0],
+    if (overlay) 'overlay': true,
+    'positions': positions,
+    'colors': colors,
+    'indices': [0, 1, 2, 0, 2, 3],
+  });
+  world.handleHostCall('voxel.camera', {
+    'id': 'w',
+    'position': [8, 6, 8],
+    'yaw': 0,
+    'pitch': -0.6,
+    'light': 1,
+    'skyColor': '#102030',
+    if (texture) 'texture': true,
+  });
+  return world;
+}
+
 /// Paints the world's current camera at [size]x[size] and counts pixels
 /// exactly equal to [sky] inside the (x0..x1, y0..y1) window — the
 /// shared hole/crack probe for the rasterization robustness tests.
@@ -384,43 +426,14 @@ void main() {
   group('rasterization robustness', () {
     test('texture camera flag modulates blocks with the noise tile',
         () async {
-      final world = JsVoxelWorld();
-      world.handleHostCall('voxel.attach', {'id': 'w'});
-      world.handleHostCall('voxel.mesh', {
-        'id': 'w',
-        'key': '0,0',
-        'origin': [0, 0, 0],
-        'positions': [-64, 0, -64, -64, 0, 80, 80, 0, 80, 80, 0, -64],
-        'colors': [
-          0.2, 0.8, 0.2, 0.2, 0.8, 0.2, 0.2, 0.8, 0.2, 0.2, 0.8, 0.2
-        ],
-        'indices': [0, 1, 2, 0, 2, 3],
-      });
-      world.handleHostCall('voxel.camera', {
-        'id': 'w',
-        'position': [8, 6, 8],
-        'yaw': 0,
-        'pitch': -0.6,
-        'light': 1,
-        'skyColor': '#102030',
-        'texture': true,
-      });
+      final world = _quadWorld(texture: true);
       expect(world.cameraOf('w').texture, isTrue, reason: 'flag parsed');
-      const size = 200.0;
       // First paint kicks the async noise-tile decode; give it an event
       // loop turn, then paint again with the texture live.
-      final rec1 = ui.PictureRecorder();
-      _painterFor(world).paint(ui.Canvas(rec1), const Size(size, size));
-      await rec1.endRecording().toImage(size.toInt(), size.toInt());
+      await _renderFrame(world, 200);
       await Future<void>.delayed(const Duration(milliseconds: 100));
-      final rec2 = ui.PictureRecorder();
-      _painterFor(world).paint(ui.Canvas(rec2), const Size(size, size));
-      final image =
-          await rec2.endRecording().toImage(size.toInt(), size.toInt());
-      final data = (await image.toByteData(
-          format: ui.ImageByteFormat.rawStraightRgba))!;
-      final o = (100 * size.toInt() + 100) * 4;
-      final g = data.getUint8(o + 1);
+      final data = await _renderFrame(world, 200);
+      final g = data.getUint8((100 * 200 + 100) * 4 + 1);
       expect(g, greaterThan(60), reason: 'block rendered, not sky');
       expect(g, lessThanOrEqualTo(210),
           reason: 'noise tile modulates the green down');
@@ -507,33 +520,14 @@ void main() {
     });
 
     test('overlay chunk renders with AA edge strokes', () async {
-      final world = JsVoxelWorld();
-      world.handleHostCall('voxel.attach', {'id': 'w'});
-      world.handleHostCall('voxel.mesh', {
-        'id': 'w',
-        'key': '__hl',
-        'origin': [0, 0, 0],
-        'overlay': true,
-        'positions': [-16, 0, -16, -16, 0, 32, 32, 0, 32, 32, 0, -16],
-        'colors': List<double>.filled(12, 1.0),
-        'indices': [0, 1, 2, 0, 2, 3],
-      });
-      world.handleHostCall('voxel.camera', {
-        'id': 'w',
-        'position': [8, 6, 8],
-        'yaw': 0,
-        'pitch': -0.6,
-        'light': 1,
-        'skyColor': '#102030',
-      });
-      const size = 200.0;
-      final recorder = ui.PictureRecorder();
-      _painterFor(world).paint(ui.Canvas(recorder), const Size(size, size));
-      final image =
-          await recorder.endRecording().toImage(size.toInt(), size.toInt());
-      final data = (await image.toByteData(
-          format: ui.ImageByteFormat.rawStraightRgba))!;
-      final o = (100 * size.toInt() + 100) * 4;
+      final world = _quadWorld(
+        key: '__hl',
+        overlay: true,
+        positions: const [-16, 0, -16, -16, 0, 32, 32, 0, 32, 32, 0, -16],
+        colors: List<double>.filled(12, 1.0),
+      );
+      final data = await _renderFrame(world, 200);
+      final o = (100 * 200 + 100) * 4;
       expect(data.getUint8(o), greaterThan(200),
           reason: 'white overlay face rendered');
       expect(data.getUint8(o + 3), 255, reason: 'opaque');
