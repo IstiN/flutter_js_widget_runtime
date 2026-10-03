@@ -426,7 +426,13 @@ void main() {
   group('rasterization robustness', () {
     test('texture camera flag modulates blocks with the noise tile',
         () async {
-      final world = _quadWorld(texture: true);
+      // The quad sits entirely IN FRONT of the camera (yaw 0 looks down
+      // -z) so no vertex crosses the near plane — subdivision requires
+      // all view depths > near, and this test must exercise it.
+      final world = _quadWorld(
+        texture: true,
+        positions: const [-32, 0, -60, -32, 0, -0.2, 48, 0, -0.2, 48, 0, -60],
+      );
       expect(world.cameraOf('w').texture, isTrue, reason: 'flag parsed');
       // First paint kicks the async noise-tile decode; give it an event
       // loop turn, then paint again with the texture live.
