@@ -416,7 +416,12 @@ class VoxelPainter extends CustomPainter {
     _paintTris += _lastTriCount;
     if (_paintCount >= 300) {
       debugPrint(
-        '[voxel] paint=${(_paintUs / _paintCount / 1000).toStringAsFixed(1)}ms '
+        // The `v=` tag names the subdivision algorithm build so field
+        // logs prove which painter a report came from:
+        //   w1 = 24px screen edge, 4-way; w2 = binary bisection;
+        //   w3 = anisotropy-weighted warp criterion.
+        '[voxel v=w3] '
+        'paint=${(_paintUs / _paintCount / 1000).toStringAsFixed(1)}ms '
         'tris=${(_paintTris / _paintCount).round()}',
       );
       _paintCount = 0;
@@ -429,6 +434,11 @@ class VoxelPainter extends CustomPainter {
   static int _paintUs = 0;
   static int _paintTris = 0;
   int _lastTriCount = 0;
+
+  /// Triangles collected by the last [paint] — exposed for perf tests
+  /// (subdivision must keep grazing-terrain frames bounded).
+  @visibleForTesting
+  int get lastTriCount => _lastTriCount;
 
   void _paintBody(Canvas canvas, Size size) {
     chunks = world.chunksOf(id);

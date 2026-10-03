@@ -525,6 +525,52 @@ void main() {
           isTrue);
     });
 
+    test('grazing textured terrain keeps the triangle count bounded',
+        () async {
+      final world = JsVoxelWorld();
+      world.handleHostCall('voxel.attach', {'id': 'w'});
+      // Four greedy-merged ground strips (64 wide x 16 deep) ahead of a
+      // grazing camera — the worst case for texture subdivision. The old
+      // raw screen-edge criterion exploded this to tens of thousands of
+      // triangles (30ms+ paints); the warp-weighted criterion must stay
+      // in the hundreds.
+      final positions = <double>[];
+      final indices = <int>[];
+      for (var s = 0; s < 4; s++) {
+        final zNear = -16.0 * s - 0.5;
+        final zFar = zNear - 16;
+        final base = positions.length ~/ 3;
+        positions.addAll(
+            [-32, 0, zFar, -32, 0, zNear, 32, 0, zNear, 32, 0, zFar]);
+        indices.addAll([base, base + 1, base + 2, base, base + 2, base + 3]);
+      }
+      world.handleHostCall('voxel.mesh', {
+        'id': 'w',
+        'key': '0,0',
+        'origin': [0, 0, 0],
+        'positions': positions,
+        'colors': List<double>.filled(positions.length, 0.5),
+        'indices': indices,
+      });
+      world.handleHostCall('voxel.camera', {
+        'id': 'w',
+        'position': [16, 3, 16],
+        'yaw': 0,
+        'pitch': -0.12,
+        'light': 1,
+        'skyColor': '#102030',
+        'texture': true,
+      });
+      final painter = _painterFor(world);
+      final recorder = ui.PictureRecorder();
+      painter.paint(ui.Canvas(recorder), const Size(800, 600));
+      await recorder.endRecording().toImage(800, 600);
+      expect(painter.lastTriCount, greaterThan(20),
+          reason: 'subdivision actually ran');
+      expect(painter.lastTriCount, lessThan(1500),
+          reason: 'grazing ground must not explode the tri count');
+    });
+
     test('overlay chunk renders with AA edge strokes', () async {
       final world = _quadWorld(
         key: '__hl',
