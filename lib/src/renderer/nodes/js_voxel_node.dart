@@ -419,8 +419,9 @@ class VoxelPainter extends CustomPainter {
         // The `v=` tag names the subdivision algorithm build so field
         // logs prove which painter a report came from:
         //   w1 = 24px screen edge, 4-way; w2 = binary bisection;
-        //   w3 = tri-wide anisotropy warp; w4 = per-edge warp.
-        '[voxel v=w4] '
+        //   w3 = tri-wide anisotropy warp; w4 = per-edge warp;
+        //   w5 = per-edge warp stop + quad-symmetric split choice.
+        '[voxel v=w5] '
         'paint=${(_paintUs / _paintCount / 1000).toStringAsFixed(1)}ms '
         'tris=${(_paintTris / _paintCount).round()}',
       );
@@ -870,29 +871,37 @@ class VoxelPainter extends CustomPainter {
   }
 
   /// Subdivision threshold in screen pixels of perspective-uv warp.
-  static const double _subdWarpPx = 2;
+  static const double _subdWarpPx = 4;
 
   /// World-space subdivision floor (blocks): one texture texel. A hard
   /// safety bound on bisection depth for the edge being split.
   static const double _subdWorldFloor = 0.0625;
 
-  /// Picks the edge whose affine-vs-projective uv warp exceeds
-  /// [_subdWarpPx], or -1 when the triangle is fine as-is. The warp of
-  /// an edge in screen pixels is
-  /// `screenLen × |Δz| / (2·(z1+z2))` — the derivation: midpoint uv
-  /// error in texels is `blocks × texels × Δz/(4z̄)`; multiplying by
-  /// the on-screen texel size cancels blocks/texels. Per-EDGE, not
-  /// per-triangle: a wide ground quad's long edge runs ACROSS the depth
-  /// gradient (Δz≈0 → warp≈0), so only depth-aligned edges drive
-  /// subdivision — the tri-wide criterion wasted 90% of the splits on
-  /// the wrong axis (25k tris, 18ms paints, while standing still).
+  /// Decides whether (and along which edge) a textured triangle splits
+  /// for perspective-faithful uv. Returns the split edge or -1.
+  ///
+  /// STOP criterion — per-edge warp in screen pixels:
+  /// `screenLen × |Δz| / (2·(z1+z2))` (midpoint uv error in texels,
+  /// `blocks × texels × Δz/(4z̄)`, times the on-screen texel size — the
+  /// block/texel factors cancel). Per-EDGE, not per-triangle: a wide
+  /// ground quad's long edge runs ACROSS the depth gradient (Δz≈0 →
+  /// warp≈0), so only depth-aligned edges drive subdivision.
+  ///
+  /// SPLIT choice — the LONGEST WORLD EDGE among the warping ones, NOT
+  /// the max-warp edge: the two triangles of a greedy quad see mirrored
+  /// geometry and independently pick the same PHYSICAL edge, so their
+  /// sub-triangulations stay mirror-symmetric and no seam opens along
+  /// the quad diagonal. A view-dependent (max-warp) split choice let
+  /// the halves diverge — the diagonal seam and the flashing
+  /// T-junction bands at the horizon while rotating.
   int _subdivisionEdge(
       bool textured, int depth, Float32List view, Float32List wpos,
       double halfH) {
     if (!textured || depth >= 10) return -1;
     final f = _focal * halfH;
-    var best = _subdWarpPx;
+    var maxWarp = 0.0;
     var ei = -1;
+    var bestLen = 0.0;
     for (var i = 0; i < 3; i++) {
       final j = (i + 1) % 3;
       final z1 = view[i * 3 + 2];
@@ -907,21 +916,19 @@ class VoxelPainter extends CustomPainter {
       final dy = view[i * 3 + 1] * ai - view[j * 3 + 1] * aj;
       final warp =
           math.sqrt(dx * dx + dy * dy) * (z2 - z1).abs() / (2 * (z1 + z2));
-      if (warp > best) {
-        best = warp;
+      if (warp > maxWarp) maxWarp = warp;
+      if (warp <= _subdWarpPx * 0.5) continue;
+      final wx = wpos[j * 3] - wpos[i * 3];
+      final wy = wpos[j * 3 + 1] - wpos[i * 3 + 1];
+      final wz = wpos[j * 3 + 2] - wpos[i * 3 + 2];
+      final lenSq = wx * wx + wy * wy + wz * wz;
+      if (lenSq > bestLen) {
+        bestLen = lenSq;
         ei = i;
       }
     }
-    if (ei < 0) return -1;
-    // Sub-texel edges never split (safety bound on recursion depth).
-    final j = (ei + 1) % 3;
-    final wx = wpos[j * 3] - wpos[ei * 3];
-    final wy = wpos[j * 3 + 1] - wpos[ei * 3 + 1];
-    final wz = wpos[j * 3 + 2] - wpos[ei * 3 + 2];
-    if (wx * wx + wy * wy + wz * wz < _subdWorldFloor * _subdWorldFloor) {
-      return -1;
-    }
-    return ei;
+    if (maxWarp <= _subdWarpPx || ei < 0) return -1;
+    return bestLen < _subdWorldFloor * _subdWorldFloor ? -1 : ei;
   }
 
   /// Binary bisection of edge [edge] into a per-depth POOL (zero
