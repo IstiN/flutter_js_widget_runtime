@@ -580,23 +580,58 @@ class VoxelPainter extends CustomPainter {
   /// Overlay chunks (the aim marker) are thin high-contrast strips:
   /// drawVertices does no antialiasing, so a white-on-green edge reads
   /// as a pixel staircase. Re-stroking their outlines with an AA line
-  /// paint covers the jaggies (few tris — a handful of drawPoints).
+  /// paint covers the jaggies. Only BOUNDARY edges are stroked: an edge
+  /// shared by two overlay triangles (the diagonal splitting a band
+  /// quad, the seam where two bands meet) would otherwise paint as a
+  /// visible stripe INSIDE the highlight ring.
   void _strokeOverlayEdges(Canvas canvas, int cursor) {
+    final edges = <double>[]; // x0,y0,x1,y1, canonical endpoint order
+    final edgeColors = <int>[];
+    for (var i = 0; i < cursor; i++) {
+      final t = _tris[i];
+      if (!t.overlay) continue;
+      final p = t.pts;
+      _toggleEdge(edges, edgeColors, p[0], p[1], p[2], p[3], t.argbs[0]);
+      _toggleEdge(edges, edgeColors, p[2], p[3], p[4], p[5], t.argbs[0]);
+      _toggleEdge(edges, edgeColors, p[4], p[5], p[0], p[1], t.argbs[0]);
+    }
+    if (edges.isEmpty) return;
     final paint = Paint()
       ..isAntiAlias = true
       ..strokeWidth = 1.4
       ..style = PaintingStyle.stroke;
-    for (var i = 0; i < cursor; i++) {
-      final t = _tris[i];
-      if (!t.overlay) continue;
-      paint.color = Color(t.argbs[0]);
-      final p = t.pts;
-      canvas.drawPoints(ui.PointMode.lines, [
-        Offset(p[0], p[1]), Offset(p[2], p[3]),
-        Offset(p[2], p[3]), Offset(p[4], p[5]),
-        Offset(p[4], p[5]), Offset(p[0], p[1]),
-      ], paint);
+    final byColor = <int, List<Offset>>{};
+    for (var e = 0, c = 0; e < edges.length; e += 4, c++) {
+      byColor
+          .putIfAbsent(edgeColors[c], () => [])
+          .addAll([Offset(edges[e], edges[e + 1]),
+                   Offset(edges[e + 2], edges[e + 3])]);
     }
+    byColor.forEach((argb, pts) {
+      canvas.drawPoints(ui.PointMode.lines, pts, paint..color = Color(argb));
+    });
+  }
+
+  /// Adds the edge to the boundary set, or removes it when already
+  /// present (a second triangle sharing it). Endpoints are canonicalized
+  /// so A→B and B→A cancel. Overlay meshes are a handful of triangles —
+  /// the linear scan is cheaper than keying a hash map.
+  void _toggleEdge(List<double> edges, List<int> colors, double x0,
+      double y0, double x1, double y1, int argb) {
+    var ax = x0, ay = y0, bx = x1, by = y1;
+    if (ax > bx || (ax == bx && ay > by)) {
+      ax = x1; ay = y1; bx = x0; by = y0;
+    }
+    for (var e = 0, c = 0; e < edges.length; e += 4, c++) {
+      if (edges[e] == ax && edges[e + 1] == ay &&
+          edges[e + 2] == bx && edges[e + 3] == by) {
+        edges.removeRange(e, e + 4);
+        colors.removeAt(c);
+        return;
+      }
+    }
+    edges.addAll([ax, ay, bx, by]);
+    colors.add(argb);
   }
 
   // Double-buffered draw arrays: a recorded picture may rasterize AFTER the
@@ -760,20 +795,16 @@ class VoxelPainter extends CustomPainter {
     if (view[2] < nearPlane && view[5] < nearPlane && view[8] < nearPlane) {
       return cursor;
     }
-    // Affine uv interpolation is only correct per-fragment; on huge
-    // greedy-merged triangles it shears ("swimming" textures), and the
-    // sub-triangle diagonals read as wavy seams. Split big triangles —
-    // to ~2.5-block edges near the camera (where the warp shows),
-    // ~4-block beyond 9 blocks (where it is sub-texel anyway).
-    if (textured && depth < 6) {
-      final near = math.min(view[2], math.min(view[5], view[8]));
-      final limitSq = near < 9 ? 6.25 : 16.0;
-      if (_maxEdgeSq(wpos) > limitSq) {
-        return _splitAndRecurse(
-          chunk, cursor, wpos, crgb, ex, ey, ez, halfW, halfH,
-          light, textured, view, cview, uvs, depth,
-        );
-      }
+    // Affine uv interpolation is only correct per-fragment; on big
+    // triangles it shears ("swimming" textures). Split by SCREEN-space
+    // edge length: the criterion changes smoothly as the camera moves,
+    // unlike a world-distance threshold whose hard band boundary sweeps
+    // across the terrain as a visible wave when walking.
+    if (_needsSubdivide(textured, depth, view, halfH)) {
+      return _splitAndRecurse(
+        chunk, cursor, wpos, crgb, ex, ey, ez, halfW, halfH,
+        light, textured, view, cview, uvs, depth,
+      );
     }
     if (textured) _fillTriUv(wpos, uvs);
     final tri = _clipAgainstNear(view, cview, textured ? uvs : null);
@@ -821,15 +852,36 @@ class VoxelPainter extends CustomPainter {
     return cursor;
   }
 
-  /// Longest world-space edge of the triangle, squared.
-  double _maxEdgeSq(Float32List w) {
+  /// Textured triangles split until their longest PROJECTED edge fits in
+  /// this many screen pixels (~1.5 texture texels of residual warp —
+  /// invisible). Untextured triangles never split: flat colors are exact
+  /// under affine interpolation.
+  static const double _subdScreenPx = 24;
+
+  bool _needsSubdivide(
+      bool textured, int depth, Float32List view, double halfH) {
+    if (!textured || depth >= 6) return false;
+    // Vertices at/behind the near plane skip subdivision — the clip
+    // produces the visible polygon and subdividing here would recurse on
+    // exploded projections.
+    for (var v = 0; v < 3; v++) {
+      if (view[v * 3 + 2] <= nearPlane * 2) return false;
+    }
+    return _maxScreenEdgeSq(view, halfH) > _subdScreenPx * _subdScreenPx;
+  }
+
+  /// Longest projected edge of the view-space triangle, squared (screen
+  /// pixels; the viewport-center offset cancels in the difference).
+  double _maxScreenEdgeSq(Float32List view, double halfH) {
+    final f = _focal * halfH;
     var m = 0.0;
     for (var i = 0; i < 3; i++) {
       final j = (i + 1) % 3;
-      final dx = w[j * 3] - w[i * 3];
-      final dy = w[j * 3 + 1] - w[i * 3 + 1];
-      final dz = w[j * 3 + 2] - w[i * 3 + 2];
-      final d = dx * dx + dy * dy + dz * dz;
+      final ai = f / view[i * 3 + 2];
+      final aj = f / view[j * 3 + 2];
+      final dx = view[i * 3] * ai - view[j * 3] * aj;
+      final dy = view[i * 3 + 1] * ai - view[j * 3 + 1] * aj;
+      final d = dx * dx + dy * dy;
       if (d > m) m = d;
     }
     return m;
