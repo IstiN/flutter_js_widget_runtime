@@ -419,8 +419,8 @@ class VoxelPainter extends CustomPainter {
         // The `v=` tag names the subdivision algorithm build so field
         // logs prove which painter a report came from:
         //   w1 = 24px screen edge, 4-way; w2 = binary bisection;
-        //   w3 = anisotropy-weighted warp criterion.
-        '[voxel v=w3] '
+        //   w3 = tri-wide anisotropy warp; w4 = per-edge warp.
+        '[voxel v=w4] '
         'paint=${(_paintUs / _paintCount / 1000).toStringAsFixed(1)}ms '
         'tris=${(_paintTris / _paintCount).round()}',
       );
@@ -805,15 +805,16 @@ class VoxelPainter extends CustomPainter {
     if (view[2] < nearPlane && view[5] < nearPlane && view[8] < nearPlane) {
       return cursor;
     }
-    // Affine uv interpolation is only correct per-fragment; on big
-    // triangles it shears ("swimming" textures). Split by SCREEN-space
-    // edge length: the criterion changes smoothly as the camera moves,
-    // unlike a world-distance threshold whose hard band boundary sweeps
-    // across the terrain as a visible wave when walking.
-    if (_needsSubdivide(textured, depth, view, wpos, halfH)) {
+    // Affine uv interpolation is only correct per-fragment; on
+    // depth-sheared triangles it warps ("swimming" textures). Split the
+    // edge whose projected warp exceeds the threshold; the criterion is
+    // continuous in camera motion, so nothing pops while walking.
+    final subdEdge =
+        _subdivisionEdge(textured, depth, view, wpos, halfH);
+    if (subdEdge >= 0) {
       return _splitAndRecurse(
         chunk, cursor, wpos, crgb, ex, ey, ez, halfW, halfH,
-        light, textured, view, cview, uvs, depth,
+        light, textured, view, cview, uvs, depth, subdEdge,
       );
     }
     if (textured) _fillTriUv(wpos, uvs);
@@ -856,8 +857,9 @@ class VoxelPainter extends CustomPainter {
     Float32List cview,
     Float32List uvs,
     int depth,
+    int edge,
   ) {
-    final sub = _bisect(wpos, crgb, depth);
+    final sub = _bisect(wpos, crgb, depth, edge);
     for (var i = 0; i < 2; i++) {
       cursor = _emitWorldTri(
         chunk, cursor, sub[i], sub[i + 2], ex, ey, ez, halfW, halfH,
@@ -867,102 +869,73 @@ class VoxelPainter extends CustomPainter {
     return cursor;
   }
 
-  /// Subdivision stop criterion, in screen pixels of perspective-uv
-  /// warp: a textured triangle splits while
-  /// `screenEdgePx × (zMax−zMin)/(zMax+zMin) > _subdWarpPx`. The
-  /// derivation: affine-vs-projective uv error along an edge in texels
-  /// is `blocks × texels × aniso / 2`; multiplied by the on-screen
-  /// texel size the block/texel factors cancel, leaving screen edge ×
-  /// anisotropy. Flat-facing triangles (zMax≈zMin) have ~zero warp no
-  /// matter how huge they project and are NEVER split — a raw
-  /// screen-size criterion exploded to 40-60k tris (30ms paints) on the
-  /// ground plane under the camera.
+  /// Subdivision threshold in screen pixels of perspective-uv warp.
   static const double _subdWarpPx = 2;
 
-  /// World-space subdivision floor (blocks): a hard safety bound on
-  /// bisection depth regardless of the warp estimate.
-  static const double _subdWorldFloor = 0.25;
+  /// World-space subdivision floor (blocks): one texture texel. A hard
+  /// safety bound on bisection depth for the edge being split.
+  static const double _subdWorldFloor = 0.0625;
 
-  bool _needsSubdivide(
+  /// Picks the edge whose affine-vs-projective uv warp exceeds
+  /// [_subdWarpPx], or -1 when the triangle is fine as-is. The warp of
+  /// an edge in screen pixels is
+  /// `screenLen × |Δz| / (2·(z1+z2))` — the derivation: midpoint uv
+  /// error in texels is `blocks × texels × Δz/(4z̄)`; multiplying by
+  /// the on-screen texel size cancels blocks/texels. Per-EDGE, not
+  /// per-triangle: a wide ground quad's long edge runs ACROSS the depth
+  /// gradient (Δz≈0 → warp≈0), so only depth-aligned edges drive
+  /// subdivision — the tri-wide criterion wasted 90% of the splits on
+  /// the wrong axis (25k tris, 18ms paints, while standing still).
+  int _subdivisionEdge(
       bool textured, int depth, Float32List view, Float32List wpos,
       double halfH) {
-    if (!textured || depth >= 10) return false;
-    // Vertices at/behind the near plane skip subdivision — the clip
-    // produces the visible polygon and subdividing here would recurse on
-    // exploded projections.
-    var zMin = double.infinity;
-    var zMax = 0.0;
-    for (var v = 0; v < 3; v++) {
-      final z = view[v * 3 + 2];
-      if (z <= nearPlane * 2) return false;
-      if (z < zMin) zMin = z;
-      if (z > zMax) zMax = z;
-    }
-    if (_maxWorldEdgeSq(wpos) <= _subdWorldFloor * _subdWorldFloor) {
-      return false;
-    }
-    final aniso = (zMax - zMin) / (zMax + zMin);
-    return math.sqrt(_maxScreenEdgeSq(view, halfH)) * aniso > _subdWarpPx;
-  }
-
-  /// Longest world-space edge of the triangle, squared.
-  double _maxWorldEdgeSq(Float32List w) {
-    var m = 0.0;
-    for (var i = 0; i < 3; i++) {
-      final j = (i + 1) % 3;
-      final dx = w[j * 3] - w[i * 3];
-      final dy = w[j * 3 + 1] - w[i * 3 + 1];
-      final dz = w[j * 3 + 2] - w[i * 3 + 2];
-      final d = dx * dx + dy * dy + dz * dz;
-      if (d > m) m = d;
-    }
-    return m;
-  }
-
-  /// Longest projected edge of the view-space triangle, squared (screen
-  /// pixels; the viewport-center offset cancels in the difference).
-  double _maxScreenEdgeSq(Float32List view, double halfH) {
+    if (!textured || depth >= 10) return -1;
     final f = _focal * halfH;
-    var m = 0.0;
+    var best = _subdWarpPx;
+    var ei = -1;
     for (var i = 0; i < 3; i++) {
       final j = (i + 1) % 3;
-      final ai = f / view[i * 3 + 2];
-      final aj = f / view[j * 3 + 2];
+      final z1 = view[i * 3 + 2];
+      final z2 = view[j * 3 + 2];
+      // Vertices at/behind the near plane skip subdivision — the clip
+      // produces the visible polygon and subdividing here would recurse
+      // on exploded projections.
+      if (z1 <= nearPlane * 2 || z2 <= nearPlane * 2) return -1;
+      final ai = f / z1;
+      final aj = f / z2;
       final dx = view[i * 3] * ai - view[j * 3] * aj;
       final dy = view[i * 3 + 1] * ai - view[j * 3 + 1] * aj;
-      final d = dx * dx + dy * dy;
-      if (d > m) m = d;
+      final warp =
+          math.sqrt(dx * dx + dy * dy) * (z2 - z1).abs() / (2 * (z1 + z2));
+      if (warp > best) {
+        best = warp;
+        ei = i;
+      }
     }
-    return m;
+    if (ei < 0) return -1;
+    // Sub-texel edges never split (safety bound on recursion depth).
+    final j = (ei + 1) % 3;
+    final wx = wpos[j * 3] - wpos[ei * 3];
+    final wy = wpos[j * 3 + 1] - wpos[ei * 3 + 1];
+    final wz = wpos[j * 3 + 2] - wpos[ei * 3 + 2];
+    if (wx * wx + wy * wy + wz * wz < _subdWorldFloor * _subdWorldFloor) {
+      return -1;
+    }
+    return ei;
   }
 
-  /// Binary longest-edge bisection into a per-depth POOL (zero
+  /// Binary bisection of edge [edge] into a per-depth POOL (zero
   /// allocation in the steady state — recursion level d reads pool[d]
   /// and writes pool[d+1]). Returns 4 lists: 2 sub-triangle world
   /// positions then their 2 color sets (colors lerp linearly — exact
-  /// for planar faces). The longest WORLD edge is halved so the
-  /// triangulation is camera-independent and stable across frames; a
-  /// screen-space longest-edge choice could flip between frames and
-  /// re-triangulate visibly.
+  /// for planar faces).
   final List<List<Float32List>> _subPool = [];
-  List<Float32List> _bisect(Float32List w, Float32List c, int depth) {
+  List<Float32List> _bisect(
+      Float32List w, Float32List c, int depth, int ei) {
     while (_subPool.length <= depth) {
       _subPool.add(List<Float32List>.generate(4, (_) => Float32List(9)));
     }
     final out = _subPool[depth];
-    var ei = 0;
-    var best = -1.0;
-    for (var i = 0; i < 3; i++) {
-      final j = (i + 1) % 3;
-      final dx = w[j * 3] - w[i * 3];
-      final dy = w[j * 3 + 1] - w[i * 3 + 1];
-      final dz = w[j * 3 + 2] - w[i * 3 + 2];
-      final d = dx * dx + dy * dy + dz * dz;
-      if (d > best) {
-        best = d;
-        ei = i;
-      }
-    }
     final i = ei, j = (ei + 1) % 3, k = (ei + 2) % 3;
     // Sub A = (i, mid, k), sub B = (mid, j, k) — same winding.
     _bisectHalf(w, out[0], i, j, k, false);
