@@ -368,6 +368,7 @@ class _Tri {
   final Int32List argbs = Int32List(3);
   double depth = 0;
   double sortKey = 0;
+  bool overlay = false;
 }
 
 /// Software rasterizer for [JsVoxelNode]: per-chunk frustum culling against
@@ -573,6 +574,29 @@ class VoxelPainter extends CustomPainter {
       colors: Int32List.sublistView(cols, 0, vCount),
     );
     canvas.drawVertices(vertices, BlendMode.modulate, paint);
+    _strokeOverlayEdges(canvas, cursor);
+  }
+
+  /// Overlay chunks (the aim marker) are thin high-contrast strips:
+  /// drawVertices does no antialiasing, so a white-on-green edge reads
+  /// as a pixel staircase. Re-stroking their outlines with an AA line
+  /// paint covers the jaggies (few tris — a handful of drawPoints).
+  void _strokeOverlayEdges(Canvas canvas, int cursor) {
+    final paint = Paint()
+      ..isAntiAlias = true
+      ..strokeWidth = 1.4
+      ..style = PaintingStyle.stroke;
+    for (var i = 0; i < cursor; i++) {
+      final t = _tris[i];
+      if (!t.overlay) continue;
+      paint.color = Color(t.argbs[0]);
+      final p = t.pts;
+      canvas.drawPoints(ui.PointMode.lines, [
+        Offset(p[0], p[1]), Offset(p[2], p[3]),
+        Offset(p[2], p[3]), Offset(p[4], p[5]),
+        Offset(p[4], p[5]), Offset(p[0], p[1]),
+      ], paint);
+    }
   }
 
   // Double-buffered draw arrays: a recorded picture may rasterize AFTER the
@@ -888,6 +912,7 @@ class VoxelPainter extends CustomPainter {
       // a depth bucket — bias them toward the camera so they always win
       // the painter's sort instead of patch-interleaving by centroid.
       t.depth = depth + (chunk.overlay ? -0.75 : 0);
+      t.overlay = chunk.overlay;
       cursor++;
     }
     return cursor;
