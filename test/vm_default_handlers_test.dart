@@ -47,4 +47,118 @@ void main() {
       expect(result, isNull);
     });
   });
+
+  group('defaultVmOpenUrlHandler', () {
+    Future<ProcessResult> okRunner(String exe, List<String> args) async =>
+        ProcessResult(0, 0, '', '');
+
+    test('rejects an invalid url without launching anything', () async {
+      dynamic result;
+      var launched = false;
+      await defaultVmOpenUrlHandler(
+        'o1',
+        'not-a-url',
+        (id, value) => result = value,
+        runProcess: (exe, args) async {
+          launched = true;
+          return ProcessResult(0, 0, '', '');
+        },
+      );
+      expect(launched, isFalse);
+      expect(result, {'__error': 'openUrl: invalid url not-a-url'});
+    });
+
+    test('resolves true and picks the macOS opener', () async {
+      dynamic result;
+      String? exe;
+      List<String>? args;
+      await defaultVmOpenUrlHandler(
+        'o2',
+        'https://example.com',
+        (id, value) => result = value,
+        operatingSystem: 'macos',
+        runProcess: (e, a) async {
+          exe = e;
+          args = a;
+          return ProcessResult(0, 0, '', '');
+        },
+      );
+      expect(result, isTrue);
+      expect(exe, 'open');
+      expect(args, ['https://example.com']);
+    });
+
+    test('picks the Windows opener', () async {
+      String? exe;
+      List<String>? args;
+      await defaultVmOpenUrlHandler(
+        'o3',
+        'https://example.com',
+        (id, value) {},
+        operatingSystem: 'windows',
+        runProcess: (e, a) async {
+          exe = e;
+          args = a;
+          return ProcessResult(0, 0, '', '');
+        },
+      );
+      expect(exe, 'cmd');
+      expect(args, ['/c', 'start', '', 'https://example.com']);
+    });
+
+    test('picks xdg-open on Linux', () async {
+      String? exe;
+      List<String>? args;
+      await defaultVmOpenUrlHandler(
+        'o4',
+        'https://example.com',
+        (id, value) {},
+        operatingSystem: 'linux',
+        runProcess: (e, a) async {
+          exe = e;
+          args = a;
+          return ProcessResult(0, 0, '', '');
+        },
+      );
+      expect(exe, 'xdg-open');
+      expect(args, ['https://example.com']);
+    });
+
+    test('rejects when the opener exits non-zero', () async {
+      dynamic result;
+      await defaultVmOpenUrlHandler(
+        'o5',
+        'https://example.com',
+        (id, value) => result = value,
+        operatingSystem: 'linux',
+        runProcess: (e, a) async => ProcessResult(0, 2, '', 'boom'),
+      );
+      expect(result, {'__error': 'openUrl: opener exited 2: boom'});
+    });
+
+    test('rejects when the opener throws', () async {
+      dynamic result;
+      await defaultVmOpenUrlHandler(
+        'o6',
+        'https://example.com',
+        (id, value) => result = value,
+        runProcess: (e, a) async => throw StateError('no opener'),
+      );
+      expect(result, {'__error': 'Bad state: no opener'});
+    });
+
+    test('uses the real platform opener when nothing is injected', () async {
+      // Smoke: on this machine the real runner is Process.run — just make
+      // sure the un-injected path is wired (do not assert the result: CI
+      // runners may lack a browser opener).
+      dynamic result;
+      await defaultVmOpenUrlHandler(
+        'o7',
+        'not-a-url',
+        (id, value) => result = value,
+        runProcess: okRunner,
+      );
+      expect(result, {'__error': 'openUrl: invalid url not-a-url'});
+    });
+  });
 }

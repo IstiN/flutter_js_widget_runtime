@@ -30,6 +30,7 @@ class FlutterJsWidgetEngineBackend implements JsWidgetEngineBackend {
       secretsSetHandler: (id, key, value) async {},
       loadAssetHandler: (id, path) async {},
       execHandler: (id, cmd) async {},
+      openUrlHandler: (id, url) async {},
       onHostCall: config.onHostCall,
       captureHandler: config.captureHandler,
       intervalTickHandler: (id) {},
@@ -309,6 +310,13 @@ class FlutterJsWidgetEngineBackend implements JsWidgetEngineBackend {
         await _config.execHandler!.call(id, cmd);
       }
     };
+    _bridge.openUrlHandler = (id, url) async {
+      if (_config.openUrlHandler != null) {
+        await _config.openUrlHandler!.call(id, url);
+        return;
+      }
+      await defaultVmOpenUrlHandler(id, url, _bridge.resolveCallback);
+    };
     _bridge.intervalTickHandler = (id) => _handleIntervalTick(rt, id);
     _bridge.rafTickHandler = (id, elapsedMs) =>
         _handleRafTick(rt, id, elapsedMs);
@@ -446,6 +454,7 @@ class FlutterJsWidgetEngineBackend implements JsWidgetEngineBackend {
     '__jsr_secrets_set',
     '__jsr_load_asset',
     '__jsr_exec',
+    '__jsr_open_url',
     '__jsr_scene3d_command',
   ];
 

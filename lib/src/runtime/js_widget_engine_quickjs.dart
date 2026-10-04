@@ -47,6 +47,7 @@ class QuickjsWidgetEngineBackend implements JsWidgetEngineBackend {
       secretsSetHandler: (id, key, value) async {},
       loadAssetHandler: (id, path) async {},
       execHandler: (id, cmd) async {},
+      openUrlHandler: (id, url) async {},
       onHostCall: config.onHostCall,
       captureHandler: config.captureHandler,
       intervalTickHandler: (id) {},
@@ -269,6 +270,7 @@ class QuickjsWidgetEngineBackend implements JsWidgetEngineBackend {
     _bridge.secretsSetHandler = _secretsSetHandler;
     _bridge.loadAssetHandler = _loadAssetHandler;
     _bridge.execHandler = _execHandler;
+    _bridge.openUrlHandler = _openUrlHandler;
     _bridge.intervalTickHandler = (id) => _handleIntervalTick(rt, id);
     _bridge.rafTickHandler = (id, elapsedMs) =>
         _handleRafTick(rt, id, elapsedMs);
@@ -328,6 +330,15 @@ class QuickjsWidgetEngineBackend implements JsWidgetEngineBackend {
   Future<void> _execHandler(String id, String cmd) async {
     final handler = _config.execHandler;
     if (handler != null) await handler(id, cmd);
+  }
+
+  Future<void> _openUrlHandler(String id, String url) async {
+    final handler = _config.openUrlHandler;
+    if (handler != null) {
+      await handler(id, url);
+      return;
+    }
+    await defaultVmOpenUrlHandler(id, url, _bridge.resolveCallback);
   }
 
   void _handleSendMessage(QuickjsRuntime rt, String argsJson) {

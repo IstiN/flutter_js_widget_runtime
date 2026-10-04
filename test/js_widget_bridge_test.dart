@@ -133,6 +133,34 @@ void main() {
       expect(resolved['e1'], {'cmd': 'ls'});
     });
 
+    test('dispatches openUrl to the wired handler', () async {
+      bridge.openUrlHandler =
+          (id, url) async => resolved[id] = {'url': url};
+      await bridge.dispatch(
+        '__jsr_open_url',
+        '{"id":"o1","url":"https://example.com"}',
+      );
+      expect(resolved['o1'], {'url': 'https://example.com'});
+    });
+
+    test('openUrl rejects when the host has no handler', () async {
+      await bridge.dispatch(
+        '__jsr_open_url',
+        '{"id":"o2","url":"https://example.com"}',
+      );
+      expect(
+        resolved['o2'],
+        {'__error': 'openUrl is not supported by this host'},
+      );
+    });
+
+    test('openUrl rejects an empty url', () async {
+      bridge.openUrlHandler =
+          (id, url) async => resolved[id] = {'url': url};
+      await bridge.dispatch('__jsr_open_url', '{"id":"o3","url":""}');
+      expect(resolved['o3'], {'__error': 'openUrl: empty url'});
+    });
+
     test('dispatches log channel', () async {
       await bridge.dispatch('__jsr_log', 'hello');
       expect(logs, ['hello']);

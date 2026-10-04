@@ -36,6 +36,10 @@ typedef JsLoadAssetHandler = Future<void> Function(String id, String path);
 /// Callback for `jsr.exec(cmd)`.
 typedef JsExecHandler = Future<void> Function(String id, String cmd);
 
+/// Callback for `jsr.openUrl(url)` — open a URL in the host's external
+/// browser.
+typedef JsOpenUrlHandler = Future<void> Function(String id, String url);
+
 /// Callback invoked when a Dart-backed interval fires.
 typedef JsIntervalTickHandler = void Function(String id);
 
@@ -65,6 +69,7 @@ class JsWidgetBridge {
     required this.secretsSetHandler,
     required this.loadAssetHandler,
     required this.execHandler,
+    this.openUrlHandler,
     this.onHostCall,
     this.captureHandler,
     required this.intervalTickHandler,
@@ -112,6 +117,11 @@ class JsWidgetBridge {
   JsSecretsWriteHandler secretsSetHandler;
   JsLoadAssetHandler loadAssetHandler;
   JsExecHandler execHandler;
+
+  /// Handle `jsr.openUrl(url)`. Null → the promise rejects with
+  /// 'openUrl is not supported by this host'. Mutable: engines rewire it
+  /// after construction with the config handler or the platform default.
+  JsOpenUrlHandler? openUrlHandler;
   JsIntervalTickHandler intervalTickHandler;
   JsRafTickHandler rafTickHandler;
   Js3dHost? js3dHost;
@@ -209,6 +219,7 @@ class JsWidgetBridge {
         '__jsr_secrets_set': _handleSecretsSet,
         '__jsr_load_asset': _handleLoadAsset,
         '__jsr_exec': _handleExec,
+        '__jsr_open_url': _handleOpenUrl,
         '__jsr_host_call': _handleHostCall,
       };
 
@@ -499,6 +510,24 @@ class JsWidgetBridge {
     final id = req['id'] as String;
     final cmd = req['cmd'] as String? ?? '';
     await execHandler(id, cmd);
+  }
+
+  Future<void> _handleOpenUrl(dynamic args) async {
+    final req = _parseArgs(args);
+    final id = req['id'] as String;
+    final url = req['url'] as String? ?? '';
+    final handler = openUrlHandler;
+    if (handler == null) {
+      resolveCallback(id, {
+        '__error': 'openUrl is not supported by this host',
+      });
+      return;
+    }
+    if (url.isEmpty) {
+      resolveCallback(id, {'__error': 'openUrl: empty url'});
+      return;
+    }
+    await handler(id, url);
   }
 
   void _handleScene3dCommand(dynamic args) {

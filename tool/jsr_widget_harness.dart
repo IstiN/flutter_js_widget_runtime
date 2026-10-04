@@ -64,6 +64,11 @@ Future<_Session> _boot(JsrToolSpec spec) async {
       onSetTitle: (_) {},
       onStorageUpdate: (_) {},
       onResolveReady: (fn) => resolve = fn,
+      // Deterministic headless stub: report success without launching a
+      // real browser from CLI test runs.
+      openUrlHandler: (id, url) async {
+        resolve?.call(id, true);
+      },
       captureHandler: (opts) {
         final base = ((opts['name'] as String?) ?? 'capture').replaceAll(
             RegExp(r'[^a-zA-Z0-9_-]'), '-');
