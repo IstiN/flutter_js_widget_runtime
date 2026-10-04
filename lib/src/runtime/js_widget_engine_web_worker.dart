@@ -47,6 +47,7 @@ class WebWorkerJsWidgetEngineBackend implements JsWidgetEngineBackend {
         }
       },
       execHandler: (id, cmd) => _handleExec(id, cmd),
+      openUrlHandler: (id, url) => _handleOpenUrl(id, url),
       onHostCall: config.onHostCall,
       captureHandler: config.captureHandler,
       intervalTickHandler: (id) => _postToWorker('__jsr_interval_tick', id),
@@ -217,6 +218,14 @@ class WebWorkerJsWidgetEngineBackend implements JsWidgetEngineBackend {
       return;
     }
     await defaultWebExecHandler(id, cmd, _bridge.resolveCallback);
+  }
+
+  Future<void> _handleOpenUrl(String id, String url) async {
+    if (_config.openUrlHandler != null) {
+      await _config.openUrlHandler!.call(id, url);
+      return;
+    }
+    await defaultWebOpenUrlHandler(id, url, _bridge.resolveCallback);
   }
 
   void _resolveCallback(String id, dynamic value) {

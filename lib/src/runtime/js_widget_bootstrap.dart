@@ -154,6 +154,17 @@ var jsr = {
     });
   },
 
+  // Open a URL in the host's external browser. Resolves true when the
+  // launch was accepted; rejects when the host does not support it —
+  // .catch() and degrade (e.g. render the link as text).
+  openUrl: function(url){
+    return new Promise(function(resolve,reject){
+      var id=__nid();
+      __cbs[id]=function(r){if(r&&r.__error)reject(new Error(r.__error));else resolve(r);};
+      __send('__jsr_open_url', JSON.stringify({id:id,url:String(url)}));
+    });
+  },
+
   // Generic host-provided async capability: jsr.hostCall('asr.record', {...})
   // is routed to the host's onHostCall handler (JsRuntimeConfig). Host
   // shims (jsr.fa.*, jsr.yoloit) build on this instead of hardcoding

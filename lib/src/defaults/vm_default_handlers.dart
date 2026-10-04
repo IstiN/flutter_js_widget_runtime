@@ -30,6 +30,55 @@ Future<void> defaultVmFetchHandler(
   }
 }
 
+/// Process launcher used by [defaultVmOpenUrlHandler]; injectable in tests.
+typedef VmProcessRunner =
+    Future<ProcessResult> Function(String executable, List<String> args);
+
+/// Default VM openUrl implementation: launches the URL in the system
+/// browser through the platform opener. The URL is passed as a single argv
+/// entry (no shell string interpolation). [runProcess] and
+/// [operatingSystem] exist for tests.
+Future<void> defaultVmOpenUrlHandler(
+  String id,
+  String url,
+  void Function(String id, dynamic value) resolve, {
+  VmProcessRunner? runProcess,
+  String? operatingSystem,
+}) async {
+  try {
+    final uri = Uri.tryParse(url);
+    if (uri == null || !uri.hasScheme) {
+      resolve(id, {'__error': 'openUrl: invalid url $url'});
+      return;
+    }
+    final os = operatingSystem ?? Platform.operatingSystem;
+    final String exe;
+    final List<String> args;
+    if (os == 'macos') {
+      exe = 'open';
+      args = [url];
+    } else if (os == 'windows') {
+      exe = 'cmd';
+      args = ['/c', 'start', '', url];
+    } else {
+      exe = 'xdg-open';
+      args = [url];
+    }
+    final run = runProcess ?? Process.run;
+    final result = await run(exe, args);
+    if (result.exitCode == 0) {
+      resolve(id, true);
+    } else {
+      resolve(id, {
+        '__error': 'openUrl: opener exited ${result.exitCode}: '
+            '${result.stderr}',
+      });
+    }
+  } catch (e) {
+    resolve(id, {'__error': e.toString()});
+  }
+}
+
 /// Default VM loadAsset implementation reading from [appDir].
 Future<void> defaultVmLoadAssetHandler(
   String id,

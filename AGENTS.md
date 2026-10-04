@@ -55,6 +55,12 @@ Core methods:
 - `jsr.storage.get(key)` / `jsr.storage.set(key, val)` — persistent storage.
 - `jsr.secrets.get(key)` / `jsr.secrets.set(key, val)` — secure storage.
 - `jsr.exec(cmd)` — run a shell command (host-dependent).
+- `jsr.openUrl(url)` — open a URL in the host's external browser (async;
+  resolves `true`, rejects when the host cannot launch — `.catch()` and
+  degrade). Defaults: web → `window.open('_blank')`, VM → system opener
+  (`open`/`xdg-open`/`start`); hosts override via
+  `JsRuntimeConfig.openUrlHandler` (e.g. `url_launcher`). The jsr_widget
+  CLI stubs it (resolves `true`, no real browser).
 - `jsr.capture(opts?)` — self-screenshot of the widget's rendered tree;
   resolves `{path, width, height}` where the host supports it (the
   jsr_widget CLI writes PNGs under `--capture-dir`), rejects otherwise —

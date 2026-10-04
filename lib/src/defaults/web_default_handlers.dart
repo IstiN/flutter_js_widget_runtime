@@ -39,3 +39,24 @@ Future<void> defaultWebExecHandler(
 ) async {
   resolve(id, {'__error': 'exec is not available on web'});
 }
+
+/// Default web openUrl implementation — opens the URL in a new tab via
+/// `window.open`. Popup blockers may refuse it when the call is not
+/// triggered by a user gesture; in that case the promise rejects so the
+/// widget can degrade (e.g. render the link as a tappable textField hint).
+Future<void> defaultWebOpenUrlHandler(
+  String id,
+  String url,
+  void Function(String id, dynamic value) resolve,
+) async {
+  try {
+    final opened = web.window.open(url, '_blank');
+    if (opened == null) {
+      resolve(id, {'__error': 'openUrl: window.open was blocked'});
+    } else {
+      resolve(id, true);
+    }
+  } catch (e) {
+    resolve(id, {'__error': e.toString()});
+  }
+}

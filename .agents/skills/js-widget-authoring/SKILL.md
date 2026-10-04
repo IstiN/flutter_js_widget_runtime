@@ -196,6 +196,13 @@ The `cli` block is how coding agents discover your widget — fill it in:
 - `jsr.loadAsset(path)` → Promise<string> — read a bundled asset file.
 - `jsr.exec(cmd)` → Promise — shell command (host-dependent, gated by the
   manifest `allowedCommands`).
+- `jsr.openUrl(url)` → Promise<true> — open a URL in the host's EXTERNAL
+  browser. Defaults: web → `window.open('_blank')` (popup blockers can
+  reject non-gesture calls), VM → system opener (`open`/`xdg-open`/`start`).
+  Hosts override via `JsRuntimeConfig.openUrlHandler`; rejects with
+  'openUrl is not supported by this host' when unwired — always `.catch()`
+  and degrade (e.g. show the URL as copyable text). The jsr_widget CLI
+  stubs it (resolves `true`, launches nothing).
 - `jsr.hostCall(name, args?)` → Promise — generic host capability: routed to
   the host's `JsRuntimeConfig.onHostCall`; rejects when no handler is
   configured. Host-provided shims (`jsr.fa.*`, `jsr.yoloit.*`) are built on

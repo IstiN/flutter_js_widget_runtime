@@ -50,6 +50,7 @@ class JsRuntimeConfig {
     this.secretsSetHandler,
     this.loadAssetHandler,
     this.execHandler,
+    this.openUrlHandler,
     this.onHostCall,
     this.captureHandler,
     this.intervalTickHandler,
@@ -130,6 +131,13 @@ class JsRuntimeConfig {
   /// Handle `jsr.exec(cmd)`.
   final Future<void> Function(String id, String cmd)? execHandler;
 
+  /// Handle `jsr.openUrl(url)` — open a URL in the host's external browser
+  /// (e.g. via `url_launcher`). Resolve with `true` on success, or with
+  /// `{'__error': ...}` to reject the JS promise. When null the engines fall
+  /// back to the platform default: `window.open` on web, `open`/`xdg-open`/
+  /// `start` on VM. Pass a handler to gate, audit, or redirect launches.
+  final Future<void> Function(String id, String url)? openUrlHandler;
+
   /// Generic host capability invoked by `jsr.hostCall(name, args)`.
   ///
   /// Lets hosts expose async native features (microphone, platform
@@ -196,6 +204,7 @@ class JsRuntimeConfig {
         secretsSetHandler,
     Future<void> Function(String id, String path)? loadAssetHandler,
     Future<void> Function(String id, String cmd)? execHandler,
+    Future<void> Function(String id, String url)? openUrlHandler,
     Future<Object?> Function(String name, Map<String, dynamic> args)?
         onHostCall,
     Future<Map<String, dynamic>> Function(Map<String, dynamic> opts)?
@@ -225,6 +234,7 @@ class JsRuntimeConfig {
         secretsSetHandler: secretsSetHandler ?? this.secretsSetHandler,
         loadAssetHandler: loadAssetHandler ?? this.loadAssetHandler,
         execHandler: execHandler ?? this.execHandler,
+        openUrlHandler: openUrlHandler ?? this.openUrlHandler,
         onHostCall: onHostCall ?? this.onHostCall,
         captureHandler: captureHandler ?? this.captureHandler,
         intervalTickHandler: intervalTickHandler ?? this.intervalTickHandler,
