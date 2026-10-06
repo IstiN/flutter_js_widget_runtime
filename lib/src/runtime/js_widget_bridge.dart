@@ -223,6 +223,16 @@ class JsWidgetBridge {
         '__jsr_host_call': _handleHostCall,
       };
 
+  /// Every `__jsr_*` channel this bridge can dispatch. Engines that need
+  /// per-channel registration (flutter_js `setupBridge`) MUST derive their
+  /// list from here — a hand-maintained copy silently drops messages on
+  /// channels added later (the `__jsr_host_call`/`__jsr_capture` omission
+  /// made every hostCall promise hang forever on JSC).
+  Set<String> get handledChannels => {
+    ..._syncChannelHandlers.keys,
+    ..._asyncChannelHandlers.keys,
+  };
+
   /// Serializes [callEvent] invocations so rapid-fire gestures (tap-down,
   /// tap-up, tap) complete in order. Previously a stale `__jsr_event_done`
   /// completed the *next* event's completer early and the following

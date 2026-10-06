@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:js_widget_runtime/src/renderer/nodes/js_3d_host.dart';
+import 'package:js_widget_runtime/src/runtime/js_widget_bootstrap.dart';
 import 'package:js_widget_runtime/src/runtime/js_widget_bridge.dart';
 
 JsWidgetBridge _makeBridge({
@@ -159,6 +160,25 @@ void main() {
           (id, url) async => resolved[id] = {'url': url};
       await bridge.dispatch('__jsr_open_url', '{"id":"o3","url":""}');
       expect(resolved['o3'], {'__error': 'openUrl: empty url'});
+    });
+
+    test('handledChannels covers every channel the bootstrap sends', () {
+      // Regression: the flutter_js engine once registered a hand-maintained
+      // channel list that missed __jsr_host_call/__jsr_capture — sendMessage
+      // on those channels was silently dropped and every jsr.hostCall
+      // promise hung forever on JSC (voxel probes → infinite spinner).
+      final sent = RegExp(r"__send\('(__jsr_[a-z_]+)'")
+          .allMatches(kJsWidgetBootstrap)
+          .map((m) => m.group(1)!)
+          .toSet();
+      expect(sent.length, greaterThan(10));
+      for (final channel in sent) {
+        expect(
+          bridge.handledChannels,
+          contains(channel),
+          reason: '$channel is sent by the bootstrap but not dispatched',
+        );
+      }
     });
 
     test('dispatches log channel', () async {
