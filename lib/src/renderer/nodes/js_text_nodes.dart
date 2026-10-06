@@ -13,8 +13,12 @@ const _emojiFallback = [
   'Segoe UI Emoji',
 ];
 
-/// Line-height multiplier values already warned about (debug only).
+/// Line-height values already noted in debug (once per value).
 final _warnedLineHeights = <double>{};
+
+/// Above this, a `lineHeight` value is interpreted as absolute pixels
+/// (see [_textStyleHeight]) — no real design uses a 4× line multiplier.
+const _maxSaneLineHeightMultiplier = 4.0;
 
 extension on JsonWidgetRenderer {
   // ── Display ───────────────────────────────────────────────────────────────
@@ -223,35 +227,46 @@ extension on JsonWidgetRenderer {
     );
   }
 
-  /// [TextStyle.height] semantics: a MULTIPLIER of fontSize. `height` and
-  /// `lineHeight` pass through as multipliers — the canonical branded
-  /// samples compute them deliberately (`1.2 * rowMax / fontSize`).
-  /// `lineHeightPx` is the absolute logical-pixels form: `lineHeightPx: 24`
-  /// means a 24-px line on any font size. A multiplier above 3 is almost
-  /// always a CSS-style pixel value mistaken for a multiplier (a 20-px
-  /// font with `lineHeight: 24` lays out 480-px lines and every fixed box
-  /// around it overflows) — warn once per value so the author or the
-  /// embedding agent sees it at render time.
+  /// Text line height, accepting BOTH authoring conventions:
+  ///
+  /// - `lineHeightPx` — absolute logical pixels, always (`24` = a 24-px
+  ///   line on any font size).
+  /// - `lineHeight` — dual: values up to [_maxSaneLineHeightMultiplier]
+  ///   are fontSize multipliers (the canonical branded samples compute
+  ///   `1.2 * rowMax / fontSize`, i.e. ~1.0–2.0); anything larger is a
+  ///   CSS-style pixel value — agents and web authors write
+  ///   `lineHeight: 24` meaning 24 px — and is converted. The ranges
+  ///   cannot collide: no real design uses a 4× multiplier, and no real
+  ///   design uses a 4-px line.
+  /// - `height` — the Flutter-native multiplier, passthrough.
   double? _textStyleHeight(Map<dynamic, dynamic> style) {
-    final lineHeightPx = _doubleOrNull(style['lineHeightPx']);
-    if (lineHeightPx != null) {
-      if (lineHeightPx <= 0) return null;
-      final fontSize = _doubleOrNull(style['fontSize']);
+    final fontSize = _doubleOrNull(style['fontSize']);
+    double? pxToMultiplier(double? px) {
+      if (px == null || px <= 0) return null;
       if (fontSize == null || fontSize <= 0) return null;
-      return lineHeightPx / fontSize;
+      return px / fontSize;
     }
-    final multiplier =
-        _doubleOrNull(style['height']) ?? _doubleOrNull(style['lineHeight']);
-    if (multiplier != null && multiplier > 3) {
-      if (_warnedLineHeights.add(multiplier)) {
+
+    final px = _doubleOrNull(style['lineHeightPx']);
+    if (px != null) return pxToMultiplier(px);
+
+    final lineHeight = _doubleOrNull(style['lineHeight']);
+    if (lineHeight != null) {
+      if (lineHeight <= 0) return null;
+      if (lineHeight <= _maxSaneLineHeightMultiplier) return lineHeight;
+      final converted = pxToMultiplier(lineHeight);
+      if (converted != null && _warnedLineHeights.add(lineHeight)) {
         debugPrint(
-          '[jsr] text style lineHeight/height = $multiplier looks like '
-          'pixels, but it is a fontSize MULTIPLIER (line = fontSize × '
-          '$multiplier). For absolute pixels use lineHeightPx: $multiplier.',
+          '[jsr] lineHeight: $lineHeight interpreted as $lineHeight px '
+          '(a fontSize multiplier that large is not a real design) — '
+          'use lineHeightPx for pixels or a ≤$_maxSaneLineHeightMultiplier '
+          'multiplier.',
         );
       }
+      return converted;
     }
-    return multiplier;
+
+    return _doubleOrNull(style['height']);
   }
 
   List<Shadow>? _textShadows(List? shadows) {
