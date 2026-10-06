@@ -1213,6 +1213,33 @@ void main() {
       expect(text.style?.height, 1.35);
     });
 
+    testWidgets('lineHeight above the sane-multiplier range means pixels', (
+      tester,
+      ) async {
+      // The CSS-trained authoring style: lineHeight: 24 means a 24-px line.
+      await tester.pumpWidget(
+        buildTree({
+          'type': 'text',
+          'data': 'css style',
+          'style': {'fontSize': 16, 'lineHeight': 24},
+        }),
+      );
+      final text = tester.widget<Text>(find.text('css style'));
+      expect(text.style?.height, closeTo(1.5, 1e-9));
+    });
+
+    testWidgets('height stays a strict Flutter multiplier', (tester) async {
+      await tester.pumpWidget(
+        buildTree({
+          'type': 'text',
+          'data': 'native',
+          'style': {'fontSize': 16, 'height': 24},
+        }),
+      );
+      final text = tester.widget<Text>(find.text('native'));
+      expect(text.style?.height, 24);
+    });
+
     testWidgets('image with asset prefix renders Image', (tester) async {
       await tester.pumpWidget(
         buildTree({'type': 'image', 'url': 'asset:test/assets/sample.png'}),
