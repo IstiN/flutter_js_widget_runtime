@@ -321,7 +321,7 @@ class FlutterJsWidgetEngineBackend implements JsWidgetEngineBackend {
     _bridge.rafTickHandler = (id, elapsedMs) =>
         _handleRafTick(rt, id, elapsedMs);
 
-    for (final channel in _bridgeChannels) {
+    for (final channel in _bridge.handledChannels) {
       rt.setupBridge(channel, (args) {
         if (!_isLive(rt)) {
           debugPrint(
@@ -366,7 +366,7 @@ class FlutterJsWidgetEngineBackend implements JsWidgetEngineBackend {
     // map the static callback reads from, dispatch is iid-aware.
     final maps = JavascriptRuntime.channelFunctionsRegistered;
     for (final map in maps.values) {
-      for (final channel in _bridgeChannels) {
+      for (final channel in _bridge.handledChannels) {
         // Keep any existing per-engine handler as the fallback for
         // untagged messages (older bootstrap without the shim).
         final existing = map[channel];
@@ -436,27 +436,6 @@ class FlutterJsWidgetEngineBackend implements JsWidgetEngineBackend {
     }
     return null;
   }
-
-  static const List<String> _bridgeChannels = [
-    '__jsr_render',
-    '__jsr_fetch',
-    '__jsr_storage_get',
-    '__jsr_storage_set',
-    '__jsr_set_title',
-    '__jsr_event_done',
-    '__jsr_export_state',
-    '__jsr_log',
-    '__jsr_set_interval',
-    '__jsr_clear_interval',
-    '__jsr_raf',
-    '__jsr_caf',
-    '__jsr_secrets_get',
-    '__jsr_secrets_set',
-    '__jsr_load_asset',
-    '__jsr_exec',
-    '__jsr_open_url',
-    '__jsr_scene3d_command',
-  ];
 
   void _handleLog(String msg) {
     debugPrint('[JsWidget:${_config.widgetId}] $msg');

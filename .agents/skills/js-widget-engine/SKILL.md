@@ -26,7 +26,12 @@ Follow these steps in order:
    - Use `sendMessage('__jsr_<name>', JSON.stringify(args))`.
    - If async, store a callback in `__cbs[id]` and resolve later.
 
-2. **Add a bridge channel constant** in `JsWidgetEngine._bridgeChannels` (both VM and Web files).
+2. **Bridge channels are self-describing**: `JsWidgetBridge.handledChannels`
+   is the union of the sync and async handler maps. Engines that need
+   per-channel registration (flutter_js `setupBridge`) derive their list
+   from it — never keep a hand-maintained copy (a stale list silently drops
+   messages: the `__jsr_host_call`/`__jsr_capture` omission hung every
+   `jsr.hostCall` promise on JSC).
 
 3. **Handle the channel in `JsWidgetBridge.dispatch`** (`lib/src/runtime/js_widget_bridge.dart`).
    - Add a `_handle<Name>` private method.
