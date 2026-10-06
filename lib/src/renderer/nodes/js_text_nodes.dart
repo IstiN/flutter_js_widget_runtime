@@ -13,6 +13,9 @@ const _emojiFallback = [
   'Segoe UI Emoji',
 ];
 
+/// Line-height multiplier values already warned about (debug only).
+final _warnedLineHeights = <double>{};
+
 extension on JsonWidgetRenderer {
   // ── Display ───────────────────────────────────────────────────────────────
 
@@ -213,12 +216,42 @@ extension on JsonWidgetRenderer {
       // default emoji font.
       fontFamilyFallback: _emojiFallback,
       letterSpacing: _doubleOrNull(style['letterSpacing']),
-      height:
-          _doubleOrNull(style['height']) ?? _doubleOrNull(style['lineHeight']),
+      height: _textStyleHeight(style),
       shadows: _textShadows(
         style['textShadows'] as List? ?? style['shadows'] as List?,
       ),
     );
+  }
+
+  /// [TextStyle.height] semantics: a MULTIPLIER of fontSize. `height` and
+  /// `lineHeight` pass through as multipliers — the canonical branded
+  /// samples compute them deliberately (`1.2 * rowMax / fontSize`).
+  /// `lineHeightPx` is the absolute logical-pixels form: `lineHeightPx: 24`
+  /// means a 24-px line on any font size. A multiplier above 3 is almost
+  /// always a CSS-style pixel value mistaken for a multiplier (a 20-px
+  /// font with `lineHeight: 24` lays out 480-px lines and every fixed box
+  /// around it overflows) — warn once per value so the author or the
+  /// embedding agent sees it at render time.
+  double? _textStyleHeight(Map<dynamic, dynamic> style) {
+    final lineHeightPx = _doubleOrNull(style['lineHeightPx']);
+    if (lineHeightPx != null) {
+      if (lineHeightPx <= 0) return null;
+      final fontSize = _doubleOrNull(style['fontSize']);
+      if (fontSize == null || fontSize <= 0) return null;
+      return lineHeightPx / fontSize;
+    }
+    final multiplier =
+        _doubleOrNull(style['height']) ?? _doubleOrNull(style['lineHeight']);
+    if (multiplier != null && multiplier > 3) {
+      if (_warnedLineHeights.add(multiplier)) {
+        debugPrint(
+          '[jsr] text style lineHeight/height = $multiplier looks like '
+          'pixels, but it is a fontSize MULTIPLIER (line = fontSize × '
+          '$multiplier). For absolute pixels use lineHeightPx: $multiplier.',
+        );
+      }
+    }
+    return multiplier;
   }
 
   List<Shadow>? _textShadows(List? shadows) {
