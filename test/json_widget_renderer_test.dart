@@ -1185,6 +1185,34 @@ void main() {
       expect(text.style?.height, 1.5);
     });
 
+    testWidgets('lineHeightPx converts to a fontSize-relative multiplier', (
+      tester,
+      ) async {
+      await tester.pumpWidget(
+        buildTree({
+          'type': 'text',
+          'data': 'px line',
+          'style': {'fontSize': 16, 'lineHeightPx': 24},
+        }),
+      );
+      final text = tester.widget<Text>(find.text('px line'));
+      expect(text.style?.height, closeTo(1.5, 1e-9));
+    });
+
+    testWidgets('lineHeight stays a multiplier (canonical samples)', (
+      tester,
+      ) async {
+      await tester.pumpWidget(
+        buildTree({
+          'type': 'text',
+          'data': 'mult',
+          'style': {'fontSize': 16, 'lineHeight': 1.35},
+        }),
+      );
+      final text = tester.widget<Text>(find.text('mult'));
+      expect(text.style?.height, 1.35);
+    });
+
     testWidgets('image with asset prefix renders Image', (tester) async {
       await tester.pumpWidget(
         buildTree({'type': 'image', 'url': 'asset:test/assets/sample.png'}),
