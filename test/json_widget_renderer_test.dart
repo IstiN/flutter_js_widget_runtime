@@ -1199,6 +1199,76 @@ void main() {
       expect(text.style?.height, closeTo(1.5, 1e-9));
     });
 
+    testWidgets('container alignment centers a default row child', (
+      tester,
+    ) async {
+      // CSS-authored {width, alignment: 'center', child: {type: 'row'}}:
+      // the row shrinks to its content and centers in the box, instead of
+      // stretching across it and pinning children to the start edge.
+      await tester.pumpWidget(
+        buildTree({
+          'type': 'container',
+          'width': 300,
+          'height': 52,
+          'alignment': 'center',
+          'child': {
+            'type': 'row',
+            'children': [
+              {'type': 'container', 'width': 100, 'height': 30, 'color': '#333'},
+              {'type': 'container', 'width': 100, 'height': 30, 'color': '#555',
+               'margin': {'left': 18}},
+            ],
+          },
+        }),
+      );
+      Color pill(String hex) => Color(int.parse('FF$hex', radix: 16));
+      final first = tester.getRect(
+        find.byWidgetPredicate(
+          (w) =>
+              w is Container &&
+              (w.decoration as BoxDecoration?)?.color == pill('333333'),
+        ),
+      );
+      // Row content = 218 wide; centered in 300 → left = 41.
+      expect(first.left, moreOrLessEquals(41.0, epsilon: 0.5));
+      final second = tester.getRect(
+        find.byWidgetPredicate(
+          (w) =>
+              w is Container &&
+              (w.decoration as BoxDecoration?)?.color == pill('555555'),
+        ),
+      );
+      // Container's rect spans content + its own left margin (100 + 18).
+      expect(second.left, moreOrLessEquals(141.0, epsilon: 0.5));
+    });
+
+    testWidgets('explicit mainAxisSize still stretches the row', (tester) async {
+      await tester.pumpWidget(
+        buildTree({
+          'type': 'container',
+          'width': 300,
+          'height': 52,
+          'alignment': 'center',
+          'child': {
+            'type': 'row',
+            'mainAxisSize': 'max',
+            'children': [
+              {'type': 'container', 'width': 100, 'height': 30, 'color': '#333'},
+            ],
+          },
+        }),
+      );
+      final pill1 = tester.getRect(
+        find.byWidgetPredicate(
+          (w) =>
+              w is Container &&
+              (w.decoration as BoxDecoration?)?.color ==
+                  const Color(0xFF333333),
+        ),
+      );
+      expect(pill1.left, moreOrLessEquals(0.0, epsilon: 0.5));
+    });
+
     testWidgets('lineHeight stays a multiplier (canonical samples)', (
       tester,
       ) async {
