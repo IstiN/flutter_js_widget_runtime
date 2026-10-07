@@ -126,7 +126,9 @@ mixin JsonWidgetDecoration {
     final colors = (g['colors'] as List? ?? [])
         .map((c) => _color(c as String?) ?? Colors.transparent)
         .toList();
-    if (colors.isEmpty) return null;
+    // Fewer than two stops is not a gradient — fall back to the flat color
+    // (yoclip parseGradient parity: {colors:[red]} renders red, no gradient).
+    if (colors.length < 2) return null;
     final stops = (g['stops'] as List? ?? [])
         .map((s) => (s as num?)?.toDouble())
         .whereType<double>()
@@ -257,6 +259,7 @@ mixin JsonWidgetDecoration {
     'bottomCenter' => Alignment.bottomCenter,
     'centerLeft' => Alignment.centerLeft,
     'centerRight' => Alignment.centerRight,
+    'center' => Alignment.center,
     _ => Alignment.centerLeft,
   };
 

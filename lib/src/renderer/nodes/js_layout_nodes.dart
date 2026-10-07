@@ -44,14 +44,24 @@ extension on JsonWidgetRenderer {
     children: _children(m),
   );
 
-  Widget _rowCore(Map<String, dynamic> m) => Row(
+  Widget _rowCore(Map<String, dynamic> m) {
+  final cross = _textAlignAdoptedCrossAxis(m);
+  return Row(
     mainAxisAlignment: _mainAxis(m['mainAxisAlignment']),
-    crossAxisAlignment: _textAlignAdoptedCrossAxis(m),
+    crossAxisAlignment: cross,
+    // Flutter requires a text baseline for CrossAxisAlignment.baseline —
+    // default alphabetic, overridable via the node's `textBaseline`.
+    textBaseline: cross == CrossAxisAlignment.baseline
+        ? (m['textBaseline'] == 'ideographic'
+              ? TextBaseline.ideographic
+              : TextBaseline.alphabetic)
+        : null,
     mainAxisSize: m[kAlignContentMinMainAxis] == true
         ? MainAxisSize.min
         : _mainSize(m['mainAxisSize']),
     children: _children(m),
   );
+}
 
   /// Parity with yoclip's row/column rule: with `crossAxisAlignment`
   /// omitted and ALL children being texts carrying the SAME explicit
@@ -89,20 +99,37 @@ extension on JsonWidgetRenderer {
   }
 
   Widget _stackCore(Map<String, dynamic> m) {
-    final children = (m['children'] as List? ?? []).map((c) {
+    final children = <Widget>[];
+    var index = 0;
+    for (final c in m['children'] as List? ?? []) {
       final cm = (c as Map?)?.cast<String, dynamic>() ?? {};
       if (cm['positioned'] != null) {
         final p = (cm['positioned'] as Map).cast<String, dynamic>();
-        return Positioned(
-          left: _doubleOrNull(p['left']),
-          top: _doubleOrNull(p['top']),
-          right: _doubleOrNull(p['right']),
-          bottom: _doubleOrNull(p['bottom']),
-          child: _build(cm['child'] ?? cm),
-        );
+        // Two positioned spellings: a bare wrapper ({positioned, child})
+        // builds just the child; a typed node ({type, positioned, child})
+        // is built WHOLE — dropping the node used to discard its
+        // color/padding/size and leave only the content (the yoclip
+        // container-padding test caught exactly that).
+        final target = cm['type'] == null ? (cm['child'] ?? cm) : cm;
+        final built = _buildChild(target, m, index);
+        index++;
+        if (built != null) {
+          children.add(
+            Positioned(
+              left: _doubleOrNull(p['left']),
+              top: _doubleOrNull(p['top']),
+              right: _doubleOrNull(p['right']),
+              bottom: _doubleOrNull(p['bottom']),
+              child: built,
+            ),
+          );
+        }
+        continue;
       }
-      return _build(c);
-    }).toList();
+      final built = _buildChild(c, m, index);
+      index++;
+      if (built != null) children.add(built);
+    }
     final fit = switch (m['fit'] as String?) {
       'expand' => StackFit.expand,
       'loose' => StackFit.loose,
@@ -152,11 +179,40 @@ extension on JsonWidgetRenderer {
     if (deco != null) {
       return _boxDecoration(deco.cast<String, dynamic>());
     }
+    // Top-level yoclip scene vocabulary (the skill teaches gradient/shadow/
+    // border/radius directly on the node): fold everything into one
+    // BoxDecoration. `gradient` suppresses the flat color (the gradient is
+    // the fill); a border only draws when borderWidth > 0; `radius` is the
+    // primary spelling with `borderRadius` as the Flutter-ish alias.
+    final gradient = _gradient(m['gradient'] as Map?);
     final bg = m['backgroundColor'] as String? ?? m['color'] as String?;
-    if (bg != null) {
-      return BoxDecoration(color: _color(bg));
+    final borderColor = _color(m['borderColor'] as String?);
+    final borderWidth = _doubleOrNull(m['borderWidth']) ?? 0.0;
+    final radiusValue =
+        _doubleOrNull(m['radius']) ?? _doubleOrNull(m['borderRadius']);
+    final radius = radiusValue != null && radiusValue > 0
+        ? BorderRadius.circular(radiusValue)
+        : null;
+    final shadows = m['shadows'] ?? m['shadow'];
+    final boxShadow = shadows is Map
+        ? _boxShadows([shadows])
+        : _boxShadows(shadows as List?);
+    if (gradient == null &&
+        bg == null &&
+        borderColor == null &&
+        radius == null &&
+        boxShadow == null) {
+      return null;
     }
-    return null;
+    return BoxDecoration(
+      color: gradient == null ? _color(bg) : null,
+      gradient: gradient,
+      border: borderColor != null && borderWidth > 0
+          ? Border.all(color: borderColor, width: borderWidth)
+          : null,
+      borderRadius: radius,
+      boxShadow: boxShadow,
+    );
   }
 
   ({

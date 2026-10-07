@@ -172,9 +172,20 @@ void main() {
       );
       // The scaled child is wrapped in a Transform (paint-only). Measure the
       // Transform's own LAYOUT box — marker paragraphs would report paint
-      // coordinates through the scale matrix instead.
+      // coordinates through the scale matrix instead. The finder walks from
+      // the blue box's ancestor Transform because the size shield may insert
+      // a Center(widthFactor:1, heightFactor:1) between them.
       final transform = tester.renderObject<RenderBox>(
-        find.byWidgetPredicate((w) => w is Transform && w.child is Container),
+        find.ancestor(
+          of: find.byWidgetPredicate((w) {
+            if (w is! Container) return false;
+            const blue = Color(0xFF0000FF);
+            return w.color == blue ||
+                (w.decoration is BoxDecoration &&
+                    (w.decoration! as BoxDecoration).color == blue);
+          }),
+          matching: find.byType(Transform),
+        ).first,
       );
       // Layout footprint is identical to the unscaled sibling (160x40) and
       // centered across the 680 column like every other child.
