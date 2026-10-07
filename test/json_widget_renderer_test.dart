@@ -1199,6 +1199,116 @@ void main() {
       expect(text.style?.height, closeTo(1.5, 1e-9));
     });
 
+    testWidgets('sized box keeps its size under tight constraints', (
+      tester,
+    ) async {
+      // CSS sizing shield: {width: 400} must win even when the parent is
+      // tight (Scaffold body), not stretch to the parent like a bare
+      // Flutter Container.
+      await tester.pumpWidget(
+        buildTree({
+          'type': 'container',
+          'width': 400,
+          'height': 80,
+          'color': '#222222',
+        }),
+      );
+      final box = tester.getRect(
+        find.byWidgetPredicate(
+          (w) =>
+              w is Container &&
+              (w.decoration as BoxDecoration?)?.color ==
+              const Color(0xFF222222),
+        ),
+      );
+      expect(box.width, 400);
+      expect(box.height, 80);
+    });
+
+    testWidgets('sized box centers a lone text child (no alignment)', (
+      tester,
+    ) async {
+      await tester.pumpWidget(
+        buildTree({
+          'type': 'container',
+          'width': 400,
+          'height': 80,
+          'color': '#222222',
+          'child': {
+            'type': 'text',
+            'text': 'Centered?',
+            'textAlign': 'center',
+            'style': {'fontSize': 28, 'color': '#ffffff'},
+          },
+        }),
+      );
+      final text = tester.getRect(find.text('Centered?'));
+      // Vertically centered in the 80-high box; textAlign keeps glyphs
+      // centered horizontally.
+      expect(text.center.dy, moreOrLessEquals(40.0, epsilon: 0.5));
+    });
+
+    testWidgets('row adopts unanimous child textAlign as cross axis', (
+      tester,
+    ) async {
+      await tester.pumpWidget(
+        buildTree({
+          'type': 'container',
+          'width': 400,
+          'height': 120,
+          'color': '#222222',
+          'child': {
+            'type': 'row',
+            'children': [
+              {
+                'type': 'text',
+                'text': 'A',
+                'textAlign': 'center',
+                'style': {'fontSize': 24, 'color': '#ffffff'},
+              },
+              {
+                'type': 'text',
+                'text': 'B',
+                'textAlign': 'center',
+                'style': {'fontSize': 24, 'color': '#ffffff'},
+              },
+            ],
+          },
+        }),
+      );
+      final a = tester.getRect(find.text('A'));
+      // Cross-axis adoption centers the 24-high labels in the 120-high row.
+      expect(a.center.dy, moreOrLessEquals(60.0, epsilon: 0.5));
+    });
+
+    testWidgets('rotate alias applies degrees tilt', (tester) async {
+      await tester.pumpWidget(
+        buildTree({
+          'type': 'container',
+          'width': 200,
+          'height': 100,
+          'color': '#222222',
+          'rotate': 90,
+          'child': {
+            'type': 'text',
+            'text': 'Tilted',
+            'style': {'fontSize': 24, 'color': '#ffffff'},
+          },
+        }),
+      );
+      final box = tester.getRect(
+        find.byWidgetPredicate(
+          (w) =>
+              w is Container &&
+              (w.decoration as BoxDecoration?)?.color ==
+              const Color(0xFF222222),
+        ),
+      );
+      // A 90-degree tilt swaps the painted aspect (200x100 -> ~100x200).
+      expect(box.width, moreOrLessEquals(100.0, epsilon: 1.0));
+      expect(box.height, moreOrLessEquals(200.0, epsilon: 1.0));
+    });
+
     testWidgets('container alignment centers a default row child', (
       tester,
     ) async {

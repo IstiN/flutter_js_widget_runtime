@@ -1,3 +1,13 @@
+## 0.4.159
+
+- Parity transfers from the yoclip renderer (jwr_parity harness in yoclip_core):
+  - Sized boxes (container/text/sizedBox/row/column/stack with explicit width/height) keep their size under tight parent constraints via a Center(widthFactor:1, heightFactor:1) shield — CSS `width` wins where Flutter's Container would stretch to the parent.
+  - A sized box with NO explicit alignment around a lone text child centers the label (horizontal by textAlign, vertical always) instead of pressing glyphs to the top-left.
+  - Text nodes with width/height get the same centering rule.
+  - row/column adopt a unanimous child `textAlign` as the cross axis when `crossAxisAlignment` is omitted.
+  - `rotate` (degrees) alias for the `rotation` effect.
+- KNOWN divergence (documented, not transferred): an omitted `crossAxisAlignment` defaults to start here vs center in yoclip (Flutter default) — aligning shifts all fa widget rows, needs a dedicated audited change.
+
 ## 0.4.158
 
 - Container content centering: `{width, height, alignment: 'center', child: {type: 'row'|'column'}}` now centers the flex child's content (min main axis) instead of letting a default max-size row/column stretch across the box and pin children to the start edge. Explicit `mainAxisSize` wins. Key `kAlignContentMinMainAxis` is exported so the yoclip renderer can mirror the contract.

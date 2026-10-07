@@ -38,6 +38,7 @@ mixin JsonWidgetDecoration {
       m['offsetY'] == null &&
       m['scale'] == null &&
       m['rotation'] == null &&
+      m['rotate'] == null &&
       m['blur'] == null &&
       m['opacity'] == null;
 
@@ -45,7 +46,11 @@ mixin JsonWidgetDecoration {
     final offsetX = _doubleOrNull(m['offsetX']);
     final offsetY = _doubleOrNull(m['offsetY']);
     final scale = _doubleOrNull(m['scale']);
-    final rotation = _doubleOrNull(m['rotation']);
+    // `rotation` is radians; `rotate` is the yoclip-scene alias in DEGREES
+    // (parity with yoclip's wrap pipeline) — either may drive the Z tilt.
+    final degrees = _doubleOrNull(m['rotate']);
+    final rotation = _doubleOrNull(m['rotation']) ??
+        (degrees == null ? null : degrees * 3.141592653589793 / 180.0);
     if (offsetX == null && offsetY == null && scale == null && rotation == null) {
       return child;
     }
