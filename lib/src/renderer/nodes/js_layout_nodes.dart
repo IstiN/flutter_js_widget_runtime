@@ -27,14 +27,18 @@ extension on JsonWidgetRenderer {
   Widget _columnCore(Map<String, dynamic> m) => Column(
     mainAxisAlignment: _mainAxis(m['mainAxisAlignment']),
     crossAxisAlignment: _crossAxis(m['crossAxisAlignment']),
-    mainAxisSize: _mainSize(m['mainAxisSize']),
+    mainAxisSize: m[kAlignContentMinMainAxis] == true
+        ? MainAxisSize.min
+        : _mainSize(m['mainAxisSize']),
     children: _children(m),
   );
 
   Widget _rowCore(Map<String, dynamic> m) => Row(
     mainAxisAlignment: _mainAxis(m['mainAxisAlignment']),
     crossAxisAlignment: _crossAxis(m['crossAxisAlignment']),
-    mainAxisSize: _mainSize(m['mainAxisSize']),
+    mainAxisSize: m[kAlignContentMinMainAxis] == true
+        ? MainAxisSize.min
+        : _mainSize(m['mainAxisSize']),
     children: _children(m),
   );
 
@@ -156,7 +160,21 @@ extension on JsonWidgetRenderer {
     ctor,
     Map<String, dynamic> m,
   ) {
+    // CSS-authored content centering: an explicit `alignment` around a
+    // row/column child means "center the content in the box". Flutter's
+    // Container(alignment:) wraps the child in an Align that hands it LOOSE
+    // constraints — a default max-size row then stretches across the whole
+    // box and its children pin to the start edge (the dmtools demo's stage
+    // pills rendered left-flush instead of centered). Force min main axis
+    // so the Align has something to center. An explicit mainAxisSize wins.
+    final child = m['child'];
+    final minAxisChild = m['alignment'] != null &&
+        child is Map &&
+        (child['type'] == 'row' || child['type'] == 'column') &&
+        child['mainAxisSize'] == null;
+    if (minAxisChild) child[kAlignContentMinMainAxis] = true;
     final p = _containerProps(m);
+    if (minAxisChild) child.remove(kAlignContentMinMainAxis);
     return ctor(
       width: p.width,
       height: p.height,

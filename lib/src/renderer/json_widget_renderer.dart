@@ -87,6 +87,27 @@ final _jsonWidgetDefaultColors = JsonWidgetTheme.fromAccent(Colors.deepPurple);
 ///   "crossAxisAlignment": "start"
 /// }
 /// ```
+/// Node shape:
+/// ```json
+/// {
+///   "type": "column",
+///   "children": [...],
+///   "mainAxisAlignment": "center",
+///   "crossAxisAlignment": "start"
+/// }
+/// ```
+
+/// Transient build flag set on a row/column child map by the container
+/// builder: the parent box has an explicit `alignment`, so the flex child
+/// shrinks to its content (min main axis) and the box's Align actually
+/// centers it — CSS-authored `{width, alignment: 'center', child:
+/// {type: 'row'}}` means "center the content", not "stretch the row across
+/// the box" (a default max-size row under the Align's loose constraints
+/// pins its children to the start edge). Removed right after the child is
+/// built. The yoclip renderer mirrors this contract for its overridden
+/// row/column/container builders.
+const kAlignContentMinMainAxis = '_alignContentMinMainAxis';
+
 class JsonWidgetRenderer with JsonWidgetDecoration {
   // Not const: owns the per-instance widget memo cache.
   JsonWidgetRenderer({

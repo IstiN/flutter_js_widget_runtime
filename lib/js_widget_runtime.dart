@@ -6,7 +6,8 @@ export 'src/loader/widget_file_reader.dart'
     show WidgetFileReader, MemoryWidgetFileReader;
 export 'src/model/js_runtime_config.dart';
 export 'src/model/widget_manifest.dart' show WidgetManifest;
-export 'src/renderer/json_widget_renderer.dart' show JsonWidgetRenderer;
+export 'src/renderer/json_widget_renderer.dart'
+    show JsonWidgetRenderer, kAlignContentMinMainAxis;
 export 'src/renderer/external_asset_resolver.dart' show ExternalAssetResolver;
 export 'src/renderer/flame_asset_bundle.dart' show jsrSetFlameAssetBundle;
 export 'src/renderer/font/js_font_loader.dart' show JsFontLoader;

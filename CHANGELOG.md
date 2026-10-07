@@ -1,6 +1,6 @@
-## 0.4.156
+## 0.4.158
 
-- Automated patch bump.
+- Container content centering: `{width, height, alignment: 'center', child: {type: 'row'|'column'}}` now centers the flex child's content (min main axis) instead of letting a default max-size row/column stretch across the box and pin children to the start edge. Explicit `mainAxisSize` wins. Key `kAlignContentMinMainAxis` is exported so the yoclip renderer can mirror the contract.
 
 ## 0.4.155
 
