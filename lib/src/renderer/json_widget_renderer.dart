@@ -108,6 +108,45 @@ final _jsonWidgetDefaultColors = JsonWidgetTheme.fromAccent(Colors.deepPurple);
 /// row/column/container builders.
 const kAlignContentMinMainAxis = '_alignContentMinMainAxis';
 
+/// Host build hooks: let an embedding renderer interpose on child traversal
+/// and node finishing WITHOUT forking the node builders — the mechanism that
+/// keeps jsr the single source of truth for node semantics (the yoclip
+/// renderer uses this for id stamping, Studio overrides, hidden layers and
+/// its wrap pipeline instead of overriding row/column/container/...).
+class JsonWidgetBuildHooks {
+  const JsonWidgetBuildHooks({
+    this.effectiveNode,
+    this.stampChild,
+    this.skipChild,
+    this.finishNode,
+  });
+
+  /// Merge host edits (property-panel overrides) into a node before
+  /// dispatch. Return the SAME instance when there is nothing to merge so
+  /// the widget memo cache stays effective.
+  final Map<String, dynamic> Function(Map<String, dynamic> node)?
+  effectiveNode;
+
+  /// Prepare a child for building — stamp ids, etc. Receives the raw child
+  /// map, its parent map and the child index; return the map the renderer
+  /// should build (usually a copy carrying the host's id key).
+  final Map<String, dynamic> Function(
+    Map<String, dynamic> child,
+    Map<String, dynamic> parent,
+    int index,
+  )?
+  stampChild;
+
+  /// Skip a child entirely (hidden layers). Receives the STAMPED child.
+  final bool Function(Map<String, dynamic> stampedChild)? skipChild;
+
+  /// Post-process a built node: wrap pipelines, selection decorators. Runs
+  /// BEFORE the universal effects pass — strip consumed props from [node]
+  /// to prevent double application. Not invoked for nodes rendered by
+  /// `customBuilders` (those finish themselves).
+  final Widget Function(Map<String, dynamic> node, Widget built)? finishNode;
+}
+
 class JsonWidgetRenderer with JsonWidgetDecoration {
   // Not const: owns the per-instance widget memo cache.
   JsonWidgetRenderer({
@@ -125,6 +164,8 @@ class JsonWidgetRenderer with JsonWidgetDecoration {
     this.externalAssetResolver,
     this.fontResolver,
     this.mapTileProvider,
+    this.buildHooks,
+    this.hideText = false,
   });
 
   /// Called when a user-triggered event fires (e.g. button tap).
@@ -152,6 +193,14 @@ class JsonWidgetRenderer with JsonWidgetDecoration {
   /// Each callback receives the build context and the raw node map.
   final Map<String, Widget Function(BuildContext, Map<String, dynamic>)>?
   customBuilders;
+
+  /// Optional host hooks — see [JsonWidgetBuildHooks].
+  final JsonWidgetBuildHooks? buildHooks;
+
+  /// PPTX background-patch mode: keep text layout footprints but paint no
+  /// ink (a tiny non-zero alpha — a full alpha==0 OpacityLayer poisons
+  /// headless layer capture). Parity with the yoclip renderer's flag.
+  final bool hideText;
 
   /// Optional host-provided media factory. When set, `video`/`audio` nodes
   /// render real players; otherwise they render placeholder icons.
@@ -207,14 +256,45 @@ class JsonWidgetRenderer with JsonWidgetDecoration {
   final Map<Map, Widget> _widgetCache = {};
   static const _widgetCacheLimit = 256;
 
-  Widget _build(dynamic node) {
+  Widget _build(dynamic node, {Object? cacheKey}) {
     if (node is! Map) return const SizedBox.shrink();
-    final cached = _widgetCache[node];
-    if (cached != null) return cached;
-    final built = _buildNode(node.cast<String, dynamic>());
+    final hooks = buildHooks;
+    final raw = node.cast<String, dynamic>();
+    final effective = hooks?.effectiveNode?.call(raw) ?? raw;
+    final merged = !identical(effective, raw);
+    final key = cacheKey is Map ? cacheKey : node;
+    if (!merged) {
+      final cached = _widgetCache[key];
+      if (cached != null) return cached;
+    }
+    var built = _buildNode(effective);
     if (_widgetCache.length >= _widgetCacheLimit) _widgetCache.clear();
-    _widgetCache[node] = built;
+    if (!merged) _widgetCache[key] = built;
     return built;
+  }
+
+  /// Builds a child through the host hooks (stamping + skip), then the
+  /// normal build. [cacheKey] keeps the memo keyed on the RAW child so
+  /// stamped copies (fresh identity every build) still hit the cache.
+  Widget? _buildChild(
+    dynamic child,
+    Map<String, dynamic> parent,
+    int index,
+  ) {
+    final hooks = buildHooks;
+    Object? cacheKey;
+    var target = child;
+    if (hooks?.stampChild != null && child is Map) {
+      final stamped = hooks!.stampChild!(
+        child.cast<String, dynamic>(),
+        parent,
+        index,
+      );
+      if (hooks.skipChild?.call(stamped) == true) return null;
+      target = stamped;
+      cacheKey = child;
+    }
+    return _build(target, cacheKey: cacheKey);
   }
 
   Widget _buildNode(Map<String, dynamic> m) {
@@ -234,6 +314,8 @@ class JsonWidgetRenderer with JsonWidgetDecoration {
       );
     }
 
+    final hooks = buildHooks;
+    final finish = hooks?.finishNode;
     final child = switch (type) {
       'column' => _column(m),
       'row' => _row(m),
@@ -344,7 +426,19 @@ class JsonWidgetRenderer with JsonWidgetDecoration {
       _ => _unknownType(m),
     };
 
-    return _applyUniversalEffects(child, m);
+    // expanded/flexible/spacer are PURE LAYOUT: they must sit directly
+    // inside their Flex parent, so neither the host finishNode nor the
+    // universal effects may wrap them (wrapping strips the Flex parent
+    // data and collapses the scene with "Incorrect use of ParentDataWidget").
+    final isFlexChild =
+        child is! Expanded && child is! Flexible && child is! Spacer;
+    final hostFinished = finish != null &&
+        !(customBuilders?.containsKey(type) ?? false) &&
+        isFlexChild;
+    return _applyUniversalEffects(
+      hostFinished ? finish(m, child) : child,
+      m,
+    );
   }
 
   Widget _unknownType(Map<String, dynamic> m) {
@@ -572,11 +666,20 @@ class JsonWidgetRenderer with JsonWidgetDecoration {
   Widget? _child(Map<String, dynamic> m) {
     final c = m['child'];
     if (c == null) return null;
-    return _build(c);
+    return _buildChild(c, m, 0);
   }
 
-  List<Widget> _children(Map<String, dynamic> m) =>
-      (m['children'] as List? ?? []).map<Widget>(_build).toList();
+  List<Widget> _children(Map<String, dynamic> m) {
+    final raw = m['children'] as List? ?? [];
+    final out = <Widget>[];
+    var index = 0;
+    for (final c in raw) {
+      final built = _buildChild(c, m, index);
+      index++;
+      if (built != null) out.add(built);
+    }
+    return out;
+  }
 
   VoidCallback? _tapHandler(dynamic actionId, dynamic payload) {
     if (actionId == null) return null;

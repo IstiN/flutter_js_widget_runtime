@@ -1,3 +1,21 @@
+## 0.4.160
+
+- Renderer unification: `JsonWidgetBuildHooks` lets an embedding renderer interpose on
+  child traversal and node finishing WITHOUT forking the node builders — jsr stays the
+  single source of truth for node semantics (the yoclip renderer now hosts only its
+  media/text domain through these hooks):
+  - `effectiveNode` merges host edits (Studio overrides) before dispatch; returning the
+    same instance keeps the widget memo cache effective.
+  - `stampChild`/`skipChild` let the host stamp ids and hide layers during traversal
+    (stack positioned wrappers included); the memo stays keyed on the RAW child map.
+  - `finishNode` runs between the node builder and the universal-effects pass, so a host
+    wrap pipeline can apply and strip props before jsr would double-apply them.
+- `hideText` flag: PPTX background-patch mode — text keeps its layout footprint but
+  paints no ink (a tiny non-zero alpha that does not poison headless layer capture).
+- Stack positioned fix: a TYPED positioned node (`{type, positioned, child}`) is now
+  built whole — dropping it used to discard its color/padding/size and leave only the
+  content (bare `{positioned, child}` wrappers still work).
+
 ## 0.4.159
 
 - Parity transfers from the yoclip renderer (jwr_parity harness in yoclip_core):

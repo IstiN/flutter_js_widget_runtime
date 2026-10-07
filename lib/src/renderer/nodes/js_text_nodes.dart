@@ -81,6 +81,11 @@ extension on JsonWidgetRenderer {
       );
     }
 
+    // PPTX background patches: keep the layout footprint, paint no ink.
+    if (hideText) {
+      textWidget = Opacity(opacity: 0.0001, child: textWidget);
+    }
+
     final family = style?.fontFamily;
     final fontResolver = this.fontResolver;
     if (family != null && family.isNotEmpty && fontResolver != null) {
