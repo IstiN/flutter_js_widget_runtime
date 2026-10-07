@@ -54,14 +54,30 @@ extension on JsonWidgetRenderer {
     // Honor `width`/`height` on text (CSS-style box): the SizedBox tightens
     // the paragraph so `textAlign` centers within the requested box instead
     // of the intrinsic label width. Consistent with `container` sizing —
-    // under tight parent constraints the parent wins.
+    // under tight parent constraints the parent wins. Parity with yoclip's
+    // fixed-box rule: with no explicit alignment the label centers in the
+    // box (horizontal by textAlign, vertical always) instead of pressing
+    // glyphs to the top-left corner.
     final boxWidth = _doubleOrNull(m['width']);
     final boxHeight = _doubleOrNull(m['height']);
     if (boxWidth != null || boxHeight != null) {
-      textWidget = SizedBox(
-        width: boxWidth,
-        height: boxHeight,
-        child: textWidget,
+      final contentAlign = m['alignment'] != null
+          ? _alignment(m['alignment'])
+          : _fixedBoxContentAlignment(m);
+      textWidget = _sizeShield(
+        SizedBox(
+          width: boxWidth,
+          height: boxHeight,
+          child: contentAlign == null
+              ? textWidget
+              : Align(
+                  alignment: contentAlign,
+                  widthFactor: boxWidth == null ? 1 : null,
+                  heightFactor: boxHeight == null ? 1 : null,
+                  child: textWidget,
+                ),
+        ),
+        m,
       );
     }
 

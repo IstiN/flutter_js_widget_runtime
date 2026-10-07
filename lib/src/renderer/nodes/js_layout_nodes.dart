@@ -4,6 +4,17 @@ part of '../json_widget_renderer.dart';
 /// wrap, sizing, containers/cards, scrolling lists, and implicit
 /// animations.
 extension on JsonWidgetRenderer {
+  /// CSS-authored sizing shield (parity with yoclip's wrap pipeline): a node
+  /// with explicit `width`/`height` keeps that size even under TIGHT parent
+  /// constraints — Flutter's Container/SizedBox would otherwise stretch to
+  /// the parent (a root `{width: 400}` box rendered fullscreen in Scaffold
+  /// bodies). Center(widthFactor:1, heightFactor:1) loosens the constraints
+  /// and hugs under loose parents, so loose layouts see no difference.
+  Widget _sizeShield(Widget child, Map<String, dynamic> m) {
+    if (m['width'] == null && m['height'] == null) return child;
+    return Center(widthFactor: 1, heightFactor: 1, child: child);
+  }
+
   // ── Layout ────────────────────────────────────────────────────────────────
 
   /// Caps a built flex/stack node to the node's `width`/`height` props.
@@ -17,7 +28,7 @@ extension on JsonWidgetRenderer {
     final w = _doubleOrNull(m['width']);
     final h = _doubleOrNull(m['height']);
     if (w == null && h == null) return child;
-    return SizedBox(width: w, height: h, child: child);
+    return _sizeShield(SizedBox(width: w, height: h, child: child), m);
   }
 
   Widget _column(Map<String, dynamic> m) => _flexSize(_columnCore(m), m);
@@ -26,7 +37,7 @@ extension on JsonWidgetRenderer {
 
   Widget _columnCore(Map<String, dynamic> m) => Column(
     mainAxisAlignment: _mainAxis(m['mainAxisAlignment']),
-    crossAxisAlignment: _crossAxis(m['crossAxisAlignment']),
+    crossAxisAlignment: _textAlignAdoptedCrossAxis(m),
     mainAxisSize: m[kAlignContentMinMainAxis] == true
         ? MainAxisSize.min
         : _mainSize(m['mainAxisSize']),
@@ -35,12 +46,47 @@ extension on JsonWidgetRenderer {
 
   Widget _rowCore(Map<String, dynamic> m) => Row(
     mainAxisAlignment: _mainAxis(m['mainAxisAlignment']),
-    crossAxisAlignment: _crossAxis(m['crossAxisAlignment']),
+    crossAxisAlignment: _textAlignAdoptedCrossAxis(m),
     mainAxisSize: m[kAlignContentMinMainAxis] == true
         ? MainAxisSize.min
         : _mainSize(m['mainAxisSize']),
     children: _children(m),
   );
+
+  /// Parity with yoclip's row/column rule: with `crossAxisAlignment`
+  /// omitted and ALL children being texts carrying the SAME explicit
+  /// `textAlign`, the cross axis adopts it (a CSS author centering the
+  /// label glyphs means the row centers the labels too). Any non-text
+  /// child, missing/unanimity-breaking textAlign, or explicit
+  /// crossAxisAlignment keeps the default.
+  CrossAxisAlignment _textAlignAdoptedCrossAxis(Map<String, dynamic> m) {
+    final raw = m['crossAxisAlignment'];
+    if (raw is String && raw.isNotEmpty) return _crossAxis(raw);
+    final children = m['children'];
+    if (children is List && children.isNotEmpty) {
+      String? unanimous;
+      var conflict = false;
+      for (final c in children) {
+        if (c is! Map || c['type'] != 'text') return _crossAxis(raw);
+        final align = c['textAlign'] ??
+            (c['style'] as Map?)?['textAlign'] as String?;
+        if (align is! String) return _crossAxis(raw);
+        if (unanimous == null) {
+          unanimous = align;
+        } else if (unanimous != align) {
+          conflict = true;
+        }
+      }
+      if (!conflict) {
+        return switch (unanimous) {
+          'left' || 'start' => CrossAxisAlignment.start,
+          'right' || 'end' => CrossAxisAlignment.end,
+          _ => CrossAxisAlignment.center,
+        };
+      }
+    }
+    return _crossAxis(raw);
+  }
 
   Widget _stackCore(Map<String, dynamic> m) {
     final children = (m['children'] as List? ?? []).map((c) {
@@ -87,8 +133,10 @@ extension on JsonWidgetRenderer {
     final w = _doubleOrNull(m['width']);
     final h = _doubleOrNull(m['height']);
     final child = _child(m);
-    if (child != null) return SizedBox(width: w, height: h, child: child);
-    return SizedBox(width: w, height: h);
+    if (child != null) {
+      return _sizeShield(SizedBox(width: w, height: h, child: child), m);
+    }
+    return _sizeShield(SizedBox(width: w, height: h), m);
   }
 
   Widget _scroll(Map<String, dynamic> m) => SingleChildScrollView(
@@ -175,16 +223,53 @@ extension on JsonWidgetRenderer {
     if (minAxisChild) child[kAlignContentMinMainAxis] = true;
     final p = _containerProps(m);
     if (minAxisChild) child.remove(kAlignContentMinMainAxis);
-    return ctor(
-      width: p.width,
-      height: p.height,
-      padding: p.padding,
-      margin: p.margin,
-      alignment: p.alignment,
-      decoration: p.decoration,
-      transform: _matrix4(m['transform']),
-      child: p.child,
+    // Parity with yoclip's fixed-box rule (yoclipFixedBoxContentAlignment):
+    // a sized box with NO explicit alignment around a lone text child means
+    // "center the label in the box" — horizontal follows the text's own
+    // textAlign, vertical is always centered (Flutter would press glyphs to
+    // the top of the tight box). Explicit alignment keeps Container's own
+    // Align semantics; non-text children keep tight fill.
+    Widget? content = p.child;
+    if (p.alignment == null && (p.width != null || p.height != null)) {
+      final contentAlign = _fixedBoxContentAlignment(m);
+      if (contentAlign != null) {
+        content = Align(
+          alignment: contentAlign,
+          widthFactor: p.width == null ? 1 : null,
+          heightFactor: p.height == null ? 1 : null,
+          child: content,
+        );
+      }
+    }
+    return _sizeShield(
+      ctor(
+        width: p.width,
+        height: p.height,
+        padding: p.padding,
+        margin: p.margin,
+        alignment: p.alignment,
+        decoration: p.decoration,
+        transform: _matrix4(m['transform']),
+        child: content,
+      ),
+      m,
     );
+  }
+
+  /// Content alignment for a sized box with no explicit alignment around a
+  /// lone text child (parity with yoclip's container builder), or null when
+  /// tight-fill semantics must stay.
+  Alignment? _fixedBoxContentAlignment(Map<String, dynamic> m) {
+    final child = m['child'];
+    if (child is! Map || child['type'] != 'text') return null;
+    final align = child['textAlign'] ??
+        (child['style'] as Map?)?['textAlign'] ??
+        child['alignment'];
+    return switch (align) {
+      'left' || 'start' => Alignment.centerLeft,
+      'right' || 'end' => Alignment.centerRight,
+      _ => Alignment.center,
+    };
   }
 
   BorderRadius? _containerBorderRadius(
