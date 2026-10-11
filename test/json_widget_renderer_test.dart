@@ -877,6 +877,161 @@ void main() {
       expect(events.any((e) => e.$1 == 'panEnd'), isTrue);
     });
 
+    testWidgets('gestureDetector merges a static payload into events',
+        (tester) async {
+      await tester.pumpWidget(
+        buildTree({
+          'type': 'gestureDetector',
+          'onTap': 'hotbar',
+          'payload': {'slot': 3},
+          'child': {'type': 'text', 'data': 'slot'},
+        }),
+      );
+      await tester.tap(find.text('slot'));
+      await tester.pump();
+      await tester.runAsync(() => Future<void>.delayed(Duration.zero));
+      await tester.pump();
+      final taps = events.where((e) => e.$1 == 'hotbar').toList();
+      expect(taps, hasLength(1));
+      expect(taps.single.$2['slot'], 3,
+          reason: 'the static payload rides the tap event');
+    });
+
+    testWidgets('gestureDetector fires the long press lifecycle',
+        (tester) async {
+      await tester.pumpWidget(
+        buildTree({
+          'type': 'gestureDetector',
+          'onLongPress': 'lp',
+          'onLongPressStart': 'lpStart',
+          'onLongPressUp': 'lpUp',
+          'onLongPressEnd': 'lpEnd',
+          'child': {'type': 'text', 'data': 'hold'},
+        }),
+      );
+      await tester.longPress(find.text('hold'));
+      await tester.pump();
+      await tester.runAsync(() => Future<void>.delayed(Duration.zero));
+      await tester.pump();
+      for (final id in ['lp', 'lpStart', 'lpUp', 'lpEnd']) {
+        expect(events.any((e) => e.$1 == id), isTrue,
+            reason: '$id fired for a stationary hold + release');
+      }
+      final start = events.firstWhere((e) => e.$1 == 'lpStart');
+      expect(start.$2['x'], isA<double>());
+      expect(start.$2['y'], isA<double>());
+    });
+
+    testWidgets('gestureDetector streams long press moves and cancels',
+        (tester) async {
+      await tester.pumpWidget(
+        buildTree({
+          'type': 'gestureDetector',
+          'onLongPressStart': 'lpStart',
+          'onLongPressMoveUpdate': 'lpMove',
+          'onLongPressCancel': 'lpCancel',
+          'child': {'type': 'text', 'data': 'holdmove'},
+        }),
+      );
+      final center = tester.getCenter(find.text('holdmove'));
+      final g = await tester.startGesture(center);
+      await tester.pump(const Duration(milliseconds: 600)); // long press lands
+      await g.moveTo(center + const Offset(6, 4)); // stays a long press
+      await tester.pump();
+      await tester.runAsync(() => Future<void>.delayed(Duration.zero));
+      await tester.pump();
+      expect(events.any((e) => e.$1 == 'lpStart'), isTrue);
+      final moves = events.where((e) => e.$1 == 'lpMove').toList();
+      expect(moves, isNotEmpty,
+          reason: 'post-start movement streams lpMove with origin deltas');
+      expect(moves.last.$2['dx'], isNonZero);
+      await g.cancel(); // OS steals the pointer mid-hold
+      await tester.pump();
+      await tester.runAsync(() => Future<void>.delayed(Duration.zero));
+      await tester.pump();
+      expect(events.any((e) => e.$1 == 'lpCancel'), isTrue,
+          reason: 'held state gets its release even on a stolen pointer');
+    });
+
+    testWidgets('gestureDetector fires onTapCancel for a stolen held tap',
+        (tester) async {
+      await tester.pumpWidget(
+        buildTree({
+          'type': 'gestureDetector',
+          'onTap': 'tap',
+          'onTapDown': 'tapDown',
+          'onTapCancel': 'tapCancel',
+          'child': {'type': 'text', 'data': 'arena'},
+        }),
+      );
+      // The stuck-“held” scenario: tapDown landed (past the press deadline),
+      // then the OS steals the pointer — without onTapCancel the widget
+      // would keep its held state forever.
+      final gesture =
+          await tester.startGesture(tester.getCenter(find.text('arena')));
+      await tester.pump(const Duration(milliseconds: 150)); // kPressTimeout
+      await gesture.cancel(); // PointerCancelEvent — OS stole the touch
+      await tester.pump();
+      await tester.runAsync(() => Future<void>.delayed(Duration.zero));
+      await tester.pump();
+      expect(events.any((e) => e.$1 == 'tapDown'), isTrue);
+      expect(events.any((e) => e.$1 == 'tapCancel'), isTrue,
+          reason: 'the widget learns the tap died — no stuck held state');
+      expect(events.any((e) => e.$1 == 'tap'), isFalse);
+    });
+
+    testWidgets('gestureDetector fires onPanCancel for a pre-drag cancel',
+        (tester) async {
+      await tester.pumpWidget(
+        buildTree({
+          'type': 'gestureDetector',
+          // A tap competitor keeps the pan in the arena's `possible` state —
+          // cancelling the pointer there reports panCancel (a cancel AFTER
+          // the drag is accepted reports panEnd instead — Flutter semantics).
+          'onTap': 'tap',
+          'onPanUpdate': 'pan',
+          'onPanEnd': 'panEnd',
+          'onPanCancel': 'panCancel',
+          'child': {'type': 'text', 'data': 'steal'},
+        }),
+      );
+      final gesture =
+          await tester.startGesture(tester.getCenter(find.text('steal')));
+      await tester.pump();
+      await gesture.cancel(); // cancelled before the drag was accepted
+      await tester.pump();
+      await tester.runAsync(() => Future<void>.delayed(Duration.zero));
+      await tester.pump();
+      expect(events.any((e) => e.$1 == 'panCancel'), isTrue,
+          reason: 'a stolen pointer must release widget-side held state');
+      expect(events.any((e) => e.$1 == 'panEnd'), isFalse);
+    });
+
+    testWidgets('gestureDetector reports panEnd for a mid-drag cancel',
+        (tester) async {
+      await tester.pumpWidget(
+        buildTree({
+          'type': 'gestureDetector',
+          'onPanUpdate': 'pan',
+          'onPanEnd': 'panEnd',
+          'onPanCancel': 'panCancel',
+          'child': {'type': 'text', 'data': 'dragcancel'},
+        }),
+      );
+      final gesture = await tester
+          .startGesture(tester.getCenter(find.text('dragcancel')));
+      await gesture.moveBy(const Offset(30, 0));
+      await tester.pump();
+      await gesture.cancel(); // stolen AFTER the drag started
+      await tester.pump();
+      await tester.runAsync(() => Future<void>.delayed(Duration.zero));
+      await tester.pump();
+      // Flutter contract: an accepted drag ends via panEnd, not panCancel —
+      // widgets must wire BOTH to their release handlers.
+      expect(events.any((e) => e.$1 == 'panEnd'), isTrue);
+      expect(events.any((e) => e.$1 == 'panCancel'), isFalse);
+    });
+
     testWidgets('chart is empty without points', (tester) async {
       await tester.pumpWidget(buildTree({'type': 'chart'}));
       expect(

@@ -692,51 +692,81 @@ class JsonWidgetRenderer with JsonWidgetDecoration {
 
   // ── Gesture Detector ──────────────────────────────────────────────────────
 
+  // Builds a nullable gesture callback from a node prop: null when the prop
+  // is absent (so the recognizer is not created), otherwise a closure that
+  // fires the event id through [fire]/[fireFast]. Keeps _gestureDetector's
+  // cyclomatic complexity under the CRAP gate.
+  T? _gestureHandler<T extends Function>(
+    Map<String, dynamic> m,
+    String key,
+    T Function(String id) build,
+  ) {
+    final id = m[key];
+    return id == null ? null : build(id.toString());
+  }
+
   Widget _gestureDetector(Map<String, dynamic> m) {
     final child = _child(m) ?? const SizedBox.shrink();
+    // Static payload merged into every gesture event (gesture coords win on
+    // a key clash) — the same `payload` contract buttons/listTiles have,
+    // so e.g. hotbar slots can fire `onTap: 'hotbar', payload: {slot: 3}`.
+    final staticPayload = m['payload'] is Map
+        ? (m['payload'] as Map).cast<String, dynamic>()
+        : const <String, dynamic>{};
     // Use scheduleMicrotask to defer onEvent calls outside Flutter's gesture/mouse
     // tracking pipeline — prevents !_debugDuringDeviceUpdate assertion.
     void fire(String event, Map<String, dynamic> payload) =>
-        scheduleMicrotask(() => onEvent(event, payload));
+        scheduleMicrotask(() =>
+            onEvent(event, <String, dynamic>{...staticPayload, ...payload}));
     // High-frequency streams (pan/scroll) bypass the serialized round-trip
     // queue when the host provides a fire-and-forget sink.
     void fireFast(String event, Map<String, dynamic> payload) =>
-        scheduleMicrotask(() => (onGestureEvent ?? onEvent)(event, payload));
+        scheduleMicrotask(() => (onGestureEvent ?? onEvent)(
+            event, <String, dynamic>{...staticPayload, ...payload}));
+    Map<String, dynamic> xy(Offset o) => {'x': o.dx, 'y': o.dy};
+    Map<String, dynamic> vel(Velocity v) =>
+        {'velocityX': v.pixelsPerSecond.dx, 'velocityY': v.pixelsPerSecond.dy};
     final gd = GestureDetector(
       behavior: HitTestBehavior.opaque,
-      onTap: m['onTap'] != null ? () => fire(m['onTap'] as String, {}) : null,
-      onTapDown: m['onTapDown'] != null
-          ? (d) => fire(m['onTapDown'] as String, {
-              'x': d.localPosition.dx,
-              'y': d.localPosition.dy,
-            })
-          : null,
-      onTapUp: m['onTapUp'] != null
-          ? (d) => fire(m['onTapUp'] as String, {
-              'x': d.localPosition.dx,
-              'y': d.localPosition.dy,
-            })
-          : null,
-      onPanStart: m['onPanStart'] != null
-          ? (d) => fire(m['onPanStart'] as String, {
-              'x': d.localPosition.dx,
-              'y': d.localPosition.dy,
-            })
-          : null,
-      onPanUpdate: m['onPanUpdate'] != null
-          ? (d) => fireFast(m['onPanUpdate'] as String, {
-              'x': d.localPosition.dx,
-              'y': d.localPosition.dy,
-              'dx': d.delta.dx,
-              'dy': d.delta.dy,
-            })
-          : null,
-      onPanEnd: m['onPanEnd'] != null
-          ? (d) => fire(m['onPanEnd'] as String, {
-              'velocityX': d.velocity.pixelsPerSecond.dx,
-              'velocityY': d.velocity.pixelsPerSecond.dy,
-            })
-          : null,
+      onTap: _gestureHandler(m, 'onTap', (id) => () => fire(id, {})),
+      onTapDown: _gestureHandler(
+          m, 'onTapDown', (id) => (TapDownDetails d) => fire(id, xy(d.localPosition))),
+      onTapUp: _gestureHandler(
+          m, 'onTapUp', (id) => (TapUpDetails d) => fire(id, xy(d.localPosition))),
+      // Cancel surfaces: without them a gesture stolen by the arena or the
+      // OS (iOS edge gestures) leaves widget-side "held" state stuck.
+      onTapCancel: _gestureHandler(m, 'onTapCancel', (id) => () => fire(id, {})),
+      onPanStart: _gestureHandler(m, 'onPanStart',
+          (id) => (DragStartDetails d) => fire(id, xy(d.localPosition))),
+      onPanUpdate: _gestureHandler(
+          m,
+          'onPanUpdate',
+          (id) => (DragUpdateDetails d) => fireFast(id,
+              {...xy(d.localPosition), 'dx': d.delta.dx, 'dy': d.delta.dy})),
+      onPanEnd: _gestureHandler(m, 'onPanEnd',
+          (id) => (DragEndDetails d) => fire(id, vel(d.velocity))),
+      onPanCancel:
+          _gestureHandler(m, 'onPanCancel', (id) => () => fire(id, {})),
+      // Long press (Minecraft-style hold actions): stationary hold wins the
+      // arena, a moved finger loses to pan, a quick lift loses to tap.
+      onLongPress:
+          _gestureHandler(m, 'onLongPress', (id) => () => fire(id, {})),
+      onLongPressStart: _gestureHandler(m, 'onLongPressStart',
+          (id) => (LongPressStartDetails d) => fire(id, xy(d.localPosition))),
+      onLongPressMoveUpdate: _gestureHandler(
+          m,
+          'onLongPressMoveUpdate',
+          (id) => (LongPressMoveUpdateDetails d) => fireFast(id, {
+                ...xy(d.localPosition),
+                'dx': d.localOffsetFromOrigin.dx,
+                'dy': d.localOffsetFromOrigin.dy,
+              })),
+      onLongPressEnd: _gestureHandler(m, 'onLongPressEnd',
+          (id) => (LongPressEndDetails d) => fire(id, vel(d.velocity))),
+      onLongPressUp:
+          _gestureHandler(m, 'onLongPressUp', (id) => () => fire(id, {})),
+      onLongPressCancel: _gestureHandler(
+          m, 'onLongPressCancel', (id) => () => fire(id, {})),
       child: child,
     );
     return _maybePointerSignal(m, gd);
