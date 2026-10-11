@@ -597,14 +597,30 @@ prefer `flChart` for anything user-facing.
 
 ### Gestures
 
-`gestureDetector` — `{onTap, onTapDown, onTapUp, onPanStart, onPanUpdate,
-onPanEnd, child}` (no `onLongPress`). Payloads: `onTapDown`/`onTapUp`/
-`onPanStart` → `{x, y}`; `onPanUpdate` → `{x, y, dx, dy}`; `onPanEnd` →
-`{velocityX, velocityY}`. `inkWell` for simple taps with ripple.
+`gestureDetector` — `{onTap, onTapDown, onTapUp, onTapCancel, onPanStart,
+onPanUpdate, onPanEnd, onPanCancel, onLongPress, onLongPressStart,
+onLongPressMoveUpdate, onLongPressEnd, onLongPressUp, onLongPressCancel,
+payload?, child}`. Payloads:
+`onTapDown`/`onTapUp`/`onPanStart`/`onLongPressStart`/`onLongPressMoveUpdate`
+→ `{x, y}` (+`dx, dy` on pan/long-press move); `onPanEnd`/`onLongPressEnd` →
+`{velocityX, velocityY}`; `onTapCancel`/`onPanCancel`/`onLongPress` → `{}`.
+`inkWell` for simple taps with ripple.
+
+**Cancel surfaces matter for held state**: anything you set on
+`onTapDown`/`onPanStart` (pressed, running, aiming) MUST be released from
+the matching `onTapCancel`/`onPanCancel` too, not just `onTapUp`/`onPanEnd` —
+an OS-stolen pointer (iOS edge gestures) cancels instead of ending. Flutter
+semantics: a cancel AFTER the drag was accepted still reports `onPanEnd`;
+`onTapCancel` reports a stolen/forced tap that already fired `onTapDown`.
+
+**Long press beats tap on a stationary hold** and loses to pan the moment the
+finger moves — the Minecraft touch scheme is `{onTap: place, onPanUpdate:
+look, onLongPressStart: breakStart, onLongPressEnd: breakEnd}`.
 
 **Static payloads**: every tap-carrying node also accepts `payload: {…}` —
-the map is delivered verbatim as the event payload, so one handler can serve
-many buttons:
+the map is delivered verbatim as the event payload (on `gestureDetector` it
+is MERGED into every gesture payload, gesture coords win on a key clash), so
+one handler can serve many buttons:
 
 ```js
 { type: 'button', text: 'Sintel', onTap: 'pick', payload: {index: 2} }
@@ -641,7 +657,9 @@ many buttons:
 | pickers | `{value: 'YYYY-MM-DD'}` / `{value: 'HH:MM'}` |
 | overlay dismiss | `{}` to `onDismiss` |
 | `gestureDetector` pan move / end | `{x, y, dx, dy}` / `{velocityX, velocityY}` |
-| tap node with static `payload` | the payload map verbatim |
+| `gestureDetector` long-press start / move / end | `{x, y}` / `{x, y, dx, dy}` / `{velocityX, velocityY}` |
+| `gestureDetector` cancels | `onTapCancel` / `onPanCancel` → `{}` — release held state |
+| tap node with static `payload` | the payload map verbatim (merged on `gestureDetector`) |
 | `jsr.onKey` | `{key, code, down, repeat}` |
 | `scene3d.onTap` | `{modelId, point:[x,y,z]}` or `{modelId: null}` |
 
