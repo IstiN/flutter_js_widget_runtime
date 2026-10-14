@@ -182,7 +182,14 @@ var jsr = {
   // (The alphabet is split across concatenated literals on purpose: single
   // high-entropy literals get eaten by secret-scanning editors.)
   b64encode: function(data){
-    var u8 = data instanceof Uint8Array ? data : new Uint8Array(data);
+    // Typed arrays encode their BYTE IMAGE (a Float32Array yields its 4
+    // bytes per element, views only their visible range); ArrayBuffers
+    // and array-likes encode element-wise as before.
+    var u8;
+    if (data instanceof Uint8Array) u8 = data;
+    else if (data && data.buffer) {
+      u8 = new Uint8Array(data.buffer, data.byteOffset || 0, data.byteLength);
+    } else u8 = new Uint8Array(data);
     var A = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz' + '0123456789' + '+/';
     var out = new Array(((u8.length + 2) / 3) | 0);
     var o = 0, i;
@@ -208,8 +215,19 @@ var jsr = {
   // bytes via jsr.b64encode(new Uint8Array(f32.buffer)). Errors (unknown
   // host, malformed payload) are dropped: probe with jsr.hostCall probing
   // or design the widget to degrade. `name` must not contain spaces.
-  hostCallBinary: function(name, b64){
+  hostCallBinary: function(name, data){
     var n = String(name).replace(/[^A-Za-z0-9._\-]/g, '_');
+    // Native bytes lane: a typed array crosses by (pointer, length) with
+    // zero encode. Subarray views send only their visible range.
+    if (typeof __jsrSendBytes === 'function' && data &&
+        typeof data === 'object' && data.buffer) {
+      __jsrSendBytes(n, new Uint8Array(data.buffer,
+        data.byteOffset || 0, data.byteLength));
+      return;
+    }
+    // String path: pre-encoded b64 passes through, typed arrays on
+    // engines without the native lane encode first.
+    var b64 = (typeof data === 'string') ? data : jsr.b64encode(data);
     var d = String(b64 == null ? '' : b64);
     // Engines with per-engine isolation (QuickJS) advertise __JSR_RAW_BINARY__:
     // skip the {iid,id} wrapper — a plain `<name> <base64>` string crosses

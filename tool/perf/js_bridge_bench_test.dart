@@ -160,6 +160,11 @@ const String widgetJs = '''
         sentBytes = b642.length;
         var c3 = Date.now();
         pending.push(jsr.hostCall('bench.b64', { b64: b642 }).then(function() { perCall.push(Date.now() - c3); }));
+      } else if (mode === 'typed-fire') {
+        var f4 = packF32(items);
+        var c6 = Date.now();
+        jsr.hostCallBinary('bench.bin', f4);
+        perCall.push(Date.now() - c6);
       } else if (mode === 'bin-fire') {
         var f2 = packF32(items);
         var b3 = jsr.b64encode(new Uint8Array(f2.buffer));
@@ -240,6 +245,11 @@ void main() {
       {'name': 'binFire100', 'frames': 200, 'items': 100, 'mode': 'bin-fire'},
       {'name': 'binFire300', 'frames': 100, 'items': 300, 'mode': 'bin-fire'},
       {'name': 'binFire1000', 'frames': 40, 'items': 1000, 'mode': 'bin-fire'},
+      // Native bytes lane: typed array crosses by (pointer, length) —
+      // no b64 encode at all.
+      {'name': 'typedFire100', 'frames': 200, 'items': 100, 'mode': 'typed-fire'},
+      {'name': 'typedFire300', 'frames': 100, 'items': 300, 'mode': 'typed-fire'},
+      {'name': 'typedFire1000', 'frames': 40, 'items': 1000, 'mode': 'typed-fire'},
     ];
 
     final sw = Stopwatch()..start();

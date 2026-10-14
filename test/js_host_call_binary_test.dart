@@ -33,6 +33,11 @@ const String widgetJs = '''
       for (var k = 0; k < f.length; k++) f[k] = k * 0.5;
       jsr.hostCallBinary(payload.name, jsr.b64encode(new Uint8Array(f.buffer)));
       jsr.exportState({ sent: payload.count });
+    } else if (id === 'send-typed') {
+      var f = new Float32Array(payload.count * 3);
+      for (var k = 0; k < f.length; k++) f[k] = k * 0.25;
+      jsr.hostCallBinary(payload.name, f);
+      jsr.exportState({ sentTyped: payload.count });
     } else if (id === 'burst') {
       var u8 = new Uint8Array(64);
       for (var b = 0; b < payload.times; b++) jsr.hostCallBinary('burst.ch', jsr.b64encode(u8));
@@ -163,6 +168,45 @@ void main() {
     await backend.callEvent('empty-payload', {});
     await exportedStateOf(backend);
     expect(received['empty'], isEmpty);
+  });
+
+  test('native bytes lane: typed arrays cross by (pointer, length)',
+      () async {
+    if (!File(QuickjsFfi.libraryPath).existsSync()) return;
+    final received = <String, List<int>>{};
+    final backend = await bootEngine(
+      onHostCallBinary: (name, data) => received[name] = data.toList(),
+      received: received,
+    );
+    await backend.callEvent('send-typed', {'name': 'kart.f32', 'count': 6});
+    final state = await exportedStateOf(backend);
+    expect(state?['sentTyped'], 6);
+    final bytes = received['kart.f32']!;
+    expect(bytes.length, 6 * 3 * 4);
+    final floats = Float32List.view(Uint8List.fromList(bytes).buffer);
+    for (var k = 0; k < floats.length; k++) {
+      expect(floats[k], k * 0.25);
+    }
+  });
+
+  test('typed arrays fall back to b64 when the native lane is absent',
+      () async {
+    final received = <String, List<int>>{};
+    final backend = await bootEngine(
+      onHostCallBinary: (name, data) => received[name] = data.toList(),
+      received: received,
+    );
+    // Reboot with a host bootstrap that shadows the native global: the
+    // widget-side shim must degrade to the b64 string path and still
+    // deliver the bytes (this is every JSC / old-native-library runtime).
+    await backend.run(
+      widgetJs,
+      hostBootstrapJs: '__jsrSendBytes = undefined;',
+    );
+    await backend.callEvent('send-typed', {'name': 'fallback.ch', 'count': 2});
+    await exportedStateOf(backend);
+    final bytes = received['fallback.ch'];
+    expect(bytes, hasLength(2 * 3 * 4));
   });
 
   test('bridge-level: the binary channel works without a QuickJS engine',

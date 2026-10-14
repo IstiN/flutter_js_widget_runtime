@@ -364,6 +364,14 @@ class JsWidgetBridge {
   /// node), not a host capability. Older runtimes without the interceptor
   /// reject these names when no host handler exists — widgets probe with
   /// `voxel.attach` and degrade gracefully.
+  /// Direct binary delivery from engines that crossed the bytes lane
+  /// (QuickJS FFI typed-array host function) — skips channel parsing
+  /// entirely. The [data] view may be call-scoped on some engines:
+  /// handlers must not retain it without copying.
+  void dispatchBinary(String name, Uint8List data) {
+    onHostCallBinary?.call(name, data);
+  }
+
   /// Fire-and-forget binary side channel: payload is `<name> <base64>`.
   /// No JSON body, no promise round trip — the cheapest JS->Dart lane for
   /// high-frequency bulk data. Pairs with [onHostCallBinary].
