@@ -286,6 +286,13 @@ class QuickjsWidgetEngineBackend implements JsWidgetEngineBackend {
       _handleSendMessage(rt, argsJson);
       return null;
     });
+    // Native bytes lane (quickjs_runtime >= 0.3.4): JS calls
+    // __jsrSendBytes(name, typedArray) and the raw pointer/length crosses
+    // with zero JSON, zero base64, zero copies. Older libraries simply
+    // never define the global — the bootstrap falls back to the b64 lane.
+    if (rt.hasBytesFn) {
+      rt.registerHostBytesFn('__jsrSendBytes', _bridge.dispatchBinary);
+    }
   }
 
   Future<void> _fetchHandler(
