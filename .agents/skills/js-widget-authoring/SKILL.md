@@ -586,14 +586,23 @@ prefer `flChart` for anything user-facing.
 - `voxel` — `{id, width?, height?}` — chunked voxel world rendered by a
   pure-Dart software rasterizer (no host object needed). Widget JS owns the
   world state through `jsr.hostCall` (always available):
-  `voxel.attach {id}` → `{ok:true}` probe (older runtimes reject — degrade
-  gracefully); `voxel.mesh {id, key, origin, positions, colors, indices}`
-  pushes ONE chunk's vertex buffers as plain flat arrays (positions xyz ×3
-  per vertex, colors rgb, quad/tri indices, CCW-from-outside winding) —
-  rebuild and re-push only chunks touched by an edit; `voxel.camera
-  {id, position, yaw, pitch, fov?, light?, skyColor?}` steers the view
-  (Minecraft yaw/pitch convention) and repaints the node. Reference:
-  `example/widgets/voxel-sandbox/`.
+  `voxel.attach {id}` → `{ok:true, blocks:true}` probe (older runtimes
+  reject — degrade gracefully); `voxel.mesh {id, key, origin, positions,
+  colors, indices}` pushes ONE chunk's vertex buffers as plain flat arrays
+  (positions xyz ×3 per vertex, colors rgb, quad/tri indices,
+  CCW-from-outside winding) — rebuild and re-push only chunks touched by an
+  edit; `voxel.blocks {id, key, origin, size, blocks, palette, shade?}` is
+  the native-fast path: raw block bytes (base64, `0`=air, index
+  `(y*sz+z)*sx+x`) plus a per-type tone palette (`['#rrggbb'×4]` or
+  `{top:[…], side:[…]}`, cached per instance) — the runtime greedy-meshes
+  in Dart AOT (tone-keyed merging, cross-chunk face culling, per-face
+  brightness classes, deterministic per-cell tone hash) and returns
+  `{ok:true, faces}`. Prefer `voxel.blocks` on engines without JIT (the
+  JS interpreter leaves the meshing hot path); fall back to `voxel.mesh`
+  when the attach probe lacks `blocks:true`.
+  `voxel.camera {id, position, yaw, pitch, fov?, light?, skyColor?}` steers
+  the view (Minecraft yaw/pitch convention) and repaints the node.
+  Reference: `example/widgets/voxel-sandbox/`.
 
 ### Gestures
 

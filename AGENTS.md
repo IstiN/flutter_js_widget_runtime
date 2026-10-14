@@ -106,11 +106,14 @@ Renderer effects ported from YoClip: radial gradients, box shadows, blur nodes, 
 ## Voxel Support
 
 - Add a `voxel` node to the JSON tree — no host object needed. The world
-  state is bridge-owned; widget JS fills it with `jsr.hostCall('voxel.mesh',
-  {id, key, origin, positions, colors, indices})` per chunk (plain flat
-  arrays; rebuild only dirty chunks on edit) and steers the camera with
-  `jsr.hostCall('voxel.camera', {id, position, yaw, pitch, light,
-  skyColor})`. `voxel.attach` probes support on older runtimes.
+  state is bridge-owned; widget JS fills it with `jsr.hostCall('voxel.blocks',
+  {id, key, origin, size, blocks, palette})` per chunk — raw base64 block
+  bytes + tone palette, greedy-meshed in Dart AOT (preferred on engines
+  without JIT; the attach probe advertises `blocks: true`) — or with
+  `jsr.hostCall('voxel.mesh', {id, key, origin, positions, colors, indices})`
+  (plain flat vertex arrays; the JS-meshed fallback). Rebuild only dirty
+  chunks on edit. Camera: `jsr.hostCall('voxel.camera', {id, position, yaw,
+  pitch, light, skyColor})`. `voxel.attach` probes support on older runtimes.
 - Rendering is a pure-Dart software pipeline on `CustomPaint`
   (`lib/src/renderer/nodes/js_voxel_node.dart`): frustum culling per
   chunk, near-plane clipping, painter's-order depth sort. No native deps.
