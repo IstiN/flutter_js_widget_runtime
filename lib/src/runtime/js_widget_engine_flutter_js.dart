@@ -32,6 +32,7 @@ class FlutterJsWidgetEngineBackend implements JsWidgetEngineBackend {
       execHandler: (id, cmd) async {},
       openUrlHandler: (id, url) async {},
       onHostCall: config.onHostCall,
+      onHostCallBinary: config.onHostCallBinary,
       captureHandler: config.captureHandler,
       intervalTickHandler: (id) {},
       rafTickHandler: (id, elapsedMs) {},
@@ -387,7 +388,8 @@ class FlutterJsWidgetEngineBackend implements JsWidgetEngineBackend {
         channel == '__jsr_log' ||
         channel == '__jsr_set_title' ||
         channel == '__jsr_clear_interval' ||
-        channel == '__jsr_caf';
+        channel == '__jsr_caf' ||
+        channel == '__jsr_host_call_binary';
     return (dynamic payload) {
       // Unwrap {"iid":..., "id":...} wrappers produced by the bootstrap for
       // plain-id channels back into the raw id string the handler expects.

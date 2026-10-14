@@ -209,6 +209,15 @@ The `cli` block is how coding agents discover your widget — fill it in:
   it — prefer those when your host defines them. Exception: `voxel.*`
   names are a CORE capability (intercepted before the host handler; always
   available) — see the voxel node below.
+- `jsr.hostCallBinary(name, b64)` — fire-and-forget binary lane to
+  `JsRuntimeConfig.onHostCallBinary` (receives raw bytes). NO promise, NO
+  JSON parse: the cheapest JS→Dart path (~3× faster than `hostCall`).
+  Use for per-frame bulk streams (≥30 items/frame): pack with
+  `jsr.b64encode(new Uint8Array(f32.buffer))` — e.g. one Float32 batch of
+  `[id, x, y, z, rx, ry, rz, sx, sy, sz]` per instance. Missing handler
+  drops silently — degrade, don't depend.
+- `jsr.b64encode(u8OrBuffer)` → String — ES5 base64 for typed arrays
+  (pairs with `hostCallBinary`; byte-exact with Dart `base64`).
 - `jsr.capture(opts?)` → Promise<{path, width, height}> — self-screenshot
   of the widget's CURRENT rendered tree. Core capability, host-dependent:
   the jsr_widget CLI resolves a PNG path under `--capture-dir` (see

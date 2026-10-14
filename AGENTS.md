@@ -70,6 +70,13 @@ Core methods:
   resolve path, works on VM engines and the web worker). Host shims
   (`jsr.fa.*`, `jsr.yoloit.*`) build on it instead of hardcoding channels;
   when no handler is configured the promise rejects.
+- `jsr.hostCallBinary(name, b64)` + `jsr.b64encode(typedArray)` — the
+  fire-and-forget BINARY lane for per-frame bulk data (transforms,
+  particles, audio levels): no JSON body parse, no promise round trip;
+  delivers `(name, Uint8List)` to `JsRuntimeConfig.onHostCallBinary`.
+  ~3× faster than a JSON `hostCall` at 60 Hz (bridge microbench:
+  0.30 vs 0.92 ms per 100-transform frame). Missing handler drops
+  silently — probe or degrade.
 - `jsr.loadAsset(path)` — load an asset file as string.
 - **Multi-file widgets**: relative ES-module-style imports are inlined at load time — `import './helpers.js'` / `import { x } from './lib/x.js'` (exports stripped, each file inlined once, `../` resolved). No manifest `files` list needed (it still works as an explicit ordered concat). `jsr.include('path')` inlines a file at the call site. No runtime module system: no bare package specifiers, no dynamic import.
 - `jsr.setTitle(title)` — update widget title.
