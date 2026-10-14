@@ -209,9 +209,18 @@ var jsr = {
   // host, malformed payload) are dropped: probe with jsr.hostCall probing
   // or design the widget to degrade. `name` must not contain spaces.
   hostCallBinary: function(name, b64){
-    var n = String(name).split(' ').join('_');
+    var n = String(name).replace(/[^A-Za-z0-9._\-]/g, '_');
     var d = String(b64 == null ? '' : b64);
-    __send('__jsr_host_call_binary', n + ' ' + d);
+    // Engines with per-engine isolation (QuickJS) advertise __JSR_RAW_BINARY__:
+    // skip the {iid,id} wrapper — a plain `<name> <base64>` string crosses
+    // with zero JSON work on either side. Shared-runtime engines keep the
+    // tagged path for correct cross-engine routing.
+    var d2 = n + ' ' + d;
+    if (typeof __JSR_RAW_BINARY__ !== 'undefined') {
+      sendMessage('__jsr_host_call_binary', d2);
+    } else {
+      __send('__jsr_host_call_binary', d2);
+    }
   },
 
   // Self-screenshot: resolves with a host-produced capture of the widget's
