@@ -132,6 +132,10 @@ class QuickjsWidgetEngineBackend implements JsWidgetEngineBackend {
       // every render tree with it (see the flutter_js backend for the
       // rationale — cross-engine render leak filtering).
       runtime.setGlobal('__IID', _config.instanceId ?? _config.widgetId);
+      // QuickJS runtimes are per-engine: the binary lane may skip the
+      // bootstrap's {iid,id} tagging (the JSC cross-engine router never
+      // sees these messages).
+      runtime.setGlobal('__JSR_RAW_BINARY__', 1);
       final bootstrapError = <String?>[];
       runtime.eval(kJsWidgetBootstrap, errMsg: bootstrapError);
       if (bootstrapError.isNotEmpty) {
@@ -343,6 +347,20 @@ class QuickjsWidgetEngineBackend implements JsWidgetEngineBackend {
   }
 
   void _handleSendMessage(QuickjsRuntime rt, String argsJson) {
+    // Binary lane fast path: the payload is `<name> <base64>` — a plain
+    // string with NO escapable characters (b64 alphabet + sanitized name),
+    // so the JSON envelope can be sliced without any decode at all.
+    const binPrefix = '["__jsr_host_call_binary","';
+    if (argsJson.startsWith(binPrefix) && argsJson.endsWith('"]')) {
+      if (!_isLive(rt)) return;
+      final payload =
+          argsJson.substring(binPrefix.length, argsJson.length - 2);
+      final sep = payload.indexOf(' ');
+      if (sep > 0) {
+        unawaited(_bridge.dispatch('__jsr_host_call_binary', payload));
+      }
+      return;
+    }
     // `__jsr_log` dominates bridge traffic (~93% in profiled runs): every
     // console.log from widget JS crosses here. Fast-path it without the
     // generic jsonDecode of the whole payload.
