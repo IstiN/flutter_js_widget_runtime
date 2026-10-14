@@ -179,11 +179,15 @@ extension on JsonWidgetRenderer {
     if (deco != null) {
       return _boxDecoration(deco.cast<String, dynamic>());
     }
-    // Top-level yoclip scene vocabulary (the skill teaches gradient/shadow/
-    // border/radius directly on the node): fold everything into one
-    // BoxDecoration. `gradient` suppresses the flat color (the gradient is
-    // the fill); a border only draws when borderWidth > 0; `radius` is the
-    // primary spelling with `borderRadius` as the Flutter-ish alias.
+    return _foldNodeDecoration(m);
+  }
+
+  /// Top-level yoclip scene vocabulary (the skill teaches gradient/shadow/
+  /// border/radius directly on the node): fold everything into one
+  /// BoxDecoration. `gradient` suppresses the flat color (the gradient is
+  /// the fill); a border only draws when borderWidth > 0; `radius` is the
+  /// primary spelling with `borderRadius` as the Flutter-ish alias.
+  Decoration? _foldNodeDecoration(Map<String, dynamic> m) {
     final gradient = _gradient(m['gradient'] as Map?);
     final bg = m['backgroundColor'] as String? ?? m['color'] as String?;
     final borderColor = _color(m['borderColor'] as String?);
@@ -194,9 +198,8 @@ extension on JsonWidgetRenderer {
         ? BorderRadius.circular(radiusValue)
         : null;
     final shadows = m['shadows'] ?? m['shadow'];
-    final boxShadow = shadows is Map
-        ? _boxShadows([shadows])
-        : _boxShadows(shadows as List?);
+    final boxShadow =
+        shadows is Map ? _boxShadows([shadows]) : _boxShadows(shadows as List?);
     if (gradient == null &&
         bg == null &&
         borderColor == null &&
@@ -272,31 +275,10 @@ extension on JsonWidgetRenderer {
     // pills rendered left-flush instead of centered). Force min main axis
     // so the Align has something to center. An explicit mainAxisSize wins.
     final child = m['child'];
-    final minAxisChild = m['alignment'] != null &&
-        child is Map &&
-        (child['type'] == 'row' || child['type'] == 'column') &&
-        child['mainAxisSize'] == null;
+    final minAxisChild = _needsAlignContentMinMainAxis(m, child);
     if (minAxisChild) child[kAlignContentMinMainAxis] = true;
     final p = _containerProps(m);
     if (minAxisChild) child.remove(kAlignContentMinMainAxis);
-    // Parity with yoclip's fixed-box rule (yoclipFixedBoxContentAlignment):
-    // a sized box with NO explicit alignment around a lone text child means
-    // "center the label in the box" — horizontal follows the text's own
-    // textAlign, vertical is always centered (Flutter would press glyphs to
-    // the top of the tight box). Explicit alignment keeps Container's own
-    // Align semantics; non-text children keep tight fill.
-    Widget? content = p.child;
-    if (p.alignment == null && (p.width != null || p.height != null)) {
-      final contentAlign = _fixedBoxContentAlignment(m);
-      if (contentAlign != null) {
-        content = Align(
-          alignment: contentAlign,
-          widthFactor: p.width == null ? 1 : null,
-          heightFactor: p.height == null ? 1 : null,
-          child: content,
-        );
-      }
-    }
     return _sizeShield(
       ctor(
         width: p.width,
@@ -306,9 +288,56 @@ extension on JsonWidgetRenderer {
         alignment: p.alignment,
         decoration: p.decoration,
         transform: _matrix4(m['transform']),
-        child: content,
+        child: _fixedBoxAlign(m, p, p.child),
       ),
       m,
+    );
+  }
+
+  /// CSS-authored content centering: an explicit `alignment` around a
+  /// row/column child means "center the content in the box". Flutter's
+  /// Container(alignment:) wraps the child in an Align that hands it LOOSE
+  /// constraints — a default max-size row then stretches across the whole
+  /// box and its children pin to the start edge (the dmtools demo's stage
+  /// pills rendered left-flush instead of centered). Force min main axis
+  /// so the Align has something to center. An explicit mainAxisSize wins.
+  bool _needsAlignContentMinMainAxis(Map<String, dynamic> m, dynamic child) {
+    return m['alignment'] != null &&
+        child is Map &&
+        (child['type'] == 'row' || child['type'] == 'column') &&
+        child['mainAxisSize'] == null;
+  }
+
+  /// Parity with yoclip's fixed-box rule (yoclipFixedBoxContentAlignment):
+  /// a sized box with NO explicit alignment around a lone text child means
+  /// "center the label in the box" — horizontal follows the text's own
+  /// textAlign, vertical is always centered (Flutter would press glyphs to
+  /// the top of the tight box). Explicit alignment keeps Container's own
+  /// Align semantics; non-text children keep tight fill.
+  Widget? _fixedBoxAlign(
+    Map<String, dynamic> m,
+    ({
+      double? width,
+      double? height,
+      EdgeInsetsGeometry? padding,
+      EdgeInsetsGeometry? margin,
+      Alignment? alignment,
+      Decoration? decoration,
+      Widget? child,
+    })
+    p,
+    Widget? content,
+  ) {
+    if (p.alignment != null || (p.width == null && p.height == null)) {
+      return content;
+    }
+    final contentAlign = _fixedBoxContentAlignment(m);
+    if (contentAlign == null) return content;
+    return Align(
+      alignment: contentAlign,
+      widthFactor: p.width == null ? 1 : null,
+      heightFactor: p.height == null ? 1 : null,
+      child: content,
     );
   }
 

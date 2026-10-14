@@ -318,22 +318,30 @@ class JsVoxelWorld extends ChangeNotifier {
     final blocks = _blocksByInstance[id]?[key];
     final palette = _paletteByInstance[id];
     if (blocks == null || palette == null) return null;
-    final store = _blocksByInstance[id]!;
     return meshVoxelBlocks(
       chunk: blocks,
       palette: palette,
-      neighborAt: (lx, y, lz) {
-        final dgx = lx < 0 ? -1 : (lx >= blocks.sx ? 1 : 0);
-        final dgz = lz < 0 ? -1 : (lz >= blocks.sz ? 1 : 0);
-        final nb = store['${blocks.gx + dgx},${blocks.gz + dgz}'];
-        if (nb == null || y < 0 || y >= nb.sy) return 0;
-        final nlx = lx - dgx * nb.sx;
-        final nlz = lz - dgz * nb.sz;
-        if (nlx < 0 || nlx >= nb.sx || nlz < 0 || nlz >= nb.sz) return 0;
-        return nb.data[(y * nb.sz + nlz) * nb.sx + nlx];
-      },
+      neighborAt: _neighborLookup(id, blocks),
       origin: blocks.origin,
     );
+  }
+
+  /// Cross-chunk block lookup for meshing [blocks]: resolves the
+  /// grid-adjacent resident chunk (one axis past the border at a time)
+  /// or air when the neighbor is missing.
+  int Function(int lx, int y, int lz) _neighborLookup(
+      String id, JsVoxelBlocks blocks) {
+    final store = _blocksByInstance[id] ?? const {};
+    return (lx, y, lz) {
+      final dgx = lx < 0 ? -1 : (lx >= blocks.sx ? 1 : 0);
+      final dgz = lz < 0 ? -1 : (lz >= blocks.sz ? 1 : 0);
+      final nb = store['${blocks.gx + dgx},${blocks.gz + dgz}'];
+      if (nb == null || y < 0 || y >= nb.sy) return 0;
+      final nlx = lx - dgx * nb.sx;
+      final nlz = lz - dgz * nb.sz;
+      if (nlx < 0 || nlx >= nb.sx || nlz < 0 || nlz >= nb.sz) return 0;
+      return nb.data[(y * nb.sz + nlz) * nb.sx + nlx];
+    };
   }
 
   /// A newly-stored chunk can hide (or reveal) the border faces of its

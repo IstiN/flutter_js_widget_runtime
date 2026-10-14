@@ -72,7 +72,26 @@ class JsVoxelBlocks {
   /// Parses and validates a `voxel.blocks` payload up to (but not
   /// including) meshing. Returns null when the payload is unusable.
   static JsVoxelBlocks? fromDynamic(Map<String, dynamic> args) {
-    final size = args['size'];
+    final dims = _parseDims(args['size']);
+    if (dims == null) return null;
+    final total = dims[0] * dims[1] * dims[2];
+    if (total > (1 << 20)) return null;
+    final data = _decodeBlocks(args['blocks'], total);
+    if (data == null) return null;
+    final grid = parseGridKey(args['key']?.toString() ?? '');
+    return JsVoxelBlocks(
+      gx: grid?.$1 ?? 0,
+      gz: grid?.$2 ?? 0,
+      sx: dims[0],
+      sy: dims[1],
+      sz: dims[2],
+      data: data,
+      origin: _parseOrigin(args['origin']),
+    );
+  }
+
+  /// `[sx, sy, sz]` with each dim in 1..256, or null for garbage.
+  static List<int>? _parseDims(dynamic size) {
     if (size is! List || size.length != 3) return null;
     final dims = <int>[];
     for (final d in size) {
@@ -81,9 +100,11 @@ class JsVoxelBlocks {
       if (v < 1 || v > 256) return null;
       dims.add(v);
     }
-    final total = dims[0] * dims[1] * dims[2];
-    if (total > (1 << 20)) return null;
-    final raw = args['blocks'];
+    return dims;
+  }
+
+  /// Base64-decodes the block bytes and checks the exact length.
+  static Uint8List? _decodeBlocks(dynamic raw, int total) {
     if (raw is! String || raw.isEmpty) return null;
     final Uint8List data;
     try {
@@ -91,30 +112,18 @@ class JsVoxelBlocks {
     } on FormatException {
       return null;
     }
-    if (data.length != total) return null;
-    final grid = parseGridKey(args['key']?.toString() ?? '');
-    final rawOrigin = args['origin'];
-    var origin = const <double>[0, 0, 0];
-    if (rawOrigin is List && rawOrigin.length == 3) {
-      final o = <double>[];
-      for (final v in rawOrigin) {
-        if (v is! num) {
-          o.clear();
-          break;
-        }
-        o.add(v.toDouble());
-      }
-      if (o.length == 3) origin = o;
+    return data.length == total ? data : null;
+  }
+
+  /// `[x, y, z]` numbers, or the zero origin for garbage.
+  static List<double> _parseOrigin(dynamic raw) {
+    if (raw is! List || raw.length != 3) return const <double>[0, 0, 0];
+    final o = <double>[];
+    for (final v in raw) {
+      if (v is! num) return const <double>[0, 0, 0];
+      o.add(v.toDouble());
     }
-    return JsVoxelBlocks(
-      gx: grid?.$1 ?? 0,
-      gz: grid?.$2 ?? 0,
-      sx: dims[0],
-      sy: dims[1],
-      sz: dims[2],
-      data: data,
-      origin: origin,
-    );
+    return o;
   }
 
   /// `"cx,cz"` → (cx, cz); null for keys outside the chunk grid.
@@ -344,8 +353,6 @@ JsVoxelChunk? meshVoxelBlocks({
   var mask = Int32List(sliceCap);
   var cellColor = Float32List(sliceCap * 3);
   final fc = Float32List(3);
-  // Per-axis slot of the (slice, u, v) coordinates, per face.
-  final p = List<int>.filled(3, 0), q = List<int>.filled(3, 0);
 
   for (var f = 0; f < 6; f++) {
     final a = _Faces.axisOf[f];
@@ -365,58 +372,10 @@ JsVoxelChunk? meshVoxelBlocks({
     final ox = origin[0].toInt(), oz = origin[2].toInt();
 
     for (var s = 0; s < sizes[a]; s++) {
-      // Raster the slice: visible faces only, merge key = packed tone rgb
-      // (+1 so air stays 0) — same-color neighbors collapse, differing
-      // grain stays crisp.
-      for (var vv = 0; vv < sv; vv++) {
-        for (var uu = 0; uu < su; uu++) {
-          p[a] = s;
-          p[u] = uu;
-          p[v] = vv;
-          final b = blockAt(p[0], p[1], p[2]);
-          if (b == 0) continue;
-          q[a] = s + dn;
-          q[u] = uu;
-          q[v] = vv;
-          if (blockAt(q[0], q[1], q[2]) != 0) continue;
-          palette.faceColor(b, vertical, ox + p[0], p[1], oz + p[2], faceClass, fc);
-          final ci = (vv * su + uu) * 3;
-          cc[ci] = fc[0];
-          cc[ci + 1] = fc[1];
-          cc[ci + 2] = fc[2];
-          m[vv * su + uu] =
-              (((fc[0] * 255).round() << 16) |
-                  ((fc[1] * 255).round() << 8) |
-                  (fc[2] * 255).round()) +
-              1;
-        }
-      }
-      // Greedy rectangles over the mask.
-      for (var vv = 0; vv < sv; vv++) {
-        for (var uu = 0; uu < su; uu++) {
-          final key = m[vv * su + uu];
-          if (key == 0) continue;
-          var wdt = 1;
-          while (uu + wdt < su && m[vv * su + uu + wdt] == key) {
-            wdt++;
-          }
-          var hgt = 1;
-          outer:
-          while (vv + hgt < sv) {
-            for (var du = 0; du < wdt; du++) {
-              if (m[(vv + hgt) * su + uu + du] != key) break outer;
-            }
-            hgt++;
-          }
-          _emitQuad(positions, colors, indices, f, s, positive, a, u, v, uu,
-              uu + wdt, vv, vv + hgt, cc, (vv * su + uu) * 3, origin);
-          for (var dv = 0; dv < hgt; dv++) {
-            for (var du2 = 0; du2 < wdt; du2++) {
-              m[(vv + dv) * su + uu + du2] = 0;
-            }
-          }
-        }
-      }
+      _rasterSlice(chunk, palette, blockAt, m, cc, fc, f, a, u, v, s, dn,
+          su, sv, vertical, faceClass, ox, oz);
+      _greedyScan(m, cc, su, sv, f, a, u, v, s, positive, positions, colors,
+          indices, origin);
     }
   }
 
@@ -428,6 +387,103 @@ JsVoxelChunk? meshVoxelBlocks({
     origin: Float32List.fromList(origin),
     overlay: overlay,
   );
+}
+
+/// Rasters ONE slice of ONE face direction into the merge mask: visible
+/// faces only, merge key = packed tone rgb (+1 so air stays 0) —
+/// same-color neighbors collapse, differing grain stays crisp.
+void _rasterSlice(
+  JsVoxelBlocks chunk,
+  JsVoxelPalette palette,
+  int Function(int lx, int y, int lz) blockAt,
+  Int32List m,
+  Float32List cc,
+  Float32List fc,
+  int f,
+  int a,
+  int u,
+  int v,
+  int s,
+  int dn,
+  int su,
+  int sv,
+  bool vertical,
+  int faceClass,
+  int ox,
+  int oz,
+) {
+  for (var vv = 0; vv < sv; vv++) {
+    for (var uu = 0; uu < su; uu++) {
+      final p = [0, 0, 0];
+      p[a] = s;
+      p[u] = uu;
+      p[v] = vv;
+      final b = blockAt(p[0], p[1], p[2]);
+      if (b == 0) continue;
+      final q = [0, 0, 0];
+      q[a] = s + dn;
+      q[u] = uu;
+      q[v] = vv;
+      if (blockAt(q[0], q[1], q[2]) != 0) continue;
+      palette.faceColor(
+          b, vertical, ox + p[0], p[1], oz + p[2], faceClass, fc);
+      final ci = (vv * su + uu) * 3;
+      cc[ci] = fc[0];
+      cc[ci + 1] = fc[1];
+      cc[ci + 2] = fc[2];
+      m[vv * su + uu] =
+          (((fc[0] * 255).round() << 16) |
+              ((fc[1] * 255).round() << 8) |
+              (fc[2] * 255).round()) +
+          1;
+    }
+  }
+}
+
+/// Greedy rectangles over a rastered slice: walk the mask, extend each
+/// seed as far right and down as the same merge key holds, emit the quad
+/// and clear the consumed cells.
+void _greedyScan(
+  Int32List m,
+  Float32List cc,
+  int su,
+  int sv,
+  int f,
+  int a,
+  int u,
+  int v,
+  int s,
+  bool positive,
+  _Sink32 positions,
+  _Sink32 colors,
+  _SinkU32 indices,
+  List<double> origin,
+) {
+  for (var vv = 0; vv < sv; vv++) {
+    for (var uu = 0; uu < su; uu++) {
+      final key = m[vv * su + uu];
+      if (key == 0) continue;
+      var wdt = 1;
+      while (uu + wdt < su && m[vv * su + uu + wdt] == key) {
+        wdt++;
+      }
+      var hgt = 1;
+      outer:
+      while (vv + hgt < sv) {
+        for (var du = 0; du < wdt; du++) {
+          if (m[(vv + hgt) * su + uu + du] != key) break outer;
+        }
+        hgt++;
+      }
+      _emitQuad(positions, colors, indices, f, s, positive, a, u, v, uu,
+          uu + wdt, vv, vv + hgt, cc, (vv * su + uu) * 3, origin);
+      for (var dv = 0; dv < hgt; dv++) {
+        for (var du2 = 0; du2 < wdt; du2++) {
+          m[(vv + dv) * su + uu + du2] = 0;
+        }
+      }
+    }
+  }
 }
 
 /// Emits one merged quad: 4 corner vertices + 2 CCW triangles, flat
