@@ -3,30 +3,19 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:js_widget_runtime/js_widget_runtime.dart';
 import 'package:js_widget_runtime/src/renderer/nodes/js_path_node.dart';
 
+import 'renderer_test_scaffold.dart';
+
 void main() {
   group('JsonWidgetRenderer effects, inputs and scrolling', () {
-    late List<(String, Map<String, dynamic>)> events;
-    late JsonWidgetRenderer renderer;
+    final s = RendererScaffold();
 
-    setUp(() {
-      events = [];
-      renderer = JsonWidgetRenderer(
-        onEvent: (id, payload) => events.add((id, payload)),
-      );
-    });
+    setUp(s.reset);
 
     Widget buildTree(
       Map<String, dynamic>? tree, {
       void Function(String, Map<String, dynamic>)? onGestureEvent,
-    }) {
-      final r = onGestureEvent == null
-          ? renderer
-          : JsonWidgetRenderer(
-              onEvent: (id, payload) => events.add((id, payload)),
-              onGestureEvent: onGestureEvent,
-            );
-      return MaterialApp(home: Scaffold(body: r.build(tree)));
-    }
+    }) =>
+        s.buildTree(tree, onGestureEvent: onGestureEvent);
 
     testWidgets('chart is empty without points', (tester) async {
       await tester.pumpWidget(buildTree({'type': 'chart'}));
@@ -590,7 +579,7 @@ void main() {
 
     testWidgets('custom builder for video node', (tester) async {
       final customRenderer = JsonWidgetRenderer(
-        onEvent: (id, payload) => events.add((id, payload)),
+        onEvent: (id, payload) => s.events.add((id, payload)),
         customBuilders: {
           'video': (context, m) => Text('custom video: ${m['src']}'),
         },
@@ -681,9 +670,9 @@ void main() {
       );
       await tester.enterText(find.byType(TextField), 'line one\nline two');
       await tester.pump();
-      final change = events.firstWhere((e) => e.$1 == 'edited');
+      final change = s.events.firstWhere((e) => e.$1 == 'edited');
       expect(change.$2['value'], 'line one\nline two');
-      final fieldEvent = events.firstWhere((e) => e.$1 == '_field');
+      final fieldEvent = s.events.firstWhere((e) => e.$1 == '_field');
       expect(fieldEvent.$2['key'], 'body');
       expect(fieldEvent.$2['value'], 'line one\nline two');
     });
@@ -699,7 +688,7 @@ void main() {
       await tester.enterText(find.byType(TextField), 'multi\nline');
       await tester.testTextInput.receiveAction(TextInputAction.done);
       await tester.pump();
-      final submit = events.firstWhere((e) => e.$1 == 'submitted');
+      final submit = s.events.firstWhere((e) => e.$1 == 'submitted');
       expect(submit.$2['value'], 'multi\nline');
     });
 
