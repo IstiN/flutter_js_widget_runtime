@@ -71,6 +71,7 @@ class JsWidgetBridge {
     required this.execHandler,
     this.openUrlHandler,
     this.onHostCall,
+    this.onHostCallBinary,
     this.captureHandler,
     required this.intervalTickHandler,
     required this.rafTickHandler,
@@ -104,6 +105,10 @@ class JsWidgetBridge {
   /// [JsRuntimeConfig.onHostCall].
   final Future<Object?> Function(String name, Map<String, dynamic> args)?
       onHostCall;
+
+  /// Binary side channel behind `jsr.hostCallBinary` — see
+  /// [JsRuntimeConfig.onHostCallBinary].
+  final void Function(String name, Uint8List data)? onHostCallBinary;
 
   /// Self-screenshot capability behind `jsr.capture()` — see
   /// [JsRuntimeConfig.captureHandler]. Mutable: the jsr_widget CLI harness
@@ -209,6 +214,7 @@ class JsWidgetBridge {
     '__jsr_raf': _handleRaf,
     '__jsr_caf': _handleCaf,
     '__jsr_scene3d_command': _handleScene3dCommand,
+    '__jsr_host_call_binary': _handleHostCallBinary,
   };
 
   /// Channels whose result must be awaited by [dispatch].
@@ -358,6 +364,24 @@ class JsWidgetBridge {
   /// node), not a host capability. Older runtimes without the interceptor
   /// reject these names when no host handler exists — widgets probe with
   /// `voxel.attach` and degrade gracefully.
+  /// Fire-and-forget binary side channel: payload is `<name> <base64>`.
+  /// No JSON body, no promise round trip — the cheapest JS->Dart lane for
+  /// high-frequency bulk data. Pairs with [onHostCallBinary].
+  void _handleHostCallBinary(dynamic payload) {
+    final handler = onHostCallBinary;
+    if (handler == null || payload is! String) return;
+    final sep = payload.indexOf(' ');
+    if (sep <= 0) return;
+    final name = payload.substring(0, sep);
+    Uint8List data;
+    try {
+      data = base64Decode(payload.substring(sep + 1));
+    } catch (_) {
+      return; // Malformed payload: drop silently, the lane is lossy-tolerant.
+    }
+    handler(name, data);
+  }
+
   Future<void> _handleHostCall(dynamic args) async {
     final req = _parseArgs(args);
     final id = req['id'] as String;

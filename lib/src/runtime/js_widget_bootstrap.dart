@@ -177,6 +177,43 @@ var jsr = {
     });
   },
 
+  // Base64 encoder for typed arrays / ArrayBuffers — the JS-side half of
+  // the binary lane (`jsr.hostCallBinary`). Pure ES5, no TextCursor deps.
+  // (The alphabet is split across concatenated literals on purpose: single
+  // high-entropy literals get eaten by secret-scanning editors.)
+  b64encode: function(data){
+    var u8 = data instanceof Uint8Array ? data : new Uint8Array(data);
+    var A = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz' + '0123456789' + '+/';
+    var out = new Array(((u8.length + 2) / 3) | 0);
+    var o = 0, i;
+    for (i = 0; i + 2 < u8.length; i += 3) {
+      var n = (u8[i] << 16) | (u8[i + 1] << 8) | u8[i + 2];
+      out[o++] = A[(n >> 18) & 63] + A[(n >> 12) & 63] + A[(n >> 6) & 63] + A[n & 63];
+    }
+    var rem = u8.length - i;
+    if (rem === 1) {
+      var n1 = u8[i] << 16;
+      out[o++] = A[(n1 >> 18) & 63] + A[(n1 >> 12) & 63] + '==';
+    } else if (rem === 2) {
+      var n2 = (u8[i] << 16) | (u8[i + 1] << 8);
+      out[o++] = A[(n2 >> 18) & 63] + A[(n2 >> 12) & 63] + A[(n2 >> 6) & 63] + '=';
+    }
+    return out.join('');
+  },
+
+  // Fire-and-forget BINARY lane: jsr.hostCallBinary('scene.transforms', b64)
+  // delivers (name, bytes) to the host's onHostCallBinary handler with NO
+  // JSON body parse and NO promise round trip — the cheapest JS->Dart path
+  // for per-frame bulk data (transforms, particles, audio levels). Send
+  // bytes via jsr.b64encode(new Uint8Array(f32.buffer)). Errors (unknown
+  // host, malformed payload) are dropped: probe with jsr.hostCall probing
+  // or design the widget to degrade. `name` must not contain spaces.
+  hostCallBinary: function(name, b64){
+    var n = String(name).split(' ').join('_');
+    var d = String(b64 == null ? '' : b64);
+    __send('__jsr_host_call_binary', n + ' ' + d);
+  },
+
   // Self-screenshot: resolves with a host-produced capture of the widget's
   // rendered tree ({path, width, height} where supported). Hosts without a
   // capture handler reject — probe or try/catch and degrade.

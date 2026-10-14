@@ -52,6 +52,7 @@ class JsRuntimeConfig {
     this.execHandler,
     this.openUrlHandler,
     this.onHostCall,
+    this.onHostCallBinary,
     this.captureHandler,
     this.intervalTickHandler,
     this.rafTickHandler,
@@ -149,6 +150,13 @@ class JsRuntimeConfig {
   final Future<Object?> Function(String name, Map<String, dynamic> args)?
       onHostCall;
 
+  /// Handle `jsr.hostCallBinary(name, b64)` — the fire-and-forget BINARY
+  /// side channel for high-frequency bulk data (transforms, particles,
+  /// audio levels). The payload arrives as raw bytes: no JSON parse, no
+  /// promise round trip, and the call never blocks the JS frame. Pairs
+  /// with [onHostCall] for request/response-shaped host capabilities.
+  final void Function(String name, Uint8List data)? onHostCallBinary;
+
   /// Self-screenshot capability behind `jsr.capture()`. The handler
   /// rasterizes the widget's CURRENT rendered tree and resolves with a
   /// host-specific result (the jsr_widget CLI resolves `{path, width,
@@ -207,6 +215,7 @@ class JsRuntimeConfig {
     Future<void> Function(String id, String url)? openUrlHandler,
     Future<Object?> Function(String name, Map<String, dynamic> args)?
         onHostCall,
+    void Function(String name, Uint8List data)? onHostCallBinary,
     Future<Map<String, dynamic>> Function(Map<String, dynamic> opts)?
         captureHandler,
     void Function(String id)? intervalTickHandler,
@@ -236,6 +245,7 @@ class JsRuntimeConfig {
         execHandler: execHandler ?? this.execHandler,
         openUrlHandler: openUrlHandler ?? this.openUrlHandler,
         onHostCall: onHostCall ?? this.onHostCall,
+        onHostCallBinary: onHostCallBinary ?? this.onHostCallBinary,
         captureHandler: captureHandler ?? this.captureHandler,
         intervalTickHandler: intervalTickHandler ?? this.intervalTickHandler,
         rafTickHandler: rafTickHandler ?? this.rafTickHandler,

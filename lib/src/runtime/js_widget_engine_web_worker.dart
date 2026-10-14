@@ -49,6 +49,7 @@ class WebWorkerJsWidgetEngineBackend implements JsWidgetEngineBackend {
       execHandler: (id, cmd) => _handleExec(id, cmd),
       openUrlHandler: (id, url) => _handleOpenUrl(id, url),
       onHostCall: config.onHostCall,
+      onHostCallBinary: config.onHostCallBinary,
       captureHandler: config.captureHandler,
       intervalTickHandler: (id) => _postToWorker('__jsr_interval_tick', id),
       rafTickHandler: (id, elapsedMs) =>

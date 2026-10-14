@@ -49,6 +49,7 @@ class QuickjsWidgetEngineBackend implements JsWidgetEngineBackend {
       execHandler: (id, cmd) async {},
       openUrlHandler: (id, url) async {},
       onHostCall: config.onHostCall,
+      onHostCallBinary: config.onHostCallBinary,
       captureHandler: config.captureHandler,
       intervalTickHandler: (id) {},
       rafTickHandler: (id, elapsedMs) {},
@@ -364,13 +365,20 @@ class QuickjsWidgetEngineBackend implements JsWidgetEngineBackend {
   /// router). QuickJS routes per-engine natively, so unwrap back to the raw
   /// string before dispatch. JSON-object payloads pass through untouched
   /// (the extra `iid` key is ignored by their handlers).
+  /// Channels whose bootstrap `__tag` wraps string payloads as
+  /// `{iid, id}` — the engine unwraps them back to the raw string before
+  /// dispatch (per-engine routing makes the iid redundant on QuickJS).
+  static const Set<String> _rawIdChannels = {
+    '__jsr_log',
+    '__jsr_set_title',
+    '__jsr_clear_interval',
+    '__jsr_caf',
+    '__jsr_host_call_binary',
+  };
+
   dynamic _unwrapRawId(dynamic payload, [String? channel]) {
     if (payload is! String) return payload;
-    if (channel != null &&
-        channel != '__jsr_log' &&
-        channel != '__jsr_set_title' &&
-        channel != '__jsr_clear_interval' &&
-        channel != '__jsr_caf') {
+    if (channel != null && !_rawIdChannels.contains(channel)) {
       return payload;
     }
     if (!payload.startsWith('{"iid":')) return payload;
