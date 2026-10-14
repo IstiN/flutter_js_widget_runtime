@@ -4,6 +4,8 @@ import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
 
+import 'js_voxel_blocks.dart';
+
 /// Vertex buffers for one voxel chunk, uploaded by the widget JS via
 /// `jsr.hostCall('voxel.mesh', ...)` and kept resident on the Dart side.
 ///
@@ -236,7 +238,11 @@ class JsVoxelWorld extends ChangeNotifier {
       case 'voxel.attach':
         final id = _instanceId(args);
         _chunksByInstance.putIfAbsent(id, () => {});
-        return const {'ok': true};
+        // `blocks: true` advertises the native voxel.blocks mesher so
+        // widgets can ship raw block bytes instead of JS-built meshes.
+        return const {'ok': true, 'blocks': true};
+      case 'voxel.blocks':
+        return _handleBlocks(args);
       case 'voxel.mesh':
         final id = _instanceId(args);
         final key = args['key']?.toString() ?? '';
@@ -257,10 +263,94 @@ class JsVoxelWorld extends ChangeNotifier {
         final id = _instanceId(args);
         final key = args['key']?.toString() ?? '';
         final removed = _chunksByInstance[id]?.remove(key) != null;
-        if (removed) notifyListeners();
-        return {'ok': true, 'removed': removed};
+        final bytesGone = _blocksByInstance[id]?.remove(key) != null;
+        if (removed || bytesGone) notifyListeners();
+        return {'ok': true, 'removed': removed || bytesGone};
       default:
         throw UnsupportedError('unknown voxel capability: $name');
+    }
+  }
+
+  final Map<String, Map<String, JsVoxelBlocks>> _blocksByInstance = {};
+  final Map<String, JsVoxelPalette> _paletteByInstance = {};
+
+  /// `voxel.blocks {id, key, origin, size, blocks[, palette, shade,
+  /// overlay]}` — raw chunk bytes, meshed here in Dart. The palette is
+  /// cached per instance: only the first upload (or a palette change)
+  /// carries it. Storing bytes also lets later uploads cull interior
+  /// faces against this chunk (and re-mesh its neighbors when this
+  /// chunk's arrival hides their border faces).
+  Map<String, dynamic> _handleBlocks(Map<String, dynamic> args) {
+    final id = _instanceId(args);
+    final key = args['key']?.toString() ?? '';
+    if (key.isEmpty) return {'ok': false, 'reason': 'missing key'};
+    final rawPalette = args['palette'];
+    if (rawPalette != null) {
+      final palette = JsVoxelPalette.fromDynamic(rawPalette);
+      if (palette == null) return {'ok': false, 'reason': 'malformed palette'};
+      palette.applyShade(args['shade']);
+      _paletteByInstance[id] = palette;
+    } else if (!_paletteByInstance.containsKey(id)) {
+      return {'ok': false, 'reason': 'missing palette'};
+    }
+    final blocks = JsVoxelBlocks.fromDynamic(args);
+    if (blocks == null) {
+      return {'ok': false, 'reason': 'malformed blocks payload'};
+    }
+    _blocksByInstance.putIfAbsent(id, () => {})[key] = blocks;
+    var faces = 0;
+    final mesh = _meshStored(id, key);
+    if (mesh != null) {
+      _chunksByInstance.putIfAbsent(id, () => {})[key] = mesh;
+      faces = mesh.faceCount;
+    } else {
+      // Fully-air chunk (or remesh to nothing): no geometry to keep.
+      _chunksByInstance[id]?.remove(key);
+    }
+    _remeshNeighbors(id, blocks.gx, blocks.gz);
+    notifyListeners();
+    return {'ok': true, 'faces': faces};
+  }
+
+  /// Meshes the stored bytes of [key] with cross-chunk culling against
+  /// every other resident chunk of the instance.
+  JsVoxelChunk? _meshStored(String id, String key) {
+    final blocks = _blocksByInstance[id]?[key];
+    final palette = _paletteByInstance[id];
+    if (blocks == null || palette == null) return null;
+    final store = _blocksByInstance[id]!;
+    return meshVoxelBlocks(
+      chunk: blocks,
+      palette: palette,
+      neighborAt: (lx, y, lz) {
+        final dgx = lx < 0 ? -1 : (lx >= blocks.sx ? 1 : 0);
+        final dgz = lz < 0 ? -1 : (lz >= blocks.sz ? 1 : 0);
+        final nb = store['${blocks.gx + dgx},${blocks.gz + dgz}'];
+        if (nb == null || y < 0 || y >= nb.sy) return 0;
+        final nlx = lx - dgx * nb.sx;
+        final nlz = lz - dgz * nb.sz;
+        if (nlx < 0 || nlx >= nb.sx || nlz < 0 || nlz >= nb.sz) return 0;
+        return nb.data[(y * nb.sz + nlz) * nb.sx + nlx];
+      },
+      origin: blocks.origin,
+    );
+  }
+
+  /// A newly-stored chunk can hide (or reveal) the border faces of its
+  /// resident neighbors — re-mesh the up-to-4 adjacent chunks.
+  void _remeshNeighbors(String id, int gx, int gz) {
+    final store = _blocksByInstance[id];
+    if (store == null) return;
+    const deltas = [(-1, 0), (1, 0), (0, -1), (0, 1)];
+    for (final (dx, dz) in deltas) {
+      final nkey = '${gx + dx},${gz + dz}';
+      if (!store.containsKey(nkey)) continue;
+      final mesh = _meshStored(id, nkey);
+      if (mesh != null) {
+        _chunksByInstance.putIfAbsent(id, () => {})[nkey] = mesh;
+      } else {
+        _chunksByInstance[id]?.remove(nkey);
+      }
     }
   }
 
@@ -275,6 +365,8 @@ class JsVoxelWorld extends ChangeNotifier {
   /// Drops all state (host resets, tests).
   void clear() {
     _chunksByInstance.clear();
+    _blocksByInstance.clear();
+    _paletteByInstance.clear();
     _cameras.clear();
     notifyListeners();
   }

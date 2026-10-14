@@ -177,7 +177,8 @@ void main() {
       var notifications = 0;
       world.addListener(() => notifications++);
 
-      expect(world.handleHostCall('voxel.attach', {'id': 'w'}), {'ok': true});
+      expect(world.handleHostCall('voxel.attach', {'id': 'w'}),
+          {'ok': true, 'blocks': true});
       expect(
         world.handleHostCall('voxel.mesh', _meshArgs(_facingQuad(), '0,0')),
         {'ok': true, 'faces': 2},

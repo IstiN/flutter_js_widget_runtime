@@ -479,7 +479,7 @@ void main() {
       final bridge = _makeBridge(resolved: resolved);
       await bridge.dispatch(
           '__jsr_host_call', '{"id":"v2","name":"voxel.attach","args":{}}');
-      expect(resolved['v2'], {'ok': true});
+      expect(resolved['v2'], {'ok': true, 'blocks': true});
       await bridge.dispatch(
           '__jsr_host_call', '{"id":"v3","name":"voxel.mesh","args":[]}');
       expect((resolved['v3'] as Map)['__error'], isNotNull);
