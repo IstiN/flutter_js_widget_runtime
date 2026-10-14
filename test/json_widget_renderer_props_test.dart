@@ -2,41 +2,24 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:js_widget_runtime/js_widget_runtime.dart';
 
+import 'renderer_test_scaffold.dart';
+
 /// Branch-coverage complements for the renderer node extensions: text
 /// box/alignment/hide, markdown/chip/avatar variants, chart props and
 /// repaint invalidation, container decoration branches, adaptive
 /// fallbacks. Every test here pins a branch the main suites reach only
 /// in one direction (or never) — the CRAP ratchet depends on them.
 void main() {
-  late List<(String, Map<String, dynamic>)> events;
-  late JsonWidgetRenderer renderer;
+  final s = RendererScaffold();
 
-  setUp(() {
-    events = [];
-    renderer = JsonWidgetRenderer(
-      onEvent: (id, payload) => events.add((id, payload)),
-    );
-  });
+  setUp(s.reset);
 
   Widget buildTree(
     Map<String, dynamic>? tree, {
     double width = 800,
     bool hideText = false,
-  }) {
-    final r = hideText
-        ? JsonWidgetRenderer(
-            onEvent: (id, payload) => events.add((id, payload)),
-            hideText: true,
-          )
-        : renderer;
-    return MaterialApp(
-      home: Scaffold(
-        body: Center(
-          child: SizedBox(width: width, child: r.build(tree)),
-        ),
-      ),
-    );
-  }
+  }) =>
+      s.buildTree(tree, width: width, hideText: hideText);
 
   testWidgets('text box with explicit alignment wraps in Align', (tester) async {
     await tester.pumpWidget(buildTree({
@@ -122,7 +105,7 @@ void main() {
       'type': 'chart', 'points': [1, 2, 3], 'onTap': 'chartTap',
     }));
     await tester.tap(find.byType(GestureDetector).first);
-    expect(events.any((e) => e.$1 == 'chartTap'), isTrue);
+    expect(s.events.any((e) => e.$1 == 'chartTap'), isTrue);
   });
 
   testWidgets('sparkline prop changes trip shouldRepaint', (tester) async {
