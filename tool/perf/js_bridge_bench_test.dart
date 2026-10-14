@@ -84,18 +84,8 @@ Future<QuickjsWidgetEngineBackend> boot() async {
 
 const String widgetJs = '''
 (function() {
-  var B64 = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/';
-  function b64encode(bytes) {
-    var out = [], i;
-    for (i = 0; i + 2 < bytes.length; i += 3) {
-      var n = (bytes[i] << 16) | (bytes[i + 1] << 8) | bytes[i + 2];
-      out.push(B64[(n >> 18) & 63], B64[(n >> 12) & 63], B64[(n >> 6) & 63], B64[n & 63]);
-    }
-    var rem = bytes.length - i;
-    if (rem === 1) { var n1 = bytes[i] << 16; out.push(B64[(n1 >> 18) & 63], B64[(n1 >> 12) & 63], '=='); }
-    else if (rem === 2) { var n2 = (bytes[i] << 16) | (bytes[i + 1] << 8); out.push(B64[(n2 >> 18) & 63], B64[(n2 >> 12) & 63], B64[(n2 >> 6) & 63], '='); }
-    return out.join('');
-  }
+  // b64encode comes from the real bootstrap (jsr.b64encode) — a local
+  // copy here would count as duplication against it in jscpd.
   function buildItems(n) {
     var items = new Array(n);
     for (var i = 0; i < n; i++) {
@@ -132,7 +122,7 @@ const String widgetJs = '''
     }
     if (mode === 'pack') {
       var b;
-      for (var f3 = 0; f3 < frames; f3++) { b = b64encode(new Uint8Array(packF32(items).buffer)); }
+      for (var f3 = 0; f3 < frames; f3++) { b = jsr.b64encode(packF32(items)); }
       sentBytes = b.length;
       R[name] = { frames: frames, items: items, jsMs: Date.now() - t0, bytes: sentBytes };
       return;
@@ -146,7 +136,7 @@ const String widgetJs = '''
         await jsr.hostCall('bench.json', payload);
         perCall.push(Date.now() - c0);
       } else if (mode === 'b64-await') {
-        var b64 = b64encode(new Uint8Array(packF32(items).buffer));
+        var b64 = jsr.b64encode(packF32(items));
         sentBytes = b64.length;
         var c1 = Date.now();
         await jsr.hostCall('bench.b64', { b64: b64 });
@@ -156,7 +146,7 @@ const String widgetJs = '''
         var c2 = Date.now();
         pending.push(jsr.hostCall('bench.json', payload2).then(function() { perCall.push(Date.now() - c2); }));
       } else if (mode === 'b64-fire') {
-        var b642 = b64encode(new Uint8Array(packF32(items).buffer));
+        var b642 = jsr.b64encode(packF32(items));
         sentBytes = b642.length;
         var c3 = Date.now();
         pending.push(jsr.hostCall('bench.b64', { b64: b642 }).then(function() { perCall.push(Date.now() - c3); }));
