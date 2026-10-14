@@ -262,4 +262,40 @@ void main() {
     expect(seen, {13, 26, 39, 52}); // 16/32/48/64 under the side class
   });
 
+  test('shade parsing: garbage keeps defaults, valid triples apply', () {
+    final pal = JsVoxelPalette.fromDynamic([_flatPalette(), _flatPalette()])!;
+    final before = Float32List.fromList(pal.shade);
+    pal.applyShade('nope'); // not a list — kept
+    pal.applyShade([0.5, 0.5]); // wrong arity — kept
+    pal.applyShade([0.5, 0.5, 'x']); // non-num — kept
+    for (var i = 0; i < 3; i++) {
+      expect(pal.shade[i], before[i]);
+    }
+    pal.applyShade([0.1, 0.5, 2.0]); // clamped to 0..1
+    expect(pal.shade[0], closeTo(0.1, 1e-6)); // float32 storage
+    expect(pal.shade[1], 0.5);
+    expect(pal.shade[2], 1.0);
+    // The shade classes flow into face colors: top vs bottom differ.
+    final out = Float32List(3);
+    pal.applyShade([0.2, 0.5, 1.0]);
+    pal.faceColor(1, false, 3, 3, 3, 0, out); // bottom class
+    expect(out[0], closeTo(0x80 / 255 * 0.2, 0.01));
+    pal.faceColor(1, false, 3, 3, 3, 2, out); // top class
+    expect(out[0], closeTo(0x80 / 255 * 1.0, 0.01));
+  });
+
+  test('payload shade overrides the default classes', () {
+    final w = _worldWith(_payload(
+      key: '0,0',
+      size: [1, 1, 1],
+      blocks: [1],
+      palette: [_flatPalette('404040'), _flatPalette('404040')],
+      shade: [1.0, 1.0, 1.0],
+    ));
+    final chunk = w.chunksOf('t')['0,0']!;
+    // All faces share one class now: every green is exactly the tone.
+    for (var i = 1; i < chunk.colors.length; i += 3) {
+      expect(chunk.colors[i], closeTo(0x40 / 255, 0.001));
+    }
+  });
 }

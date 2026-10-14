@@ -51,56 +51,65 @@ extension on JsonWidgetRenderer {
         child: textWidget,
       );
     }
-    // Honor `width`/`height` on text (CSS-style box): the SizedBox tightens
-    // the paragraph so `textAlign` centers within the requested box instead
-    // of the intrinsic label width. Consistent with `container` sizing —
-    // under tight parent constraints the parent wins. Parity with yoclip's
-    // fixed-box rule: with no explicit alignment the label centers in the
-    // box (horizontal by textAlign, vertical always) instead of pressing
-    // glyphs to the top-left corner.
-    final boxWidth = _doubleOrNull(m['width']);
-    final boxHeight = _doubleOrNull(m['height']);
-    if (boxWidth != null || boxHeight != null) {
-      final contentAlign = m['alignment'] != null
-          ? _alignment(m['alignment'])
-          : _fixedBoxContentAlignment(m);
-      textWidget = _sizeShield(
-        SizedBox(
-          width: boxWidth,
-          height: boxHeight,
-          child: contentAlign == null
-              ? textWidget
-              : Align(
-                  alignment: contentAlign,
-                  widthFactor: boxWidth == null ? 1 : null,
-                  heightFactor: boxHeight == null ? 1 : null,
-                  child: textWidget,
-                ),
-        ),
-        m,
-      );
-    }
-
+    textWidget = _applyTextBox(m, textWidget);
     // PPTX background patches: keep the layout footprint, paint no ink.
     if (hideText) {
       textWidget = Opacity(opacity: 0.0001, child: textWidget);
     }
+    return _resolveCustomFont(m, style, textWidget);
+  }
 
+  /// CSS-style `width`/`height` box around a text: the SizedBox tightens
+  /// the paragraph so `textAlign` centers within the requested box instead
+  /// of the intrinsic label width. Consistent with `container` sizing —
+  /// under tight parent constraints the parent wins. Parity with yoclip's
+  /// fixed-box rule: with no explicit alignment the label centers in the
+  /// box (horizontal by textAlign, vertical always) instead of pressing
+  /// glyphs to the top-left corner.
+  Widget _applyTextBox(Map<String, dynamic> m, Widget textWidget) {
+    final boxWidth = _doubleOrNull(m['width']);
+    final boxHeight = _doubleOrNull(m['height']);
+    if (boxWidth == null && boxHeight == null) return textWidget;
+    final contentAlign = m['alignment'] != null
+        ? _alignment(m['alignment'])
+        : _fixedBoxContentAlignment(m);
+    return _sizeShield(
+      SizedBox(
+        width: boxWidth,
+        height: boxHeight,
+        child: contentAlign == null
+            ? textWidget
+            : Align(
+                alignment: contentAlign,
+                widthFactor: boxWidth == null ? 1 : null,
+                heightFactor: boxHeight == null ? 1 : null,
+                child: textWidget,
+              ),
+      ),
+      m,
+    );
+  }
+
+  /// Resolves a custom `fontFamily` through the host font resolver,
+  /// re-wrapping the built text in a FutureBuilder that loads the bytes
+  /// once they arrive. Without a family (or a resolver) the text passes
+  /// through untouched.
+  Widget _resolveCustomFont(
+      Map<String, dynamic> m, TextStyle? style, Widget textWidget) {
     final family = style?.fontFamily;
     final fontResolver = this.fontResolver;
-    if (family != null && family.isNotEmpty && fontResolver != null) {
-      return FutureBuilder<Uint8List>(
-        future: fontResolver(family),
-        builder: (context, snapshot) {
-          if (snapshot.hasData) {
-            unawaited(JsFontLoader.loadFont(family, snapshot.data!));
-          }
-          return textWidget;
-        },
-      );
+    if (family == null || family.isEmpty || fontResolver == null) {
+      return textWidget;
     }
-
-    return textWidget;
+    return FutureBuilder<Uint8List>(
+      future: fontResolver(family),
+      builder: (context, snapshot) {
+        if (snapshot.hasData) {
+          unawaited(JsFontLoader.loadFont(family, snapshot.data!));
+        }
+        return textWidget;
+      },
+    );
   }
 
   Widget _icon(Map<String, dynamic> m) {
@@ -320,10 +329,11 @@ extension on JsonWidgetRenderer {
   FontWeight? _fontWeight(dynamic v) {
     if (v == null) return null;
     if (v is num) {
-      return FontWeight.values.firstWhere(
-        (w) => w.value == ((v / 100).round() * 100).clamp(100, 900),
-        orElse: () => FontWeight.normal,
-      );
+      // Buckets are the FontWeight.value hundreds (100..900) — index
+      // arithmetic, no firstWhere/orElse: every clamped bucket maps to
+      // exactly one value.
+      final bucket = ((v / 100).round() * 100).clamp(100, 900);
+      return FontWeight.values[bucket ~/ 100 - 1];
     }
     return switch (v.toString()) {
       'bold' => FontWeight.bold,
