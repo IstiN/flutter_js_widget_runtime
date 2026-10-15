@@ -369,6 +369,13 @@ class JsWidgetBridge {
   /// entirely. The [data] view may be call-scoped on some engines:
   /// handlers must not retain it without copying.
   void dispatchBinary(String name, Uint8List data) {
+    // The voxel world is a core capability: its binary lane is routed
+    // here (mirroring the JSON `voxel.*` interception) instead of
+    // reaching the host's [onHostCallBinary] handler.
+    if (name.startsWith('voxel.')) {
+      voxelWorld.handleHostCallBinary(name, data);
+      return;
+    }
     onHostCallBinary?.call(name, data);
   }
 

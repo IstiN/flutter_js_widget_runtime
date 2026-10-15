@@ -127,6 +127,21 @@ Renderer effects ported from YoClip: radial gradients, box shadows, blur nodes, 
 - Rendering is a pure-Dart software pipeline on `CustomPaint`
   (`lib/src/renderer/nodes/js_voxel_node.dart`): frustum culling per
   chunk, near-plane clipping, painter's-order depth sort. No native deps.
+- **Packed binary lane** (`voxel.mesh.bin` / `voxel.blocks.bin`): when
+  the engine has the native bytes lane, `voxel.attach` reports
+  `bin: true` and widgets upload chunks via `jsr.hostCallBinary(…)` —
+  magic `'JVXM'` + version + tiny JSON header (NUL-padded to 4-byte
+  alignment) + raw body, parsed by `JsVoxelChunk.parseBinaryEnvelope`
+  with zero JSON. `voxel.mesh.bin`: header `{id, key, origin, ni,
+  overlay?}` + f32 positions/colors + u32 indices
+  (`JsVoxelChunk.fromBinary`). `voxel.blocks.bin`: header `{id, key,
+  origin, size[, palette, shade]}` + the RAW block bytes (no base64 —
+  ~25% less wire volume, zero decode; reuses the JSON lane's palette
+  cache and cross-chunk remesh). Engines without the lane keep the JSON
+  paths; small resident meshes (markers/mobs/drops) belong on JSON — a
+  single cube is smaller than its packed header. Reference:
+  `example/widgets/fa-craft/` 0.2.24+ (goldens byte-identical across
+  lanes).
 - Example: `example/widgets/voxel-sandbox/` (chunked terrain, dig/build
   edits re-upload only the dirty chunk).
 

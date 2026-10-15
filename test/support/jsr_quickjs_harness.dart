@@ -56,7 +56,7 @@ Future<Map<String, dynamic>?> exportedStateOf(
 /// A [JsWidgetBridge] with only the binary lane wired — for direct
 /// `dispatch` tests that must not require a JS runtime.
 JsWidgetBridge buildBinaryTestBridge({
-  required void Function(String name, Uint8List data) onHostCallBinary,
+  void Function(String name, Uint8List data)? onHostCallBinary,
 }) {
   return JsWidgetBridge(
     widgetId: 'bridge-only',
