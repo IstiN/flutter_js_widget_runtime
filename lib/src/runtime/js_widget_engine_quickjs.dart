@@ -292,6 +292,9 @@ class QuickjsWidgetEngineBackend implements JsWidgetEngineBackend {
     // never define the global — the bootstrap falls back to the b64 lane.
     if (rt.hasBytesFn) {
       rt.registerHostBytesFn('__jsrSendBytes', _bridge.dispatchBinary);
+      // Advertised via `voxel.attach` → widgets may ship packed chunks
+      // through the zero-JSON voxel.mesh.bin lane.
+      _bridge.voxelWorld.binaryLaneAvailable = true;
     }
   }
 

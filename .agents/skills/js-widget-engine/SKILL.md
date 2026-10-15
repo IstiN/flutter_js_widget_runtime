@@ -72,6 +72,18 @@ interceptor (older runtimes) reject `voxel.*` so widgets can probe with
 state without a host object, follow this pattern instead of a new channel
 — it reuses `__jsr_host_call` and needs no bootstrap or engine changes.
 
+The binary lane extends the same interception: `dispatchBinary` routes
+`voxel.*` binary names into `JsVoxelWorld.handleHostCallBinary` (not the
+host's `onHostCallBinary`), and `voxel.attach` advertises `bin: true`
+when the QuickJS backend wired `__jsrSendBytes`. Two capabilities share
+the `'JVXM'` envelope (magic + version + u32 header length + NUL-padded
+header JSON + raw body): `voxel.mesh.bin` (f32 positions/colors + u32
+indices) and `voxel.blocks.bin` (raw block bytes, no base64). Malformed
+binary payloads drop silently — the lane has no promise to reject
+through. When adding a heavy per-chunk/per-frame payload, prefer a
+packed binary capability over a JSON `hostCall`: see
+`JsVoxelChunk.parseBinaryEnvelope` and `example/widgets/fa-craft`.
+
 ## Engine Lifecycle
 
 - `JsWidgetEngine.run(widgetJs)` starts the runtime, evaluates bootstrap + optional host bootstrap + widget JS.

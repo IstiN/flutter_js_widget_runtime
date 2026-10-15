@@ -103,14 +103,20 @@ class JsVoxelBlocks {
     return dims;
   }
 
-  /// Base64-decodes the block bytes and checks the exact length.
+  /// Decodes the block bytes (base64 string on the JSON lane, raw
+  /// Uint8List on `voxel.blocks.bin`) and checks the exact length.
   static Uint8List? _decodeBlocks(dynamic raw, int total) {
-    if (raw is! String || raw.isEmpty) return null;
     final Uint8List data;
-    try {
-      data = base64Decode(raw);
-    } on FormatException {
+    if (raw is Uint8List) {
+      data = raw;
+    } else if (raw is! String || raw.isEmpty) {
       return null;
+    } else {
+      try {
+        data = base64Decode(raw);
+      } on FormatException {
+        return null;
+      }
     }
     return data.length == total ? data : null;
   }

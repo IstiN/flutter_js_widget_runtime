@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'dart:math' as math;
 import 'dart:typed_data';
 import 'dart:ui' as ui;
@@ -40,6 +41,140 @@ class JsVoxelChunk {
       indices: buffers.$3,
       origin: buffers.$4,
       overlay: args['overlay'] == true,
+    );
+  }
+
+  /// Parses the packed binary form uploaded via
+  /// `jsr.hostCallBinary('voxel.mesh.bin', bytes)` — the zero-JSON lane
+  /// (QuickJS native bytes backend). Layout, all little-endian:
+  ///
+  /// ```text
+  /// u32  magic 'JVXM' (0x4A56584D)
+  /// u32  version = 1
+  /// u32  headerLen (bytes)
+  /// u8[headerLen]         header JSON (padded with NULs to 4-byte alignment)
+  /// f32[3 * vertexCount]  positions (chunk-local xyz)
+  /// f32[3 * vertexCount]  colors (rgb, 0..1)
+  /// u32[3 * faceCount]    triangle indices
+  /// ```
+  ///
+  /// The header carries the small fields that must not be binary:
+  /// `{id, key, origin: [x,y,z], ni, overlay?}` — `ni` is the index
+  /// count (the vertex count is derived from the remaining bytes).
+  /// Returns `(instanceId, chunkKey, chunk)` or null for garbage so a
+  /// single bad upload cannot wedge the renderer. Buffers are COPIES:
+  /// the incoming [data] may be a call-scoped view of the JS engine's
+  /// backing store.
+  /// Parses the shared binary envelope (magic `'JVXM'`, version 1, u32
+  /// raw header length, NUL-padded header JSON to 4-byte alignment).
+  /// Returns `(header, bodyStart)` or null for garbage; [data] may be a
+  /// call-scoped view — copy anything you retain.
+  static (Map<String, dynamic>, int)? parseBinaryEnvelope(Uint8List data) {
+    if (data.length < 16) return null;
+    final bd = ByteData.sublistView(data);
+    if (bd.getUint32(0, Endian.little) != 0x4A56584D) return null;
+    if (bd.getUint32(4, Endian.little) != 1) return null;
+    final headerLen = bd.getUint32(8, Endian.little);
+    final paddedLen = headerLen + (4 - headerLen % 4) % 4;
+    final bodyStart = 12 + paddedLen;
+    if (headerLen < 2 || bodyStart > data.length) return null;
+    try {
+      final header =
+          jsonDecode(utf8.decode(data.sublist(12, 12 + headerLen)))
+              as Map<String, dynamic>;
+      return (header, bodyStart);
+    } catch (_) {
+      return null;
+    }
+  }
+
+  static (String, String, JsVoxelChunk)? fromBinary(Uint8List data) {
+    final envelope = parseBinaryEnvelope(data);
+    if (envelope == null) return null;
+    final (header, bodyStart) = envelope;
+    final names = _parseMeshHeader(header);
+    if (names == null) return null;
+    final (id, key, origin) = names;
+    final counts = _meshBodyCounts(header, data.length, bodyStart);
+    if (counts == null) return null;
+    final (vertexCount, ni) = counts;
+    final chunk = _readMeshBody(
+      data, bodyStart, vertexCount: vertexCount, ni: ni, origin: origin,
+      overlay: header['overlay'] == true,
+    );
+    if (chunk == null) return null;
+    return (id, key, chunk);
+  }
+
+  /// `(id, key, origin)` from the mesh header, or null for garbage.
+  static (String, String, Float32List)? _parseMeshHeader(
+    Map<String, dynamic> header,
+  ) {
+    final id = header['id']?.toString() ?? '';
+    final key = header['key']?.toString() ?? '';
+    final originRaw = header['origin'];
+    if (id.isEmpty || key.isEmpty || originRaw is! List) return null;
+    if (originRaw.length != 3) return null;
+    final origin = Float32List(3);
+    for (var a = 0; a < 3; a++) {
+      if (originRaw[a] is! num) return null;
+      origin[a] = (originRaw[a] as num).toDouble();
+    }
+    return (id, key, origin);
+  }
+
+  /// `(vertexCount, indexCount)` implied by the header + body length, or
+  /// null when the arithmetic does not close (6 words per vertex — 3 f32
+  /// positions + 3 f32 colors — plus 1 word per index).
+  static (int, int)? _meshBodyCounts(
+    Map<String, dynamic> header,
+    int dataLength,
+    int bodyStart,
+  ) {
+    final ni = header['ni'];
+    if (ni is! int || ni < 3 || ni % 3 != 0) return null;
+    final rest = dataLength - bodyStart;
+    if (rest <= 0 || rest % 4 != 0) return null;
+    final words = rest ~/ 4;
+    if (words <= ni || (words - ni) % 6 != 0) return null;
+    final vertexCount = (words - ni) ~/ 6;
+    return (vertexCount, ni);
+  }
+
+  /// Reads the f32/u32 body into a chunk; null when indices point
+  /// outside the vertex range.
+  static JsVoxelChunk? _readMeshBody(
+    Uint8List data,
+    int bodyStart, {
+    required int vertexCount,
+    required int ni,
+    required Float32List origin,
+    required bool overlay,
+  }) {
+    final bd = ByteData.sublistView(data);
+    final positions = Float32List(vertexCount * 3);
+    final colors = Float32List(vertexCount * 3);
+    final indices = Uint32List(ni);
+    var off = bodyStart;
+    for (var i = 0; i < positions.length; i++) {
+      positions[i] = bd.getFloat32(off, Endian.little);
+      off += 4;
+    }
+    for (var i = 0; i < colors.length; i++) {
+      colors[i] = bd.getFloat32(off, Endian.little);
+      off += 4;
+    }
+    for (var i = 0; i < ni; i++) {
+      indices[i] = bd.getUint32(off, Endian.little);
+      off += 4;
+    }
+    if (!_indicesInBounds(indices, vertexCount)) return null;
+    return JsVoxelChunk(
+      positions: positions,
+      colors: colors,
+      indices: indices,
+      origin: origin,
+      overlay: overlay,
     );
   }
 
@@ -217,14 +352,66 @@ class JsVoxelWorld extends ChangeNotifier {
   final Map<String, Map<String, JsVoxelChunk>> _chunksByInstance = {};
   final Map<String, JsVoxelCamera> _cameras = {};
 
+  /// Whether the running engine has the native bytes lane wired so
+  /// `jsr.hostCallBinary('voxel.mesh.bin', …)` can deliver packed
+  /// chunks. Engines flip this before the widget runs (the QuickJS
+  /// backend sets it next to `__jsrSendBytes` registration); when false
+  /// the attach response omits `bin` and widgets keep the JSON lane.
+  bool binaryLaneAvailable = false;
+
+  /// Fire-and-forget receiver for the binary voxel lane. Defined
+  /// capabilities (both share the `'JVXM'` envelope — tiny JSON header +
+  /// raw body):
+  ///
+  /// - `voxel.mesh.bin` — a packed [JsVoxelChunk.fromBinary] upload.
+  /// - `voxel.blocks.bin` — raw chunk block bytes (NO base64) with the
+  ///   `voxel.blocks` header fields (`id, key, origin, size[, palette,
+  ///   shade]`); routed through the same palette cache / cross-chunk
+  ///   remesh flow as the JSON lane.
+  ///
+  /// Malformed payloads are dropped silently — the lane has no promise
+  /// to resolve through, so a bad chunk must never wedge the widget
+  /// (same policy as the rest of the binary lane).
+  void handleHostCallBinary(String name, Uint8List data) {
+    if (name == 'voxel.mesh.bin') {
+      final parsed = JsVoxelChunk.fromBinary(data);
+      if (parsed == null) return;
+      final (id, key, chunk) = parsed;
+      _chunksByInstance.putIfAbsent(id, () => {})[key] = chunk;
+      notifyListeners();
+      return;
+    }
+    if (name == 'voxel.blocks.bin') {
+      final envelope = JsVoxelChunk.parseBinaryEnvelope(data);
+      if (envelope == null) return;
+      final (header, bodyStart) = envelope;
+      _handleBlocks({
+        'id': header['id'],
+        'key': header['key'],
+        'origin': header['origin'],
+        'size': header['size'],
+        // Raw bytes — the whole point of this lane: no base64 expansion,
+        // no decode on the Dart side, view copied once by fromDynamic.
+        'blocks': Uint8List.fromList(data.sublist(bodyStart)),
+        if (header['palette'] != null) 'palette': header['palette'],
+        if (header['shade'] != null) 'shade': header['shade'],
+      });
+    }
+  }
+
   /// Handles a `voxel.*` hostCall. Returns the value to resolve the JS
   /// promise with; throws for unknown capability names (the bridge turns
   /// that into a rejected promise).
   ///
   /// Contract:
-  /// - `voxel.attach {id}` → `{ok: true}`. Rejects only when the runtime
-  ///   has no voxel support at all (older jsr versions reject every
-  ///   unknown hostCall name) — widgets use that to degrade gracefully.
+  /// - `voxel.attach {id}` → `{ok: true}` plus capability flags:
+  ///   `blocks: true` (the native voxel.blocks mesher) and `bin: true`
+  ///   when the runtime has the native bytes lane and
+  ///   [binaryLane] is wired — widgets upload packed chunks via
+  ///   `jsr.hostCallBinary('voxel.mesh.bin', …)` then. Rejects only when
+  ///   the runtime has no voxel support at all (older jsr versions reject
+  ///   every unknown hostCall name) — widgets use that to degrade
+  ///   gracefully.
   /// - `voxel.mesh {id, key, origin, positions, colors, indices}` →
   ///   `{ok: bool}`. Resolves (not rejects) with `ok:false` for a
   ///   malformed upload so one bad chunk never degrades the session.
@@ -240,7 +427,11 @@ class JsVoxelWorld extends ChangeNotifier {
         _chunksByInstance.putIfAbsent(id, () => {});
         // `blocks: true` advertises the native voxel.blocks mesher so
         // widgets can ship raw block bytes instead of JS-built meshes.
-        return const {'ok': true, 'blocks': true};
+        return {
+          'ok': true,
+          'blocks': true,
+          if (binaryLaneAvailable) 'bin': true,
+        };
       case 'voxel.blocks':
         return _handleBlocks(args);
       case 'voxel.mesh':
