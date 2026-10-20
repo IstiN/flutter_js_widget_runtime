@@ -875,7 +875,15 @@ class VoxelPainter extends CustomPainter {
       textureCoordinates: uvView,
       colors: Int32List.sublistView(cols, 0, vCount),
     );
-    canvas.drawVertices(vertices, BlendMode.modulate, paint);
+    // Textured terrain multiplies the noise texture with the per-vertex
+    // tone (modulate). The untextured path draws OPAQUE vertex colors —
+    // srcOver, not modulate: modulate multiplies with what is already on
+    // the canvas (the sky), and on iOS Impeller the modulate drawVertices
+    // pipeline drops the geometry entirely (flutter/flutter#127486
+    // family) — terrain painted but invisible, sky-only world. srcOver
+    // with a 0xFF-alpha color is the same solid fill everywhere.
+    canvas.drawVertices(
+        vertices, textured ? BlendMode.modulate : BlendMode.srcOver, paint);
     _strokeOverlayEdges(canvas, cursor);
   }
 

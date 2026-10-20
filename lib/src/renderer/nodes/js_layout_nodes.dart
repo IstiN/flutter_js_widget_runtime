@@ -72,30 +72,36 @@ extension on JsonWidgetRenderer {
   CrossAxisAlignment _textAlignAdoptedCrossAxis(Map<String, dynamic> m) {
     final raw = m['crossAxisAlignment'];
     if (raw is String && raw.isNotEmpty) return _crossAxis(raw);
-    final children = m['children'];
-    if (children is List && children.isNotEmpty) {
-      String? unanimous;
-      var conflict = false;
-      for (final c in children) {
-        if (c is! Map || c['type'] != 'text') return _crossAxis(raw);
-        final align = c['textAlign'] ??
-            (c['style'] as Map?)?['textAlign'] as String?;
-        if (align is! String) return _crossAxis(raw);
-        if (unanimous == null) {
-          unanimous = align;
-        } else if (unanimous != align) {
-          conflict = true;
-        }
-      }
-      if (!conflict) {
-        return switch (unanimous) {
-          'left' || 'start' => CrossAxisAlignment.start,
-          'right' || 'end' => CrossAxisAlignment.end,
-          _ => CrossAxisAlignment.center,
-        };
+    final unanimous = _unanimousTextAlign(m['children']);
+    if (unanimous == null) return _crossAxis(raw);
+    return switch (unanimous) {
+      'left' || 'start' => CrossAxisAlignment.start,
+      'right' || 'end' => CrossAxisAlignment.end,
+      _ => CrossAxisAlignment.center,
+    };
+  }
+
+  /// The single [textAlign] shared by EVERY text child of the node, or
+  /// null when the children disagree, a child is not a text node, or any
+  /// text child carries no alignment (each breaks the unanimity rule).
+  String? _unanimousTextAlign(dynamic children) {
+    if (children is! List || children.isEmpty) return null;
+    String? unanimous;
+    for (final c in children) {
+      final align = _childTextAlign(c);
+      if (align == null) return null;
+      if (unanimous == null) {
+        unanimous = align;
+      } else if (unanimous != align) {
+        return null;
       }
     }
-    return _crossAxis(raw);
+    return unanimous;
+  }
+
+  String? _childTextAlign(dynamic c) {
+    if (c is! Map || c['type'] != 'text') return null;
+    return c['textAlign'] ?? (c['style'] as Map?)?['textAlign'] as String?;
   }
 
   Widget _stackCore(Map<String, dynamic> m) {

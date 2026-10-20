@@ -297,6 +297,109 @@ class JsonWidgetRenderer with JsonWidgetDecoration {
     return _build(target, cacheKey: cacheKey);
   }
 
+  /// Node-type → builder table. A flat map, not a switch: the renderer's
+  /// cyclomatic complexity lives HERE as data (one entry per node type)
+  /// instead of as branches in [_buildNode] — the crap4dart >= 0.14
+  /// complexity counting charges every switch case, which pushed the
+  /// dispatcher past the CRAP ratchet (comp ~94). Aliased types register
+  /// the same builder under both keys.
+  late final Map<String, Widget Function(Map<String, dynamic>)> _nodeBuilders =
+      {
+    'column': _column,
+    'row': _row,
+    'stack': _stack,
+    'center': _centerNode,
+    'align': _align,
+    'expanded': _expandedNode,
+    'flexible': _flexibleNode,
+    'wrap': _wrap,
+    'padding': _paddingNode,
+    'sizedBox': _sizedBox,
+    'spacer': _spacerNode,
+    'safeArea': _safeAreaNode,
+    'text': _text,
+    'icon': _icon,
+    'divider': _divider,
+    'circularProgressIndicator': _spinner,
+    'linearProgressIndicator': _linearProgress,
+    'container': _container,
+    'card': _card,
+    'inkWell': _inkWell,
+    'scroll': _scroll,
+    'listView': _listView,
+    'gridView': _gridView,
+    'adaptive': _adaptive,
+    'listTile': _listTile,
+    'markdown': _markdown,
+    'circleAvatar': _circleAvatar,
+    'chip': _chip,
+    'badge': _badge,
+    'switch': _switchNode,
+    'checkbox': _checkboxNode,
+    'slider': _sliderNode,
+    'dropdown': _dropdown,
+    'button': _elevatedButton,
+    'textButton': _textButton,
+    'outlinedButton': _outlinedButton,
+    'iconButton': _iconButton,
+    // Material 3 nodes
+    'appBar': _appBarNode,
+    'navigationBar': _navigationBarNode,
+    'tabBar': _tabBarNode,
+    'fab': _fabNode,
+    'segmentedButton': _segmentedButtonNode,
+    'radio': _radioNode,
+    'searchBar': _searchBarNode,
+    'tooltip': _tooltipNode,
+    'popupMenu': _popupMenuNode,
+    'banner': _bannerNode,
+    'bottomAppBar': _bottomAppBarNode,
+    'bottomSheet': _bottomSheetNode,
+    'dialog': _dialogNode,
+    'snackBar': _snackBarNode,
+    'navigationRail': _navigationRailNode,
+    'carousel': _carouselNode,
+    'image': _image,
+    'svg': _svg,
+    'aspectRatio': _aspectRatio,
+    // `opacity` is now handled by universal effect props; keep the node
+    // type as a thin wrapper so existing JSON trees still work.
+    'opacity': _opacityNode,
+    'clipRRect': _clipRRect,
+    'textField': _textFieldNode,
+    'textArea': _textAreaNode,
+    'chart': _chartNode,
+    'flChart': _flChartNode,
+    'datePicker': _datePickerNode,
+    'timePicker': _timePickerNode,
+    'drawer': _drawerNode,
+    'blur': _blurNode,
+    // Animated widgets (implicit animations)
+    'animatedContainer': _animatedContainer,
+    'animatedOpacity': _animatedOpacity,
+    'animatedPositioned': _animatedPositioned,
+    // Transition animations (mount + view switching)
+    'entrance': _entranceNode,
+    'animatedSwitcher': _animatedSwitcherNode,
+    // Gesture input
+    'gestureDetector': _gestureDetector,
+    // New nodes
+    'path': (m) => buildJsPathNode(m),
+    'rect': (m) => buildJsRectNode(m),
+    'circle': (m) => buildJsCircleNode(m),
+    'line': (m) => buildJsLineNode(m),
+    'polygon': (m) => buildJsPolygonNode(m),
+    'map': (m) => buildJsMapNode(m, onEvent, tileProvider: mapTileProvider),
+    'absoluteFill': _absoluteFill,
+    'fill': _absoluteFill,
+    'video': _video,
+    'audio': _audio,
+    'audio_player': _audioPlayer,
+    'webView': _webView,
+    'scene3d': _scene3d,
+    'voxel': _voxel,
+  };
+
   Widget _buildNode(Map<String, dynamic> m) {
     final type = m['type'] as String? ?? '';
 
@@ -316,115 +419,8 @@ class JsonWidgetRenderer with JsonWidgetDecoration {
 
     final hooks = buildHooks;
     final finish = hooks?.finishNode;
-    final child = switch (type) {
-      'column' => _column(m),
-      'row' => _row(m),
-      'stack' => _stack(m),
-      'center' => Center(child: _child(m)),
-      'align' => _align(m),
-      'expanded' => Expanded(flex: _int(m['flex'], 1), child: _child(m)!),
-      'flexible' => Flexible(flex: _int(m['flex'], 1), child: _child(m)!),
-      'wrap' => _wrap(m),
-      'padding' => Padding(
-        padding: _edgeInsets(m['padding']),
-        child: _child(m),
-      ),
-      'sizedBox' => _sizedBox(m),
-      'spacer' => Spacer(flex: _int(m['flex'], 1)),
-      'safeArea' => SafeArea(child: _child(m) ?? const SizedBox()),
-      'text' => _text(m),
-      'icon' => _icon(m),
-      'divider' => _divider(m),
-      'circularProgressIndicator' => _spinner(m),
-      'linearProgressIndicator' => _linearProgress(m),
-      'container' => _container(m),
-      'card' => _card(m),
-      'inkWell' => _inkWell(m),
-      'scroll' => _scroll(m),
-      'listView' => _listView(m),
-      'gridView' => _gridView(m),
-      'adaptive' => _adaptive(m),
-      'listTile' => _listTile(m),
-      'markdown' => _markdown(m),
-      'circleAvatar' => _circleAvatar(m),
-      'chip' => _chip(m),
-      'badge' => _badge(m),
-      'switch' => _switchNode(m),
-      'checkbox' => _checkboxNode(m),
-      'slider' => _sliderNode(m),
-      'dropdown' => _dropdown(m),
-      'button' => _elevatedButton(m),
-      'textButton' => _textButton(m),
-      'outlinedButton' => _outlinedButton(m),
-      'iconButton' => _iconButton(m),
-      // Material 3 nodes
-      'appBar' => _appBarNode(m),
-      'navigationBar' => _navigationBarNode(m),
-      'tabBar' => _tabBarNode(m),
-      'fab' => _fabNode(m),
-      'segmentedButton' => _segmentedButtonNode(m),
-      'radio' => _radioNode(m),
-      'searchBar' => _searchBarNode(m),
-      'tooltip' => _tooltipNode(m),
-      'popupMenu' => _popupMenuNode(m),
-      'banner' => _bannerNode(m),
-      'bottomAppBar' => _bottomAppBarNode(m),
-      'bottomSheet' => _bottomSheetNode(m),
-      'dialog' => _dialogNode(m),
-      'snackBar' => _snackBarNode(m),
-      'navigationRail' => _navigationRailNode(m),
-      'carousel' => _carouselNode(m),
-      'image' => _image(m),
-      'svg' => _svg(m),
-      'aspectRatio' => _aspectRatio(m),
-      // `opacity` is now handled by universal effect props; keep the node
-      // type as a thin wrapper so existing JSON trees still work.
-      'opacity' => _child(m) ?? const SizedBox.shrink(),
-      'clipRRect' => _clipRRect(m),
-      'textField' => _textFieldNode(m),
-      'textArea' => _textAreaNode(m),
-      'chart' => _chartNode(m),
-      'flChart' => _flChartNode(m),
-      'datePicker' => _datePickerNode(m),
-      'timePicker' => _timePickerNode(m),
-      'drawer' => _drawerNode(m),
-      'blur' => _applyBlur(_child(m) ?? const SizedBox.shrink(), m['sigma']),
-
-      // Animated widgets (implicit animations)
-      'animatedContainer' => _animatedContainer(m),
-      'animatedOpacity' => _animatedOpacity(m),
-      'animatedPositioned' => _animatedPositioned(m),
-
-      // Transition animations (mount + view switching)
-      'entrance' => buildJsEntranceNode(
-        m,
-        _child(m) ?? const SizedBox.shrink(),
-      ),
-      'animatedSwitcher' => buildJsAnimatedSwitcherNode(
-        m,
-        _child(m) ?? const SizedBox.shrink(),
-      ),
-
-      // Gesture input
-      'gestureDetector' => _gestureDetector(m),
-
-      // New nodes
-      'path' => buildJsPathNode(m),
-      'rect' => buildJsRectNode(m),
-      'circle' => buildJsCircleNode(m),
-      'line' => buildJsLineNode(m),
-      'polygon' => buildJsPolygonNode(m),
-      'map' => buildJsMapNode(m, onEvent, tileProvider: mapTileProvider),
-      'absoluteFill' || 'fill' => _absoluteFill(m),
-      'video' => _video(m),
-      'audio' => _audio(m),
-      'audio_player' => _audioPlayer(m),
-      'webView' => _webView(m),
-      'scene3d' => _scene3d(m),
-      'voxel' => _voxel(m),
-
-      _ => _unknownType(m),
-    };
+    final builder = _nodeBuilders[type] ?? _unknownType;
+    final child = builder(m);
 
     // expanded/flexible/spacer are PURE LAYOUT: they must sit directly
     // inside their Flex parent, so neither the host finishNode nor the
@@ -440,6 +436,47 @@ class JsonWidgetRenderer with JsonWidgetDecoration {
       m,
     );
   }
+
+  // --- Thin per-type builders for the former inline switch cases. ------
+  // Each keeps the EXACT widget the switch arm used to construct.
+
+  Widget _centerNode(Map<String, dynamic> m) => Center(child: _child(m));
+
+  Widget _expandedNode(Map<String, dynamic> m) =>
+      Expanded(flex: _int(m['flex'], 1), child: _child(m)!);
+
+  Widget _flexibleNode(Map<String, dynamic> m) =>
+      Flexible(flex: _int(m['flex'], 1), child: _child(m)!);
+
+  Widget _paddingNode(Map<String, dynamic> m) => Padding(
+        padding: _edgeInsets(m['padding']),
+        child: _child(m),
+      );
+
+  Widget _spacerNode(Map<String, dynamic> m) {
+    final flex = _int(m['flex'], 1);
+    return Spacer(flex: flex);
+  }
+
+  Widget _safeAreaNode(Map<String, dynamic> m) =>
+      SafeArea(child: _child(m) ?? const SizedBox());
+
+  Widget _opacityNode(Map<String, dynamic> m) =>
+      _child(m) ?? const SizedBox.shrink();
+
+  Widget _blurNode(Map<String, dynamic> m) =>
+      _applyBlur(_child(m) ?? const SizedBox.shrink(), m['sigma']);
+
+  Widget _entranceNode(Map<String, dynamic> m) => buildJsEntranceNode(
+        m,
+        _child(m) ?? const SizedBox.shrink(),
+      );
+
+  Widget _animatedSwitcherNode(Map<String, dynamic> m) =>
+      buildJsAnimatedSwitcherNode(
+        m,
+        _child(m) ?? const SizedBox.shrink(),
+      );
 
   Widget _unknownType(Map<String, dynamic> m) {
     final type = m['type'] as String? ?? '?';

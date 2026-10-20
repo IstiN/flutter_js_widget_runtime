@@ -326,6 +326,19 @@ extension on JsonWidgetRenderer {
     _ => null,
   };
 
+  static const Map<String, FontWeight> _weightNames = {
+    'bold': FontWeight.bold,
+    'w100': FontWeight.w100,
+    'w200': FontWeight.w200,
+    'w300': FontWeight.w300,
+    'w400': FontWeight.w400,
+    'w500': FontWeight.w500,
+    'w600': FontWeight.w600,
+    'w700': FontWeight.w700,
+    'w800': FontWeight.w800,
+    'w900': FontWeight.w900,
+  };
+
   FontWeight? _fontWeight(dynamic v) {
     if (v == null) return null;
     if (v is num) {
@@ -335,19 +348,7 @@ extension on JsonWidgetRenderer {
       final bucket = ((v / 100).round() * 100).clamp(100, 900);
       return FontWeight.values[bucket ~/ 100 - 1];
     }
-    return switch (v.toString()) {
-      'bold' => FontWeight.bold,
-      'w100' => FontWeight.w100,
-      'w200' => FontWeight.w200,
-      'w300' => FontWeight.w300,
-      'w400' => FontWeight.w400,
-      'w500' => FontWeight.w500,
-      'w600' => FontWeight.w600,
-      'w700' => FontWeight.w700,
-      'w800' => FontWeight.w800,
-      'w900' => FontWeight.w900,
-      _ => FontWeight.normal,
-    };
+    return _weightNames[v.toString()] ?? FontWeight.normal;
   }
 
   /// Renders a `chart` node — a sparkline or simple bar chart.
