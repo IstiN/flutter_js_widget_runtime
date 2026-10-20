@@ -17,29 +17,28 @@ Color? parseColor(String? s) {
   return _parseNamedColor(s);
 }
 
-Color? _parseNamedColor(String name) {
-  return switch (name.toLowerCase()) {
-    'transparent' => Colors.transparent,
-    'white' => Colors.white,
-    'black' => Colors.black,
-    'red' => Colors.red,
-    'green' => Colors.green,
-    'blue' => Colors.blue,
-    'yellow' => Colors.yellow,
-    'orange' => Colors.orange,
-    'purple' => Colors.purple,
-    'grey' => Colors.grey,
-    'gray' => Colors.grey,
-    'pink' => Colors.pink,
-    'teal' => Colors.teal,
-    'cyan' => Colors.cyan,
-    'amber' => Colors.amber,
-    'indigo' => Colors.indigo,
-    'lime' => Colors.lime,
-    'brown' => Colors.brown,
-    _ => null,
-  };
-}
+final Map<String, Color> _namedColors = {
+  'transparent': Colors.transparent,
+  'white': Colors.white,
+  'black': Colors.black,
+  'red': Colors.red,
+  'green': Colors.green,
+  'blue': Colors.blue,
+  'yellow': Colors.yellow,
+  'orange': Colors.orange,
+  'purple': Colors.purple,
+  'grey': Colors.grey,
+  'gray': Colors.grey,
+  'pink': Colors.pink,
+  'teal': Colors.teal,
+  'cyan': Colors.cyan,
+  'amber': Colors.amber,
+  'indigo': Colors.indigo,
+  'lime': Colors.lime,
+  'brown': Colors.brown,
+};
+
+Color? _parseNamedColor(String name) => _namedColors[name.toLowerCase()];
 
 /// Parses a curve name into a Flutter [Curve].
 ///
@@ -49,26 +48,27 @@ Color? _parseNamedColor(String name) {
 /// Flutter 3.44 does not ship the new `Easing.*` tokens (and
 /// `Curves.emphasized*` was removed before that), so each alias maps to the
 /// closest curve available in this SDK.
-Curve jsCurve(String? v) => switch (v) {
-  'linear' => Curves.linear,
-  'easeIn' => Curves.easeIn,
-  'easeOut' => Curves.easeOut,
-  'easeInOut' => Curves.easeInOut,
-  'bounce' => Curves.bounceOut,
-  'bounceIn' => Curves.bounceIn,
-  'elastic' => Curves.elasticOut,
-  'elasticIn' => Curves.elasticIn,
-  'decelerate' => Curves.decelerate,
-  'fastOutSlowIn' => Curves.fastOutSlowIn,
+final Map<String, Curve> _jsCurves = {
+  'linear': Curves.linear,
+  'easeIn': Curves.easeIn,
+  'easeOut': Curves.easeOut,
+  'easeInOut': Curves.easeInOut,
+  'bounce': Curves.bounceOut,
+  'bounceIn': Curves.bounceIn,
+  'elastic': Curves.elasticOut,
+  'elasticIn': Curves.elasticIn,
+  'decelerate': Curves.decelerate,
+  'fastOutSlowIn': Curves.fastOutSlowIn,
   // M3 motion tokens (approximations; see doc comment above).
-  'emphasized' => Curves.easeInOutCubicEmphasized,
-  'emphasizedAccelerate' => Curves.easeInCubic,
-  'emphasizedDecelerate' => Curves.easeOutCubic,
-  'standard' => Curves.fastOutSlowIn,
-  'standardAccelerate' => Curves.easeIn,
-  'standardDecelerate' => Curves.easeOut,
-  _ => Curves.easeInOut,
+  'emphasized': Curves.easeInOutCubicEmphasized,
+  'emphasizedAccelerate': Curves.easeInCubic,
+  'emphasizedDecelerate': Curves.easeOutCubic,
+  'standard': Curves.fastOutSlowIn,
+  'standardAccelerate': Curves.easeIn,
+  'standardDecelerate': Curves.easeOut,
 };
+
+Curve jsCurve(String? v) => _jsCurves[v] ?? Curves.easeInOut;
 
 /// Converts [v] to a [double], falling back to [def] when null.
 ///

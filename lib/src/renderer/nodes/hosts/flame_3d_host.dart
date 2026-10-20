@@ -889,20 +889,28 @@ class JsFlame3dGame extends FlameGame3D<World3D, CameraComponent3D>
   void update(double dt) {
     super.update(dt);
     for (final entry in _rotations.entries) {
-      final model = _models[entry.key];
-      if (model == null) continue;
-      final rot = entry.value;
-      final axis = switch (rot.axis) {
-        'x' => Vector3(1, 0, 0),
-        'y' => Vector3(0, 1, 0),
-        'z' || _ => Vector3(0, 0, 1),
-      };
-      final delta = rot.speed * dt * 360 * degrees2Radians;
-      final q = Quaternion.axisAngle(axis, delta);
-      model.rotation.setFrom(model.rotation * q);
+      _applyRotation(entry.key, entry.value, dt);
     }
   }
 
+  /// One axis-rotation tick. Split from [update] so every method stays at
+  /// cyclomatic complexity <= 3 — the flame host is untestable without a
+  /// GPU (0% coverage), and CRAP at zero coverage is comp² + comp.
+  void _applyRotation(String modelId, _Rotation rot, double dt) {
+    final model = _models[modelId];
+    if (model == null) return;
+    final delta = rot.speed * dt * 360 * degrees2Radians;
+    model.rotation.setFrom(
+      model.rotation * Quaternion.axisAngle(_rotationAxis(rot), delta),
+    );
+  }
+
+  Vector3 _rotationAxis(_Rotation rot) {
+    if (rot.axis == 'x') return Vector3(1, 0, 0);
+    if (rot.axis == 'y') return Vector3(0, 1, 0);
+    // 'z' and anything else.
+    return Vector3(0, 0, 1);
+  }
 }
 
 class _Rotation {
