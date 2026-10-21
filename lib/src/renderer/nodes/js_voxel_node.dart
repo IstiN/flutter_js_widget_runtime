@@ -286,6 +286,8 @@ class JsVoxelCamera {
     this.fov = 70,
     this.texture = false,
     Color? skyColor,
+    this.fogStart = 56,
+    this.fogEnd = 128,
   }) : position = Float32List.fromList(position),
        skyColor = skyColor ?? const Color(0xFF87CEEB);
 
@@ -303,6 +305,15 @@ class JsVoxelCamera {
     if (fov is num && fov > 0) cam.fov = fov.toDouble();
     final sky = args['skyColor'];
     if (sky is String) cam.skyColor = _parseColor(sky) ?? cam.skyColor;
+    final fog = args['fog'];
+    if (fog is List && fog.length == 2 && fog.every((e) => e is num)) {
+      cam.fogStart = (fog[0] as num).toDouble();
+      cam.fogEnd = (fog[1] as num).toDouble();
+    }
+    if (args['fog'] == false) {
+      cam.fogStart = 1e9;
+      cam.fogEnd = 1e9 + 1;
+    }
     return cam;
   }
 
@@ -316,6 +327,14 @@ class JsVoxelCamera {
   double light;
   double fov;
   Color skyColor;
+
+  /// Distance fog: triangle colors blend toward [skyColor] between
+  /// [fogStart] and [fogEnd] view units. Hides the streamed world's cut
+  /// edge — without it the render-distance boundary reads as floating
+  /// slabs hanging over void ("the world hangs in emptiness" report).
+  /// Widgets may pass `fog: [start, end]` or `fog: false` to tune it.
+  double fogStart;
+  double fogEnd;
 }
 
 Float32List? _vec3(dynamic raw) {
@@ -660,6 +679,11 @@ class _Tri {
   double depth = 0;
   double sortKey = 0;
   bool overlay = false;
+
+  /// Emission order — the tiebreaker for equal sort keys. List.sort is
+  /// not stable: with the old comparator, depth ties stacked in arbitrary
+  /// order and coplanar/adjacent faces flickered or painted through each
+  /// other (visible as hollow terrain once the quad count grew).
 }
 
 /// Software rasterizer for [JsVoxelNode]: per-chunk frustum culling against
@@ -689,6 +713,9 @@ class VoxelPainter extends CustomPainter {
   late double _focal;
 
   static const double nearPlane = 0.05;
+
+  /// Camera sky color as doubles for the per-triangle fog blend.
+  double _skyR = 0x87.toDouble(), _skyG = 0xce.toDouble(), _skyB = 0xeb.toDouble();
 
   @override
   bool shouldRepaint(VoxelPainter oldDelegate) => false;
@@ -737,6 +764,10 @@ class VoxelPainter extends CustomPainter {
     if (chunks.isEmpty) return;
     camera = world.cameraOf(id);
     canvas.drawRect(Offset.zero & size, Paint()..color = camera.skyColor);
+    final sc = camera.skyColor;
+    _skyR = (sc.r * 255.0).roundToDouble();
+    _skyG = (sc.g * 255.0).roundToDouble();
+    _skyB = (sc.b * 255.0).roundToDouble();
     _buildCameraBasis();
 
     final ex = camera.position[0];
@@ -821,6 +852,9 @@ class VoxelPainter extends CustomPainter {
           ((t.depth - dMin) / span * (buckets - 1)).floor().clamp(0, 1023);
       t.sortKey = (buckets - 1 - b) * 1048576.0 + i;
     }
+    // sortKey embeds the emission index in its low bits (unique per tri),
+    // so the comparator never ties and List.sort's instability cannot
+    // reorder equal-depth faces — the painter's-order guarantee.
     _tris.sort((a, b) => a.sortKey.compareTo(b.sortKey));
     final vCount = cursor * 3;
     final textured = camera.texture;
@@ -1296,10 +1330,20 @@ class VoxelPainter extends CustomPainter {
           t.uvs[v * 2 + 1] = uvs[ju + 1];
         }
         depth += vz;
-        final r = (cview[j] * light * 255).round().clamp(0, 255);
-        final g = (cview[j + 1] * light * 255).round().clamp(0, 255);
-        final bl = (cview[j + 2] * light * 255).round().clamp(0, 255);
-        t.argbs[v] = 0xFF000000 | (r << 16) | (g << 8) | bl;
+        var fr = (cview[j] * light * 255).round().clamp(0, 255);
+        var fg = (cview[j + 1] * light * 255).round().clamp(0, 255);
+        var bl = (cview[j + 2] * light * 255).round().clamp(0, 255);
+        // Depth fog: blend toward the sky color past fogStart. Applied
+        // per-vertex so merged far quads shade smoothly.
+        if (vz > camera.fogStart) {
+          var f = (vz - camera.fogStart) /
+              (camera.fogEnd - camera.fogStart);
+          if (f > 1) f = 1;
+          fr = (fr + (_skyR - fr) * f).round();
+          fg = (fg + (_skyG - fg) * f).round();
+          bl = (bl + (_skyB - bl) * f).round();
+        }
+        t.argbs[v] = 0xFF000000 | (fr << 16) | (fg << 8) | bl;
       }
       depth /= 3;
       // Backface cull + subpixel cull in one compare: faces wound CCW

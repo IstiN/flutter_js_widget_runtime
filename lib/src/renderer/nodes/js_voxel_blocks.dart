@@ -396,8 +396,10 @@ JsVoxelChunk? meshVoxelBlocks({
 }
 
 /// Rasters ONE slice of ONE face direction into the merge mask: visible
-/// faces only, merge key = packed tone rgb (+1 so air stays 0) —
-/// same-color neighbors collapse, differing grain stays crisp.
+/// faces only, merge key = the block type (air stays 0) — same-type
+/// neighbours collapse into one greedy quad carrying the seed cell's
+/// tone, matching the widget's own mesher (merging by per-cell tone
+/// defeated the greedy pass and flooded the painter ~3.4x).
 void _rasterSlice(
   JsVoxelBlocks chunk,
   JsVoxelPalette palette,
@@ -437,11 +439,15 @@ void _rasterSlice(
       cc[ci] = fc[0];
       cc[ci + 1] = fc[1];
       cc[ci + 2] = fc[2];
-      m[vv * su + uu] =
-          (((fc[0] * 255).round() << 16) |
-              ((fc[1] * 255).round() << 8) |
-              (fc[2] * 255).round()) +
-          1;
+      // Merge key = BLOCK TYPE (not the packed tone): the per-cell tone
+      // grain defeats greedy merging — neighbouring cells almost always
+      // roll different tones, so nothing collapses and the quad count
+      // explodes ~3.4x vs the JS reference mesher. That flood tripped
+      // the painter's depth-sort into visible chaos (hollow terrain,
+      // floating fragments — the "empty world" report). The quad still
+      // carries the seed cell's tone; block-type merging is what the
+      // widget's own mesher has always done.
+      m[vv * su + uu] = b;
     }
   }
 }
