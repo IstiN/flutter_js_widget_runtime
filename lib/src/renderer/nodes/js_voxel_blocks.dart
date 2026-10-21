@@ -381,7 +381,7 @@ JsVoxelChunk? meshVoxelBlocks({
       _rasterSlice(chunk, palette, blockAt, m, cc, fc, f, a, u, v, s, dn,
           su, sv, vertical, faceClass, ox, oz);
       _greedyScan(m, cc, su, sv, f, a, u, v, s, positive, positions, colors,
-          indices, origin);
+          indices);
     }
   }
 
@@ -396,10 +396,8 @@ JsVoxelChunk? meshVoxelBlocks({
 }
 
 /// Rasters ONE slice of ONE face direction into the merge mask: visible
-/// faces only, merge key = the block type (air stays 0) — same-type
-/// neighbours collapse into one greedy quad carrying the seed cell's
-/// tone, matching the widget's own mesher (merging by per-cell tone
-/// defeated the greedy pass and flooded the painter ~3.4x).
+/// faces only, merge key = packed tone rgb (+1 so air stays 0) —
+/// same-color neighbors collapse, differing grain stays crisp.
 void _rasterSlice(
   JsVoxelBlocks chunk,
   JsVoxelPalette palette,
@@ -439,15 +437,15 @@ void _rasterSlice(
       cc[ci] = fc[0];
       cc[ci + 1] = fc[1];
       cc[ci + 2] = fc[2];
-      // Merge key = BLOCK TYPE (not the packed tone): the per-cell tone
-      // grain defeats greedy merging — neighbouring cells almost always
-      // roll different tones, so nothing collapses and the quad count
-      // explodes ~3.4x vs the JS reference mesher. That flood tripped
-      // the painter's depth-sort into visible chaos (hollow terrain,
-      // floating fragments — the "empty world" report). The quad still
-      // carries the seed cell's tone; block-type merging is what the
-      // widget's own mesher has always done.
-      m[vv * su + uu] = b;
+      // Merge key = packed tone rgb (+1 so air stays 0): same-tone
+      // neighbours collapse into one greedy quad while differing tones
+      // stay separate — crisp per-block pixel grain matching the
+      // widget's own JS mesher (`game/mesh.js`).
+      m[vv * su + uu] =
+          (((fc[0] * 255).round() << 16) |
+              ((fc[1] * 255).round() << 8) |
+              (fc[2] * 255).round()) +
+          1;
     }
   }
 }
@@ -469,7 +467,6 @@ void _greedyScan(
   _Sink32 positions,
   _Sink32 colors,
   _SinkU32 indices,
-  List<double> origin,
 ) {
   for (var vv = 0; vv < sv; vv++) {
     for (var uu = 0; uu < su; uu++) {
@@ -488,7 +485,7 @@ void _greedyScan(
         hgt++;
       }
       _emitQuad(positions, colors, indices, f, s, positive, a, u, v, uu,
-          uu + wdt, vv, vv + hgt, cc, (vv * su + uu) * 3, origin);
+          uu + wdt, vv, vv + hgt, cc, (vv * su + uu) * 3);
       for (var dv = 0; dv < hgt; dv++) {
         for (var du2 = 0; du2 < wdt; du2++) {
           m[(vv + dv) * su + uu + du2] = 0;
@@ -498,8 +495,9 @@ void _greedyScan(
   }
 }
 
-/// Emits one merged quad: 4 corner vertices + 2 CCW triangles, flat
-/// per-quad color (the noise tile owns the pixel detail downstream).
+/// Emits one merged quad: 4 corner vertices + 2 CCW triangles in
+/// CHUNK-LOCAL coordinates ([JsVoxelChunk.origin] translates them once in
+/// [VoxelPainter._collectChunk]), flat per-quad color.
 void _emitQuad(
   _Sink32 positions,
   _Sink32 colors,
@@ -516,7 +514,6 @@ void _emitQuad(
   int v1,
   Float32List cc,
   int ci,
-  List<double> origin,
 ) {
   final base = positions.len ~/ 3;
   final plane = (positive ? s + 1 : s).toDouble();
@@ -526,9 +523,9 @@ void _emitQuad(
     cr[a] = plane;
     cr[u] = (cs[i][0] == 1 ? u1 : u0).toDouble();
     cr[v] = (cs[i][1] == 1 ? v1 : v0).toDouble();
-    positions.add(cr[0] + origin[0]);
-    positions.add(cr[1] + origin[1]);
-    positions.add(cr[2] + origin[2]);
+    positions.add(cr[0]);
+    positions.add(cr[1]);
+    positions.add(cr[2]);
     colors.add(cc[ci]);
     colors.add(cc[ci + 1]);
     colors.add(cc[ci + 2]);

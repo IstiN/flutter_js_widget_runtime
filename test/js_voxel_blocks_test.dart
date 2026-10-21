@@ -298,4 +298,30 @@ void main() {
       expect(chunk.colors[i], closeTo(0x40 / 255, 0.001));
     }
   });
+
+  test('non-zero origin keeps positions chunk-local (not double-translated)', () {
+    // Regression guard: VoxelPainter._collectChunk adds chunk.origin to
+    // chunk.positions. If meshVoxelBlocks also baked origin into
+    // positions, every chunk at (cx, cz) != (0, 0) was placed at 2x its
+    // world offset — tearing 16-block gaps of empty sky between every
+    // chunk in the world.
+    final w = _worldWith(_payload(
+      key: '1,-2',
+      origin: [16, 0, -32],
+      size: [2, 2, 2],
+      blocks: [1, 1, 1, 1, 1, 1, 1, 1],
+      palette: [_flatPalette(), _flatPalette()],
+    ));
+    final chunk = w.chunksOf('t')['1,-2']!;
+    expect(chunk.origin, [16.0, 0.0, -32.0]);
+    for (var i = 0; i < chunk.positions.length; i++) {
+      expect(
+        chunk.positions[i],
+        inInclusiveRange(0.0, 2.0),
+        reason: 'positions[$i]=${chunk.positions[i]} must stay chunk-local (0..2)',
+      );
+    }
+    expect(chunk.aabbMin, [0.0, 0.0, 0.0]);
+    expect(chunk.aabbMax, [2.0, 2.0, 2.0]);
+  });
 }
