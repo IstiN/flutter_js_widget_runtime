@@ -679,11 +679,6 @@ class _Tri {
   double depth = 0;
   double sortKey = 0;
   bool overlay = false;
-
-  /// Emission order — the tiebreaker for equal sort keys. List.sort is
-  /// not stable: with the old comparator, depth ties stacked in arbitrary
-  /// order and coplanar/adjacent faces flickered or painted through each
-  /// other (visible as hollow terrain once the quad count grew).
 }
 
 /// Software rasterizer for [JsVoxelNode]: per-chunk frustum culling against
