@@ -44,31 +44,10 @@ class JsVoxelChunk {
     );
   }
 
-  /// Parses the packed binary form uploaded via
-  /// `jsr.hostCallBinary('voxel.mesh.bin', bytes)` — the zero-JSON lane
-  /// (QuickJS native bytes backend). Layout, all little-endian:
-  ///
-  /// ```text
-  /// u32  magic 'JVXM' (0x4A56584D)
-  /// u32  version = 1
-  /// u32  headerLen (bytes)
-  /// u8[headerLen]         header JSON (padded with NULs to 4-byte alignment)
-  /// f32[3 * vertexCount]  positions (chunk-local xyz)
-  /// f32[3 * vertexCount]  colors (rgb, 0..1)
-  /// u32[3 * faceCount]    triangle indices
-  /// ```
-  ///
-  /// The header carries the small fields that must not be binary:
-  /// `{id, key, origin: [x,y,z], ni, overlay?}` — `ni` is the index
-  /// count (the vertex count is derived from the remaining bytes).
-  /// Returns `(instanceId, chunkKey, chunk)` or null for garbage so a
-  /// single bad upload cannot wedge the renderer. Buffers are COPIES:
-  /// the incoming [data] may be a call-scoped view of the JS engine's
-  /// backing store.
   /// Parses the shared binary envelope (magic `'JVXM'`, version 1, u32
-  /// raw header length, NUL-padded header JSON to 4-byte alignment).
-  /// Returns `(header, bodyStart)` or null for garbage; [data] may be a
-  /// call-scoped view — copy anything you retain.
+  /// raw header length, NUL-padded header JSON to 4-byte alignment) for
+  /// `voxel.mesh.bin` / `voxel.blocks.bin`. Returns `(header, bodyStart)`
+  /// or null for garbage; copy any retained slices from [data].
   static (Map<String, dynamic>, int)? parseBinaryEnvelope(Uint8List data) {
     if (data.length < 16) return null;
     final bd = ByteData.sublistView(data);
@@ -726,10 +705,6 @@ class VoxelPainter extends CustomPainter {
 
   @override
   void paint(Canvas canvas, Size size) {
-    // Rolling paint-cost stats, logged every 300 paints — on web these land
-    // in the browser console, giving field reports ("fps dips while
-    // walking") their Dart-side counterpart next to the widget's own
-    // [facraft] JS-side numbers.
     final sw = Stopwatch()..start();
     _paintBody(canvas, size);
     sw.stop();
@@ -738,11 +713,6 @@ class VoxelPainter extends CustomPainter {
     _paintTris += _lastTriCount;
     if (_paintCount >= 300) {
       debugPrint(
-        // The `v=` tag names the subdivision algorithm build so field
-        // logs prove which painter a report came from:
-        //   w1 = 24px screen edge, 4-way; w2 = binary bisection;
-        //   w3 = tri-wide anisotropy warp; w4 = per-edge warp;
-        //   w5 = per-edge warp stop + quad-symmetric split choice.
         '[voxel v=w5] '
         'paint=${(_paintUs / _paintCount / 1000).toStringAsFixed(1)}ms '
         'tris=${(_paintTris / _paintCount).round()}',
@@ -826,19 +796,8 @@ class VoxelPainter extends CustomPainter {
     _focal = 1 / math.tan((camera.fov * math.pi / 180) / 2);
   }
 
-  /// Painter's algorithm, bucketed: one arithmetic-packed sort key per
-  /// triangle — (inverted depth bucket) * 2^20 + insertion index — so a
-  /// single ascending sort yields far→near buckets AND a stable
-  /// chunk-upload order inside each bucket. The insertion tiebreak is what
-  /// keeps a widget's late-uploaded overlay chunk (fa-craft's '__hl' aim
-  /// marker) on top of the coplanar block face instead of z-fighting —
-  /// bucket granularity (~1/1024 of the view depth) is far coarser than
-  /// the marker's 0.02-block offset. Drawing is ONE drawVertices call with
-  /// per-vertex colors (modulated over a white paint): no per-color-run
-  /// Path batching, and vertex colors interpolate across triangles —
-  /// merged greedy-mesh quads get smooth per-block tonal gradients.
-  /// The key is packed arithmetically, not bitwise — dart2js bitwise ops
-  /// are 32-bit and would shred the high bits.
+  /// Counting-sorted painter's algorithm across 1024 far→near depth buckets,
+  /// preserving insertion order so overlay chunks ('__hl') win ties.
   final Int32List _bucketCounts = Int32List(1024);
   final Int32List _bucketOffsets = Int32List(1024);
   Int32List _sortedOrder = Int32List(0);
@@ -859,25 +818,14 @@ class VoxelPainter extends CustomPainter {
     }
     for (var i = 0; i < cursor; i++) {
       final t = _tris[_sortedOrder[i]];
-      final o = i * 6;
-      pos[o] = t.pts[0];
-      pos[o + 1] = t.pts[1];
-      pos[o + 2] = t.pts[2];
-      pos[o + 3] = t.pts[3];
-      pos[o + 4] = t.pts[4];
-      pos[o + 5] = t.pts[5];
-      final c = i * 3;
+      final o = i * 6, c = i * 3;
+      for (var k = 0; k < 6; k++) {
+        pos[o + k] = t.pts[k];
+        if (textured) uvs[o + k] = t.uvs[k];
+      }
       cols[c] = t.argbs[0];
       cols[c + 1] = t.argbs[1];
       cols[c + 2] = t.argbs[2];
-      if (textured) {
-        uvs[o] = t.uvs[0];
-        uvs[o + 1] = t.uvs[1];
-        uvs[o + 2] = t.uvs[2];
-        uvs[o + 3] = t.uvs[3];
-        uvs[o + 4] = t.uvs[4];
-        uvs[o + 5] = t.uvs[5];
-      }
     }
     final paint = Paint();
     Float32List? uvView;
@@ -899,13 +847,8 @@ class VoxelPainter extends CustomPainter {
       textureCoordinates: uvView,
       colors: Int32List.sublistView(cols, 0, vCount),
     );
-    // Textured terrain multiplies the noise texture with the per-vertex
-    // tone (modulate). The untextured path draws OPAQUE vertex colors —
-    // srcOver, not modulate: modulate multiplies with what is already on
-    // the canvas (the sky), and on iOS Impeller the modulate drawVertices
-    // pipeline drops the geometry entirely (flutter/flutter#127486
-    // family) — terrain painted but invisible, sky-only world. srcOver
-    // with a 0xFF-alpha color is the same solid fill everywhere.
+    // Opaque untextured vertex colors use srcOver (iOS Impeller drops
+    // BlendMode.modulate drawVertices without a shader texture).
     canvas.drawVertices(
         vertices, textured ? BlendMode.modulate : BlendMode.srcOver, paint);
     _strokeOverlayEdges(canvas, cursor);
@@ -1104,23 +1047,8 @@ class VoxelPainter extends CustomPainter {
           wpos, crgb)) {
         continue;
       }
-      cursor = _emitWorldTri(
-        chunk,
-        cursor,
-        wpos,
-        crgb,
-        ex,
-        ey,
-        ez,
-        halfW,
-        halfH,
-        light,
-        textured,
-        view,
-        cview,
-        uvs,
-        0,
-      );
+      cursor = _emitWorldTri(chunk, cursor, wpos, crgb, ex, ey, ez, halfW,
+          halfH, light, textured, view, cview, uvs, 0);
     }
     return cursor;
   }
@@ -1154,24 +1082,12 @@ class VoxelPainter extends CustomPainter {
     final ny = uz * vx - ux * vz;
     final nz = ux * vy - uy * vx;
     if (x0 * nx + y0 * ny + z0 * nz >= 0) return true;
-    wpos[0] = x0 + ex;
-    wpos[1] = y0 + ey;
-    wpos[2] = z0 + ez;
-    wpos[3] = x1 + ex;
-    wpos[4] = y1 + ey;
-    wpos[5] = z1 + ez;
-    wpos[6] = x2 + ex;
-    wpos[7] = y2 + ey;
-    wpos[8] = z2 + ez;
-    crgb[0] = col[p0];
-    crgb[1] = col[p0 + 1];
-    crgb[2] = col[p0 + 2];
-    crgb[3] = col[p1];
-    crgb[4] = col[p1 + 1];
-    crgb[5] = col[p1 + 2];
-    crgb[6] = col[p2];
-    crgb[7] = col[p2 + 1];
-    crgb[8] = col[p2 + 2];
+    wpos[0] = x0 + ex; wpos[1] = y0 + ey; wpos[2] = z0 + ez;
+    wpos[3] = x1 + ex; wpos[4] = y1 + ey; wpos[5] = z1 + ez;
+    wpos[6] = x2 + ex; wpos[7] = y2 + ey; wpos[8] = z2 + ez;
+    crgb[0] = col[p0]; crgb[1] = col[p0 + 1]; crgb[2] = col[p0 + 2];
+    crgb[3] = col[p1]; crgb[4] = col[p1 + 1]; crgb[5] = col[p1 + 2];
+    crgb[6] = col[p2]; crgb[7] = col[p2 + 1]; crgb[8] = col[p2 + 2];
     return false;
   }
 
@@ -1179,20 +1095,9 @@ class VoxelPainter extends CustomPainter {
   /// perspective-faithful texturing, then transforms, clips and projects
   /// it into the [_tris] pool.
   int _emitWorldTri(
-    JsVoxelChunk chunk,
-    int cursor,
-    Float32List wpos,
-    Float32List crgb,
-    double ex,
-    double ey,
-    double ez,
-    double halfW,
-    double halfH,
-    double light,
-    bool textured,
-    Float32List view,
-    Float32List cview,
-    Float32List uvs,
+    JsVoxelChunk chunk, int cursor, Float32List wpos, Float32List crgb,
+    double ex, double ey, double ez, double halfW, double halfH, double light,
+    bool textured, Float32List view, Float32List cview, Float32List uvs,
     int depth,
   ) {
     for (var v = 0; v < 3; v++) {
@@ -1224,18 +1129,8 @@ class VoxelPainter extends CustomPainter {
     if (textured) _fillTriUv(wpos, uvs);
     final tri = _clipAgainstNear(view, cview, textured ? uvs : null);
     if (tri == null) return cursor;
-    return _projectTris(
-      chunk,
-      cursor,
-      tri,
-      view,
-      cview,
-      uvs,
-      halfW,
-      halfH,
-      light,
-      textured,
-    );
+    return _projectTris(chunk, cursor, tri, view, cview, uvs, halfW, halfH,
+        light, textured);
   }
 
   /// Splits the triangle in two along its longest world edge and
