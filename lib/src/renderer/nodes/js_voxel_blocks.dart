@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:math' as math;
 import 'dart:typed_data';
 
 import 'js_voxel_node.dart';
@@ -285,9 +286,10 @@ class _Sink32 {
   Float32List _data;
   int len = 0;
 
-  void add(double v) {
-    if (len == _data.length) _grow();
-    _data[len++] = v;
+  void ensure(int extra) {
+    while (len + extra > _data.length) {
+      _grow();
+    }
   }
 
   void _grow() {
@@ -308,13 +310,12 @@ class _SinkU32 {
   Uint32List _data;
   int len = 0;
 
-  void add(int v) {
-    if (len == _data.length) {
+  void ensure(int extra) {
+    while (len + extra > _data.length) {
       final grown = Uint32List(_data.length * 2);
       grown.setAll(0, _data);
       _data = grown;
     }
-    _data[len++] = v;
   }
 
   Uint32List take() {
@@ -353,18 +354,20 @@ JsVoxelChunk? meshVoxelBlocks({
 
   // Reused per-face-slice merge mask + per-cell color (sized for the
   // largest in-plane slice this chunk can have).
-  var sliceCap = sx * sy;
-  if (sy * sz > sliceCap) sliceCap = sy * sz;
-  if (sx * sz > sliceCap) sliceCap = sx * sz;
+  final sliceCap = math.max(sx * sy, math.max(sy * sz, sx * sz));
   var mask = Int32List(sliceCap);
   var cellColor = Float32List(sliceCap * 3);
   final fc = Float32List(3);
+
+  final maxY = _highestNonAirY(chunk);
+  if (maxY < 0) return null;
 
   for (var f = 0; f < 6; f++) {
     final a = _Faces.axisOf[f];
     final positive = (f & 1) == 0;
     final u = _Faces.axes[f][0], v = _Faces.axes[f][1];
-    final su = sizes[u], sv = sizes[v];
+    final su = sizes[u], sv = a == 1 ? sizes[v] : maxY + 1;
+    final sa = a == 1 ? maxY + 1 : sizes[a];
     final dn = positive ? 1 : -1;
     final vertical = a != 1;
     final faceClass = a == 1 ? (positive ? 2 : 0) : 1;
@@ -377,7 +380,7 @@ JsVoxelChunk? meshVoxelBlocks({
     final m = mask, cc = cellColor;
     final ox = origin[0].toInt(), oz = origin[2].toInt();
 
-    for (var s = 0; s < sizes[a]; s++) {
+    for (var s = 0; s < sa; s++) {
       _rasterSlice(chunk, palette, blockAt, m, cc, fc, f, a, u, v, s, dn,
           su, sv, vertical, faceClass, ox, oz);
       _greedyScan(m, cc, su, sv, f, a, u, v, s, positive, positions, colors,
@@ -393,6 +396,20 @@ JsVoxelChunk? meshVoxelBlocks({
     origin: Float32List.fromList(origin),
     overlay: overlay,
   );
+}
+
+/// Highest Y layer in [chunk] containing at least one non-air voxel, or `-1`
+/// when the chunk is completely air.
+int _highestNonAirY(JsVoxelBlocks chunk) {
+  final raw = chunk.data;
+  final planeSize = chunk.sx * chunk.sz;
+  for (var y = chunk.sy - 1; y >= 0; y--) {
+    final yOff = y * planeSize;
+    for (var i = 0; i < planeSize; i++) {
+      if (raw[yOff + i] != 0) return y;
+    }
+  }
+  return -1;
 }
 
 /// Rasters ONE slice of ONE face direction into the merge mask: visible
@@ -418,21 +435,18 @@ void _rasterSlice(
   int ox,
   int oz,
 ) {
+  final coords = Int32List(3);
   for (var vv = 0; vv < sv; vv++) {
     for (var uu = 0; uu < su; uu++) {
-      final p = [0, 0, 0];
-      p[a] = s;
-      p[u] = uu;
-      p[v] = vv;
-      final b = blockAt(p[0], p[1], p[2]);
+      coords[a] = s;
+      coords[u] = uu;
+      coords[v] = vv;
+      final px = coords[0], py = coords[1], pz = coords[2];
+      final b = blockAt(px, py, pz);
       if (b == 0) continue;
-      final q = [0, 0, 0];
-      q[a] = s + dn;
-      q[u] = uu;
-      q[v] = vv;
-      if (blockAt(q[0], q[1], q[2]) != 0) continue;
-      palette.faceColor(
-          b, vertical, ox + p[0], p[1], oz + p[2], faceClass, fc);
+      coords[a] = s + dn;
+      if (blockAt(coords[0], coords[1], coords[2]) != 0) continue;
+      palette.faceColor(b, vertical, ox + px, py, oz + pz, faceClass, fc);
       final ci = (vv * su + uu) * 3;
       cc[ci] = fc[0];
       cc[ci + 1] = fc[1];
@@ -515,25 +529,40 @@ void _emitQuad(
   Float32List cc,
   int ci,
 ) {
-  final base = positions.len ~/ 3;
+  positions.ensure(12);
+  colors.ensure(12);
+  indices.ensure(6);
+  final pBuf = positions._data;
+  final cBuf = colors._data;
+  final iBuf = indices._data;
+  var pLen = positions.len;
+  var cLen = colors.len;
+  final iLen = indices.len;
+  final base = pLen ~/ 3;
   final plane = (positive ? s + 1 : s).toDouble();
   final cs = _Faces.corners[f];
+  final r = cc[ci], g = cc[ci + 1], b = cc[ci + 2];
+  final u0d = u0.toDouble(), u1d = u1.toDouble();
+  final v0d = v0.toDouble(), v1d = v1.toDouble();
   for (var i = 0; i < 4; i++) {
-    final cr = List<double>.filled(3, 0);
-    cr[a] = plane;
-    cr[u] = (cs[i][0] == 1 ? u1 : u0).toDouble();
-    cr[v] = (cs[i][1] == 1 ? v1 : v0).toDouble();
-    positions.add(cr[0]);
-    positions.add(cr[1]);
-    positions.add(cr[2]);
-    colors.add(cc[ci]);
-    colors.add(cc[ci + 1]);
-    colors.add(cc[ci + 2]);
+    final cu = cs[i][0] == 1 ? u1d : u0d;
+    final cv = cs[i][1] == 1 ? v1d : v0d;
+    pBuf[pLen] = a == 0 ? plane : cu;
+    pBuf[pLen + 1] = a == 1 ? plane : (u == 1 ? cu : cv);
+    pBuf[pLen + 2] = a == 2 ? plane : cv;
+    pLen += 3;
+    cBuf[cLen] = r;
+    cBuf[cLen + 1] = g;
+    cBuf[cLen + 2] = b;
+    cLen += 3;
   }
-  indices.add(base);
-  indices.add(base + 1);
-  indices.add(base + 2);
-  indices.add(base);
-  indices.add(base + 2);
-  indices.add(base + 3);
+  positions.len = pLen;
+  colors.len = cLen;
+  iBuf[iLen] = base;
+  iBuf[iLen + 1] = base + 1;
+  iBuf[iLen + 2] = base + 2;
+  iBuf[iLen + 3] = base;
+  iBuf[iLen + 4] = base + 2;
+  iBuf[iLen + 5] = base + 3;
+  indices.len = iLen + 6;
 }

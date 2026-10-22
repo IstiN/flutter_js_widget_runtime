@@ -541,17 +541,26 @@ class JsVoxelWorld extends ChangeNotifier {
   /// or air when the neighbor is missing.
   int Function(int lx, int y, int lz) _neighborLookup(
       String id, JsVoxelBlocks blocks) {
-    final store = _blocksByInstance[id] ?? const {};
+    final store = _blocksByInstance[id];
+    if (store == null) return (_, __, ___) => 0;
+    final gx = blocks.gx, gz = blocks.gz;
+    final sx = blocks.sx, sz = blocks.sz;
+    final west = store['${gx - 1},$gz'];
+    final east = store['${gx + 1},$gz'];
+    final north = store['$gx,${gz - 1}'];
+    final south = store['$gx,${gz + 1}'];
     return (lx, y, lz) {
-      final dgx = lx < 0 ? -1 : (lx >= blocks.sx ? 1 : 0);
-      final dgz = lz < 0 ? -1 : (lz >= blocks.sz ? 1 : 0);
-      final nb = store['${blocks.gx + dgx},${blocks.gz + dgz}'];
-      if (nb == null || y < 0 || y >= nb.sy) return 0;
-      final nlx = lx - dgx * nb.sx;
-      final nlz = lz - dgz * nb.sz;
-      if (nlx < 0 || nlx >= nb.sx || nlz < 0 || nlz >= nb.sz) return 0;
-      return nb.data[(y * nb.sz + nlz) * nb.sx + nlx];
+      if (lx < 0) return _sampleNeighbor(west, lx + sx, y, lz);
+      if (lx >= sx) return _sampleNeighbor(east, lx - sx, y, lz);
+      if (lz < 0) return _sampleNeighbor(north, lx, y, lz + sz);
+      return _sampleNeighbor(south, lx, y, lz - sz);
     };
+  }
+
+  int _sampleNeighbor(JsVoxelBlocks? nb, int lx, int y, int lz) {
+    if (nb == null || y < 0 || y >= nb.sy) return 0;
+    if (lx < 0 || lx >= nb.sx || lz < 0 || lz >= nb.sz) return 0;
+    return nb.data[(y * nb.sz + lz) * nb.sx + lx];
   }
 
   /// A newly-stored chunk can hide (or reveal) the border faces of its
@@ -677,7 +686,7 @@ class _Tri {
   final Float32List uvs = Float32List(6);
   final Int32List argbs = Int32List(3);
   double depth = 0;
-  double sortKey = 0;
+  int bucket = 0;
   bool overlay = false;
 }
 
@@ -830,27 +839,13 @@ class VoxelPainter extends CustomPainter {
   /// merged greedy-mesh quads get smooth per-block tonal gradients.
   /// The key is packed arithmetically, not bitwise — dart2js bitwise ops
   /// are 32-bit and would shred the high bits.
+  final Int32List _bucketCounts = Int32List(1024);
+  final Int32List _bucketOffsets = Int32List(1024);
+  Int32List _sortedOrder = Int32List(0);
+
   void _sortAndDraw(Canvas canvas, int cursor) {
     _tris.length = cursor;
-    var dMin = double.infinity;
-    var dMax = double.negativeInfinity;
-    for (var i = 0; i < cursor; i++) {
-      final d = _tris[i].depth;
-      if (d < dMin) dMin = d;
-      if (d > dMax) dMax = d;
-    }
-    final span = dMax - dMin < 1e-6 ? 1e-6 : dMax - dMin;
-    const buckets = 1024;
-    for (var i = 0; i < cursor; i++) {
-      final t = _tris[i];
-      final b =
-          ((t.depth - dMin) / span * (buckets - 1)).floor().clamp(0, 1023);
-      t.sortKey = (buckets - 1 - b) * 1048576.0 + i;
-    }
-    // sortKey embeds the emission index in its low bits (unique per tri),
-    // so the comparator never ties and List.sort's instability cannot
-    // reorder equal-depth faces — the painter's-order guarantee.
-    _tris.sort((a, b) => a.sortKey.compareTo(b.sortKey));
+    _bucketSortTris(cursor);
     final vCount = cursor * 3;
     final textured = camera.texture;
     _bufferPage = 1 - _bufferPage;
@@ -863,7 +858,7 @@ class VoxelPainter extends CustomPainter {
       uvs = _vertUvs[_bufferPage] = Float32List(vCount * 2);
     }
     for (var i = 0; i < cursor; i++) {
-      final t = _tris[i];
+      final t = _tris[_sortedOrder[i]];
       final o = i * 6;
       pos[o] = t.pts[0];
       pos[o + 1] = t.pts[1];
@@ -914,6 +909,41 @@ class VoxelPainter extends CustomPainter {
     canvas.drawVertices(
         vertices, textured ? BlendMode.modulate : BlendMode.srcOver, paint);
     _strokeOverlayEdges(canvas, cursor);
+  }
+
+  /// Counting-sorts `0..cursor-1` into [_sortedOrder] far-to-near across 1024
+  /// depth buckets, preserving insertion tie-break order.
+  void _bucketSortTris(int cursor) {
+    var dMin = double.infinity;
+    var dMax = double.negativeInfinity;
+    for (var i = 0; i < cursor; i++) {
+      final d = _tris[i].depth;
+      if (d < dMin) dMin = d;
+      if (d > dMax) dMax = d;
+    }
+    final span = dMax - dMin < 1e-6 ? 1e-6 : dMax - dMin;
+    const buckets = 1024;
+    _bucketCounts.fillRange(0, buckets, 0);
+    final invSpan = (buckets - 1) / span;
+    for (var i = 0; i < cursor; i++) {
+      final t = _tris[i];
+      final b = ((t.depth - dMin) * invSpan).floor().clamp(0, 1023);
+      final invB = buckets - 1 - b;
+      t.bucket = invB;
+      _bucketCounts[invB]++;
+    }
+    var sum = 0;
+    for (var b = 0; b < buckets; b++) {
+      _bucketOffsets[b] = sum;
+      sum += _bucketCounts[b];
+    }
+    if (_sortedOrder.length < cursor) {
+      _sortedOrder = Int32List(cursor);
+    }
+    for (var i = 0; i < cursor; i++) {
+      final b = _tris[i].bucket;
+      _sortedOrder[_bucketOffsets[b]++] = i;
+    }
   }
 
   /// Overlay chunks (the aim marker) are thin high-contrast strips:
@@ -1070,14 +1100,9 @@ class VoxelPainter extends CustomPainter {
     final wpos = Float32List(9);
     final crgb = Float32List(9);
     for (var f = 0; f + 2 < indices.length; f += 3) {
-      for (var v = 0; v < 3; v++) {
-        final p = indices[f + v] * 3;
-        wpos[v * 3] = pos[p] + ox + ex;
-        wpos[v * 3 + 1] = pos[p + 1] + oy + ey;
-        wpos[v * 3 + 2] = pos[p + 2] + oz + ez;
-        crgb[v * 3] = col[p];
-        crgb[v * 3 + 1] = col[p + 1];
-        crgb[v * 3 + 2] = col[p + 2];
+      if (_loadAndCullWorldTri(pos, col, indices, f, ox, oy, oz, ex, ey, ez,
+          wpos, crgb)) {
+        continue;
       }
       cursor = _emitWorldTri(
         chunk,
@@ -1098,6 +1123,56 @@ class VoxelPainter extends CustomPainter {
       );
     }
     return cursor;
+  }
+
+  /// Loads triangle [f] into [wpos]/[crgb] and returns `true` when it is
+  /// back-facing in 3D eye-relative space (dot(v0 - eye, normal) >= 0),
+  /// culling ~50% of triangles before view transform and uv subdivision.
+  bool _loadAndCullWorldTri(
+    Float32List pos,
+    Float32List col,
+    Uint32List indices,
+    int f,
+    double ox,
+    double oy,
+    double oz,
+    double ex,
+    double ey,
+    double ez,
+    Float32List wpos,
+    Float32List crgb,
+  ) {
+    final p0 = indices[f] * 3;
+    final p1 = indices[f + 1] * 3;
+    final p2 = indices[f + 2] * 3;
+    final x0 = pos[p0] + ox, y0 = pos[p0 + 1] + oy, z0 = pos[p0 + 2] + oz;
+    final x1 = pos[p1] + ox, y1 = pos[p1 + 1] + oy, z1 = pos[p1 + 2] + oz;
+    final x2 = pos[p2] + ox, y2 = pos[p2 + 1] + oy, z2 = pos[p2 + 2] + oz;
+    final ux = x1 - x0, uy = y1 - y0, uz = z1 - z0;
+    final vx = x2 - x0, vy = y2 - y0, vz = z2 - z0;
+    final nx = uy * vz - uz * vy;
+    final ny = uz * vx - ux * vz;
+    final nz = ux * vy - uy * vx;
+    if (x0 * nx + y0 * ny + z0 * nz >= 0) return true;
+    wpos[0] = x0 + ex;
+    wpos[1] = y0 + ey;
+    wpos[2] = z0 + ez;
+    wpos[3] = x1 + ex;
+    wpos[4] = y1 + ey;
+    wpos[5] = z1 + ez;
+    wpos[6] = x2 + ex;
+    wpos[7] = y2 + ey;
+    wpos[8] = z2 + ez;
+    crgb[0] = col[p0];
+    crgb[1] = col[p0 + 1];
+    crgb[2] = col[p0 + 2];
+    crgb[3] = col[p1];
+    crgb[4] = col[p1 + 1];
+    crgb[5] = col[p1 + 2];
+    crgb[6] = col[p2];
+    crgb[7] = col[p2 + 1];
+    crgb[8] = col[p2 + 2];
+    return false;
   }
 
   /// Processes one world-space triangle: optionally subdivides it for
@@ -1308,31 +1383,44 @@ class VoxelPainter extends CustomPainter {
     double light,
     bool textured,
   ) {
+    final fogStart = camera.fogStart;
+    final fogSpan = camera.fogEnd - fogStart;
+    final light255 = light * 255;
     for (var k = 0; k + 2 < tri.length; k += 3) {
       if (cursor >= _tris.length) _tris.add(_Tri());
       final t = _tris[cursor];
       final p = t.pts;
-      var depth = 0.0;
+      final i0 = tri[k] * 3, i1 = tri[k + 1] * 3, i2 = tri[k + 2] * 3;
+      final z0 = view[i0 + 2], z1 = view[i1 + 2], z2 = view[i2 + 2];
+      final s0 = _focal * halfH / z0;
+      final s1 = _focal * halfH / z1;
+      final s2 = _focal * halfH / z2;
+      final x0 = halfW + view[i0] * s0, y0 = halfH - view[i0 + 1] * s0;
+      final x1 = halfW + view[i1] * s1, y1 = halfH - view[i1 + 1] * s1;
+      final x2 = halfW + view[i2] * s2, y2 = halfH - view[i2 + 1] * s2;
+      // Backface cull + subpixel cull in one compare BEFORE computing
+      // per-vertex colors/fog (~50% of tris are backfacing).
+      final area = (x1 - x0) * (y2 - y0) - (x2 - x0) * (y1 - y0);
+      if (area > -0.25) continue;
+      p[0] = x0;
+      p[1] = y0;
+      p[2] = x1;
+      p[3] = y1;
+      p[4] = x2;
+      p[5] = y2;
       for (var v = 0; v < 3; v++) {
         final j = tri[v + k] * 3;
         final vz = view[j + 2];
-        final invZ = _focal / vz;
-        p[v * 2] = halfW + view[j] * invZ * halfH;
-        p[v * 2 + 1] = halfH - view[j + 1] * invZ * halfH;
         if (textured) {
           final ju = tri[v + k] * 2;
           t.uvs[v * 2] = uvs[ju];
           t.uvs[v * 2 + 1] = uvs[ju + 1];
         }
-        depth += vz;
-        var fr = (cview[j] * light * 255).round().clamp(0, 255);
-        var fg = (cview[j + 1] * light * 255).round().clamp(0, 255);
-        var bl = (cview[j + 2] * light * 255).round().clamp(0, 255);
-        // Depth fog: blend toward the sky color past fogStart. Applied
-        // per-vertex so merged far quads shade smoothly.
-        if (vz > camera.fogStart) {
-          var f = (vz - camera.fogStart) /
-              (camera.fogEnd - camera.fogStart);
+        var fr = (cview[j] * light255).round().clamp(0, 255);
+        var fg = (cview[j + 1] * light255).round().clamp(0, 255);
+        var bl = (cview[j + 2] * light255).round().clamp(0, 255);
+        if (vz > fogStart) {
+          var f = (vz - fogStart) / fogSpan;
           if (f > 1) f = 1;
           fr = (fr + (_skyR - fr) * f).round();
           fg = (fg + (_skyG - fg) * f).round();
@@ -1340,18 +1428,7 @@ class VoxelPainter extends CustomPainter {
         }
         t.argbs[v] = 0xFF000000 | (fr << 16) | (fg << 8) | bl;
       }
-      depth /= 3;
-      // Backface cull + subpixel cull in one compare: faces wound CCW
-      // from outside project with negative screen-space signed area
-      // (screen y is flipped), and a triangle covering under ~1/8 px²
-      // is invisible anyway (dense far terrain is mostly subpixel).
-      final area = (p[2] - p[0]) * (p[5] - p[1]) -
-          (p[4] - p[0]) * (p[3] - p[1]);
-      if (area > -0.25) continue;
-      // Overlay chunks (aim markers) hug coplanar block faces well inside
-      // a depth bucket — bias them toward the camera so they always win
-      // the painter's sort instead of patch-interleaving by centroid.
-      t.depth = depth + (chunk.overlay ? -0.75 : 0);
+      t.depth = (z0 + z1 + z2) / 3 + (chunk.overlay ? -0.75 : 0);
       t.overlay = chunk.overlay;
       cursor++;
     }
@@ -1428,6 +1505,8 @@ class VoxelPainter extends CustomPainter {
   /// Returns the fan-triangulated vertex indices, or null when fully
   /// culled. Uint32List, not Int64List — Int64List is unsupported on web
   /// (dart2js throws) and the voxel pipeline must render there too.
+  static final Uint32List _unclippedTri = Uint32List.fromList([0, 1, 2]);
+
   Uint32List? _clipAgainstNear(
     Float32List view,
     Float32List cview,
@@ -1438,7 +1517,7 @@ class VoxelPainter extends CustomPainter {
     final d1 = view[5] - near;
     final d2 = view[8] - near;
     if (d0 <= 0 && d1 <= 0 && d2 <= 0) return null;
-    if (d0 > 0 && d1 > 0 && d2 > 0) return Uint32List.fromList([0, 1, 2]);
+    if (d0 > 0 && d1 > 0 && d2 > 0) return _unclippedTri;
 
     final pd = [d0, d1, d2];
     final emitted = <int>[];
