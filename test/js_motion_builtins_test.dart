@@ -15,7 +15,7 @@ import 'package:quickjs_runtime/quickjs_runtime.dart';
 /// The builtins are pure JS in the bootstrap — the test runs a synthetic
 /// source on the real QuickJS backend and reads the results via
 /// jsr.exportState.
-final bool hasQuickjsNativeLib = File(QuickjsFfi.libraryPath).existsSync();
+final bool hasQuickjsNativeLib = QuickjsFfi.isAvailable;
 
 /// Runs a synthetic widget [source] on the QuickJS backend. The backend is
 /// disposed via [addTearDown].

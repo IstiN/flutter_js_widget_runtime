@@ -6,7 +6,7 @@ import 'package:js_widget_runtime/js_widget_runtime.dart';
 import 'package:js_widget_runtime/src/runtime/js_widget_engine_quickjs.dart';
 import 'package:quickjs_runtime/quickjs_runtime.dart';
 
-final bool _hasNativeLib = File(QuickjsFfi.libraryPath).existsSync();
+final bool _hasNativeLib = QuickjsFfi.isAvailable;
 
 void main() {
   if (!_hasNativeLib) return;

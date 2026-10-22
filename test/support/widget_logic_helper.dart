@@ -11,7 +11,7 @@ import 'package:quickjs_runtime/quickjs_runtime.dart';
 ///
 /// Use this for logic tests: fire events via [callEvent], read state via
 /// [exportedState], and mock network calls via [mockFetch].
-final bool hasQuickjsNativeLib = File(QuickjsFfi.libraryPath).existsSync();
+final bool hasQuickjsNativeLib = QuickjsFfi.isAvailable;
 
 /// A small container returned by [bootWidget]. It holds the backend and a few
 /// convenience methods so tests stay short.
