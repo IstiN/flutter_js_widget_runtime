@@ -10,7 +10,7 @@ import 'package:quickjs_runtime/quickjs_runtime.dart';
 /// Interactive test for the 3d-showcase shape/color buttons: the real
 /// widget.js runs on the QuickJS backend, `shape_*`/`color_*` events are
 /// fired through the bridge, and the cube host must swap the live object.
-final bool _hasNativeLib = File(QuickjsFfi.libraryPath).existsSync();
+final bool _hasNativeLib = QuickjsFfi.isAvailable;
 
 void main() {
   if (!_hasNativeLib) return;

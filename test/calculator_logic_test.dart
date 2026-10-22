@@ -11,7 +11,7 @@ import 'package:quickjs_runtime/quickjs_runtime.dart';
 /// `callEvent`, assertions read `backend.exportedState` (fed by the widget's
 /// `jsr.exportState`). Use this pattern to test widget LOGIC (state machines,
 /// calculations, fetch handling); use the golden suite for visuals.
-final bool _hasNativeLib = File(QuickjsFfi.libraryPath).existsSync();
+final bool _hasNativeLib = QuickjsFfi.isAvailable;
 
 /// Boots the calculator widget and returns its backend.
 Future<QuickjsWidgetEngineBackend> _bootCalculator() async {

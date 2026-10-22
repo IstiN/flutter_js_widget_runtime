@@ -31,7 +31,7 @@ import '../support/running_widget.dart';
 /// Skipped when the QuickJS native library has not been built (CI builds it
 /// before `flutter test`; locally run
 /// `bash <quickjs_runtime>/tool/build_quickjs.sh` first).
-final bool _hasNativeLib = File(QuickjsFfi.libraryPath).existsSync();
+final bool _hasNativeLib = QuickjsFfi.isAvailable;
 
 /// Example widget id → its widget.js path (relative to the repo root).
 /// Widgets whose scenes need the Impeller-backed flame host (GLB models).

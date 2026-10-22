@@ -1,4 +1,3 @@
-import 'dart:io';
 import 'dart:typed_data';
 
 import 'package:flutter_test/flutter_test.dart';
@@ -10,7 +9,7 @@ import 'package:quickjs_runtime/quickjs_runtime.dart';
 /// Shared QuickJS-backend harness for the engine/bridge widget tests:
 /// native-lib probe, engine boot, exportState polling and a prebuilt
 /// [JsWidgetBridge] for engine-less dispatch tests.
-final bool kHasQuickjsNativeLib = File(QuickjsFfi.libraryPath).existsSync();
+final bool kHasQuickjsNativeLib = QuickjsFfi.isAvailable;
 
 /// Boots a widget source on the real QuickJS backend. The backend is
 /// disposed via [addTearDown].

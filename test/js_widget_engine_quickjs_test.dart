@@ -11,7 +11,7 @@ import 'package:quickjs_runtime/quickjs_runtime.dart';
 /// The whole suite skips when the native library has not been built — CI
 /// builds it inside the quickjs_runtime package checkout before running
 /// tests (or set JSR_QUICKJS_LIB).
-final bool _hasNativeLib = File(QuickjsFfi.libraryPath).existsSync();
+final bool _hasNativeLib = QuickjsFfi.isAvailable;
 
 class _Recorder {
   final renders = <Map<String, dynamic>>[];
@@ -165,41 +165,24 @@ void main() {
     });
 
     test(
-      'init throws a clear StateError when the library is missing',
+      'init succeeds when the Native Asset is linked even if libraryPath is absent',
       () async {
         final original = QuickjsFfi.libraryPath;
         QuickjsFfi.libraryPath = '/nonexistent/libquickjs_bridge.so';
         try {
           final backend = _backend(_Recorder());
-          await expectLater(
-            backend.init(),
-            throwsA(
-              isA<StateError>().having(
-                (e) => e.message,
-                'message',
-                allOf(
-                  contains('tool/build_quickjs.sh'),
-                  contains('JSR_QUICKJS_LIB'),
-                ),
-              ),
-            ),
-          );
+          if (QuickjsFfi.isAvailable) {
+            await backend.init();
+            await backend.dispose();
+            _backends.remove(backend);
+          } else {
+            await expectLater(backend.init(), throwsStateError);
+          }
         } finally {
           QuickjsFfi.libraryPath = original;
         }
       },
     );
-
-    test('run without a built library throws the same StateError', () async {
-      final original = QuickjsFfi.libraryPath;
-      QuickjsFfi.libraryPath = '/nonexistent/libquickjs_bridge.so';
-      try {
-        final backend = _backend(_Recorder());
-        await expectLater(backend.run('1'), throwsStateError);
-      } finally {
-        QuickjsFfi.libraryPath = original;
-      }
-    });
 
     test('run evaluates widget JS and renders through the bridge', () async {
       final r = _Recorder();

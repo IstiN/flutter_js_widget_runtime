@@ -66,7 +66,7 @@ const Map<String, String> _widgetFiles = {
 };
 
 
-final bool _hasNativeLib = File(QuickjsFfi.libraryPath).existsSync();
+final bool _hasNativeLib = QuickjsFfi.isAvailable;
 
 final Map<String, _RunningWidget> _runners = {};
 

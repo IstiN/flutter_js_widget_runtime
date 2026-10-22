@@ -1,6 +1,5 @@
 import 'dart:async';
 import 'dart:convert';
-import 'dart:io';
 
 import 'package:flutter/foundation.dart';
 
@@ -256,7 +255,7 @@ class QuickjsWidgetEngineBackend implements JsWidgetEngineBackend {
   bool _isLive(QuickjsRuntime rt) => !_disposed && identical(rt, _runtime);
 
   void _requireLibrary() {
-    if (File(QuickjsFfi.libraryPath).existsSync()) return;
+    if (QuickjsFfi.isAvailable) return;
     throw StateError(
       'QuickJS library not found at "${QuickjsFfi.libraryPath}". '
       'Build it with tool/build_quickjs.sh (from the package root), or point '
