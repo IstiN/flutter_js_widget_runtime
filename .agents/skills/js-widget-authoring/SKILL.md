@@ -631,6 +631,12 @@ an OS-stolen pointer (iOS edge gestures) cancels instead of ending. Flutter
 semantics: a cancel AFTER the drag was accepted still reports `onPanEnd`;
 `onTapCancel` reports a stolen/forced tap that already fired `onTapDown`.
 
+**A stationary finger emits no `onPanUpdate`**. Never auto-release a held
+joystick or other drag state just because N frames passed without an update:
+that stops a sustained hold. Keep the last vector until the explicit
+`onPanEnd`/`onPanCancel`; those lifecycle events, not stream activity, define
+whether the pointer is still held.
+
 **Long press beats tap on a stationary hold** and loses to pan the moment the
 finger moves — the Minecraft touch scheme is `{onTap: place, onPanUpdate:
 look, onLongPressStart: breakStart, onLongPressEnd: breakEnd}`.
