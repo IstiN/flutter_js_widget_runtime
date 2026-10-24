@@ -126,7 +126,8 @@ Renderer effects ported from YoClip: radial gradients, box shadows, blur nodes, 
   pitch, light, skyColor})`. `voxel.attach` probes support on older runtimes.
 - Rendering is a pure-Dart software pipeline on `CustomPaint`
   (`lib/src/renderer/nodes/js_voxel_node.dart`): frustum culling per
-  chunk, near-plane clipping, painter's-order depth sort. No native deps.
+  chunk, near-plane clipping, exact far→near depth sort (emission order
+  for ties; no quantized depth buckets). No native deps.
 - **Packed binary lane** (`voxel.mesh.bin` / `voxel.blocks.bin`): when
   the engine has the native bytes lane, `voxel.attach` reports
   `bin: true` and widgets upload chunks via `jsr.hostCallBinary(…)` —
