@@ -1,5 +1,9 @@
 ## 0.4.185
 
+- Automated patch bump.
+
+## 0.4.185
+
 - Fix voxel painter depth-order reversals: exact far-to-near sorting with
   emission-order ties replaces quantized depth buckets that could paint a
   later-uploaded far face over nearer terrain. Includes a VM/web pixel
