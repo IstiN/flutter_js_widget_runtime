@@ -653,7 +653,7 @@ class JsVoxelNode extends StatelessWidget {
   }
 }
 
-/// One painter-sorted triangle: view-space depth, packed sort key, screen
+/// One painter-sorted triangle: view-space depth, emission order, screen
 /// points (flat x0,y0,x1,y1,x2,y2) and per-vertex light-multiplied ARGB
 /// fills (interpolation across the triangle is what gives merged greedy
 /// quads their per-block texture). Pooled — the paint loop reuses
@@ -665,7 +665,7 @@ class _Tri {
   final Float32List uvs = Float32List(6);
   final Int32List argbs = Int32List(3);
   double depth = 0;
-  int bucket = 0;
+  int emission = 0;
   bool overlay = false;
 }
 
@@ -796,15 +796,9 @@ class VoxelPainter extends CustomPainter {
     _focal = 1 / math.tan((camera.fov * math.pi / 180) / 2);
   }
 
-  /// Counting-sorted painter's algorithm across 1024 far→near depth buckets,
-  /// preserving insertion order so overlay chunks ('__hl') win ties.
-  final Int32List _bucketCounts = Int32List(1024);
-  final Int32List _bucketOffsets = Int32List(1024);
-  Int32List _sortedOrder = Int32List(0);
-
   void _sortAndDraw(Canvas canvas, int cursor) {
     _tris.length = cursor;
-    _bucketSortTris(cursor);
+    _sortTrisExact();
     final vCount = cursor * 3;
     final textured = camera.texture;
     _bufferPage = 1 - _bufferPage;
@@ -817,7 +811,7 @@ class VoxelPainter extends CustomPainter {
       uvs = _vertUvs[_bufferPage] = Float32List(vCount * 2);
     }
     for (var i = 0; i < cursor; i++) {
-      final t = _tris[_sortedOrder[i]];
+      final t = _tris[i];
       final o = i * 6, c = i * 3;
       for (var k = 0; k < 6; k++) {
         pos[o + k] = t.pts[k];
@@ -854,39 +848,14 @@ class VoxelPainter extends CustomPainter {
     _strokeOverlayEdges(canvas, cursor);
   }
 
-  /// Counting-sorts `0..cursor-1` into [_sortedOrder] far-to-near across 1024
-  /// depth buckets, preserving insertion tie-break order.
-  void _bucketSortTris(int cursor) {
-    var dMin = double.infinity;
-    var dMax = double.negativeInfinity;
-    for (var i = 0; i < cursor; i++) {
-      final d = _tris[i].depth;
-      if (d < dMin) dMin = d;
-      if (d > dMax) dMax = d;
-    }
-    final span = dMax - dMin < 1e-6 ? 1e-6 : dMax - dMin;
-    const buckets = 1024;
-    _bucketCounts.fillRange(0, buckets, 0);
-    final invSpan = (buckets - 1) / span;
-    for (var i = 0; i < cursor; i++) {
-      final t = _tris[i];
-      final b = ((t.depth - dMin) * invSpan).floor().clamp(0, 1023);
-      final invB = buckets - 1 - b;
-      t.bucket = invB;
-      _bucketCounts[invB]++;
-    }
-    var sum = 0;
-    for (var b = 0; b < buckets; b++) {
-      _bucketOffsets[b] = sum;
-      sum += _bucketCounts[b];
-    }
-    if (_sortedOrder.length < cursor) {
-      _sortedOrder = Int32List(cursor);
-    }
-    for (var i = 0; i < cursor; i++) {
-      final b = _tris[i].bucket;
-      _sortedOrder[_bucketOffsets[b]++] = i;
-    }
+  /// Exact far-to-near painter order. Bucket quantization can reverse two
+  /// different depths that share a bucket, letting a later-uploaded far
+  /// face paint over a nearer one. Emission order breaks only exact ties.
+  void _sortTrisExact() {
+    _tris.sort((a, b) {
+      final byDepth = b.depth.compareTo(a.depth);
+      return byDepth != 0 ? byDepth : a.emission.compareTo(b.emission);
+    });
   }
 
   /// Overlay chunks (the aim marker) are thin high-contrast strips:
@@ -1324,6 +1293,7 @@ class VoxelPainter extends CustomPainter {
         t.argbs[v] = 0xFF000000 | (fr << 16) | (fg << 8) | bl;
       }
       t.depth = (z0 + z1 + z2) / 3 + (chunk.overlay ? -0.75 : 0);
+      t.emission = cursor;
       t.overlay = chunk.overlay;
       cursor++;
     }

@@ -84,6 +84,12 @@ through. When adding a heavy per-chunk/per-frame payload, prefer a
 packed binary capability over a JSON `hostCall`: see
 `JsVoxelChunk.parseBinaryEnvelope` and `example/widgets/fa-craft`.
 
+Voxel painter depth order must stay exact far-to-near with emission order
+for exact ties. Do not quantize depths into buckets: two different depths
+in one bucket otherwise fall back to upload order and a far face can paint
+over nearer terrain. `test/js_voxel_node_test.dart` has the pixel regression
+for this occlusion contract.
+
 ## Engine Lifecycle
 
 - `JsWidgetEngine.run(widgetJs)` starts the runtime, evaluates bootstrap + optional host bootstrap + widget JS.

@@ -282,6 +282,43 @@ void main() {
       expect(back, isNot(const Color(0xFFFF0000)));
     });
 
+    test('exact depth order wins even when depths share a bucket', () async {
+      final world = JsVoxelWorld();
+      void addQuad(String key, double x, double z, List<double> rgb) {
+        world.handleHostCall('voxel.mesh', {
+          'id': 'w',
+          'key': key,
+          'origin': [0, 0, 0],
+          'positions': [
+            x + 1, 0, z, x + 1, 1, z, x, 1, z, x, 0, z,
+          ],
+          'colors': List<double>.generate(12, (i) => rgb[i % 3]),
+          'indices': [0, 1, 2, 0, 2, 3],
+        });
+      }
+
+      // Near is deliberately uploaded before far. The distant edge quad
+      // stretches the range so near/far shared the old bucket zero and
+      // the far red face incorrectly painted over the near green face.
+      addQuad('near', 0, 4, [0, 1, 0]);
+      addQuad('far', 0, 3.95, [1, 0, 0]);
+      addQuad('depth-range', 35, -95, [0, 0, 1]);
+      world.handleHostCall('voxel.camera', {
+        'id': 'w',
+        'position': [0.5, 0.5, 5],
+        'yaw': 0,
+        'pitch': 0,
+        'fov': 90,
+        'fog': false,
+        'skyColor': '#102030',
+      });
+      expect(
+        await _pixel(_painterFor(world), 100, const Offset(50, 50)),
+        const Color(0xFF00FF00),
+        reason: 'near green must occlude far red regardless of upload order',
+      );
+    });
+
     test('light multiplies the face color; skyColor fills the backdrop',
         () async {
       final world = JsVoxelWorld();
