@@ -128,6 +128,11 @@ Renderer effects ported from YoClip: radial gradients, box shadows, blur nodes, 
   (`lib/src/renderer/nodes/js_voxel_node.dart`): frustum culling per
   chunk, near-plane clipping, exact far→near depth sort (emission order
   for ties; no quantized depth buckets). No native deps.
+- Live artifact diagnostics are opt-in (`VoxelDiagnostics`, disabled by
+  default): preview `?voxelDebug=1` logs batched per-frame camera/chunk,
+  clipping, sort, largest-triangle and buffer hashes; `?voxelDebug=copy`
+  also uses immutable vertex buffers as a raster-lifetime A/B probe (not a
+  claimed fix). Keep diagnostic work out of the default paint path.
 - **Packed binary lane** (`voxel.mesh.bin` / `voxel.blocks.bin`): when
   the engine has the native bytes lane, `voxel.attach` reports
   `bin: true` and widgets upload chunks via `jsr.hostCallBinary(…)` —
@@ -339,7 +344,8 @@ fa1.dev (`/widgets/preview/`), replacing the old hand-written DOM/CSS shim.
   artifact; the fa1.dev deploy workflow in the flutter_agent repo downloads
   it and serves it under `/widgets/preview/`).
 - **URL contract**: `?widget=<id>&theme=dark|light` (theme optional, default
-  dark). Files are fetched from
+  dark); optional `&voxelDebug=1` enables voxel frame logs, `=copy` adds the
+  immutable-buffer A/B. Files are fetched from
   `https://raw.githubusercontent.com/IstiN/fa_widgets/main/widgets/<id>/`
   (override with `?base=<url>`) via `HttpWidgetFileReader`, a
   `WidgetFileReader` over `fetch` — multi-file widgets and `jsr.include`

@@ -9,6 +9,8 @@
 /// Query parameters (read from `Uri.base`):
 /// - `?widget=<id>` (required) — widget id, loaded from `<base>/<id>/`.
 /// - `?theme=dark|light` — color theme, default `dark`.
+/// - `?voxelDebug=1|copy` — opt into voxel frame logs; `copy` also uses
+///   immutable per-frame vertex buffers as a raster-lifetime A/B probe.
 /// - `?base=<url>` — override the widget source base URL
 ///   (default: the `fa_widgets` repo raw main branch).
 /// - `?manifest=<url>&js=<url>` — fetch the manifest and widget.js from
@@ -50,7 +52,8 @@ const String _canonicalBaseUrl =
 /// repo root, the code under game/ — see its issue #6 rework), so the
 /// reader strips the `<id>/` segment the loader always prepends.
 const Map<String, String> _submoduleWidgetBases = {
-  'fa-craft': 'https://raw.githubusercontent.com/IstiN/fa_craft/'
+  'fa-craft':
+      'https://raw.githubusercontent.com/IstiN/fa_craft/'
       '48ec2af4dc4b04ae357b842da098e01bd8812cb0',
 };
 
@@ -194,7 +197,15 @@ Color _hexColor(String hex) {
 }
 
 void main() {
-  runApp(PreviewApp(query: Uri.base.queryParameters));
+  final query = Uri.base.queryParameters;
+  final voxelDebug = query['voxelDebug'];
+  VoxelDiagnostics.enabled =
+      voxelDebug != null &&
+      voxelDebug.isNotEmpty &&
+      voxelDebug != '0' &&
+      voxelDebug != 'false';
+  VoxelDiagnostics.copyBuffers = voxelDebug == 'copy';
+  runApp(PreviewApp(query: query));
 }
 
 /// Root app: picks the Flutter theme to match `?theme=` and hosts the
@@ -278,12 +289,12 @@ class _PreviewPageState extends State<PreviewPage> {
       // Submodule-mirrored widgets (fa-craft) are served straight from
       // their pinned source repo — probing the two canonical bases first
       // only produced two guaranteed 404s in the console on every open.
-      var manifest = (!_explicitSource &&
-              _submoduleWidgetBases.containsKey(id))
+      var manifest = (!_explicitSource && _submoduleWidgetBases.containsKey(id))
           ? null
           : await WidgetManifest.fromStorage(id, reader: _reader);
       if (!mounted) return;
-      if (manifest == null && !_explicitSource &&
+      if (manifest == null &&
+          !_explicitSource &&
           !_submoduleWidgetBases.containsKey(id)) {
         // CORE widgets live only in the runtime repo after the submodule
         // migration — retry against the canonical sources.
@@ -299,10 +310,7 @@ class _PreviewPageState extends State<PreviewPage> {
         if (submoduleBase != null) {
           // Root-layout repo: manifest.json/widget.js live at the source
           // repo root, so strip the `<id>/` segment (see _RootLayoutReader).
-          _reader = _RootLayoutReader(
-            HttpWidgetFileReader(submoduleBase),
-            id,
-          );
+          _reader = _RootLayoutReader(HttpWidgetFileReader(submoduleBase), id);
           manifest = await WidgetManifest.fromStorage(id, reader: _reader);
           if (!mounted) return;
         }

@@ -90,6 +90,13 @@ in one bucket otherwise fall back to upload order and a far face can paint
 over nearer terrain. `test/js_voxel_node_test.dart` has the pixel regression
 for this occlusion contract.
 
+For live voxel artifacts, use the preview's opt-in `?voxelDebug=1`: it emits
+batched per-frame camera/chunk signatures, clip/cull counts, sort validation,
+buffer/page/stream hashes and the largest triangle. `?voxelDebug=copy` also
+uses immutable per-frame vertex buffers as a raster-lifetime A/B probe. Keep
+this disabled by default, and do not call the probe a fix until the original
+scene confirms which mechanism is responsible.
+
 ## Engine Lifecycle
 
 - `JsWidgetEngine.run(widgetJs)` starts the runtime, evaluates bootstrap + optional host bootstrap + widget JS.

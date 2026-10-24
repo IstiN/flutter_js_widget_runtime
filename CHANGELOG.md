@@ -1,6 +1,11 @@
-## 0.4.185
+## 0.4.186
 
-- Automated patch bump.
+- Add opt-in voxel frame diagnostics (`VoxelDiagnostics`, web preview
+  `?voxelDebug=1`): batched camera/chunk/buffer hashes, clipping and
+  full-screen-triangle counters, sort validation, and largest-triangle data.
+- Add `?voxelDebug=copy` as an immutable-vertex-buffer A/B probe for deferred
+  raster lifetime investigation. Default rendering is unchanged; this probe
+  is not itself a claimed artifact fix.
 
 ## 0.4.185
 

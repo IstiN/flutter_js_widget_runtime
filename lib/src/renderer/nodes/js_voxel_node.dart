@@ -6,6 +6,7 @@ import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
 
 import 'js_voxel_blocks.dart';
+import 'js_voxel_diagnostics.dart';
 
 /// Vertex buffers for one voxel chunk, uploaded by the widget JS via
 /// `jsr.hostCall('voxel.mesh', ...)` and kept resident on the Dart side.
@@ -688,6 +689,7 @@ class VoxelPainter extends CustomPainter {
   Map<String, JsVoxelChunk> chunks = const {};
 
   final List<_Tri> _tris = [];
+  final VoxelDiagnostics _diagnostics = VoxelDiagnostics();
 
   // Camera basis, recomputed in paint().
   late Float32List _right;
@@ -705,15 +707,25 @@ class VoxelPainter extends CustomPainter {
 
   @override
   void paint(Canvas canvas, Size size) {
+    _diagnostics.begin();
     final sw = Stopwatch()..start();
     _paintBody(canvas, size);
     sw.stop();
+    if (VoxelDiagnostics.enabled) {
+      final b = _vertPositions[_bufferPage];
+      _diagnostics.record(instanceId: id, painterId: identityHashCode(this),
+        size: size, position: camera.position, yaw: camera.yaw,
+        pitch: camera.pitch, fov: camera.fov, chunkCount: chunks.length,
+        triangleCount: _lastTriCount, elapsedUs: sw.elapsedMicroseconds,
+        bufferPage: _bufferPage, bufferId: identityHashCode(b),
+        bufferLength: b.length);
+    }
     _paintCount++;
     _paintUs += sw.elapsedMicroseconds;
     _paintTris += _lastTriCount;
     if (_paintCount >= 300) {
       debugPrint(
-        '[voxel v=w5] '
+        '[voxel v=w6] '
         'paint=${(_paintUs / _paintCount / 1000).toStringAsFixed(1)}ms '
         'tris=${(_paintTris / _paintCount).round()}',
       );
@@ -735,8 +747,9 @@ class VoxelPainter extends CustomPainter {
 
   void _paintBody(Canvas canvas, Size size) {
     chunks = world.chunksOf(id);
-    if (chunks.isEmpty) return;
     camera = world.cameraOf(id);
+    _lastTriCount = 0;
+    if (chunks.isEmpty) return;
     canvas.drawRect(Offset.zero & size, Paint()..color = camera.skyColor);
     final sc = camera.skyColor;
     _skyR = (sc.r * 255.0).roundToDouble();
@@ -756,8 +769,12 @@ class VoxelPainter extends CustomPainter {
     final planes = _frustumPlanes(tanHalf, size.aspectRatio);
 
     var cursor = 0;
-    for (final chunk in chunks.values) {
+    for (final entry in chunks.entries) {
+      final chunk = entry.value;
+      if (VoxelDiagnostics.enabled) _diagnostics.observeChunk(entry.key,
+          identityHashCode(chunk), chunk.positions.length, chunk.indices.length);
       if (_chunkOutsideFrustum(chunk, ex, ey, ez, planes)) continue;
+      _diagnostics.visibleChunks++;
       cursor = _collectChunk(
         chunk, cursor, ex, ey, ez, halfW, halfH,
       );
@@ -821,6 +838,7 @@ class VoxelPainter extends CustomPainter {
       cols[c + 1] = t.argbs[1];
       cols[c + 2] = t.argbs[2];
     }
+    _diagnostics.hashStreams(pos, cols, vCount);
     final paint = Paint();
     Float32List? uvView;
     if (textured) {
@@ -835,17 +853,31 @@ class VoxelPainter extends CustomPainter {
         );
       }
     }
+    final posData = _drawPositions(pos, vCount);
+    final colData = _drawColors(cols, vCount);
+    uvView = _drawUvs(uvs, uvView, vCount);
     final vertices = ui.Vertices.raw(
-      ui.VertexMode.triangles,
-      Float32List.sublistView(pos, 0, vCount * 2),
-      textureCoordinates: uvView,
-      colors: Int32List.sublistView(cols, 0, vCount),
+      ui.VertexMode.triangles, posData,
+      textureCoordinates: uvView, colors: colData,
     );
     // Opaque untextured vertex colors use srcOver (iOS Impeller drops
     // BlendMode.modulate drawVertices without a shader texture).
     canvas.drawVertices(
         vertices, textured ? BlendMode.modulate : BlendMode.srcOver, paint);
     _strokeOverlayEdges(canvas, cursor);
+  }
+
+  Float32List _drawPositions(Float32List p, int n) => VoxelDiagnostics.copyBuffers
+      ? (Float32List(n * 2)..setRange(0, n * 2, p))
+      : Float32List.sublistView(p, 0, n * 2);
+
+  Int32List _drawColors(Int32List c, int n) => VoxelDiagnostics.copyBuffers
+      ? (Int32List(n)..setRange(0, n, c))
+      : Int32List.sublistView(c, 0, n);
+
+  Float32List? _drawUvs(Float32List u, Float32List? view, int n) {
+    if (!VoxelDiagnostics.copyBuffers || view == null) return view;
+    return Float32List(n * 2)..setRange(0, n * 2, u);
   }
 
   /// Exact far-to-near painter order. Bucket quantization can reverse two
@@ -856,6 +888,11 @@ class VoxelPainter extends CustomPainter {
       final byDepth = b.depth.compareTo(a.depth);
       return byDepth != 0 ? byDepth : a.emission.compareTo(b.emission);
     });
+    if (VoxelDiagnostics.enabled) for (var i = 1; i < _tris.length; i++) {
+      final a = _tris[i - 1], b = _tris[i];
+      if (a.depth < b.depth ||
+          (a.depth == b.depth && a.emission > b.emission)) _diagnostics.sortErrors++;
+    }
   }
 
   /// Overlay chunks (the aim marker) are thin high-contrast strips:
@@ -1014,6 +1051,7 @@ class VoxelPainter extends CustomPainter {
     for (var f = 0; f + 2 < indices.length; f += 3) {
       if (_loadAndCullWorldTri(pos, col, indices, f, ox, oy, oz, ex, ey, ez,
           wpos, crgb)) {
+        _diagnostics.backfaceCull++;
         continue;
       }
       cursor = _emitWorldTri(chunk, cursor, wpos, crgb, ex, ey, ez, halfW,
@@ -1098,6 +1136,7 @@ class VoxelPainter extends CustomPainter {
     if (textured) _fillTriUv(wpos, uvs);
     final tri = _clipAgainstNear(view, cview, textured ? uvs : null);
     if (tri == null) return cursor;
+    if (!identical(tri, _unclippedTri)) _diagnostics.nearClips++;
     return _projectTris(chunk, cursor, tri, view, cview, uvs, halfW, halfH,
         light, textured);
   }
@@ -1265,7 +1304,10 @@ class VoxelPainter extends CustomPainter {
       // Backface cull + subpixel cull in one compare BEFORE computing
       // per-vertex colors/fog (~50% of tris are backfacing).
       final area = (x1 - x0) * (y2 - y0) - (x2 - x0) * (y1 - y0);
-      if (area > -0.25) continue;
+      if (area > -0.25) {
+        _diagnostics.subpixelCull++;
+        continue;
+      }
       p[0] = x0;
       p[1] = y0;
       p[2] = x1;
@@ -1295,6 +1337,10 @@ class VoxelPainter extends CustomPainter {
       t.depth = (z0 + z1 + z2) / 3 + (chunk.overlay ? -0.75 : 0);
       t.emission = cursor;
       t.overlay = chunk.overlay;
+      if (VoxelDiagnostics.enabled) _diagnostics.observeTriangle(points: p,
+        colors: t.argbs, origin: chunk.origin, area: area, depth: t.depth,
+        emission: t.emission, z0: z0, z1: z1, z2: z2,
+        width: halfW * 2, height: halfH * 2);
       cursor++;
     }
     return cursor;

@@ -47,6 +47,7 @@ export 'src/renderer/nodes/js_scene3d_mesh_node.dart'
         Scene3dProjector,
         Scene3dMeshPainter,
         parseScene3dConfig;
+export 'src/renderer/nodes/js_voxel_diagnostics.dart' show VoxelDiagnostics;
 export 'src/renderer/nodes/js_voxel_node.dart'
     show
         JsVoxelNode,
