@@ -1,3 +1,16 @@
+## 0.4.187
+
+- Fix voxel overpaint between adjacent faces: after the exact average-depth
+  sort, triangles sharing a projected edge are ordered by perspective-correct
+  depth inside their overlap. This removes the fa-craft brown streaks that an
+  exact average-depth sort alone could not fix. The open-addressed edge table
+  preserves exact endpoint pairs and avoids per-edge string keys on web.
+- Fix voxel frustum plane normals (`tan * forward ± axis`) so partially
+  visible chunks and mobs are not culled at the wrong aspect-dependent bound.
+- Extend opt-in diagnostics with shared-edge counts, mob frustum records and
+  `?voxelDebug=probe&px=<x>&py=<y>` single-pixel triangle/depth records.
+  Includes VM/Chrome pixel regressions and a 36-angle web visual sweep.
+
 ## 0.4.186
 
 - Add opt-in voxel frame diagnostics (`VoxelDiagnostics`, web preview
