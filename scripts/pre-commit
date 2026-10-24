@@ -149,7 +149,16 @@ fi
 # 4. CRAP RATCHET
 # ═══════════════════════════════════════════════════════════════════════════
 CRAP_THRESHOLD=$(grep -A5 '^crap:' crap4dart.yaml | grep 'threshold:' | awk '{print $2}')
-echo "🔍 Checking CRAP score (threshold: ${CRAP_THRESHOLD})..."
+CRAP_STAGED_THRESHOLD=$(git show ':crap4dart.yaml' | grep -A5 '^crap:' | grep 'threshold:' | awk '{print $2}')
+CRAP_HEAD_THRESHOLD=$(git show 'HEAD:crap4dart.yaml' | grep -A5 '^crap:' | grep 'threshold:' | awk '{print $2}')
+# One-way ratchet on the COMMITTED value, not just the working tree: a lower
+# threshold is allowed, an increase is rejected even when the code would pass.
+if ! python3 -c 'import sys; sys.exit(0 if float(sys.argv[1]) <= min(16.0, float(sys.argv[2])) else 1)' \
+  "$CRAP_STAGED_THRESHOLD" "$CRAP_HEAD_THRESHOLD"; then
+  echo "❌ CRAP ratchet: staged threshold ${CRAP_STAGED_THRESHOLD} must be <= HEAD ${CRAP_HEAD_THRESHOLD} and <= 16.0"
+  exit 1
+fi
+echo "🔍 Checking CRAP score (threshold: ${CRAP_THRESHOLD}; staged ratchet: ${CRAP_STAGED_THRESHOLD} <= ${CRAP_HEAD_THRESHOLD})..."
 if dart run crap4dart analyze --badge badges/crap.svg >/tmp/crap4dart-precommit.log 2>&1; then
   echo "✅ CRAP ratchet OK (see badges/crap.svg)"
 else
