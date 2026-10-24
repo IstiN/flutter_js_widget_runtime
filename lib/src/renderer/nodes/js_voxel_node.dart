@@ -8,6 +8,8 @@ import 'package:flutter/material.dart';
 import 'js_voxel_blocks.dart';
 import 'js_voxel_diagnostics.dart';
 
+part 'js_voxel_shared_edges.dart';
+
 /// Vertex buffers for one voxel chunk, uploaded by the widget JS via
 /// `jsr.hostCall('voxel.mesh', ...)` and kept resident on the Dart side.
 ///
@@ -665,9 +667,12 @@ class _Tri {
   final Float32List pts = Float32List(6);
   final Float32List uvs = Float32List(6);
   final Int32List argbs = Int32List(3);
+  final Int32List vertexHashes = Int32List(3);
   double depth = 0;
-  int emission = 0;
+  double z0 = 0, z1 = 0, z2 = 0;
+  int emission = 0, order = 0;
   bool overlay = false;
+  String key = '';
 }
 
 /// Software rasterizer for [JsVoxelNode]: per-chunk frustum culling against
@@ -773,11 +778,18 @@ class VoxelPainter extends CustomPainter {
       final chunk = entry.value;
       if (VoxelDiagnostics.enabled) _diagnostics.observeChunk(entry.key,
           identityHashCode(chunk), chunk.positions.length, chunk.indices.length);
-      if (_chunkOutsideFrustum(chunk, ex, ey, ez, planes)) continue;
-      _diagnostics.visibleChunks++;
-      cursor = _collectChunk(
-        chunk, cursor, ex, ey, ez, halfW, halfH,
-      );
+      final before = cursor; final outside = _chunkOutsideFrustum(chunk, ex, ey, ez, planes);
+      if (!outside) {
+        _diagnostics.visibleChunks++;
+        cursor = _collectChunk(
+          chunk, cursor, ex, ey, ez, halfW, halfH,
+        );
+        if (VoxelDiagnostics.probeX >= 0) {
+          for (var i = before; i < cursor; i++) { _tris[i].key = entry.key; }
+        }
+      }
+      if (VoxelDiagnostics.enabled) _diagnostics.observeMob(entry.key,
+          outside, before, cursor, chunk.aabbMin, chunk.aabbMax, chunk.origin);
     }
     if (cursor == 0) return;
     _lastTriCount = cursor;
@@ -829,6 +841,8 @@ class VoxelPainter extends CustomPainter {
     }
     for (var i = 0; i < cursor; i++) {
       final t = _tris[i];
+      if (VoxelDiagnostics.probeX >= 0) _diagnostics.observeProbe(t.key, i,
+        t.pts, t.argbs, t.depth, t.emission, t.z0, t.z1, t.z2);
       final o = i * 6, c = i * 3;
       for (var k = 0; k < 6; k++) {
         pos[o + k] = t.pts[k];
@@ -893,6 +907,7 @@ class VoxelPainter extends CustomPainter {
       if (a.depth < b.depth ||
           (a.depth == b.depth && a.emission > b.emission)) _diagnostics.sortErrors++;
     }
+    _orderSharedEdges(_tris, _diagnostics);
   }
 
   /// Overlay chunks (the aim marker) are thin high-contrast strips:
@@ -972,10 +987,10 @@ class VoxelPainter extends CustomPainter {
     final r = _right;
     final u = _up;
     final tanX = tanHalf * aspect;
-    (Float32List, double) side(Float32List axis, double t) {
+    (Float32List, double) side(Float32List axis, double t, double sign) {
       final n = Float32List(3);
       for (var i = 0; i < 3; i++) {
-        n[i] = f[i] + axis[i] * t;
+        n[i] = f[i] * t + axis[i] * sign;
       }
       final l = math.sqrt(n[0] * n[0] + n[1] * n[1] + n[2] * n[2]);
       for (var i = 0; i < 3; i++) {
@@ -985,10 +1000,10 @@ class VoxelPainter extends CustomPainter {
     }
 
     return [
-      side(r, -tanX), // left
-      side(r, tanX), // right
-      side(u, -tanHalf), // bottom
-      side(u, tanHalf), // top
+      side(r, tanX, 1), // left: tanX * forward + right
+      side(r, tanX, -1), // right: tanX * forward - right
+      side(u, tanHalf, 1), // bottom
+      side(u, tanHalf, -1), // top
     ];
   }
 
@@ -1335,8 +1350,11 @@ class VoxelPainter extends CustomPainter {
         t.argbs[v] = 0xFF000000 | (fr << 16) | (fg << 8) | bl;
       }
       t.depth = (z0 + z1 + z2) / 3 + (chunk.overlay ? -0.75 : 0);
-      t.emission = cursor;
-      t.overlay = chunk.overlay;
+      t.z0 = z0; t.z1 = z1; t.z2 = z2;
+      t.vertexHashes[0] = _hashVertex(p, 0, z0);
+      t.vertexHashes[1] = _hashVertex(p, 1, z1);
+      t.vertexHashes[2] = _hashVertex(p, 2, z2);
+      t.emission = cursor; t.overlay = chunk.overlay;
       if (VoxelDiagnostics.enabled) _diagnostics.observeTriangle(points: p,
         colors: t.argbs, origin: chunk.origin, area: area, depth: t.depth,
         emission: t.emission, z0: z0, z1: z1, z2: z2,

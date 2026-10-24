@@ -319,6 +319,44 @@ void main() {
       );
     });
 
+    test('shared-edge faces use overlap depth instead of average depth',
+        () async {
+      const sx = 200 / 1440, sy = 200 / 700;
+      final focal = 100 / math.tan(36 * math.pi / 180);
+      List<double> positions(List<double> screen, List<double> z) => [
+        for (var i = 0; i < 3; i++) ...[
+          (screen[i * 2] - 100) * z[i] / focal,
+          (100 - screen[i * 2 + 1]) * z[i] / focal,
+          -z[i],
+        ],
+      ];
+      final world = JsVoxelWorld();
+      void addTri(String key, List<double> screen, List<double> z,
+          List<double> rgb) {
+        world.handleHostCall('voxel.mesh', {
+          'id': 'w', 'key': key, 'origin': [0, 0, 0],
+          'positions': positions(screen, z),
+          'colors': List<double>.generate(9, (i) => rgb[i % 3]),
+          'indices': [0, 1, 2],
+        });
+      }
+      // Captured from the fa-craft brown-sliver frame. The faces share
+      // the 747.8,472.6 → 702,357.9 edge. Brown has the nearer AVERAGE
+      // depth, while green is nearer inside the overlap.
+      addTri('green', [747.8*sx,472.6*sy,702*sx,357.9*sy,534.5*sx,379.9*sy],
+          [2.1904, 3.0182, 2.8142], [0.2, 0.8, 0.2]);
+      addTri('brown', [742.5*sx,600.3*sy,747.8*sx,472.6*sy,702*sx,357.9*sy],
+          [2.7131, 2.1904, 3.0182], [0.8, 0.4, 0.1]);
+      world.handleHostCall('voxel.camera', {
+        'id': 'w', 'position': [0, 0, 0], 'yaw': 0, 'pitch': 0,
+        'fov': 72, 'fog': false, 'light': 1, 'skyColor': '#102030',
+      });
+      final pixel = await _pixel(
+          _painterFor(world), 200, Offset(724 * sx, 450 * sy));
+      expect((pixel.g * 255).round(), greaterThan((pixel.r * 255).round()),
+          reason: 'shared-edge overlap must restore the nearer green face');
+    });
+
     test('light multiplies the face color; skyColor fills the backdrop',
         () async {
       final world = JsVoxelWorld();

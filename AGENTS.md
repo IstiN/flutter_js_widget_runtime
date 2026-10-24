@@ -126,13 +126,16 @@ Renderer effects ported from YoClip: radial gradients, box shadows, blur nodes, 
   pitch, light, skyColor})`. `voxel.attach` probes support on older runtimes.
 - Rendering is a pure-Dart software pipeline on `CustomPaint`
   (`lib/src/renderer/nodes/js_voxel_node.dart`): frustum culling per
-  chunk, near-plane clipping, exact far→near depth sort (emission order
-  for ties; no quantized depth buckets). No native deps.
+  chunk, near-plane clipping, exact far→near average-depth sort (emission
+  order for ties; no quantized buckets), then perspective-correct ordering
+  for triangles that share an edge (`js_voxel_shared_edges.dart`). No native
+  deps.
 - Live artifact diagnostics are opt-in (`VoxelDiagnostics`, disabled by
   default): preview `?voxelDebug=1` logs batched per-frame camera/chunk,
-  clipping, sort, largest-triangle and buffer hashes; `?voxelDebug=copy`
-  also uses immutable vertex buffers as a raster-lifetime A/B probe (not a
-  claimed fix). Keep diagnostic work out of the default paint path.
+  clipping, sort, largest-triangle and buffer hashes; `=copy` adds immutable
+  buffers as an A/B probe, `=mob` traces mob frustum/emission, and
+  `=probe&px=<x>&py=<y>` records the triangles covering one pixel. Keep
+  diagnostic work out of the default paint path.
 - **Packed binary lane** (`voxel.mesh.bin` / `voxel.blocks.bin`): when
   the engine has the native bytes lane, `voxel.attach` reports
   `bin: true` and widgets upload chunks via `jsr.hostCallBinary(…)` —
@@ -345,7 +348,8 @@ fa1.dev (`/widgets/preview/`), replacing the old hand-written DOM/CSS shim.
   it and serves it under `/widgets/preview/`).
 - **URL contract**: `?widget=<id>&theme=dark|light` (theme optional, default
   dark); optional `&voxelDebug=1` enables voxel frame logs, `=copy` adds the
-  immutable-buffer A/B. Files are fetched from
+  immutable-buffer A/B, `=mob` traces mobs, and `=probe&px=<x>&py=<y>` probes
+  one pixel. Files are fetched from
   `https://raw.githubusercontent.com/IstiN/fa_widgets/main/widgets/<id>/`
   (override with `?base=<url>`) via `HttpWidgetFileReader`, a
   `WidgetFileReader` over `fetch` — multi-file widgets and `jsr.include`

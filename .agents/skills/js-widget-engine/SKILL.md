@@ -84,18 +84,23 @@ through. When adding a heavy per-chunk/per-frame payload, prefer a
 packed binary capability over a JSON `hostCall`: see
 `JsVoxelChunk.parseBinaryEnvelope` and `example/widgets/fa-craft`.
 
-Voxel painter depth order must stay exact far-to-near with emission order
-for exact ties. Do not quantize depths into buckets: two different depths
-in one bucket otherwise fall back to upload order and a far face can paint
-over nearer terrain. `test/js_voxel_node_test.dart` has the pixel regression
-for this occlusion contract.
+Voxel painter ordering starts with exact far-to-near average view depth and
+emission order for exact ties; never quantize depths into buckets. It then
+applies `js_voxel_shared_edges.dart`: triangles sharing a projected edge are
+reordered by perspective-correct depth inside their overlap. Average depth
+alone can reverse two adjacent non-intersecting faces even when its sort is
+exact. `test/js_voxel_node_test.dart` has pixel regressions for both the
+bucket collision and the shared-edge case. Frustum plane normals are
+`tan * forward ± axis`; keep all eight AABB corners inside every plane.
 
 For live voxel artifacts, use the preview's opt-in `?voxelDebug=1`: it emits
 batched per-frame camera/chunk signatures, clip/cull counts, sort validation,
 buffer/page/stream hashes and the largest triangle. `?voxelDebug=copy` also
-uses immutable per-frame vertex buffers as a raster-lifetime A/B probe. Keep
-this disabled by default, and do not call the probe a fix until the original
-scene confirms which mechanism is responsible.
+uses immutable per-frame vertex buffers as a raster-lifetime A/B probe,
+`=mob` traces partially visible mob chunks, and `=probe&px=<x>&py=<y>` lists
+triangles covering one pixel with their final order and interpolated depth.
+Keep these disabled by default, and do not call a probe a fix until the
+original scene confirms which mechanism is responsible.
 
 ## Engine Lifecycle
 

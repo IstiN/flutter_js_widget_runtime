@@ -9,8 +9,9 @@
 /// Query parameters (read from `Uri.base`):
 /// - `?widget=<id>` (required) — widget id, loaded from `<base>/<id>/`.
 /// - `?theme=dark|light` — color theme, default `dark`.
-/// - `?voxelDebug=1|copy` — opt into voxel frame logs; `copy` also uses
-///   immutable per-frame vertex buffers as a raster-lifetime A/B probe.
+/// - `?voxelDebug=1|copy|mob|probe` — opt into voxel frame logs; `copy` also
+///   uses immutable vertex buffers, `mob` adds per-mob frustum records, and
+///   `probe&px=<x>&py=<y>` records triangles covering one screen pixel.
 /// - `?base=<url>` — override the widget source base URL
 ///   (default: the `fa_widgets` repo raw main branch).
 /// - `?manifest=<url>&js=<url>` — fetch the manifest and widget.js from
@@ -205,6 +206,11 @@ void main() {
       voxelDebug != '0' &&
       voxelDebug != 'false';
   VoxelDiagnostics.copyBuffers = voxelDebug == 'copy';
+  VoxelDiagnostics.traceMobs = voxelDebug == 'mob';
+  if (voxelDebug == 'probe') {
+    VoxelDiagnostics.probeX = double.tryParse(query['px'] ?? '') ?? 724;
+    VoxelDiagnostics.probeY = double.tryParse(query['py'] ?? '') ?? 450;
+  }
   runApp(PreviewApp(query: query));
 }
 
