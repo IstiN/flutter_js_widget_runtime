@@ -41,6 +41,9 @@ extension on JsonWidgetRenderer {
     mainAxisSize: m[kAlignContentMinMainAxis] == true
         ? MainAxisSize.min
         : _mainSize(m['mainAxisSize']),
+    // Flex `spacing` (Flutter 3.24+): fixed gap between children, independent
+    // of mainAxisAlignment — unlike mainAxisAlignment: spaceAround & co.
+    spacing: _double(m['spacing'], 0),
     children: _children(m),
   );
 
@@ -59,6 +62,7 @@ extension on JsonWidgetRenderer {
     mainAxisSize: m[kAlignContentMinMainAxis] == true
         ? MainAxisSize.min
         : _mainSize(m['mainAxisSize']),
+    spacing: _double(m['spacing'], 0),
     children: _children(m),
   );
 }
