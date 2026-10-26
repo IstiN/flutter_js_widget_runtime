@@ -1,3 +1,18 @@
+## 0.4.189
+
+- Make the global world-space BSP the default voxel depth-ordering renderer.
+  Plane-straddling static and dynamic triangles are split with world-linear
+  RGB interpolation; co-located dynamic fragments retain exact local overlap
+  ordering. Empty/capped trees and insertion failures fall back to the
+  existing topological renderer, and web preview `?voxelBsp=0` provides an
+  explicit legacy escape hatch.
+- Make terrain streaming incremental: resident chunk additions, replacements
+  and removals update the existing BSP through batched insertion and an
+  indexed chunk→nodes prune instead of rebuilding the entire world.
+- Add conservative static and per-frame dynamic subtree bounds so offscreen
+  BSP branches are culled before per-triangle projection. This removes
+  movement/streaming frame spikes while preserving depth-audit correctness.
+
 ## 0.4.188
 
 - Fix rare moving-camera voxel depth inversions: shared-edge and arbitrary

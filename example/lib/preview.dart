@@ -14,6 +14,9 @@
 ///   frustum records, `probe&px=<x>&py=<y>` records triangles covering one
 ///   screen pixel, `audit` samples the actual production order for depth
 ///   errors, and `fullAudit` additionally forces the full overlap pass.
+/// - `?voxelAuditDynamic=1` includes dynamic meshes in depth audit samples.
+/// - `?voxelBsp=0` temporarily selects the legacy topological renderer;
+///   the global world-space BSP is the default.
 /// - `?base=<url>` — override the widget source base URL
 ///   (default: the `fa_widgets` repo raw main branch).
 /// - `?manifest=<url>&js=<url>` — fetch the manifest and widget.js from
@@ -210,7 +213,9 @@ void main() {
   VoxelDiagnostics.copyBuffers = voxelDebug == 'copy';
   VoxelDiagnostics.traceMobs = voxelDebug == 'mob';
   VoxelDiagnostics.audit = voxelDebug == 'audit' || voxelDebug == 'fullAudit';
+  VoxelDiagnostics.auditDynamic = query['voxelAuditDynamic'] == '1';
   VoxelDiagnostics.forceFullOrder = voxelDebug == 'fullAudit';
+  VoxelDiagnostics.bsp = query['voxelBsp'] != '0';
   if (voxelDebug == 'probe') {
     VoxelDiagnostics.probeX = double.tryParse(query['px'] ?? '') ?? 724;
     VoxelDiagnostics.probeY = double.tryParse(query['py'] ?? '') ?? 450;
