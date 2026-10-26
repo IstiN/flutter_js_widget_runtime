@@ -1,3 +1,17 @@
+## 0.4.188
+
+- Fix rare moving-camera voxel depth inversions: shared-edge and arbitrary
+  real screen-overlap relations now feed one stable topological order, and
+  average-correct overlap relations are retained instead of being discarded
+  by bbox/depth shortcuts. Screen-disjoint pairs still exit early through
+  SAT, keeping moving-camera web performance close to the previous path.
+- Restrict terrain-order reuse to an identical camera, viewport and visible
+  chunk set. Moving cameras rebuild the order; dynamic meshes continue to
+  merge independently. Add `?voxelDebug=audit` / `fullAudit` and captured
+  pixel/graph regressions for the inversion case.
+- Honor the JS `spacing` property on column and row nodes through Flutter
+  `Flex.spacing`.
+
 ## 0.4.187
 
 - Fix voxel overpaint between adjacent faces: after the exact average-depth

@@ -86,21 +86,28 @@ packed binary capability over a JSON `hostCall`: see
 
 Voxel painter ordering starts with exact far-to-near average view depth and
 emission order for exact ties; never quantize depths into buckets. It then
-applies `js_voxel_shared_edges.dart`: triangles sharing a projected edge are
-reordered by perspective-correct depth inside their overlap. Average depth
-alone can reverse two adjacent non-intersecting faces even when its sort is
-exact. `test/js_voxel_node_test.dart` has pixel regressions for both the
-bucket collision and the shared-edge case. Frustum plane normals are
-`tan * forward ± axis`; keep all eight AABB corners inside every plane.
+builds a stable topological order from shared-edge and arbitrary real
+screen-overlap relations (`js_voxel_shared_edges.dart` and
+`js_voxel_overlap.dart`). Preserve every nonzero overlap relation, even when
+it agrees with average depth: an unconstrained pair can be reversed later by
+the topological pass. Screen-disjoint pairs can be rejected with SAT, but
+bbox/depth shortcuts must not discard a real average-correct overlap. Cached
+orders are reusable only with an identical camera, viewport and visible-chunk
+set; moving cameras rebuild, and dynamic meshes merge independently.
+`test/js_voxel_node_test.dart` has pixel/graph regressions for bucket
+collisions, shared edges and average-correct overlaps. Frustum plane normals
+are `tan * forward ± axis`; keep all eight AABB corners inside every plane.
 
 For live voxel artifacts, use the preview's opt-in `?voxelDebug=1`: it emits
 batched per-frame camera/chunk signatures, clip/cull counts, sort validation,
 buffer/page/stream hashes and the largest triangle. `?voxelDebug=copy` also
 uses immutable per-frame vertex buffers as a raster-lifetime A/B probe,
-`=mob` traces partially visible mob chunks, and `=probe&px=<x>&py=<y>` lists
-triangles covering one pixel with their final order and interpolated depth.
-Keep these disabled by default, and do not call a probe a fix until the
-original scene confirms which mechanism is responsible.
+`=mob` traces partially visible mob chunks, `=probe&px=<x>&py=<y>` lists
+triangles covering one pixel with their final order and interpolated depth,
+and `=audit` samples final-order depth inversions (`=fullAudit` additionally
+forces the full overlap pass instead of using the order cache). Keep these
+disabled by default, and do not call a probe a fix until the original scene
+confirms which mechanism is responsible.
 
 ## Engine Lifecycle
 

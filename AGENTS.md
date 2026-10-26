@@ -127,15 +127,20 @@ Renderer effects ported from YoClip: radial gradients, box shadows, blur nodes, 
 - Rendering is a pure-Dart software pipeline on `CustomPaint`
   (`lib/src/renderer/nodes/js_voxel_node.dart`): frustum culling per
   chunk, near-plane clipping, exact far→near average-depth sort (emission
-  order for ties; no quantized buckets), then perspective-correct ordering
-  for triangles that share an edge (`js_voxel_shared_edges.dart`). No native
-  deps.
+  order for ties; no quantized buckets), then a stable topological order
+  over shared-edge and real screen-overlap depth constraints
+  (`js_voxel_shared_edges.dart`, `js_voxel_overlap.dart`). Keep every nonzero
+  overlap relation, including relations that agree with average depth; SAT
+  may reject only screen-disjoint pairs. The order cache is valid only for an
+  identical camera, viewport and visible-chunk set — moving cameras rebuild
+  it, and dynamic meshes merge independently. No native deps.
 - Live artifact diagnostics are opt-in (`VoxelDiagnostics`, disabled by
   default): preview `?voxelDebug=1` logs batched per-frame camera/chunk,
   clipping, sort, largest-triangle and buffer hashes; `=copy` adds immutable
-  buffers as an A/B probe, `=mob` traces mob frustum/emission, and
-  `=probe&px=<x>&py=<y>` records the triangles covering one pixel. Keep
-  diagnostic work out of the default paint path.
+  buffers as an A/B probe, `=mob` traces mob frustum/emission,
+  `=probe&px=<x>&py=<y>` records the triangles covering one pixel, and
+  `=audit` samples final-order depth inversions (`=fullAudit` also bypasses
+  the order cache). Keep diagnostic work out of the default paint path.
 - **Packed binary lane** (`voxel.mesh.bin` / `voxel.blocks.bin`): when
   the engine has the native bytes lane, `voxel.attach` reports
   `bin: true` and widgets upload chunks via `jsr.hostCallBinary(…)` —
