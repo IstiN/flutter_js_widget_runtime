@@ -66,6 +66,7 @@ VoxelPainter _painterFor(JsVoxelWorld world) =>
 
 List<String> _captureVoxelFrames({bool audit = false}) {
   VoxelDiagnostics.reset();
+  VoxelDiagnostics.bsp = false;
   VoxelDiagnostics.enabled = true;
   VoxelDiagnostics.audit = audit;
   final oldDebugPrint = debugPrint;
@@ -88,6 +89,22 @@ List<Map<String, dynamic>> _flushVoxelFrames(List<String> output) {
       .where((line) => line.startsWith('{'))
       .map((line) => jsonDecode(line) as Map<String, dynamic>)
       .toList();
+}
+
+void _addWorldTri(
+  JsVoxelWorld world,
+  String key,
+  List<num> positions,
+  List<num> colors,
+) {
+  world.handleHostCall('voxel.mesh', {
+    'id': 'w',
+    'key': key,
+    'origin': [0, 0, 0],
+    'positions': positions,
+    'colors': colors,
+    'indices': [0, 1, 2],
+  });
 }
 
 /// Camera/geometry helper for projected-triangle painter-order regressions.
@@ -123,16 +140,83 @@ void _addProjectedTri(
   String key,
   List<double> screen,
   List<double> z,
-  List<double> rgb,
-) {
+  List<double> rgb, {
+  List<double>? vertexColors,
+  bool overlay = false,
+}) {
   world.handleHostCall('voxel.mesh', {
     'id': 'w',
     'key': key,
     'origin': [0, 0, 0],
     'positions': _projectedPositions(screen, z),
-    'colors': List<double>.generate(9, (i) => rgb[i % 3]),
+    'colors': vertexColors ?? List<double>.generate(9, (i) => rgb[i % 3]),
     'indices': [0, 1, 2],
+    if (overlay) 'overlay': true,
   });
+}
+
+JsVoxelWorld _capturedOverlapWorld({
+  String keyA = '2,0',
+  String keyB = '2,-1',
+  bool gradient = false,
+}) {
+  const sx = 200 / 1440, sy = 200 / 700;
+  final world = _projectedWorld();
+  // Captured from fa-craft at yaw 3.9665. Average depth already draws the
+  // nearer green triangle after red, but dropping that relation let
+  // unrelated shared-edge constraints reverse them in the final order.
+  _addProjectedTri(
+    world,
+    keyA,
+    [
+      202.3905 * sx,
+      280.271 * sy,
+      128.9613 * sx,
+      245.4193 * sy,
+      145.749 * sx,
+      285.8746 * sy,
+    ],
+    [12.7098, 11.7294, 12.0723],
+    [0, 1, 0],
+  );
+  _addProjectedTri(
+    world,
+    keyB,
+    [
+      151.1784 * sx,
+      279.8347 * sy,
+      73.8148 * sx,
+      245.1019 * sy,
+      92.0894 * sx,
+      285.3911 * sy,
+    ],
+    [12.7622, 11.7819, 12.1248],
+    [1, 0, 0],
+    vertexColors: gradient ? [1, 0, 0, 0, 1, 0, 0, 0, 1] : null,
+  );
+  return world;
+}
+
+JsVoxelWorld _sharedEdgeWorld({String prefix = '0'}) {
+  const sx = 200 / 1440, sy = 200 / 700;
+  final world = _projectedWorld();
+  // Brown has the nearer average depth, while green is nearer inside the
+  // shared-edge overlap.
+  _addProjectedTri(
+    world,
+    '$prefix,green',
+    [747.8 * sx, 472.6 * sy, 702 * sx, 357.9 * sy, 534.5 * sx, 379.9 * sy],
+    [2.1904, 3.0182, 2.8142],
+    [0.2, 0.8, 0.2],
+  );
+  _addProjectedTri(
+    world,
+    '$prefix,brown',
+    [742.5 * sx, 600.3 * sy, 747.8 * sx, 472.6 * sy, 702 * sx, 357.9 * sy],
+    [2.7131, 2.1904, 3.0182],
+    [0.8, 0.4, 0.1],
+  );
+  return world;
 }
 
 /// One paint pass at [size], returned as raw RGBA bytes.
@@ -241,6 +325,10 @@ Future<int> _skyPixelsInWindow(
 }
 
 void main() {
+  // Most cases below pin the legacy topological path; BSP regressions opt in
+  // explicitly. A dedicated default-mode test verifies the production value.
+  setUp(() => VoxelDiagnostics.bsp = false);
+  tearDown(VoxelDiagnostics.reset);
   group('JsVoxelChunk', () {
     test('parses a valid payload and computes bounds', () {
       final chunk = JsVoxelChunk.fromDynamic(_meshArgs(_facingQuad(), '0,0'));
@@ -378,6 +466,11 @@ void main() {
   });
 
   group('VoxelPainter', () {
+    test('BSP is the production default, including diagnostics reset', () {
+      VoxelDiagnostics.reset();
+      expect(VoxelDiagnostics.bsp, isTrue);
+    });
+
     test('front face fills its screen area; back face is culled', () async {
       final world = JsVoxelWorld();
       world.handleHostCall('voxel.mesh', _meshArgs(_facingQuad(), 'k'));
@@ -443,38 +536,7 @@ void main() {
       'average-correct overlaps still constrain the topological pass',
       () async {
         const sx = 200 / 1440, sy = 200 / 700;
-        final world = _projectedWorld();
-        // Captured from fa-craft at yaw 3.9665. Average depth already draws the
-        // nearer green triangle after red, but dropping that relation let
-        // unrelated shared-edge constraints reverse them in the final order.
-        _addProjectedTri(
-          world,
-          '2,0',
-          [
-            202.3905 * sx,
-            280.271 * sy,
-            128.9613 * sx,
-            245.4193 * sy,
-            145.749 * sx,
-            285.8746 * sy,
-          ],
-          [12.7098, 11.7294, 12.0723],
-          [0, 1, 0],
-        );
-        _addProjectedTri(
-          world,
-          '2,-1',
-          [
-            151.1784 * sx,
-            279.8347 * sy,
-            73.8148 * sx,
-            245.1019 * sy,
-            92.0894 * sx,
-            285.3911 * sy,
-          ],
-          [12.7622, 11.7819, 12.1248],
-          [1, 0, 0],
-        );
+        final world = _capturedOverlapWorld();
         final painter = _painterFor(world);
         expect(
           await _pixel(painter, 200, Offset(144 * sx, 280 * sy)),
@@ -488,38 +550,7 @@ void main() {
       'shared-edge faces use overlap depth instead of average depth',
       () async {
         const sx = 200 / 1440, sy = 200 / 700;
-        final world = _projectedWorld();
-        // Captured from the fa-craft brown-sliver frame. The faces share
-        // the 747.8,472.6 → 702,357.9 edge. Brown has the nearer AVERAGE
-        // depth, while green is nearer inside the overlap.
-        _addProjectedTri(
-          world,
-          '0,green',
-          [
-            747.8 * sx,
-            472.6 * sy,
-            702 * sx,
-            357.9 * sy,
-            534.5 * sx,
-            379.9 * sy,
-          ],
-          [2.1904, 3.0182, 2.8142],
-          [0.2, 0.8, 0.2],
-        );
-        _addProjectedTri(
-          world,
-          '0,brown',
-          [
-            742.5 * sx,
-            600.3 * sy,
-            747.8 * sx,
-            472.6 * sy,
-            702 * sx,
-            357.9 * sy,
-          ],
-          [2.7131, 2.1904, 3.0182],
-          [0.8, 0.4, 0.1],
-        );
+        final world = _sharedEdgeWorld();
         final pixel = await _pixel(
           _painterFor(world),
           200,
@@ -532,6 +563,223 @@ void main() {
         );
       },
     );
+
+    test('BSP splits cross-chunk triangles and preserves RGB', () async {
+      final world = _projectedWorld();
+      void add(
+        JsVoxelWorld target,
+        String key,
+        List<num> positions,
+        List<num> colors,
+      ) => _addWorldTri(target, key, positions, colors);
+
+      const a = [-2, -0.5, -5, 2, -0.5, -5, 0, 0.5, -5];
+      const b = [-2, 1.5, -7, 2, 1.5, -3, -1, 2.5, -6];
+      // The triangles are disjoint in y, but each straddles the other's
+      // plane: z=-5 and z=x-5. Either root choice must split a triangle.
+      add(world, 'a', a, [1, 1, 1, 1, 1, 1, 1, 1, 1]);
+      add(world, 'b', b, [1, 0, 0, 0, 1, 0, 0, 0, 1]);
+      final reference = _projectedWorld();
+      add(reference, 'a', a, [1, 1, 1, 1, 1, 1, 1, 1, 1]);
+      // Independent reference: B pre-split at z=-5. Intersection colors
+      // are world-linear: (0.5,0.5,0) and (0,1/3,2/3).
+      add(
+        reference,
+        'b0',
+        [0, 1.5, -5, 2, 1.5, -3, 0, 13 / 6, -5],
+        [0.5, 0.5, 0, 0, 1, 0, 0, 1 / 3, 2 / 3],
+      );
+      add(
+        reference,
+        'b1',
+        [-2, 1.5, -7, 0, 1.5, -5, 0, 13 / 6, -5],
+        [1, 0, 0, 0.5, 0.5, 0, 0, 1 / 3, 2 / 3],
+      );
+      add(
+        reference,
+        'b2',
+        [-2, 1.5, -7, 0, 13 / 6, -5, -1, 2.5, -6],
+        [1, 0, 0, 0, 1 / 3, 2 / 3, 0, 0, 1],
+      );
+      final expected = await _renderFrame(reference, 200);
+      VoxelDiagnostics.bsp = true;
+      final actual = await _renderFrame(world, 200);
+      // Split boundaries can rasterize a one-pixel T-junction differently;
+      // interior samples must retain exactly the interpolated vertex RGB.
+      const samples = [
+        [110, 50], [90, 50], [110, 45], [90, 55], //
+        [120, 45], [80, 60], [100, 100], [105, 52],
+      ];
+      for (final sample in samples) {
+        final x = sample[0], y = sample[1];
+        final o = (y * 200 + x) * 4;
+        for (var c = 0; c < 4; c++) {
+          expect(
+            actual.getUint8(o + c),
+            expected.getUint8(o + c),
+            reason: 'BSP pixel ($x,$y) channel $c differs',
+          );
+        }
+      }
+      final painter = _painterFor(world);
+      await _pixel(painter, 200, const Offset(100, 100));
+      expect(painter.debugBspOrdered, isTrue);
+      expect(painter.debugBspSplits, greaterThan(0));
+    });
+
+    test('BSP splits dynamic triangles at static terrain planes', () async {
+      final world = _projectedWorld();
+      const a = [-2, -0.5, -5, 2, -0.5, -5, 0, 0.5, -5];
+      const b = [-2, 1.5, -7, 2, 1.5, -3, -1, 2.5, -6];
+      _addWorldTri(world, 'a', a, [1, 1, 1, 1, 1, 1, 1, 1, 1]);
+      _addWorldTri(world, '__mob', b, [1, 0, 0, 0, 1, 0, 0, 0, 1]);
+      final reference = _projectedWorld();
+      _addWorldTri(reference, 'a', a, [1, 1, 1, 1, 1, 1, 1, 1, 1]);
+      _addWorldTri(
+        reference,
+        '__front',
+        [0, 1.5, -5, 2, 1.5, -3, 0, 13 / 6, -5],
+        [0.5, 0.5, 0, 0, 1, 0, 0, 1 / 3, 2 / 3],
+      );
+      const sample = Offset(110, 50);
+      final expected = await _pixel(_painterFor(reference), 200, sample);
+      VoxelDiagnostics.bsp = true;
+      final painter = _painterFor(world);
+      final actual = await _pixel(painter, 200, sample);
+      expect(actual, expected);
+      expect(painter.debugBspOrdered, isTrue);
+      expect(painter.debugBspDynamicSplits, 1);
+    });
+
+    test(
+      'BSP diagnostics include dynamic splits and offscreen chunks',
+      () async {
+        final output = _captureVoxelFrames(audit: true);
+        VoxelDiagnostics.traceMobs = true;
+        VoxelDiagnostics.bsp = true;
+        final world = _projectedWorld();
+        const a = [-2, -0.5, -5, 2, -0.5, -5, 0, 0.5, -5];
+        const b = [-2, 1.5, -7, 2, 1.5, -3, -1, 2.5, -6];
+        _addWorldTri(world, 'a', a, [1, 1, 1, 1, 1, 1, 1, 1, 1]);
+        _addWorldTri(world, '__mob', b, [1, 0, 0, 0, 1, 0, 0, 0, 1]);
+        _addWorldTri(
+          world,
+          'outside',
+          [-1, 0, 10, 1, 0, 10, 0, 1, 10],
+          [1, 1, 1, 1, 1, 1, 1, 1, 1],
+        );
+        await _renderFrame(world, 200);
+        final records = _flushVoxelFrames(output);
+        expect(records, hasLength(1));
+        expect(records.single['orderMode'], 6);
+        expect(records.single['bsp']['dynamicSplits'], 1);
+        expect(records.single['audit']['inversions'], 0);
+      },
+    );
+
+    test('BSP gives co-located dynamic triangles exact local order', () async {
+      const sx = 200 / 1440, sy = 200 / 700;
+      final world = _sharedEdgeWorld(prefix: '__');
+      _addProjectedTri(world, 'terrain', [0, 0, 10, 0, 0, 10], [20, 20, 20], [
+        1,
+        0,
+        0,
+      ]);
+      VoxelDiagnostics.bsp = true;
+      final painter = _painterFor(world);
+      final pixel = await _pixel(painter, 200, Offset(724 * sx, 450 * sy));
+      expect(
+        (pixel.g * 255).round(),
+        greaterThan((pixel.r * 255).round()),
+        reason: 'dynamic shared-edge overlap must keep green in front',
+      );
+      expect(painter.debugBspOrdered, isTrue);
+    });
+
+    test('BSP keeps mob and overlay pixels with static terrain', () async {
+      final world = _sharedEdgeWorld();
+      _addProjectedTri(world, '__hl', [60, 60, 60, 90, 90, 60], [1, 1, 1], [
+        1,
+        1,
+        1,
+      ], overlay: true);
+      _addProjectedTri(
+        world,
+        '__mob',
+        [100, 100, 100, 130, 130, 100],
+        [1, 1, 1],
+        [0, 0, 1],
+      );
+      VoxelDiagnostics.bsp = true;
+      final painter = _painterFor(world);
+      expect(
+        (await _pixel(painter, 200, const Offset(65, 65))).r,
+        greaterThan(0.9),
+        reason: 'overlay face must remain visible',
+      );
+      expect(
+        (await _pixel(painter, 200, const Offset(105, 105))).b,
+        greaterThan(0.9),
+        reason: 'dynamic mob must remain visible',
+      );
+      expect(painter.debugBspOrdered, isTrue);
+    });
+
+    test('BSP falls back when no static terrain tree exists', () async {
+      const sx = 200 / 1440, sy = 200 / 700;
+      final world = _sharedEdgeWorld(prefix: '__');
+      VoxelDiagnostics.bsp = true;
+      final painter = _painterFor(world);
+      final pixel = await _pixel(painter, 200, Offset(724 * sx, 450 * sy));
+      expect((pixel.g * 255).round(), greaterThan((pixel.r * 255).round()));
+      expect(painter.debugBspOrdered, isFalse);
+      await _pixel(painter, 200, Offset(144 * sx, 280 * sy));
+      expect(painter.debugBspBuildGeneration, 1);
+    });
+
+    test('BSP syncs static chunks without full rebuilds', () async {
+      const sx = 200 / 1440, sy = 200 / 700;
+      final world = _capturedOverlapWorld();
+      VoxelDiagnostics.bsp = true;
+      final painter = _painterFor(world);
+      await _pixel(painter, 200, Offset(144 * sx, 280 * sy));
+      expect(painter.debugBspBuildGeneration, 1);
+      world.handleHostCall('voxel.camera', {
+        'id': 'w',
+        'position': [0.01, 0, 0],
+        'yaw': 0,
+        'pitch': 0,
+        'fov': 72,
+        'fog': false,
+      });
+      await _renderFrame(world, 200);
+      expect(painter.debugBspBuildGeneration, 1);
+      _addProjectedTri(
+        world,
+        '__mob',
+        [100, 100, 130, 100, 100, 130],
+        [1, 1, 1],
+        [0, 0, 1],
+      );
+      await _renderFrame(world, 200);
+      expect(painter.debugBspBuildGeneration, 1);
+      _addProjectedTri(world, '2,0', [0, 0, 10, 0, 0, 10], [12, 12, 12], [
+        0,
+        1,
+        0,
+      ]);
+      await _renderFrame(world, 200);
+      expect(painter.debugBspBuildGeneration, 1);
+      expect(painter.debugBspSyncGeneration, 1);
+      final inserted = await _pixel(painter, 200, const Offset(2, 2));
+      expect((inserted.g * 255).round(), greaterThan(200));
+      world.handleHostCall('voxel.chunkRemove', {'id': 'w', 'key': '2,-1'});
+      await _renderFrame(world, 200);
+      expect(painter.debugBspBuildGeneration, 1);
+      expect(painter.debugBspSyncGeneration, 2);
+      final retired = await _pixel(painter, 200, Offset(144 * sx, 280 * sy));
+      expect(retired, const Color(0xFF87CEEB));
+    });
 
     test(
       'all owners of a shared edge participate in visibility ordering',

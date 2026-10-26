@@ -433,7 +433,11 @@ void _auditAt(
   var nearestZ = double.infinity, topZ = 0.0;
   for (final t in tris) {
     final z = _depthAt(t, x, y);
-    if (z == null || t.overlay || t.key.startsWith('__')) continue;
+    if (z == null ||
+        t.overlay ||
+        (!VoxelDiagnostics.auditDynamic && t.key.startsWith('__'))) {
+      continue;
+    }
     top = t;
     topZ = z;
     if (z < nearestZ) {

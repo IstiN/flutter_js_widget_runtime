@@ -107,7 +107,25 @@ triangles covering one pixel with their final order and interpolated depth,
 and `=audit` samples final-order depth inversions (`=fullAudit` additionally
 forces the full overlap pass instead of using the order cache). Keep these
 disabled by default, and do not call a probe a fix until the original scene
-confirms which mechanism is responsible.
+confirms which mechanism is responsible. Add `&voxelAuditDynamic=1` to include
+dynamic meshes in the audit samples.
+
+The global world-space BSP in `js_voxel_bsp.dart` is the default voxel depth
+order, not a per-chunk ordering shortcut; preview `?voxelBsp=0` selects the
+legacy topological renderer for comparison or emergency fallback. Static
+terrain must split every plane-straddling triangle (with world-linear RGB)
+and leave no unresolved multi-triangle leaves. Static chunk identity changes
+use batched incremental insertion and an indexed chunk→nodes prune; do not
+reintroduce a full terrain rebuild for each streaming upload. Camera movement
+only traverses the tree. Conservative static subtree AABBs and per-frame
+dynamic bounds cull offscreen work before per-triangle projection. Dynamic
+and overlay meshes are split into that tree each frame, and co-located
+dynamic fragments receive an exact local shared/overlap topological order.
+No static root, excessive fragment growth, excessive depth, or dynamic
+insertion failure must fall back to the unchanged whole-frame topological
+path. Keep regressions for both the default BSP and explicitly disabled
+legacy path, including cross-chunk, split attributes, dynamic/overlay,
+cache-invalidation, near-clip, texture and moving-camera audits.
 
 ## Engine Lifecycle
 

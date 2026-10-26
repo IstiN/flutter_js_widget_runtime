@@ -17,14 +17,16 @@ void _orderOverlappingTriangles(
   List<_Tri> tris,
   _VoxelOrderingWorkspace workspace,
   Size size,
-  VoxelDiagnostics diagnostics,
-) {
+  VoxelDiagnostics diagnostics, {
+  bool includeDynamic = false,
+}) {
   final count = tris.length;
   if (count < 2) return;
   final stageSw = VoxelDiagnostics.enabled ? (Stopwatch()..start()) : null;
   final overlap = workspace.overlap;
   final constraints = workspace.constraints;
-  final data = overlap.bounds..begin(tris, size);
+  final data = overlap.bounds
+    ..begin(tris, size, includeDynamic: includeDynamic);
   _markOverlapStage(diagnostics, stageSw, 0);
   final minX = data.minX, maxX = data.maxX;
   final minY = data.minY, maxY = data.maxY;
@@ -102,7 +104,7 @@ class _OverlapBounds {
   final List<int> indices = <int>[];
   double spanX = 0, spanY = 0;
 
-  void begin(List<_Tri> tris, Size size) {
+  void begin(List<_Tri> tris, Size size, {bool includeDynamic = false}) {
     final count = tris.length;
     if (minX.length < count) {
       minX = Float32List(count);
@@ -116,13 +118,13 @@ class _OverlapBounds {
     indices.clear();
     spanX = 0;
     spanY = 0;
-    _collect(tris, size);
+    _collect(tris, size, includeDynamic);
   }
 
-  void _collect(List<_Tri> tris, Size size) {
+  void _collect(List<_Tri> tris, Size size, bool includeDynamic) {
     for (var i = 0; i < tris.length; i++) {
       final t = tris[i], p = t.pts;
-      if (t.key.startsWith('__')) continue;
+      if (!includeDynamic && t.key.startsWith('__')) continue;
       final loX = math.min(p[0], math.min(p[2], p[4]));
       final hiX = math.max(p[0], math.max(p[2], p[4]));
       final loY = math.min(p[1], math.min(p[3], p[5]));

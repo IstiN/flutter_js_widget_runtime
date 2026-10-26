@@ -8,6 +8,7 @@ import 'package:flutter/material.dart';
 import 'js_voxel_blocks.dart';
 import 'js_voxel_diagnostics.dart';
 
+part 'js_voxel_bsp.dart';
 part 'js_voxel_chunk.dart';
 part 'js_voxel_shared_edges.dart';
 part 'js_voxel_overlap.dart';
@@ -465,7 +466,9 @@ class VoxelPainter extends CustomPainter {
   late final List<_Tri> _triPool = _workspace.trianglePool;
   late final _visible = _workspace.visible;
   late final _orderCache = _voxelOrderCacheFor(world, id);
+  late final _bspCache = _voxelBspCacheFor(world, id);
   final VoxelDiagnostics _diagnostics = VoxelDiagnostics();
+  bool _bspOrdered = false;
 
   // Camera basis storage is shared; values are recomputed in paint().
   late final Float32List _right = _workspace.right;
@@ -536,6 +539,24 @@ class VoxelPainter extends CustomPainter {
   int get debugVisibilityEdges => _diagnostics.visibilityEdges;
 
   @visibleForTesting
+  bool get debugBspOrdered => _bspOrdered;
+
+  @visibleForTesting
+  int get debugBspSplits => _bspCache.splitCount;
+
+  @visibleForTesting
+  int get debugBspDynamicSplits => _bspCache.dynamicSplitCount;
+
+  @visibleForTesting
+  int get debugBspNodes => _bspCache.nodeCount;
+
+  @visibleForTesting
+  int get debugBspBuildGeneration => _bspCache.buildGeneration;
+
+  @visibleForTesting
+  int get debugBspSyncGeneration => _bspCache.syncGeneration;
+
+  @visibleForTesting
   int get debugWorkspaceId => identityHashCode(_workspace);
 
   @visibleForTesting
@@ -555,6 +576,7 @@ class VoxelPainter extends CustomPainter {
     chunks = world.chunksOf(id);
     camera = world.cameraOf(id);
     _visible.begin();
+    _bspOrdered = false;
     _lastTriCount = 0;
     if (chunks.isEmpty) return;
     canvas.drawRect(Offset.zero & size, Paint()..color = camera.skyColor);
@@ -576,35 +598,42 @@ class VoxelPainter extends CustomPainter {
     final planes = _frustumPlanes(tanHalf, size.aspectRatio);
 
     var cursor = 0;
-    for (final entry in chunks.entries) {
-      final chunk = entry.value;
-      if (VoxelDiagnostics.enabled)
-        _diagnostics.observeChunk(
-          entry.key,
-          identityHashCode(chunk),
-          chunk.positions.length,
-          chunk.indices.length,
-        );
-      final before = cursor;
-      final outside = _chunkOutsideFrustum(chunk, ex, ey, ez, planes);
-      if (!outside) {
-        _diagnostics.visibleChunks++;
-        cursor = _collectChunk(chunk, cursor, ex, ey, ez, halfW, halfH);
-        for (var i = before; i < cursor; i++) {
-          _tris[i].key = entry.key;
+    if (VoxelDiagnostics.bsp) {
+      cursor = _collectBsp(0, ex, ey, ez, halfW, halfH, planes);
+      _bspOrdered = cursor >= 0;
+    }
+    if (!_bspOrdered) {
+      cursor = 0;
+      for (final entry in chunks.entries) {
+        final chunk = entry.value;
+        if (VoxelDiagnostics.enabled)
+          _diagnostics.observeChunk(
+            entry.key,
+            identityHashCode(chunk),
+            chunk.positions.length,
+            chunk.indices.length,
+          );
+        final before = cursor;
+        final outside = _chunkOutsideFrustum(chunk, ex, ey, ez, planes);
+        if (!outside) {
+          _diagnostics.visibleChunks++;
+          cursor = _collectChunk(chunk, cursor, ex, ey, ez, halfW, halfH);
+          for (var i = before; i < cursor; i++) {
+            _tris[i].key = entry.key;
+          }
+          if (cursor > before) _visible.add(entry.key, chunk);
         }
-        if (cursor > before) _visible.add(entry.key, chunk);
+        if (VoxelDiagnostics.enabled)
+          _diagnostics.observeMob(
+            entry.key,
+            outside,
+            before,
+            cursor,
+            chunk.aabbMin,
+            chunk.aabbMax,
+            chunk.origin,
+          );
       }
-      if (VoxelDiagnostics.enabled)
-        _diagnostics.observeMob(
-          entry.key,
-          outside,
-          before,
-          cursor,
-          chunk.aabbMin,
-          chunk.aabbMax,
-          chunk.origin,
-        );
     }
     if (cursor == 0) return;
     _lastTriCount = cursor;
@@ -701,6 +730,12 @@ class VoxelPainter extends CustomPainter {
   /// different depths that share a bucket, letting a later-uploaded far
   /// face paint over a nearer one. Emission order breaks only exact ties.
   void _sortTrisExact(Size size) {
+    if (_bspOrdered) {
+      for (var i = 0; i < _tris.length; i++) {
+        _tris[i].order = i;
+      }
+      return;
+    }
     _orderSharedEdges(_tris, _diagnostics, size, _orderCache, camera, _visible);
   }
 

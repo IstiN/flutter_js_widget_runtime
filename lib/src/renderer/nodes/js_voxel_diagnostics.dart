@@ -11,7 +11,9 @@ class VoxelDiagnostics {
   static bool copyBuffers = false;
   static bool traceMobs = false;
   static bool audit = false;
+  static bool auditDynamic = false;
   static bool forceFullOrder = false;
+  static bool bsp = true;
   static double probeX = -1;
   static double probeY = -1;
   static int _sequence = 0;
@@ -28,8 +30,16 @@ class VoxelDiagnostics {
   int sharedPairs = 0;
   int visibilityEdges = 0;
   int visibilityCycles = 0;
-  // 1=full, 2=stable reuse, 3=failed reuse fallback; 4/5 reserved.
+  // 1=full, 2=stable reuse, 3=failed reuse fallback; 4/5 reserved; 6=BSP.
   int orderMode = -1;
+  int bspBuildUs = 0;
+  int bspSources = 0;
+  int bspFragments = 0;
+  int bspNodes = 0;
+  int bspSplits = 0;
+  int bspDynamicSplits = 0;
+  int bspBuildGeneration = 0;
+  int bspSyncGeneration = 0;
   final List<int> orderStagesUs = List<int>.filled(6, 0);
   final List<int> overlapStagesUs = List<int>.filled(3, 0);
   int chunkSignature = 0;
@@ -56,6 +66,14 @@ class VoxelDiagnostics {
     visibilityEdges = 0;
     visibilityCycles = 0;
     orderMode = -1;
+    bspBuildUs = 0;
+    bspSources = 0;
+    bspFragments = 0;
+    bspNodes = 0;
+    bspSplits = 0;
+    bspDynamicSplits = 0;
+    bspBuildGeneration = 0;
+    bspSyncGeneration = 0;
     orderStagesUs.fillRange(0, orderStagesUs.length, 0);
     overlapStagesUs.fillRange(0, overlapStagesUs.length, 0);
     chunkSignature = 0;
@@ -246,6 +264,17 @@ class VoxelDiagnostics {
       'shared': [sharedEdges, sharedPairs],
       'visibility': [visibilityEdges, visibilityCycles],
       'orderMode': orderMode,
+      if (bsp)
+        'bsp': {
+          'buildUs': bspBuildUs,
+          'sources': bspSources,
+          'fragments': bspFragments,
+          'nodes': bspNodes,
+          'splits': bspSplits,
+          'dynamicSplits': bspDynamicSplits,
+          'buildGeneration': bspBuildGeneration,
+          'syncGeneration': bspSyncGeneration,
+        },
       'orderStagesUs': orderStagesUs,
       'overlapStagesUs': overlapStagesUs,
       'buffer': [bufferPage, bufferId, bufferLength],
@@ -282,7 +311,9 @@ class VoxelDiagnostics {
     copyBuffers = false;
     traceMobs = false;
     audit = false;
+    auditDynamic = false;
     forceFullOrder = false;
+    bsp = true;
     probeX = -1;
     probeY = -1;
     _sequence = 0;
