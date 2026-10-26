@@ -1,3 +1,9 @@
+## 0.4.190
+
+- Default radial gradients without an explicit `center` to `Alignment.center`
+  instead of the linear `centerLeft` fallback, so glows/orbs render as full
+  circles instead of clipped half circles.
+
 ## 0.4.189
 
 - Make the global world-space BSP the default voxel depth-ordering renderer.
