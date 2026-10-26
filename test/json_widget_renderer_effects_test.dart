@@ -48,6 +48,30 @@ void main() {
       expect(decoration.gradient, isA<RadialGradient>());
     });
 
+    testWidgets('radial gradient without center defaults to center', (
+      tester,
+    ) async {
+      await tester.pumpWidget(
+        buildTree({
+          'type': 'container',
+          'width': 100,
+          'height': 100,
+          'decoration': {
+            'gradient': {
+              'type': 'radial',
+              'colors': ['#ff0000', '#0000ff'],
+            },
+          },
+        }),
+      );
+      final container = tester.widget<Container>(find.byType(Container));
+      final decoration = container.decoration as BoxDecoration;
+      final gradient = decoration.gradient as RadialGradient;
+      // Regression: the linear begin default (centerLeft) used to leak in
+      // here and clipped every unspecified-center glow to a half circle.
+      expect(gradient.center, Alignment.center);
+    });
+
     testWidgets('container supports box shadows', (tester) async {
       await tester.pumpWidget(
         buildTree({

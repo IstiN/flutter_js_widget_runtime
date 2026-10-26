@@ -135,7 +135,13 @@ mixin JsonWidgetDecoration {
         .toList();
     final type = g['type'] as String? ?? 'linear';
     if (type == 'radial') {
-      final center = _alignmentGradient(g['center'] as String?);
+      // RadialGradient's own default is Alignment.center (and yoclip's
+      // parseGradient agrees). Falling back to _alignmentGradient's
+      // centerLeft (the LINEAR begin default) drew only the right half of
+      // every unspecified-center glow — orbs/beacons clipped mid-circle.
+      final center = g['center'] == null
+          ? Alignment.center
+          : _alignmentGradient(g['center'] as String?);
       final radius = _double(g['radius'] as num?, 0.5);
       return RadialGradient(
         center: center,
