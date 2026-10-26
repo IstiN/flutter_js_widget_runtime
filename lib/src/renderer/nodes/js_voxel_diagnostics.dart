@@ -10,6 +10,8 @@ class VoxelDiagnostics {
   static bool enabled = false;
   static bool copyBuffers = false;
   static bool traceMobs = false;
+  static bool audit = false;
+  static bool forceFullOrder = false;
   static double probeX = -1;
   static double probeY = -1;
   static int _sequence = 0;
@@ -21,8 +23,15 @@ class VoxelDiagnostics {
   int subpixelCull = 0;
   int coveringTriangles = 0;
   int sortErrors = 0;
+  int auditInversions = 0;
   int sharedEdges = 0;
   int sharedPairs = 0;
+  int visibilityEdges = 0;
+  int visibilityCycles = 0;
+  // 1=full, 2=stable reuse, 3=failed reuse fallback; 4/5 reserved.
+  int orderMode = -1;
+  final List<int> orderStagesUs = List<int>.filled(6, 0);
+  final List<int> overlapStagesUs = List<int>.filled(3, 0);
   int chunkSignature = 0;
   double maxArea = 0;
   double minDepth = 0;
@@ -30,6 +39,7 @@ class VoxelDiagnostics {
   Map<String, Object?>? largestTriangle;
   final List<Map<String, Object?>> _mobs = [];
   final List<Map<String, Object?>> _probes = [];
+  final List<Map<String, Object?>> _auditCases = [];
   int _positionHash = 0;
   int _colorHash = 0;
 
@@ -40,8 +50,14 @@ class VoxelDiagnostics {
     subpixelCull = 0;
     coveringTriangles = 0;
     sortErrors = 0;
+    auditInversions = 0;
     sharedEdges = 0;
     sharedPairs = 0;
+    visibilityEdges = 0;
+    visibilityCycles = 0;
+    orderMode = -1;
+    orderStagesUs.fillRange(0, orderStagesUs.length, 0);
+    overlapStagesUs.fillRange(0, overlapStagesUs.length, 0);
     chunkSignature = 0;
     maxArea = 0;
     minDepth = double.infinity;
@@ -49,6 +65,7 @@ class VoxelDiagnostics {
     largestTriangle = null;
     _mobs.clear();
     _probes.clear();
+    _auditCases.clear();
     _positionHash = 0x811c9dc5;
     _colorHash = 0x811c9dc5;
   }
@@ -86,16 +103,26 @@ class VoxelDiagnostics {
     });
   }
 
-  void observeProbe(String key, int order, Float32List p, Int32List colors,
-      double depth, int emission, double z0, double z1, double z2) {
+  void observeProbe(
+    String key,
+    int order,
+    Float32List p,
+    Int32List colors,
+    double depth,
+    int emission,
+    double z0,
+    double z1,
+    double z2,
+  ) {
     if (!enabled || probeX < 0) return;
-    final den = (p[3] - p[5]) * (p[0] - p[4]) +
-        (p[4] - p[2]) * (p[1] - p[5]);
+    final den = (p[3] - p[5]) * (p[0] - p[4]) + (p[4] - p[2]) * (p[1] - p[5]);
     if (den.abs() < 1e-8) return;
-    final a = ((p[3] - p[5]) * (probeX - p[4]) +
-        (p[4] - p[2]) * (probeY - p[5])) / den;
-    final b = ((p[5] - p[1]) * (probeX - p[4]) +
-        (p[0] - p[4]) * (probeY - p[5])) / den;
+    final a =
+        ((p[3] - p[5]) * (probeX - p[4]) + (p[4] - p[2]) * (probeY - p[5])) /
+        den;
+    final b =
+        ((p[5] - p[1]) * (probeX - p[4]) + (p[0] - p[4]) * (probeY - p[5])) /
+        den;
     final c = 1 - a - b;
     if (a < -1e-6 || b < -1e-6 || c < -1e-6) return;
     _probes.add({
@@ -107,6 +134,22 @@ class VoxelDiagnostics {
       'z': [_round(z0, 4), _round(z1, 4), _round(z2, 4)],
       'probeZ': _round(1 / (a / z0 + b / z1 + c / z2), 4),
       'emission': emission,
+    });
+  }
+
+  void observeAudit(
+    double x,
+    double y,
+    Map<String, Object?> nearest,
+    Map<String, Object?> top,
+  ) {
+    if (!enabled || !audit) return;
+    auditInversions++;
+    if (_auditCases.length >= 4) return;
+    _auditCases.add({
+      'at': [_round(x, 1), _round(y, 1)],
+      'nearest': nearest,
+      'top': top,
     });
   }
 
@@ -199,14 +242,22 @@ class VoxelDiagnostics {
       'cover': coveringTriangles,
       'maxArea': maxArea.round(),
       'sortErrors': sortErrors,
+      if (audit) 'audit': {'inversions': auditInversions, 'cases': _auditCases},
       'shared': [sharedEdges, sharedPairs],
+      'visibility': [visibilityEdges, visibilityCycles],
+      'orderMode': orderMode,
+      'orderStagesUs': orderStagesUs,
+      'overlapStagesUs': overlapStagesUs,
       'buffer': [bufferPage, bufferId, bufferLength],
       'positionHash': _positionHash.toRadixString(16),
       'colorHash': _colorHash.toRadixString(16),
       'copy': copyBuffers ? 1 : 0,
       if (_mobs.isNotEmpty) 'mobs': _mobs,
       if (_probes.isNotEmpty)
-        'probe': {'at': [probeX, probeY], 'tris': _probes},
+        'probe': {
+          'at': [probeX, probeY],
+          'tris': _probes,
+        },
       if (triangleCount > 0)
         'depth': [_round(minDepth, 3), _round(maxDepth, 3)],
       if (largestTriangle != null) 'largest': largestTriangle,
@@ -230,6 +281,8 @@ class VoxelDiagnostics {
     enabled = false;
     copyBuffers = false;
     traceMobs = false;
+    audit = false;
+    forceFullOrder = false;
     probeX = -1;
     probeY = -1;
     _sequence = 0;
