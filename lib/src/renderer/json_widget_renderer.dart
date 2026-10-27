@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:convert';
 import 'dart:typed_data';
 import 'dart:ui' show ImageFilter;
 
@@ -30,6 +31,8 @@ import 'package:js_widget_runtime/src/renderer/nodes/js_shape_nodes.dart';
 import 'package:js_widget_runtime/src/renderer/nodes/js_scene3d_mesh_node.dart';
 import 'package:js_widget_runtime/src/renderer/nodes/js_scene3d_node.dart';
 import 'package:js_widget_runtime/src/renderer/nodes/js_voxel_node.dart';
+import 'package:js_widget_runtime/src/renderer/nodes/three/js_three_host.dart';
+import 'package:js_widget_runtime/src/renderer/nodes/three/js_three_node.dart';
 import 'package:js_widget_runtime/src/renderer/ui_view_field_registry.dart';
 
 part 'json_widget_decoration.dart';
@@ -43,6 +46,19 @@ part 'nodes/js_m3_overlay_nodes.dart';
 part 'nodes/js_text_nodes.dart';
 
 final _jsonWidgetDefaultColors = JsonWidgetTheme.fromAccent(Colors.deepPurple);
+
+ImageProvider? _dataImageProvider(String source) {
+  if (!source.startsWith('data:image/')) return null;
+  final separator = source.indexOf(',');
+  if (separator < 0 || !source.substring(0, separator).endsWith(';base64')) {
+    return null;
+  }
+  try {
+    return MemoryImage(base64Decode(source.substring(separator + 1)));
+  } on FormatException {
+    return null;
+  }
+}
 
 /// Converts a JSON widget tree (produced by JS widgets) into Flutter widgets.
 ///
@@ -124,8 +140,7 @@ class JsonWidgetBuildHooks {
   /// Merge host edits (property-panel overrides) into a node before
   /// dispatch. Return the SAME instance when there is nothing to merge so
   /// the widget memo cache stays effective.
-  final Map<String, dynamic> Function(Map<String, dynamic> node)?
-  effectiveNode;
+  final Map<String, dynamic> Function(Map<String, dynamic> node)? effectiveNode;
 
   /// Prepare a child for building — stamp ids, etc. Receives the raw child
   /// map, its parent map and the child index; return the map the renderer
@@ -160,6 +175,8 @@ class JsonWidgetRenderer with JsonWidgetDecoration {
     this.webViewHost,
     this.js3dHost,
     this.onScene3dTap,
+    this.threeHost,
+    this.onThreeEvent,
     this.voxelWorld,
     this.externalAssetResolver,
     this.fontResolver,
@@ -221,6 +238,11 @@ class JsonWidgetRenderer with JsonWidgetDecoration {
   final void Function(String sceneId, Map<String, dynamic> payload)?
   onScene3dTap;
 
+  /// Independent upstream-THREE surface host and fire-and-forget DOM events.
+  final JsThreeHost? threeHost;
+  final void Function(String canvasId, Map<String, dynamic> event)?
+  onThreeEvent;
+
   /// Voxel world state behind `voxel` nodes (`jsr.hostCall('voxel.*')`).
   /// Engines expose their bridge-owned world; hosts rendering trees
   /// without an engine pass the world they fill.
@@ -276,11 +298,7 @@ class JsonWidgetRenderer with JsonWidgetDecoration {
   /// Builds a child through the host hooks (stamping + skip), then the
   /// normal build. [cacheKey] keeps the memo keyed on the RAW child so
   /// stamped copies (fresh identity every build) still hit the cache.
-  Widget? _buildChild(
-    dynamic child,
-    Map<String, dynamic> parent,
-    int index,
-  ) {
+  Widget? _buildChild(dynamic child, Map<String, dynamic> parent, int index) {
     final hooks = buildHooks;
     Object? cacheKey;
     var target = child;
@@ -305,100 +323,101 @@ class JsonWidgetRenderer with JsonWidgetDecoration {
   /// the same builder under both keys.
   late final Map<String, Widget Function(Map<String, dynamic>)> _nodeBuilders =
       {
-    'column': _column,
-    'row': _row,
-    'stack': _stack,
-    'center': _centerNode,
-    'align': _align,
-    'expanded': _expandedNode,
-    'flexible': _flexibleNode,
-    'wrap': _wrap,
-    'padding': _paddingNode,
-    'sizedBox': _sizedBox,
-    'spacer': _spacerNode,
-    'safeArea': _safeAreaNode,
-    'text': _text,
-    'icon': _icon,
-    'divider': _divider,
-    'circularProgressIndicator': _spinner,
-    'linearProgressIndicator': _linearProgress,
-    'container': _container,
-    'card': _card,
-    'inkWell': _inkWell,
-    'scroll': _scroll,
-    'listView': _listView,
-    'gridView': _gridView,
-    'adaptive': _adaptive,
-    'listTile': _listTile,
-    'markdown': _markdown,
-    'circleAvatar': _circleAvatar,
-    'chip': _chip,
-    'badge': _badge,
-    'switch': _switchNode,
-    'checkbox': _checkboxNode,
-    'slider': _sliderNode,
-    'dropdown': _dropdown,
-    'button': _elevatedButton,
-    'textButton': _textButton,
-    'outlinedButton': _outlinedButton,
-    'iconButton': _iconButton,
-    // Material 3 nodes
-    'appBar': _appBarNode,
-    'navigationBar': _navigationBarNode,
-    'tabBar': _tabBarNode,
-    'fab': _fabNode,
-    'segmentedButton': _segmentedButtonNode,
-    'radio': _radioNode,
-    'searchBar': _searchBarNode,
-    'tooltip': _tooltipNode,
-    'popupMenu': _popupMenuNode,
-    'banner': _bannerNode,
-    'bottomAppBar': _bottomAppBarNode,
-    'bottomSheet': _bottomSheetNode,
-    'dialog': _dialogNode,
-    'snackBar': _snackBarNode,
-    'navigationRail': _navigationRailNode,
-    'carousel': _carouselNode,
-    'image': _image,
-    'svg': _svg,
-    'aspectRatio': _aspectRatio,
-    // `opacity` is now handled by universal effect props; keep the node
-    // type as a thin wrapper so existing JSON trees still work.
-    'opacity': _opacityNode,
-    'clipRRect': _clipRRect,
-    'textField': _textFieldNode,
-    'textArea': _textAreaNode,
-    'chart': _chartNode,
-    'flChart': _flChartNode,
-    'datePicker': _datePickerNode,
-    'timePicker': _timePickerNode,
-    'drawer': _drawerNode,
-    'blur': _blurNode,
-    // Animated widgets (implicit animations)
-    'animatedContainer': _animatedContainer,
-    'animatedOpacity': _animatedOpacity,
-    'animatedPositioned': _animatedPositioned,
-    // Transition animations (mount + view switching)
-    'entrance': _entranceNode,
-    'animatedSwitcher': _animatedSwitcherNode,
-    // Gesture input
-    'gestureDetector': _gestureDetector,
-    // New nodes
-    'path': (m) => buildJsPathNode(m),
-    'rect': (m) => buildJsRectNode(m),
-    'circle': (m) => buildJsCircleNode(m),
-    'line': (m) => buildJsLineNode(m),
-    'polygon': (m) => buildJsPolygonNode(m),
-    'map': (m) => buildJsMapNode(m, onEvent, tileProvider: mapTileProvider),
-    'absoluteFill': _absoluteFill,
-    'fill': _absoluteFill,
-    'video': _video,
-    'audio': _audio,
-    'audio_player': _audioPlayer,
-    'webView': _webView,
-    'scene3d': _scene3d,
-    'voxel': _voxel,
-  };
+        'column': _column,
+        'row': _row,
+        'stack': _stack,
+        'center': _centerNode,
+        'align': _align,
+        'expanded': _expandedNode,
+        'flexible': _flexibleNode,
+        'wrap': _wrap,
+        'padding': _paddingNode,
+        'sizedBox': _sizedBox,
+        'spacer': _spacerNode,
+        'safeArea': _safeAreaNode,
+        'text': _text,
+        'icon': _icon,
+        'divider': _divider,
+        'circularProgressIndicator': _spinner,
+        'linearProgressIndicator': _linearProgress,
+        'container': _container,
+        'card': _card,
+        'inkWell': _inkWell,
+        'scroll': _scroll,
+        'listView': _listView,
+        'gridView': _gridView,
+        'adaptive': _adaptive,
+        'listTile': _listTile,
+        'markdown': _markdown,
+        'circleAvatar': _circleAvatar,
+        'chip': _chip,
+        'badge': _badge,
+        'switch': _switchNode,
+        'checkbox': _checkboxNode,
+        'slider': _sliderNode,
+        'dropdown': _dropdown,
+        'button': _elevatedButton,
+        'textButton': _textButton,
+        'outlinedButton': _outlinedButton,
+        'iconButton': _iconButton,
+        // Material 3 nodes
+        'appBar': _appBarNode,
+        'navigationBar': _navigationBarNode,
+        'tabBar': _tabBarNode,
+        'fab': _fabNode,
+        'segmentedButton': _segmentedButtonNode,
+        'radio': _radioNode,
+        'searchBar': _searchBarNode,
+        'tooltip': _tooltipNode,
+        'popupMenu': _popupMenuNode,
+        'banner': _bannerNode,
+        'bottomAppBar': _bottomAppBarNode,
+        'bottomSheet': _bottomSheetNode,
+        'dialog': _dialogNode,
+        'snackBar': _snackBarNode,
+        'navigationRail': _navigationRailNode,
+        'carousel': _carouselNode,
+        'image': _image,
+        'svg': _svg,
+        'aspectRatio': _aspectRatio,
+        // `opacity` is now handled by universal effect props; keep the node
+        // type as a thin wrapper so existing JSON trees still work.
+        'opacity': _opacityNode,
+        'clipRRect': _clipRRect,
+        'textField': _textFieldNode,
+        'textArea': _textAreaNode,
+        'chart': _chartNode,
+        'flChart': _flChartNode,
+        'datePicker': _datePickerNode,
+        'timePicker': _timePickerNode,
+        'drawer': _drawerNode,
+        'blur': _blurNode,
+        // Animated widgets (implicit animations)
+        'animatedContainer': _animatedContainer,
+        'animatedOpacity': _animatedOpacity,
+        'animatedPositioned': _animatedPositioned,
+        // Transition animations (mount + view switching)
+        'entrance': _entranceNode,
+        'animatedSwitcher': _animatedSwitcherNode,
+        // Gesture input
+        'gestureDetector': _gestureDetector,
+        // New nodes
+        'path': (m) => buildJsPathNode(m),
+        'rect': (m) => buildJsRectNode(m),
+        'circle': (m) => buildJsCircleNode(m),
+        'line': (m) => buildJsLineNode(m),
+        'polygon': (m) => buildJsPolygonNode(m),
+        'map': (m) => buildJsMapNode(m, onEvent, tileProvider: mapTileProvider),
+        'absoluteFill': _absoluteFill,
+        'fill': _absoluteFill,
+        'video': _video,
+        'audio': _audio,
+        'audio_player': _audioPlayer,
+        'webView': _webView,
+        'scene3d': _scene3d,
+        'three': _three,
+        'voxel': _voxel,
+      };
 
   Widget _buildNode(Map<String, dynamic> m) {
     final type = m['type'] as String? ?? '';
@@ -428,13 +447,11 @@ class JsonWidgetRenderer with JsonWidgetDecoration {
     // data and collapses the scene with "Incorrect use of ParentDataWidget").
     final isFlexChild =
         child is! Expanded && child is! Flexible && child is! Spacer;
-    final hostFinished = finish != null &&
+    final hostFinished =
+        finish != null &&
         !(customBuilders?.containsKey(type) ?? false) &&
         isFlexChild;
-    return _applyUniversalEffects(
-      hostFinished ? finish(m, child) : child,
-      m,
-    );
+    return _applyUniversalEffects(hostFinished ? finish(m, child) : child, m);
   }
 
   // --- Thin per-type builders for the former inline switch cases. ------
@@ -448,10 +465,8 @@ class JsonWidgetRenderer with JsonWidgetDecoration {
   Widget _flexibleNode(Map<String, dynamic> m) =>
       Flexible(flex: _int(m['flex'], 1), child: _child(m)!);
 
-  Widget _paddingNode(Map<String, dynamic> m) => Padding(
-        padding: _edgeInsets(m['padding']),
-        child: _child(m),
-      );
+  Widget _paddingNode(Map<String, dynamic> m) =>
+      Padding(padding: _edgeInsets(m['padding']), child: _child(m));
 
   Widget _spacerNode(Map<String, dynamic> m) {
     final flex = _int(m['flex'], 1);
@@ -467,16 +482,11 @@ class JsonWidgetRenderer with JsonWidgetDecoration {
   Widget _blurNode(Map<String, dynamic> m) =>
       _applyBlur(_child(m) ?? const SizedBox.shrink(), m['sigma']);
 
-  Widget _entranceNode(Map<String, dynamic> m) => buildJsEntranceNode(
-        m,
-        _child(m) ?? const SizedBox.shrink(),
-      );
+  Widget _entranceNode(Map<String, dynamic> m) =>
+      buildJsEntranceNode(m, _child(m) ?? const SizedBox.shrink());
 
   Widget _animatedSwitcherNode(Map<String, dynamic> m) =>
-      buildJsAnimatedSwitcherNode(
-        m,
-        _child(m) ?? const SizedBox.shrink(),
-      );
+      buildJsAnimatedSwitcherNode(m, _child(m) ?? const SizedBox.shrink());
 
   Widget _unknownType(Map<String, dynamic> m) {
     final type = m['type'] as String? ?? '?';
@@ -542,7 +552,15 @@ class JsonWidgetRenderer with JsonWidgetDecoration {
 
     if (provider == null) return const SizedBox.shrink();
 
-    return _imageWidget(provider, w, h, fit);
+    return _imageWidget(
+      provider,
+      w,
+      h,
+      fit,
+      filterQuality: m['filterQuality'] == 'none'
+          ? FilterQuality.none
+          : FilterQuality.low,
+    );
   }
 
   Widget _externalImage(String id, double? w, double? h, BoxFit fit) {
@@ -573,17 +591,22 @@ class JsonWidgetRenderer with JsonWidgetDecoration {
     ImageProvider provider,
     double? w,
     double? h,
-    BoxFit fit,
-  ) => Image(
+    BoxFit fit, {
+    FilterQuality filterQuality = FilterQuality.low,
+  }) => Image(
     image: provider,
     width: w,
     height: h,
     fit: fit,
+    filterQuality: filterQuality,
     gaplessPlayback: true,
     errorBuilder: (_, __, ___) => Icon(Icons.broken_image, size: w ?? 48),
   );
 
   ImageProvider? _resolveImageProvider(String source) {
+    final dataImage = _dataImageProvider(source);
+    if (dataImage != null) return dataImage;
+    if (source.startsWith('data:image/')) return null;
     if (source.startsWith('asset:')) {
       return AssetImage(source.substring(6));
     }
@@ -621,7 +644,8 @@ class JsonWidgetRenderer with JsonWidgetDecoration {
   Widget _webView(Map<String, dynamic> m) {
     final host = webViewHost;
     if (host == null) return _mediaPlaceholder(m, Icons.language);
-    final messageEvent = (m['onMessage'] as String?) ?? (m['onEvent'] as String?);
+    final messageEvent =
+        (m['onMessage'] as String?) ?? (m['onEvent'] as String?);
     return host.buildWebView(
       src: (m['src'] as String?) ?? (m['url'] as String?) ?? '',
       onMessage: messageEvent == null
@@ -650,6 +674,22 @@ class JsonWidgetRenderer with JsonWidgetDecoration {
       host: host,
       config: Map<String, dynamic>.from(m),
       onSceneTap: onScene3dTap,
+    );
+  }
+
+  Widget _three(Map<String, dynamic> m) {
+    final host = threeHost;
+    if (host == null) {
+      return _mediaPlaceholder(
+        m,
+        Icons.view_in_ar,
+        label: 'three.unsupported: host',
+      );
+    }
+    return JsThreeNode(
+      host: host,
+      config: Map<String, dynamic>.from(m),
+      onEvent: onThreeEvent,
     );
   }
 
@@ -752,58 +792,121 @@ class JsonWidgetRenderer with JsonWidgetDecoration {
         : const <String, dynamic>{};
     // Use scheduleMicrotask to defer onEvent calls outside Flutter's gesture/mouse
     // tracking pipeline — prevents !_debugDuringDeviceUpdate assertion.
-    void fire(String event, Map<String, dynamic> payload) =>
-        scheduleMicrotask(() =>
-            onEvent(event, <String, dynamic>{...staticPayload, ...payload}));
+    void fire(String event, Map<String, dynamic> payload) => scheduleMicrotask(
+      () => onEvent(event, <String, dynamic>{...staticPayload, ...payload}),
+    );
     // High-frequency streams (pan/scroll) bypass the serialized round-trip
     // queue when the host provides a fire-and-forget sink.
     void fireFast(String event, Map<String, dynamic> payload) =>
-        scheduleMicrotask(() => (onGestureEvent ?? onEvent)(
-            event, <String, dynamic>{...staticPayload, ...payload}));
+        scheduleMicrotask(
+          () => (onGestureEvent ?? onEvent)(event, <String, dynamic>{
+            ...staticPayload,
+            ...payload,
+          }),
+        );
     Map<String, dynamic> xy(Offset o) => {'x': o.dx, 'y': o.dy};
-    Map<String, dynamic> vel(Velocity v) =>
-        {'velocityX': v.pixelsPerSecond.dx, 'velocityY': v.pixelsPerSecond.dy};
+    Map<String, dynamic> vel(Velocity v) => {
+      'velocityX': v.pixelsPerSecond.dx,
+      'velocityY': v.pixelsPerSecond.dy,
+    };
     final gd = GestureDetector(
       behavior: HitTestBehavior.opaque,
-      onTap: _gestureHandler(m, 'onTap', (id) => () => fire(id, {})),
+      onTap: _gestureHandler(
+        m,
+        'onTap',
+        (id) =>
+            () => fire(id, {}),
+      ),
       onTapDown: _gestureHandler(
-          m, 'onTapDown', (id) => (TapDownDetails d) => fire(id, xy(d.localPosition))),
+        m,
+        'onTapDown',
+        (id) =>
+            (TapDownDetails d) => fire(id, xy(d.localPosition)),
+      ),
       onTapUp: _gestureHandler(
-          m, 'onTapUp', (id) => (TapUpDetails d) => fire(id, xy(d.localPosition))),
+        m,
+        'onTapUp',
+        (id) =>
+            (TapUpDetails d) => fire(id, xy(d.localPosition)),
+      ),
       // Cancel surfaces: without them a gesture stolen by the arena or the
       // OS (iOS edge gestures) leaves widget-side "held" state stuck.
-      onTapCancel: _gestureHandler(m, 'onTapCancel', (id) => () => fire(id, {})),
-      onPanStart: _gestureHandler(m, 'onPanStart',
-          (id) => (DragStartDetails d) => fire(id, xy(d.localPosition))),
+      onTapCancel: _gestureHandler(
+        m,
+        'onTapCancel',
+        (id) =>
+            () => fire(id, {}),
+      ),
+      onPanStart: _gestureHandler(
+        m,
+        'onPanStart',
+        (id) =>
+            (DragStartDetails d) => fire(id, xy(d.localPosition)),
+      ),
       onPanUpdate: _gestureHandler(
-          m,
-          'onPanUpdate',
-          (id) => (DragUpdateDetails d) => fireFast(id,
-              {...xy(d.localPosition), 'dx': d.delta.dx, 'dy': d.delta.dy})),
-      onPanEnd: _gestureHandler(m, 'onPanEnd',
-          (id) => (DragEndDetails d) => fire(id, vel(d.velocity))),
-      onPanCancel:
-          _gestureHandler(m, 'onPanCancel', (id) => () => fire(id, {})),
+        m,
+        'onPanUpdate',
+        (id) =>
+            (DragUpdateDetails d) => fireFast(id, {
+              ...xy(d.localPosition),
+              'dx': d.delta.dx,
+              'dy': d.delta.dy,
+            }),
+      ),
+      onPanEnd: _gestureHandler(
+        m,
+        'onPanEnd',
+        (id) =>
+            (DragEndDetails d) => fire(id, vel(d.velocity)),
+      ),
+      onPanCancel: _gestureHandler(
+        m,
+        'onPanCancel',
+        (id) =>
+            () => fire(id, {}),
+      ),
       // Long press (Minecraft-style hold actions): stationary hold wins the
       // arena, a moved finger loses to pan, a quick lift loses to tap.
-      onLongPress:
-          _gestureHandler(m, 'onLongPress', (id) => () => fire(id, {})),
-      onLongPressStart: _gestureHandler(m, 'onLongPressStart',
-          (id) => (LongPressStartDetails d) => fire(id, xy(d.localPosition))),
+      onLongPress: _gestureHandler(
+        m,
+        'onLongPress',
+        (id) =>
+            () => fire(id, {}),
+      ),
+      onLongPressStart: _gestureHandler(
+        m,
+        'onLongPressStart',
+        (id) =>
+            (LongPressStartDetails d) => fire(id, xy(d.localPosition)),
+      ),
       onLongPressMoveUpdate: _gestureHandler(
-          m,
-          'onLongPressMoveUpdate',
-          (id) => (LongPressMoveUpdateDetails d) => fireFast(id, {
-                ...xy(d.localPosition),
-                'dx': d.localOffsetFromOrigin.dx,
-                'dy': d.localOffsetFromOrigin.dy,
-              })),
-      onLongPressEnd: _gestureHandler(m, 'onLongPressEnd',
-          (id) => (LongPressEndDetails d) => fire(id, vel(d.velocity))),
-      onLongPressUp:
-          _gestureHandler(m, 'onLongPressUp', (id) => () => fire(id, {})),
+        m,
+        'onLongPressMoveUpdate',
+        (id) =>
+            (LongPressMoveUpdateDetails d) => fireFast(id, {
+              ...xy(d.localPosition),
+              'dx': d.localOffsetFromOrigin.dx,
+              'dy': d.localOffsetFromOrigin.dy,
+            }),
+      ),
+      onLongPressEnd: _gestureHandler(
+        m,
+        'onLongPressEnd',
+        (id) =>
+            (LongPressEndDetails d) => fire(id, vel(d.velocity)),
+      ),
+      onLongPressUp: _gestureHandler(
+        m,
+        'onLongPressUp',
+        (id) =>
+            () => fire(id, {}),
+      ),
       onLongPressCancel: _gestureHandler(
-          m, 'onLongPressCancel', (id) => () => fire(id, {})),
+        m,
+        'onLongPressCancel',
+        (id) =>
+            () => fire(id, {}),
+      ),
       child: child,
     );
     return _maybePointerSignal(m, gd);
@@ -822,10 +925,12 @@ class JsonWidgetRenderer with JsonWidgetDecoration {
         if (event is PointerScrollEvent) {
           // Defer outside Flutter's pointer pipeline (same reason as fire()).
           final sink = onGestureEvent ?? onEvent;
-          scheduleMicrotask(() => sink(onScroll as String, {
-            'dx': event.scrollDelta.dx,
-            'dy': event.scrollDelta.dy,
-          }));
+          scheduleMicrotask(
+            () => sink(onScroll as String, {
+              'dx': event.scrollDelta.dx,
+              'dy': event.scrollDelta.dy,
+            }),
+          );
         }
       },
       child: built,

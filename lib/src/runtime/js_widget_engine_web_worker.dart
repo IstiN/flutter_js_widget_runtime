@@ -9,6 +9,7 @@ import 'package:js_widget_runtime/src/model/js_runtime_config.dart';
 import 'package:js_widget_runtime/src/runtime/js_widget_bootstrap.dart';
 import 'package:js_widget_runtime/src/runtime/js_widget_bridge.dart';
 import 'package:js_widget_runtime/src/renderer/nodes/js_voxel_node.dart';
+import 'package:js_widget_runtime/src/renderer/nodes/three/web_three_host.dart';
 import 'package:js_widget_runtime/src/runtime/js_widget_engine_backend.dart';
 import 'package:js_widget_runtime/src/runtime/js_widget_engine_message.dart';
 import 'package:js_widget_runtime/src/defaults/web_default_handlers.dart';
@@ -55,14 +56,22 @@ class WebWorkerJsWidgetEngineBackend implements JsWidgetEngineBackend {
       rafTickHandler: (id, elapsedMs) =>
           _postToWorker('__jsr_raf_tick', {'id': id, 'elapsed': elapsedMs}),
       js3dHost: config.js3dHost,
+      threeHost: config.threeHost,
       initialStorage: config.initialStorage,
     );
   }
 
   static bool _allowAll(String _) => true;
 
-  final JsRuntimeConfig _config;
+  JsRuntimeConfig _config;
   late final JsWidgetBridge _bridge;
+
+  @override
+  void setEngineInstanceId(String instanceId) {
+    _config = _config.copyWith(instanceId: instanceId);
+    _bridge.threeEngineId = instanceId;
+  }
+
   web.Worker? _worker;
   JSFunction? _messageHandler;
   Completer<void>? _readyCompleter;
@@ -101,6 +110,10 @@ class WebWorkerJsWidgetEngineBackend implements JsWidgetEngineBackend {
   }) async {
     await dispose();
     _disposed = false;
+    final threeHost = _config.threeHost;
+    if (threeHost is WebThreeHost) {
+      threeHost.bindEngine(_bridge.threeEngineId, _postThreeControl);
+    }
     _consoleLogs.clear();
     _readyCompleter = Completer<void>();
 
@@ -168,15 +181,29 @@ class WebWorkerJsWidgetEngineBackend implements JsWidgetEngineBackend {
     if (blobUrl != null) {
       web.URL.revokeObjectURL(blobUrl);
     }
-    _readyCompleter?.complete();
+    final ready = _readyCompleter;
     _readyCompleter = null;
+    if (ready != null && !ready.isCompleted) ready.complete();
   }
 
   // ── Private ──────────────────────────────────────────────────────────────
 
   void _onMessage(web.MessageEvent event) {
     final data = event.data;
-    if (data == null || !data.isA<JSString>()) return;
+    if (data != null && !data.isA<JSString>()) {
+      if (!_disposed && data.isA<JSObject>()) {
+        final threeHost = _config.threeHost;
+        if (threeHost is WebThreeHost) {
+          threeHost.handleWorkerMessage(
+            _bridge.threeEngineId,
+            data,
+            _postThreeControl,
+          );
+        }
+      }
+      return;
+    }
+    if (data == null) return;
     final raw = (data as JSString).toDart;
     final message = JsWidgetMessage.tryParse(raw);
     if (message == null) return;
@@ -241,13 +268,17 @@ class WebWorkerJsWidgetEngineBackend implements JsWidgetEngineBackend {
     worker.postMessage(message.toJS);
   }
 
+  void _postThreeControl(JSObject message) {
+    if (_disposed) return;
+    _worker?.postMessage(message);
+  }
+
   @visibleForTesting
   String buildWorkerScriptForTest(
     String widgetJs,
     Map<String, dynamic> initialTheme, [
     String? hostBootstrapJs,
-  ]) =>
-      _buildWorkerScript(widgetJs, initialTheme, hostBootstrapJs);
+  ]) => _buildWorkerScript(widgetJs, initialTheme, hostBootstrapJs);
 
   String _buildWorkerScript(
     String widgetJs,
@@ -271,6 +302,15 @@ function sendMessage(channel, jsonString) {
 }
 self.onmessage = function(e){
   var data = e.data;
+  if (data && typeof data === 'object' &&
+      (data.type === 'jsr.three.frameAck' || data.type === 'jsr.three.release')) {
+    var three = typeof jsr !== 'undefined' ? jsr.three : null;
+    if (three) {
+      if (typeof three._frameControl === 'function') three._frameControl(data);
+      else if (typeof three._hostEvent === 'function') three._hostEvent(data.type, data);
+    }
+    return;
+  }
   if (typeof data !== 'string' || !data.startsWith('__jsr__')) return;
   var msg = JSON.parse(data.slice('__jsr__'.length));
   if (msg.channel === '__jsr_call_event') {

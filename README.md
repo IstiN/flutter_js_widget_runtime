@@ -40,8 +40,9 @@ Real JavaScript, rendered by this package and captured by [golden tests](test/go
 | ![pomodoro](doc/widgets/pomodoro.png) | ![audio player](doc/widgets/audio-player.png) |
 | ![video player](doc/widgets/video-player.png) | ![webview](doc/widgets/webview-showcase.png) |
 | ![adaptive dashboard](doc/widgets/adaptive-dashboard.png) | ![3D model viewer](doc/widgets/3d-viewer.png) |
+| ![THREE Minecraft](doc/widgets/three-minecraft.png) | |
 
-yolo-hello (animated gradient + bounce) · calculator (full keyboard logic in JS) · weather (wttr.in fetch) · stocks (live quotes) · crypto (price tickers) · map (OpenStreetMap landmarks) · animation-showcase (menu + per-scene captures from the interactive golden: fade / morph / bounce / cards / drag / pulse / colors) · 3d-showcase (procedural primitives, flutter_cube — shape variants under doc/widgets/3d-showcase-*.png) · 3d-game-dodge (dodge-the-blocks game) · 3d-glb-showcase (GLB model with PBR) · fitness-trainer (skeletal-coach workout, flame_3d) · m3-showcase (Material 3 nodes: drawer, appBar, banner, searchBar, segmentedButton, radio, navigationRail, carousel, bottomAppBar, tabBar, fab, popupMenu, navigationBar + overlays: bottomSheet, dialog, snackBar, datePicker, timePicker — extra state frames under doc/widgets/m3-*.png) · charts-showcase (fl_chart via the `flChart` node: line, bar, pie, radar, scatter) · pomodoro (25/5 focus/break cycles, donut ring via `flChart` pie, completed counter persisted in `jsr.storage`) · audio-player (playlist transport via the zero-size `audio_player` node + host `JsMediaHost`) · video-player (`video` node, cinematic hero card + SVG source/BoxFit switcher) · 3d-viewer (GLB viewer with control-room UI, SVG control bar) · webview-showcase (`webView` node, host `JsWebViewHost`, page-to-widget message bridge) · adaptive-dashboard (adaptive node + `gridView.maxCrossAxisExtent` + `jsr.breakpoint`/`jsr.adaptive`/`jsr.onViewport`)
+yolo-hello (animated gradient + bounce) · calculator (full keyboard logic in JS) · weather (wttr.in fetch) · stocks (live quotes) · crypto (price tickers) · map (OpenStreetMap landmarks) · animation-showcase (menu + per-scene captures from the interactive golden: fade / morph / bounce / cards / drag / pulse / colors) · 3d-showcase (procedural primitives, flutter_cube — shape variants under doc/widgets/3d-showcase-*.png) · 3d-game-dodge (dodge-the-blocks game) · 3d-glb-showcase (GLB model with PBR) · fitness-trainer (skeletal-coach workout, flame_3d) · m3-showcase (Material 3 nodes: drawer, appBar, banner, searchBar, segmentedButton, radio, navigationRail, carousel, bottomAppBar, tabBar, fab, popupMenu, navigationBar + overlays: bottomSheet, dialog, snackBar, datePicker, timePicker — extra state frames under doc/widgets/m3-*.png) · charts-showcase (fl_chart via the `flChart` node: line, bar, pie, radar, scatter) · pomodoro (25/5 focus/break cycles, donut ring via `flChart` pie, completed counter persisted in `jsr.storage`) · audio-player (playlist transport via the zero-size `audio_player` node + host `JsMediaHost`) · video-player (`video` node, cinematic hero card + SVG source/BoxFit switcher) · 3d-viewer (GLB viewer with control-room UI, SVG control bar) · webview-showcase (`webView` node, host `JsWebViewHost`, page-to-widget message bridge) · adaptive-dashboard (adaptive node + `gridView.maxCrossAxisExtent` + `jsr.breakpoint`/`jsr.adaptive`/`jsr.onViewport`) · three-minecraft (official upstream r186 module on the opt-in THREE host; dedicated `three_example.dart` runner)
 
 ## Web preview runner
 
@@ -157,6 +158,91 @@ jsr.scene3d.setTransform('main', 'player', {
 The `example/` app includes a `3d-viewer` widget powered by
 `flutter_3d_controller`.
 
+## Upstream three.js r186 (opt-in)
+
+Upstream `THREE` is independent of the older `scene3d` API. Enable its pinned
+bundle explicitly and inject the platform host; ordinary widgets do not load
+or evaluate three.js:
+
+```dart
+final threeHost = kIsWeb
+    ? createWebThreeHost()
+    : createFlutterGpuThreeHost();
+
+final config = JsRuntimeConfig(
+  threeEnabled: true,
+  threeHost: threeHost,
+  // ... required render/title/storage callbacks
+);
+```
+
+```javascript
+const canvas = jsr.three.createCanvas('main');
+const renderer = new THREE.WebGLRenderer({canvas: canvas});
+// Use the real upstream scene/geometry/material objects, then mount it:
+jsr.render({type: 'three', canvasId: 'main', width: 640, height: 360});
+```
+
+- **Native (1A):** upstream JS object model on QuickJS/JSC, dirty versioned
+  resources over the binary `JSR3D-T1`/`R1-v1` protocol, and Flutter GPU
+  shaders behind `JsThreeHost`. `WebGLRenderer` is an explicit R1 alias;
+  `getContext()`, raw WebGL, ShaderMaterial and WebGPU report
+  `three.unsupported`. No WebView is involved.
+- **Web (1B):** the real upstream `WebGLRenderer` acquires WebGL2 on a
+  Worker-owned OffscreenCanvas. Transferable ImageBitmap frames (bounded to
+  two pending) are presented through HtmlElementView canvases; canvas/GL
+  handles never cross the JSON bridge.
+- Native `THREE.InstancedMesh` uses R1 `DRAW_BATCH`: real instance matrices
+  are uploaded once and drawn with GPU instancing, including indexed
+  multi-material parts. Transparent instancing and per-instance colors are
+  outside the initial R1 profile. Diagnostics count triangles across all
+  instances, not just the base geometry.
+- Resources are isolated by `(engineId, surfaceId, resourceId)`. Mount,
+  resize/DPR, pointer/key/cancel, capture and disposal are host-managed.
+  Prepared local assets use `jsr.three.registerAsset`; host asset failures
+  are named `three.assetFailure`.
+- The pin is r186, peeled commit
+  `9b4a2ac29c63ccb43fd51c5661f2f873ac2c39b8` (tag object
+  `48dd7be01263658aad497fd72e09d1e4c6213461`). Build manifests and the MIT
+  notice ship under `assets/three/`.
+
+Rebuild and run the official `webgl_geometry_minecraft` example:
+
+```sh
+dart run bin/jsr_three_example.dart prepare webgl_geometry_minecraft
+cd example
+flutter run -t lib/three_example.dart
+```
+
+The prepare step preserves the exact official HTML/module bytes and resolves
+only the pinned FirstPersonControls, Timer, BufferGeometryUtils, ImprovedNoise
+and local atlas. Native runs require a Flutter GPU/Impeller platform; the Web
+path requires Worker OffscreenCanvas + WebGL2 (verify on real Chrome/Edge).
+The example overlay reports decode/frame time, calls, triangles and uploads.
+
+![Official three.js Minecraft example on Flutter GPU](doc/widgets/three-minecraft.png)
+
+*Actual macOS Impeller capture of the unmodified official module; not a
+browser/WebView screenshot.*
+
+### Local Minecraft stress profile
+
+`tool/three_minecraft_stress/` prepares a separate heavy local target from the
+unmodified `minecraft-threejs-clone` application graph. Its default
+`drawDistance = 0` profile keeps one chunk, batches the real blocks with
+`InstancedMesh`, and exercises QuickJS FFI → native R1 → Flutter GPU without
+Vite or a WebView:
+
+```sh
+node tool/three_minecraft_stress/prepare.mjs --offline
+node tool/three_minecraft_stress/test/stress_test.mjs
+cd example && flutter run -d macos -t lib/three_minecraft_stress.dart
+```
+
+See [the stress-target README](tool/three_minecraft_stress/README.md) for source
+pins, verification, diagnostics and bounded controls. Generated output stays
+under `/tmp`; the reference has no license and must not be redistributed.
+
 ## Renderer nodes
 
 The JSON tree supports these node types:
@@ -171,7 +257,7 @@ The JSON tree supports these node types:
 | Animation | `animatedContainer`, `animatedOpacity`, `animatedPositioned` (implicit change animations); `entrance` — one-shot mount animation (`animation`: `fade`/`slideUp`/`slideDown`/`slideLeft`/`slideRight`/`scale`/`fadeScale`, `delay` ms for staggered lists, `duration`, `curve`); `animatedSwitcher` — view transition when `switchKey` changes (`animation`: `fade`/`slideLeft`/`slideRight`/`slideUp`/`scale`/`fadeScale`) |
 | Map | `map` — OpenStreetMap via [flutter_map](https://pub.dev/packages/flutter_map) (no API key). Props: `center {lat, lng}`, `zoom`, `markers [{id, lat, lng, label?, color?}]`, `polylines [{points, color?, width?}]`, `fitBounds`; events: `onTap` (`{lat, lng}`), `onMarkerTap` (`{id}`) |
 | Chart | `chart` — sparkline or bar chart. Props: `data` (list of numbers; `points` accepted as alias), `chartType` (`line` default, `bar`), `color`, `fillColor` (hex with alpha, e.g. `#22c55e33`), `strokeWidth`, `height` |
-| 3D | `scene3d` — host-provided 3D engine. Props: `id`, `width`, `height`, `camera`, `lights`. GLB/GLTF models, cameras and lights are controlled from JS via `jsr.scene3d.*` |
+| 3D | `scene3d` — host-provided 3D engine. Props: `id`, `width`, `height`, `camera`, `lights`; controlled via `jsr.scene3d.*`. `three` — upstream r186 canvas (`canvasId`, `width`, `height`) via opt-in `jsr.three`; independent of `scene3d` |
 | Media | `video`, `audio` (host-provided via `JsMediaHost`) |
 | Gestures | `gestureDetector` |
 

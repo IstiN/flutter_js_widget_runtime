@@ -37,14 +37,22 @@ class FlutterJsWidgetEngineBackend implements JsWidgetEngineBackend {
       intervalTickHandler: (id) {},
       rafTickHandler: (id, elapsedMs) {},
       js3dHost: config.js3dHost,
+      threeHost: config.threeHost,
       initialStorage: config.initialStorage,
     );
   }
 
   static bool _allowAll(String _) => true;
 
-  final JsRuntimeConfig _config;
+  JsRuntimeConfig _config;
   late final JsWidgetBridge _bridge;
+
+  @override
+  void setEngineInstanceId(String instanceId) {
+    _config = _config.copyWith(instanceId: instanceId);
+    _bridge.threeEngineId = instanceId;
+  }
+
   JavascriptRuntime? _runtime;
   bool _disposed = false;
   final List<Map<String, dynamic>> _consoleLogs = [];
@@ -391,9 +399,15 @@ class FlutterJsWidgetEngineBackend implements JsWidgetEngineBackend {
         channel == '__jsr_caf' ||
         channel == '__jsr_host_call_binary';
     return (dynamic payload) {
-      // Unwrap {"iid":..., "id":...} wrappers produced by the bootstrap for
-      // plain-id channels back into the raw id string the handler expects.
-      if (unwrapsRawId && payload is String) {
+      // Read identity before unwrapping: the raw payload itself has no iid.
+      final iid = _payloadIid(payload);
+      // JSC jsonDecodes the bootstrap wrapper before invoking the handler;
+      // other flutter_js runtimes may pass its JSON string instead.
+      if (unwrapsRawId && payload is Map<String, dynamic>) {
+        if (payload.containsKey('iid') && payload.containsKey('id')) {
+          payload = payload['id']?.toString();
+        }
+      } else if (unwrapsRawId && payload is String) {
         try {
           final decoded = jsonDecode(payload);
           if (decoded is Map<String, dynamic> &&
@@ -403,7 +417,6 @@ class FlutterJsWidgetEngineBackend implements JsWidgetEngineBackend {
           }
         } catch (_) {}
       }
-      final iid = _payloadIid(payload);
       if (iid == null || iid == myIid) {
         // Untagged or ours — legacy per-engine path.
         return fallback?.call(payload);

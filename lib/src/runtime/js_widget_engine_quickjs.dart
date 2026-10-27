@@ -11,6 +11,8 @@ import 'package:js_widget_runtime/src/renderer/nodes/js_voxel_node.dart';
 import 'package:js_widget_runtime/src/runtime/js_widget_engine_backend.dart';
 import 'package:quickjs_runtime/quickjs_runtime.dart';
 
+bool _quickjsAllowAll(String _) => true;
+
 /// VM JS engine backend backed by the QuickJS runtime via `dart:ffi`, from
 /// the pure-Dart `quickjs_runtime` package.
 ///
@@ -39,7 +41,7 @@ class QuickjsWidgetEngineBackend implements JsWidgetEngineBackend {
       onLog: (msg) => _handleLog(msg),
       isDisposed: () => _disposed,
       appDir: config.appDir,
-      isPermissionAllowed: config.isPermissionAllowed ?? _allowAll,
+      isPermissionAllowed: config.isPermissionAllowed ?? _quickjsAllowAll,
       resolveCallback: (id, value) async {},
       fetchHandler: (id, url, method, headers) async {},
       secretsGetHandler: (id, key) async {},
@@ -53,14 +55,20 @@ class QuickjsWidgetEngineBackend implements JsWidgetEngineBackend {
       intervalTickHandler: (id) {},
       rafTickHandler: (id, elapsedMs) {},
       js3dHost: config.js3dHost,
+      threeHost: config.threeHost,
       initialStorage: config.initialStorage,
     );
   }
 
-  static bool _allowAll(String _) => true;
-
-  final JsRuntimeConfig _config;
+  JsRuntimeConfig _config;
   late final JsWidgetBridge _bridge;
+
+  @override
+  void setEngineInstanceId(String instanceId) {
+    _config = _config.copyWith(instanceId: instanceId);
+    _bridge.threeEngineId = instanceId;
+  }
+
   QuickjsRuntime? _runtime;
   bool _disposed = false;
   final List<Map<String, dynamic>> _consoleLogs = [];
@@ -362,8 +370,7 @@ class QuickjsWidgetEngineBackend implements JsWidgetEngineBackend {
     const binPrefix = '["__jsr_host_call_binary","';
     if (argsJson.startsWith(binPrefix) && argsJson.endsWith('"]')) {
       if (!_isLive(rt)) return;
-      final payload =
-          argsJson.substring(binPrefix.length, argsJson.length - 2);
+      final payload = argsJson.substring(binPrefix.length, argsJson.length - 2);
       final sep = payload.indexOf(' ');
       if (sep > 0) {
         unawaited(_bridge.dispatch('__jsr_host_call_binary', payload));

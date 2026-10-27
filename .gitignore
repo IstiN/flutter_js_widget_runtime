@@ -72,6 +72,9 @@ web/.dart_tool/
 
 # Native
 native/quickjs/*.so
+# JavaScript tooling (reproduce with the locked package manifest)
+node_modules/
+
 # crap4dart profiling
 profile-reports/
 .crap_profile_temp/

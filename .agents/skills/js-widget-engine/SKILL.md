@@ -127,6 +127,94 @@ path. Keep regressions for both the default BSP and explicitly disabled
 legacy path, including cross-chunk, split attributes, dynamic/overlay,
 cache-invalidation, near-clip, texture and moving-camera audits.
 
+## Upstream THREE (`jsr.three`, r186)
+
+This is an independent host hierarchy, NOT an extension of `Js3dHost` or
+`scene3d`. The public factories are `createFlutterGpuThreeHost()` (native) and
+`createWebThreeHost()` (Web, conditional export). Loading the large upstream
+bundle is opt-in with `JsRuntimeConfig.threeEnabled`; `threeSource` is a
+test/host override and `threeHost` supplies surfaces/assets. The pinned
+identity lives in `ThreeUpstreamBundle`, `tool/three/source-pin.json` and
+`assets/three/bundle_manifest.json` (r186, peeled commit `9b4a2ac…`).
+
+- Native evaluates upstream core on QuickJS/JSC. Its `THREE.WebGLRenderer`
+  export is the explicit `JsrWebGLRenderer` alias. It emits versioned
+  `JSR3D-T1` / `R1-v1` packets over `jsr.hostCallBinary('three.r1', bytes)`;
+  `rawWebGL == false`, `getContext()` and ShaderMaterial fail with
+  `three.unsupported`. It is NOT WebGL in a WebView.
+- `JsWidgetBridge` binds each packet to its generated/preserved engine id,
+  copies call-scoped native byte views, and `FlutterGpuThreeHost` verifies
+  the envelope id before applying it. Every resource key is
+  `(engineId, surfaceId, resourceId)`. Strict decode is atomic and complete
+  before state mutation; malformed/stale/cross-surface input is rejected.
+  On `flutter_js`/JSC the bootstrap wrapper may arrive already json-decoded
+  as `{iid,id}`; read `iid` before unwrapping BOTH Map and String forms, or
+  the base64 R1 lane is dropped/misrouted (`js_three_flutter_js_test.dart`).
+- Native surfaces render through `GpuImageSurface` and present a `ui.Image`.
+  Geometry/texture versions, not camera frames, drive uploads. Presentation
+  coalesces to two frames without dropping resource commands. Resize/DPR,
+  PNG capture, disposal and async-init generation checks belong to the host.
+  `InstancedMesh` emits `DRAW_BATCH` with real matrices and one GPU draw per
+  material part; transparent instancing/per-instance colors are not in the
+  initial profile. `ThreeDrawPlan.triangleCount` includes every instance.
+  Linear `THREE.Fog` is serialized in `FRAME`. The first shadow-casting
+  directional light uses a separate shadow command buffer, an R32 depth-color
+  target, instanced cast/receive flags and 3×3 PCF; keep its target/pipeline
+  optional on unsupported formats and do not leave two Metal render encoders
+  open in one command buffer. This is not exact PCFSoft or multi-light shadow
+  parity. `VertexInfo` is 320 bytes including Impeller's trailing padding;
+  validate future ABI edits against impellerc reflection and a real GPU probe.
+  Track the cumulative HostBuffer uniform offset. Before each aligned
+  emplacement, insert a computed filler when the payload would straddle
+  Flutter's 1,024,000-byte block; aligning the payload alone still lets the
+  final partial block overflow its DeviceBuffer. The reflected size check
+  uses the unpadded ABI size. Keep the straddling-payload regression and a
+  long presentation soak. The optional R1 FRAME trailer is `u32 count` plus
+  nonzero node ids culled by the main camera; skip only those main draws.
+  Cache the first directional shadow map by content revision, dimensions,
+  bias/normalBias and all matrix values; a cache hit still binds the map.
+- Web uses the REAL upstream `WebGLRenderer` on a Worker-owned
+  `OffscreenCanvas`. Canvas/WebGL2 creation is synchronous in the Worker;
+  no proxy GL and no main-canvas reservation. A separate structured-clone
+  lane transfers ImageBitmap frames (at most two pending) to
+  `WebThreeHost`/HtmlElementView, which draws, closes and acknowledges them.
+  Never serialize bitmaps/canvas handles through `JsWidgetMessage` JSON.
+- `three.asset` is the request/response hostCall name; failures use the
+  named `three.assetFailure` error. Prefer prepared `jsr.three.registerAsset`
+  bytes. Otherwise the host-approved loader runs, with HTTP additionally
+  gated by the `fetch` permission. Never evaluate assets or log their bytes,
+  URL credentials, or secrets.
+- `JsThreeNode` owns per-surface layout and DOM-shaped Listener input.
+  Pointer payloads carry `movementX/Y` from Flutter `localDelta`; adapters
+  should consume those relative deltas and only reconstruct from absolute
+  positions for older hosts. This is not raw unadjusted OS pointer input.
+  The macOS stress target's host-specific `jsr.three.pointer` channel uses
+  `CGAssociateMouseAndMouseCursorPosition`, cursor hide/unhide and NSEvent
+  deltas, restores input on focus loss, and falls back to `localDelta` when
+  native locking is unavailable; do not put this host policy in core JSR.
+  `JsKeyboardCapture` preserves editable-text priority and sends global
+  `three.blur`; runtime input clears held keys/buttons on blur, visibility,
+  cancel and disposal. `_prepareTree` stamps internal engine/surface ids on
+  every `three` node automatically.
+
+Build/verify the runtime bundles with the local pinned source and locked
+esbuild (`node tool/three/build.mjs --source /tmp/jsr-three-r186`, add
+`--verify` for a clean hash comparison). `tool/build_three_shaders.dart`
+builds the Impeller shaderbundle reproducibly. The official example prepare
+command is `dart run bin/jsr_three_example.dart prepare
+webgl_geometry_minecraft`; it preserves exact original/module bytes and
+resolves only the pinned addons/local atlas.
+
+Tests are layered: strict protocol quotas/malformed input, per-surface state,
+pure draw planning, real QuickJS JS↔Dart R1 (including 300 camera frames
+without reupload), Web VM lifecycle + real Chrome bitmap/ack tests, then an
+actual native Impeller app and real Chrome/Edge upstream WebGL screenshot.
+A Canvas2D bitmap test alone is not proof of upstream WebGL rendering. The
+heavy local reference profile is documented in
+`tool/three_minecraft_stress/README.md`; its macOS runner must show attached
+nonzero surfaces, increasing presented frames and zero upload/presentation
+failures, not merely R1 packets or a live JavaScript RAF loop.
+
 ## Engine Lifecycle
 
 - `JsWidgetEngine.run(widgetJs)` starts the runtime, evaluates bootstrap + optional host bootstrap + widget JS.

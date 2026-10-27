@@ -1,10 +1,13 @@
 import 'dart:convert';
 
+import 'package:flutter/foundation.dart';
+
 import 'package:js_widget_runtime/src/model/js_runtime_config.dart';
 import 'package:js_widget_runtime/src/renderer/nodes/js_voxel_node.dart';
 import 'package:js_widget_runtime/src/runtime/js_widget_engine_backend.dart';
 import 'package:js_widget_runtime/src/runtime/js_widget_engine_default.dart'
     if (dart.library.js_interop) 'package:js_widget_runtime/src/runtime/js_widget_engine_default_web.dart';
+import 'package:js_widget_runtime/src/runtime/three_upstream_bundle.dart';
 
 int _instanceCounter = 0;
 
@@ -20,8 +23,11 @@ class JsWidgetEngine {
   /// If [config.backend] is set, it is used directly. Otherwise the platform
   /// default backend is created.
   factory JsWidgetEngine({required JsRuntimeConfig config}) {
-    final backend = config.backend ?? _defaultBackend(config);
-    return JsWidgetEngine._(config, backend);
+    final id = config.instanceId ?? 'i${_instanceCounter++}';
+    final effective = config.copyWith(instanceId: id);
+    final backend = effective.backend ?? _defaultBackend(effective);
+    backend.setEngineInstanceId(id);
+    return JsWidgetEngine._(effective, backend);
   }
 
   JsWidgetEngine._(this._config, this._backend);
@@ -29,23 +35,44 @@ class JsWidgetEngine {
   final JsRuntimeConfig _config;
   final JsWidgetEngineBackend _backend;
 
+  /// Stable identity used by render trees and named THREE resources.
+  String get instanceId => _config.instanceId!;
+
   /// Initializes the backend.
   Future<void> init() => _backend.init();
 
   /// Runs the widget JavaScript.
-  Future<void> run(String widgetJs) => _backend.run(
-    widgetJs,
-    hostBootstrapJs: _effectiveBootstrap(),
-    initialTheme: _config.initialTheme,
-  );
+  Future<void> run(String widgetJs) async {
+    final bootstrap = await _effectiveBootstrap();
+    return _backend.run(
+      widgetJs,
+      hostBootstrapJs: bootstrap,
+      initialTheme: _config.initialTheme,
+    );
+  }
 
-  /// Builds the JS evaluated before the widget code: always exposes
-  /// `jsr.instanceId`, then appends any host-provided bootstrap.
-  String _effectiveBootstrap() {
-    final id = _config.instanceId ?? 'i${_instanceCounter++}';
+  /// Builds the JS evaluated before the widget code. THREE is loaded only
+  /// when explicitly enabled, before host shims and the prepared widget.
+  Future<String> _effectiveBootstrap() async {
+    final id = instanceId;
+    final buffer = StringBuffer(
+      'jsr.instanceId = ${jsonEncode(id)}; __IID = jsr.instanceId;'
+      'var __JSR_THREE_NATIVE__ = ${!kIsWeb && _config.threeHost != null ? 1 : 0};'
+      'var __JSR_THREE_WEB__ = ${kIsWeb && _config.threeHost != null ? 1 : 0};',
+    );
+    if (_config.threeEnabled || _config.threeSource != null) {
+      final source = await ThreeUpstreamBundle.load(
+        web: kIsWeb,
+        overrideSource: _config.threeSource,
+      );
+      buffer.write(
+        '\n$source\nif (typeof THREE !== "undefined") '
+        '{ globalThis.THREE = THREE; }\n',
+      );
+    }
     final host = _config.hostBootstrapJs;
-    return 'jsr.instanceId = ${jsonEncode(id)};'
-        '${host == null ? '' : '\n$host'}';
+    if (host != null) buffer.write('\n$host');
+    return buffer.toString();
   }
 
   /// Dispatches an event to the widget's `handleEvent` function.

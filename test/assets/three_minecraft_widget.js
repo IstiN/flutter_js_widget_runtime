@@ -1,0 +1,1 @@
+../../example/widgets/three-minecraft/widget.js

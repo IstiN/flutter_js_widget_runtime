@@ -8,15 +8,14 @@ JsRuntimeConfig _configFor(
   FakeEngineBackend backend, {
   String? instanceId,
   String? hostBootstrapJs,
-}) =>
-    JsRuntimeConfig(
-      instanceId: instanceId,
-      hostBootstrapJs: hostBootstrapJs,
-      onRender: (_) {},
-      onSetTitle: (_) {},
-      onStorageUpdate: (_) {},
-      backend: backend,
-    );
+}) => JsRuntimeConfig(
+  instanceId: instanceId,
+  hostBootstrapJs: hostBootstrapJs,
+  onRender: (_) {},
+  onSetTitle: (_) {},
+  onStorageUpdate: (_) {},
+  backend: backend,
+);
 
 void main() {
   group('JsWidgetEngine backend delegation', () {
@@ -39,7 +38,10 @@ void main() {
       await JsWidgetEngine(
         config: _configFor(backend, instanceId: 'panel-42'),
       ).run('1');
-      expect(backend.ranHostBootstrapJs, contains('jsr.instanceId = "panel-42"'));
+      expect(
+        backend.ranHostBootstrapJs,
+        contains('jsr.instanceId = "panel-42"'),
+      );
     });
 
     test('generates a unique instanceId when not provided', () async {
@@ -67,6 +69,51 @@ void main() {
       expect(backend.ranHostBootstrapJs, contains('jsr.custom = 1;'));
     });
 
+    test('binds custom backends to the generated instance id', () async {
+      final backend = FakeEngineBackend();
+      final engine = JsWidgetEngine(config: _configFor(backend));
+      await engine.run('1');
+      expect(backend.engineInstanceId, engine.instanceId);
+      expect(backend.ranHostBootstrapJs, contains('__IID = jsr.instanceId'));
+    });
+
+    test('does not load THREE by default', () async {
+      final backend = FakeEngineBackend();
+      await JsWidgetEngine(config: _configFor(backend)).run('1');
+      expect(backend.ranHostBootstrapJs, isNot(contains('__THREE_TEST')));
+    });
+
+    test('loads opt-in THREE before host bootstrap', () async {
+      final backend = FakeEngineBackend();
+      final config = _configFor(backend, hostBootstrapJs: 'jsr.custom = 1;')
+          .copyWith(
+            threeEnabled: true,
+            threeSource: 'globalThis.__THREE_TEST = 1;',
+          );
+      await JsWidgetEngine(config: config).run('1');
+      final bootstrap = backend.ranHostBootstrapJs!;
+      expect(
+        bootstrap.indexOf('__THREE_TEST'),
+        lessThan(bootstrap.indexOf('jsr.custom')),
+      );
+      expect(ThreeUpstreamBundle.revision, '186');
+      expect(
+        ThreeUpstreamBundle.commit,
+        '9b4a2ac29c63ccb43fd51c5661f2f873ac2c39b8',
+      );
+    });
+
+    test('copyWith preserves a stable instance id', () {
+      final config = _configFor(
+        FakeEngineBackend(),
+        instanceId: 'panel-stable',
+      );
+      expect(
+        config.copyWith(backend: FakeEngineBackend()).instanceId,
+        'panel-stable',
+      );
+    });
+
     test('dispatchHostEvent delegates to the backend', () async {
       final backend = FakeEngineBackend();
       final engine = JsWidgetEngine(config: _configFor(backend));
@@ -80,7 +127,10 @@ void main() {
     test('hostEventJs wraps the bootstrap dispatcher with JSON args', () {
       final js = FlutterJsWidgetEngineBackend.hostEventJs(
         'scene3d.tap:s1',
-        const {'modelId': 'box', 'point': [1, 2, 3]},
+        const {
+          'modelId': 'box',
+          'point': [1, 2, 3],
+        },
       );
       expect(js, contains('__jsrHostEvent('));
       expect(js, contains('"scene3d.tap:s1"'));
