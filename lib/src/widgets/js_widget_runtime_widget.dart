@@ -30,6 +30,7 @@ class JsWidgetRuntimeWidget extends StatefulWidget {
 
 class _JsWidgetRuntimeWidgetState extends State<JsWidgetRuntimeWidget> {
   JsWidgetEngine? _engine;
+  int _generation = 0;
   Map<String, dynamic>? _uiTree;
   Size? _lastLayoutSize;
   Size? _reportedViewport;
@@ -50,14 +51,17 @@ class _JsWidgetRuntimeWidgetState extends State<JsWidgetRuntimeWidget> {
 
   @override
   void dispose() {
+    _generation++;
     _engine?.dispose();
     super.dispose();
   }
 
   Future<void> _start() async {
+    final generation = ++_generation;
     final engine = JsWidgetEngine(
       config: widget.config.copyWith(
         onRender: (tree) {
+          if (generation != _generation) return;
           widget.config.onRender(tree);
           if (mounted) setState(() => _uiTree = tree);
         },
@@ -67,6 +71,10 @@ class _JsWidgetRuntimeWidgetState extends State<JsWidgetRuntimeWidget> {
       ),
     );
     await _engine?.dispose();
+    if (generation != _generation) {
+      await engine.dispose();
+      return;
+    }
     _engine = engine;
     // The first layout usually happens while the engine is still starting,
     // so that viewport report is dropped (engine == null). Re-report the
@@ -77,9 +85,11 @@ class _JsWidgetRuntimeWidgetState extends State<JsWidgetRuntimeWidget> {
       final size = _lastLayoutSize;
       // Force: an earlier dispatch may have raced the worker bootstrap
       // (dropped before __jsrHostEvent was defined).
-      if (mounted && size != null) _reportViewport(size, force: true);
+      if (generation == _generation && mounted && size != null) {
+        _reportViewport(size, force: true);
+      }
     } catch (e, st) {
-      widget.onError?.call(e, st);
+      if (generation == _generation) widget.onError?.call(e, st);
     }
   }
 
@@ -114,6 +124,9 @@ class _JsWidgetRuntimeWidgetState extends State<JsWidgetRuntimeWidget> {
         onGestureEvent: (actionId, payload) =>
             _engine?.dispatchHostEvent('gesture:$actionId', payload),
         js3dHost: widget.config.js3dHost,
+        threeHost: widget.config.threeHost,
+        onThreeEvent: (canvasId, payload) =>
+            _engine?.dispatchHostEvent('three.input:$canvasId', payload),
         mediaHost: widget.config.mediaHost,
         webViewHost: widget.config.webViewHost,
         voxelWorld: _engine?.voxelWorld,
@@ -129,6 +142,10 @@ class _JsWidgetRuntimeWidgetState extends State<JsWidgetRuntimeWidget> {
         }
         return JsKeyboardCapture(
           onEvent: (payload) => _engine?.dispatchHostEvent('key', payload),
+          onBlur: () => _engine?.dispatchHostEvent(
+            'three.blur',
+            const <String, dynamic>{},
+          ),
           child: content,
         );
       },

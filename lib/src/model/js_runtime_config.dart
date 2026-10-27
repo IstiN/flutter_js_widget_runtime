@@ -2,6 +2,7 @@ import 'package:flutter/foundation.dart';
 
 import 'package:js_widget_runtime/src/renderer/media/js_media_host.dart';
 import 'package:js_widget_runtime/src/renderer/nodes/js_3d_host.dart';
+import 'package:js_widget_runtime/src/renderer/nodes/three/js_three_host.dart';
 import 'package:js_widget_runtime/src/renderer/webview/js_web_view_host.dart';
 import 'package:js_widget_runtime/src/runtime/js_widget_engine_backend.dart';
 
@@ -58,6 +59,9 @@ class JsRuntimeConfig {
     this.rafTickHandler,
     this.backend,
     this.js3dHost,
+    this.threeEnabled = false,
+    this.threeSource,
+    this.threeHost,
     this.mediaHost,
     this.webViewHost,
   });
@@ -109,7 +113,7 @@ class JsRuntimeConfig {
   /// bridge is wired up. Useful for host handlers that need to settle JS
   /// promises from custom I/O handlers.
   final void Function(void Function(String id, dynamic value) resolve)?
-      onResolveReady;
+  onResolveReady;
 
   /// Handle `jsr.fetchJson(url, opts)`.
   final Future<void> Function(
@@ -117,14 +121,15 @@ class JsRuntimeConfig {
     String url,
     String method,
     Map<String, String> headers,
-  )? fetchHandler;
+  )?
+  fetchHandler;
 
   /// Handle `jsr.secrets.get(key)`.
   final Future<void> Function(String id, String key)? secretsGetHandler;
 
   /// Handle `jsr.secrets.set(key, value)`.
   final Future<void> Function(String id, String key, dynamic value)?
-      secretsSetHandler;
+  secretsSetHandler;
 
   /// Handle `jsr.loadAsset(path)`.
   final Future<void> Function(String id, String path)? loadAssetHandler;
@@ -148,7 +153,7 @@ class JsRuntimeConfig {
   /// to reject the JS promise. When null, calls fail with
   /// 'hostCall is not supported by this host'.
   final Future<Object?> Function(String name, Map<String, dynamic> args)?
-      onHostCall;
+  onHostCall;
 
   /// Handle `jsr.hostCallBinary(name, b64)` — the fire-and-forget BINARY
   /// side channel for high-frequency bulk data (transforms, particles,
@@ -163,7 +168,7 @@ class JsRuntimeConfig {
   /// height}` and writes the PNG). Null = unsupported: the promise rejects
   /// with a clear error so widgets can degrade gracefully.
   final Future<Map<String, dynamic>> Function(Map<String, dynamic> opts)?
-      captureHandler;
+  captureHandler;
 
   /// Dart-backed interval tick.
   final void Function(String id)? intervalTickHandler;
@@ -178,6 +183,20 @@ class JsRuntimeConfig {
   /// Optional host-provided 3D engine factory for `scene3d` nodes.
   final Js3dHost? js3dHost;
 
+  /// Loads the pinned upstream THREE compatibility bundle before widget JS.
+  ///
+  /// Disabled by default so ordinary widgets never download/evaluate THREE.
+  final bool threeEnabled;
+
+  /// Test/host override for the generated platform-specific THREE bundle.
+  /// Normally null; the engine loads `assets/three/three.native.js` or
+  /// `assets/three/three.web.js` from the package bundle.
+  final String? threeSource;
+
+  /// Independent upstream-THREE host used by `three` nodes and JSR3D-T1.
+  /// This is deliberately not part of the existing [js3dHost] hierarchy.
+  final JsThreeHost? threeHost;
+
   /// Optional host-provided media factory for `video` / `audio` /
   /// `audio_player` nodes. Without one those nodes render placeholders.
   final JsMediaHost? mediaHost;
@@ -189,6 +208,7 @@ class JsRuntimeConfig {
 
   JsRuntimeConfig copyWith({
     String? widgetId,
+    String? instanceId,
     String? appDir,
     Map<String, dynamic>? initialTheme,
     Map<String, dynamic>? initialStorage,
@@ -200,58 +220,65 @@ class JsRuntimeConfig {
     JsPermissionChecker? isPermissionAllowed,
     void Function(String id, dynamic value)? resolveCallback,
     void Function(void Function(String id, dynamic value) resolve)?
-        onResolveReady,
+    onResolveReady,
     Future<void> Function(
       String id,
       String url,
       String method,
       Map<String, String> headers,
-    )? fetchHandler,
+    )?
+    fetchHandler,
     Future<void> Function(String id, String key)? secretsGetHandler,
     Future<void> Function(String id, String key, dynamic value)?
-        secretsSetHandler,
+    secretsSetHandler,
     Future<void> Function(String id, String path)? loadAssetHandler,
     Future<void> Function(String id, String cmd)? execHandler,
     Future<void> Function(String id, String url)? openUrlHandler,
     Future<Object?> Function(String name, Map<String, dynamic> args)?
-        onHostCall,
+    onHostCall,
     void Function(String name, Uint8List data)? onHostCallBinary,
     Future<Map<String, dynamic>> Function(Map<String, dynamic> opts)?
-        captureHandler,
+    captureHandler,
     void Function(String id)? intervalTickHandler,
     void Function(String id, int elapsedMs)? rafTickHandler,
     JsWidgetEngineBackend? backend,
     Js3dHost? js3dHost,
+    bool? threeEnabled,
+    String? threeSource,
+    JsThreeHost? threeHost,
     JsMediaHost? mediaHost,
     JsWebViewHost? webViewHost,
-  }) =>
-      JsRuntimeConfig(
-        widgetId: widgetId ?? this.widgetId,
-        appDir: appDir ?? this.appDir,
-        initialTheme: initialTheme ?? this.initialTheme,
-        initialStorage: initialStorage ?? this.initialStorage,
-        hostBootstrapJs: hostBootstrapJs ?? this.hostBootstrapJs,
-        onRender: onRender ?? this.onRender,
-        onSetTitle: onSetTitle ?? this.onSetTitle,
-        onStorageUpdate: onStorageUpdate ?? this.onStorageUpdate,
-        onLog: onLog ?? this.onLog,
-        isPermissionAllowed: isPermissionAllowed ?? this.isPermissionAllowed,
-        resolveCallback: resolveCallback ?? this.resolveCallback,
-        onResolveReady: onResolveReady ?? this.onResolveReady,
-        fetchHandler: fetchHandler ?? this.fetchHandler,
-        secretsGetHandler: secretsGetHandler ?? this.secretsGetHandler,
-        secretsSetHandler: secretsSetHandler ?? this.secretsSetHandler,
-        loadAssetHandler: loadAssetHandler ?? this.loadAssetHandler,
-        execHandler: execHandler ?? this.execHandler,
-        openUrlHandler: openUrlHandler ?? this.openUrlHandler,
-        onHostCall: onHostCall ?? this.onHostCall,
-        onHostCallBinary: onHostCallBinary ?? this.onHostCallBinary,
-        captureHandler: captureHandler ?? this.captureHandler,
-        intervalTickHandler: intervalTickHandler ?? this.intervalTickHandler,
-        rafTickHandler: rafTickHandler ?? this.rafTickHandler,
-        backend: backend ?? this.backend,
-        js3dHost: js3dHost ?? this.js3dHost,
-        mediaHost: mediaHost ?? this.mediaHost,
-        webViewHost: webViewHost ?? this.webViewHost,
-      );
+  }) => JsRuntimeConfig(
+    widgetId: widgetId ?? this.widgetId,
+    instanceId: instanceId ?? this.instanceId,
+    appDir: appDir ?? this.appDir,
+    initialTheme: initialTheme ?? this.initialTheme,
+    initialStorage: initialStorage ?? this.initialStorage,
+    hostBootstrapJs: hostBootstrapJs ?? this.hostBootstrapJs,
+    onRender: onRender ?? this.onRender,
+    onSetTitle: onSetTitle ?? this.onSetTitle,
+    onStorageUpdate: onStorageUpdate ?? this.onStorageUpdate,
+    onLog: onLog ?? this.onLog,
+    isPermissionAllowed: isPermissionAllowed ?? this.isPermissionAllowed,
+    resolveCallback: resolveCallback ?? this.resolveCallback,
+    onResolveReady: onResolveReady ?? this.onResolveReady,
+    fetchHandler: fetchHandler ?? this.fetchHandler,
+    secretsGetHandler: secretsGetHandler ?? this.secretsGetHandler,
+    secretsSetHandler: secretsSetHandler ?? this.secretsSetHandler,
+    loadAssetHandler: loadAssetHandler ?? this.loadAssetHandler,
+    execHandler: execHandler ?? this.execHandler,
+    openUrlHandler: openUrlHandler ?? this.openUrlHandler,
+    onHostCall: onHostCall ?? this.onHostCall,
+    onHostCallBinary: onHostCallBinary ?? this.onHostCallBinary,
+    captureHandler: captureHandler ?? this.captureHandler,
+    intervalTickHandler: intervalTickHandler ?? this.intervalTickHandler,
+    rafTickHandler: rafTickHandler ?? this.rafTickHandler,
+    backend: backend ?? this.backend,
+    js3dHost: js3dHost ?? this.js3dHost,
+    threeEnabled: threeEnabled ?? this.threeEnabled,
+    threeSource: threeSource ?? this.threeSource,
+    threeHost: threeHost ?? this.threeHost,
+    mediaHost: mediaHost ?? this.mediaHost,
+    webViewHost: webViewHost ?? this.webViewHost,
+  );
 }

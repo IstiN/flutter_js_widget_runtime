@@ -1,35 +1,44 @@
+import 'dart:convert';
+import 'dart:typed_data';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:js_widget_runtime/src/renderer/nodes/js_3d_host.dart';
+import 'package:js_widget_runtime/src/renderer/nodes/three/js_three_host.dart';
 import 'package:js_widget_runtime/src/runtime/js_widget_bootstrap.dart';
 import 'package:js_widget_runtime/src/runtime/js_widget_bridge.dart';
+
+import 'support/fake_three_host.dart';
 
 JsWidgetBridge _makeBridge({
   required Map<String, dynamic> resolved,
   Js3dHost? host,
+  JsThreeHost? threeHost,
+  String? engineId,
   bool allowPermissions = true,
   Future<Object?> Function(String name, Map<String, dynamic> args)? onHostCall,
-}) =>
-    JsWidgetBridge(
-      widgetId: 'test',
-      onHostCall: onHostCall,
-      onRender: (_) {},
-      onSetTitle: (_) {},
-      onStorageUpdate: (_) {},
-      onLog: (_) {},
-      isDisposed: () => false,
-      isPermissionAllowed: allowPermissions ? (_) => true : (_) => false,
-      resolveCallback: (id, value) => resolved[id] = value,
-      fetchHandler: (_, __, ___, ____) async {},
-      secretsGetHandler: (_, __) async {},
-      secretsSetHandler: (_, __, ___) async {},
-      loadAssetHandler: (_, __) async {},
-      execHandler: (_, __) async {},
-      intervalTickHandler: (_) {},
-      rafTickHandler: (_, __) => {},
-      js3dHost: host,
-      initialStorage: const {},
-    );
+}) => JsWidgetBridge(
+  widgetId: 'test',
+  onHostCall: onHostCall,
+  onRender: (_) {},
+  onSetTitle: (_) {},
+  onStorageUpdate: (_) {},
+  onLog: (_) {},
+  isDisposed: () => false,
+  isPermissionAllowed: allowPermissions ? (_) => true : (_) => false,
+  resolveCallback: (id, value) => resolved[id] = value,
+  fetchHandler: (_, __, ___, ____) async {},
+  secretsGetHandler: (_, __) async {},
+  secretsSetHandler: (_, __, ___) async {},
+  loadAssetHandler: (_, __) async {},
+  execHandler: (_, __) async {},
+  intervalTickHandler: (_) {},
+  rafTickHandler: (_, __) => {},
+  js3dHost: host,
+  threeHost: threeHost,
+  engineId: engineId,
+  initialStorage: const {},
+);
 
 void main() {
   group('JsWidgetBridge', () {
@@ -97,10 +106,7 @@ void main() {
     });
 
     test('storage is denied when permission checker rejects', () async {
-      final denied = _makeBridge(
-        resolved: resolved,
-        allowPermissions: false,
-      );
+      final denied = _makeBridge(resolved: resolved, allowPermissions: false);
       await denied.dispatch('__jsr_storage_get', '{"id":"g1","key":"k"}');
       expect(resolved['g1'], contains('__error'));
       denied.dispose();
@@ -135,8 +141,7 @@ void main() {
     });
 
     test('dispatches openUrl to the wired handler', () async {
-      bridge.openUrlHandler =
-          (id, url) async => resolved[id] = {'url': url};
+      bridge.openUrlHandler = (id, url) async => resolved[id] = {'url': url};
       await bridge.dispatch(
         '__jsr_open_url',
         '{"id":"o1","url":"https://example.com"}',
@@ -149,15 +154,13 @@ void main() {
         '__jsr_open_url',
         '{"id":"o2","url":"https://example.com"}',
       );
-      expect(
-        resolved['o2'],
-        {'__error': 'openUrl is not supported by this host'},
-      );
+      expect(resolved['o2'], {
+        '__error': 'openUrl is not supported by this host',
+      });
     });
 
     test('openUrl rejects an empty url', () async {
-      bridge.openUrlHandler =
-          (id, url) async => resolved[id] = {'url': url};
+      bridge.openUrlHandler = (id, url) async => resolved[id] = {'url': url};
       await bridge.dispatch('__jsr_open_url', '{"id":"o3","url":""}');
       expect(resolved['o3'], {'__error': 'openUrl: empty url'});
     });
@@ -167,10 +170,9 @@ void main() {
       // channel list that missed __jsr_host_call/__jsr_capture — sendMessage
       // on those channels was silently dropped and every jsr.hostCall
       // promise hung forever on JSC (voxel probes → infinite spinner).
-      final sent = RegExp(r"__send\('(__jsr_[a-z_]+)'")
-          .allMatches(kJsWidgetBootstrap)
-          .map((m) => m.group(1)!)
-          .toSet();
+      final sent = RegExp(
+        r"__send\('(__jsr_[a-z_]+)'",
+      ).allMatches(kJsWidgetBootstrap).map((m) => m.group(1)!).toSet();
       expect(sent.length, greaterThan(10));
       for (final channel in sent) {
         expect(
@@ -344,9 +346,9 @@ void main() {
         await sceneBridge.dispatch(
           '__jsr_scene3d_command',
           '{"kind":"setTransforms","sceneId":"s1","payload":{"items":['
-          '{"modelId":"a","position":[1,0,0]},'
-          '{"modelId":"b","scale":[2,2,2]}'
-          ']}}',
+              '{"modelId":"a","position":[1,0,0]},'
+              '{"modelId":"b","scale":[2,2,2]}'
+              ']}}',
         );
         expect(commands.length, 2);
         expect(commands[0].kind, 'setTransform');
@@ -405,8 +407,9 @@ void main() {
   });
 
   group('JsRafScheduler', () {
-    testWidgets('timestamps stay monotonic across idle ticker restarts',
-        (tester) async {
+    testWidgets('timestamps stay monotonic across idle ticker restarts', (
+      tester,
+    ) async {
       final ticks = <int>[];
       final raf = JsRafScheduler(onTick: (_, ms) => ticks.add(ms));
       addTearDown(raf.dispose);
@@ -437,7 +440,9 @@ void main() {
         onHostCall: (name, args) async => {'echo': name, 'seen': args['x']},
       );
       await bridge.dispatch(
-          '__jsr_host_call', '{"id":"h1","name":"asr.ping","args":{"x":7}}');
+        '__jsr_host_call',
+        '{"id":"h1","name":"asr.ping","args":{"x":7}}',
+      );
       expect(resolved['h1'], {'echo': 'asr.ping', 'seen': 7});
     });
 
@@ -447,42 +452,126 @@ void main() {
         resolved: resolved,
         onHostCall: (_, __) async => throw StateError('mic denied'),
       );
-      await bridge.dispatch('__jsr_host_call', '{"id":"h2","name":"asr.record","args":{}}');
+      await bridge.dispatch(
+        '__jsr_host_call',
+        '{"id":"h2","name":"asr.record","args":{}}',
+      );
       expect((resolved['h2'] as Map)['__error'], contains('mic denied'));
     });
 
     test('rejects when no onHostCall is configured', () async {
       final resolved = <String, dynamic>{};
       final bridge = _makeBridge(resolved: resolved);
-      await bridge.dispatch('__jsr_host_call', '{"id":"h3","name":"x","args":{}}');
-      expect((resolved['h3'] as Map)['__error'],
-          contains('hostCall is not supported'));
+      await bridge.dispatch(
+        '__jsr_host_call',
+        '{"id":"h3","name":"x","args":{}}',
+      );
+      expect(
+        (resolved['h3'] as Map)['__error'],
+        contains('hostCall is not supported'),
+      );
     });
 
-    test('voxel.* names resolve without a host handler (core capability)',
-        () async {
+    test(
+      'voxel.* names resolve without a host handler (core capability)',
+      () async {
+        final resolved = <String, dynamic>{};
+        final bridge = _makeBridge(resolved: resolved);
+        await bridge.dispatch(
+          '__jsr_host_call',
+          '{"id":"v1","name":"voxel.mesh","args":{"id":"w","key":"k",'
+              '"origin":[0,0,0],"positions":[0,0,1,1,0,1,1,1,1,0,1,1],'
+              '"colors":[1,0,0,1,0,0,1,0,0,1,0,0],"indices":[0,1,2,0,2,3]}}',
+        );
+        expect(resolved['v1'], {'ok': true, 'faces': 2});
+        expect(bridge.voxelWorld.chunksOf('w')['k'], isNotNull);
+      },
+    );
+
+    test('voxel.attach reports the world; errors resolve as __error', () async {
       final resolved = <String, dynamic>{};
       final bridge = _makeBridge(resolved: resolved);
       await bridge.dispatch(
         '__jsr_host_call',
-        '{"id":"v1","name":"voxel.mesh","args":{"id":"w","key":"k",'
-        '"origin":[0,0,0],"positions":[0,0,1,1,0,1,1,1,1,0,1,1],'
-        '"colors":[1,0,0,1,0,0,1,0,0,1,0,0],"indices":[0,1,2,0,2,3]}}',
+        '{"id":"v2","name":"voxel.attach","args":{}}',
       );
-      expect(resolved['v1'], {'ok': true, 'faces': 2});
-      expect(bridge.voxelWorld.chunksOf('w')['k'], isNotNull);
-    });
-
-    test('voxel.attach reports the world; errors resolve as __error',
-        () async {
-      final resolved = <String, dynamic>{};
-      final bridge = _makeBridge(resolved: resolved);
-      await bridge.dispatch(
-          '__jsr_host_call', '{"id":"v2","name":"voxel.attach","args":{}}');
       expect(resolved['v2'], {'ok': true, 'blocks': true});
       await bridge.dispatch(
-          '__jsr_host_call', '{"id":"v3","name":"voxel.mesh","args":[]}');
+        '__jsr_host_call',
+        '{"id":"v3","name":"voxel.mesh","args":[]}',
+      );
       expect((resolved['v3'] as Map)['__error'], isNotNull);
+    });
+  });
+
+  group('THREE transport', () {
+    test('copies direct bytes and binds the bridge engine id', () {
+      final host = FakeThreeHost();
+      final bridge = _makeBridge(
+        resolved: {},
+        threeHost: host,
+        engineId: 'engine-a',
+      );
+      final bytes = Uint8List.fromList([1, 2, 3, 4]);
+      bridge.dispatchBinary('three.r1', bytes);
+      bytes[0] = 99;
+      expect(host.submissions.single.$1, 'engine-a');
+      expect(host.submissions.single.$2, [1, 2, 3, 4]);
+      bridge.dispose();
+      expect(host.disposedEngines, ['engine-a']);
+    });
+
+    test(
+      'routes base64 THREE packets without a generic binary handler',
+      () async {
+        final host = FakeThreeHost();
+        final bridge = _makeBridge(resolved: {}, threeHost: host);
+        await bridge.dispatch(
+          '__jsr_host_call_binary',
+          'three.r1 ${base64Encode([4, 3, 2, 1])}',
+        );
+        expect(host.submissions.single.$2, [4, 3, 2, 1]);
+        bridge.dispose();
+      },
+    );
+
+    test('loads host-approved local asset bytes', () async {
+      final host = FakeThreeHost()
+        ..assets['atlas.png'] = JsThreeAsset(
+          data: Uint8List.fromList([1, 2]),
+          mimeType: 'image/png',
+          width: 16,
+          height: 16,
+        );
+      final resolved = <String, dynamic>{};
+      final bridge = _makeBridge(resolved: resolved, threeHost: host);
+      await bridge.dispatch(
+        '__jsr_host_call',
+        '{"id":"a1","name":"three.asset","args":{"url":"atlas.png"}}',
+      );
+      expect(resolved['a1'], {
+        'data': base64Encode([1, 2]),
+        'mimeType': 'image/png',
+        'width': 16,
+        'height': 16,
+      });
+      bridge.dispose();
+    });
+
+    test('denies network assets when fetch permission is disabled', () async {
+      final host = FakeThreeHost();
+      final resolved = <String, dynamic>{};
+      final bridge = _makeBridge(
+        resolved: resolved,
+        threeHost: host,
+        allowPermissions: false,
+      );
+      await bridge.dispatch(
+        '__jsr_host_call',
+        '{"id":"a2","name":"three.asset","args":{"url":"https://example.com/x.png"}}',
+      );
+      expect(resolved['a2']['__error'], contains('disabled'));
+      bridge.dispose();
     });
   });
 }
@@ -511,10 +600,7 @@ class _Test3dHost extends Js3dHost {
   final Map<String, _Test3dController> controllers = {};
 
   @override
-  Js3dController createController(
-    String sceneId,
-    Map<String, dynamic> config,
-  ) {
+  Js3dController createController(String sceneId, Map<String, dynamic> config) {
     final c = _Test3dController(onCommand);
     controllers[sceneId] = c;
     return c;
@@ -525,6 +611,5 @@ class _Test3dHost extends Js3dHost {
     BuildContext context,
     Js3dController controller,
     Map<String, dynamic> config,
-  ) =>
-      const SizedBox.shrink();
+  ) => const SizedBox.shrink();
 }

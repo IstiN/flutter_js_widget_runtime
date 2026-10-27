@@ -73,6 +73,7 @@ void main() {
       await tester.pump();
       sibling.requestFocus();
       await tester.pump();
+      expect(backend.hostTargets, contains('three.blur'));
       backend.clear();
 
       // Tap the runtime widget area, then press a key.

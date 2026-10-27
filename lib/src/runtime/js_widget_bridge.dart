@@ -6,6 +6,7 @@ import 'package:flutter/scheduler.dart';
 
 import 'package:js_widget_runtime/src/renderer/nodes/js_3d_host.dart';
 import 'package:js_widget_runtime/src/renderer/nodes/js_voxel_node.dart';
+import 'package:js_widget_runtime/src/renderer/nodes/three/js_three_host.dart';
 
 /// Callback invoked to check whether a capability is allowed.
 /// Capabilities: 'fetch', 'storage', 'secrets', 'exec'.
@@ -76,8 +77,10 @@ class JsWidgetBridge {
     required this.intervalTickHandler,
     required this.rafTickHandler,
     this.js3dHost,
+    this.threeHost,
+    String? engineId,
     required Map<String, dynamic> initialStorage,
-  }) {
+  }) : threeEngineId = engineId ?? widgetId {
     _store = JsStorageChannel(initialStorage: initialStorage);
     _store.storageRead = (id, key) => resolveCallback(id, _store.storage[key]);
     _store.storageChanged = onStorageUpdate;
@@ -104,7 +107,7 @@ class JsWidgetBridge {
   /// Generic host capability behind `jsr.hostCall` — see
   /// [JsRuntimeConfig.onHostCall].
   final Future<Object?> Function(String name, Map<String, dynamic> args)?
-      onHostCall;
+  onHostCall;
 
   /// Binary side channel behind `jsr.hostCallBinary` — see
   /// [JsRuntimeConfig.onHostCallBinary].
@@ -115,7 +118,7 @@ class JsWidgetBridge {
   /// sets it after construction (capture requests resolve once the test
   /// binding can rasterize the tree).
   Future<Map<String, dynamic>> Function(Map<String, dynamic> opts)?
-      captureHandler;
+  captureHandler;
   JsResolveCallback resolveCallback;
   JsFetchHandler fetchHandler;
   JsSecretsReadHandler secretsGetHandler;
@@ -130,6 +133,10 @@ class JsWidgetBridge {
   JsIntervalTickHandler intervalTickHandler;
   JsRafTickHandler rafTickHandler;
   Js3dHost? js3dHost;
+
+  /// Independent upstream-THREE host and bridge-bound isolation identity.
+  JsThreeHost? threeHost;
+  String threeEngineId;
 
   late final JsStorageChannel _store;
   final Map<String, Js3dController> _sceneControllers = {};
@@ -305,6 +312,7 @@ class JsWidgetBridge {
       controller.dispose();
     }
     _sceneControllers.clear();
+    threeHost?.disposeEngine(threeEngineId);
     final pending = _eventCompleter;
     _eventCompleter = null;
     if (pending != null && !pending.isCompleted) {
@@ -369,6 +377,10 @@ class JsWidgetBridge {
   /// entirely. The [data] view may be call-scoped on some engines:
   /// handlers must not retain it without copying.
   void dispatchBinary(String name, Uint8List data) {
+    if (name == 'three.r1') {
+      _submitThree(data);
+      return;
+    }
     // The voxel world is a core capability: its binary lane is routed
     // here (mirroring the JSON `voxel.*` interception) instead of
     // reaching the host's [onHostCallBinary] handler.
@@ -383,8 +395,7 @@ class JsWidgetBridge {
   /// No JSON body, no promise round trip — the cheapest JS->Dart lane for
   /// high-frequency bulk data. Pairs with [onHostCallBinary].
   void _handleHostCallBinary(dynamic payload) {
-    final handler = onHostCallBinary;
-    if (handler == null || payload is! String) return;
+    if (payload is! String) return;
     final sep = payload.indexOf(' ');
     if (sep <= 0) return;
     final name = payload.substring(0, sep);
@@ -394,7 +405,25 @@ class JsWidgetBridge {
     } catch (_) {
       return; // Malformed payload: drop silently, the lane is lossy-tolerant.
     }
-    handler(name, data);
+    if (name == 'three.r1') {
+      _submitThree(data);
+      return;
+    }
+    onHostCallBinary?.call(name, data);
+  }
+
+  void _submitThree(Uint8List data) {
+    final host = threeHost;
+    if (host == null) return;
+    try {
+      // Native typed-array views are call-scoped. The host may retain data
+      // for coalescing/GPU upload, so ownership crosses with an explicit copy.
+      host.submit(threeEngineId, Uint8List.fromList(data));
+    } catch (error) {
+      // The lossy fire-and-forget lane rejects malformed/untrusted packets
+      // without tearing down JS execution or logging their raw bytes.
+      debugPrint('[JsWidgetBridge] dropped THREE packet: $error');
+    }
   }
 
   Future<void> _handleHostCall(dynamic args) async {
@@ -415,6 +444,10 @@ class JsWidgetBridge {
       }
       return;
     }
+    if (name == 'three.asset') {
+      await _handleThreeAsset(id, req);
+      return;
+    }
     final handler = onHostCall;
     if (handler == null) {
       resolveCallback(id, {
@@ -433,6 +466,43 @@ class JsWidgetBridge {
     }
   }
 
+  Future<void> _handleThreeAsset(
+    String id,
+    Map<String, dynamic> request,
+  ) async {
+    final host = threeHost;
+    if (host == null) {
+      resolveCallback(id, const {'__error': 'three.unsupported: host'});
+      return;
+    }
+    try {
+      final arguments =
+          (request['args'] as Map?)?.cast<String, dynamic>() ?? const {};
+      final url = arguments['url'] as String? ?? '';
+      _validateThreeAssetUrl(url);
+      final asset = await host.loadAsset(threeEngineId, url);
+      resolveCallback(id, {
+        'data': base64Encode(asset.data),
+        'mimeType': asset.mimeType,
+        'width': asset.width,
+        'height': asset.height,
+      });
+    } catch (error) {
+      resolveCallback(id, {'__error': error.toString()});
+    }
+  }
+
+  void _validateThreeAssetUrl(String url) {
+    final uri = Uri.tryParse(url);
+    if (url.isEmpty || uri == null) {
+      throw const FormatException('THREE asset url is empty or invalid');
+    }
+    final network = uri.scheme == 'http' || uri.scheme == 'https';
+    if (network && !isPermissionAllowed('fetch')) {
+      throw StateError('THREE network assets are disabled');
+    }
+  }
+
   /// `jsr.capture()` — self-screenshot of the widget's rendered tree.
   /// Fire-and-forget at the bridge level ON PURPOSE: a host may complete
   /// the capture much later (the CLI rasterizes in a separate test phase),
@@ -448,9 +518,7 @@ class JsWidgetBridge {
     final id = req['id'] as String;
     final handler = captureHandler;
     if (handler == null) {
-      resolveCallback(id, {
-        '__error': 'capture is not supported by this host',
-      });
+      resolveCallback(id, {'__error': 'capture is not supported by this host'});
       return;
     }
     try {
@@ -567,9 +635,7 @@ class JsWidgetBridge {
     final url = req['url'] as String? ?? '';
     final handler = openUrlHandler;
     if (handler == null) {
-      resolveCallback(id, {
-        '__error': 'openUrl is not supported by this host',
-      });
+      resolveCallback(id, {'__error': 'openUrl is not supported by this host'});
       return;
     }
     if (url.isEmpty) {

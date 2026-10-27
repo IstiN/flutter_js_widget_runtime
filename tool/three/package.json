@@ -1,0 +1,14 @@
+{
+  "name": "jsr-three-r186-build",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Reproducible pinned three.js r186 JSR adapter bundles",
+  "type": "module",
+  "scripts": {
+    "build": "node build.mjs",
+    "test": "node test/adapter_test.js"
+  },
+  "devDependencies": {
+    "esbuild": "0.25.5"
+  }
+}

@@ -113,6 +113,43 @@ Renderer effects ported from YoClip: radial gradients, box shadows, blur nodes, 
 - `Js3dHost` is an abstraction; custom engines can be plugged by implementing it.
 - Examples: `example/widgets/3d-showcase/` (primitives), `example/widgets/3d-glb-showcase/` (DamagedHelmet GLB) and `example/widgets/3d-game-dodge/` (mini game).
 
+## Upstream THREE r186 (independent of `scene3d`)
+
+- Opt in with `JsRuntimeConfig.threeEnabled` and provide `threeHost` via
+  `createFlutterGpuThreeHost()` (native) or `createWebThreeHost()` (Web).
+  `three` JSON nodes mount canvases created by `jsr.three.createCanvas`;
+  the host hierarchy is `JsThreeHost`, NOT `Js3dHost`.
+- Native uses upstream JS plus dirty `JSR3D-T1`/`R1-v1` binary resources and
+  Flutter GPU. `THREE.WebGLRenderer` is an R1 alias (`rawWebGL: false`;
+  `getContext`/ShaderMaterial/WebGPU → `three.unsupported`). Real
+  `InstancedMesh` matrices use `DRAW_BATCH` and GPU instancing; triangle
+  diagnostics include `instanceCount`. Transparent instancing and
+  per-instance colors are outside the initial profile. Web uses the
+  real upstream renderer and WebGL2 on a Worker OffscreenCanvas, then sends
+  bounded ImageBitmap frames over a structured-clone lane (never JSON/GL
+  proxies). Asset failures are `three.assetFailure`.
+- Per-surface state keys include engine/surface/resource ids; preserve strict
+  atomic decode, cross-engine checks, upload dedup, resize/DPR, input
+  cancellation, capture and disposal tests on every lifecycle change. Pointer
+  payloads carry `movementX/Y` from Flutter `localDelta` (not raw OS deltas).
+  Track the cumulative HostBuffer uniform offset and insert a filler whenever
+  an aligned payload would straddle the allocator's block boundary; minimum
+  alignment alone is insufficient at the final partial block. R1 optionally
+  appends main-camera culled node ids after the 136-byte FRAME header; shadow
+  passes keep all casters and reuse their map until content/shadow parameters
+  change. The macOS stress target additionally demonstrates a host-specific
+  raw relative-mouse channel (`jsr.three.pointer`) with cursor disassociation,
+  hide/unhide and focus-loss unlock, falling back to normal `localDelta`.
+- Rebuild pinned bundles with `node tool/three/build.mjs --source
+  /tmp/jsr-three-r186` (add `--verify`); shaders with
+  `tool/build_three_shaders.dart`. Prepare the official example with
+  `dart run bin/jsr_three_example.dart prepare webgl_geometry_minecraft` and
+  run `cd example && flutter run -t lib/three_example.dart`. See README,
+  `prepare_manifest.json` and the engine/authoring skills for the matrix.
+- The local heavy reference profile lives in `tool/three_minecraft_stress/`
+  and runs with `example/lib/three_minecraft_stress.dart`; generated output
+  stays in `/tmp` and the unlicensed reference is never redistributed.
+
 ## Voxel Support
 
 - Add a `voxel` node to the JSON tree — no host object needed. The world

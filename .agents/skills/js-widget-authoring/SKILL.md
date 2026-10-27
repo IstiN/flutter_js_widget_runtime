@@ -316,6 +316,61 @@ into the tree: `{ type: 'opacity', value: m.tween(now, t0, 300, 0, 1) }`.
 - `setCamera(sceneId, {position, target, fov})` / `setLight(sceneId, {...})`.
 - `onTap(sceneId, fn)` — raycast picking; `fn({modelId, point} | {modelId: null})`.
 
+### Upstream THREE r186 — `jsr.three` / `THREE` (host opt-in)
+
+When the host sets `JsRuntimeConfig.threeEnabled: true`, the pinned upstream
+namespace is available as `THREE` and `jsr.three` supplies the canvas/asset
+compatibility API. Generated upstream bundles/examples use esbuild's ES2020
+target (an explicit exception to the hand-authored ES5 widget style). This is separate from `jsr.scene3d` and uses the `three`
+JSON node:
+
+```javascript
+const canvas = jsr.three.createCanvas('main');
+const renderer = new THREE.WebGLRenderer({canvas: canvas});
+renderer.setSize(640, 360);
+const scene = new THREE.Scene();
+const camera = new THREE.PerspectiveCamera(60, 640 / 360, 0.1, 1000);
+scene.add(new THREE.Mesh(
+  new THREE.BoxGeometry(1, 1, 1),
+  new THREE.MeshLambertMaterial({color: 0x44aa66})
+));
+renderer.render(scene, camera);
+jsr.render({type: 'three', canvasId: 'main', width: 640, height: 360});
+```
+
+`jsr.render` prepares the canvas mount automatically. Canvas/resource
+identity is isolated per `jsr.instanceId`; use a fresh canvas generation
+after `renderer.dispose()` instead of reusing a disposed surface id.
+
+- **Native:** `WebGLRenderer` is the explicit R1 alias. Upstream math, scene,
+  geometry, materials and controls stay real; Flutter GPU renders the dirty
+  resources. `renderer.getContext()`, raw WebGL, ShaderMaterial and WebGPU
+  throw `three.unsupported`. Do not claim native WebGL. Linear `THREE.Fog`
+  and the first shadow-casting directional light are supported (R32 target,
+  3×3 PCF, instanced cast/receive); exact PCFSoft filtering and multiple
+  shadow-casting lights are not.
+- Use real `THREE.InstancedMesh` for repeated opaque geometry: call
+  `setMatrixAt`, set `instanceMatrix.needsUpdate = true` after edits, and set
+  `count` deliberately. R1 uploads the matrices as one batch instead of
+  expanding objects into JSON. Transparent instancing and `instanceColor`
+  are not supported by the initial native profile.
+- **Web:** the same upstream namespace uses the real `WebGLRenderer` on a
+  Worker OffscreenCanvas with real WebGL2 where the browser supports it.
+- Assets: `jsr.three.registerAsset(url, {data: base64OrBytes, mime, width,
+  height})` before a loader request. Host-loaded failures use
+  `three.assetFailure`; handle loader `onError`/Promise rejection. Unknown
+  remote addon imports are forbidden by the prepare resolver.
+- `jsr.three.capabilities` / `getCapabilities()` reports the backend.
+  Official DOM-style addons receive finite document/canvas adapters; they
+  do not provide a general DOM. Pointer/key/resize/blur events come from the
+  host automatically. Text fields keep keyboard priority.
+- The generated runtime is pinned to three.js r186 (commit `9b4a2ac…`).
+  Rebuild the official Minecraft example with
+  `dart run bin/jsr_three_example.dart prepare webgl_geometry_minecraft`;
+  run it with `cd example && flutter run -t lib/three_example.dart`. Its
+  original HTML/module bytes, addon/atlas hashes and MIT notice are kept in
+  `example/widgets/three-minecraft/`.
+
 ---
 
 ## 5a. Adaptive layout
@@ -563,7 +618,8 @@ prefer `flChart` for anything user-facing.
 
 ### Media, map, path, 3D
 
-- `image` — `{src: 'assets/…'|'file://…'|'http…', width, height, fit}`.
+- `image` — `{src: 'assets/…'|'file://…'|'http…'|'data:image/…;base64,…', width, height, fit}`;
+  add `filterQuality: 'none'` for nearest-neighbor pixel-art scaling.
 - `map` — OSM tiles: `{center: [lat, lng], zoom, markers: [{lat, lng, label?,
   color?}], onTap?}`.
 - `path` — vector path `{d, fill, stroke, viewBox}`.
@@ -592,6 +648,9 @@ prefer `flChart` for anything user-facing.
   a host `JsMediaHost` (`JsRuntimeConfig.mediaHost`) or they render
   placeholders; reference impl `example/lib/media_host.dart`.
 - `scene3d` — `{id, width?, height?, interactive?}` bound to `jsr.scene3d.*`.
+- `three` — `{canvasId, width?, height?}` bound to an upstream `jsr.three`
+  canvas (host opt-in; independent of `scene3d`). Internal engine/surface ids
+  are stamped automatically by `jsr.render`.
 - `voxel` — `{id, width?, height?}` — chunked voxel world rendered by a
   pure-Dart software rasterizer (no host object needed). Widget JS owns the
   world state through `jsr.hostCall` (always available):

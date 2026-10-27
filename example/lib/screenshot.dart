@@ -28,6 +28,7 @@ import 'package:js_widget_runtime/src/runtime/js_widget_engine_quickjs.dart';
 final _kWidget = Platform.environment['JSR_WIDGET'] ?? '';
 final _kWidgetPath = Platform.environment['JSR_WIDGET_PATH'] ?? '';
 final _kOut = Platform.environment['JSR_OUT'] ?? '/tmp/jsr-screenshot.png';
+final _kThree = _kWidget == 'three-minecraft';
 
 Future<String> _loadWidgetJs() {
   if (_kWidgetPath.isNotEmpty) return File(_kWidgetPath).readAsString();
@@ -77,11 +78,8 @@ class _CaptureFrame extends StatefulWidget {
 
 class _CaptureFrameState extends State<_CaptureFrame> {
   final _boundaryKey = GlobalKey();
+  final JsThreeHost? _threeHost = _kThree ? createFlutterGpuThreeHost() : null;
   Map<String, dynamic>? _tree;
-
-  void _log(String m) {
-    File('/tmp/jsr_screenshot.log').writeAsStringSync('\$m\n', mode: FileMode.append, flush: true);
-  }
 
   @override
   void initState() {
@@ -104,8 +102,9 @@ class _CaptureFrameState extends State<_CaptureFrame> {
         child: _tree == null
             ? const Center(child: CircularProgressIndicator())
             : JsonWidgetRenderer(
-                onEvent: (_, __) {},
+                onEvent: (_, _) {},
                 js3dHost: createJs3dHost(),
+                threeHost: _threeHost,
                 voxelWorld: _engine?.voxelWorld,
               ).build(_tree),
       ),
@@ -118,20 +117,25 @@ class _CaptureFrameState extends State<_CaptureFrame> {
     _startEngine();
   }
 
-  QuickjsWidgetEngineBackend? _engine;
+  JsWidgetEngine? _engine;
 
   Future<void> _startEngine() async {
-    final engine = QuickjsWidgetEngineBackend(
-      config: JsRuntimeConfig(
-        widgetId: _kWidget,
-        js3dHost: createJs3dHost(),
-        onRender: (tree) {
-          if (mounted) setState(() => _tree = tree);
-        },
-        onSetTitle: (_) {},
-        onStorageUpdate: (_) {},
-      ),
+    final config = JsRuntimeConfig(
+      widgetId: _kWidget,
+      instanceId: 'screenshot-$_kWidget',
+      js3dHost: createJs3dHost(),
+      threeEnabled: _kThree,
+      threeHost: _threeHost,
+      onRender: (tree) {
+        if (mounted) setState(() => _tree = tree);
+      },
+      onSetTitle: (_) {},
+      onStorageUpdate: (_) {},
     );
+    // Keep screenshots on deterministic QuickJS while using the production
+    // wrapper for opt-in bundles, global THREE setup and host bootstrap.
+    final backend = QuickjsWidgetEngineBackend(config: config);
+    final engine = JsWidgetEngine(config: config.copyWith(backend: backend));
     _engine = engine;
     await engine.init();
     unawaited(engine.run(widget.jsSource));
@@ -139,6 +143,14 @@ class _CaptureFrameState extends State<_CaptureFrame> {
 
   Future<void> _captureAndExit() async {
     try {
+      if (_kThree) {
+        final surface = _threeHost?.findSurface(
+          'screenshot-$_kWidget',
+          'main#1',
+        );
+        // ignore: avoid_print
+        print('THREE diagnostics: ${surface?.diagnostics}');
+      }
       final boundary = _boundaryKey.currentContext?.findRenderObject();
       if (boundary == null || boundary is! RenderRepaintBoundary) {
         exitCode = 3;

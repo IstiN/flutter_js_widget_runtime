@@ -25,11 +25,16 @@ class JsKeyboardCapture extends StatefulWidget {
   const JsKeyboardCapture({
     super.key,
     required this.onEvent,
+    this.onBlur,
     required this.child,
   });
 
   /// Receives the JSON payload for every key event: `{key, code, down, repeat}`.
   final void Function(Map<String, dynamic> payload) onEvent;
+
+  /// Optional focus-loss notification for stateful input adapters (THREE).
+  /// Editable-text focus changes do not synthesize key events.
+  final VoidCallback? onBlur;
 
   final Widget child;
 
@@ -57,6 +62,9 @@ class _JsKeyboardCaptureState extends State<JsKeyboardCapture> {
       child: Focus(
         focusNode: _keyFocusNode,
         autofocus: true,
+        onFocusChange: (focused) {
+          if (!focused) widget.onBlur?.call();
+        },
         onKeyEvent: (node, event) =>
             jsHandleRuntimeKeyEvent(event, widget.onEvent),
         child: widget.child,

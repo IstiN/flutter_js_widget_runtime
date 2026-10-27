@@ -62,6 +62,13 @@ var clearInterval = function(id){ __send('__jsr_clear_interval', String(id)); de
 var requestAnimationFrame = function(fn){ var id=__nid(); __raf_cbs[id]=fn; __send('__jsr_raf','{"id":"'+id+'","iid":"'+__IID+'"}'); return id; };
 var cancelAnimationFrame = function(id){ delete __raf_cbs[String(id)]; __send('__jsr_caf', String(id)); };
 
+// THREE.Timer expects the DOM high-resolution-clock shape. Date.now is the
+// portable millisecond fallback on QuickJS/JSC; browsers keep native
+// performance.now untouched.
+if (typeof performance === 'undefined') {
+  var performance = {now: function(){ return Date.now(); }};
+}
+
 var jsr = {
   // Easing helpers for animations and tweening in widget code. The short
   // names (easeIn, backOut, bounce, elastic) are the originals; the
@@ -433,9 +440,23 @@ var __jsrHostEvent = function(target, payload) {
   try {
     if (target === 'key') {
       if (jsr._keyHandler) jsr._keyHandler(payload);
+      if (jsr.three && typeof jsr.three._hostEvent === 'function') {
+        jsr.three._hostEvent('key', payload);
+      }
     } else if (target === 'viewport') {
       jsr._viewport = payload;
       if (jsr._viewportHandler) jsr._viewportHandler(payload);
+      if (jsr.three && typeof jsr.three._hostEvent === 'function') {
+        jsr.three._hostEvent('viewport', payload);
+      }
+    } else if (target === 'three.blur') {
+      if (jsr.three && typeof jsr.three._hostEvent === 'function') {
+        jsr.three._hostEvent('blur', payload);
+      }
+    } else if (target.indexOf('three.input:') === 0) {
+      if (jsr.three && typeof jsr.three._hostEvent === 'function') {
+        jsr.three._hostEvent(target.substring(6), payload);
+      }
     } else if (target.indexOf('scene3d.tap:') === 0) {
       var h = jsr.scene3d._tapHandlers[target.substring('scene3d.tap:'.length)];
       if (h) h(payload);

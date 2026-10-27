@@ -9,6 +9,10 @@ import 'package:js_widget_runtime/src/renderer/nodes/js_voxel_node.dart';
 /// The renderer and bridge logic live outside the backend, so hosts can plug
 /// in the engine that fits their platform or performance requirements.
 abstract class JsWidgetEngineBackend {
+  /// Binds the backend and its bridge to the wrapper-generated engine id.
+  /// Custom backends without named THREE resources may keep this no-op.
+  void setEngineInstanceId(String instanceId) {}
+
   /// Initializes the backend (loads libraries, creates contexts, etc.).
   Future<void> init();
 

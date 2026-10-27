@@ -7,10 +7,7 @@ export 'src/loader/widget_file_reader.dart'
 export 'src/model/js_runtime_config.dart';
 export 'src/model/widget_manifest.dart' show WidgetManifest;
 export 'src/renderer/json_widget_renderer.dart'
-    show
-        JsonWidgetRenderer,
-        JsonWidgetBuildHooks,
-        kAlignContentMinMainAxis;
+    show JsonWidgetRenderer, JsonWidgetBuildHooks, kAlignContentMinMainAxis;
 export 'src/renderer/external_asset_resolver.dart' show ExternalAssetResolver;
 export 'src/renderer/flame_asset_bundle.dart' show jsrSetFlameAssetBundle;
 export 'src/renderer/font/js_font_loader.dart' show JsFontLoader;
@@ -47,6 +44,19 @@ export 'src/renderer/nodes/js_scene3d_mesh_node.dart'
         Scene3dProjector,
         Scene3dMeshPainter,
         parseScene3dConfig;
+export 'src/renderer/nodes/three/flutter_gpu_three_host_stub.dart'
+    if (dart.library.io) 'src/renderer/nodes/three/flutter_gpu_three_host.dart'
+    show createFlutterGpuThreeHost;
+export 'src/renderer/nodes/three/web_three_host_stub.dart'
+    if (dart.library.js_interop) 'src/renderer/nodes/three/web_three_host.dart'
+    show createWebThreeHost;
+export 'src/renderer/nodes/three/js_three_host.dart'
+    show
+        JsThreeAsset,
+        JsThreeAssetLoader,
+        JsThreeHost,
+        JsThreeSurface,
+        JsThreeUnsupportedException;
 export 'src/renderer/nodes/js_voxel_diagnostics.dart' show VoxelDiagnostics;
 export 'src/renderer/nodes/js_voxel_node.dart'
     show
@@ -73,6 +83,7 @@ export 'src/renderer/ui_view_bindings.dart' show UiViewBindings;
 export 'src/renderer/ui_view_field_registry.dart' show UiViewFieldRegistry;
 export 'src/renderer/ui_view_tree_normalizer.dart' show UiViewTreeNormalizer;
 export 'src/runtime/js_widget_engine.dart' show JsWidgetEngine;
+export 'src/runtime/three_upstream_bundle.dart' show ThreeUpstreamBundle;
 export 'src/runtime/js_widget_engine_backend.dart' show JsWidgetEngineBackend;
 export 'src/runtime/js_widget_bridge.dart'
     show

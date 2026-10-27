@@ -1,3 +1,28 @@
+## 0.4.191
+
+- Add opt-in upstream three.js r186 support with independent native Flutter
+  GPU (versioned T1/R1 resources) and real Worker OffscreenCanvas WebGL2
+  hosts. Includes surface-scoped lifecycle/input/assets, bounded frame
+  coalescing, capture and the reproducibly prepared official
+  `webgl_geometry_minecraft` example (`lib/three_example.dart`).
+- Add native R1 `InstancedMesh` batching (`DRAW_BATCH`) with per-material GPU
+  draws and instance-aware diagnostics, plus the reproducible local
+  `three_minecraft_stress` reference target and macOS probe.
+- Supply bounded UTF-8 codec shims when QuickJS/JSC lacks
+  `TextEncoder`/`TextDecoder`, including upstream `GLTFLoader` compatibility.
+- Fix wrapped raw-channel delivery in `flutter_js`/JSC: preserve the engine
+  id and unwrap both Map and String payloads so `jsr.hostCallBinary` reaches
+  the owning engine instead of being dropped or misrouted.
+- Cull main-camera-invisible R1 nodes while retaining shadow casters, and
+  reuse directional shadow maps until scene content or shadow parameters
+  change. In the stationary macOS stress scene this reduced 1,048 main draws
+  to 516 and 1.78M submitted triangles to 0.88M.
+- Fix native THREE presentation failures at HostBuffer block boundaries by
+  inserting alignment fillers before straddling uniform payloads.
+- Add host-specific native relative-mouse pointer lock to the macOS stress
+  runner, including cursor restoration on focus loss and an absolute-delta
+  fallback; the generic THREE input contract remains unchanged.
+
 ## 0.4.190
 
 - Default radial gradients without an explicit `center` to `Alignment.center`

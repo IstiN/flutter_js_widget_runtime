@@ -485,6 +485,33 @@ void main() {
       expect(find.byType(Image), findsOneWidget);
     });
 
+    testWidgets('image renders base64 data URI from memory', (tester) async {
+      await tester.pumpWidget(
+        buildTree({
+          'type': 'image',
+          'url':
+              'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=',
+          'width': 16,
+          'height': 16,
+          'filterQuality': 'none',
+        }),
+      );
+      final image = tester.widget<Image>(find.byType(Image));
+      expect(image.image, isA<MemoryImage>());
+      expect(image.filterQuality, FilterQuality.none);
+    });
+
+    testWidgets('image rejects malformed base64 data URI', (tester) async {
+      await tester.pumpWidget(
+        buildTree({
+          'type': 'image',
+          'url': 'data:image/png;base64,%%%not-base64%%%',
+        }),
+      );
+      expect(find.byType(Image), findsNothing);
+      expect(tester.takeException(), isNull);
+    });
+
     testWidgets('aspectRatio wraps child', (tester) async {
       await tester.pumpWidget(
         buildTree({
@@ -555,8 +582,9 @@ void main() {
       expect(events.any((e) => e.$1 == 'tapDown'), isTrue);
     });
 
-    testWidgets('gestureDetector fires onScroll for pointer scroll signals',
-        (tester) async {
+    testWidgets('gestureDetector fires onScroll for pointer scroll signals', (
+      tester,
+    ) async {
       await tester.pumpWidget(
         buildTree({
           'type': 'gestureDetector',
@@ -578,19 +606,17 @@ void main() {
       expect(look.single.$2['dy'], -8);
     });
 
-    testWidgets('high-frequency gestures prefer the fire-and-forget sink',
-        (tester) async {
+    testWidgets('high-frequency gestures prefer the fire-and-forget sink', (
+      tester,
+    ) async {
       final fast = <String>[];
       await tester.pumpWidget(
-        buildTree(
-          {
-            'type': 'gestureDetector',
-            'onScroll': 'look',
-            'onPanUpdate': 'drag',
-            'child': {'type': 'text', 'data': 'pad'},
-          },
-          onGestureEvent: (id, _) => fast.add(id),
-        ),
+        buildTree({
+          'type': 'gestureDetector',
+          'onScroll': 'look',
+          'onPanUpdate': 'drag',
+          'child': {'type': 'text', 'data': 'pad'},
+        }, onGestureEvent: (id, _) => fast.add(id)),
       );
       final center = tester.getCenter(find.text('pad'));
       await tester.sendEventToBinding(
@@ -600,12 +626,16 @@ void main() {
       await tester.runAsync(() => Future<void>.delayed(Duration.zero));
       await tester.pump();
       expect(fast, ['look'], reason: 'scroll uses the fire-and-forget sink');
-      expect(events.where((e) => e.$1 == 'look'), isEmpty,
-          reason: '…and does not enter the serialized queue');
+      expect(
+        events.where((e) => e.$1 == 'look'),
+        isEmpty,
+        reason: '…and does not enter the serialized queue',
+      );
     });
 
-    testWidgets('ignorePointer prop lets gestures fall through overlays',
-        (tester) async {
+    testWidgets('ignorePointer prop lets gestures fall through overlays', (
+      tester,
+    ) async {
       await tester.pumpWidget(
         buildTree({
           'type': 'stack',
@@ -627,8 +657,11 @@ void main() {
       await tester.pump();
       await tester.runAsync(() => Future<void>.delayed(Duration.zero));
       await tester.pump();
-      expect(events.map((e) => e.$1), contains('hit'),
-          reason: 'tap passes through the ignorePointer overlay');
+      expect(
+        events.map((e) => e.$1),
+        contains('hit'),
+        reason: 'tap passes through the ignorePointer overlay',
+      );
     });
 
     testWidgets('chart renders CustomPaint', (tester) async {
@@ -876,8 +909,9 @@ void main() {
       expect(events.any((e) => e.$1 == 'panEnd'), isTrue);
     });
 
-    testWidgets('gestureDetector merges a static payload into events',
-        (tester) async {
+    testWidgets('gestureDetector merges a static payload into events', (
+      tester,
+    ) async {
       await tester.pumpWidget(
         buildTree({
           'type': 'gestureDetector',
@@ -892,12 +926,16 @@ void main() {
       await tester.pump();
       final taps = events.where((e) => e.$1 == 'hotbar').toList();
       expect(taps, hasLength(1));
-      expect(taps.single.$2['slot'], 3,
-          reason: 'the static payload rides the tap event');
+      expect(
+        taps.single.$2['slot'],
+        3,
+        reason: 'the static payload rides the tap event',
+      );
     });
 
-    testWidgets('gestureDetector fires the long press lifecycle',
-        (tester) async {
+    testWidgets('gestureDetector fires the long press lifecycle', (
+      tester,
+    ) async {
       await tester.pumpWidget(
         buildTree({
           'type': 'gestureDetector',
@@ -913,16 +951,20 @@ void main() {
       await tester.runAsync(() => Future<void>.delayed(Duration.zero));
       await tester.pump();
       for (final id in ['lp', 'lpStart', 'lpUp', 'lpEnd']) {
-        expect(events.any((e) => e.$1 == id), isTrue,
-            reason: '$id fired for a stationary hold + release');
+        expect(
+          events.any((e) => e.$1 == id),
+          isTrue,
+          reason: '$id fired for a stationary hold + release',
+        );
       }
       final start = events.firstWhere((e) => e.$1 == 'lpStart');
       expect(start.$2['x'], isA<double>());
       expect(start.$2['y'], isA<double>());
     });
 
-    testWidgets('gestureDetector streams long press moves and cancels',
-        (tester) async {
+    testWidgets('gestureDetector streams long press moves and cancels', (
+      tester,
+    ) async {
       await tester.pumpWidget(
         buildTree({
           'type': 'gestureDetector',
@@ -941,19 +983,26 @@ void main() {
       await tester.pump();
       expect(events.any((e) => e.$1 == 'lpStart'), isTrue);
       final moves = events.where((e) => e.$1 == 'lpMove').toList();
-      expect(moves, isNotEmpty,
-          reason: 'post-start movement streams lpMove with origin deltas');
+      expect(
+        moves,
+        isNotEmpty,
+        reason: 'post-start movement streams lpMove with origin deltas',
+      );
       expect(moves.last.$2['dx'], isNonZero);
       await g.cancel(); // OS steals the pointer mid-hold
       await tester.pump();
       await tester.runAsync(() => Future<void>.delayed(Duration.zero));
       await tester.pump();
-      expect(events.any((e) => e.$1 == 'lpCancel'), isTrue,
-          reason: 'held state gets its release even on a stolen pointer');
+      expect(
+        events.any((e) => e.$1 == 'lpCancel'),
+        isTrue,
+        reason: 'held state gets its release even on a stolen pointer',
+      );
     });
 
-    testWidgets('gestureDetector fires onTapCancel for a stolen held tap',
-        (tester) async {
+    testWidgets('gestureDetector fires onTapCancel for a stolen held tap', (
+      tester,
+    ) async {
       await tester.pumpWidget(
         buildTree({
           'type': 'gestureDetector',
@@ -966,21 +1015,26 @@ void main() {
       // The stuck-“held” scenario: tapDown landed (past the press deadline),
       // then the OS steals the pointer — without onTapCancel the widget
       // would keep its held state forever.
-      final gesture =
-          await tester.startGesture(tester.getCenter(find.text('arena')));
+      final gesture = await tester.startGesture(
+        tester.getCenter(find.text('arena')),
+      );
       await tester.pump(const Duration(milliseconds: 150)); // kPressTimeout
       await gesture.cancel(); // PointerCancelEvent — OS stole the touch
       await tester.pump();
       await tester.runAsync(() => Future<void>.delayed(Duration.zero));
       await tester.pump();
       expect(events.any((e) => e.$1 == 'tapDown'), isTrue);
-      expect(events.any((e) => e.$1 == 'tapCancel'), isTrue,
-          reason: 'the widget learns the tap died — no stuck held state');
+      expect(
+        events.any((e) => e.$1 == 'tapCancel'),
+        isTrue,
+        reason: 'the widget learns the tap died — no stuck held state',
+      );
       expect(events.any((e) => e.$1 == 'tap'), isFalse);
     });
 
-    testWidgets('gestureDetector fires onPanCancel for a pre-drag cancel',
-        (tester) async {
+    testWidgets('gestureDetector fires onPanCancel for a pre-drag cancel', (
+      tester,
+    ) async {
       await tester.pumpWidget(
         buildTree({
           'type': 'gestureDetector',
@@ -994,20 +1048,25 @@ void main() {
           'child': {'type': 'text', 'data': 'steal'},
         }),
       );
-      final gesture =
-          await tester.startGesture(tester.getCenter(find.text('steal')));
+      final gesture = await tester.startGesture(
+        tester.getCenter(find.text('steal')),
+      );
       await tester.pump();
       await gesture.cancel(); // cancelled before the drag was accepted
       await tester.pump();
       await tester.runAsync(() => Future<void>.delayed(Duration.zero));
       await tester.pump();
-      expect(events.any((e) => e.$1 == 'panCancel'), isTrue,
-          reason: 'a stolen pointer must release widget-side held state');
+      expect(
+        events.any((e) => e.$1 == 'panCancel'),
+        isTrue,
+        reason: 'a stolen pointer must release widget-side held state',
+      );
       expect(events.any((e) => e.$1 == 'panEnd'), isFalse);
     });
 
-    testWidgets('gestureDetector reports panEnd for a mid-drag cancel',
-        (tester) async {
+    testWidgets('gestureDetector reports panEnd for a mid-drag cancel', (
+      tester,
+    ) async {
       await tester.pumpWidget(
         buildTree({
           'type': 'gestureDetector',
@@ -1017,8 +1076,9 @@ void main() {
           'child': {'type': 'text', 'data': 'dragcancel'},
         }),
       );
-      final gesture = await tester
-          .startGesture(tester.getCenter(find.text('dragcancel')));
+      final gesture = await tester.startGesture(
+        tester.getCenter(find.text('dragcancel')),
+      );
       await gesture.moveBy(const Offset(30, 0));
       await tester.pump();
       await gesture.cancel(); // stolen AFTER the drag started
@@ -1030,6 +1090,5 @@ void main() {
       expect(events.any((e) => e.$1 == 'panEnd'), isTrue);
       expect(events.any((e) => e.$1 == 'panCancel'), isFalse);
     });
-
   });
 }
