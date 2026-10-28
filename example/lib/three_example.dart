@@ -15,7 +15,7 @@ enum ThreeExampleSelection {
   ),
   geometryColors(
     exampleId: 'webgl_geometry_colors',
-    label: 'Vertex Colors (Web only)',
+    label: 'Vertex Colors',
     widgetId: 'three-geometry-colors',
     assetPath: 'widgets/three-geometry-colors/widget.js',
   ),

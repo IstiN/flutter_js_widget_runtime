@@ -180,6 +180,14 @@ identity lives in `ThreeUpstreamBundle`, `tool/three/source-pin.json` and
   `shadowMap.needsUpdate=true`; streaming/uploads then reuse the static map,
   while light-matrix changes still invalidate it. The optional trailer keeps
   both culling sets before this revision, and legacy frames remain valid.
+- R1 Phong uses the real specular/shininess material fields and Blinn-Phong
+  shader path; it is not a Lambert alias. Mesh wireframes upload deduplicated
+  line indices alongside the owned source geometry for indexed/non-indexed
+  triangles. The bounded native Canvas2D proxy records radial-gradient and
+  `fillRect` commands, then `three.canvas2d` routes them to Flutter
+  `dart:ui.Canvas` and returns owned raw RGBA. Readiness adopts a new texture
+  version and schedules a transactional render even for static scenes;
+  stale/disposed completions carry no pixels. Web remains on OffscreenCanvas.
 - Web uses the REAL upstream `WebGLRenderer` on a Worker-owned
   `OffscreenCanvas`. Canvas/WebGL2 creation is synchronous in the Worker;
   no proxy GL and no main-canvas reservation. A separate structured-clone
