@@ -199,11 +199,13 @@ void main() {
     }
   }
 
-  color = linearToSrgb(color * frame_info.cameraPositionExposure.w);
+  color *= frame_info.cameraPositionExposure.w;
   if (frame_info.fogFarModeReserved.y > 0.5) {
     float fogFactor = smoothstep(
         frame_info.fogColorNear.w, frame_info.fogFarModeReserved.x, viewDepth);
+    // Match THREE: fog is mixed in linear space before output color conversion.
     color = mix(color, frame_info.fogColorNear.rgb, fogFactor);
   }
+  color = linearToSrgb(color);
   outColor = vec4(color, albedo.a);
 }

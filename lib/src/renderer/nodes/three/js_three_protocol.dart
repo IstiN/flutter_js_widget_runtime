@@ -326,7 +326,9 @@ final class JsThreeSubmitFrame extends JsThreeCommand {
     required this.shadowNormalBias,
     required this.shadowRadius,
     required this.shadowMatrix,
+    this.shadowContentRevision,
     this.culledNodeIds = const <int>{},
+    this.culledShadowNodeIds = const <int>{},
   }) : super._(8);
 
   final int sceneId;
@@ -349,8 +351,14 @@ final class JsThreeSubmitFrame extends JsThreeCommand {
   final double shadowRadius;
   final Float32List shadowMatrix;
 
+  /// Manual THREE shadow revision; null follows global scene content changes.
+  final int? shadowContentRevision;
+
   /// Main-camera-culled nodes. Shadow rendering still considers these nodes.
   final Set<int> culledNodeIds;
+
+  /// Nodes outside the directional shadow camera, independent of main culling.
+  final Set<int> culledShadowNodeIds;
 
   bool get hasShadow => shadowMapWidth > 0;
 }
@@ -892,16 +900,11 @@ final class JsThreeProtocolDecoder {
       body.fail('shadow map dimensions must be zero or within 1..8192');
     }
     if (shadowRadius <= 0) body.fail('shadow radius must be positive');
-    var culledNodeIds = const <int>{};
-    if (body.remaining > 0) {
-      final count = body.u32('culled node count');
-      if (count > 100000) body.fail('too many culled nodes');
-      final ids = <int>{};
-      for (var index = 0; index < count; index++) {
-        ids.add(body.nonzeroId('culled node id'));
-      }
-      culledNodeIds = Set.unmodifiable(ids);
-    }
+    final culledNodeIds = _optionalCulledIds(body, 'culled');
+    final culledShadowNodeIds = _optionalCulledIds(body, 'culled shadow');
+    final shadowContentRevision = body.remaining == 0
+        ? null
+        : body.u32('shadow content revision');
     return JsThreeSubmitFrame._(
       sceneId: sceneId,
       cameraId: cameraId,
@@ -922,8 +925,21 @@ final class JsThreeProtocolDecoder {
       shadowNormalBias: shadowNormalBias,
       shadowRadius: shadowRadius,
       shadowMatrix: shadowMatrix,
+      shadowContentRevision: shadowContentRevision,
       culledNodeIds: culledNodeIds,
+      culledShadowNodeIds: culledShadowNodeIds,
     );
+  }
+
+  Set<int> _optionalCulledIds(_Reader body, String label) {
+    if (body.remaining == 0) return const <int>{};
+    final count = body.u32('$label node count');
+    if (count > 100000) body.fail('too many $label nodes');
+    final ids = <int>{};
+    for (var index = 0; index < count; index++) {
+      ids.add(body.nonzeroId('$label node id'));
+    }
+    return Set.unmodifiable(ids);
   }
 
   static String _decodeUtf8(

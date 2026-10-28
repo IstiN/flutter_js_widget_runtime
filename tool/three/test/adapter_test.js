@@ -321,6 +321,88 @@ test('main-camera frustum culling is explicit and respects opt-out', () => {
   assert.equal(renderer.info.render.calls, 1);
 });
 
+test('shadow-camera culling is independent from main-camera culling', () => {
+  const host = createHost();
+  const { renderer, scene, camera, mesh } = rendererScene(host);
+  const T = host.THREE;
+  renderer.shadowMap.enabled = true;
+  mesh.castShadow = true;
+  const sun = new T.DirectionalLight();
+  sun.position.set(0, 10, 0);
+  sun.castShadow = true;
+  scene.add(sun);
+  scene.add(sun.target);
+  mesh.position.x = 100;
+  renderer.render(scene, camera);
+  let frame = only(host.packets()[0], 8)[0].body;
+  assert.equal(frame.length, 152);
+  assert.equal(u32(frame, 136), 1);
+  assert.equal(u32(frame, 140), id(mesh));
+  assert.equal(u32(frame, 144), 1);
+  assert.equal(u32(frame, 148), id(mesh));
+
+  mesh.position.x = 0;
+  renderer.render(scene, camera);
+  frame = only(host.packets()[1], 8)[0].body;
+  assert.equal(frame.length, 136);
+});
+
+test('empty instanced meshes skip draw uploads and retain correct node lifetime', () => {
+  const host = createHost();
+  const T = host.THREE;
+  const scene = new T.Scene();
+  const camera = new T.PerspectiveCamera();
+  const mesh = new T.InstancedMesh(triangle(T), new T.MeshBasicMaterial(), 1);
+  mesh.count = 0;
+  scene.add(mesh);
+  const renderer = new T.WebGLRenderer({ canvas: host.jsr.three.createCanvas('a') });
+  renderer.render(scene, camera);
+  let packets = host.packets();
+  assert.deepEqual(opcodes(packets[0]), [4, 4, 6, 8]);
+  assert.equal(renderer.info.render.calls, 0);
+  const emptyNode = only(packets[0], 4).find(node => u32(node.body, 0) === id(mesh));
+  assert.equal(u32(emptyNode.body, 8), 0);
+
+  mesh.count = 1;
+  renderer.render(scene, camera);
+  packets = host.packets();
+  assert.deepEqual(opcodes(packets[1]), [1, 3, 11, 8]);
+  assert.equal(renderer.info.render.calls, 1);
+
+  mesh.count = 0;
+  renderer.render(scene, camera);
+  packets = host.packets();
+  assert.deepEqual(opcodes(packets[2]), [12, 8]);
+  assert.equal(renderer.info.render.calls, 0);
+  renderer.render(scene, camera);
+  packets = host.packets();
+  assert.deepEqual(opcodes(packets[3]), [8]);
+
+  mesh.matrixAutoUpdate = false;
+  mesh.matrixWorldAutoUpdate = false;
+  mesh.matrixWorld.elements[0] = NaN;
+  assert.throws(() => renderer.render(scene, camera), /three\.invalid/);
+});
+
+test('instanced fast path revalidates draw count after geometry disposal', () => {
+  const host = createHost();
+  const T = host.THREE;
+  const scene = new T.Scene();
+  const camera = new T.PerspectiveCamera();
+  const mesh = new T.InstancedMesh(triangle(T), new T.MeshBasicMaterial(), 1);
+  scene.add(mesh);
+  const renderer = new T.WebGLRenderer({ canvas: host.jsr.three.createCanvas('a') });
+  renderer.render(scene, camera);
+  renderer.render(scene, camera);
+  assert.deepEqual(opcodes(host.packets()[1]), [8], 'unchanged batch takes the fast path');
+
+  mesh.geometry.setDrawRange(0, 0);
+  mesh.geometry.dispose();
+  renderer.render(scene, camera);
+  assert.deepEqual(opcodes(host.packets()[2]), [9, 1, 11, 8],
+    'a same-version geometry reupload must not reuse stale batch draw counts');
+});
+
 test('resource versions and disposal are isolated per surface', () => {
   const host = createHost();
   const T = host.THREE;
@@ -601,6 +683,8 @@ test('capability failures are loud, transactional and name 1B', () => {
   scene.add(new T.Mesh(triangle(T), new T.ShaderMaterial()));
   capability(() => renderer.render(scene, camera), 'material');
   assert.equal(host.rawPackets.length, 0);
+  assert.equal(renderer._resources.size, 0,
+    'failed transactions must not retain uncommitted dispose listeners');
   scene.children[0].material = new T.MeshBasicMaterial();
   renderer.render(scene, camera);
   assert.equal(host.rawPackets.length, 1, 'failed render must not poison sent caches');

@@ -317,7 +317,9 @@ function finalPlugin({ source, ref, facadeSource, mainBytes }) {
         contents: facadeSource, loader: 'js', resolveDir: HERE
       }));
       build.onLoad({ filter: /^reference_main\.js$/, namespace: 'jsr-stress-reference' }, () => ({
-        contents: mainBytes, loader: 'js', resolveDir: path.join(ref, 'scripts')
+        contents: "import { blocks as __jsrBlocks } from './blocks.js';\n" +
+          'globalThis.__jsrMinecraftStressBlocks = __jsrBlocks;\n' + mainBytes,
+        loader: 'js', resolveDir: path.join(ref, 'scripts')
       }));
       build.onLoad({ filter: /.*/ }, args => {
         if (args.namespace !== 'file') return undefined;

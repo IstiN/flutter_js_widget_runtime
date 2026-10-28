@@ -155,8 +155,10 @@ identity lives in `ThreeUpstreamBundle`, `tool/three/source-pin.json` and
   coalesces to two frames without dropping resource commands. Resize/DPR,
   PNG capture, disposal and async-init generation checks belong to the host.
   `InstancedMesh` emits `DRAW_BATCH` with real matrices and one GPU draw per
-  material part; transparent instancing/per-instance colors are not in the
-  initial profile. `ThreeDrawPlan.triangleCount` includes every instance.
+  material part; copy typed-array matrix payloads as bulk little-endian bytes,
+  not one JS `f32` write per element. Transparent instancing/per-instance
+  colors are not in the initial profile. `ThreeDrawPlan.triangleCount`
+  includes every instance.
   Linear `THREE.Fog` is serialized in `FRAME`. The first shadow-casting
   directional light uses a separate shadow command buffer, an R32 depth-color
   target, instanced cast/receive flags and 3×3 PCF; keep its target/pipeline
@@ -173,6 +175,11 @@ identity lives in `ThreeUpstreamBundle`, `tool/three/source-pin.json` and
   nonzero node ids culled by the main camera; skip only those main draws.
   Cache the first directional shadow map by content revision, dimensions,
   bias/normalBias and all matrix values; a cache hit still binds the map.
+  Default `shadowMap.autoUpdate=true` follows scene content revisions. With
+  `autoUpdate=false`, FRAME carries a manual content revision advanced only by
+  `shadowMap.needsUpdate=true`; streaming/uploads then reuse the static map,
+  while light-matrix changes still invalidate it. The optional trailer keeps
+  both culling sets before this revision, and legacy frames remain valid.
 - Web uses the REAL upstream `WebGLRenderer` on a Worker-owned
   `OffscreenCanvas`. Canvas/WebGL2 creation is synchronous in the Worker;
   no proxy GL and no main-canvas reservation. A separate structured-clone

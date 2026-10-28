@@ -6,7 +6,7 @@
   "type": "module",
   "scripts": {
     "build": "node build.mjs",
-    "test": "node test/adapter_test.js"
+    "test": "node test/adapter_test.js && node test/batch_test.js"
   },
   "devDependencies": {
     "esbuild": "0.25.5"

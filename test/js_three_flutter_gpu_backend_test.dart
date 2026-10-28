@@ -122,6 +122,21 @@ ThreeDrawItem _draw({int offset = 0, int? count}) {
 }
 
 void main() {
+  test('main shadow sampling flips only the render-target V coordinate', () {
+    final source = List<double>.generate(16, (index) => index.toDouble());
+    final sampled = threeShadowSamplingMatrix(source);
+
+    for (var index = 0; index < 16; index++) {
+      final expected = switch (index) {
+        1 || 5 || 9 => -source[index],
+        13 => 1 - source[index],
+        _ => source[index],
+      };
+      expect(sampled[index], expected);
+    }
+    expect(source, List<double>.generate(16, (index) => index.toDouble()));
+  });
+
   test('vertex layout binds four column vectors at instance rate', () {
     final layout = debugThreeVertexLayout();
 
@@ -198,6 +213,22 @@ void main() {
     final defensiveCopy = _shadowKey(matrix: changed);
     changed[0] = 99;
     expect(defensiveCopy, original);
+  });
+
+  test('manual shadow revision overrides global content invalidation', () {
+    final body = Uint8List(148);
+    _u32(body, 0, 1);
+    _u32(body, 4, 1);
+    _f32(body, 24, 1);
+    _u32(body, 52, 1024);
+    _u32(body, 56, 1024);
+    _f32(body, 68, 1);
+    _u32(body, 144, 7);
+    final frame = _decode(8, body) as JsThreeSubmitFrame;
+    expect(frame.shadowContentRevision, 7);
+    expect(frame.culledNodeIds, isEmpty);
+    expect(frame.culledShadowNodeIds, isEmpty);
+    expect(ThreeShadowCacheKey.fromFrame(frame, 99).contentRevision, 7);
   });
 
   test('uniform payloads are padded to the platform alignment boundary', () {

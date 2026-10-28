@@ -74,6 +74,7 @@ final class JsThreeApplyResult {
 
 final class _ApplyBatch {
   final List<JsThreeCommand> changes = <JsThreeCommand>[];
+  var shadowChanged = false;
   var unchanged = 0;
   var coalesced = 0;
   JsThreeDisposeSurface? surfaceDispose;
@@ -226,12 +227,7 @@ extension _JsThreeSurfaceStateOperations on JsThreeSurfaceState {
       _disposeSurface();
       batch.changes.add(surfaceDispose);
     }
-    if (batch.changes.any(
-      (command) =>
-          command is! JsThreeSubmitFrame && command is! JsThreeCameraUpsert,
-    )) {
-      _contentRevision++;
-    }
+    if (batch.shadowChanged) _contentRevision++;
     _unchangedUploadCount += batch.unchanged;
     _coalescedFrameCount += batch.coalesced;
     _lastSequence = sequence;
@@ -248,14 +244,17 @@ extension _JsThreeSurfaceStateOperations on JsThreeSurfaceState {
     );
   }
 
+  void _markShadow(_ApplyBatch batch, String reason) {
+    batch.shadowChanged = true;
+  }
+
   void _applyCommand(JsThreeCommand command, _ApplyBatch batch) {
     if (_applyUploadCommand(command, batch)) return;
     switch (command) {
       case final JsThreeRemoveBatch value:
         _recordRemoval(_removeBatch(value.nodeId), value, batch);
       case final JsThreeNodeUpsert value:
-        _nodes[value.nodeId] = value;
-        batch.changes.add(value);
+        _upsertNode(value, batch);
       case final JsThreeRemoveNode value:
         _recordRemoval(
           _disposeResource(JsThreeResourceKind.node, value.nodeId),
@@ -266,6 +265,7 @@ extension _JsThreeSurfaceStateOperations on JsThreeSurfaceState {
         _cameras[value.cameraId] = value;
         batch.changes.add(value);
       case final JsThreeLightUpsert value:
+        _markShadow(batch, 'light:${value.lightId}');
         _lights[value.lightId] = value;
         batch.changes.add(value);
       case final JsThreeSubmitFrame value:
@@ -282,6 +282,18 @@ extension _JsThreeSurfaceStateOperations on JsThreeSurfaceState {
         throw StateError('Unhandled THREE command ${command.runtimeType}');
     }
   }
+
+  void _upsertNode(JsThreeNodeUpsert value, _ApplyBatch batch) {
+    final previous = _nodes[value.nodeId];
+    if (_castsShadow(value) || (previous != null && _castsShadow(previous))) {
+      _markShadow(batch, 'node:${value.nodeId}');
+    }
+    _nodes[value.nodeId] = value;
+    batch.changes.add(value);
+  }
+
+  bool _castsShadow(JsThreeNodeUpsert value) =>
+      value.castShadow && value.objectKind != JsThreeObjectKind.group;
 
   bool _applyUploadCommand(JsThreeCommand command, _ApplyBatch batch) {
     switch (command) {
@@ -301,6 +313,7 @@ extension _JsThreeSurfaceStateOperations on JsThreeSurfaceState {
 
   void _recordUpload(bool uploaded, JsThreeCommand command, _ApplyBatch batch) {
     if (uploaded) {
+      _markShadow(batch, 'upload:${command.runtimeType}');
       batch.changes.add(command);
     } else {
       batch.unchanged++;
@@ -308,7 +321,10 @@ extension _JsThreeSurfaceStateOperations on JsThreeSurfaceState {
   }
 
   void _recordRemoval(bool removed, JsThreeCommand command, _ApplyBatch batch) {
-    if (removed) batch.changes.add(command);
+    if (removed) {
+      _markShadow(batch, 'remove:${command.runtimeType}');
+      batch.changes.add(command);
+    }
   }
 
   void _recordFrame(JsThreeSubmitFrame frame, _ApplyBatch batch) {
