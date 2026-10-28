@@ -503,8 +503,8 @@
   },
   "inputs": {
     "assets/three/three.native.js": {
-      "bytes": 691474,
-      "sha256": "82b9fbedc29cad4b3a6b0cf9576aa2db3321fe7b4bce6f489c9858da6a0b2d35"
+      "bytes": 702782,
+      "sha256": "2740d5535bcbc41451c8e3594fee6b534812a352a46041cde4093d6f5dfdd204"
     },
     "assets/three/three.web.js": {
       "bytes": 834257,
@@ -527,16 +527,16 @@
       "sha256": "29492424209a17a723b3b0c8e9c83995697a4c466840d1b33ba6f6ff2b7542a4"
     },
     "tool/three/src/native_entry.js": {
-      "bytes": 517,
-      "sha256": "5eae4bd48fc657d3d2f5d5c29da83d5c1ab1fbe28b6ccadf79f374d064c7e309"
+      "bytes": 602,
+      "sha256": "1fb4180100cb32288dfc7bd7087f78132e614cf8547fab7f068677284631fd1b"
     },
     "tool/three_example/example_adapter.js": {
-      "bytes": 9056,
-      "sha256": "22edefdc06b063cbdd2fa05fbe1319ef05e77421de48a952c9c55bf03433d552"
+      "bytes": 9376,
+      "sha256": "1827245e1dfe5572d89e9d0d16a3a384d7c5a6051208c03d22c2b49ae4e1ba89"
     },
     "tool/three_example/prepare.mjs": {
-      "bytes": 20444,
-      "sha256": "7902d6999f92d0ffb69e9eefd1ca994ed96fd2de80d86fc7b0eea552792a05b8"
+      "bytes": 21985,
+      "sha256": "55570c126ba29dd084bebe3b89b27cc3faa3832a689c2174163dcf6ee2dac462"
     },
     "tool/three_example/stats_adapter.js": {
       "bytes": 2107,
@@ -561,8 +561,8 @@
       "sha256": "a89c2291b5497be160e6763de192df8379b2a587ff245b603e25a65593c4b584"
     },
     "widget.js": {
-      "bytes": 17449,
-      "sha256": "ce195ecba01b362c59c614284d285f85ddebf43bc19da05032e83b4324772ab4"
+      "bytes": 17672,
+      "sha256": "2eaa0f6dfb18d384900819719e712cdf3a425a873df56785b2ffd416fbfdbf13"
     }
   }
 }

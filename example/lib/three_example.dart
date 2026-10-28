@@ -24,6 +24,24 @@ enum ThreeExampleSelection {
     label: 'Line Colors',
     widgetId: 'three-lines-colors',
     assetPath: 'widgets/three-lines-colors/widget.js',
+  ),
+  bufferGeometryUint(
+    exampleId: 'webgl_buffergeometry_uint',
+    label: 'Integer BufferGeometry',
+    widgetId: 'three-buffergeometry-uint',
+    assetPath: 'widgets/three-buffergeometry-uint/widget.js',
+  ),
+  bufferGeometryLinesIndexed(
+    exampleId: 'webgl_buffergeometry_lines_indexed',
+    label: 'Indexed BufferGeometry Lines',
+    widgetId: 'three-buffergeometry-lines-indexed',
+    assetPath: 'widgets/three-buffergeometry-lines-indexed/widget.js',
+  ),
+  bufferGeometryPoints(
+    exampleId: 'webgl_buffergeometry_points',
+    label: 'BufferGeometry Points',
+    widgetId: 'three-buffergeometry-points',
+    assetPath: 'widgets/three-buffergeometry-points/widget.js',
   );
 
   const ThreeExampleSelection({

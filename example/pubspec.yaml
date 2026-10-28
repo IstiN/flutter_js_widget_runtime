@@ -50,4 +50,7 @@ flutter:
     - widgets/three-minecraft/
     - widgets/three-geometry-colors/
     - widgets/three-lines-colors/
+    - widgets/three-buffergeometry-uint/
+    - widgets/three-buffergeometry-lines-indexed/
+    - widgets/three-buffergeometry-points/
     - assets/models/

@@ -10,6 +10,11 @@ void main() {
       ThreeExampleSelection.minecraft: 'webgl_geometry_minecraft',
       ThreeExampleSelection.geometryColors: 'webgl_geometry_colors',
       ThreeExampleSelection.linesColors: 'webgl_lines_colors',
+      ThreeExampleSelection.bufferGeometryUint: 'webgl_buffergeometry_uint',
+      ThreeExampleSelection.bufferGeometryLinesIndexed:
+          'webgl_buffergeometry_lines_indexed',
+      ThreeExampleSelection.bufferGeometryPoints:
+          'webgl_buffergeometry_points',
     };
     const requestedExample = String.fromEnvironment('JSR_THREE_EXAMPLE');
     expect(ThreeExampleSelection.values, hasLength(examples.length));
@@ -21,6 +26,12 @@ void main() {
     expect(
       ThreeExampleSelection.values
           .map((selection) => selection.widgetId)
+          .toSet(),
+      hasLength(examples.length),
+    );
+    expect(
+      ThreeExampleSelection.values
+          .map((selection) => selection.exampleId)
           .toSet(),
       hasLength(examples.length),
     );

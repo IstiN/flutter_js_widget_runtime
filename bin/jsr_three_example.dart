@@ -4,6 +4,9 @@ const _examples = <String>{
   'webgl_geometry_minecraft',
   'webgl_geometry_colors',
   'webgl_lines_colors',
+  'webgl_buffergeometry_uint',
+  'webgl_buffergeometry_lines_indexed',
+  'webgl_buffergeometry_points',
 };
 
 /// Prepares generated widgets from a pinned, local three.js source tree.
@@ -53,7 +56,9 @@ Future<void> main(List<String> arguments) async {
 void _usage([IOSink? sink]) {
   (sink ?? stdout).writeln(
     'Usage: dart run bin/jsr_three_example.dart prepare '
-    '<webgl_geometry_minecraft|webgl_geometry_colors|webgl_lines_colors> '
+    '<webgl_geometry_minecraft|webgl_geometry_colors|webgl_lines_colors|'
+    'webgl_buffergeometry_uint|webgl_buffergeometry_lines_indexed|'
+    'webgl_buffergeometry_points> '
     '[--source <three-r186-dir>] [--offline] [--verify]\n'
     'THREE_SRC may supply the source directory. Resolution is always local-only.',
   );
