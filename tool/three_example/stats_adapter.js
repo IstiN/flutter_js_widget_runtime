@@ -21,7 +21,7 @@ export default class Stats {
   constructor() {
     this.REVISION = 16;
     this.dom = document.createElement('div');
-    this.dom.__jsrMinecraftStats = true;
+    this.dom.__jsrThreeExampleStats = true;
     this.dom.style.cssText = 'position:fixed;top:0;left:0;pointer-events:none';
     this.domElement = this.dom;
     this._beginTime = now();

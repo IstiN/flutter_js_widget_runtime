@@ -207,10 +207,13 @@ identity lives in `ThreeUpstreamBundle`, `tool/three/source-pin.json` and
 Build/verify the runtime bundles with the local pinned source and locked
 esbuild (`node tool/three/build.mjs --source /tmp/jsr-three-r186`, add
 `--verify` for a clean hash comparison). `tool/build_three_shaders.dart`
-builds the Impeller shaderbundle reproducibly. The official example prepare
-command is `dart run bin/jsr_three_example.dart prepare
-webgl_geometry_minecraft`; it preserves exact original/module bytes and
-resolves only the pinned addons/local atlas.
+builds the Impeller shaderbundle reproducibly. Official example preparation
+uses `dart run bin/jsr_three_example.dart prepare <example-id>`; supported
+ids include `webgl_geometry_minecraft`, `webgl_lines_colors` and
+`webgl_geometry_colors`. It preserves exact original/module bytes and
+resolves only the pinned addons/local assets. The runner accepts
+`--dart-define=JSR_THREE_EXAMPLE=<example-id>` for automated native/Web
+smokes; native compatibility still has to pass the actual R1 gates.
 
 Tests are layered: strict protocol quotas/malformed input, per-surface state,
 pure draw planning, real QuickJS JS↔Dart R1 (including 300 camera frames

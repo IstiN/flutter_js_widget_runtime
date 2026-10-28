@@ -498,17 +498,17 @@
     ],
     "source": {
       "bytes": 40266,
-      "sha256": "9261dbd1658a97488fb8a570646949599e1b8cc78ad30aa28d71e2c4daffe3fe"
+      "sha256": "5ad4c1f3c1215694f067e70f0698b7f3cc8abba71dd008dfbab51c3ee8cbb7bd"
     }
   },
   "inputs": {
     "assets/three/three.native.js": {
-      "bytes": 679756,
-      "sha256": "e7da4b5863e2613497753aedc10a2cb8df9d633087442a0ada2b1565f2d09ccf"
+      "bytes": 691474,
+      "sha256": "82b9fbedc29cad4b3a6b0cf9576aa2db3321fe7b4bce6f489c9858da6a0b2d35"
     },
     "assets/three/three.web.js": {
-      "bytes": 833298,
-      "sha256": "a7ce2db265e4838f17fef4baf1cb25379f8e7c0ce1af547fa65302ea01955524"
+      "bytes": 834257,
+      "sha256": "36dd4267b32524652764d4022604b426fbe542c3f65c8dc29ae4b05a40fe2fc4"
     },
     "source/LICENSE": {
       "bytes": 1081,
@@ -543,16 +543,16 @@
       "sha256": "5eae4bd48fc657d3d2f5d5c29da83d5c1ab1fbe28b6ccadf79f374d064c7e309"
     },
     "tool/three_example/example_adapter.js": {
-      "bytes": 7705,
-      "sha256": "03dae01f58b70479860a426a248c865137b523bb532b11685b988071103dbbf0"
+      "bytes": 9056,
+      "sha256": "22edefdc06b063cbdd2fa05fbe1319ef05e77421de48a952c9c55bf03433d552"
     },
     "tool/three_example/prepare.mjs": {
-      "bytes": 18401,
-      "sha256": "9fa909e3e286314c7a451206507595c21930c10b3580fb66056a04977a8d37f1"
+      "bytes": 20444,
+      "sha256": "7902d6999f92d0ffb69e9eefd1ca994ed96fd2de80d86fc7b0eea552792a05b8"
     },
     "tool/three_example/stats_adapter.js": {
-      "bytes": 2104,
-      "sha256": "1fb934262bdcccd7f55cce78173a9599f6a1798caa388fcf61963bed7a59f428"
+      "bytes": 2107,
+      "sha256": "98defe8785b259fdf70182c7d4a0a8e8e39ff8be901c3a9f93cd991240784086"
     }
   },
   "outputs": {
@@ -577,8 +577,8 @@
       "sha256": "fa0a3bd983bed5911d30109c3d1e4eecacbd1de6eee81653983bd0b4d8edb77c"
     },
     "widget.js": {
-      "bytes": 29437,
-      "sha256": "52fdef7b2945046b64aed20c3287232e16f1f66abf56de6e003709d4a1d36924"
+      "bytes": 30125,
+      "sha256": "746890f51789097bb0ed6bb3472d191f7a35a8e9ef309256abf0c01285c67f82"
     }
   }
 }

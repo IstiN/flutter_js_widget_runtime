@@ -7,25 +7,61 @@ import { fileURLToPath } from 'node:url';
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.resolve(HERE, '../..');
-const OUT = path.join(ROOT, 'example/widgets/three-minecraft');
 const CORE = path.join(ROOT, 'tool/three');
 const PIN = JSON.parse(await readFile(path.join(CORE, 'source-pin.json'), 'utf8'));
 const require = createRequire(path.join(CORE, 'package.json'));
 const esbuild = require('esbuild');
-const EXAMPLE = 'webgl_geometry_minecraft';
-const ATLAS_URL = 'textures/minecraft/atlas.png';
-const EXPECTED = {
-  html: 'fa0a3bd983bed5911d30109c3d1e4eecacbd1de6eee81653983bd0b4d8edb77c',
-  module: 'a1b42a234f63ee155e4ced8d55e1a7ade87f5f03efa96a60d1302fb43dd864f8',
-  atlas: '61b423997c1a5e5f9bf8684fe3caed2b238a333b894a3e37223c30327c4b0df0'
-};
+const EXAMPLES = Object.freeze({
+  webgl_geometry_minecraft: {
+    id: 'three-minecraft',
+    directory: 'three-minecraft',
+    name: 'Minecraft — three.js r186',
+    description: 'Unmodified official webgl_geometry_minecraft module on the JSR THREE R1/WebGL2 runtime.',
+    icon: '⛏️',
+    expected: {
+      html: 'fa0a3bd983bed5911d30109c3d1e4eecacbd1de6eee81653983bd0b4d8edb77c',
+      module: 'a1b42a234f63ee155e4ced8d55e1a7ade87f5f03efa96a60d1302fb43dd864f8'
+    },
+    assets: [{
+      url: 'textures/minecraft/atlas.png',
+      output: 'atlas.png',
+      mime: 'image/png',
+      diagnostic: 'atlas',
+      sha256: '61b423997c1a5e5f9bf8684fe3caed2b238a333b894a3e37223c30327c4b0df0'
+    }]
+  },
+  webgl_geometry_colors: {
+    id: 'three-geometry-colors',
+    directory: 'three-geometry-colors',
+    name: 'Vertex Colors — three.js r186',
+    description: 'Unmodified official webgl_geometry_colors module on the JSR THREE R1/WebGL2 runtime.',
+    icon: '🎨',
+    expected: {
+      html: '90d1dc9947c092feba524972199b50daf4b01d2b8975c427d70bc5b6714a496f',
+      module: '013a5e27a5bc9eb1a117c1fb95db429d508e8c67e40768e7de50bdecfa57de9f'
+    },
+    assets: []
+  },
+  webgl_lines_colors: {
+    id: 'three-lines-colors',
+    directory: 'three-lines-colors',
+    name: 'Line Colors — three.js r186',
+    description: 'Unmodified official webgl_lines_colors module on the JSR THREE R1/WebGL2 runtime.',
+    icon: '〰️',
+    expected: {
+      html: 'a89c2291b5497be160e6763de192df8379b2a587ff245b603e25a65593c4b584',
+      module: 'e7e9fcee0f8140745a400a30a5d29c9ac97a13409f655b1e618cddbd2c8d406c'
+    },
+    assets: []
+  }
+});
 const slash = value => value.split(path.sep).join('/');
 const sha = bytes => createHash('sha256').update(bytes).digest('hex');
 const record = bytes => ({ bytes: bytes.length, sha256: sha(bytes) });
 const json = value => Buffer.from(`${JSON.stringify(value, null, 2)}\n`);
 
 function usage() {
-  return 'Usage: node tool/three_example/prepare.mjs webgl_geometry_minecraft [--source <dir>] [--offline] [--verify]';
+  return `Usage: node tool/three_example/prepare.mjs <${Object.keys(EXAMPLES).join('|')}> [--source <dir>] [--offline] [--verify]`;
 }
 
 function parseArgs(argv) {
@@ -51,10 +87,13 @@ function parseArgs(argv) {
       positional.push(arg);
     }
   }
-  if (positional.length !== 1 || positional[0] !== EXAMPLE) {
-    throw new Error(`Expected exactly ${EXAMPLE}\n${usage()}`);
+  if (positional.length !== 1 || !Object.hasOwn(EXAMPLES, positional[0])) {
+    throw new Error(`Expected exactly one supported example\n${usage()}`);
   }
+  const example = positional[0];
   return {
+    example,
+    definition: EXAMPLES[example],
     source: path.resolve(source || process.env.THREE_SRC || '/tmp/jsr-three-r186'),
     verify
   };
@@ -182,7 +221,7 @@ function localOnlyPlugin({ source, facadeSource = null, officialBytes = null, fi
   const jsmRoot = path.join(source, 'examples/jsm');
   const allowedRoots = final ? [HERE, jsmRoot] : [path.join(CORE, 'src'), source];
   return {
-    name: final ? 'jsr-minecraft-local-only' : 'jsr-three-export-discovery',
+    name: final ? 'jsr-three-example-local-only' : 'jsr-three-export-discovery',
     setup(build) {
       build.onResolve({ filter: /^three$/ }, () => {
         if (facadeSource !== null) return { path: 'three', namespace: 'jsr-three-facade' };
@@ -254,10 +293,10 @@ async function discoverExports(source) {
   return names;
 }
 
-function facadeModule(names) {
+function facadeModule(names, widgetId) {
   const lines = [
     'const __three = globalThis.THREE;',
-    "if (!__three) throw new Error('three-minecraft: globalThis.THREE is not initialized');"
+    `if (!__three) throw new Error(${JSON.stringify(`${widgetId}: globalThis.THREE is not initialized`)});`
   ];
   const bindings = names.map((name, index) => {
     const local = `__threeExport${index}`;
@@ -268,12 +307,24 @@ function facadeModule(names) {
   return lines.join('\n');
 }
 
-function pngDimensions(bytes) {
+function pngDimensions(bytes, url) {
   const signature = [137, 80, 78, 71, 13, 10, 26, 10];
   if (bytes.length < 24 || signature.some((value, index) => bytes[index] !== value)) {
-    throw new Error('Minecraft atlas is not a PNG');
+    throw new Error(`${url} is not a PNG`);
   }
   return { width: bytes.readUInt32BE(16), height: bytes.readUInt32BE(20) };
+}
+
+async function prepareAssets(source, definitions) {
+  const assets = [];
+  for (const definition of definitions) {
+    const bytes = await readFile(path.join(source, 'examples', definition.url));
+    if (sha(bytes) !== definition.sha256) throw new Error(`${definition.url} differs from the pinned r186 bytes`);
+    if (definition.mime !== 'image/png') throw new Error(`Unsupported prepared asset type: ${definition.mime}`);
+    const dimensions = pngDimensions(bytes, definition.url);
+    assets.push({ ...definition, bytes, ...dimensions });
+  }
+  return assets;
 }
 
 function sortedRecordMap(values) {
@@ -282,33 +333,44 @@ function sortedRecordMap(values) {
 
 async function main() {
   const options = parseArgs(process.argv.slice(2));
+  const definition = options.definition;
+  const out = path.join(ROOT, 'example/widgets', definition.directory);
+  const entryName = `${definition.id}-entry.js`;
   const source = await realpath(options.source);
   const tree = await verifySource(source);
-  const htmlPath = path.join(source, `examples/${EXAMPLE}.html`);
-  const atlasPath = path.join(source, `examples/${ATLAS_URL}`);
+  const htmlPath = path.join(source, `examples/${options.example}.html`);
   const licensePath = path.join(source, 'LICENSE');
-  const [html, atlas, license] = await Promise.all([
-    readFile(htmlPath), readFile(atlasPath), readFile(licensePath)
+  const [html, license, assets] = await Promise.all([
+    readFile(htmlPath), readFile(licensePath), prepareAssets(source, definition.assets)
   ]);
-  if (sha(html) !== EXPECTED.html) throw new Error('Official Minecraft HTML differs from the pinned r186 bytes');
-  const extracted = extractOfficial(html);
-  if (sha(extracted.moduleBytes) !== EXPECTED.module) {
-    throw new Error('Extracted official module differs from the pinned r186 bytes');
+  if (sha(html) !== definition.expected.html) {
+    throw new Error(`Official ${options.example} HTML differs from the pinned r186 bytes`);
   }
-  if (sha(atlas) !== EXPECTED.atlas) throw new Error('Minecraft atlas differs from the pinned r186 bytes');
-  const dimensions = pngDimensions(atlas);
+  const extracted = extractOfficial(html);
+  if (sha(extracted.moduleBytes) !== definition.expected.module) {
+    throw new Error(`Extracted official ${options.example} module differs from the pinned r186 bytes`);
+  }
   const exportNames = await discoverExports(source);
-  const facadeSource = facadeModule(exportNames);
+  const facadeSource = facadeModule(exportNames, definition.id);
+  const adapterAssets = assets.map(asset => ({
+    url: asset.url,
+    data: asset.bytes.toString('base64'),
+    mime: asset.mime,
+    width: asset.width,
+    height: asset.height,
+    bytes: asset.bytes.length,
+    diagnostic: asset.diagnostic
+  }));
 
   const result = await esbuild.build({
     absWorkingDir: ROOT,
     stdin: {
       contents: "import './example_adapter.js';\nimport './official_module.js';\n",
       resolveDir: HERE,
-      sourcefile: 'three-minecraft-entry.js',
+      sourcefile: entryName,
       loader: 'js'
     },
-    outfile: path.join(OUT, 'widget.js'),
+    outfile: path.join(out, 'widget.js'),
     bundle: true,
     write: false,
     format: 'iife',
@@ -327,17 +389,15 @@ async function main() {
       final: true
     })],
     define: {
-      __JSR_MINECRAFT_ATLAS_URL__: JSON.stringify(ATLAS_URL),
-      __JSR_MINECRAFT_ATLAS_BASE64__: JSON.stringify(atlas.toString('base64')),
-      __JSR_MINECRAFT_ATLAS_WIDTH__: String(dimensions.width),
-      __JSR_MINECRAFT_ATLAS_HEIGHT__: String(dimensions.height),
-      __JSR_MINECRAFT_ATLAS_BYTES__: String(atlas.length)
+      __JSR_THREE_EXAMPLE_ID__: JSON.stringify(options.example),
+      __JSR_THREE_WIDGET_ID__: JSON.stringify(definition.id),
+      __JSR_THREE_EXAMPLE_ASSETS_JSON__: JSON.stringify(JSON.stringify(adapterAssets))
     }
   });
   if (result.outputFiles.length !== 1) throw new Error(`Expected one widget output, got ${result.outputFiles.length}`);
   const widget = Buffer.from(result.outputFiles[0].contents);
   for (const input of Object.keys(result.metafile.inputs)) {
-    if (input.startsWith('jsr-') || path.basename(input) === 'three-minecraft-entry.js') continue;
+    if (input.startsWith('jsr-') || path.basename(input) === entryName) continue;
     const absolute = path.isAbsolute(input) ? input : path.resolve(ROOT, input);
     if (inside(path.join(source, 'src'), absolute)) {
       throw new Error(`A second three.js core copy entered the widget: ${input}`);
@@ -345,33 +405,31 @@ async function main() {
   }
 
   const manifest = json({
-    id: 'three-minecraft',
-    name: 'Minecraft — three.js r186',
-    description: 'Unmodified official webgl_geometry_minecraft module on the JSR THREE R1/WebGL2 runtime.',
+    id: definition.id,
+    name: definition.name,
+    description: definition.description,
     version: '0.1.0',
-    icon: '⛏️',
+    icon: definition.icon,
     allowedCommands: [],
     network: false,
     widget: { entry: 'widget.js', interactive: true }
   });
   const outputBytes = {
     'THREE_LICENSE': license,
-    'atlas.png': atlas,
     'manifest.json': manifest,
     'official_module.js': extracted.moduleBytes,
     'original.html': html,
     'widget.js': widget
   };
+  for (const asset of assets) outputBytes[asset.output] = asset.bytes;
 
   const inputs = {};
   async function addInput(label, bytes) {
     if (!inputs[label]) inputs[label] = record(bytes);
   }
-  for (const [label, bytes] of [
-    ['source/examples/webgl_geometry_minecraft.html', html],
-    ['source/examples/textures/minecraft/atlas.png', atlas],
-    ['source/LICENSE', license]
-  ]) await addInput(label, bytes);
+  await addInput(`source/examples/${options.example}.html`, html);
+  await addInput('source/LICENSE', license);
+  for (const asset of assets) await addInput(`source/examples/${asset.url}`, asset.bytes);
   for (const file of ['prepare.mjs', 'example_adapter.js', 'stats_adapter.js']) {
     await addInput(`tool/three_example/${file}`, await readFile(path.join(HERE, file)));
   }
@@ -382,7 +440,7 @@ async function main() {
     await addInput(file, await readFile(path.join(ROOT, file)));
   }
   for (const input of Object.keys(result.metafile.inputs)) {
-    if (input.startsWith('jsr-') || path.basename(input) === 'three-minecraft-entry.js') continue;
+    if (input.startsWith('jsr-') || path.basename(input) === entryName) continue;
     const absolute = path.isAbsolute(input) ? input : path.resolve(ROOT, input);
     let label;
     if (inside(source, absolute)) label = `source/${slash(path.relative(source, absolute))}`;
@@ -393,8 +451,8 @@ async function main() {
 
   const prepareManifest = json({
     schema: 'jsr-three-example-prepare-v1',
-    id: 'three-minecraft',
-    example: EXAMPLE,
+    id: definition.id,
+    example: options.example,
     upstream: {
       name: 'three.js', version: '0.186.1', revision: '186', license: 'MIT',
       sourceCommit: PIN.commit, sourceTagObject: PIN.tagObject,
@@ -430,21 +488,21 @@ async function main() {
 
   if (options.verify) {
     for (const name of Object.keys(outputBytes).sort()) {
-      const existing = await readFile(path.join(OUT, name));
+      const existing = await readFile(path.join(out, name));
       if (!existing.equals(outputBytes[name])) {
         throw new Error(`${name} differs from a clean pinned prepare`);
       }
     }
   } else {
-    await mkdir(OUT, { recursive: true });
+    await mkdir(out, { recursive: true });
     for (const name of Object.keys(outputBytes).sort()) {
-      await writeFile(path.join(OUT, name), outputBytes[name]);
+      await writeFile(path.join(out, name), outputBytes[name]);
     }
   }
   console.log(JSON.stringify({
-    prepared: EXAMPLE,
+    prepared: options.example,
     verified: options.verify,
-    output: slash(path.relative(ROOT, OUT)),
+    output: slash(path.relative(ROOT, out)),
     sourceCommit: PIN.commit,
     offline: true,
     outputs: sortedRecordMap(Object.fromEntries(
