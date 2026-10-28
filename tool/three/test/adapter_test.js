@@ -66,6 +66,13 @@ function geometry(body) {
     offset += length;
   }
   for (let i = 0; i < result.indexCount; i++, offset += 4) result.indices.push(u32(body, offset));
+  result.wireIndices = null;
+  if (offset < body.length) {
+    const count = u32(body, offset);
+    offset += 4;
+    result.wireIndices = [];
+    for (let i = 0; i < count; i++, offset += 4) result.wireIndices.push(u32(body, offset));
+  }
   assert.equal(offset, body.length);
   return result;
 }
@@ -459,7 +466,8 @@ test('materials, cameras and ambient/directional/point lights have exact bodies 
   const basic = new T.MeshBasicMaterial({ color: 0x336699, side: T.DoubleSide, transparent: true, opacity: 0.5, alphaTest: 0.2, depthWrite: false });
   const lambert = new T.MeshLambertMaterial({ color: 0x123456, flatShading: true });
   const standard = new T.MeshStandardMaterial({ color: 0xffffff, roughness: 0.25, metalness: 0.75 });
-  for (const material of [basic, lambert, standard]) scene.add(new T.Mesh(triangle(T), material));
+  const phong = new T.MeshPhongMaterial({ color: 0xffffff, specular: 0x804020, shininess: 64, flatShading: true, vertexColors: true });
+  for (const material of [basic, lambert, standard, phong]) scene.add(new T.Mesh(triangle(T), material));
   const ambient = new T.AmbientLight(0x404040, 0.25);
   const directional = new T.DirectionalLight(0xffffff, 2);
   const point = new T.PointLight(0xff0000, 3);
@@ -469,7 +477,7 @@ test('materials, cameras and ambient/directional/point lights have exact bodies 
   renderer.render(scene, perspective);
   let packet = host.packets()[0];
   const materials = only(packet, 3).map(command => command.body);
-  assert.deepEqual(materials.map(body => u32(body, 8)), [0, 1, 2]);
+  assert.deepEqual(materials.map(body => u32(body, 8)), [0, 1, 2, 5]);
   assert.equal(materials[0].length, 56);
   assert.equal(u32(materials[0], 20), 2);
   near(f32(materials[0], 36), 0.5);
@@ -477,6 +485,13 @@ test('materials, cameras and ambient/directional/point lights have exact bodies 
   near(f32(materials[2], 40), 0.25);
   near(f32(materials[2], 44), 0.75);
   assert.equal(u32(materials[1], 16) & 2, 2);
+  assert.equal(materials[3].length, 72);
+  assert.equal(u32(materials[3], 16) & 3, 3);
+  near(f32(materials[3], 56), phong.specular.r);
+  near(f32(materials[3], 60), phong.specular.g);
+  near(f32(materials[3], 64), phong.specular.b);
+  near(f32(materials[3], 68), 64);
+  assert.notEqual(u32(materials[3], 8), u32(materials[1], 8), 'Phong must not alias Lambert');
   const lights = only(packet, 7).map(command => command.body);
   assert.deepEqual(lights.map(body => u32(body, 4)), [0, 1, 2]);
   assert.equal(lights[0].length, 48);
@@ -500,6 +515,75 @@ test('materials, cameras and ambient/directional/point lights have exact bodies 
   packet = host.packets()[3];
   assert.deepEqual(opcodes(packet), [9, 8]);
   assert.equal(u32(only(packet, 9)[0].body, 4), 5);
+  phong.specular.setRGB(0.25, 0.5, 0.75);
+  phong.shininess = 12;
+  renderer.render(scene, orthographic);
+  packet = host.packets()[4];
+  assert.deepEqual(opcodes(packet), [3, 8]);
+  const changedPhong = only(packet, 3)[0].body;
+  assert.equal(u32(changedPhong, 4), 2);
+  near(f32(changedPhong, 56), 0.25);
+  near(f32(changedPhong, 60), 0.5);
+  near(f32(changedPhong, 64), 0.75);
+  near(f32(changedPhong, 68), 12);
+});
+
+test('mesh wireframe emits unique edges for indexed and non-indexed geometry with shared ownership', () => {
+  const host = createHost();
+  const T = host.THREE;
+  const renderer = new T.WebGLRenderer({ canvas: host.jsr.three.createCanvas('main') });
+  const scene = new T.Scene();
+  const camera = new T.PerspectiveCamera(50, 1, 0.1, 100);
+  camera.position.z = 5;
+  const positions = [0, 0, 0, 1, 0, 0, 1, 1, 0, 0, 1, 0];
+  const indexed = new T.BufferGeometry();
+  indexed.setAttribute('position', new T.Float32BufferAttribute(positions, 3));
+  indexed.setIndex([0, 1, 2, 0, 2, 3]);
+  const nonIndexed = new T.BufferGeometry();
+  nonIndexed.setAttribute('position', new T.Float32BufferAttribute([
+    0, 0, 0, 1, 0, 0, 1, 1, 0,
+    0, 0, 0, 1, 1, 0, 0, 1, 0
+  ], 3));
+  const solid = new T.Mesh(indexed, new T.MeshBasicMaterial({ color: 0xffffff }));
+  const wireMaterial = new T.MeshBasicMaterial({ color: 0x000000, wireframe: true, transparent: true, opacity: 0.5 });
+  const wire = new T.Mesh(indexed, wireMaterial);
+  const nonIndexedWire = new T.Mesh(nonIndexed, wireMaterial);
+  scene.add(solid, wire, nonIndexedWire);
+  renderer.render(scene, camera);
+  let packet = host.packets()[0];
+  const uploads = only(packet, 1).map(command => geometry(command.body));
+  assert.equal(uploads.length, 3, 'solid-to-wire sharing upgrades the same geometry once');
+  assert.equal(uploads[0].id, id(indexed));
+  assert.equal(uploads[0].wireIndices, null);
+  assert.equal(uploads[1].id, id(indexed));
+  assert.equal(uploads[1].version, 2);
+  const indexedUpload = uploads[1];
+  const nonIndexedUpload = uploads[2];
+  assert.equal(indexedUpload.primitive, 0);
+  assert.deepEqual(indexedUpload.indices, [0, 1, 2, 0, 2, 3]);
+  assert.deepEqual(indexedUpload.wireIndices, [0, 1, 1, 2, 2, 0, 2, 3, 3, 0]);
+  assert.equal(nonIndexedUpload.indexCount, 0);
+  assert.deepEqual(nonIndexedUpload.wireIndices, [0, 1, 1, 2, 2, 0, 4, 5, 5, 3]);
+  const nodes = only(packet, 4).map(command => command.body);
+  assert.equal(u32(nodes.find(body => u32(body, 0) === id(solid)), 8), id(indexed));
+  assert.equal(u32(nodes.find(body => u32(body, 0) === id(wire)), 8), id(indexed));
+  const wirePacket = only(packet, 3).map(command => command.body).find(body => u32(body, 0) === id(wireMaterial));
+  assert.equal(u32(wirePacket, 16) & 32, 32);
+  assert.equal(renderer.info.render.calls, 3);
+  assert.equal(renderer.info.render.triangles, 2);
+  assert.equal(renderer.info.render.lines, 10);
+  renderer.render(scene, camera);
+  assert.deepEqual(opcodes(host.packets()[1]), [8], 'solid and wire traversal must not oscillate geometry versions');
+  scene.remove(solid, wire, nonIndexedWire);
+  renderer.render(scene, camera);
+  indexed.dispose();
+  renderer.render(scene, camera);
+  packet = host.packets()[3];
+  assert.deepEqual(opcodes(packet), [9, 8]);
+  const disposal = only(packet, 9);
+  assert.equal(disposal.length, 1);
+  assert.equal(u32(disposal[0].body, 0), id(indexed));
+  assert.equal(u32(disposal[0].body, 4), 1);
 });
 
 test('Line, LineSegments and Points preserve primitive semantics and material kinds', () => {

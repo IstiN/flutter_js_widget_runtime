@@ -37,6 +37,7 @@ uniform MaterialInfo {
   vec4 colorOpacity;
   vec4 roughnessMetalnessAlphaTestKind;
   vec4 vertexColorsFlatShadingHasMapReserved;
+  vec4 specularShininess;
 } material_info;
 
 float distributionGgx(vec3 n, vec3 h, float roughness) {
@@ -78,6 +79,15 @@ vec3 standardLight(
       max(4.0 * nDotV * nDotL, EPSILON);
   vec3 diffuse = (vec3(1.0) - f) * (1.0 - metalness) * baseColor / PI;
   return (diffuse + specular) * radiance * nDotL;
+}
+
+vec3 blinnPhongSpecular(vec3 n, vec3 v, vec3 l, vec3 specularColor, float shininess) {
+  vec3 h = normalize(v + l);
+  float nDotH = max(dot(n, h), 0.0);
+  float vDotH = max(dot(v, h), 0.0);
+  vec3 f = fresnelSchlick(vDotH, specularColor);
+  float d = (shininess * 0.5 + 1.0) * pow(nDotH, shininess) / PI;
+  return f * (0.25 * d);
 }
 
 vec3 linearToSrgb(vec3 value) {
@@ -148,13 +158,20 @@ void main() {
     int directionalCount = int(frame_info.lightCounts.x + 0.5);
     int pointCount = int(frame_info.lightCounts.y + 0.5);
     float shadow = directionalShadow();
-    if (kind == 1) {
+    if (kind == 1 || kind == 5) {
       for (int i = 0; i < MAX_DIRECTIONAL_LIGHTS; ++i) {
         if (i < directionalCount) {
           vec3 l = normalize(lights.directionalDirectionIntensity[i].xyz);
           vec3 radiance = lights.directionalColor[i].rgb *
                           lights.directionalDirectionIntensity[i].w;
-          color += baseColor * radiance * shadow * max(dot(n, l), 0.0) / PI;
+          float nDotL = max(dot(n, l), 0.0);
+          vec3 direct = baseColor / PI;
+          if (kind == 5) {
+            direct += blinnPhongSpecular(
+                n, v, l, material_info.specularShininess.rgb,
+                material_info.specularShininess.w);
+          }
+          color += direct * radiance * shadow * nDotL;
         }
       }
       for (int i = 0; i < MAX_POINT_LIGHTS; ++i) {
@@ -164,7 +181,14 @@ void main() {
           vec3 l = delta * inversesqrt(distanceSquared);
           vec3 radiance = lights.pointColor[i].rgb *
                           lights.pointPositionIntensity[i].w / distanceSquared;
-          color += baseColor * radiance * max(dot(n, l), 0.0);
+          float nDotL = max(dot(n, l), 0.0);
+          vec3 direct = baseColor / PI;
+          if (kind == 5) {
+            direct += blinnPhongSpecular(
+                n, v, l, material_info.specularShininess.rgb,
+                material_info.specularShininess.w);
+          }
+          color += direct * radiance * nDotL;
         }
       }
     } else {

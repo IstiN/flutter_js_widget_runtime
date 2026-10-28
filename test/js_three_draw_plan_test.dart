@@ -84,6 +84,39 @@ void main() {
       expect(plan.diagnostics.incompatibleMaterialCount, 1);
     });
 
+    test('plans real Phong and selects wire indices for mesh wireframe', () {
+      final fixture = _Fixture.basic()
+        ..geometry(1, wireIndices: const [0, 1, 1, 2, 2, 0])
+        ..material(2, kind: JsThreeMaterialKind.meshPhong)
+        ..material(3, wireframe: true)
+        ..node(2, parentId: 1, materialId: 2)
+        ..node(3, parentId: 1, materialId: 3, castShadow: true);
+
+      final plan = const ThreeDrawPlanner().plan(fixture.state());
+
+      expect(plan.diagnostics.warnings, isEmpty);
+      expect(plan.draws, hasLength(2));
+      final phong = plan.draws.firstWhere((draw) => draw.node.nodeId == 2);
+      expect(phong.material.kind, JsThreeMaterialKind.meshPhong);
+      expect(phong.primitive, ThreeDrawPrimitive.triangles);
+      expect(phong.drawCount, 3);
+      final wire = plan.draws.firstWhere((draw) => draw.node.nodeId == 3);
+      expect(wire.primitive, ThreeDrawPrimitive.lines);
+      expect(wire.wireframe, isTrue);
+      expect(wire.indexed, isTrue);
+      expect(wire.drawCount, 6);
+      expect(plan.triangleCount, 1);
+
+      final missing = _Fixture.basic()
+        ..geometry(1)
+        ..material(2, wireframe: true)
+        ..node(2, parentId: 1, materialId: 2);
+      final invalid = const ThreeDrawPlanner().plan(missing.state());
+      expect(invalid.draws, isEmpty);
+      expect(invalid.diagnostics.invalidGeometryCount, 1);
+      expect(invalid.diagnostics.warnings.join('\n'), contains('wireframe'));
+    });
+
     test('supports independent lines and explicitly selected line strips', () {
       final fixture = _Fixture.basic()
         ..geometry(
@@ -406,7 +439,12 @@ void main() {
 
   group('interleaveThreeGeometry', () {
     test('packs defaults and copies checked indices', () {
-      final fixture = _Fixture.basic()..geometry(1, indices: [2, 1, 0]);
+      final fixture = _Fixture.basic()
+        ..geometry(
+          1,
+          indices: [2, 1, 0],
+          wireIndices: const [0, 1, 1, 2, 2, 0],
+        );
       final geometry = fixture.state().geometries[1]!;
 
       final packed = interleaveThreeGeometry(geometry);
@@ -428,6 +466,9 @@ void main() {
       }
       expect(packed.indices!.getUint32(0, Endian.little), 2);
       expect(packed.indices!.getUint32(8, Endian.little), 0);
+      expect(packed.wireIndices!.lengthInBytes, 24);
+      expect(packed.wireIndices!.getUint32(0, Endian.little), 0);
+      expect(packed.wireIndices!.getUint32(20, Endian.little), 0);
     });
 
     test('packs normal uv RGB and RGBA without reading outside strides', () {
@@ -526,6 +567,7 @@ final class _Fixture {
     List<double>? uvs,
     List<double>? colors,
     List<int> indices = const [],
+    List<int>? wireIndices,
   }) {
     commands.add(
       _command(
@@ -539,6 +581,7 @@ final class _Fixture {
           uvs: uvs,
           colors: colors,
           indices: indices,
+          wireIndices: wireIndices,
         ),
       ),
     );
@@ -549,6 +592,7 @@ final class _Fixture {
     int version = 1,
     JsThreeMaterialKind kind = JsThreeMaterialKind.meshBasic,
     bool transparent = false,
+    bool wireframe = false,
     int mapTextureId = 0,
   }) {
     commands.add(
@@ -559,6 +603,7 @@ final class _Fixture {
           version: version,
           kind: kind,
           transparent: transparent,
+          wireframe: wireframe,
           mapTextureId: mapTextureId,
         ),
       ),
@@ -682,6 +727,7 @@ Uint8List _geometry(
   required List<double>? uvs,
   required List<double>? colors,
   required List<int> indices,
+  List<int>? wireIndices,
 }) {
   final vertexCount = positions.length ~/ 3;
   final mask =
@@ -704,6 +750,12 @@ Uint8List _geometry(
   for (final index in indices) {
     builder.u32(index);
   }
+  if (wireIndices != null) {
+    builder.u32(wireIndices.length);
+    for (final index in wireIndices) {
+      builder.u32(index);
+    }
+  }
   return builder.bytes;
 }
 
@@ -712,17 +764,23 @@ Uint8List _material(
   int version = 1,
   JsThreeMaterialKind kind = JsThreeMaterialKind.meshBasic,
   bool transparent = false,
+  bool wireframe = false,
   bool vertexColors = false,
   int mapTextureId = 0,
 }) {
-  final data = ByteData(56);
+  final phong = kind == JsThreeMaterialKind.meshPhong;
+  final data = ByteData(phong ? 72 : 56);
   data.setUint32(0, id, Endian.little);
   data.setUint32(4, version, Endian.little);
   data.setUint32(8, kind.wireValue, Endian.little);
   data.setUint32(12, mapTextureId, Endian.little);
   data.setUint32(
     16,
-    (transparent ? 4 : 0) | 8 | 16 | (vertexColors ? 1 : 0),
+    (transparent ? 4 : 0) |
+        8 |
+        16 |
+        (vertexColors ? 1 : 0) |
+        (wireframe ? 32 : 0),
     Endian.little,
   );
   data.setFloat32(24, 1, Endian.little);
@@ -733,6 +791,12 @@ Uint8List _material(
   data.setFloat32(44, 0, Endian.little);
   data.setFloat32(48, 0, Endian.little);
   data.setFloat32(52, 1, Endian.little);
+  if (phong) {
+    data.setFloat32(56, 0.125, Endian.little);
+    data.setFloat32(60, 0.25, Endian.little);
+    data.setFloat32(64, 0.5, Endian.little);
+    data.setFloat32(68, 64, Endian.little);
+  }
   return Uint8List.view(data.buffer);
 }
 

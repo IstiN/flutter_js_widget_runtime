@@ -145,10 +145,13 @@ ByteData _threeInstanceData(JsThreeDrawBatchUpsert source) {
 
 ({int offsetInBytes, int lengthInBytes}) _threeIndexRange(ThreeDrawItem draw) {
   final end = draw.indexOffset + draw.drawCount;
+  final available = draw.wireframe
+      ? draw.geometry.wireIndexCount
+      : draw.geometry.indexCount;
   if (!draw.indexed ||
       draw.indexOffset < 0 ||
       draw.drawCount < 0 ||
-      end > draw.geometry.indexCount) {
+      end > available) {
     throw ArgumentError('invalid indexed draw subrange');
   }
   return (
@@ -317,7 +320,11 @@ void _replaceThreeGeometry(
 ) {
   final packed = interleaveThreeGeometry(source);
   final vertices = backend._context.createDeviceBufferWithCopy(packed.vertices);
-  final indices = _createThreeIndices(backend._context, packed);
+  final indices = _createThreeIndices(backend._context, packed.indices);
+  final wireIndices = _createThreeIndices(
+    backend._context,
+    packed.wireIndices,
+  );
   backend._geometries[key] = _GpuGeometry(
     source,
     vertices,
@@ -328,15 +335,16 @@ void _replaceThreeGeometry(
     ),
     indices.buffer,
     indices.view,
+    wireIndices.buffer,
+    wireIndices.view,
   );
   backend._geometryUploadCount++;
 }
 
 ({gpu.DeviceBuffer? buffer, gpu.BufferView? view}) _createThreeIndices(
   gpu.GpuContext context,
-  ThreeInterleavedGeometry packed,
+  ByteData? data,
 ) {
-  final data = packed.indices;
   if (data == null) return (buffer: null, view: null);
   final buffer = context.createDeviceBufferWithCopy(data);
   return (
@@ -1253,14 +1261,20 @@ gpu.BufferView? _uploadedThreeBatchView(
 }
 
 bool _isFullThreeIndexRange(ThreeDrawItem draw, _GpuGeometry geometry) =>
-    draw.indexOffset == 0 && draw.drawCount == geometry.source.indexCount;
+    draw.indexOffset == 0 &&
+    draw.drawCount ==
+        (draw.wireframe
+            ? geometry.source.wireIndexCount
+            : geometry.source.indexCount);
 
 void _bindThreeIndices(
   gpu.RenderPass pass,
   _GpuGeometry geometry,
   ThreeDrawItem draw,
 ) {
-  final indices = geometry.indicesView;
+  final indices = draw.wireframe
+      ? geometry.wireIndicesView
+      : geometry.indicesView;
   if (indices == null) return;
   if (_isFullThreeIndexRange(draw, geometry)) {
     pass.bindIndexBuffer(indices, gpu.IndexType.int32);
@@ -1269,7 +1283,7 @@ void _bindThreeIndices(
   final range = _threeIndexRange(draw);
   pass.bindIndexBuffer(
     gpu.BufferView(
-      geometry.indices!,
+      draw.wireframe ? geometry.wireIndices! : geometry.indices!,
       offsetInBytes: range.offsetInBytes,
       lengthInBytes: range.lengthInBytes,
     ),
@@ -1282,10 +1296,13 @@ void _drawThreeGeometry(
   ThreeDrawItem draw,
   _GpuGeometry geometry,
 ) {
-  if (geometry.indicesView == null) {
-    pass.draw(draw.drawCount, instanceCount: draw.instanceCount);
-  } else {
+  final indexed = draw.wireframe
+      ? geometry.wireIndicesView != null
+      : geometry.indicesView != null;
+  if (indexed) {
     pass.drawIndexed(draw.drawCount, instanceCount: draw.instanceCount);
+  } else {
+    pass.draw(draw.drawCount, instanceCount: draw.instanceCount);
   }
 }
 
@@ -1557,7 +1574,7 @@ const _threeBooleanFloat = <bool, double>{false: 0, true: 1};
 
 ByteData _threeMaterialUniform(ThreeDrawItem draw) {
   final material = draw.material;
-  final data = ByteData(48);
+  final data = ByteData(64);
   _writeFloats(data, 0, [
     material.colorR,
     material.colorG,
@@ -1575,6 +1592,12 @@ ByteData _threeMaterialUniform(ThreeDrawItem draw) {
     _threeBooleanFloat[material.flatShading]!,
     _threeBooleanFloat[material.mapTextureId != 0]!,
     _threeBooleanFloat[draw.node.receiveShadow]!,
+  ]);
+  _writeFloats(data, 48, [
+    material.specularR,
+    material.specularG,
+    material.specularB,
+    material.shininess,
   ]);
   return data;
 }

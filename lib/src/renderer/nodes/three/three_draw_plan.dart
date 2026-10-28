@@ -47,10 +47,16 @@ final class ThreeDrawItem {
 
   int get drawCount =>
       _drawCount ??
-      (geometry.indexCount == 0 ? geometry.vertexCount : geometry.indexCount);
-  bool get indexed => geometry.indexCount != 0;
+      (wireframe
+          ? geometry.wireIndexCount
+          : geometry.indexCount == 0
+          ? geometry.vertexCount
+          : geometry.indexCount);
+  bool get indexed =>
+      wireframe ? geometry.wireIndexCount != 0 : geometry.indexCount != 0;
   bool get instanced => batch?.instanced ?? false;
   bool get transparent => material.transparent;
+  bool get wireframe => material.wireframe;
 }
 
 final class ThreeDrawPlanDiagnostics {
@@ -447,7 +453,14 @@ final class ThreeDrawPlanner {
     if (resources == null) return null;
     final geometry = resources.geometry;
     final material = resources.material;
-    final primitive = _primitiveFor(node, geometry, context.lineMode);
+    if (material.wireframe) {
+      diagnostics.invalidBatchCount++;
+      diagnostics.warn(
+        'batch node ${node.nodeId} part $index uses unsupported wireframe',
+      );
+      return null;
+    }
+    final primitive = _primitiveFor(node, geometry, material, context.lineMode);
     if (primitive == null ||
         !_compatibleMaterial(node.objectKind, material.kind)) {
       diagnostics.incompatibleMaterialCount++;
@@ -544,7 +557,7 @@ final class ThreeDrawPlanner {
     if (resources == null) return null;
     final geometry = resources.geometry;
     final material = resources.material;
-    final primitive = _primitiveFor(node, geometry, context.lineMode);
+    final primitive = _primitiveFor(node, geometry, material, context.lineMode);
     if (primitive == null ||
         !_compatibleMaterial(node.objectKind, material.kind)) {
       diagnostics.incompatibleMaterialCount++;
@@ -625,6 +638,13 @@ final class ThreeDrawPlanner {
       diagnostics.warn('geometry ${geometry.geometryId}: $geometryError');
       return null;
     }
+    if (material.wireframe && !geometry.hasWireIndices) {
+      diagnostics.invalidGeometryCount++;
+      diagnostics.warn(
+        'geometry ${geometry.geometryId} lacks wireframe indices',
+      );
+      return null;
+    }
     return (geometry: geometry, material: material);
   }
 
@@ -644,10 +664,13 @@ final class ThreeDrawPlanner {
   ThreeDrawPrimitive? _primitiveFor(
     JsThreeNodeUpsert node,
     JsThreeGeometryUpsert geometry,
+    JsThreeMaterialUpsert material,
     ThreeLineMode lineMode,
   ) => switch ((node.objectKind, geometry.primitive)) {
     (JsThreeObjectKind.mesh, JsThreePrimitive.triangles) =>
-      ThreeDrawPrimitive.triangles,
+      material.wireframe
+          ? ThreeDrawPrimitive.lines
+          : ThreeDrawPrimitive.triangles,
     (JsThreeObjectKind.line, JsThreePrimitive.lines) =>
       lineMode == ThreeLineMode.lines
           ? ThreeDrawPrimitive.lines
@@ -665,7 +688,8 @@ final class ThreeDrawPlanner {
     JsThreeObjectKind.mesh =>
       material == JsThreeMaterialKind.meshBasic ||
           material == JsThreeMaterialKind.meshLambert ||
-          material == JsThreeMaterialKind.meshStandard,
+          material == JsThreeMaterialKind.meshStandard ||
+          material == JsThreeMaterialKind.meshPhong,
     JsThreeObjectKind.line => material == JsThreeMaterialKind.lineBasic,
     JsThreeObjectKind.points => material == JsThreeMaterialKind.pointsBasic,
   };
@@ -725,6 +749,7 @@ String? validateThreeGeometry(
       _validateColorStride(geometry) ??
       _validateColorLength(geometry) ??
       _validateGeometryIndices(geometry) ??
+      _validateWireIndices(geometry) ??
       _validateGeometryValues(geometry, checkValues);
 }
 
@@ -794,6 +819,16 @@ String? _validateGeometryIndices(JsThreeGeometryUpsert geometry) {
   return null;
 }
 
+String? _validateWireIndices(JsThreeGeometryUpsert geometry) {
+  final indices = geometry.wireIndices;
+  if (indices == null) return null;
+  if (geometry.primitive != JsThreePrimitive.triangles) {
+    return 'wire indices require triangle geometry';
+  }
+  if (indices.length % 2 != 0) return 'incomplete wireframe line';
+  return null;
+}
+
 String? _validateGeometryValues(
   JsThreeGeometryUpsert geometry,
   bool checkValues,
@@ -814,6 +849,11 @@ String? _validateGeometryValues(
       return 'index $index exceeds vertex range';
     }
   }
+  for (final index in geometry.wireIndices ?? const <int>[]) {
+    if (index >= geometry.vertexCount) {
+      return 'wire index $index exceeds vertex range';
+    }
+  }
   return null;
 }
 
@@ -829,6 +869,7 @@ final class ThreeInterleavedGeometry {
   const ThreeInterleavedGeometry({
     required this.vertices,
     required this.indices,
+    required this.wireIndices,
     required this.vertexCount,
     required this.indexCount,
   });
@@ -836,6 +877,7 @@ final class ThreeInterleavedGeometry {
   static const int strideInBytes = 48;
   final ByteData vertices;
   final ByteData? indices;
+  final ByteData? wireIndices;
   final int vertexCount;
   final int indexCount;
 }
@@ -892,9 +934,18 @@ ThreeInterleavedGeometry interleaveThreeGeometry(
       indices.setUint32(index * 4, geometry.indices[index], Endian.little);
     }
   }
+  ByteData? wireIndices;
+  final sourceWireIndices = geometry.wireIndices;
+  if (sourceWireIndices != null && sourceWireIndices.isNotEmpty) {
+    wireIndices = ByteData(_product(sourceWireIndices.length, 4));
+    for (var index = 0; index < sourceWireIndices.length; index++) {
+      wireIndices.setUint32(index * 4, sourceWireIndices[index], Endian.little);
+    }
+  }
   return ThreeInterleavedGeometry(
     vertices: vertices,
     indices: indices,
+    wireIndices: wireIndices,
     vertexCount: geometry.vertexCount,
     indexCount: geometry.indexCount,
   );

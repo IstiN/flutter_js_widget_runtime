@@ -82,6 +82,7 @@ Uint8List _geometry({
   int primitive = 0,
   int colorComponents = 4,
   List<int> indices = const [0, 1, 2],
+  List<int>? wireIndices,
 }) {
   final attributes = <List<double>>[
     if (mask & 1 != 0) List<double>.generate(vertexCount * 3, (i) => i + 0.25),
@@ -93,7 +94,8 @@ Uint8List _geometry({
   final length =
       28 +
       attributes.fold<int>(0, (n, a) => n + 4 + a.length * 4) +
-      indices.length * 4;
+      indices.length * 4 +
+      (wireIndices == null ? 0 : 4 + wireIndices.length * 4);
   final out = Uint8List(length);
   _u32(out, 0, id);
   _u32(out, 4, version);
@@ -113,6 +115,14 @@ Uint8List _geometry({
   for (final index in indices) {
     _u32(out, offset, index);
     offset += 4;
+  }
+  if (wireIndices != null) {
+    _u32(out, offset, wireIndices.length);
+    offset += 4;
+    for (final index in wireIndices) {
+      _u32(out, offset, index);
+      offset += 4;
+    }
   }
   return out;
 }
@@ -138,13 +148,23 @@ Uint8List _texture({
   return out;
 }
 
-Uint8List _material({int id = 3, int version = 1}) {
-  final out = Uint8List(56);
+Uint8List _material({
+  int id = 3,
+  int version = 1,
+  JsThreeMaterialKind kind = JsThreeMaterialKind.meshStandard,
+  bool wireframe = false,
+  double specularR = 0.125,
+  double specularG = 0.25,
+  double specularB = 0.5,
+  double shininess = 64,
+}) {
+  final phong = kind == JsThreeMaterialKind.meshPhong;
+  final out = Uint8List(phong ? 72 : 56);
   _u32(out, 0, id);
   _u32(out, 4, version);
-  _u32(out, 8, 2);
+  _u32(out, 8, kind.wireValue);
   _u32(out, 12, 2);
-  _u32(out, 16, 31);
+  _u32(out, 16, 31 | (wireframe ? 32 : 0));
   _u32(out, 20, 2);
   _f32(out, 24, 0.25);
   _f32(out, 28, 0.5);
@@ -154,6 +174,12 @@ Uint8List _material({int id = 3, int version = 1}) {
   _f32(out, 44, 0.3);
   _f32(out, 48, 0.2);
   _f32(out, 52, 2.5);
+  if (phong) {
+    _f32(out, 56, specularR);
+    _f32(out, 60, specularG);
+    _f32(out, 64, specularB);
+    _f32(out, 68, shininess);
+  }
   return out;
 }
 
@@ -493,6 +519,101 @@ void main() {
       expect(_decoder.decodeR1(_r1(const [])).commands, isEmpty);
     },
   );
+
+  test('decodes Phong scalars and optional unique-edge wire indices', () {
+    final commands = _decoder
+        .decodeR1(
+          _r1([
+            (
+              3,
+              _material(
+                kind: JsThreeMaterialKind.meshPhong,
+                wireframe: true,
+                shininess: 0,
+              ),
+            ),
+            (
+              1,
+              _geometry(
+                mask: 1,
+                wireIndices: const [0, 1, 1, 2, 2, 0],
+              ),
+            ),
+          ]),
+        )
+        .commands;
+    final material = commands[0] as JsThreeMaterialUpsert;
+    expect(material.kind, JsThreeMaterialKind.meshPhong);
+    expect(material.wireframe, isTrue);
+    expect(material.specularR, 0.125);
+    expect(material.specularG, 0.25);
+    expect(material.specularB, 0.5);
+    expect(material.shininess, 0);
+    final geometry = commands[1] as JsThreeGeometryUpsert;
+    expect(geometry.hasWireIndices, isTrue);
+    expect(geometry.wireIndexCount, 6);
+    expect(geometry.wireIndices, [0, 1, 1, 2, 2, 0]);
+    expect(() => geometry.wireIndices![0] = 0, throwsUnsupportedError);
+    expect(
+      (_decoder.decodeR1(_r1([(1, _geometry())])).commands.single
+              as JsThreeGeometryUpsert)
+          .wireIndices,
+      isNull,
+    );
+  });
+
+  test('rejects malformed Phong and wireframe extensions', () {
+    final phong = _material(kind: JsThreeMaterialKind.meshPhong);
+    _bad(
+      () => _decoder.decodeR1(
+        _r1([(3, Uint8List.sublistView(phong, 0, 56))]),
+      ),
+    );
+    _f32(phong, 68, -1);
+    _bad(() => _decoder.decodeR1(_r1([(3, phong)])));
+    _bad(
+      () => _decoder.decodeR1(
+        _r1([
+          (
+            3,
+            _material(
+              kind: JsThreeMaterialKind.lineBasic,
+              wireframe: true,
+            ),
+          ),
+        ]),
+      ),
+    );
+    for (final wireIndices in [
+      const [0],
+      const [0, 3],
+    ]) {
+      _bad(
+        () => _decoder.decodeR1(
+          _r1([(1, _geometry(mask: 1, wireIndices: wireIndices))]),
+        ),
+      );
+    }
+    _bad(
+      () => _decoder.decodeR1(
+        _r1([
+          (
+            1,
+            _geometry(
+              mask: 1,
+              vertexCount: 4,
+              primitive: 1,
+              indices: const [],
+              wireIndices: const [0, 1],
+            ),
+          ),
+        ]),
+      ),
+    );
+    final quota = _geometry(mask: 1, wireIndices: const []);
+    _u32(quota, quota.length - 4, JsThreeProtocolDecoder.maxIndexCount + 1);
+    _bad(() => _decoder.decodeR1(_r1([(1, quota)])));
+  });
 
   test('frame validates fog mode and linear fog range', () {
     final frame =
@@ -861,8 +982,8 @@ void main() {
       final cases = <(int, Uint8List, int, int)>[
         (3, _material(), 0, 0),
         (3, _material(), 4, 0),
-        (3, _material(), 8, 5),
-        (3, _material(), 16, 32),
+        (3, _material(), 8, 6),
+        (3, _material(), 16, 64),
         (3, _material(), 20, 3),
         (3, _material(), 52, 0),
         (4, _node(), 0, 0),

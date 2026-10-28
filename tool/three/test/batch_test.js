@@ -447,7 +447,7 @@ test('node disposal removes and recreates batches with rollback-safe per-surface
   assert.deepEqual(opcodes(host.packets()[7]), [8], 'surface A disposal must not affect surface B');
 });
 
-test('invisible subtrees defer unsupported wireframe resources until they become visible', () => {
+test('invisible subtrees defer wireframe resources and visible toggles preserve geometry versions', () => {
   const host = createHost();
   const T = host.THREE;
   const { renderer, scene, camera } = rendererHost(host);
@@ -467,16 +467,23 @@ test('invisible subtrees defer unsupported wireframe resources until they become
   assert.equal(only(packets[0], 4).some(command => u32(command.body, 0) === id(mesh)), false);
   assert.equal(only(packets[0], 4).some(command => u32(command.body, 0) === id(group)), false);
   group.visible = true;
-  unsupported(() => renderer.render(scene, camera), 'wireframe');
-  assert.equal(host.rawPackets.length, 1);
-  material.wireframe = false;
   renderer.render(scene, camera);
   packets = host.packets();
   assert.deepEqual(opcodes(packets[1]), [4, 1, 3, 4, 8]);
   assert.equal(renderer.info.render.calls, 1);
+  assert.equal(renderer.info.render.lines, 3);
+  assert.equal(renderer.info.render.triangles, 0);
+  material.wireframe = false;
+  renderer.render(scene, camera);
+  packets = host.packets();
+  assert.deepEqual(opcodes(packets[2]), [3, 8]);
+  assert.equal(renderer.info.render.triangles, 1);
   material.wireframe = true;
-  unsupported(() => renderer.render(scene, camera), 'wireframe');
-  assert.equal(host.rawPackets.length, 2, 'visible wireframe remains an explicit unsupported feature');
+  renderer.render(scene, camera);
+  packets = host.packets();
+  assert.deepEqual(opcodes(packets[3]), [3, 8], 'wireframe toggles retain the generated edge payload');
+  assert.equal(renderer.info.render.lines, 3);
+  assert.equal(host.rawPackets.length, 4);
 });
 
 test('manual shadow revisions are explicit and ignore ordinary scene uploads', () => {

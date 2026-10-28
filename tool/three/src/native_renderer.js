@@ -118,6 +118,40 @@ function prepareIndices(geometry, primitive, mode, vertexCount) {
   return source;
 }
 
+function prepareWireIndices(geometry, vertexCount) {
+  const source = sourceIndices(geometry, vertexCount);
+  const position = geometry.attributes.position;
+  const positionKeys = new Array(vertexCount);
+  const edges = new Set();
+  const result = [];
+  const vertexKey = index => {
+    let key = positionKeys[index];
+    if (key === undefined) {
+      key = [position.getComponent(index, 0), position.getComponent(index, 1), position.getComponent(index, 2)].join(',');
+      positionKeys[index] = key;
+    }
+    return key;
+  };
+  const addEdge = (a, b) => {
+    const aKey = vertexKey(a);
+    const bKey = vertexKey(b);
+    const key = aKey <= bKey ? `${aKey}|${bKey}` : `${bKey}|${aKey}`;
+    if (edges.has(key)) return;
+    edges.add(key);
+    result.push(a, b);
+  };
+  for (let i = 0; i < source.length; i += 3) {
+    const a = source[i];
+    const b = source[i + 1];
+    const c = source[i + 2];
+    addEdge(a, b);
+    addEdge(b, c);
+    addEdge(c, a);
+  }
+  if (result.length > 12000000) throw new Error('three.invalid: wireIndexCount exceeds 12000000');
+  return result;
+}
+
 function textureFlags(texture) {
   const nearestMin = texture.minFilter === NearestFilter || texture.minFilter === NearestMipmapNearestFilter || texture.minFilter === NearestMipmapLinearFilter;
   return (texture.colorSpace === SRGBColorSpace ? 1 : 0) |
@@ -144,12 +178,14 @@ function materialKind(material) {
   if (material.isMeshStandardMaterial && !material.isMeshPhysicalMaterial) return 2;
   if (material.isLineBasicMaterial && !material.isLineDashedMaterial) return 3;
   if (material.isPointsMaterial) return 4;
+  if (material.isMeshPhongMaterial) return 5;
   unsupported('material', material.type || 'unknown material');
 }
 
 function validateMaterial(material) {
   if (material.isShaderMaterial || material.isRawShaderMaterial) unsupported('ShaderMaterial', 'arbitrary shaders require 1B');
-  if (material.wireframe) unsupported('wireframe', 'R1 has no wireframe command');
+  if (material.wireframe && !(material.isMeshBasicMaterial || material.isMeshLambertMaterial || material.isMeshPhongMaterial || (material.isMeshStandardMaterial && !material.isMeshPhysicalMaterial))) unsupported('wireframe', 'R1 wireframe requires a mesh material');
+  if (material.wireframe && (material.wireframeLinewidth !== 1 || material.wireframeLinecap !== 'round' || material.wireframeLinejoin !== 'round')) unsupported('wireframeStyle', 'R1 supports one-pixel round wireframe lines');
   if (material.blending !== NormalBlending) unsupported('materialBlending');
   if (material.alphaHash || material.premultipliedAlpha || material.colorWrite === false || material.stencilWrite || material.polygonOffset) unsupported('materialState', 'alphaHash/premultipliedAlpha/colorWrite/stencil/polygonOffset');
   if (material.clippingPlanes && material.clippingPlanes.length) unsupported('clippingPlanes');
@@ -182,7 +218,7 @@ export class JsrWebGLRenderer {
       rawWebGL: false,
       isWebGL2: false,
       backend: 'flutterGpu',
-      features: Object.freeze({ geometry: true, textures: true, lambert: true, standard: true, rawWebGL: false, shaderMaterial: false })
+      features: Object.freeze({ geometry: true, textures: true, lambert: true, standard: true, phong: true, wireframe: true, rawWebGL: false, shaderMaterial: false })
     });
     this.outputColorSpace = SRGBColorSpace;
     this.toneMapping = NoToneMapping;
@@ -405,22 +441,29 @@ export class JsrWebGLRenderer {
     const metalness = material.metalness === undefined ? 0 : material.metalness;
     const alphaTest = material.alphaTest || 0;
     const pointSize = material.size === undefined ? 1 : material.size;
+    const specular = kind === 5 ? material.specular : null;
+    const shininess = kind === 5 ? material.shininess : 0;
     requireFinite(color.r, 'material color'); requireFinite(color.g, 'material color'); requireFinite(color.b, 'material color');
     if (!Number.isFinite(opacity) || opacity < 0 || opacity > 1 || !Number.isFinite(roughness) || roughness < 0 || roughness > 1 || !Number.isFinite(metalness) || metalness < 0 || metalness > 1 || !Number.isFinite(alphaTest) || alphaTest < 0 || alphaTest > 1 || !Number.isFinite(pointSize) || pointSize <= 0) throw new Error('three.invalid: material scalar range');
+    if (specular) {
+      requireFinite(specular.r, 'material specular'); requireFinite(specular.g, 'material specular'); requireFinite(specular.b, 'material specular');
+      if (!Number.isFinite(shininess) || shininess < 0) throw new Error('three.invalid: material shininess must be finite and nonnegative');
+    }
     const side = sideValue(material.side);
-    const flags = (material.vertexColors ? 1 : 0) | (material.flatShading ? 2 : 0) | (material.transparent ? 4 : 0) | (material.depthTest ? 8 : 0) | (material.depthWrite ? 16 : 0);
+    const flags = (material.vertexColors ? 1 : 0) | (material.flatShading ? 2 : 0) | (material.transparent ? 4 : 0) | (material.depthTest ? 8 : 0) | (material.depthWrite ? 16 : 0) | (material.wireframe ? 32 : 0);
     const signature = [kind, mapId, material.map ? this._state.textures.get(resourceId(material.map))?.version || 0 : 0,
-      flags, side, color.r, color.g, color.b, opacity, roughness, metalness, alphaTest, pointSize, material.version].join('|');
+      flags, side, color.r, color.g, color.b, opacity, roughness, metalness, alphaTest, pointSize,
+      specular ? specular.r : 0, specular ? specular.g : 0, specular ? specular.b : 0, shininess, material.version].join('|');
     const changed = this._nextVersion(this._state.materials, id, signature);
     if (changed) {
-      commands.push(materialCommand(id, changed.version, kind, mapId, flags, side, color, opacity, roughness, metalness, alphaTest, pointSize));
+      commands.push(materialCommand(id, changed.version, kind, mapId, flags, side, color, opacity, roughness, metalness, alphaTest, pointSize, specular, shininess));
       this._mapSet(this._state.materials, id, { signature, version: changed.version, object: material });
     }
     this._frameMaterials.set(id, id);
     return id;
   }
 
-  _ensureGeometry(geometry, primitive, mode, commands) {
+  _ensureGeometry(geometry, primitive, mode, commands, wireframe = false) {
     if (!geometry || !geometry.isBufferGeometry) unsupported('geometry', 'only BufferGeometry is supported');
     if (geometry.isInstancedBufferGeometry) unsupported('instancedGeometry');
     if (geometry.index && (!geometry.index.array || geometry.index.isGLBufferAttribute)) unsupported('rawGLAttribute', 'index');
@@ -432,17 +475,20 @@ export class JsrWebGLRenderer {
     const id = resourceId(geometry);
     const oldMode = this._geometryModes.get(id);
     if (oldMode && (oldMode.primitive !== primitive || oldMode.mode !== mode)) unsupported('sharedGeometryPrimitive', 'one geometry cannot be used with multiple R1 primitive modes on a surface');
+    const old = this._state.geometries.get(id);
+    const includeWire = primitive === 0 && (wireframe || (old && old.hasWireIndices));
     const frameCached = this._frameGeometries.get(id);
-    if (frameCached) return frameCached;
+    if (frameCached && (!wireframe || frameCached.hasWireIndices)) return frameCached;
     this._mapSet(this._geometryModes, id, { primitive, mode });
     this._listen(geometry, 'geometries', this._state.geometries, id);
-    const signature = geometrySignature(geometry, primitive, mode);
+    const signature = `${geometrySignature(geometry, primitive, mode)};wire:${includeWire ? 1 : 0}`;
     const changed = this._nextVersion(this._state.geometries, id, signature);
     if (!changed) {
       const cached = this._state.geometries.get(id);
       const result = {
         id, vertexCount, drawCount: cached.drawCount, indexed: cached.indexed,
-        rangeStart: cached.rangeStart, rangeCount: cached.rangeCount, sourceCount: cached.sourceCount
+        rangeStart: cached.rangeStart, rangeCount: cached.rangeCount, sourceCount: cached.sourceCount,
+        hasWireIndices: cached.hasWireIndices, wireDrawCount: cached.wireDrawCount
       };
       this._frameGeometries.set(id, result);
       return result;
@@ -455,19 +501,22 @@ export class JsrWebGLRenderer {
     };
     if (geometry.attributes.color && geometry.attributes.color.itemSize !== 3 && geometry.attributes.color.itemSize !== 4) throw new Error('three.invalid: color attribute must have 3 or 4 components');
     const indices = prepareIndices(geometry, primitive, mode, vertexCount);
+    const wireIndices = includeWire ? prepareWireIndices(geometry, vertexCount) : null;
     const indexCount = indices ? indices.length : 0;
     if (indexCount > 12000000) throw new Error('three.invalid: indexCount');
-    commands.push(geometryCommand(id, changed.version, primitive, vertexCount, attributes, indices));
+    commands.push(geometryCommand(id, changed.version, primitive, vertexCount, attributes, indices, wireIndices));
     const drawCount = indices ? indexCount : vertexCount;
     const range = sourceRange(geometry, vertexCount);
     const cached = {
       signature, version: changed.version, object: geometry, drawCount,
-      indexed: !!indices, rangeStart: range.start, rangeCount: range.count, sourceCount: range.available
+      indexed: !!indices, rangeStart: range.start, rangeCount: range.count, sourceCount: range.available,
+      hasWireIndices: !!wireIndices, wireDrawCount: wireIndices ? wireIndices.length : 0
     };
     this._mapSet(this._state.geometries, id, cached);
     const result = {
       id, vertexCount, drawCount, indexed: cached.indexed,
-      rangeStart: range.start, rangeCount: range.count, sourceCount: range.available
+      rangeStart: range.start, rangeCount: range.count, sourceCount: range.available,
+      hasWireIndices: cached.hasWireIndices, wireDrawCount: cached.wireDrawCount
     };
     this._frameGeometries.set(id, result);
     return result;
@@ -616,6 +665,7 @@ export class JsrWebGLRenderer {
     if (object.isInstancedMesh && object.count === 0) {
       if (object.userData && object.userData.jsrRetainEmptyBatch) {
         const materials = Array.isArray(object.material) ? object.material : [object.material];
+        if (materials.some(material => material.wireframe)) unsupported('wireframeBatch', 'R1 wireframe requires a single-material non-instanced Mesh');
         const geometry = this._ensureGeometry(object.geometry, 0, 'triangles', commands);
         this._ensureBatch(object, id, geometry, materials, commands);
       } else {
@@ -641,13 +691,15 @@ export class JsrWebGLRenderer {
       else if (object.isLine || object.isLineSegments) { primitive = 1; mode = object.isLineSegments ? 'lines' : 'line'; objectKind = 2; }
       if (Array.isArray(material) && primitive !== 0) unsupported('multiMaterial', 'R1 material arrays require triangle meshes');
       const materials = Array.isArray(material) ? material : [material];
-      const geometry = this._ensureGeometry(object.geometry, primitive, mode, commands);
+      const wireframe = primitive === 0 && materials.some(item => item.wireframe);
+      if (batched && wireframe) unsupported('wireframeBatch', 'R1 wireframe requires a single-material non-instanced Mesh');
+      const geometry = this._ensureGeometry(object.geometry, primitive, mode, commands, wireframe);
       if (batched) {
         batch = { geometry, materials };
       } else {
         geometryId = geometry.id;
         materialId = this._ensureMaterial(material, commands);
-        draw = { primitive, count: geometry.drawCount };
+        draw = { primitive: wireframe ? 1 : primitive, count: wireframe ? geometry.wireDrawCount : geometry.drawCount };
       }
     } else if (object.isLight || object.isCamera) {
       return null;
