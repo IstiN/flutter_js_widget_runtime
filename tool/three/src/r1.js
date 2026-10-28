@@ -206,7 +206,11 @@ export function drawBatchCommand(id, version, instanceCount, flags, parts, matri
     body.u32(part.offset);
     body.u32(part.count);
   }
-  for (let i = 0; i < matrixLength; i++) body.f32(matrices[i]);
+  if (ArrayBuffer.isView(matrices)) {
+    body.bytes(new Uint8Array(matrices.buffer, matrices.byteOffset, matrixLength * 4));
+  } else {
+    for (let i = 0; i < matrixLength; i++) body.f32(matrices[i]);
+  }
   return command(OPCODE.DRAW_BATCH, body.finish());
 }
 
@@ -243,8 +247,13 @@ export function lightCommand(id, type, color, intensity, position, direction) {
   return command(OPCODE.LIGHT, body.finish());
 }
 
-export function frameCommand(sceneId, cameraId, background, exposure, fog, shadow = NO_SHADOW, culledNodeIds = []) {
-  const body = new ByteWriter(136 + (culledNodeIds.length ? 4 + culledNodeIds.length * 4 : 0));
+export function frameCommand(sceneId, cameraId, background, exposure, fog, shadow = NO_SHADOW, culledNodeIds = [], culledShadowNodeIds = []) {
+  const hasContentRevision = shadow.contentRevision !== undefined;
+  const hasOptionalIds = culledNodeIds.length || culledShadowNodeIds.length || hasContentRevision;
+  const optionalLength = (hasOptionalIds ? 4 + culledNodeIds.length * 4 : 0) +
+    (culledShadowNodeIds.length || hasContentRevision ? 4 + culledShadowNodeIds.length * 4 : 0) +
+    (hasContentRevision ? 4 : 0);
+  const body = new ByteWriter(136 + optionalLength);
   body.u32(sceneId);
   body.u32(cameraId);
   body.f32(background.r);
@@ -264,10 +273,15 @@ export function frameCommand(sceneId, cameraId, background, exposure, fog, shado
   body.f32(shadow.normalBias);
   body.f32(shadow.radius);
   body.floats(shadow.matrix.elements || shadow.matrix);
-  if (culledNodeIds.length) {
+  if (hasOptionalIds) {
     body.u32(culledNodeIds.length);
     for (const id of culledNodeIds) body.u32(id);
   }
+  if (culledShadowNodeIds.length || hasContentRevision) {
+    body.u32(culledShadowNodeIds.length);
+    for (const id of culledShadowNodeIds) body.u32(id);
+  }
+  if (hasContentRevision) body.u32(shadow.contentRevision);
   return command(OPCODE.FRAME, body.finish());
 }
 

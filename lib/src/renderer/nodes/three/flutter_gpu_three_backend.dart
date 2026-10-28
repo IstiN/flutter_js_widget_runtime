@@ -3,6 +3,7 @@ import 'dart:math' as math;
 import 'dart:typed_data';
 import 'dart:ui' as ui;
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter_gpu/gpu.dart' as gpu;
 import 'package:js_widget_runtime/src/renderer/nodes/three/js_three_protocol.dart';
 import 'package:js_widget_runtime/src/renderer/nodes/three/js_three_state.dart';
@@ -11,6 +12,18 @@ import 'package:meta/meta.dart';
 import 'package:vector_math/vector_math.dart' as vm;
 
 part 'gpu/three_gpu_resources.dart';
+
+const _threeShadowTrace = bool.fromEnvironment('JSR_THREE_SHADOW_TRACE');
+
+void _traceThreeShadow(String message) {
+  if (_threeShadowTrace) debugPrint('[three-shadow-trace] $message');
+}
+
+String _threeShadowMatrixSummary(Float32List matrix) =>
+    '[${matrix[0].toStringAsFixed(5)}, ${matrix[5].toStringAsFixed(5)}, '
+    '${matrix[10].toStringAsFixed(5)}; '
+    '${matrix[12].toStringAsFixed(5)}, ${matrix[13].toStringAsFixed(5)}, '
+    '${matrix[14].toStringAsFixed(5)}]';
 
 final class FlutterGpuThreeException implements Exception {
   const FlutterGpuThreeException(this.capability, this.detail);
@@ -884,9 +897,13 @@ void _submitThreeFrame(
   gpu.CommandBuffer command,
 ) {
   backend._pendingPresentations++;
+  final sequence = backend._lastSequence;
+  _traceThreeShadow('main submit sequence=$sequence');
   command.submit(
-    completionCallback: (success) =>
-        _threePresentationCompleted(backend, success),
+    completionCallback: (success) {
+      _traceThreeShadow('main complete sequence=$sequence success=$success');
+      _threePresentationCompleted(backend, success);
+    },
   );
 }
 
@@ -894,9 +911,14 @@ void _submitThreeShadow(
   FlutterGpuThreeBackend backend,
   gpu.CommandBuffer command,
 ) {
+  final sequence = backend._lastSequence;
+  _traceThreeShadow('shadow submit sequence=$sequence');
   command.submit(
     completionCallback: (success) {
+      _traceThreeShadow('shadow complete sequence=$sequence success=$success');
       if (!success) {
+        backend._shadowMapValid = false;
+        backend._cachedShadowKey = null;
         backend._failedPresentationCount++;
         backend._note('shadow command buffer completion reported failure');
       }
@@ -907,6 +929,8 @@ void _submitThreeShadow(
 void _threePresentationCompleted(FlutterGpuThreeBackend backend, bool success) {
   if (backend._pendingPresentations > 0) backend._pendingPresentations--;
   if (!success) {
+    backend._shadowMapValid = false;
+    backend._cachedShadowKey = null;
     backend._failedPresentationCount++;
     backend._note('GPU command buffer completion reported failure');
   }
@@ -1065,8 +1089,10 @@ final class _ThreeFrameEncoder {
   }
 
   int _recordShadowDraws(gpu.RenderPass pass, gpu.UniformSlot vertexSlot) {
+    final frame = plan.frame!;
     var recordedDraws = 0;
     for (final draw in plan.draws) {
+      if (frame.culledShadowNodeIds.contains(draw.node.nodeId)) continue;
       recordedDraws += _recordShadowDraw(pass, vertexSlot, draw);
     }
     return recordedDraws;
@@ -1305,7 +1331,7 @@ final class ThreeShadowCacheKey {
     JsThreeSubmitFrame frame,
     int contentRevision,
   ) => ThreeShadowCacheKey(
-    contentRevision: contentRevision,
+    contentRevision: frame.shadowContentRevision ?? contentRevision,
     width: frame.shadowMapWidth,
     height: frame.shadowMapHeight,
     bias: frame.shadowBias,
@@ -1415,6 +1441,22 @@ gpu.BufferView _bindThreeUniform(
   return view;
 }
 
+/// Converts the WebGL-style shadow UV matrix to Flutter GPU render-target UVs.
+///
+/// Impeller render targets have a top-left texel origin. Shadow rendering uses
+/// the original matrix to produce clip coordinates; only the sampling matrix
+/// used by the main pass flips V. Keeping the two matrices identical makes a
+/// moving shadow camera sample a mirrored, incorrectly translated depth map.
+@visibleForTesting
+Float32List threeShadowSamplingMatrix(List<double> matrix) {
+  final result = Float32List.fromList(matrix);
+  result[1] = -result[1];
+  result[5] = -result[5];
+  result[9] = -result[9];
+  result[13] = 1 - result[13];
+  return result;
+}
+
 ByteData _threeVertexUniform(
   ThreeDrawItem draw,
   ThreeDrawPlan plan,
@@ -1433,7 +1475,10 @@ ByteData _threeVertexUniform(
     0,
     0,
   ]);
-  _writeFloats(data, 208, frame.shadowMatrix);
+  final shadowMatrix = shadowPass
+      ? frame.shadowMatrix
+      : threeShadowSamplingMatrix(frame.shadowMatrix);
+  _writeFloats(data, 208, shadowMatrix);
   _writeFloats(data, 272, [frame.shadowNormalBias, 0, 0, 0]);
   return data;
 }
@@ -1697,11 +1742,13 @@ final class FlutterGpuThreeBackend {
     'resizes': _resizeCount,
     'pendingPresentations': _pendingPresentations,
     'failedPresentations': _failedPresentationCount,
+    'surfaceBackingTextures': _imageSurface?.debugBackingTextureCount ?? 0,
     'lastSequence': _lastSequence,
     'width': _width,
     'height': _height,
     'lastPlannedOpaqueDraws': _lastPlan?.opaque.length ?? 0,
     'lastPlannedTransparentDraws': _lastPlan?.transparent.length ?? 0,
+    'lastCulledShadowNodes': _lastPlan?.frame?.culledShadowNodeIds.length ?? 0,
     'lastDroppedDirectionalLights':
         _lastPlan?.diagnostics.droppedDirectionalLightCount ?? 0,
     'lastDroppedPointLights':
@@ -1793,20 +1840,16 @@ final class FlutterGpuThreeBackend {
     }
   }
 
-  List<JsThreeDrawBatchUpsert> _activeBatches(JsThreeSurfaceState state) => [
-    for (final source in state.batches.values)
-      if (source.instanced && source.instanceCount != 0) source,
-  ];
-
   void _synchronizeBatches(JsThreeSurfaceState state) {
-    final active = _activeBatches(state);
     _reconcileThreeRemoved(
       _batches,
-      active.map((source) => source.nodeId),
+      state.batches.keys,
       onRemove: () => _batchEvictionCount++,
     );
-    for (final source in active) {
-      _synchronizeThreeBatch(this, source);
+    for (final source in state.batches.values) {
+      // A retained empty batch is a cache transition, not a GPU disposal.
+      // Draw planning already excludes its ordinary zero-geometry node.
+      if (source.instanceCount != 0) _synchronizeThreeBatch(this, source);
     }
   }
 
@@ -1858,7 +1901,14 @@ final class FlutterGpuThreeBackend {
     int contentRevision,
   ) {
     if (!frame.hasShadow) return;
-    if (!_shadowNeedsUpdate(frame, contentRevision)) {
+    final needsUpdate = _shadowNeedsUpdate(frame, contentRevision);
+    _traceThreeShadow(
+      'frame sequence=$_lastSequence revision=${frame.shadowContentRevision} '
+      'content=$contentRevision update=$needsUpdate '
+      'matrix=${_threeShadowMatrixSummary(frame.shadowMatrix)} '
+      'culled=${frame.culledShadowNodeIds.length}',
+    );
+    if (!needsUpdate) {
       _shadowFrameActive = true;
       _shadowCacheHitCount++;
       return;
@@ -1871,10 +1921,12 @@ final class FlutterGpuThreeBackend {
     JsThreeSubmitFrame frame,
     int contentRevision,
   ) {
-    final shadowCommand = _context.createCommandBuffer();
-    _renderedShadowDrawCount += encoder.recordShadow(shadowCommand);
+    final command = _context.createCommandBuffer();
+    final draws = encoder.recordShadow(command);
+    _renderedShadowDrawCount += draws;
+    _traceThreeShadow('shadow recorded sequence=$_lastSequence draws=$draws');
     if (!_shadowFrameActive) return;
-    _submitThreeShadow(this, shadowCommand);
+    _submitThreeShadow(this, command);
     _cacheShadow(frame, contentRevision);
   }
 

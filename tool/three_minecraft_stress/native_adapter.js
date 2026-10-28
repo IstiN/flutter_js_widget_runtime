@@ -44,6 +44,12 @@ const input = {
   rawPointerLock: false, rawDeltaPolls: 0, rawDeltaEvents: 0
 };
 const idle = { scheduled: 0, executed: 0, pending: 0, cancelled: 0 };
+const chunkGeneration = { generated: 0, totalMs: 0, maxMs: 0, lastMs: 0 };
+const chunkPhases = {};
+const frameTimings = {
+  frames: 0, totalFrameMs: 0, maxFrameMs: 0,
+  totalRenderMs: 0, maxRenderMs: 0, lastLogAt: 0
+};
 const blobStats = { created: 0, revoked: 0, evicted: 0, active: 0, limit: MAX_BLOB_URLS };
 const storageDiagnostics = { writes: 0, writeThroughErrors: 0 };
 const preparedUrls = Object.keys(ASSETS).sort();
@@ -606,8 +612,67 @@ function findWorld(value) {
   return value.children.find(child => typeof child.drawDistance === 'number' && typeof child.generate === 'function') || null;
 }
 
+export function reportStressTiming(milliseconds) {
+  const elapsed = Number.isFinite(milliseconds) ? milliseconds : 0;
+  frameTimings.totalRenderMs += elapsed;
+  frameTimings.maxRenderMs = Math.max(frameTimings.maxRenderMs, elapsed);
+}
+
+function maybeLogFrameTimings() {
+  const time = performance.now();
+  if (time - frameTimings.lastLogAt < 4000) return;
+  frameTimings.lastLogAt = time;
+  if (frameTimings.frames > 0) {
+    console.log(`${ID}: timings ${JSON.stringify({
+      frames: frameTimings.frames,
+      averageFrameMs: frameTimings.totalFrameMs / frameTimings.frames,
+      maxFrameMs: frameTimings.maxFrameMs,
+      averageNativeRenderMs: frameTimings.totalRenderMs / frameTimings.frames,
+      maxNativeRenderMs: frameTimings.maxRenderMs,
+      position: camera ? [camera.position.x, camera.position.y, camera.position.z].map(value => Math.round(value * 100) / 100) : null,
+      merge: renderer && renderer._globalBatchMergeJob ? {
+        region: renderer._globalBatchMergeJob.regionKey,
+        index: renderer._globalBatchMergeJob.index,
+        chunks: renderer._globalBatchMergeJob.chunks.length
+      } : null,
+      overlayRegions: renderer ? renderer._globalBatchOverlayRegions.size : 0,
+      stableRegions: renderer ? renderer._globalBatchRegionChunks.size : 0
+    })}`);
+  }
+  frameTimings.frames = 0;
+  frameTimings.totalFrameMs = 0;
+  frameTimings.maxFrameMs = 0;
+  frameTimings.totalRenderMs = 0;
+  frameTimings.maxRenderMs = 0;
+}
+
+export function reportChunkPhase(name, milliseconds) {
+  const elapsed = Number.isFinite(milliseconds) ? milliseconds : 0;
+  const phase = chunkPhases[name] || (chunkPhases[name] = { calls: 0, totalMs: 0, maxMs: 0, lastMs: 0 });
+  phase.calls++;
+  phase.totalMs += elapsed;
+  phase.lastMs = elapsed;
+  phase.maxMs = Math.max(phase.maxMs, elapsed);
+}
+
+export function reportChunkGeneration(milliseconds, chunk) {
+  const elapsed = Number.isFinite(milliseconds) ? milliseconds : 0;
+  chunkGeneration.generated++;
+  chunkGeneration.totalMs += elapsed;
+  chunkGeneration.lastMs = elapsed;
+  chunkGeneration.maxMs = Math.max(chunkGeneration.maxMs, elapsed);
+  const position = chunk && chunk.userData || {};
+  console.log(`${ID}: chunk.generate ${elapsed.toFixed(1)}ms at X:${position.x} Z:${position.z} phases=${JSON.stringify(chunkPhases)}`);
+}
+
 export function reportStats(value) {
   stats = value;
+  if (value.phase === 'update') {
+    const elapsed = Number.isFinite(value.frameTimeMs) ? value.frameTimeMs : 0;
+    frameTimings.frames++;
+    frameTimings.totalFrameMs += elapsed;
+    frameTimings.maxFrameMs = Math.max(frameTimings.maxFrameMs, elapsed);
+  }
   publishDiagnostics();
 }
 
@@ -617,6 +682,7 @@ export function reportUi(value) {
 }
 
 export function reportStressRender(value, sceneValue, cameraValue, degradation) {
+  maybeLogFrameTimings();
   renderer = value;
   scene = sceneValue;
   camera = cameraValue;
@@ -671,6 +737,8 @@ export function publishDiagnostics() {
       activeRegistered: runtime.assets.size, embeddedBlobs: Object.assign({}, blobStats)
     },
     idle: Object.assign({}, idle),
+    chunkGeneration: Object.assign({}, chunkGeneration),
+    chunkPhases: JSON.parse(JSON.stringify(chunkPhases)),
     input: Object.assign({}, input, {
       locked: documentFacade.pointerLockElement === body,
       pointerLockElement: documentFacade.pointerLockElement === body ? 'document.body' : null,

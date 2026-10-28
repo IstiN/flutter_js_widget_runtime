@@ -194,7 +194,10 @@ export class JsrWebGLRenderer {
     this.sortObjects = true;
     this.clippingPlanes = [];
     this.localClippingEnabled = false;
-    this.shadowMap = { enabled: false };
+    this.shadowMap = { enabled: false, autoUpdate: true, needsUpdate: false };
+    this._manualShadowRevision = 0;
+    this._shadowCullingKey = null;
+    this._cachedCulledShadowNodeIds = [];
     this.xr = { enabled: false };
     this.info = {
       autoReset: true,
@@ -276,21 +279,48 @@ export class JsrWebGLRenderer {
     this._animationHandle = this.runtime.requestAnimationFrame(tick);
   }
 
+  _mapSet(map, id, value) {
+    const transaction = this._transaction;
+    if (transaction) {
+      let entries = transaction.get(map);
+      if (!entries) {
+        entries = new Map();
+        transaction.set(map, entries);
+      }
+      if (!entries.has(id)) entries.set(id, [map.has(id), map.get(id)]);
+    }
+    map.set(id, value);
+  }
+
+  _mapDelete(map, id) {
+    const transaction = this._transaction;
+    if (transaction) {
+      let entries = transaction.get(map);
+      if (!entries) {
+        entries = new Map();
+        transaction.set(map, entries);
+      }
+      if (!entries.has(id)) entries.set(id, [map.has(id), map.get(id)]);
+    }
+    return map.delete(id);
+  }
+
   _listen(resource, type, map, id) {
     if (!resource || !resource.addEventListener || this._resources.has(resource)) return;
     const kinds = { geometries: RESOURCE_KIND.geometry, textures: RESOURCE_KIND.texture, materials: RESOURCE_KIND.material, nodes: RESOURCE_KIND.node };
     const listener = () => {
       this._unlisten(resource);
-      if (type === 'geometries') this._geometryModes.delete(id);
+      if (type === 'geometries') this._mapDelete(this._geometryModes, id);
       if (this._state[type].has(id)) {
-        this._state[type].delete(id);
+        this._mapDelete(this._state[type], id);
         const item = { id, kind: kinds[type] };
-        if (type === 'nodes' && this._state.batches.delete(id)) item.batch = true;
+        if (type === 'nodes' && this._mapDelete(this._state.batches, id)) item.batch = true;
         this._pendingDisposals.push(item);
       }
     };
     resource.addEventListener('dispose', listener);
     this._resources.set(resource, { type, id, listener });
+    if (this._transactionListens) this._transactionListens.push(resource);
   }
 
   _unlisten(resource) {
@@ -356,7 +386,7 @@ export class JsrWebGLRenderer {
     } else if (encoding !== 1 && encoding !== 2) unsupported('textureEncoding', encoding);
     if (encoding !== 0 && bytes.length === 0) throw new Error('three.invalid: encoded texture bytes must be nonempty');
     commands.push(textureCommand(id, changed.version, width, height, encoding, textureFlags(texture), bytes));
-    this._state.textures.set(id, { signature, version: changed.version, object: texture });
+    this._mapSet(this._state.textures, id, { signature, version: changed.version, object: texture });
     this._frameTextures.set(id, id);
     return id;
   }
@@ -384,7 +414,7 @@ export class JsrWebGLRenderer {
     const changed = this._nextVersion(this._state.materials, id, signature);
     if (changed) {
       commands.push(materialCommand(id, changed.version, kind, mapId, flags, side, color, opacity, roughness, metalness, alphaTest, pointSize));
-      this._state.materials.set(id, { signature, version: changed.version, object: material });
+      this._mapSet(this._state.materials, id, { signature, version: changed.version, object: material });
     }
     this._frameMaterials.set(id, id);
     return id;
@@ -404,7 +434,7 @@ export class JsrWebGLRenderer {
     if (oldMode && (oldMode.primitive !== primitive || oldMode.mode !== mode)) unsupported('sharedGeometryPrimitive', 'one geometry cannot be used with multiple R1 primitive modes on a surface');
     const frameCached = this._frameGeometries.get(id);
     if (frameCached) return frameCached;
-    this._geometryModes.set(id, { primitive, mode });
+    this._mapSet(this._geometryModes, id, { primitive, mode });
     this._listen(geometry, 'geometries', this._state.geometries, id);
     const signature = geometrySignature(geometry, primitive, mode);
     const changed = this._nextVersion(this._state.geometries, id, signature);
@@ -434,7 +464,7 @@ export class JsrWebGLRenderer {
       signature, version: changed.version, object: geometry, drawCount,
       indexed: !!indices, rangeStart: range.start, rangeCount: range.count, sourceCount: range.available
     };
-    this._state.geometries.set(id, cached);
+    this._mapSet(this._state.geometries, id, cached);
     const result = {
       id, vertexCount, drawCount, indexed: cached.indexed,
       rangeStart: range.start, rangeCount: range.count, sourceCount: range.available
@@ -445,7 +475,6 @@ export class JsrWebGLRenderer {
 
   _updateNode(object, id, parentId, geometryId, materialId, visible, objectKind, commands) {
     const matrix = object.matrixWorld;
-    finiteArray(matrix.elements, 'matrixWorld');
     const castShadow = object.castShadow === true;
     const receiveShadow = object.receiveShadow === true;
     const old = this._state.nodes.get(id);
@@ -455,8 +484,9 @@ export class JsrWebGLRenderer {
       old.castShadow === castShadow && old.receiveShadow === receiveShadow &&
       cachedMatrixEquals(old.matrix, matrix);
     if (!unchanged) {
+      finiteArray(matrix.elements, 'matrixWorld');
       commands.push(nodeCommand(id, parentId, geometryId, materialId, visible, objectKind, matrix, { cast: castShadow, receive: receiveShadow }));
-      this._state.nodes.set(id, {
+      this._mapSet(this._state.nodes, id, {
         parentId, geometryId, materialId, visible, objectKind,
         castShadow, receiveShadow, matrix: matrix.elements.slice(), object
       });
@@ -464,7 +494,7 @@ export class JsrWebGLRenderer {
   }
 
   _removeBatch(id, commands) {
-    if (!this._state.batches.delete(id)) return;
+    if (!this._mapDelete(this._state.batches, id)) return;
     commands.push(removeBatchCommand(id));
   }
 
@@ -522,8 +552,31 @@ export class JsrWebGLRenderer {
     return parts;
   }
 
-  _ensureBatch(object, id, geometry, materials, instance, commands) {
-    const parts = this._ensureBatchParts(object, geometry, materials, commands);
+  _ensureBatch(object, id, geometry, materials, commands) {
+    const simpleInstanced = object.isInstancedMesh && !Array.isArray(object.material);
+    const instance = object.isInstancedMesh ? this._instanceData(object, materials) : null;
+    let simpleMaterialId = 0;
+    const previous = this._state.batches.get(id);
+    if (simpleInstanced) {
+      simpleMaterialId = this._ensureMaterial(materials[0], commands);
+      const attribute = object.instanceMatrix;
+      const geometryState = this._state.geometries.get(geometry.id);
+      const materialState = this._state.materials.get(simpleMaterialId);
+      if (previous && previous.simpleInstanced && previous.object === object &&
+          previous.geometry === object.geometry && previous.geometryVersion === geometryState.version &&
+          previous.material === materials[0] && previous.materialVersion === materialState.version &&
+          previous.instanceMatrix === attribute && previous.instanceVersion === attribute.version &&
+          previous.instanceAttributeCount === attribute.count && previous.instanceArray === attribute.array &&
+          previous.instanceCount === object.count && previous.parts.length === 1 &&
+          previous.parts[0].geometryId === geometry.id && previous.parts[0].materialId === simpleMaterialId &&
+          previous.parts[0].offset === 0 && previous.parts[0].count === geometry.drawCount) {
+        this._listen(object, 'nodes', this._state.nodes, id);
+        return { primitive: 0, parts: previous.parts, instanceCount: object.count };
+      }
+    }
+    const parts = simpleInstanced ? [{
+      geometryId: geometry.id, materialId: simpleMaterialId, offset: 0, count: geometry.drawCount
+    }] : this._ensureBatchParts(object, geometry, materials, commands);
     const partSignature = parts.map(part => [part.geometryId, part.materialId, part.offset, part.count].join(':')).join('|');
     const signature = `${instance ? `1:${instance.count}:${instance.signature}` : '0:1:-'};${partSignature}`;
     const changed = this._nextVersion(this._state.batches, id, signature);
@@ -533,7 +586,17 @@ export class JsrWebGLRenderer {
       }
       const count = instance ? instance.count : 1;
       commands.push(drawBatchCommand(id, changed.version, count, instance ? 1 : 0, parts, instance ? instance.array : null));
-      this._state.batches.set(id, { signature, version: changed.version, object });
+      this._mapSet(this._state.batches, id, {
+        signature, version: changed.version, object, parts, simpleInstanced,
+        geometry: object.geometry, geometryVersion: this._state.geometries.get(geometry.id).version,
+        material: simpleInstanced ? materials[0] : null,
+        materialVersion: simpleInstanced ? this._state.materials.get(simpleMaterialId).version : 0,
+        instanceMatrix: instance ? object.instanceMatrix : null,
+        instanceVersion: instance ? object.instanceMatrix.version : 0,
+        instanceAttributeCount: instance ? object.instanceMatrix.count : 0,
+        instanceArray: instance ? instance.array : null,
+        instanceCount: instance ? instance.count : 0
+      });
     }
     this._listen(object, 'nodes', this._state.nodes, id);
     return { primitive: 0, parts, instanceCount: instance ? instance.count : 1 };
@@ -548,6 +611,17 @@ export class JsrWebGLRenderer {
       const objectKind = object.isMesh ? 1 : (object.isPoints ? 3 : ((object.isLine || object.isLineSegments) ? 2 : 0));
       if (!batched) this._removeBatch(id, commands);
       this._updateNode(object, id, parentId, 0, 0, visible, objectKind, commands);
+      return { id, draw: null };
+    }
+    if (object.isInstancedMesh && object.count === 0) {
+      if (object.userData && object.userData.jsrRetainEmptyBatch) {
+        const materials = Array.isArray(object.material) ? object.material : [object.material];
+        const geometry = this._ensureGeometry(object.geometry, 0, 'triangles', commands);
+        this._ensureBatch(object, id, geometry, materials, commands);
+      } else {
+        this._removeBatch(id, commands);
+      }
+      this._updateNode(object, id, parentId, 0, 0, visible, 1, commands);
       return { id, draw: null };
     }
     let geometryId = 0;
@@ -567,10 +641,9 @@ export class JsrWebGLRenderer {
       else if (object.isLine || object.isLineSegments) { primitive = 1; mode = object.isLineSegments ? 'lines' : 'line'; objectKind = 2; }
       if (Array.isArray(material) && primitive !== 0) unsupported('multiMaterial', 'R1 material arrays require triangle meshes');
       const materials = Array.isArray(material) ? material : [material];
-      const instance = object.isInstancedMesh ? this._instanceData(object, materials) : null;
       const geometry = this._ensureGeometry(object.geometry, primitive, mode, commands);
       if (batched) {
-        batch = { geometry, materials, instance };
+        batch = { geometry, materials };
       } else {
         geometryId = geometry.id;
         materialId = this._ensureMaterial(material, commands);
@@ -583,7 +656,7 @@ export class JsrWebGLRenderer {
     }
     if (!batched) this._removeBatch(id, commands);
     this._updateNode(object, id, parentId, geometryId, materialId, visible, objectKind, commands);
-    if (batch) draw = this._ensureBatch(object, id, batch.geometry, batch.materials, batch.instance, commands);
+    if (batch) draw = this._ensureBatch(object, id, batch.geometry, batch.materials, commands);
     return { id, draw };
   }
 
@@ -608,7 +681,7 @@ export class JsrWebGLRenderer {
       if (!Number.isFinite(light.intensity) || light.intensity < 0) throw new Error('three.invalid: light intensity');
       finiteArray([light.color.r, light.color.g, light.color.b, _position.x, _position.y, _position.z, _direction.x, _direction.y, _direction.z], 'light');
       commands.push(lightCommand(id, type, light.color, light.intensity, _position, _direction));
-      this._state.lights.set(id, { signature, object: light });
+      this._mapSet(this._state.lights, id, { signature, object: light });
     }
     return id;
   }
@@ -623,7 +696,7 @@ export class JsrWebGLRenderer {
     const old = this._state.cameras.get(id);
     if (!old || old.signature !== signature) {
       commands.push(cameraCommand(id, camera.isPerspectiveCamera ? 0 : 1, camera.matrixWorldInverse, camera.projectionMatrix, camera.matrixWorld));
-      this._state.cameras.set(id, { signature, object: camera });
+      this._mapSet(this._state.cameras, id, { signature, object: camera });
     }
     return id;
   }
@@ -646,12 +719,8 @@ export class JsrWebGLRenderer {
     return { mode: 1, color: fog.color, near: fog.near, far: fog.far };
   }
 
-  _shadow(scene) {
+  _shadow(scene, light) {
     if (!this.shadowMap.enabled) return NO_SHADOW;
-    let light = null;
-    scene.traverse(object => {
-      if (!light && object.isDirectionalLight && object.visible && object.castShadow) light = object;
-    });
     if (!light || !light.shadow || !light.shadow.camera || !light.shadow.mapSize) return NO_SHADOW;
     const shadow = light.shadow;
     const width = Math.floor(shadow.mapSize.x);
@@ -659,9 +728,24 @@ export class JsrWebGLRenderer {
     light.target.updateMatrixWorld(true);
     shadow.camera.updateProjectionMatrix();
     shadow.updateMatrices(light);
+    const manual = this.shadowMap.autoUpdate === false;
+    if (manual && this.shadowMap.needsUpdate === true) {
+      this._manualShadowRevision = (this._manualShadowRevision + 1) >>> 0;
+      if (this._manualShadowRevision === 0) this._manualShadowRevision = 1;
+      this.shadowMap.needsUpdate = false;
+    }
+    let refreshCulling = true;
+    if (manual) {
+      const key = this._manualShadowRevision + '|' + width + '|' + height + '|' +
+        shadow.bias + '|' + shadow.normalBias + '|' + shadow.matrix.elements.join(',');
+      refreshCulling = key !== this._shadowCullingKey;
+      this._shadowCullingKey = key;
+    }
     return {
       width, height, bias: shadow.bias, normalBias: shadow.normalBias,
-      radius: shadow.radius, matrix: shadow.matrix
+      radius: shadow.radius, matrix: shadow.matrix, camera: shadow.camera,
+      contentRevision: manual ? this._manualShadowRevision : undefined,
+      refreshCulling
     };
   }
 
@@ -674,24 +758,30 @@ export class JsrWebGLRenderer {
   }
 
   render(scene, camera) {
-    const previous = this._state;
     const previousPending = this._pendingDisposals.slice();
-    const previousModes = this._geometryModes;
-    this._state = {
-      sequence: previous.sequence,
-      geometries: new Map(previous.geometries), textures: new Map(previous.textures),
-      materials: new Map(previous.materials), nodes: new Map(previous.nodes),
-      batches: new Map(previous.batches), lights: new Map(previous.lights), cameras: new Map(previous.cameras)
-    };
-    this._geometryModes = new Map(previousModes);
+    const previousSequence = this._state.sequence;
+    this._transaction = new Map();
+    this._transactionListens = [];
     try {
       const result = this._render(scene, camera);
+      this._transaction = null;
+      this._transactionListens = null;
       this.domElement._r1State = this._state;
       return result;
     } catch (error) {
-      this._state = previous;
+      const transaction = this._transaction;
+      const listened = this._transactionListens;
+      this._transaction = null;
+      this._transactionListens = null;
+      for (const resource of listened) this._unlisten(resource);
+      for (const [map, entries] of transaction) {
+        for (const [id, previous] of entries) {
+          if (previous[0]) map.set(id, previous[1]);
+          else map.delete(id);
+        }
+      }
+      this._state.sequence = previousSequence;
       this._pendingDisposals = previousPending;
-      this._geometryModes = previousModes;
       throw error;
     }
   }
@@ -722,6 +812,7 @@ export class JsrWebGLRenderer {
     }
     const seenNodes = new Set();
     const seenLights = new Set();
+    let shadowLight = null;
     const retiredNodes = [];
     const parents = new Map();
     const drawVisibility = new Map();
@@ -730,23 +821,34 @@ export class JsrWebGLRenderer {
     let lines = 0;
     let points = 0;
     const culledNodeIds = [];
+    const shadowCandidates = [];
     _frustumMatrix.multiplyMatrices(camera.projectionMatrix, camera.matrixWorldInverse);
     _frustum.setFromProjectionMatrix(_frustumMatrix);
-    scene.traverse(object => {
+    scene.traverseVisible(object => {
       const parentVisible = object.parent ? (drawVisibility.get(object.parent) ?? true) : true;
       const visibleHere = parentVisible && !!object.visible && (!object.material || object.material.visible !== false);
       drawVisibility.set(object, visibleHere);
       if (object.isLight) {
         if (object.visible) seenLights.add(this._ensureLight(object, commands));
+        if (!shadowLight && object.isDirectionalLight && object.visible && object.castShadow) {
+          shadowLight = object;
+        }
         parents.set(object, parents.get(object.parent) || 0);
         return;
       }
       if (object.isCamera) { parents.set(object, parents.get(object.parent) || 0); return; }
       const parentId = parents.get(object.parent) || 0;
+      if (!visibleHere) {
+        // Hidden source/reference meshes must not become permanent zero-draw
+        // native nodes. Existing nodes retire once below; re-showing recreates.
+        parents.set(object, parentId);
+        return;
+      }
       const result = this._ensureNode(object, parentId, commands, visibleHere);
       if (result) {
         seenNodes.add(result.id);
         parents.set(object, result.id);
+        if (result.draw && object.castShadow) shadowCandidates.push(object);
         const culled = result.draw && object.frustumCulled && !_frustum.intersectsObject(object);
         if (culled) culledNodeIds.push(result.id);
         if (!culled && result.draw && result.draw.parts) {
@@ -769,23 +871,35 @@ export class JsrWebGLRenderer {
       if (!seenNodes.has(id)) {
         this._removeBatch(id, commands);
         commands.push(removeNodeCommand(id));
-        this._state.nodes.delete(id);
+        this._mapDelete(this._state.nodes, id);
         retiredNodes.push(node.object);
       }
     }
     for (const [id] of this._state.lights) {
       if (!seenLights.has(id)) {
         commands.push(disposeResourceCommand(id, RESOURCE_KIND.light));
-        this._state.lights.delete(id);
+        this._mapDelete(this._state.lights, id);
       }
     }
     const cameraId = this._ensureCamera(camera, commands);
     const background = this._background(scene);
     const fog = this._fog(scene);
-    const shadow = this._shadow(scene);
+    const shadow = this._shadow(scene, shadowLight);
+    const culledShadowNodeIds = shadow.camera && shadow.refreshCulling === false
+      ? this._cachedCulledShadowNodeIds : [];
+    if (shadow.camera && shadow.refreshCulling !== false) {
+      _frustumMatrix.multiplyMatrices(shadow.camera.projectionMatrix, shadow.camera.matrixWorldInverse);
+      _frustum.setFromProjectionMatrix(_frustumMatrix);
+      for (const object of shadowCandidates) {
+        if (object.frustumCulled && !_frustum.intersectsObject(object)) {
+          culledShadowNodeIds.push(resourceId(object));
+        }
+      }
+      this._cachedCulledShadowNodeIds = culledShadowNodeIds;
+    }
     if (!Number.isFinite(this.toneMappingExposure) || this.toneMappingExposure <= 0) throw new Error('three.invalid: exposure must be positive finite');
     finiteArray([background.r, background.g, background.b, background.a], 'background');
-    commands.push(frameCommand(resourceId(scene), cameraId, background, this.toneMappingExposure, fog, shadow, culledNodeIds));
+    commands.push(frameCommand(resourceId(scene), cameraId, background, this.toneMappingExposure, fog, shadow, culledNodeIds, culledShadowNodeIds));
     this._emit(commands);
     for (const object of retiredNodes) this._unlisten(object);
     this.info.render.frame++;

@@ -244,10 +244,15 @@ Uint8List _frame({
   int shadowWidth = 0,
   int shadowHeight = 0,
   List<int> culledNodeIds = const [],
+  List<int> culledShadowNodeIds = const [],
 }) {
-  final out = Uint8List(
-    136 + (culledNodeIds.isEmpty ? 0 : 4 + culledNodeIds.length * 4),
-  );
+  final mainLength = culledNodeIds.isEmpty && culledShadowNodeIds.isEmpty
+      ? 0
+      : 4 + culledNodeIds.length * 4;
+  final shadowLength = culledShadowNodeIds.isEmpty
+      ? 0
+      : 4 + culledShadowNodeIds.length * 4;
+  final out = Uint8List(136 + mainLength + shadowLength);
   _u32(out, 0, scene);
   _u32(out, 4, camera);
   _f32(out, 8, 0.1);
@@ -269,10 +274,17 @@ Uint8List _frame({
   for (final index in [0, 5, 10, 15]) {
     _f32(out, 72 + index * 4, 1);
   }
-  if (culledNodeIds.isNotEmpty) {
+  if (culledNodeIds.isNotEmpty || culledShadowNodeIds.isNotEmpty) {
     _u32(out, 136, culledNodeIds.length);
     for (var index = 0; index < culledNodeIds.length; index++) {
       _u32(out, 140 + index * 4, culledNodeIds[index]);
+    }
+  }
+  if (culledShadowNodeIds.isNotEmpty) {
+    final offset = 136 + mainLength;
+    _u32(out, offset, culledShadowNodeIds.length);
+    for (var index = 0; index < culledShadowNodeIds.length; index++) {
+      _u32(out, offset + 4 + index * 4, culledShadowNodeIds[index]);
     }
   }
   return out;
@@ -526,18 +538,38 @@ void main() {
     _bad(() => _decoder.decodeR1(_r1([(8, noRadius)])));
   });
 
-  test('frame decodes main-camera culled node ids', () {
+  test('frame decodes independent main and shadow culled node ids', () {
     final frame =
         _decoder
                 .decodeR1(
                   _r1([
-                    (8, _frame(culledNodeIds: const [7, 11, 7])),
+                    (
+                      8,
+                      _frame(
+                        culledNodeIds: const [7, 11, 7],
+                        culledShadowNodeIds: const [13, 17, 13],
+                      ),
+                    ),
                   ]),
                 )
                 .commands
                 .single
             as JsThreeSubmitFrame;
     expect(frame.culledNodeIds, {7, 11});
+    expect(frame.culledShadowNodeIds, {13, 17});
+
+    final shadowOnly =
+        _decoder
+                .decodeR1(
+                  _r1([
+                    (8, _frame(culledShadowNodeIds: const [19])),
+                  ]),
+                )
+                .commands
+                .single
+            as JsThreeSubmitFrame;
+    expect(shadowOnly.culledNodeIds, isEmpty);
+    expect(shadowOnly.culledShadowNodeIds, {19});
   });
 
   test('node rejects unknown shadow flags', () {

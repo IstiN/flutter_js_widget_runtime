@@ -96,7 +96,7 @@ Uint8List _material(int id, int version, {double color = 0.5}) {
   return out;
 }
 
-Uint8List _node(int id, {int parent = 0, double matrix = 0}) {
+Uint8List _node(int id, {int parent = 0, double matrix = 0, int shadow = 0}) {
   final out = Uint8List(92);
   _u32(out, 0, id);
   _u32(out, 4, parent);
@@ -107,6 +107,7 @@ Uint8List _node(int id, {int parent = 0, double matrix = 0}) {
   for (var i = 0; i < 16; i++) {
     _f32(out, 24 + i * 4, matrix + i);
   }
+  _u32(out, 88, shadow);
   return out;
 }
 
@@ -525,6 +526,24 @@ void main() {
       expect(state.textureUploadCount, 1);
     },
   );
+
+  test('shadow revision ignores non-caster transforms and tracks casters', () {
+    final store = JsThreeStateStore();
+    store.apply(_envelope(1, [(4, _node(7, shadow: 1))]));
+    final state = store.surface('engine', 'surface')!;
+    expect(state.contentRevision, 0);
+
+    store.apply(_envelope(2, [(4, _node(7, matrix: 1, shadow: 1))]));
+    expect(state.contentRevision, 0);
+    store.apply(_envelope(3, [(4, _node(8, shadow: 1))]));
+    expect(state.contentRevision, 1);
+    store.apply(_envelope(4, [(4, _node(8, matrix: 2, shadow: 1))]));
+    expect(state.contentRevision, 2);
+    store.apply(_envelope(5, [(4, _node(8, matrix: 3))]));
+    expect(state.contentRevision, 3);
+    store.apply(_envelope(6, [(6, _camera(9))]));
+    expect(state.contentRevision, 3);
+  });
 
   test(
     'dispose surface clears drawing state and accepts only later disposal work',

@@ -56,7 +56,7 @@ jobs:
           git -C /tmp/jsr-three-r186 checkout "$THREE_COMMIT"
           npm ci --prefix tool/three
           node tool/three/build.mjs --source /tmp/jsr-three-r186 --verify
-          node tool/three/test/adapter_test.js
+          npm --prefix tool/three test
           dart run bin/jsr_three_example.dart prepare webgl_geometry_minecraft --source /tmp/jsr-three-r186 --offline --verify
           node tool/three_example/test/prepare_test.mjs
 

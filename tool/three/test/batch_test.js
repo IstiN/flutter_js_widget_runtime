@@ -217,12 +217,34 @@ test('single-material InstancedMesh sends real matrices, suppresses unchanged up
   mesh.count = 0;
   renderer.render(scene, camera);
   packets = host.packets();
-  assert.deepEqual(opcodes(packets[5]), [11, 8]);
-  batch = only(packets[5], 11)[0].body;
-  assert.equal(batch.length, 36);
-  assert.equal(u32(batch, 8), 0);
+  assert.deepEqual(opcodes(packets[5]), [12, 8]);
+  const removal = only(packets[5], 12)[0].body;
+  assert.equal(removal.length, 4);
+  assert.equal(u32(removal, 0), id(mesh));
   assert.equal(renderer.info.render.calls, 0);
   assert.equal(renderer.info.render.triangles, 0);
+});
+
+test('retained empty InstancedMesh keeps its native batch for reuse', () => {
+  const host = createHost();
+  const T = host.THREE;
+  const { renderer, scene, camera } = rendererHost(host);
+  const mesh = new T.InstancedMesh(pairGeometry(T), new T.MeshBasicMaterial(), 1);
+  mesh.userData.jsrRetainEmptyBatch = true;
+  mesh.setMatrixAt(0, new T.Matrix4());
+  scene.add(mesh);
+  renderer.render(scene, camera);
+  mesh.count = 0;
+  renderer.render(scene, camera);
+  let packets = host.packets();
+  assert.deepEqual(opcodes(packets[1]), [11, 8], 'empty retained batch updates count without removal');
+  assert.equal(u32(only(packets[1], 11)[0].body, 8), 0);
+  assert.equal(renderer.info.render.calls, 0);
+  mesh.count = 1;
+  renderer.render(scene, camera);
+  packets = host.packets();
+  assert.deepEqual(opcodes(packets[2]), [11, 8], 'refill reuses the same retained batch ID');
+  assert.equal(renderer.info.render.calls, 1);
 });
 
 test('indexed material arrays emit bounded parts, reject malformed edits transactionally, and transition to ordinary nodes', () => {
@@ -369,6 +391,15 @@ test('invalid matrices, counts, instanceColor and transparent instancing reject 
   mesh.instanceColor = new T.InstancedBufferAttribute(new Float32Array(6), 3);
   unsupported(() => renderer.render(scene, camera), 'instanceColor');
   mesh.instanceColor = null;
+  mesh.morphTexture = {};
+  unsupported(() => renderer.render(scene, camera), 'morphTargets');
+  mesh.morphTexture = null;
+  mesh.instanceMatrix.itemSize = 8;
+  invalid(() => renderer.render(scene, camera), 'instanceMatrix');
+  mesh.instanceMatrix.itemSize = 16;
+  mesh.instanceMatrix.isGLBufferAttribute = true;
+  invalid(() => renderer.render(scene, camera), 'instanceMatrix');
+  mesh.instanceMatrix.isGLBufferAttribute = false;
   mesh.material.transparent = true;
   unsupported(() => renderer.render(scene, camera), 'transparentInstancedMesh');
   mesh.material.transparent = false;
@@ -428,14 +459,13 @@ test('invisible subtrees defer unsupported wireframe resources until they become
   scene.add(group);
   renderer.render(scene, camera);
   let packets = host.packets();
-  assert.deepEqual(opcodes(packets[0]), [4, 4, 4, 6, 8]);
+  assert.deepEqual(opcodes(packets[0]), [4, 6, 8]);
   assert.equal(only(packets[0], 1).length, 0);
   assert.equal(only(packets[0], 3).length, 0);
   assert.equal(renderer.info.render.calls, 0);
   assert.equal(renderer.info.memory.geometries, 0);
-  const hiddenNode = only(packets[0], 4).find(command => u32(command.body, 0) === id(mesh)).body;
-  assert.equal(u32(hiddenNode, 8), 0);
-  assert.equal(u32(hiddenNode, 12), 0);
+  assert.equal(only(packets[0], 4).some(command => u32(command.body, 0) === id(mesh)), false);
+  assert.equal(only(packets[0], 4).some(command => u32(command.body, 0) === id(group)), false);
   group.visible = true;
   unsupported(() => renderer.render(scene, camera), 'wireframe');
   assert.equal(host.rawPackets.length, 1);
@@ -447,6 +477,34 @@ test('invisible subtrees defer unsupported wireframe resources until they become
   material.wireframe = true;
   unsupported(() => renderer.render(scene, camera), 'wireframe');
   assert.equal(host.rawPackets.length, 2, 'visible wireframe remains an explicit unsupported feature');
+});
+
+test('manual shadow revisions are explicit and ignore ordinary scene uploads', () => {
+  const host = createHost();
+  const T = host.THREE;
+  const { renderer, scene, camera } = rendererHost(host);
+  const light = new T.DirectionalLight(0xffffff, 1);
+  light.castShadow = true;
+  scene.add(light);
+  scene.add(light.target);
+  renderer.shadowMap.enabled = true;
+  renderer.shadowMap.autoUpdate = false;
+  renderer.shadowMap.needsUpdate = true;
+  renderer.render(scene, camera);
+  let frames = host.packets().flatMap(packet => only(packet, 8));
+  assert.equal(frames[0].body.length, 148);
+  assert.equal(u32(frames[0].body, 144), 1);
+  renderer.render(scene, camera);
+  frames = host.packets().flatMap(packet => only(packet, 8));
+  assert.equal(u32(frames[1].body, 144), 1);
+  renderer.shadowMap.needsUpdate = true;
+  renderer.render(scene, camera);
+  frames = host.packets().flatMap(packet => only(packet, 8));
+  assert.equal(u32(frames[2].body, 144), 2);
+  renderer.shadowMap.autoUpdate = true;
+  renderer.render(scene, camera);
+  frames = host.packets().flatMap(packet => only(packet, 8));
+  assert.equal(frames[3].body.length, 136, 'default shadow mode keeps the legacy frame layout');
 });
 
 function rendererHost(host) {
