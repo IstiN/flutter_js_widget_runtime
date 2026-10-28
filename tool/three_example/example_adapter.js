@@ -1,24 +1,23 @@
 const ROOT = globalThis;
-const ATLAS_URL = __JSR_MINECRAFT_ATLAS_URL__;
-const ATLAS_BASE64 = __JSR_MINECRAFT_ATLAS_BASE64__;
-const ATLAS_WIDTH = __JSR_MINECRAFT_ATLAS_WIDTH__;
-const ATLAS_HEIGHT = __JSR_MINECRAFT_ATLAS_HEIGHT__;
-const ATLAS_BYTES = __JSR_MINECRAFT_ATLAS_BYTES__;
+const EXAMPLE = __JSR_THREE_EXAMPLE_ID__;
+const WIDGET_ID = __JSR_THREE_WIDGET_ID__;
+const ASSETS = JSON.parse(__JSR_THREE_EXAMPLE_ASSETS_JSON__);
+const ASSETS_BY_URL = new Map(ASSETS.map(asset => [asset.url, asset]));
 const JSR = ROOT.jsr;
 
 if (!JSR || !JSR.three || typeof JSR.three.createCanvas !== 'function' ||
     typeof JSR.three.registerAsset !== 'function' ||
     typeof JSR.three._prepareTree !== 'function') {
-  throw new Error('three-minecraft: evaluate the JSR three.native.js/three.web.js bundle first');
+  throw new Error(`${WIDGET_ID}: evaluate the JSR three.native.js/three.web.js bundle first`);
 }
 if (typeof JSR.render !== 'function' || typeof JSR.exportState !== 'function') {
-  throw new Error('three-minecraft: jsr.render and jsr.exportState are required');
+  throw new Error(`${WIDGET_ID}: jsr.render and jsr.exportState are required`);
 }
 
 const canvas = JSR.three.createCanvas('main');
 const runtimeDocument = canvas.ownerDocument;
 if (!runtimeDocument || !runtimeDocument.defaultView) {
-  throw new Error('three-minecraft: the JSR runtime document facade is unavailable');
+  throw new Error(`${WIDGET_ID}: the JSR runtime document facade is unavailable`);
 }
 
 let renderer = null;
@@ -27,6 +26,12 @@ let statsDiagnostics = {
   phase: 'idle', frames: 0, fps: 0, frameTimeMs: 0,
   begins: 0, ends: 0, updates: 0, mode: 0
 };
+const assetDiagnostics = {};
+for (const asset of ASSETS) {
+  assetDiagnostics[asset.url] = {
+    url: asset.url, bytes: asset.bytes, registered: true
+  };
+}
 
 function finite(value) {
   return Number.isFinite(value) ? value : 0;
@@ -37,12 +42,12 @@ function publishDiagnostics() {
   const render = info.render || {};
   const memory = info.memory || {};
   const capabilities = JSR.three.getCapabilities ? JSR.three.getCapabilities() : {};
-  JSR.exportState({
-    example: 'webgl_geometry_minecraft',
+  const state = {
+    example: EXAMPLE,
     backend: renderer && renderer.capabilities && renderer.capabilities.backend || capabilities.backend || 'unknown',
     canvasCount: 1,
     mounted,
-    atlas: { url: ATLAS_URL, bytes: ATLAS_BYTES, registered: true },
+    assets: assetDiagnostics,
     renderer: {
       frame: finite(render.frame), calls: finite(render.calls),
       triangles: finite(render.triangles), points: finite(render.points),
@@ -50,7 +55,11 @@ function publishDiagnostics() {
       textures: finite(memory.textures)
     },
     stats: Object.assign({}, statsDiagnostics)
-  });
+  };
+  for (const asset of ASSETS) {
+    if (asset.diagnostic) state[asset.diagnostic] = assetDiagnostics[asset.url];
+  }
+  JSR.exportState(state);
 }
 
 // Stats is a local diagnostic adapter, not a second render-tree node.
@@ -64,12 +73,14 @@ JSR.render = function(tree) {
   return hostRender.call(this, JSR.three._prepareTree(tree));
 };
 
-JSR.three.registerAsset(ATLAS_URL, {
-  data: ATLAS_BASE64,
-  mime: 'image/png',
-  width: ATLAS_WIDTH,
-  height: ATLAS_HEIGHT
-});
+for (const asset of ASSETS) {
+  JSR.three.registerAsset(asset.url, {
+    data: asset.data,
+    mime: asset.mime,
+    width: asset.width,
+    height: asset.height
+  });
+}
 
 function eventTarget(target) {
   const listeners = new Map();
@@ -84,7 +95,7 @@ function eventTarget(target) {
     if (list) listeners.set(type, list.filter(item => item !== callback));
   };
   target.dispatchEvent = function(event) {
-    if (!event || !event.type) throw new Error('three-minecraft: event.type is required');
+    if (!event || !event.type) throw new Error(`${WIDGET_ID}: event.type is required`);
     if (!event.preventDefault) event.preventDefault = function() { this.defaultPrevented = true; };
     try { if (!event.target) event.target = target; } catch (_) {}
     try { event.currentTarget = target; } catch (_) {}
@@ -107,19 +118,19 @@ function append(parent, child) {
 
 function localElement(tagName) {
   const element = eventTarget({
-    __jsrMinecraftLocal: true,
+    __jsrThreeExampleLocal: true,
     tagName: String(tagName).toUpperCase(),
     style: {},
     children: [],
     parentNode: null
   });
   element.appendChild = function(child) {
-    if (!child || !child.__jsrMinecraftLocal) throw new Error('three-minecraft: only local diagnostic children are supported');
+    if (!child || !child.__jsrThreeExampleLocal) throw new Error(`${WIDGET_ID}: only local diagnostic children are supported`);
     return append(this, child);
   };
   element.removeChild = function(child) {
     const index = this.children.indexOf(child);
-    if (index < 0) throw new Error('three-minecraft: child is not mounted');
+    if (index < 0) throw new Error(`${WIDGET_ID}: child is not mounted`);
     this.children.splice(index, 1);
     child.parentNode = null;
     return child;
@@ -129,11 +140,11 @@ function localElement(tagName) {
 
 function localImage() {
   if (typeof ROOT.OffscreenCanvas !== 'function') {
-    throw new Error('three-minecraft: local web textures require OffscreenCanvas');
+    throw new Error(`${WIDGET_ID}: local web textures require OffscreenCanvas`);
   }
-  // An OffscreenCanvas is a valid WebGL texture source. The registered PNG is
+  // An OffscreenCanvas is a valid WebGL texture source. Registered bytes are
   // decoded locally and drawn into it; no Image/HTML network loader is used.
-  const image = eventTarget(new ROOT.OffscreenCanvas(ATLAS_WIDTH, ATLAS_HEIGHT));
+  const image = eventTarget(new ROOT.OffscreenCanvas(1, 1));
   image.complete = false;
   let source = '';
   Object.defineProperty(image, 'src', {
@@ -142,17 +153,20 @@ function localImage() {
     set(value) {
       source = String(value);
       Promise.resolve().then(async () => {
-        if (source !== ATLAS_URL) throw new Error(`three-minecraft: unregistered image URL ${source}`);
+        const asset = ASSETS_BY_URL.get(source);
+        if (!asset) throw new Error(`${WIDGET_ID}: unregistered image URL ${source}`);
         if (typeof ROOT.atob !== 'function' || typeof ROOT.Blob !== 'function' || typeof ROOT.createImageBitmap !== 'function') {
-          throw new Error('three-minecraft: local PNG decoding requires atob, Blob and createImageBitmap');
+          throw new Error(`${WIDGET_ID}: local image decoding requires atob, Blob and createImageBitmap`);
         }
-        const encoded = ROOT.atob(ATLAS_BASE64);
+        image.width = asset.width;
+        image.height = asset.height;
+        const encoded = ROOT.atob(asset.data);
         const bytes = new Uint8Array(encoded.length);
         for (let i = 0; i < encoded.length; i++) bytes[i] = encoded.charCodeAt(i);
-        const bitmap = await ROOT.createImageBitmap(new ROOT.Blob([bytes], { type: 'image/png' }));
+        const bitmap = await ROOT.createImageBitmap(new ROOT.Blob([bytes], { type: asset.mime }));
         try {
           const context = image.getContext('2d');
-          if (!context) throw new Error('three-minecraft: OffscreenCanvas 2D decoding is unavailable');
+          if (!context) throw new Error(`${WIDGET_ID}: OffscreenCanvas 2D decoding is unavailable`);
           context.clearRect(0, 0, image.width, image.height);
           context.drawImage(bitmap, 0, 0);
           image.complete = true;
@@ -169,15 +183,25 @@ function localImage() {
   return image;
 }
 
+function localCanvas() {
+  if (typeof ROOT.OffscreenCanvas !== 'function') {
+    throw new Error(`${WIDGET_ID}: local 2D canvases require OffscreenCanvas`);
+  }
+  return eventTarget(new ROOT.OffscreenCanvas(300, 150));
+}
+
 function createElement(tagName) {
   const tag = String(tagName).toLowerCase();
-  if (tag === 'canvas') return JSR.three.createCanvas('main');
+  if (tag === 'canvas') return localCanvas();
   if (tag === 'img' || tag === 'image') return localImage();
   return localElement(tag);
 }
 
 runtimeDocument.createElement = createElement;
 runtimeDocument.createElementNS = function(_namespace, tagName) {
+  // three.js creates its WebGL canvas through createElementNS. Keep that
+  // canvas on the JSR surface; ordinary createElement canvases stay local 2D.
+  if (String(tagName).toLowerCase() === 'canvas') return JSR.three.createCanvas('main');
   return createElement(tagName);
 };
 
@@ -185,7 +209,7 @@ const container = localElement('div');
 container.id = 'container';
 container.appendChild = function(child) {
   if (child && child.isJsrThreeCanvas) {
-    if (child !== canvas) throw new Error('three-minecraft: exactly one main canvas is supported');
+    if (child !== canvas) throw new Error(`${WIDGET_ID}: exactly one main canvas is supported`);
     append(this, child);
     renderer = child.renderer || renderer;
     if (!mounted) {
@@ -195,13 +219,17 @@ container.appendChild = function(child) {
     publishDiagnostics();
     return child;
   }
-  if (!child || !child.__jsrMinecraftLocal) {
-    throw new Error('three-minecraft: container accepts only the main canvas and local stats DOM');
+  if (!child || !child.__jsrThreeExampleLocal) {
+    throw new Error(`${WIDGET_ID}: container accepts only the main canvas and local stats DOM`);
   }
   append(this, child);
   publishDiagnostics();
   return child;
 };
+
+const body = localElement('body');
+body.appendChild = container.appendChild;
+runtimeDocument.body = body;
 
 const info = localElement('div');
 info.id = 'info';
@@ -210,6 +238,17 @@ runtimeDocument.getElementById = function(id) {
   if (id === 'info') return info;
   return null;
 };
+
+// The host normalizes mouse and touch movement to document pointer events.
+// Mirror them to body listeners and to legacy mousemove listeners locally.
+runtimeDocument.addEventListener('pointermove', event => {
+  body.dispatchEvent(Object.assign({}, event));
+  runtimeDocument.dispatchEvent(Object.assign({}, event, {
+    type: 'mousemove',
+    clientX: event.clientX === undefined ? event.pageX : event.clientX,
+    clientY: event.clientY === undefined ? event.pageY : event.clientY
+  }));
+});
 
 ROOT.document = runtimeDocument;
 ROOT.window = runtimeDocument.defaultView;

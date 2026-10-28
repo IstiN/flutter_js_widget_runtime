@@ -48,4 +48,6 @@ flutter:
     - widgets/charts-showcase/
     - widgets/map/
     - widgets/three-minecraft/
+    - widgets/three-geometry-colors/
+    - widgets/three-lines-colors/
     - assets/models/

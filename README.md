@@ -206,19 +206,26 @@ jsr.render({type: 'three', canvasId: 'main', width: 640, height: 360});
   `48dd7be01263658aad497fd72e09d1e4c6213461`). Build manifests and the MIT
   notice ship under `assets/three/`.
 
-Rebuild and run the official `webgl_geometry_minecraft` example:
+Rebuild and run an official example from the pinned local source:
 
 ```sh
 dart run bin/jsr_three_example.dart prepare webgl_geometry_minecraft
+dart run bin/jsr_three_example.dart prepare webgl_lines_colors
+dart run bin/jsr_three_example.dart prepare webgl_geometry_colors
 cd example
 flutter run -t lib/three_example.dart
+# Or select the initial module without using the dropdown:
+flutter run -t lib/three_example.dart \
+  --dart-define=JSR_THREE_EXAMPLE=webgl_lines_colors
 ```
 
 The prepare step preserves the exact official HTML/module bytes and resolves
-only the pinned FirstPersonControls, Timer, BufferGeometryUtils, ImprovedNoise
-and local atlas. Native runs require a Flutter GPU/Impeller platform; the Web
-path requires Worker OffscreenCanvas + WebGL2 (verify on real Chrome/Edge).
-The example overlay reports decode/frame time, calls, triangles and uploads.
+only each module's pinned addons/local assets. Minecraft and Line Colors run
+on native R1; Geometry Colors currently requires WebGL2 pending native
+CanvasTexture, Phong and wireframe support. Native runs require a Flutter
+GPU/Impeller platform; the Web path requires Worker OffscreenCanvas + WebGL2
+(verify on real Chrome/Edge). The example overlay reports decode/frame time,
+calls, triangles and uploads.
 
 ![Official three.js Minecraft example on Flutter GPU](doc/widgets/three-minecraft.png)
 

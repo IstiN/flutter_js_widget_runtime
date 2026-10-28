@@ -142,9 +142,10 @@ Renderer effects ported from YoClip: radial gradients, box shadows, blur nodes, 
   hide/unhide and focus-loss unlock, falling back to normal `localDelta`.
 - Rebuild pinned bundles with `node tool/three/build.mjs --source
   /tmp/jsr-three-r186` (add `--verify`); shaders with
-  `tool/build_three_shaders.dart`. Prepare the official example with
-  `dart run bin/jsr_three_example.dart prepare webgl_geometry_minecraft` and
-  run `cd example && flutter run -t lib/three_example.dart`. See README,
+  `tool/build_three_shaders.dart`. Prepare supported official modules with
+  `dart run bin/jsr_three_example.dart prepare <example-id>` and run
+  `cd example && flutter run -t lib/three_example.dart` (select the initial
+  module with `--dart-define=JSR_THREE_EXAMPLE=<example-id>`). See README,
   `prepare_manifest.json` and the engine/authoring skills for the matrix.
 - The local heavy reference profile lives in `tool/three_minecraft_stress/`
   and runs with `example/lib/three_minecraft_stress.dart`; generated output

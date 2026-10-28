@@ -1,5 +1,11 @@
 import 'dart:io';
 
+const _examples = <String>{
+  'webgl_geometry_minecraft',
+  'webgl_geometry_colors',
+  'webgl_lines_colors',
+};
+
 /// Prepares generated widgets from a pinned, local three.js source tree.
 Future<void> main(List<String> arguments) async {
   if (arguments.length == 1 &&
@@ -9,8 +15,8 @@ Future<void> main(List<String> arguments) async {
   }
   if (arguments.length < 2 ||
       arguments[0] != 'prepare' ||
-      arguments[1] != 'webgl_geometry_minecraft') {
-    stderr.writeln('Expected: prepare webgl_geometry_minecraft');
+      !_examples.contains(arguments[1])) {
+    stderr.writeln('Expected: prepare <supported official example>');
     _usage(stderr);
     exitCode = 64;
     return;
@@ -47,8 +53,8 @@ Future<void> main(List<String> arguments) async {
 void _usage([IOSink? sink]) {
   (sink ?? stdout).writeln(
     'Usage: dart run bin/jsr_three_example.dart prepare '
-    'webgl_geometry_minecraft [--source <three-r186-dir>] [--offline] '
-    '[--verify]\n'
+    '<webgl_geometry_minecraft|webgl_geometry_colors|webgl_lines_colors> '
+    '[--source <three-r186-dir>] [--offline] [--verify]\n'
     'THREE_SRC may supply the source directory. Resolution is always local-only.',
   );
 }

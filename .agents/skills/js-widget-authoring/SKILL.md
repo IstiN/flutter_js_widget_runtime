@@ -365,11 +365,12 @@ after `renderer.dispose()` instead of reusing a disposed surface id.
   do not provide a general DOM. Pointer/key/resize/blur events come from the
   host automatically. Text fields keep keyboard priority.
 - The generated runtime is pinned to three.js r186 (commit `9b4a2ac…`).
-  Rebuild the official Minecraft example with
-  `dart run bin/jsr_three_example.dart prepare webgl_geometry_minecraft`;
-  run it with `cd example && flutter run -t lib/three_example.dart`. Its
-  original HTML/module bytes, addon/atlas hashes and MIT notice are kept in
-  `example/widgets/three-minecraft/`.
+  Rebuild supported official modules with
+  `dart run bin/jsr_three_example.dart prepare <example-id>`; run them with
+  `cd example && flutter run -t lib/three_example.dart` or select one via
+  `--dart-define=JSR_THREE_EXAMPLE=<example-id>`. Original HTML/module bytes,
+  addon/asset hashes and MIT notices are kept under
+  `example/widgets/three-*/`.
 
 ---
 
