@@ -73,34 +73,10 @@ assert.match(savedModule.toString('utf8'), /wireframe: true/);
 
 const renders = [];
 const states = [];
+const packets = [];
 const rafs = new Map();
-const localCanvases = [];
+const canvasRequests = [];
 let nextRaf = 0;
-class TestOffscreenCanvas {
-  constructor(width, height) {
-    this.width = width;
-    this.height = height;
-    localCanvases.push(this);
-  }
-
-  getContext(type) {
-    assert.equal(type, '2d');
-    const canvas = this;
-    return {
-      createRadialGradient(...args) {
-        canvas.gradient = args;
-        return {
-          addColorStop(offset, color) {
-            (canvas.colorStops ||= []).push([offset, color]);
-          }
-        };
-      },
-      fillRect(...args) { canvas.fill = args; },
-      clearRect() {},
-      drawImage() {}
-    };
-  }
-}
 const jsr = {
   instanceId: 'colors-prepare-test',
   render(tree) { renders.push(tree); },
@@ -111,8 +87,17 @@ const jsr = {
     return id;
   },
   cancelAnimationFrame(id) { rafs.delete(id); },
-  hostCallBinary() { throw new Error('unsupported R1 scene must not emit a packet'); },
-  async hostCall(name) { throw new Error(`unexpected host call ${name}`); }
+  hostCallBinary(name, bytes) {
+    assert.equal(name, 'three.r1');
+    packets.push(Buffer.from(bytes));
+  },
+  hostCall(name, args) {
+    if (name === 'three.canvas2d') {
+      canvasRequests.push(args);
+      return new Promise(() => {});
+    }
+    throw new Error(`unexpected host call ${name}`);
+  }
 };
 const context = vm.createContext({
   jsr,
@@ -121,23 +106,29 @@ const context = vm.createContext({
   sendMessage() {},
   TextEncoder,
   TextDecoder,
-  OffscreenCanvas: TestOffscreenCanvas,
   setTimeout,
   clearTimeout
 });
 vm.runInContext(native, context, { filename: 'three.native.js' });
 vm.runInContext('globalThis.THREE = THREE;', context);
 vm.runInContext(widget, context, { filename: 'widget.js' });
+await Promise.resolve();
 
 assert.equal(renders.length, 1);
 assert.equal(renders[0].canvasId, 'main');
 assert.equal(renders[0].engineId, 'colors-prepare-test');
 assert.equal(jsr.three._runtime.canvases.size, 1, 'local 2D canvas creates no THREE surface');
-assert.equal(localCanvases.length, 1);
-assert.equal(localCanvases[0].width, 128);
-assert.equal(localCanvases[0].height, 128);
-assert.equal(localCanvases[0].colorStops.length, 2);
-assert.deepEqual(localCanvases[0].fill, [0, 0, 128, 128]);
+assert.equal(canvasRequests.length, 1);
+assert.equal(canvasRequests[0].engineId, 'colors-prepare-test');
+assert.equal(canvasRequests[0].surfaceId, 'main#1');
+assert.equal(canvasRequests[0].width, 128);
+assert.equal(canvasRequests[0].height, 128);
+assert.equal(canvasRequests[0].commands.length, 1);
+assert.equal(canvasRequests[0].commands[0].op, 'fillRect');
+assert.equal(canvasRequests[0].commands[0].width, 128);
+assert.equal(canvasRequests[0].commands[0].height, 128);
+assert.equal(canvasRequests[0].commands[0].style.kind, 'radial');
+assert.equal(canvasRequests[0].commands[0].style.stops.length, 2);
 assert.equal(states.at(-1).example, 'webgl_geometry_colors');
 assert.equal(states.at(-1).mounted, true);
 assert.deepEqual(states.at(-1).assets, {});
@@ -145,11 +136,10 @@ assert.deepEqual(states.at(-1).assets, {});
 const callbacks = [...rafs.values()];
 rafs.clear();
 assert.equal(callbacks.length, 1);
-assert.throws(
-  () => callbacks[0](performance.now()),
-  error => error && error.code === 'three.unsupported' &&
-    error.feature === 'textureType'
-);
+callbacks[0](performance.now());
+assert.equal(packets.length, 1, 'official Phong/wireframe scene emits a native R1 frame');
+assert.ok(packets[0].length > 1000);
+assert.equal(renders.length, 1, 'animation causes no render-tree churn');
 
 let mouseMoves = 0;
 context.document.addEventListener('mousemove', event => {
@@ -168,7 +158,8 @@ console.log(JSON.stringify({
   moduleSha256: sha(direct),
   widgetSha256: manifest.outputs['widget.js'].sha256,
   canvasCount: 1,
-  localCanvasCount: localCanvases.length,
-  expectedNativeBlocker: 'CanvasTexture',
+  nativeCanvasRequests: canvasRequests.length,
+  r1Bytes: packets[0].length,
+  nativePhongWireframe: true,
   mouseMoves
 }, null, 2));

@@ -448,6 +448,10 @@ class JsWidgetBridge {
       await _handleThreeAsset(id, req);
       return;
     }
+    if (name == 'three.canvas2d') {
+      await _handleThreeCanvas2D(id, req);
+      return;
+    }
     final handler = onHostCall;
     if (handler == null) {
       resolveCallback(id, {
@@ -463,6 +467,36 @@ class JsWidgetBridge {
       resolveCallback(id, result ?? const <String, dynamic>{});
     } catch (e) {
       resolveCallback(id, {'__error': e.toString()});
+    }
+  }
+
+  Future<void> _handleThreeCanvas2D(
+    String id,
+    Map<String, dynamic> request,
+  ) async {
+    final host = threeHost;
+    if (host == null) {
+      resolveCallback(id, const {'__error': 'three.unsupported: canvas2d'});
+      return;
+    }
+    try {
+      final arguments =
+          (request['args'] as Map?)?.cast<String, dynamic>() ?? const {};
+      final result = await host.rasterizeCanvas2D(threeEngineId, arguments);
+      final bytes = result.data;
+      resolveCallback(id, {
+        'engineId': result.engineId,
+        'surfaceId': result.surfaceId,
+        'canvasId': result.canvasId,
+        'generation': result.generation,
+        'requestId': result.requestId,
+        'width': result.width,
+        'height': result.height,
+        'stale': result.stale,
+        'data': bytes == null ? null : base64Encode(bytes),
+      });
+    } catch (error) {
+      resolveCallback(id, {'__error': error.toString()});
     }
   }
 

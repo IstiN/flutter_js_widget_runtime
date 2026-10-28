@@ -1,6 +1,7 @@
 import { installThreeRuntime } from './runtime.js';
+import { installNativeCanvas2D } from './native_canvas2d.js';
 
-installThreeRuntime(false);
+installNativeCanvas2D(installThreeRuntime(false));
 
 export * from 'three';
 export { JsrWebGLRenderer as WebGLRenderer } from './native_renderer.js';
