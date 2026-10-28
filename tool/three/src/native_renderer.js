@@ -7,6 +7,7 @@ import {
 } from 'three';
 import { unsupported, requireFinite } from './errors.js';
 import { getThreeRuntime } from './runtime.js';
+import { isNativeCanvas2D } from './native_canvas2d.js';
 import {
   OPCODE, NO_SHADOW, cameraCommand, command, disposeResourceCommand, disposeSurfaceCommand,
   drawBatchCommand, encodeEnvelope, frameCommand, geometryCommand, lightCommand,
@@ -253,6 +254,10 @@ export class JsrWebGLRenderer {
     this._pendingDisposals = [];
     this._resources = new Map();
     this._geometryModes = new Map();
+    this._canvasTextures = new Map();
+    this._canvasRefreshHandle = null;
+    this._lastScene = null;
+    this._lastCamera = null;
     this._state = canvas._r1State || (canvas._r1State = {
       sequence: 0,
       geometries: new Map(), textures: new Map(), materials: new Map(),
@@ -346,6 +351,7 @@ export class JsrWebGLRenderer {
     const kinds = { geometries: RESOURCE_KIND.geometry, textures: RESOURCE_KIND.texture, materials: RESOURCE_KIND.material, nodes: RESOURCE_KIND.node };
     const listener = () => {
       this._unlisten(resource);
+      if (type === 'textures') this._unwatchCanvasTexture(resource);
       if (type === 'geometries') this._mapDelete(this._geometryModes, id);
       if (this._state[type].has(id)) {
         this._mapDelete(this._state[type], id);
@@ -381,10 +387,76 @@ export class JsrWebGLRenderer {
     return { signature, version };
   }
 
+  _unwatchCanvasTexture(texture) {
+    const entry = this._canvasTextures.get(texture);
+    if (!entry) return;
+    entry.unlisten();
+    this._canvasTextures.delete(texture);
+  }
+
+  _watchCanvasTexture(texture, canvas) {
+    const previous = this._canvasTextures.get(texture);
+    if (previous && previous.canvas === canvas) return previous;
+    if (previous) this._unwatchCanvasTexture(texture);
+    const entry = { texture, canvas, adoptedVersion: 0, unlisten: null };
+    entry.unlisten = canvas._addReadyListener(() => {
+      if (this._disposed || this._canvasTextures.get(texture) !== entry) return;
+      if (this._adoptCanvasTexture(entry)) this._scheduleCanvasRefresh();
+    });
+    this._canvasTextures.set(texture, entry);
+    return entry;
+  }
+
+  _adoptCanvasTexture(entry) {
+    const canvas = entry.canvas;
+    if (!canvas._ready || !canvas._rgba || entry.adoptedVersion === canvas._readyVersion) return false;
+    entry.adoptedVersion = canvas._readyVersion;
+    entry.texture.userData.jsrCanvas2D = canvas;
+    entry.texture.source.data = {
+      width: canvas.width,
+      height: canvas.height,
+      data: new Uint8Array(canvas._rgba),
+      encoding: 0,
+      encoded: false
+    };
+    entry.texture.needsUpdate = true;
+    return true;
+  }
+
+  _scheduleCanvasRefresh() {
+    if (this._disposed || this._canvasRefreshHandle !== null || !this._lastScene || !this._lastCamera) return;
+    this._canvasRefreshHandle = true;
+    Promise.resolve().then(() => {
+      if (this._disposed || !this._lastScene || !this._lastCamera) {
+        this._canvasRefreshHandle = null;
+        return;
+      }
+      try {
+        this.render(this._lastScene, this._lastCamera);
+      } finally {
+        this._canvasRefreshHandle = null;
+      }
+    });
+  }
+
+  _canvasForTexture(texture) {
+    if (!texture.isCanvasTexture) return null;
+    if (isNativeCanvas2D(texture.image)) return texture.image;
+    const canvas = texture.userData && texture.userData.jsrCanvas2D;
+    return isNativeCanvas2D(canvas) ? canvas : null;
+  }
+
   _ensureTexture(texture, commands) {
     if (!texture) return 0;
     if (!texture.isTexture) unsupported('texture', 'material map is not a THREE.Texture');
-    if (texture.isCubeTexture || texture.isDataArrayTexture || texture.isData3DTexture || texture.isCompressedTexture || texture.isVideoTexture || texture.isCanvasTexture || texture.isFramebufferTexture || texture.isDepthTexture || texture.isExternalTexture) unsupported('textureType', texture.type);
+    if (texture.isCubeTexture || texture.isDataArrayTexture || texture.isData3DTexture || texture.isCompressedTexture || texture.isVideoTexture || texture.isFramebufferTexture || texture.isDepthTexture || texture.isExternalTexture) unsupported('textureType', texture.type);
+    const canvas = this._canvasForTexture(texture);
+    if (texture.isCanvasTexture && !canvas) unsupported('canvas2d.source', 'native CanvasTexture requires a Flutter canvas2d image');
+    if (canvas) {
+      const entry = this._watchCanvasTexture(texture, canvas);
+      this._adoptCanvasTexture(entry);
+      if (!canvas._ready) return 0;
+    }
     if (texture.mapping !== UVMapping) unsupported('textureMapping');
     if (texture.premultiplyAlpha || texture.anisotropy > 1 || (texture.mipmaps && texture.mipmaps.length)) unsupported('textureState', 'premultiplyAlpha/anisotropy/custom mipmaps');
     if (texture.channel !== 0 || texture.offset.x !== 0 || texture.offset.y !== 0 || texture.repeat.x !== 1 || texture.repeat.y !== 1 || texture.center.x !== 0 || texture.center.y !== 0 || texture.rotation !== 0) unsupported('textureTransform', 'R1 v1 has no UV transform fields');
@@ -953,6 +1025,8 @@ export class JsrWebGLRenderer {
     finiteArray([background.r, background.g, background.b, background.a], 'background');
     commands.push(frameCommand(resourceId(scene), cameraId, background, this.toneMappingExposure, fog, shadow, culledNodeIds, culledShadowNodeIds));
     this._emit(commands);
+    this._lastScene = scene;
+    this._lastCamera = camera;
     for (const object of retiredNodes) this._unlisten(object);
     this.info.render.frame++;
     this.info.render.calls = draws;
@@ -967,6 +1041,10 @@ export class JsrWebGLRenderer {
     if (this._disposed) return;
     this._disposed = true;
     this.setAnimationLoop(null);
+    this._canvasRefreshHandle = null;
+    for (const texture of Array.from(this._canvasTextures.keys())) this._unwatchCanvasTexture(texture);
+    this._lastScene = null;
+    this._lastCamera = null;
     const commands = [];
     const sent = new Set();
     const dispose = (id, kind) => {

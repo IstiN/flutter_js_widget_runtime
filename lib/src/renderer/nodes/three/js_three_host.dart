@@ -23,6 +23,32 @@ class JsThreeAsset {
 typedef JsThreeAssetLoader =
     Future<JsThreeAsset> Function(String engineId, String url);
 
+/// Owned raw RGBA pixels produced by the bounded native Canvas2D capability.
+/// A null [data] is a stale/disposed reply and must not update a texture.
+final class JsThreeCanvas2DResult {
+  const JsThreeCanvas2DResult({
+    required this.engineId,
+    required this.surfaceId,
+    required this.canvasId,
+    required this.generation,
+    required this.requestId,
+    required this.width,
+    required this.height,
+    required this.data,
+    this.stale = false,
+  });
+
+  final String engineId;
+  final String surfaceId;
+  final String canvasId;
+  final int generation;
+  final int requestId;
+  final int width;
+  final int height;
+  final Uint8List? data;
+  final bool stale;
+}
+
 /// A native or Web surface referenced by one upstream THREE renderer.
 ///
 /// Resource isolation is always the tuple `(engineId, surfaceId, resourceId)`.
@@ -76,6 +102,19 @@ abstract class JsThreeHost {
 
   /// Host-approved asset bytes for TextureLoader/FileLoader adapters.
   Future<JsThreeAsset> loadAsset(String engineId, String url);
+
+  /// Rasterizes a bounded command list with the host's native Canvas2D.
+  /// Implementations must bind the request to [boundEngineId], validate all
+  /// identities/quotas, and return owned bytes or a stale reply after disposal.
+  Future<JsThreeCanvas2DResult> rasterizeCanvas2D(
+    String boundEngineId,
+    Map<String, dynamic> request,
+  ) => Future.error(
+    const JsThreeUnsupportedException(
+      'canvas2d',
+      'this THREE host does not provide Flutter Canvas',
+    ),
+  );
 
   /// Builds the surface presentation. The node owns input and layout.
   Widget build(

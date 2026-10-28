@@ -5,6 +5,7 @@ import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
 
 import 'package:js_widget_runtime/src/renderer/nodes/three/flutter_gpu_three_backend.dart';
+import 'package:js_widget_runtime/src/renderer/nodes/three/js_three_canvas2d.dart';
 import 'package:js_widget_runtime/src/renderer/nodes/three/js_three_host.dart';
 import 'package:js_widget_runtime/src/renderer/nodes/three/js_three_protocol.dart';
 import 'package:js_widget_runtime/src/renderer/nodes/three/js_three_state.dart';
@@ -18,14 +19,26 @@ FlutterGpuThreeHost createFlutterGpuThreeHost({
 
 /// Owns isolated R1 surfaces and presents their Flutter GPU images.
 class FlutterGpuThreeHost implements JsThreeHost {
-  FlutterGpuThreeHost({this.assetLoader, required this.shaderAsset});
+  FlutterGpuThreeHost({
+    this.assetLoader,
+    required this.shaderAsset,
+    JsThreeCanvas2DRasterizer? canvas2dRasterizer,
+  }) : _canvas2dRasterizer =
+           canvas2dRasterizer ?? rasterizeJsThreeCanvas2D;
 
   static const int maxSurfaces = 64;
+  static const int maxCanvas2dSurfaces = 256;
+  static const int maxCanvas2dInFlight = 64;
 
   final JsThreeAssetLoader? assetLoader;
   final String shaderAsset;
+  final JsThreeCanvas2DRasterizer _canvas2dRasterizer;
   final JsThreeProtocolDecoder _decoder = JsThreeProtocolDecoder();
   final Map<JsThreeSurfaceKey, FlutterGpuThreeSurface> _surfaces = {};
+  final Map<JsThreeSurfaceKey, Map<String, _FlutterCanvas2DState>>
+  _canvas2d = {};
+  var _canvas2dCount = 0;
+  var _canvas2dInFlight = 0;
 
   @override
   JsThreeSurface attach(
@@ -71,6 +84,9 @@ class FlutterGpuThreeHost implements JsThreeHost {
     final surface = _obtainSurface(key);
     if (surface.isDisposed) return;
     surface._apply(decoded);
+    if (surface.isDisposed) {
+      _disposeCanvas2dSurface(boundEngineId, decoded.envelope.surfaceId);
+    }
   }
 
   FlutterGpuThreeSurface _obtainSurface(JsThreeSurfaceKey key) {
@@ -104,6 +120,83 @@ class FlutterGpuThreeHost implements JsThreeHost {
   }
 
   @override
+  Future<JsThreeCanvas2DResult> rasterizeCanvas2D(
+    String boundEngineId,
+    Map<String, dynamic> request,
+  ) async {
+    final parsed = parseJsThreeCanvas2DRequest(request);
+    if (parsed.engineId != boundEngineId) {
+      throw const JsThreeProtocolException(
+        'three.canvas2d engine id does not match the bridge-bound engine',
+      );
+    }
+    final key = JsThreeSurfaceKey(parsed.engineId, parsed.surfaceId);
+    if (parsed.dispose) {
+      final surfaces = _canvas2d[key];
+      if (surfaces?.remove(parsed.canvasId) != null) _canvas2dCount--;
+      if (surfaces != null && surfaces.isEmpty) _canvas2d.remove(key);
+      return _canvas2dResult(parsed, null, true);
+    }
+    final surfaces = _canvas2d.putIfAbsent(key, () => {});
+    var state = surfaces[parsed.canvasId];
+    if (state == null) {
+      if (_canvas2dCount >= maxCanvas2dSurfaces) {
+        if (surfaces.isEmpty) _canvas2d.remove(key);
+        throw StateError('three.canvas2d: canvas quota exceeded');
+      }
+      state = _FlutterCanvas2DState(parsed.generation);
+      surfaces[parsed.canvasId] = state;
+      _canvas2dCount++;
+    }
+    if (state.generation != parsed.generation) {
+      throw const JsThreeProtocolException(
+        'three.canvas2d surface generation changed for a live canvas',
+      );
+    }
+    if (parsed.requestId <= state.lastRequestId) {
+      throw const JsThreeProtocolException(
+        'three.canvas2d request ids must be strictly increasing',
+      );
+    }
+    state.lastRequestId = parsed.requestId;
+    if (_canvas2dInFlight >= maxCanvas2dInFlight) {
+      throw StateError('three.canvas2d: rasterization quota exceeded');
+    }
+    _canvas2dInFlight++;
+    try {
+      final bytes = await _canvas2dRasterizer(parsed);
+      if (bytes.lengthInBytes != parsed.width * parsed.height * 4) {
+        throw StateError('three.canvas2d: rasterizer returned an invalid byte length');
+      }
+      if (!_canvas2dCurrent(key, state, parsed)) {
+        return _canvas2dResult(parsed, null, true);
+      }
+      return _canvas2dResult(parsed, Uint8List.fromList(bytes), false);
+    } catch (_) {
+      if (!_canvas2dCurrent(key, state, parsed)) {
+        return _canvas2dResult(parsed, null, true);
+      }
+      rethrow;
+    } finally {
+      _canvas2dInFlight--;
+    }
+  }
+
+  bool _canvas2dCurrent(
+    JsThreeSurfaceKey key,
+    _FlutterCanvas2DState state,
+    JsThreeCanvas2DRequest request,
+  ) =>
+      identical(_canvas2d[key]?[request.canvasId], state) &&
+      state.lastRequestId == request.requestId;
+
+  void _disposeCanvas2dSurface(String engineId, String surfaceId) {
+    final key = JsThreeSurfaceKey(engineId, surfaceId);
+    final states = _canvas2d.remove(key);
+    if (states != null) _canvas2dCount -= states.length;
+  }
+
+  @override
   Widget build(
     BuildContext context,
     JsThreeSurface surface,
@@ -117,6 +210,12 @@ class FlutterGpuThreeHost implements JsThreeHost {
 
   @override
   void disposeEngine(String engineId) {
+    final canvasKeys = _canvas2d.keys
+        .where((key) => key.engineId == engineId)
+        .toList();
+    for (final key in canvasKeys) {
+      _canvas2dCount -= _canvas2d.remove(key)?.length ?? 0;
+    }
     final entries = _surfaces.entries
         .where((entry) => entry.key.engineId == engineId)
         .toList();
@@ -125,6 +224,28 @@ class FlutterGpuThreeHost implements JsThreeHost {
       entry.value.dispose();
     }
   }
+}
+
+JsThreeCanvas2DResult _canvas2dResult(
+  JsThreeCanvas2DRequest request,
+  Uint8List? data,
+  bool stale,
+) => JsThreeCanvas2DResult(
+  engineId: request.engineId,
+  surfaceId: request.surfaceId,
+  canvasId: request.canvasId,
+  generation: request.generation,
+  requestId: request.requestId,
+  width: request.width,
+  height: request.height,
+  data: data,
+  stale: stale,
+);
+
+final class _FlutterCanvas2DState {
+  _FlutterCanvas2DState(this.generation);
+  final int generation;
+  var lastRequestId = 0;
 }
 
 class FlutterGpuThreeSurface extends JsThreeSurface {

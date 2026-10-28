@@ -184,6 +184,13 @@ function localImage() {
 }
 
 function localCanvas() {
+  const capabilities = JSR.three.getCapabilities();
+  if (capabilities.backend === 'flutterGpu') {
+    if (typeof JSR.three.createCanvas2D !== 'function') {
+      throw new Error(`${WIDGET_ID}: native Flutter canvas2d is unavailable`);
+    }
+    return JSR.three.createCanvas2D('main', { width: 300, height: 150 });
+  }
   if (typeof ROOT.OffscreenCanvas !== 'function') {
     throw new Error(`${WIDGET_ID}: local 2D canvases require OffscreenCanvas`);
   }
