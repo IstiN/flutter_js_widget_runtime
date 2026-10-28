@@ -53,6 +53,42 @@ const EXAMPLES = Object.freeze({
       module: 'e7e9fcee0f8140745a400a30a5d29c9ac97a13409f655b1e618cddbd2c8d406c'
     },
     assets: []
+  },
+  webgl_buffergeometry_uint: {
+    id: 'three-buffergeometry-uint',
+    directory: 'three-buffergeometry-uint',
+    name: 'Integer BufferGeometry — three.js r186',
+    description: 'Unmodified official webgl_buffergeometry_uint module on the JSR THREE R1/WebGL2 runtime.',
+    icon: '🔢',
+    expected: {
+      html: 'a638b634348ecbd8f4c5fcf0889d04dab6c950e652569cab2486429f206dc457',
+      module: 'e9b52fe4a7161d6bd32d0e25612eaaa0abc8878d43cfb146782b67400b7afe86'
+    },
+    assets: []
+  },
+  webgl_buffergeometry_lines_indexed: {
+    id: 'three-buffergeometry-lines-indexed',
+    directory: 'three-buffergeometry-lines-indexed',
+    name: 'Indexed BufferGeometry Lines — three.js r186',
+    description: 'Unmodified official webgl_buffergeometry_lines_indexed module on the JSR THREE R1/WebGL2 runtime.',
+    icon: '❄️',
+    expected: {
+      html: '2b430176ebda402ca32d86565d3bf838bdc98158dbd37b0f3e21c9ba4e8442ee',
+      module: 'a09b6d9af3a93221cf73c03d389a88918d8e65270292f3e20fd64a7ce8a27135'
+    },
+    assets: []
+  },
+  webgl_buffergeometry_points: {
+    id: 'three-buffergeometry-points',
+    directory: 'three-buffergeometry-points',
+    name: 'BufferGeometry Points — three.js r186',
+    description: 'Unmodified official webgl_buffergeometry_points module on the JSR THREE R1/WebGL2 runtime.',
+    icon: '✨',
+    expected: {
+      html: 'ab181dd67b2e7199f062af3d83a62f425a493c88afeb3751c83d55ac5304e52f',
+      module: '0ec6f6cebe58d4fe1373d9448e3ed0eb65f15312a42539ba212a961fa852fb40'
+    },
+    assets: []
   }
 });
 const slash = value => value.split(path.sep).join('/');

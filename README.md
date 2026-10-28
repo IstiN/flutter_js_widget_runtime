@@ -217,6 +217,9 @@ Rebuild and run an official example from the pinned local source:
 dart run bin/jsr_three_example.dart prepare webgl_geometry_minecraft
 dart run bin/jsr_three_example.dart prepare webgl_lines_colors
 dart run bin/jsr_three_example.dart prepare webgl_geometry_colors
+dart run bin/jsr_three_example.dart prepare webgl_buffergeometry_uint
+dart run bin/jsr_three_example.dart prepare webgl_buffergeometry_lines_indexed
+dart run bin/jsr_three_example.dart prepare webgl_buffergeometry_points
 cd example
 flutter run -t lib/three_example.dart
 # Or select the initial module without using the dropdown:
@@ -225,8 +228,12 @@ flutter run -t lib/three_example.dart \
 ```
 
 The prepare step preserves the exact official HTML/module bytes and resolves
-only each module's pinned addons/local assets. Minecraft, Line Colors and
-Geometry Colors all run on native R1. Native runs require a Flutter
+only each module's pinned addons/local assets. Minecraft, Line Colors,
+Geometry Colors, Integer BufferGeometry, Indexed BufferGeometry Lines and
+BufferGeometry Points run on native R1. The official
+`webgl_buffergeometry_indexed` and `webgl_buffergeometry_lines` modules remain
+excluded because R1 deliberately rejects HemisphereLight and morph targets;
+they are not approximated or rewritten. Native runs require a Flutter
 GPU/Impeller platform; the Web path requires Worker OffscreenCanvas + WebGL2
 (verify on real Chrome/Edge). The example overlay reports decode/frame time,
 calls, triangles and uploads.

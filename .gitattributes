@@ -1,0 +1,3 @@
+# Preserved upstream bytes intentionally include their original whitespace.
+example/widgets/three-*/official_module.js -whitespace
+example/widgets/three-*/original.html -whitespace
