@@ -197,6 +197,11 @@ jsr.render({type: 'three', canvasId: 'main', width: 640, height: 360});
   multi-material parts. Transparent instancing and per-instance colors are
   outside the initial R1 profile. Diagnostics count triangles across all
   instances, not just the base geometry.
+- Native R1 includes Blinn-Phong materials and unique-edge mesh wireframes.
+  Its bounded Flutter Canvas2D path rasterizes concentric radial gradients
+  and `fillRect` into versioned `CanvasTexture` RGBA uploads; unsupported
+  canvas operations remain explicit `three.unsupported` failures. Web keeps
+  using the real OffscreenCanvas implementation.
 - Resources are isolated by `(engineId, surfaceId, resourceId)`. Mount,
   resize/DPR, pointer/key/cancel, capture and disposal are host-managed.
   Prepared local assets use `jsr.three.registerAsset`; host asset failures
@@ -220,9 +225,8 @@ flutter run -t lib/three_example.dart \
 ```
 
 The prepare step preserves the exact official HTML/module bytes and resolves
-only each module's pinned addons/local assets. Minecraft and Line Colors run
-on native R1; Geometry Colors currently requires WebGL2 pending native
-CanvasTexture, Phong and wireframe support. Native runs require a Flutter
+only each module's pinned addons/local assets. Minecraft, Line Colors and
+Geometry Colors all run on native R1. Native runs require a Flutter
 GPU/Impeller platform; the Web path requires Worker OffscreenCanvas + WebGL2
 (verify on real Chrome/Edge). The example overlay reports decode/frame time,
 calls, triangles and uploads.

@@ -17,7 +17,7 @@ void main() {
       ThreeExampleSelection.initial.exampleId,
       requestedExample.isEmpty ? 'webgl_geometry_minecraft' : requestedExample,
     );
-    expect(ThreeExampleSelection.geometryColors.label, contains('Web only'));
+    expect(ThreeExampleSelection.geometryColors.label, 'Vertex Colors');
     expect(
       ThreeExampleSelection.values
           .map((selection) => selection.widgetId)
