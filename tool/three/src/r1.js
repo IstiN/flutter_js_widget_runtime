@@ -107,12 +107,14 @@ export function encodeEnvelope(commands, engineId, surfaceId, sequence) {
   return output;
 }
 
-export function geometryCommand(id, version, primitive, vertexCount, attributes, indices) {
+export function geometryCommand(id, version, primitive, vertexCount, attributes, indices, wireIndices = null) {
   let indexCount = indices ? indices.length : 0;
   let mask = 0;
   const names = ['position', 'normal', 'uv', 'color'];
   for (let i = 0; i < names.length; i++) if (attributes[names[i]]) mask |= 1 << i;
-  const body = new ByteWriter(28 + indexCount * 4 + 64);
+  if (wireIndices && (primitive !== 0 || wireIndices.length % 2 !== 0)) throw new Error('three.invalid: wire indices require complete triangle-mesh edges');
+  const wireBytes = wireIndices ? 4 + wireIndices.length * 4 : 0;
+  const body = new ByteWriter(28 + indexCount * 4 + wireBytes + 64);
   body.u32(id);
   body.u32(version);
   body.u32(mask);
@@ -127,6 +129,10 @@ export function geometryCommand(id, version, primitive, vertexCount, attributes,
     body.bytes(new Uint8Array(values.buffer, values.byteOffset, values.byteLength));
   }
   if (indices) for (let i = 0; i < indices.length; i++) body.u32(indices[i]);
+  if (wireIndices) {
+    body.u32(wireIndices.length);
+    for (let i = 0; i < wireIndices.length; i++) body.u32(wireIndices[i]);
+  }
   return command(OPCODE.GEOMETRY, body.finish());
 }
 
@@ -143,8 +149,9 @@ export function textureCommand(id, version, width, height, encoding, flags, data
   return command(OPCODE.TEXTURE, body.finish());
 }
 
-export function materialCommand(id, version, kind, mapId, flags, side, color, opacity, roughness, metalness, alphaTest, pointSize) {
-  const body = new ByteWriter(56);
+export function materialCommand(id, version, kind, mapId, flags, side, color, opacity, roughness, metalness, alphaTest, pointSize, specular = null, shininess = 0) {
+  if ((kind === 5) !== (specular !== null)) throw new Error('three.invalid: Phong material requires exactly one specular payload');
+  const body = new ByteWriter(specular ? 72 : 56);
   body.u32(id);
   body.u32(version);
   body.u32(kind);
@@ -159,6 +166,12 @@ export function materialCommand(id, version, kind, mapId, flags, side, color, op
   body.f32(metalness);
   body.f32(alphaTest);
   body.f32(pointSize);
+  if (specular) {
+    body.f32(specular.r);
+    body.f32(specular.g);
+    body.f32(specular.b);
+    body.f32(shininess);
+  }
   return command(OPCODE.MATERIAL, body.finish());
 }
 

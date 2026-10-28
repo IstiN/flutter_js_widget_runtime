@@ -29,7 +29,8 @@ enum JsThreeMaterialKind {
   meshLambert(1),
   meshStandard(2),
   lineBasic(3),
-  pointsBasic(4);
+  pointsBasic(4),
+  meshPhong(5);
 
   const JsThreeMaterialKind(this.wireValue);
   final int wireValue;
@@ -150,6 +151,7 @@ final class JsThreeGeometryUpsert extends JsThreeCommand {
     required this.colors,
     required this.colorStride,
     required this.indices,
+    required this.wireIndices,
   }) : super._(1);
 
   final int geometryId;
@@ -164,6 +166,13 @@ final class JsThreeGeometryUpsert extends JsThreeCommand {
   final Float32List? colors;
   final int colorStride;
   final Uint32List indices;
+
+  /// Optional unique-edge indices for Mesh.material.wireframe on triangles.
+  /// Null is the legacy/no-wire payload; an empty list is an explicit empty draw.
+  final Uint32List? wireIndices;
+
+  bool get hasWireIndices => wireIndices != null;
+  int get wireIndexCount => wireIndices?.length ?? 0;
 }
 
 final class JsThreeTextureUpsert extends JsThreeCommand {
@@ -211,6 +220,10 @@ final class JsThreeMaterialUpsert extends JsThreeCommand {
     required this.metalness,
     required this.alphaTest,
     required this.pointSize,
+    required this.specularR,
+    required this.specularG,
+    required this.specularB,
+    required this.shininess,
   }) : super._(3);
 
   final int materialId;
@@ -227,12 +240,17 @@ final class JsThreeMaterialUpsert extends JsThreeCommand {
   final double metalness;
   final double alphaTest;
   final double pointSize;
+  final double specularR;
+  final double specularG;
+  final double specularB;
+  final double shininess;
 
   bool get vertexColors => flags & 0x01 != 0;
   bool get flatShading => flags & 0x02 != 0;
   bool get transparent => flags & 0x04 != 0;
   bool get depthTest => flags & 0x08 != 0;
   bool get depthWrite => flags & 0x10 != 0;
+  bool get wireframe => flags & 0x20 != 0;
 }
 
 final class JsThreeNodeUpsert extends JsThreeCommand {
@@ -587,6 +605,20 @@ final class JsThreeProtocolDecoder {
     final indices = header.indexCount == 0
         ? Uint32List(0).asUnmodifiableView()
         : body.indices(header.indexCount, header.vertexCount);
+    Uint32List? wireIndices;
+    if (body.remaining != 0) {
+      if (header.primitive != JsThreePrimitive.triangles) {
+        body.fail('wire indices require triangle geometry');
+      }
+      final wireIndexCount = body.u32('wire index count');
+      if (wireIndexCount > maxIndexCount) {
+        body.fail('wire index count exceeds $maxIndexCount');
+      }
+      if (wireIndexCount % 2 != 0) {
+        body.fail('wire index count has an incomplete line');
+      }
+      wireIndices = body.indices(wireIndexCount, header.vertexCount);
+    }
     return JsThreeGeometryUpsert._(
       geometryId: header.id,
       version: header.version,
@@ -600,6 +632,7 @@ final class JsThreeProtocolDecoder {
       colors: color.colors,
       colorStride: color.stride,
       indices: indices,
+      wireIndices: wireIndices,
     );
   }
 
@@ -713,7 +746,14 @@ final class JsThreeProtocolDecoder {
     );
     final mapTextureId = body.u32('map texture id');
     final flags = body.u32('material flags');
-    if (flags & ~0x1f != 0) body.fail('unknown material flag');
+    if (flags & ~0x3f != 0) body.fail('unknown material flag');
+    if (flags & 0x20 != 0 &&
+        kind != JsThreeMaterialKind.meshBasic &&
+        kind != JsThreeMaterialKind.meshLambert &&
+        kind != JsThreeMaterialKind.meshStandard &&
+        kind != JsThreeMaterialKind.meshPhong) {
+      body.fail('wireframe requires a mesh material');
+    }
     final side = body.enumValue(
       JsThreeSide.values,
       body.u32('material side'),
@@ -728,6 +768,20 @@ final class JsThreeProtocolDecoder {
     final alphaTest = body.unitFloat('material alpha test');
     final pointSize = body.finiteFloat('point size');
     if (pointSize <= 0) body.fail('point size must be positive');
+    var specularR = 0.0;
+    var specularG = 0.0;
+    var specularB = 0.0;
+    var shininess = 0.0;
+    if (kind == JsThreeMaterialKind.meshPhong) {
+      if (body.remaining != 16) {
+        body.fail('Phong material requires specular RGB and shininess');
+      }
+      specularR = body.finiteFloat('material specular red');
+      specularG = body.finiteFloat('material specular green');
+      specularB = body.finiteFloat('material specular blue');
+      shininess = body.finiteFloat('material shininess');
+      if (shininess < 0) body.fail('material shininess must be nonnegative');
+    }
     return JsThreeMaterialUpsert._(
       materialId: id,
       version: version,
@@ -743,6 +797,10 @@ final class JsThreeProtocolDecoder {
       metalness: metalness,
       alphaTest: alphaTest,
       pointSize: pointSize,
+      specularR: specularR,
+      specularG: specularG,
+      specularB: specularB,
+      shininess: shininess,
     );
   }
 

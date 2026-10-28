@@ -81,12 +81,16 @@ final class _GpuGeometry {
     this.verticesView,
     this.indices,
     this.indicesView,
+    this.wireIndices,
+    this.wireIndicesView,
   );
   final JsThreeGeometryUpsert source;
   final gpu.DeviceBuffer vertices;
   final gpu.BufferView verticesView;
   final gpu.DeviceBuffer? indices;
   final gpu.BufferView? indicesView;
+  final gpu.DeviceBuffer? wireIndices;
+  final gpu.BufferView? wireIndicesView;
 }
 
 final class _GpuTexture {

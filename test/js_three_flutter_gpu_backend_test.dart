@@ -67,8 +67,18 @@ Uint8List _batch({bool instanced = true}) {
   JsThreeGeometryUpsert geometry,
   JsThreeMaterialUpsert material,
 })
-_drawResources() {
-  final geometry = Uint8List(92);
+_drawResources({
+  JsThreeMaterialKind kind = JsThreeMaterialKind.meshBasic,
+  bool wireframe = false,
+  List<int>? wireIndices,
+  double specularR = 0,
+  double specularG = 0,
+  double specularB = 0,
+  double shininess = 0,
+}) {
+  final geometry = Uint8List(
+    92 + (wireIndices == null ? 0 : 4 + wireIndices.length * 4),
+  );
   _u32(geometry, 0, 1);
   _u32(geometry, 4, 1);
   _u32(geometry, 8, 1);
@@ -79,11 +89,19 @@ _drawResources() {
   for (var index = 0; index < indices.length; index++) {
     _u32(geometry, 68 + index * 4, indices[index]);
   }
+  if (wireIndices != null) {
+    _u32(geometry, 92, wireIndices.length);
+    for (var index = 0; index < wireIndices.length; index++) {
+      _u32(geometry, 96 + index * 4, wireIndices[index]);
+    }
+  }
 
-  final material = Uint8List(56);
+  final phong = kind == JsThreeMaterialKind.meshPhong;
+  final material = Uint8List(phong ? 72 : 56);
   _u32(material, 0, 1);
   _u32(material, 4, 1);
-  _u32(material, 16, 24);
+  _u32(material, 8, kind.wireValue);
+  _u32(material, 16, 24 | (wireframe ? 32 : 0));
   _f32(material, 24, 1);
   _f32(material, 28, 1);
   _f32(material, 32, 1);
@@ -91,6 +109,12 @@ _drawResources() {
   _f32(material, 40, 0.5);
   _f32(material, 44, 0.5);
   _f32(material, 52, 1);
+  if (phong) {
+    _f32(material, 56, specularR);
+    _f32(material, 60, specularG);
+    _f32(material, 64, specularB);
+    _f32(material, 68, shininess);
+  }
 
   final node = Uint8List(92);
   _u32(node, 0, 1);
@@ -108,13 +132,33 @@ _drawResources() {
   );
 }
 
-ThreeDrawItem _draw({int offset = 0, int? count}) {
-  final resources = _drawResources();
+ThreeDrawItem _draw({
+  int offset = 0,
+  int? count,
+  JsThreeMaterialKind kind = JsThreeMaterialKind.meshBasic,
+  bool wireframe = false,
+  List<int>? wireIndices,
+  double specularR = 0,
+  double specularG = 0,
+  double specularB = 0,
+  double shininess = 0,
+}) {
+  final resources = _drawResources(
+    kind: kind,
+    wireframe: wireframe,
+    wireIndices: wireIndices,
+    specularR: specularR,
+    specularG: specularG,
+    specularB: specularB,
+    shininess: shininess,
+  );
   return ThreeDrawItem(
     node: resources.node,
     geometry: resources.geometry,
     material: resources.material,
-    primitive: ThreeDrawPrimitive.triangles,
+    primitive: wireframe
+        ? ThreeDrawPrimitive.lines
+        : ThreeDrawPrimitive.triangles,
     viewDepth: 0,
     indexOffset: offset,
     drawCount: count,
@@ -194,6 +238,62 @@ void main() {
     expect(_draw().drawCount, 6);
     expect(
       () => debugThreeIndexRange(_draw(offset: 6, count: 3)),
+      throwsArgumentError,
+    );
+  });
+
+  test('Phong material uniforms carry distinct kind specular and shininess', () {
+    final phong = debugThreeMaterialUniform(
+      _draw(
+        kind: JsThreeMaterialKind.meshPhong,
+        specularR: 0.25,
+        specularG: 0.5,
+        specularB: 0.75,
+        shininess: 64,
+      ),
+    );
+    final lambert = debugThreeMaterialUniform(
+      _draw(kind: JsThreeMaterialKind.meshLambert),
+    );
+    expect(phong.lengthInBytes, 64);
+    expect(lambert.lengthInBytes, 64);
+    expect(phong.getFloat32(28, Endian.little), 5);
+    expect(lambert.getFloat32(28, Endian.little), 1);
+    expect(phong.getFloat32(48, Endian.little), 0.25);
+    expect(phong.getFloat32(52, Endian.little), 0.5);
+    expect(phong.getFloat32(56, Endian.little), 0.75);
+    expect(phong.getFloat32(60, Endian.little), 64);
+    expect(lambert.getFloat32(48, Endian.little), 0);
+    expect(lambert.getFloat32(60, Endian.little), 0);
+
+    final changed = debugThreeMaterialUniform(
+      _draw(
+        kind: JsThreeMaterialKind.meshPhong,
+        specularR: 1,
+        shininess: 12,
+      ),
+    );
+    expect(changed.getFloat32(48, Endian.little), 1);
+    expect(changed.getFloat32(60, Endian.little), 12);
+  });
+
+  test('wireframe index ranges use wire counts instead of triangle counts', () {
+    final wire = _draw(wireframe: true, wireIndices: const [0, 1]);
+    expect(wire.primitive, ThreeDrawPrimitive.lines);
+    expect(wire.indexed, isTrue);
+    expect(wire.drawCount, 2);
+    final range = debugThreeIndexRange(wire);
+    expect(range.offsetInBytes, 0);
+    expect(range.lengthInBytes, 8);
+    expect(
+      () => debugThreeIndexRange(
+        _draw(
+          offset: 2,
+          count: 2,
+          wireframe: true,
+          wireIndices: const [0, 1],
+        ),
+      ),
       throwsArgumentError,
     );
   });
