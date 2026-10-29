@@ -1,4 +1,7 @@
+import { createExampleCanvas2D } from './example_canvas2d.js';
+
 const ROOT = globalThis;
+const browserDocument = ROOT.document || null;
 const EXAMPLE = __JSR_THREE_EXAMPLE_ID__;
 const WIDGET_ID = __JSR_THREE_WIDGET_ID__;
 const ASSETS = JSON.parse(__JSR_THREE_EXAMPLE_ASSETS_JSON__);
@@ -16,6 +19,17 @@ if (typeof JSR.render !== 'function' || typeof JSR.exportState !== 'function') {
 
 const canvas = JSR.three.createCanvas('main');
 const runtimeDocument = canvas.ownerDocument;
+canvas.getRootNode = () => runtimeDocument;
+const dispatchCanvasEvent = canvas.dispatchEvent;
+canvas.dispatchEvent = function(event) {
+  if (event && (String(event.type).startsWith('pointer') || event.type === 'wheel')) {
+    if (event.clientX === undefined) event.clientX = event.pageX || 0;
+    if (event.clientY === undefined) event.clientY = event.pageY || 0;
+    if (event.pageX === undefined) event.pageX = event.clientX;
+    if (event.pageY === undefined) event.pageY = event.clientY;
+  }
+  return dispatchCanvasEvent.call(this, event);
+};
 if (!runtimeDocument || !runtimeDocument.defaultView) {
   throw new Error(`${WIDGET_ID}: the JSR runtime document facade is unavailable`);
 }
@@ -26,6 +40,7 @@ let statsDiagnostics = {
   phase: 'idle', frames: 0, fps: 0, frameTimeMs: 0,
   begins: 0, ends: 0, updates: 0, mode: 0
 };
+let guiDiagnostics = { roots: 0, controllers: 0, changes: 0, finishes: 0, values: [] };
 const assetDiagnostics = {};
 for (const asset of ASSETS) {
   assetDiagnostics[asset.url] = {
@@ -54,7 +69,8 @@ function publishDiagnostics() {
       lines: finite(render.lines), geometries: finite(memory.geometries),
       textures: finite(memory.textures)
     },
-    stats: Object.assign({}, statsDiagnostics)
+    stats: Object.assign({}, statsDiagnostics),
+    gui: guiDiagnostics
   };
   for (const asset of ASSETS) {
     if (asset.diagnostic) state[asset.diagnostic] = assetDiagnostics[asset.url];
@@ -66,6 +82,17 @@ function publishDiagnostics() {
 export function reportStats(value) {
   statsDiagnostics = value;
   publishDiagnostics();
+}
+
+export function reportGui(value) {
+  guiDiagnostics = value;
+  publishDiagnostics();
+}
+
+export function useBrowserGui() {
+  const capabilities = JSR.three.getCapabilities();
+  return capabilities.backend === 'webgl2' && !!browserDocument &&
+    typeof browserDocument.createElement === 'function' && !!browserDocument.body;
 }
 
 const hostRender = JSR.render;
@@ -189,7 +216,7 @@ function localCanvas() {
     if (typeof JSR.three.createCanvas2D !== 'function') {
       throw new Error(`${WIDGET_ID}: native Flutter canvas2d is unavailable`);
     }
-    return JSR.three.createCanvas2D('main', { width: 300, height: 150 });
+    return createExampleCanvas2D(JSR, 'main', { width: 300, height: 150 });
   }
   if (typeof ROOT.OffscreenCanvas !== 'function') {
     throw new Error(`${WIDGET_ID}: local 2D canvases require OffscreenCanvas`);
@@ -249,12 +276,13 @@ runtimeDocument.getElementById = function(id) {
 // The host normalizes mouse and touch movement to document pointer events.
 // Mirror them to body listeners and to legacy mousemove listeners locally.
 runtimeDocument.addEventListener('pointermove', event => {
-  body.dispatchEvent(Object.assign({}, event));
-  runtimeDocument.dispatchEvent(Object.assign({}, event, {
-    type: 'mousemove',
+  const normalized = Object.assign({}, event, {
     clientX: event.clientX === undefined ? event.pageX : event.clientX,
     clientY: event.clientY === undefined ? event.pageY : event.clientY
-  }));
+  });
+  container.dispatchEvent(Object.assign({}, normalized));
+  body.dispatchEvent(Object.assign({}, normalized));
+  runtimeDocument.dispatchEvent(Object.assign({}, normalized, { type: 'mousemove' }));
 });
 
 ROOT.document = runtimeDocument;

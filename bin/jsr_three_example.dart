@@ -7,6 +7,8 @@ const _examples = <String>{
   'webgl_buffergeometry_uint',
   'webgl_buffergeometry_lines_indexed',
   'webgl_buffergeometry_points',
+  'webgl_geometry_terrain_raycast',
+  'webgl_math_orientation_transform',
 };
 
 /// Prepares generated widgets from a pinned, local three.js source tree.
@@ -58,7 +60,8 @@ void _usage([IOSink? sink]) {
     'Usage: dart run bin/jsr_three_example.dart prepare '
     '<webgl_geometry_minecraft|webgl_geometry_colors|webgl_lines_colors|'
     'webgl_buffergeometry_uint|webgl_buffergeometry_lines_indexed|'
-    'webgl_buffergeometry_points> '
+    'webgl_buffergeometry_points|webgl_geometry_terrain_raycast|'
+    'webgl_math_orientation_transform> '
     '[--source <three-r186-dir>] [--offline] [--verify]\n'
     'THREE_SRC may supply the source directory. Resolution is always local-only.',
   );

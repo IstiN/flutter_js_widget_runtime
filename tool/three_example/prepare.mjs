@@ -89,6 +89,30 @@ const EXAMPLES = Object.freeze({
       module: '0ec6f6cebe58d4fe1373d9448e3ed0eb65f15312a42539ba212a961fa852fb40'
     },
     assets: []
+  },
+  webgl_geometry_terrain_raycast: {
+    id: 'three-geometry-terrain-raycast',
+    directory: 'three-geometry-terrain-raycast',
+    name: 'Terrain Raycast — three.js r186',
+    description: 'Unmodified official webgl_geometry_terrain_raycast module on the JSR THREE R1/WebGL2 runtime.',
+    icon: '⛰️',
+    expected: {
+      html: 'f583b757839640cdb45daaf7896e656ca1bbd6fbc5fb2ab680bf9a9531725a1f',
+      module: '1dd4eeafd3e34ceb5baea93fb588df704347c310298c7039d8816421e67df461'
+    },
+    assets: []
+  },
+  webgl_math_orientation_transform: {
+    id: 'three-math-orientation-transform',
+    directory: 'three-math-orientation-transform',
+    name: 'Orientation Transform — three.js r186',
+    description: 'Unmodified official webgl_math_orientation_transform module on the JSR THREE R1/WebGL2 runtime.',
+    icon: '🧭',
+    expected: {
+      html: 'c9922d30273b58b1744fef5f4034c760de981f9ab28b641421ef0addcb7a0c56',
+      module: '148bbdb22c24e0c617af871927a589a26d1a296528c2f1c5248f5f56c7fcc94a'
+    },
+    assets: []
   }
 });
 const slash = value => value.split(path.sep).join('/');
@@ -266,6 +290,12 @@ function localOnlyPlugin({ source, facadeSource = null, officialBytes = null, fi
       build.onResolve({ filter: /^three\/addons\/libs\/stats\.module\.js$/ }, () => {
         if (!final) return { path: path.join(jsmRoot, 'libs/stats.module.js') };
         return { path: path.join(HERE, 'stats_adapter.js') };
+      });
+      build.onResolve({ filter: /^three\/addons\/libs\/lil-gui\.module\.min\.js$/ }, args => {
+        if (!final || args.importer === path.join(HERE, 'lil_gui_adapter.js')) {
+          return { path: path.join(jsmRoot, 'libs/lil-gui.module.min.js') };
+        }
+        return { path: path.join(HERE, 'lil_gui_adapter.js') };
       });
       build.onResolve({ filter: /^three\/addons\// }, args => ({
         path: addonPath(jsmRoot, args.path)
@@ -466,7 +496,7 @@ async function main() {
   await addInput(`source/examples/${options.example}.html`, html);
   await addInput('source/LICENSE', license);
   for (const asset of assets) await addInput(`source/examples/${asset.url}`, asset.bytes);
-  for (const file of ['prepare.mjs', 'example_adapter.js', 'stats_adapter.js']) {
+  for (const file of ['prepare.mjs', 'example_adapter.js', 'example_canvas2d.js', 'lil_gui_adapter.js', 'stats_adapter.js']) {
     await addInput(`tool/three_example/${file}`, await readFile(path.join(HERE, file)));
   }
   for (const file of ['source-pin.json', 'src/native_entry.js']) {

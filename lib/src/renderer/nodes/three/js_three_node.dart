@@ -129,6 +129,11 @@ class _JsThreeNodeState extends State<JsThreeNode> with WidgetsBindingObserver {
         'movementY': event.localDelta.dy,
         'pressure': event.pressure,
         'timeStamp': event.timeStamp.inMicroseconds / 1000,
+        if (event is PointerScrollEvent) ...{
+          'deltaX': event.scrollDelta.dx,
+          'deltaY': event.scrollDelta.dy,
+          'deltaMode': 0,
+        },
       });
     }
     callback(_canvasId, payload);
@@ -191,6 +196,9 @@ class _JsThreeNodeState extends State<JsThreeNode> with WidgetsBindingObserver {
           onPointerUp: (event) => _send('pointerup', pointer: event),
           onPointerCancel: (event) => _send('pointercancel', pointer: event),
           onPointerHover: (event) => _send('pointermove', pointer: event),
+          onPointerSignal: (event) {
+            if (event is PointerScrollEvent) _send('wheel', pointer: event);
+          },
           child: widget.host.build(context, surface, widget.config),
         ),
       );
