@@ -1,0 +1,13 @@
+{
+  "id": "three-buffergeometry-indexed",
+  "name": "Indexed BufferGeometry — three.js r186",
+  "description": "Unmodified official webgl_buffergeometry_indexed module on the JSR THREE R1/WebGL2 runtime.",
+  "version": "0.1.0",
+  "icon": "🔺",
+  "allowedCommands": [],
+  "network": false,
+  "widget": {
+    "entry": "widget.js",
+    "interactive": true
+  }
+}

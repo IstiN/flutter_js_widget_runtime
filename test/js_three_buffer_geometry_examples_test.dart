@@ -5,6 +5,8 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:js_widget_runtime/js_widget_runtime.dart';
 import 'package:js_widget_runtime/src/renderer/nodes/three/flutter_gpu_three_host.dart'
     show FlutterGpuThreeSurface;
+import 'package:js_widget_runtime/src/renderer/nodes/three/js_three_protocol.dart'
+    show JsThreeLightType;
 import 'package:js_widget_runtime/src/renderer/nodes/three/three_draw_plan.dart';
 import 'package:js_widget_runtime/src/runtime/js_widget_engine_quickjs.dart';
 
@@ -19,6 +21,7 @@ final class _BufferGeometryExample {
     required this.indexCount,
     this.triangleCount = 0,
     this.directionalLightCount = 0,
+    this.hemisphereLightCount = 0,
     this.normalizedIntegerAttributes = false,
   });
 
@@ -29,6 +32,7 @@ final class _BufferGeometryExample {
   final int indexCount;
   final int triangleCount;
   final int directionalLightCount;
+  final int hemisphereLightCount;
   final bool normalizedIntegerAttributes;
 
   int get drawCount => indexCount == 0 ? vertexCount : indexCount;
@@ -44,6 +48,15 @@ const _examples = [
     triangleCount: 500000,
     directionalLightCount: 2,
     normalizedIntegerAttributes: true,
+  ),
+  _BufferGeometryExample(
+    exampleId: 'webgl_buffergeometry_indexed',
+    widgetId: 'three-buffergeometry-indexed',
+    primitive: ThreeDrawPrimitive.triangles,
+    vertexCount: 121,
+    indexCount: 600,
+    triangleCount: 200,
+    hemisphereLightCount: 1,
   ),
   _BufferGeometryExample(
     exampleId: 'webgl_buffergeometry_lines_indexed',
@@ -90,7 +103,9 @@ void main() {
           onStorageUpdate: (_) {},
         );
         final backend = QuickjsWidgetEngineBackend(config: config);
-        final engine = JsWidgetEngine(config: config.copyWith(backend: backend));
+        final engine = JsWidgetEngine(
+          config: config.copyWith(backend: backend),
+        );
         addTearDown(engine.dispose);
         await engine.init();
         await engine.run(sources.widget);
@@ -123,8 +138,10 @@ void main() {
         expect(exported['canvasCount'], 1);
         expect(exported['mounted'], isTrue);
         if (surface?.state == null) {
-          print('THREE ${example.exampleId} diagnostics: $exported; '
-              'logs=${engine.peekLogs()}');
+          print(
+            'THREE ${example.exampleId} diagnostics: $exported; '
+            'logs=${engine.peekLogs()}',
+          );
         }
         final state = surface?.state;
         expect(state, isNotNull);
@@ -138,8 +155,26 @@ void main() {
         expect(plan!.canRender, isTrue);
         expect(plan!.draws, hasLength(1));
         expect(plan!.triangleCount, example.triangleCount);
-        expect(plan!.directionalLights, hasLength(example.directionalLightCount));
+        expect(
+          plan!.directionalLights,
+          hasLength(example.directionalLightCount),
+        );
+        expect(plan!.hemisphereLights, hasLength(example.hemisphereLightCount));
         expect(plan!.diagnostics.warnings, isEmpty);
+        if (example.hemisphereLightCount != 0) {
+          final light = plan!.hemisphereLights.single;
+          expect(light.type, JsThreeLightType.hemisphere);
+          expect(light.intensity, closeTo(3, 0.00001));
+          expect(light.colorR, closeTo(1, 0.00001));
+          expect(light.colorG, closeTo(1, 0.00001));
+          expect(light.colorB, closeTo(1, 0.00001));
+          expect(light.groundColorR, closeTo(1, 0.00001));
+          expect(light.groundColorG, closeTo(1, 0.00001));
+          expect(light.groundColorB, closeTo(1, 0.00001));
+          expect(light.worldDirection[0], closeTo(0, 0.00001));
+          expect(light.worldDirection[1], closeTo(1, 0.00001));
+          expect(light.worldDirection[2], closeTo(0, 0.00001));
+        }
 
         final draw = plan!.draws.single;
         expect(draw.primitive, example.primitive);
@@ -160,7 +195,10 @@ void main() {
           for (final value in colors.take(300)) {
             expect(value, inInclusiveRange(-0.00001, 1.00001));
           }
-          expect(colors.take(300).any((value) => value > 0 && value < 1), isTrue);
+          expect(
+            colors.take(300).any((value) => value > 0 && value < 1),
+            isTrue,
+          );
         }
 
         final uploads = (

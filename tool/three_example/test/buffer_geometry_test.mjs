@@ -23,6 +23,17 @@ const examples = [
     render: { calls: 1, triangles: 500000, lines: 0, points: 0 }
   },
   {
+    example: 'webgl_buffergeometry_indexed',
+    directory: 'three-buffergeometry-indexed',
+    html: '4370368307e79fcc83c43df84ba2c5f8a2624c66c8e653c8f63ae560801fc827',
+    module: '99212fb6c3fcba450bd0faa33106c90eeaf09175fb3d7f002febf03a4ab76608',
+    source: /new THREE\.HemisphereLight/,
+    packets: 1,
+    hemisphere: true,
+    wireframeControl: true,
+    render: { calls: 1, triangles: 200, lines: 0, points: 0 }
+  },
+  {
     example: 'webgl_buffergeometry_lines_indexed',
     directory: 'three-buffergeometry-lines-indexed',
     html: '2b430176ebda402ca32d86565d3bf838bdc98158dbd37b0f3e21c9ba4e8442ee',
@@ -41,6 +52,39 @@ const examples = [
     render: { calls: 1, triangles: 0, lines: 0, points: 500000 }
   }
 ];
+
+function commands(packet) {
+  const bytes = Buffer.from(packet);
+  const header = bytes.readUInt16LE(6);
+  const count = bytes.readUInt32LE(header + 8);
+  const output = [];
+  let offset = header + 12;
+  for (let index = 0; index < count; index++) {
+    const opcode = bytes[offset];
+    const length = bytes.readUInt32LE(offset + 4);
+    output.push({ opcode, body: bytes.subarray(offset + 8, offset + 8 + length) });
+    offset += 8 + length;
+  }
+  assert.equal(offset, bytes.length);
+  return output;
+}
+
+function findCheckbox(tree, label) {
+  if (!tree || typeof tree !== 'object') return null;
+  if (tree.type === 'checkbox' && tree.label === label) return tree;
+  for (const value of Object.values(tree)) {
+    if (Array.isArray(value)) {
+      for (const child of value) {
+        const found = findCheckbox(child, label);
+        if (found) return found;
+      }
+    } else {
+      const found = findCheckbox(value, label);
+      if (found) return found;
+    }
+  }
+  return null;
+}
 
 const native = await readFile(path.join(ROOT, 'assets/three/three.native.js'), 'utf8');
 const license = await readFile(path.join(SOURCE, 'LICENSE'));
@@ -91,6 +135,8 @@ for (const definition of examples) {
   let nextRaf = 0;
   const jsr = {
     instanceId: `${definition.directory}-prepare-test`,
+    _handler: null,
+    onEvent(handler) { this._handler = handler; },
     render(tree) { renders.push(tree); },
     exportState(state) { states.push(JSON.parse(JSON.stringify(state))); },
     requestAnimationFrame(callback) {
@@ -119,17 +165,24 @@ for (const definition of examples) {
   vm.runInContext('globalThis.THREE = THREE;', context);
   vm.runInContext(widget, context, { filename: `${definition.example}.widget.js` });
 
-  assert.equal(renders.length, 1);
-  assert.equal(renders[0].canvasId, 'main');
-  assert.equal(renders[0].engineId, `${definition.directory}-prepare-test`);
+  if (definition.wireframeControl) {
+    assert.ok(renders.length >= 1);
+    assert.equal(renders.at(-1).type, 'stack');
+    assert.ok(renders.at(-1).children.some(node => node.type === 'three' && node.canvasId === 'main'));
+  } else {
+    assert.equal(renders.length, 1);
+    assert.equal(renders[0].canvasId, 'main');
+    assert.equal(renders[0].engineId, `${definition.directory}-prepare-test`);
+  }
   assert.equal(jsr.three._runtime.canvases.size, 1);
   assert.deepEqual(states.at(-1).assets, {});
+  const initialRenderCount = renders.length;
   const callbacks = [...rafs.values()];
   rafs.clear();
   assert.equal(callbacks.length, 1, `${definition.example}: one official animation loop`);
   for (const callback of callbacks) callback(performance.now());
   assert.equal(packets.length, definition.packets);
-  assert.equal(renders.length, 1, 'animation causes no render-tree churn');
+  assert.equal(renders.length, initialRenderCount, 'animation causes no render-tree churn');
   const state = states.at(-1);
   assert.equal(state.example, definition.example);
   assert.equal(state.backend, 'flutterGpu');
@@ -142,6 +195,18 @@ for (const definition of examples) {
   }
   assert.equal(state.stats.frames, definition.packets);
   assert.equal(state.stats.updates, definition.packets);
+  if (definition.hemisphere) {
+    const lights = packets.flatMap(commands).filter(command => command.opcode === 7);
+    assert.equal(lights.length, 1);
+    const light = lights[0].body;
+    assert.equal(light.length, 64);
+    assert.equal(light.readUInt32LE(4), 3, 'R1 light kind is HemisphereLight');
+    assert.equal(light.readFloatLE(20), 3, 'official intensity is preserved');
+    assert.deepEqual([24, 28, 32].map(offset => light.readFloatLE(offset)), [0, 1, 0]);
+    for (const offset of [8, 12, 16, 48, 52, 56]) {
+      assert.equal(light.readFloatLE(offset), 1, 'default sky/ground colors are white');
+    }
+  }
   results.push({
     example: definition.example,
     moduleSha256: sha(direct),
@@ -149,6 +214,20 @@ for (const definition of examples) {
     render: definition.render,
     textures: 0
   });
+  if (definition.wireframeControl) {
+    const checkbox = findCheckbox(renders.at(-1), 'wireframe');
+    assert.ok(checkbox, 'official lil-gui wireframe uses a real JSR checkbox');
+    assert.equal(checkbox.value, false);
+    const packetCount = packets.length;
+    jsr._handler(checkbox.onChanged, { value: true });
+    assert.equal(findCheckbox(renders.at(-1), 'wireframe').value, true);
+    assert.equal(states.at(-1).gui.values[0].value, true);
+    const next = [...rafs.values()];
+    rafs.clear();
+    assert.equal(next.length, 1);
+    for (const callback of next) callback(performance.now());
+    assert.ok(packets.length > packetCount, 'wireframe changes the native material path');
+  }
 }
 
 console.log(JSON.stringify({ ok: true, examples: results }, null, 2));
