@@ -198,6 +198,10 @@ jsr.render({type: 'three', canvasId: 'main', width: 640, height: 360});
   multi-material parts. Transparent instancing and per-instance colors are
   outside the initial R1 profile. Diagnostics count triangles across all
   instances, not just the base geometry.
+- Large indexed single-material meshes use a cached BVH for native raycasts;
+  upstream THREE still performs the final triangle/UV/normal/material tests.
+  Attribute/array identity and versions invalidate the cache, while morph,
+  skinned, non-indexed and bounded-draw-range cases retain the stock path.
 - Native R1 includes Blinn-Phong materials and unique-edge mesh wireframes.
   Its bounded Flutter Canvas2D path rasterizes concentric radial gradients
   and `fillRect` into versioned `CanvasTexture` RGBA uploads; unsupported

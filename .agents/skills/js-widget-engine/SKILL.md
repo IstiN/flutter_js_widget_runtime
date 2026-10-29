@@ -194,6 +194,13 @@ identity lives in `ThreeUpstreamBundle`, `tool/three/source-pin.json` and
   irradiance to Lambert/Standard/Phong, never Basic/Normal or shadow maps;
   four hemisphere slots are independent of directional/point quotas and
   overflow is diagnosed deterministically.
+- Native large indexed single-material meshes accelerate `Raycaster` with a
+  cached BVH (`native_raycast_bvh.js`). It only filters candidates; upstream
+  `_computeIntersections` still performs final triangle/UV/normal/material
+  work and receives restored face ids. Position/index object, array and
+  version changes invalidate the cache. Skinned/morph/non-indexed/material-
+  array/bounded-draw-range meshes must use the stock path. Keep the QuickJS
+  face-id/invalidation regression and a real Terrain pointermove FPS smoke.
 - Web uses the REAL upstream `WebGLRenderer` on a Worker-owned
   `OffscreenCanvas`. Canvas/WebGL2 creation is synchronous in the Worker;
   no proxy GL and no main-canvas reservation. A separate structured-clone

@@ -26,8 +26,9 @@
       "sourceTree": "46f76c91c965a0ac416a8e89f104af288ad177d2ad344204851f0febc502c995",
       "tool/three/src/errors.js": "a816e842488f759d202f284ff64e1f237c6d4474cdfcdcf1cf707e4a5506c887",
       "tool/three/src/native_canvas2d.js": "c8a7cda446ee4cc47c81fd87fa829cd94e67faa5c53de12e3be8cf7a95ba810c",
-      "tool/three/src/native_entry.js": "1fb4180100cb32288dfc7bd7087f78132e614cf8547fab7f068677284631fd1b",
+      "tool/three/src/native_entry.js": "d71a218de612a39cf195fb1dab1989a8ea60bd9c89905b533355f2006d60a608",
       "tool/three/src/native_loaders.js": "07b706f54b23d7de96be6bc80bc46dacb8c2a270b3fc5878322c5430c1bee85c",
+      "tool/three/src/native_raycast_bvh.js": "9aada0445e0fb5d1cba38ea8e801588d8b496cce8531f57ab9c60e61d7049384",
       "tool/three/src/native_renderer.js": "484ae7e53d226ad367b0a7f061eb8e45cdb9279a36ee91fe94792636b08031ca",
       "tool/three/src/native_three_shim.js": "e22a117b5d6e47db333aded60ed1b545a3b9c96b6d07b86b00867b84224dd93e",
       "tool/three/src/r1.js": "13ccdb4a930c755f8836a90ac3bcba31b9f6e9d8818ded7ca7fe6ed6ceb2ff9e",
@@ -43,16 +44,16 @@
   },
   "outputs": {
     "jsr_three_native.js": {
-      "bytes": 703745,
-      "sha256": "81d857d7becc01f4cc46764df86230fd9d9490954aeab31e28c9310e3e9a6a39"
+      "bytes": 707824,
+      "sha256": "f7bbcc7f2a1f17fd97d9a4d1ad2708d8df4bf9fa0cd3ffcdf8853994b58f5fe6"
     },
     "jsr_three_web.js": {
       "bytes": 834257,
       "sha256": "36dd4267b32524652764d4022604b426fbe542c3f65c8dc29ae4b05a40fe2fc4"
     },
     "three.native.js": {
-      "bytes": 703745,
-      "sha256": "81d857d7becc01f4cc46764df86230fd9d9490954aeab31e28c9310e3e9a6a39"
+      "bytes": 707824,
+      "sha256": "f7bbcc7f2a1f17fd97d9a4d1ad2708d8df4bf9fa0cd3ffcdf8853994b58f5fe6"
     },
     "three.web.js": {
       "bytes": 834257,
