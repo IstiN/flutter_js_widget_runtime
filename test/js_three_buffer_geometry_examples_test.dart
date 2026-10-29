@@ -1,15 +1,9 @@
-import 'dart:io';
-
-import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:js_widget_runtime/js_widget_runtime.dart';
-import 'package:js_widget_runtime/src/renderer/nodes/three/flutter_gpu_three_host.dart'
-    show FlutterGpuThreeSurface;
 import 'package:js_widget_runtime/src/renderer/nodes/three/js_three_protocol.dart'
     show JsThreeLightType;
 import 'package:js_widget_runtime/src/renderer/nodes/three/three_draw_plan.dart';
-import 'package:js_widget_runtime/src/runtime/js_widget_engine_quickjs.dart';
 
+import 'support/three_quickjs_example_harness.dart';
 import 'support/widget_logic_helper.dart';
 
 final class _BufferGeometryExample {
@@ -82,61 +76,25 @@ void main() {
     testWidgets(
       'unmodified official ${example.exampleId} renders through QuickJS R1',
       (tester) async {
-        final sources = await tester.runAsync(() async {
-          return (
-            three: await rootBundle.loadString('assets/three/three.native.js'),
-            widget: await File(
-              'example/widgets/${example.widgetId}/widget.js',
-            ).readAsString(),
-          );
-        });
-        final host = createFlutterGpuThreeHost();
-        final instanceId = '${example.widgetId}-test';
-        final config = JsRuntimeConfig(
+        final harness = await ThreeQuickjsExampleHarness.boot(
+          tester,
           widgetId: example.widgetId,
-          instanceId: instanceId,
-          threeEnabled: true,
-          threeSource: sources!.three,
-          threeHost: host,
-          onRender: (_) {},
-          onSetTitle: (_) {},
-          onStorageUpdate: (_) {},
+          instanceId: '${example.widgetId}-test',
         );
-        final backend = QuickjsWidgetEngineBackend(config: config);
-        final engine = JsWidgetEngine(
-          config: config.copyWith(backend: backend),
+        await harness.pumpUntil(
+          tester,
+          (state, plan) =>
+              state.geometryUploadCount == 1 &&
+              state.materialUploadCount == 1 &&
+              plan.draws.length == 1 &&
+              state.submittedFrameCount >= 3,
         );
-        addTearDown(engine.dispose);
-        await engine.init();
-        await engine.run(sources.widget);
 
-        FlutterGpuThreeSurface? surface;
-        ThreeDrawPlan? plan;
-        for (var attempt = 0; attempt < 300; attempt++) {
-          surface =
-              host.findSurface(instanceId, 'main#1') as FlutterGpuThreeSurface?;
-          final state = surface?.state;
-          if (state != null) {
-            plan = const ThreeDrawPlanner().plan(state);
-            if (state.geometryUploadCount == 1 &&
-                state.materialUploadCount == 1 &&
-                plan.draws.length == 1 &&
-                state.submittedFrameCount >= 3) {
-              break;
-            }
-          }
-          await tester.runAsync(
-            () => Future<void>.delayed(const Duration(milliseconds: 20)),
-          );
-          await tester.pump(const Duration(milliseconds: 50));
-        }
-
+        final engine = harness.engine;
+        final surface = harness.surface;
+        final plan = harness.plan;
         final exported = engine.exportedState;
-        expect(exported, isNotNull);
-        expect(exported!['example'], example.exampleId);
-        expect(exported['backend'], 'flutterGpu');
-        expect(exported['canvasCount'], 1);
-        expect(exported['mounted'], isTrue);
+        harness.expectHealthy(example.exampleId);
         if (surface?.state == null) {
           print(
             'THREE ${example.exampleId} diagnostics: $exported; '
@@ -151,8 +109,6 @@ void main() {
         expect(state.materialUploadCount, 1);
         expect(state.submittedFrameCount, greaterThanOrEqualTo(3));
         expect(state.pendingFrameCount, lessThanOrEqualTo(2));
-        expect(plan, isNotNull);
-        expect(plan!.canRender, isTrue);
         expect(plan!.draws, hasLength(1));
         expect(plan!.triangleCount, example.triangleCount);
         expect(
@@ -160,7 +116,6 @@ void main() {
           hasLength(example.directionalLightCount),
         );
         expect(plan!.hemisphereLights, hasLength(example.hemisphereLightCount));
-        expect(plan!.diagnostics.warnings, isEmpty);
         if (example.hemisphereLightCount != 0) {
           final light = plan!.hemisphereLights.single;
           expect(light.type, JsThreeLightType.hemisphere);
@@ -206,18 +161,12 @@ void main() {
           state.textureUploadCount,
           state.materialUploadCount,
         );
-        for (var frame = 0; frame < 3; frame++) {
-          await tester.runAsync(
-            () => Future<void>.delayed(const Duration(milliseconds: 20)),
-          );
-          await tester.pump(const Duration(milliseconds: 50));
-        }
+        await harness.pumpFrames(tester, 3);
         expect(state.geometryUploadCount, uploads.$1);
         expect(state.textureUploadCount, uploads.$2);
         expect(state.materialUploadCount, uploads.$3);
 
-        await engine.dispose();
-        await tester.pump();
+        await harness.dispose(tester);
       },
       timeout: const Timeout(Duration(seconds: 180)),
     );
