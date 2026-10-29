@@ -1,13 +1,7 @@
-import 'dart:io';
-
-import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:js_widget_runtime/js_widget_runtime.dart';
-import 'package:js_widget_runtime/src/renderer/nodes/three/flutter_gpu_three_host.dart'
-    show FlutterGpuThreeSurface;
 import 'package:js_widget_runtime/src/renderer/nodes/three/three_draw_plan.dart';
-import 'package:js_widget_runtime/src/runtime/js_widget_engine_quickjs.dart';
 
+import 'support/three_quickjs_example_harness.dart';
 import 'support/widget_logic_helper.dart';
 
 void main() {
@@ -17,63 +11,31 @@ void main() {
   testWidgets(
     'unmodified official geometry colors renders through Flutter Canvas and R1',
     (tester) async {
-      final sources = await tester.runAsync(() async {
-        return (
-          three: await rootBundle.loadString('assets/three/three.native.js'),
-          widget: await File(
-            'example/widgets/three-geometry-colors/widget.js',
-          ).readAsString(),
-        );
-      });
-      final host = createFlutterGpuThreeHost();
-      final config = JsRuntimeConfig(
+      final harness = await ThreeQuickjsExampleHarness.boot(
+        tester,
         widgetId: 'three-geometry-colors',
         instanceId: 'three-geometry-colors-test',
-        threeEnabled: true,
-        threeSource: sources!.three,
-        threeHost: host,
-        onRender: (_) {},
-        onSetTitle: (_) {},
-        onStorageUpdate: (_) {},
       );
-      final backend = QuickjsWidgetEngineBackend(config: config);
-      final engine = JsWidgetEngine(config: config.copyWith(backend: backend));
-      addTearDown(engine.dispose);
-      await engine.init();
-      await engine.run(sources.widget);
+      await harness.pumpUntil(
+        tester,
+        (state, plan) =>
+            state.geometryUploadCount == 7 &&
+            state.textureUploadCount == 1 &&
+            state.materialUploadCount >= 3 &&
+            plan.draws.length == 9 &&
+            state.submittedFrameCount >= 3,
+      );
 
-      FlutterGpuThreeSurface? surface;
-      ThreeDrawPlan? plan;
-      for (var attempt = 0; attempt < 300; attempt++) {
-        surface =
-            host.findSurface('three-geometry-colors-test', 'main#1')
-                as FlutterGpuThreeSurface?;
-        final state = surface?.state;
-        if (state != null) {
-          plan = const ThreeDrawPlanner().plan(state);
-          if (state.geometryUploadCount == 7 &&
-              state.textureUploadCount == 1 &&
-              state.materialUploadCount >= 3 &&
-              plan.draws.length == 9 &&
-              state.submittedFrameCount >= 3) {
-            break;
-          }
-        }
-        await tester.runAsync(
-          () => Future<void>.delayed(const Duration(milliseconds: 20)),
-        );
-        await tester.pump(const Duration(milliseconds: 50));
-      }
-
+      final engine = harness.engine;
+      final surface = harness.surface;
+      final plan = harness.plan;
       final exported = engine.exportedState;
-      expect(exported, isNotNull);
-      expect(exported!['example'], 'webgl_geometry_colors');
-      expect(exported['backend'], 'flutterGpu');
-      expect(exported['canvasCount'], 1);
-      expect(exported['mounted'], isTrue);
+      harness.expectHealthy('webgl_geometry_colors');
       if (surface?.state == null) {
-        print('THREE geometry colors diagnostics: $exported; '
-            'logs=${engine.peekLogs()}');
+        print(
+          'THREE geometry colors diagnostics: $exported; '
+          'logs=${engine.peekLogs()}',
+        );
       }
       final state = surface?.state;
       expect(state, isNotNull);
@@ -84,21 +46,18 @@ void main() {
       expect(state.materialUploadCount, inExclusiveRange(2, 5));
       expect(state.submittedFrameCount, greaterThanOrEqualTo(3));
       expect(state.pendingFrameCount, lessThanOrEqualTo(2));
-      expect(plan, isNotNull);
-      expect(plan!.canRender, isTrue);
-      expect(plan.draws, hasLength(9));
+      expect(plan!.draws, hasLength(9));
       expect(
-        plan.draws
-            .where((draw) => draw.primitive == ThreeDrawPrimitive.lines),
+        plan.draws.where((draw) => draw.primitive == ThreeDrawPrimitive.lines),
         hasLength(3),
       );
       expect(
-        plan.draws
-            .where((draw) => draw.primitive == ThreeDrawPrimitive.triangles),
+        plan.draws.where(
+          (draw) => draw.primitive == ThreeDrawPrimitive.triangles,
+        ),
         hasLength(6),
       );
       expect(plan.triangleCount, 246);
-      expect(plan.diagnostics.warnings, isEmpty);
       expect(plan.directionalLights, hasLength(1));
 
       final texture = state.textures.values.single;
@@ -114,18 +73,12 @@ void main() {
         state.textureUploadCount,
         state.materialUploadCount,
       );
-      for (var frame = 0; frame < 4; frame++) {
-        await tester.runAsync(
-          () => Future<void>.delayed(const Duration(milliseconds: 20)),
-        );
-        await tester.pump(const Duration(milliseconds: 50));
-      }
+      await harness.pumpFrames(tester, 4);
       expect(state.geometryUploadCount, uploads.$1);
       expect(state.textureUploadCount, uploads.$2);
       expect(state.materialUploadCount, uploads.$3);
 
-      await engine.dispose();
-      await tester.pump();
+      await harness.dispose(tester);
     },
     timeout: const Timeout(Duration(seconds: 120)),
   );

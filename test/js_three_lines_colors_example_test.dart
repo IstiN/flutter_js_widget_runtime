@@ -1,13 +1,7 @@
-import 'dart:io';
-
-import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:js_widget_runtime/js_widget_runtime.dart';
-import 'package:js_widget_runtime/src/renderer/nodes/three/flutter_gpu_three_host.dart'
-    show FlutterGpuThreeSurface;
 import 'package:js_widget_runtime/src/renderer/nodes/three/three_draw_plan.dart';
-import 'package:js_widget_runtime/src/runtime/js_widget_engine_quickjs.dart';
 
+import 'support/three_quickjs_example_harness.dart';
 import 'support/widget_logic_helper.dart';
 
 void main() {
@@ -17,56 +11,25 @@ void main() {
   testWidgets(
     'unmodified official line colors module renders through QuickJS R1',
     (tester) async {
-      final sources = await tester.runAsync(() async {
-        return (
-          three: await rootBundle.loadString('assets/three/three.native.js'),
-          widget: await File(
-            'example/widgets/three-lines-colors/widget.js',
-          ).readAsString(),
-        );
-      });
-      final host = createFlutterGpuThreeHost();
-      final config = JsRuntimeConfig(
+      final harness = await ThreeQuickjsExampleHarness.boot(
+        tester,
         widgetId: 'three-lines-colors',
         instanceId: 'three-lines-colors-test',
-        threeEnabled: true,
-        threeSource: sources!.three,
-        threeHost: host,
-        onRender: (_) {},
-        onSetTitle: (_) {},
-        onStorageUpdate: (_) {},
       );
-      final backend = QuickjsWidgetEngineBackend(config: config);
-      final engine = JsWidgetEngine(config: config.copyWith(backend: backend));
-      addTearDown(engine.dispose);
-      await engine.init();
-      await engine.run(sources.widget);
+      await harness.pumpUntil(
+        tester,
+        (state, plan) =>
+            state.geometryUploadCount == 6 &&
+            state.materialUploadCount == 1 &&
+            plan.draws.isNotEmpty &&
+            state.submittedFrameCount >= 3,
+      );
 
-      FlutterGpuThreeSurface? surface;
-      ThreeDrawPlan? plan;
-      for (var attempt = 0; attempt < 300; attempt++) {
-        surface =
-            host.findSurface('three-lines-colors-test', 'main#1')
-                as FlutterGpuThreeSurface?;
-        final state = surface?.state;
-        if (state != null) {
-          plan = const ThreeDrawPlanner().plan(state);
-          if (state.geometryUploadCount == 6 &&
-              state.materialUploadCount == 1 &&
-              plan.draws.isNotEmpty &&
-              state.submittedFrameCount >= 3) {
-            break;
-          }
-        }
-        await tester.pump(const Duration(milliseconds: 50));
-      }
-
+      final engine = harness.engine;
+      final surface = harness.surface;
+      final plan = harness.plan;
       final exported = engine.exportedState;
-      expect(exported, isNotNull);
-      expect(exported!['example'], 'webgl_lines_colors');
-      expect(exported['backend'], 'flutterGpu');
-      expect(exported['canvasCount'], 1);
-      expect(exported['mounted'], isTrue);
+      harness.expectHealthy('webgl_lines_colors');
       if (surface == null) {
         print('THREE lines diagnostics: $exported; logs=${engine.peekLogs()}');
       }
@@ -77,9 +40,7 @@ void main() {
       expect(state.materialUploadCount, 1);
       expect(state.submittedFrameCount, greaterThanOrEqualTo(3));
       expect(state.pendingFrameCount, lessThanOrEqualTo(2));
-      expect(plan, isNotNull);
-      expect(plan!.canRender, isTrue);
-      expect(plan.draws, hasLength(6));
+      expect(plan!.draws, hasLength(6));
       expect(
         plan.draws.every((draw) => draw.primitive == ThreeDrawPrimitive.lines),
         isTrue,
@@ -88,10 +49,8 @@ void main() {
         plan.draws.fold<int>(0, (total, draw) => total + draw.drawCount),
         2676,
       );
-      expect(plan.diagnostics.warnings, isEmpty);
       expect(plan.directionalLights, isEmpty);
-      await engine.dispose();
-      await tester.pump();
+      await harness.dispose(tester);
     },
     timeout: const Timeout(Duration(seconds: 120)),
   );
