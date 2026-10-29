@@ -53,4 +53,6 @@ flutter:
     - widgets/three-buffergeometry-uint/
     - widgets/three-buffergeometry-lines-indexed/
     - widgets/three-buffergeometry-points/
+    - widgets/three-geometry-terrain-raycast/
+    - widgets/three-math-orientation-transform/
     - assets/models/
