@@ -196,6 +196,10 @@ assert.equal(vm.runInContext('globalThis.__meshLookAts', math.context), 0,
   'default rotateTowards path does not call mesh.lookAt');
 let checkbox = findCheckbox(math.renders.at(-1), 'useLookAt');
 assert.ok(checkbox, 'native lil-gui emits a real JSR checkbox');
+const panel = math.renders.at(-1).children.find(node => node.type === 'container');
+assert.equal(panel.decoration.color, '#F21F1F1F');
+assert.equal(panel.child.children[0].style.color, '#FFEBEBEB',
+  'title and inherited checkbox label use light text on the dark panel');
 assert.equal(checkbox.value, false);
 assert.equal(math.states.at(-1).gui.values[0].value, false);
 math.jsr._handler(checkbox.onChanged, { value: true });
