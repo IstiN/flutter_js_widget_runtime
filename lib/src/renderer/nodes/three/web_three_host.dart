@@ -196,6 +196,17 @@ class WebThreeHost implements JsThreeHost {
   }
 
   @override
+  Future<JsThreeCanvas2DResult> rasterizeCanvas2D(
+    String boundEngineId,
+    Map<String, dynamic> request,
+  ) => Future.error(
+    const JsThreeUnsupportedException(
+      'three.canvas2d',
+      'Web uses the upstream worker Canvas2D implementation',
+    ),
+  );
+
+  @override
   Widget build(
     BuildContext context,
     JsThreeSurface surface,

@@ -23,8 +23,7 @@ class FlutterGpuThreeHost implements JsThreeHost {
     this.assetLoader,
     required this.shaderAsset,
     JsThreeCanvas2DRasterizer? canvas2dRasterizer,
-  }) : _canvas2dRasterizer =
-           canvas2dRasterizer ?? rasterizeJsThreeCanvas2D;
+  }) : _canvas2dRasterizer = canvas2dRasterizer ?? rasterizeJsThreeCanvas2D;
 
   static const int maxSurfaces = 64;
   static const int maxCanvas2dSurfaces = 256;
@@ -35,8 +34,8 @@ class FlutterGpuThreeHost implements JsThreeHost {
   final JsThreeCanvas2DRasterizer _canvas2dRasterizer;
   final JsThreeProtocolDecoder _decoder = JsThreeProtocolDecoder();
   final Map<JsThreeSurfaceKey, FlutterGpuThreeSurface> _surfaces = {};
-  final Map<JsThreeSurfaceKey, Map<String, _FlutterCanvas2DState>>
-  _canvas2d = {};
+  final Map<JsThreeSurfaceKey, Map<String, _FlutterCanvas2DState>> _canvas2d =
+      {};
   var _canvas2dCount = 0;
   var _canvas2dInFlight = 0;
 
@@ -131,23 +130,52 @@ class FlutterGpuThreeHost implements JsThreeHost {
       );
     }
     final key = JsThreeSurfaceKey(parsed.engineId, parsed.surfaceId);
-    if (parsed.dispose) {
-      final surfaces = _canvas2d[key];
-      if (surfaces?.remove(parsed.canvasId) != null) _canvas2dCount--;
-      if (surfaces != null && surfaces.isEmpty) _canvas2d.remove(key);
-      return _canvas2dResult(parsed, null, true);
-    }
+    if (parsed.dispose) return _disposeCanvas2dRequest(key, parsed);
     final surfaces = _canvas2d.putIfAbsent(key, () => {});
-    var state = surfaces[parsed.canvasId];
-    if (state == null) {
-      if (_canvas2dCount >= maxCanvas2dSurfaces) {
-        if (surfaces.isEmpty) _canvas2d.remove(key);
-        throw StateError('three.canvas2d: canvas quota exceeded');
-      }
-      state = _FlutterCanvas2DState(parsed.generation);
-      surfaces[parsed.canvasId] = state;
-      _canvas2dCount++;
+    final state = _canvas2dState(key, parsed, surfaces);
+    _validateCanvas2dRequest(state, parsed);
+    return _rasterizeCanvas2dRequest(key, state, parsed);
+  }
+
+  Future<JsThreeCanvas2DResult> _disposeCanvas2dRequest(
+    JsThreeSurfaceKey key,
+    JsThreeCanvas2DRequest parsed,
+  ) async {
+    final surfaces = _canvas2d[key];
+    if (surfaces?.remove(parsed.canvasId) != null) _canvas2dCount--;
+    if (surfaces != null && surfaces.isEmpty) _canvas2d.remove(key);
+    return _canvas2dResult(parsed, null, true);
+  }
+
+  _FlutterCanvas2DState _canvas2dState(
+    JsThreeSurfaceKey key,
+    JsThreeCanvas2DRequest parsed,
+    Map<String, _FlutterCanvas2DState> surfaces,
+  ) {
+    final state = surfaces[parsed.canvasId];
+    if (state != null) return state;
+    return _createCanvas2dState(key, parsed, surfaces);
+  }
+
+  _FlutterCanvas2DState _createCanvas2dState(
+    JsThreeSurfaceKey key,
+    JsThreeCanvas2DRequest parsed,
+    Map<String, _FlutterCanvas2DState> surfaces,
+  ) {
+    if (_canvas2dCount >= maxCanvas2dSurfaces) {
+      if (surfaces.isEmpty) _canvas2d.remove(key);
+      throw StateError('three.canvas2d: canvas quota exceeded');
     }
+    final state = _FlutterCanvas2DState(parsed.generation);
+    surfaces[parsed.canvasId] = state;
+    _canvas2dCount++;
+    return state;
+  }
+
+  void _validateCanvas2dRequest(
+    _FlutterCanvas2DState state,
+    JsThreeCanvas2DRequest parsed,
+  ) {
     if (state.generation != parsed.generation) {
       throw const JsThreeProtocolException(
         'three.canvas2d surface generation changed for a live canvas',
@@ -159,6 +187,13 @@ class FlutterGpuThreeHost implements JsThreeHost {
       );
     }
     state.lastRequestId = parsed.requestId;
+  }
+
+  Future<JsThreeCanvas2DResult> _rasterizeCanvas2dRequest(
+    JsThreeSurfaceKey key,
+    _FlutterCanvas2DState state,
+    JsThreeCanvas2DRequest parsed,
+  ) async {
     if (_canvas2dInFlight >= maxCanvas2dInFlight) {
       throw StateError('three.canvas2d: rasterization quota exceeded');
     }
@@ -166,7 +201,9 @@ class FlutterGpuThreeHost implements JsThreeHost {
     try {
       final bytes = await _canvas2dRasterizer(parsed);
       if (bytes.lengthInBytes != parsed.width * parsed.height * 4) {
-        throw StateError('three.canvas2d: rasterizer returned an invalid byte length');
+        throw StateError(
+          'three.canvas2d: rasterizer returned an invalid byte length',
+        );
       }
       if (!_canvas2dCurrent(key, state, parsed)) {
         return _canvas2dResult(parsed, null, true);

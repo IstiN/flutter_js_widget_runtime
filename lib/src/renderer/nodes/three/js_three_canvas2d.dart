@@ -108,8 +108,7 @@ JsThreeCanvas2DRequest parseJsThreeCanvas2DRequest(
     throw const FormatException('three.canvas2d: pixel quota exceeded');
   }
   final rawCommands = source['commands'];
-  if (rawCommands is! List ||
-      rawCommands.length > jsThreeCanvas2DMaxCommands) {
+  if (rawCommands is! List || rawCommands.length > jsThreeCanvas2DMaxCommands) {
     throw const FormatException('three.canvas2d: invalid command list');
   }
   final commands = dispose
@@ -185,16 +184,22 @@ JsThreeCanvas2DFillRect _parseCommand(Object? value) {
 
 _Canvas2DPaint _parsePaint(Map<String, dynamic> style) {
   final kind = style['kind'];
-  if (kind == 'color') {
-    final value = style['color'];
-    if (value is! String || value.length > 128) {
-      throw const FormatException('three.canvas2d: invalid color');
-    }
-    return _Canvas2DColorPaint(_parseColor(value));
-  }
+  if (kind == 'color') return _parseColorPaint(style);
   if (kind != 'radial') {
     throw const JsThreeUnsupportedException('canvas2d.fillStyle');
   }
+  return _parseRadialPaint(style);
+}
+
+_Canvas2DPaint _parseColorPaint(Map<String, dynamic> style) {
+  final value = style['color'];
+  if (value is! String || value.length > 128) {
+    throw const FormatException('three.canvas2d: invalid color');
+  }
+  return _Canvas2DColorPaint(_parseColor(value));
+}
+
+_Canvas2DPaint _parseRadialPaint(Map<String, dynamic> style) {
   final centerX = _number(style['centerX'], 'gradient center');
   final centerY = _number(style['centerY'], 'gradient center');
   final radius = _number(style['radius'], 'gradient radius');
@@ -236,58 +241,71 @@ _Canvas2DPaint _parsePaint(Map<String, dynamic> style) {
   );
 }
 
+const _canvas2dNamedColors = <String, int>{
+  'transparent': 0x00000000,
+  'black': 0xff000000,
+  'white': 0xffffffff,
+  'red': 0xffff0000,
+  'green': 0xff008000,
+  'blue': 0xff0000ff,
+};
+
 ui.Color _parseColor(String value) {
   final text = value.trim().toLowerCase();
-  const named = <String, int>{
-    'transparent': 0x00000000,
-    'black': 0xff000000,
-    'white': 0xffffffff,
-    'red': 0xffff0000,
-    'green': 0xff008000,
-    'blue': 0xff0000ff,
-  };
-  final namedValue = named[text];
+  final namedValue = _canvas2dNamedColors[text];
   if (namedValue != null) return ui.Color(namedValue);
-  if (text.startsWith('#')) {
-    final hex = text.substring(1);
-    final parsed = int.tryParse(hex, radix: 16);
-    if (parsed != null) {
-      if (hex.length == 3 || hex.length == 4) {
-        final r = int.parse(hex[0] * 2, radix: 16);
-        final g = int.parse(hex[1] * 2, radix: 16);
-        final b = int.parse(hex[2] * 2, radix: 16);
-        final a = hex.length == 4
-            ? int.parse(hex[3] * 2, radix: 16)
-            : 255;
-        return ui.Color.fromARGB(a, r, g, b);
-      }
-      if (hex.length == 6) return ui.Color(0xff000000 | parsed);
-      if (hex.length == 8) {
-        return ui.Color.fromARGB(
-          parsed & 255,
-          (parsed >> 24) & 255,
-          (parsed >> 16) & 255,
-          (parsed >> 8) & 255,
-        );
-      }
-    }
-  }
-  final match = RegExp(
-    r'^rgba?\(\s*([0-9]{1,3})\s*,\s*([0-9]{1,3})\s*,\s*([0-9]{1,3})\s*(?:,\s*([0-9]*\.?[0-9]+)\s*)?\)$',
-  ).firstMatch(text);
-  if (match != null) {
-    final r = int.parse(match.group(1)!);
-    final g = int.parse(match.group(2)!);
-    final b = int.parse(match.group(3)!);
-    final a = match.group(4) == null ? 1.0 : double.parse(match.group(4)!);
-    if (r <= 255 && g <= 255 && b <= 255 && a >= 0 && a <= 1) {
-      return ui.Color.fromARGB((a * 255).round(), r, g, b);
-    }
-  }
+  final parsed = _parseHexColor(text) ?? _parseRgbColor(text);
+  if (parsed != null) return parsed;
   throw const JsThreeUnsupportedException(
     'canvas2d.color',
     'unsupported CSS color syntax',
   );
+}
+
+ui.Color? _parseHexColor(String text) {
+  if (!text.startsWith('#')) return null;
+  return _parseHexDigits(text.substring(1));
+}
+
+ui.Color? _parseHexDigits(String hex) {
+  final parsed = int.tryParse(hex, radix: 16);
+  if (parsed == null) return null;
+  if (hex.length == 3 || hex.length == 4) {
+    return _parseShortHexColor(hex);
+  }
+  return _parseLongHexColor(hex, parsed);
+}
+
+ui.Color? _parseLongHexColor(String hex, int parsed) {
+  if (hex.length == 6) return ui.Color(0xff000000 | parsed);
+  if (hex.length != 8) return null;
+  return ui.Color.fromARGB(
+    parsed & 255,
+    (parsed >> 24) & 255,
+    (parsed >> 16) & 255,
+    (parsed >> 8) & 255,
+  );
+}
+
+ui.Color _parseShortHexColor(String hex) {
+  final r = int.parse(hex[0] * 2, radix: 16);
+  final g = int.parse(hex[1] * 2, radix: 16);
+  final b = int.parse(hex[2] * 2, radix: 16);
+  final a = hex.length == 4 ? int.parse(hex[3] * 2, radix: 16) : 255;
+  return ui.Color.fromARGB(a, r, g, b);
+}
+
+ui.Color? _parseRgbColor(String text) {
+  final match = RegExp(
+    r'^rgba?\(\s*([0-9]{1,3})\s*,\s*([0-9]{1,3})\s*,\s*([0-9]{1,3})\s*(?:,\s*([0-9]*\.?[0-9]+)\s*)?\)$',
+  ).firstMatch(text);
+  if (match == null) return null;
+  final r = int.parse(match.group(1)!);
+  final g = int.parse(match.group(2)!);
+  final b = int.parse(match.group(3)!);
+  final a = match.group(4) == null ? 1.0 : double.parse(match.group(4)!);
+  if (r > 255 || g > 255 || b > 255 || a < 0 || a > 1) return null;
+  return ui.Color.fromARGB((a * 255).round(), r, g, b);
 }
 
 Future<Uint8List> rasterizeJsThreeCanvas2D(
@@ -314,7 +332,9 @@ Future<Uint8List> rasterizeJsThreeCanvas2D(
       }
       final expected = request.width * request.height * 4;
       if (bytes.lengthInBytes != expected) {
-        throw StateError('three.canvas2d: Flutter returned an invalid byte length');
+        throw StateError(
+          'three.canvas2d: Flutter returned an invalid byte length',
+        );
       }
       return Uint8List.fromList(
         bytes.buffer.asUint8List(bytes.offsetInBytes, bytes.lengthInBytes),

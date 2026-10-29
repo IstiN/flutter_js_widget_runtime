@@ -949,21 +949,11 @@ ThreeInterleavedGeometry interleaveThreeGeometry(
     }
   }
 
-  ByteData? indices;
-  if (geometry.indexCount != 0) {
-    indices = ByteData(_product(geometry.indexCount, 4));
-    for (var index = 0; index < geometry.indexCount; index++) {
-      indices.setUint32(index * 4, geometry.indices[index], Endian.little);
-    }
-  }
-  ByteData? wireIndices;
-  final sourceWireIndices = geometry.wireIndices;
-  if (sourceWireIndices != null && sourceWireIndices.isNotEmpty) {
-    wireIndices = ByteData(_product(sourceWireIndices.length, 4));
-    for (var index = 0; index < sourceWireIndices.length; index++) {
-      wireIndices.setUint32(index * 4, sourceWireIndices[index], Endian.little);
-    }
-  }
+  final indices = _interleaveThreeIndices(
+    geometry.indices,
+    geometry.indexCount,
+  );
+  final wireIndices = _interleaveThreeIndices(geometry.wireIndices);
   return ThreeInterleavedGeometry(
     vertices: vertices,
     indices: indices,
@@ -971,4 +961,14 @@ ThreeInterleavedGeometry interleaveThreeGeometry(
     vertexCount: geometry.vertexCount,
     indexCount: geometry.indexCount,
   );
+}
+
+ByteData? _interleaveThreeIndices(List<int>? source, [int? count]) {
+  final length = count ?? source?.length ?? 0;
+  if (source == null || length == 0) return null;
+  final indices = ByteData(_product(length, 4));
+  for (var index = 0; index < length; index++) {
+    indices.setUint32(index * 4, source[index], Endian.little);
+  }
+  return indices;
 }

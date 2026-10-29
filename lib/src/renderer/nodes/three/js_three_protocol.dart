@@ -794,41 +794,8 @@ final class JsThreeProtocolDecoder {
     final alphaTest = body.unitFloat('material alpha test');
     final pointSize = body.finiteFloat('point size');
     if (pointSize <= 0) body.fail('point size must be positive');
-    var specularR = 0.0;
-    var specularG = 0.0;
-    var specularB = 0.0;
-    var shininess = 0.0;
-    if (kind == JsThreeMaterialKind.meshPhong) {
-      if (body.remaining != 16 && body.remaining != 32) {
-        body.fail('Phong material requires specular RGB and shininess');
-      }
-      specularR = body.finiteFloat('material specular red');
-      specularG = body.finiteFloat('material specular green');
-      specularB = body.finiteFloat('material specular blue');
-      shininess = body.finiteFloat('material shininess');
-      if (shininess < 0) body.fail('material shininess must be nonnegative');
-    }
-    var emissiveR = 0.0;
-    var emissiveG = 0.0;
-    var emissiveB = 0.0;
-    var emissiveIntensity = 1.0;
-    if (body.remaining != 0) {
-      if (kind != JsThreeMaterialKind.meshLambert &&
-          kind != JsThreeMaterialKind.meshStandard &&
-          kind != JsThreeMaterialKind.meshPhong) {
-        body.fail('emissive payload requires a lit mesh material');
-      }
-      if (body.remaining != 16) {
-        body.fail('emissive payload requires RGB and intensity');
-      }
-      emissiveR = body.finiteFloat('material emissive red');
-      emissiveG = body.finiteFloat('material emissive green');
-      emissiveB = body.finiteFloat('material emissive blue');
-      emissiveIntensity = body.finiteFloat('material emissive intensity');
-      if (emissiveIntensity < 0) {
-        body.fail('material emissive intensity must be nonnegative');
-      }
-    }
+    final phong = _phongMaterial(body, kind);
+    final emissive = _emissiveMaterial(body, kind);
     return JsThreeMaterialUpsert._(
       materialId: id,
       version: version,
@@ -844,15 +811,58 @@ final class JsThreeProtocolDecoder {
       metalness: metalness,
       alphaTest: alphaTest,
       pointSize: pointSize,
-      specularR: specularR,
-      specularG: specularG,
-      specularB: specularB,
-      shininess: shininess,
-      emissiveR: emissiveR,
-      emissiveG: emissiveG,
-      emissiveB: emissiveB,
-      emissiveIntensity: emissiveIntensity,
+      specularR: phong.r,
+      specularG: phong.g,
+      specularB: phong.b,
+      shininess: phong.shininess,
+      emissiveR: emissive.r,
+      emissiveG: emissive.g,
+      emissiveB: emissive.b,
+      emissiveIntensity: emissive.intensity,
     );
+  }
+
+  ({double r, double g, double b, double shininess}) _phongMaterial(
+    _Reader body,
+    JsThreeMaterialKind kind,
+  ) {
+    if (kind != JsThreeMaterialKind.meshPhong) {
+      return (r: 0.0, g: 0.0, b: 0.0, shininess: 0.0);
+    }
+    if (body.remaining != 16 && body.remaining != 32) {
+      body.fail('Phong material requires specular RGB and shininess');
+    }
+    final r = body.finiteFloat('material specular red');
+    final g = body.finiteFloat('material specular green');
+    final b = body.finiteFloat('material specular blue');
+    final shininess = body.finiteFloat('material shininess');
+    if (shininess < 0) body.fail('material shininess must be nonnegative');
+    return (r: r, g: g, b: b, shininess: shininess);
+  }
+
+  ({double r, double g, double b, double intensity}) _emissiveMaterial(
+    _Reader body,
+    JsThreeMaterialKind kind,
+  ) {
+    if (body.remaining == 0) {
+      return (r: 0.0, g: 0.0, b: 0.0, intensity: 1.0);
+    }
+    if (kind != JsThreeMaterialKind.meshLambert &&
+        kind != JsThreeMaterialKind.meshStandard &&
+        kind != JsThreeMaterialKind.meshPhong) {
+      body.fail('emissive payload requires a lit mesh material');
+    }
+    if (body.remaining != 16) {
+      body.fail('emissive payload requires RGB and intensity');
+    }
+    final r = body.finiteFloat('material emissive red');
+    final g = body.finiteFloat('material emissive green');
+    final b = body.finiteFloat('material emissive blue');
+    final intensity = body.finiteFloat('material emissive intensity');
+    if (intensity < 0) {
+      body.fail('material emissive intensity must be nonnegative');
+    }
+    return (r: r, g: g, b: b, intensity: intensity);
   }
 
   JsThreeNodeUpsert _node(_Reader body) {
