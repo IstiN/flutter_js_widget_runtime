@@ -119,8 +119,8 @@ Renderer effects ported from YoClip: radial gradients, box shadows, blur nodes, 
   `createFlutterGpuThreeHost()` (native) or `createWebThreeHost()` (Web).
   `three` JSON nodes mount canvases created by `jsr.three.createCanvas`;
   the host hierarchy is `JsThreeHost`, NOT `Js3dHost`.
-- Native uses upstream JS plus dirty `JSR3D-T1`/`R1-v1` binary resources and
-  Flutter GPU. `THREE.WebGLRenderer` is an R1 alias (`rawWebGL: false`;
+- Native uses upstream JS plus dirty `JSR3D-T1`/`R1-v2` binary resources and
+  Flutter GPU; the strict Dart decoder also accepts legacy R1-v1 streams. `THREE.WebGLRenderer` is an R1 alias (`rawWebGL: false`;
   `getContext`/ShaderMaterial/WebGPU → `three.unsupported`). Real
   `InstancedMesh` matrices use `DRAW_BATCH` and GPU instancing; triangle
   diagnostics include `instanceCount`. Transparent instancing and

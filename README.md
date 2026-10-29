@@ -184,8 +184,9 @@ jsr.render({type: 'three', canvasId: 'main', width: 640, height: 360});
 ```
 
 - **Native (1A):** upstream JS object model on QuickJS/JSC, dirty versioned
-  resources over the binary `JSR3D-T1`/`R1-v1` protocol, and Flutter GPU
-  shaders behind `JsThreeHost`. `WebGLRenderer` is an explicit R1 alias;
+  resources over the binary `JSR3D-T1`/`R1-v2` protocol (the decoder also
+  accepts legacy R1-v1), and Flutter GPU shaders behind `JsThreeHost`.
+  `WebGLRenderer` is an explicit R1 alias;
   `getContext()`, raw WebGL, ShaderMaterial and WebGPU report
   `three.unsupported`. No WebView is involved.
 - **Web (1B):** the real upstream `WebGLRenderer` acquires WebGL2 on a
@@ -202,6 +203,9 @@ jsr.render({type: 'three', canvasId: 'main', width: 640, height: 360});
   and `fillRect` into versioned `CanvasTexture` RGBA uploads; unsupported
   canvas operations remain explicit `three.unsupported` failures. Web keeps
   using the real OffscreenCanvas implementation.
+- Lighting includes ambient, directional, point and real hemisphere diffuse
+  irradiance (independent sky/ground colors); Normal and emissive materials
+  have their own native GPU paths rather than Lambert aliases.
 - Resources are isolated by `(engineId, surfaceId, resourceId)`. Mount,
   resize/DPR, pointer/key/cancel, capture and disposal are host-managed.
   Prepared local assets use `jsr.three.registerAsset`; host asset failures

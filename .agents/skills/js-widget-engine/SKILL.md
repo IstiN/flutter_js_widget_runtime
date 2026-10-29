@@ -139,8 +139,9 @@ identity lives in `ThreeUpstreamBundle`, `tool/three/source-pin.json` and
 
 - Native evaluates upstream core on QuickJS/JSC. Its `THREE.WebGLRenderer`
   export is the explicit `JsrWebGLRenderer` alias. It emits versioned
-  `JSR3D-T1` / `R1-v1` packets over `jsr.hostCallBinary('three.r1', bytes)`;
-  `rawWebGL == false`, `getContext()` and ShaderMaterial fail with
+  `JSR3D-T1` / `R1-v2` packets over `jsr.hostCallBinary('three.r1', bytes)`;
+  strict Dart decode also accepts legacy R1-v1 streams. `rawWebGL == false`,
+  `getContext()` and ShaderMaterial fail with
   `three.unsupported`. It is NOT WebGL in a WebView.
 - `JsWidgetBridge` binds each packet to its generated/preserved engine id,
   copies call-scoped native byte views, and `FlutterGpuThreeHost` verifies
@@ -188,6 +189,11 @@ identity lives in `ThreeUpstreamBundle`, `tool/three/source-pin.json` and
   `dart:ui.Canvas` and returns owned raw RGBA. Readiness adopts a new texture
   version and schedules a transactional render even for static scenes;
   stale/disposed completions carry no pixels. Web remains on OffscreenCanvas.
+- HemisphereLight is an independent R1-v2 light kind with sky/ground colors,
+  intensity and normalized world-position direction. It contributes diffuse
+  irradiance to Lambert/Standard/Phong, never Basic/Normal or shadow maps;
+  four hemisphere slots are independent of directional/point quotas and
+  overflow is diagnosed deterministically.
 - Web uses the REAL upstream `WebGLRenderer` on a Worker-owned
   `OffscreenCanvas`. Canvas/WebGL2 creation is synchronous in the Worker;
   no proxy GL and no main-canvas reservation. A separate structured-clone
