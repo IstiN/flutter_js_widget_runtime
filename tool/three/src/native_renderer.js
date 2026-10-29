@@ -227,7 +227,7 @@ export class JsrWebGLRenderer {
       rawWebGL: false,
       isWebGL2: false,
       backend: 'flutterGpu',
-      features: Object.freeze({ geometry: true, textures: true, lambert: true, standard: true, phong: true, normal: true, emissive: true, wireframe: true, rawWebGL: false, shaderMaterial: false })
+      features: Object.freeze({ geometry: true, textures: true, lambert: true, standard: true, phong: true, normal: true, emissive: true, hemisphereLight: true, wireframe: true, rawWebGL: false, shaderMaterial: false })
     });
     this.outputColorSpace = SRGBColorSpace;
     this.toneMapping = NoToneMapping;
@@ -804,6 +804,7 @@ export class JsrWebGLRenderer {
     if (light.isAmbientLight) type = 0;
     else if (light.isDirectionalLight) type = 1;
     else if (light.isPointLight) type = 2;
+    else if (light.isHemisphereLight) type = 3;
     else unsupported('light', light.type);
     const id = resourceId(light);
     light.getWorldPosition(_position);
@@ -812,14 +813,22 @@ export class JsrWebGLRenderer {
       light.target.updateMatrixWorld(true);
       _target.setFromMatrixPosition(light.target.matrixWorld);
       _direction.copy(_position).sub(_target).normalize();
+    } else if (light.isHemisphereLight) {
+      // THREE uses the normalized world position as the hemisphere direction;
+      // translation is directional state, not a point-light location/target.
+      _direction.copy(_position).normalize();
     }
+    const groundColor = light.isHemisphereLight ? light.groundColor : null;
     const signature = [type, light.color.r, light.color.g, light.color.b, light.intensity,
-      _position.x, _position.y, _position.z, _direction.x, _direction.y, _direction.z].join('|');
+      _position.x, _position.y, _position.z, _direction.x, _direction.y, _direction.z,
+      groundColor ? groundColor.r : 0, groundColor ? groundColor.g : 0,
+      groundColor ? groundColor.b : 0].join('|');
     const old = this._state.lights.get(id);
     if (!old || old.signature !== signature) {
       if (!Number.isFinite(light.intensity) || light.intensity < 0) throw new Error('three.invalid: light intensity');
       finiteArray([light.color.r, light.color.g, light.color.b, _position.x, _position.y, _position.z, _direction.x, _direction.y, _direction.z], 'light');
-      commands.push(lightCommand(id, type, light.color, light.intensity, _position, _direction));
+      if (groundColor) finiteArray([groundColor.r, groundColor.g, groundColor.b], 'light groundColor');
+      commands.push(lightCommand(id, type, light.color, light.intensity, _position, _direction, groundColor));
       this._mapSet(this._state.lights, id, { signature, object: light });
     }
     return id;

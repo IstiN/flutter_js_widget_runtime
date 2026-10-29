@@ -258,16 +258,28 @@ Uint8List _camera({int id = 9}) {
   return out;
 }
 
-Uint8List _light({int id = 4}) {
-  final out = Uint8List(48);
+Uint8List _light({
+  int id = 4,
+  JsThreeLightType type = JsThreeLightType.point,
+  double groundR = 0.75,
+  double groundG = 0.5,
+  double groundB = 0.25,
+}) {
+  final hemisphere = type == JsThreeLightType.hemisphere;
+  final out = Uint8List(hemisphere ? 64 : 48);
   _u32(out, 0, id);
-  _u32(out, 4, 2);
+  _u32(out, 4, type.wireValue);
   _f32(out, 8, 0.1);
   _f32(out, 12, 0.2);
   _f32(out, 16, 0.3);
   _f32(out, 20, 2);
   for (var i = 0; i < 6; i++) {
     _f32(out, 24 + i * 4, i - 0.5);
+  }
+  if (hemisphere) {
+    _f32(out, 48, groundR);
+    _f32(out, 52, groundG);
+    _f32(out, 56, groundB);
   }
   return out;
 }
@@ -462,6 +474,68 @@ void main() {
       throwsUnsupportedError,
     );
     expect(() => batch.parts.add(batch.parts.single), throwsUnsupportedError);
+  });
+
+  test('R1 v2 adds strict HemisphereLight payloads without invalidating v1', () {
+    final legacy = _decoder.decodeR1(_r1([(7, _light())]));
+    expect(legacy.version, 1);
+    final legacyLight = legacy.commands.single as JsThreeLightUpsert;
+    expect(legacyLight.type, JsThreeLightType.point);
+    expect(legacyLight.groundColorR, 0);
+    expect(legacyLight.groundColorG, 0);
+    expect(legacyLight.groundColorB, 0);
+
+    final legacyInV2 = _decoder.decodeR1(
+      _r1([(7, _light())], version: 2),
+    );
+    expect(legacyInV2.version, 2);
+    expect(legacyInV2.commands.single, isA<JsThreeLightUpsert>());
+
+    final body = _light(type: JsThreeLightType.hemisphere);
+    final decoded = _decoder.decodeR1(_r1([(7, body)], version: 2));
+    final light = decoded.commands.single as JsThreeLightUpsert;
+    expect(decoded.version, 2);
+    expect(light.type, JsThreeLightType.hemisphere);
+    expect(light.type, isNot(JsThreeLightType.ambient));
+    expect(light.colorR, closeTo(0.1, 1e-6));
+    expect(light.colorG, closeTo(0.2, 1e-6));
+    expect(light.colorB, closeTo(0.3, 1e-6));
+    expect(light.intensity, 2);
+    expect(light.worldPosition, hasLength(3));
+    expect(light.worldDirection, hasLength(3));
+    expect(light.groundColorR, 0.75);
+    expect(light.groundColorG, 0.5);
+    expect(light.groundColorB, 0.25);
+
+    _bad(() => _decoder.decodeR1(_r1([(7, body)])));
+    _bad(
+      () => _decoder.decodeR1(
+        _r1([(7, Uint8List.sublistView(body, 0, 60))], version: 2),
+      ),
+    );
+    _bad(
+      () => _decoder.decodeR1(
+        _r1([(7, Uint8List.fromList([...body, 0]))], version: 2),
+      ),
+    );
+    final reserved = Uint8List.fromList(body);
+    _u32(reserved, 60, 1);
+    _bad(() => _decoder.decodeR1(_r1([(7, reserved)], version: 2)));
+    final legacyExtended = Uint8List.fromList([..._light(), ...Uint8List(16)]);
+    _bad(
+      () => _decoder.decodeR1(
+        _r1([(7, legacyExtended)], version: 2),
+      ),
+    );
+    for (final offset in [48, 52, 56]) {
+      for (final value in [double.nan, double.infinity]) {
+        final invalid = Uint8List.fromList(body);
+        _f32(invalid, offset, value);
+        _bad(
+          () => _decoder.decodeR1(_r1([(7, invalid)], version: 2)),
+        );
+      }
+    }
   });
 
   test(
@@ -947,7 +1021,8 @@ void main() {
         _bad(() => _decoder.decodeR1(truncated));
       }
       _bad(() => _decoder.decodeR1(Uint8List.fromList([...valid, 0])));
-      _bad(() => _decoder.decodeR1(_r1(const [], version: 2)));
+      _bad(() => _decoder.decodeR1(_r1(const [], version: 0)));
+      _bad(() => _decoder.decodeR1(_r1(const [], version: 3)));
       _bad(() => _decoder.decodeR1(_r1(const [], flags: 1)));
       _bad(() => _decoder.decodeR1(_r1(const [], commandCount: 100001)));
       _bad(() => _decoder.decodeR1(_r1([(13, Uint8List(0))])));
@@ -1084,7 +1159,7 @@ void main() {
         (6, _camera(), 0, 0),
         (6, _camera(), 4, 2),
         (7, _light(), 0, 0),
-        (7, _light(), 4, 3),
+        (7, _light(), 4, 4),
         (8, _frame(), 0, 0),
         (8, _frame(), 4, 0),
         (9, _disposal(), 0, 0),

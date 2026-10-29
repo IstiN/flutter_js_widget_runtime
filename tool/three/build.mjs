@@ -117,7 +117,7 @@ for (const file of (await filesBelow(path.join(HERE, 'src'))).sort()) adapterInp
 for (const file of ['build.mjs', 'package.json', 'package-lock.json', 'source-pin.json']) adapterInputs[`tool/three/${file}`] = sha(await readFile(path.join(HERE, file)));
 adapterInputs.upstreamLicense = sha(license);
 const manifest = {
-  protocol: 'JSR3D-T1/R1-v1',
+  protocol: 'JSR3D-T1/R1-v2',
   upstream: {
     name: 'three.js', version: '0.186.1', revision: '186', license: 'MIT',
     sourceCommit: PIN.commit, sourceTagObject: PIN.tagObject,

@@ -297,7 +297,7 @@ void main() {
       },
     );
 
-    test('caps directional and point lights deterministically', () {
+    test('caps each light family independently and deterministically', () {
       final fixture = _Fixture.basic();
       for (var id = 1; id <= 6; id++) {
         fixture.light(
@@ -311,6 +311,9 @@ void main() {
       }
       fixture.light(18, JsThreeLightType.ambient, intensity: 0.25);
       fixture.light(19, JsThreeLightType.ambient, intensity: 0.5);
+      for (var id = 20; id <= 25; id++) {
+        fixture.light(id, JsThreeLightType.hemisphere);
+      }
 
       final plan = const ThreeDrawPlanner().plan(fixture.state());
 
@@ -330,10 +333,78 @@ void main() {
         13,
         14,
       ]);
+      expect(plan.hemisphereLights.map((light) => light.lightId), [
+        20,
+        21,
+        22,
+        23,
+      ]);
       expect(plan.diagnostics.droppedDirectionalLightCount, 2);
       expect(plan.diagnostics.droppedPointLightCount, 3);
+      expect(plan.diagnostics.droppedHemisphereLightCount, 2);
       expect(plan.ambient.r, closeTo(0.75, 1e-6));
-      expect(plan.diagnostics.warnings, hasLength(2));
+      expect(plan.diagnostics.warnings, hasLength(3));
+    });
+
+    test('keeps HemisphereLight distinct and packs exact GPU light uniforms', () {
+      final fixture = _Fixture.basic()
+        ..light(
+          1,
+          JsThreeLightType.ambient,
+          intensity: 0.5,
+          red: 0.25,
+          green: 0.5,
+          blue: 0.75,
+        )
+        ..light(
+          2,
+          JsThreeLightType.hemisphere,
+          intensity: 2,
+          red: 0.125,
+          green: 0.25,
+          blue: 0.5,
+          groundRed: 0.75,
+          groundGreen: 0.5,
+          groundBlue: 0.25,
+          direction: const [0.6, 0.8, 0],
+        );
+
+      final plan = const ThreeDrawPlanner().plan(fixture.state());
+      expect(plan.hemisphereLights, hasLength(1));
+      expect(plan.directionalLights, isEmpty);
+      expect(plan.pointLights, isEmpty);
+      expect(plan.ambient.r, 0.125);
+      expect(plan.ambient.g, 0.25);
+      expect(plan.ambient.b, 0.375);
+      expect(plan.hemisphereLights.single.type, JsThreeLightType.hemisphere);
+      expect(plan.hemisphereLights.single.groundColorR, 0.75);
+
+      final frame = debugThreeFrameUniform(plan);
+      expect(frame.lengthInBytes, 96);
+      expect(frame.getFloat32(32, Endian.little), 0);
+      expect(frame.getFloat32(36, Endian.little), 0);
+      expect(frame.getFloat32(40, Endian.little), 1);
+      final lights = debugThreeLightsUniform(plan);
+      expect(lights.lengthInBytes, 576);
+      for (final expected in <int, double>{
+        384: 0.6,
+        388: 0.8,
+        392: 0,
+        396: 2,
+        448: 0.125,
+        452: 0.25,
+        456: 0.5,
+        460: 1,
+        512: 0.75,
+        516: 0.5,
+        520: 0.25,
+        524: 1,
+      }.entries) {
+        expect(
+          lights.getFloat32(expected.key, Endian.little),
+          closeTo(expected.value, 1e-6),
+        );
+      }
     });
 
     test(
@@ -720,8 +791,35 @@ final class _Fixture {
 
   void camera(int id) => commands.add(_command(6, _camera(id)));
 
-  void light(int id, JsThreeLightType type, {double intensity = 1}) {
-    commands.add(_command(7, _light(id, type, intensity: intensity)));
+  void light(
+    int id,
+    JsThreeLightType type, {
+    double intensity = 1,
+    double red = 1,
+    double green = 1,
+    double blue = 1,
+    double groundRed = 0,
+    double groundGreen = 0,
+    double groundBlue = 0,
+    List<double>? direction,
+  }) {
+    commands.add(
+      _command(
+        7,
+        _light(
+          id,
+          type,
+          intensity: intensity,
+          red: red,
+          green: green,
+          blue: blue,
+          groundRed: groundRed,
+          groundGreen: groundGreen,
+          groundBlue: groundBlue,
+          direction: direction,
+        ),
+      ),
+    );
   }
 
   JsThreeSurfaceState state() {
@@ -750,7 +848,7 @@ final class _Fixture {
 Uint8List _r1(List<Uint8List> commands) {
   final builder = BytesBuilder(copy: false)
     ..add(ascii.encode('JSR1'))
-    ..add(_u16(1))
+    ..add(_u16(2))
     ..add(_u16(0))
     ..add(_u32(commands.length));
   for (final command in commands) {
@@ -931,20 +1029,38 @@ Uint8List _camera(int id) {
   return Uint8List.view(data.buffer);
 }
 
-Uint8List _light(int id, JsThreeLightType type, {double intensity = 1}) {
-  final data = ByteData(48);
+Uint8List _light(
+  int id,
+  JsThreeLightType type, {
+  double intensity = 1,
+  double red = 1,
+  double green = 1,
+  double blue = 1,
+  double groundRed = 0,
+  double groundGreen = 0,
+  double groundBlue = 0,
+  List<double>? direction,
+}) {
+  final hemisphere = type == JsThreeLightType.hemisphere;
+  final data = ByteData(hemisphere ? 64 : 48);
   data.setUint32(0, id, Endian.little);
   data.setUint32(4, type.wireValue, Endian.little);
-  data.setFloat32(8, 1, Endian.little);
-  data.setFloat32(12, 1, Endian.little);
-  data.setFloat32(16, 1, Endian.little);
+  data.setFloat32(8, red, Endian.little);
+  data.setFloat32(12, green, Endian.little);
+  data.setFloat32(16, blue, Endian.little);
   data.setFloat32(20, intensity, Endian.little);
   data.setFloat32(24, 0, Endian.little);
   data.setFloat32(28, 1, Endian.little);
   data.setFloat32(32, -1, Endian.little);
-  data.setFloat32(36, 0, Endian.little);
-  data.setFloat32(40, -1, Endian.little);
-  data.setFloat32(44, -0.5, Endian.little);
+  final worldDirection = direction ?? const [0.0, -1.0, -0.5];
+  for (var index = 0; index < 3; index++) {
+    data.setFloat32(36 + index * 4, worldDirection[index], Endian.little);
+  }
+  if (hemisphere) {
+    data.setFloat32(48, groundRed, Endian.little);
+    data.setFloat32(52, groundGreen, Endian.little);
+    data.setFloat32(56, groundBlue, Endian.little);
+  }
   return Uint8List.view(data.buffer);
 }
 
