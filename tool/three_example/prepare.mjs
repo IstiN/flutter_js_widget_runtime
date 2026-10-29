@@ -668,7 +668,9 @@ async function main() {
       sourceTreeSha256: tree.hash, sourceFilesHashed: tree.files.length
     },
     tools: {
-      node: process.version,
+      // Keep verification reproducible across local Node and CI Node 22.
+      // The exact esbuild version is pinned because it affects output bytes.
+      node: '>=22',
       esbuild: esbuild.version,
       esbuildRequire: 'tool/three/package.json'
     },

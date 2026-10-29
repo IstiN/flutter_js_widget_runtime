@@ -33,6 +33,7 @@ assert.equal(sha(direct), manifest.outputs['official_module.js'].sha256);
 assert.equal(sha(html), manifest.outputs['original.html'].sha256);
 assert.equal(manifest.build.offline, true);
 assert.equal(manifest.build.remoteResolution, false);
+assert.equal(manifest.tools.node, '>=22', 'manifest is host-Node independent');
 assert.ok(manifest.facade.exports.includes('Timer'));
 assert.ok(manifest.facade.exports.includes('WebGLRenderer'));
 assert.ok(!Object.keys(manifest.inputs).some(name => name.startsWith('source/src/')),
