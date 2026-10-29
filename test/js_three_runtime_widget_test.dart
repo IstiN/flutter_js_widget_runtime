@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:js_widget_runtime/js_widget_runtime.dart';
 
+import 'support/three_test_config.dart';
 import 'support/widget_logic_helper.dart';
 
 void main() {
@@ -17,15 +18,10 @@ void main() {
     final threeSource = await tester.runAsync(
       () => rootBundle.loadString('assets/three/three.native.js'),
     );
-    final config = JsRuntimeConfig(
-      widgetId: 'three-runtime-widget',
-      instanceId: 'three-runtime-widget',
-      threeEnabled: true,
+    final config = threeTestConfig(
+      engineId: 'three-runtime-widget',
+      host: host,
       threeSource: threeSource,
-      threeHost: host,
-      onRender: (_) {},
-      onSetTitle: (_) {},
-      onStorageUpdate: (_) {},
     );
 
     await tester.pumpWidget(

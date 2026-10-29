@@ -15,7 +15,7 @@ dependencies:
   flutter_js: ^0.8.7
   # QuickJS FFI backend (default VM backend): QuickJS + C bridge via Native
   # Assets with synchronous host callbacks and zero-copy binary lane.
-  quickjs_runtime: ^0.4.0
+  quickjs_runtime: ^0.4.8
   web: ^1.1.1
   flutter_svg: ^2.3.0
   flutter_markdown_plus: ^1.0.7

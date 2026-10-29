@@ -58,6 +58,7 @@ class JsRuntimeConfig {
     this.intervalTickHandler,
     this.rafTickHandler,
     this.backend,
+    this.backendFactory,
     this.js3dHost,
     this.threeEnabled = false,
     this.threeSource,
@@ -180,6 +181,10 @@ class JsRuntimeConfig {
   /// default (`flutter_js` on VM, Web Worker on web).
   final JsWidgetEngineBackend? backend;
 
+  /// Creates a backend with the final effective config, including wrappers
+  /// installed by [JsWidgetRuntimeWidget]. Ignored when [backend] is set.
+  final JsWidgetEngineBackend Function(JsRuntimeConfig config)? backendFactory;
+
   /// Optional host-provided 3D engine factory for `scene3d` nodes.
   final Js3dHost? js3dHost;
 
@@ -242,6 +247,7 @@ class JsRuntimeConfig {
     void Function(String id)? intervalTickHandler,
     void Function(String id, int elapsedMs)? rafTickHandler,
     JsWidgetEngineBackend? backend,
+    JsWidgetEngineBackend Function(JsRuntimeConfig config)? backendFactory,
     Js3dHost? js3dHost,
     bool? threeEnabled,
     String? threeSource,
@@ -274,6 +280,7 @@ class JsRuntimeConfig {
     intervalTickHandler: intervalTickHandler ?? this.intervalTickHandler,
     rafTickHandler: rafTickHandler ?? this.rafTickHandler,
     backend: backend ?? this.backend,
+    backendFactory: backendFactory ?? this.backendFactory,
     js3dHost: js3dHost ?? this.js3dHost,
     threeEnabled: threeEnabled ?? this.threeEnabled,
     threeSource: threeSource ?? this.threeSource,

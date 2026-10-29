@@ -4,44 +4,19 @@ import 'package:js_widget_runtime/src/renderer/nodes/three/flutter_gpu_three_hos
     show FlutterGpuThreeSurface;
 import 'package:js_widget_runtime/src/runtime/js_widget_engine_flutter_js.dart';
 
+import 'support/three_test_config.dart';
+
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
   test('upstream THREE crosses the flutter_js base64 binary lane', () async {
     final host = createFlutterGpuThreeHost();
-    final config = JsRuntimeConfig(
-      widgetId: 'three-flutter-js',
-      instanceId: 'three-flutter-js',
-      threeEnabled: true,
-      threeHost: host,
-      onRender: (_) {},
-      onSetTitle: (_) {},
-      onStorageUpdate: (_) {},
-    );
+    final config = threeTestConfig(engineId: 'three-flutter-js', host: host);
     final backend = FlutterJsWidgetEngineBackend(config: config);
     final engine = JsWidgetEngine(config: config.copyWith(backend: backend));
     addTearDown(engine.dispose);
     await engine.init();
-    await engine.run(r'''
-      const canvas = jsr.three.createCanvas('main');
-      const renderer = new THREE.WebGLRenderer({canvas: canvas});
-      renderer.setSize(64, 64);
-      const scene = new THREE.Scene();
-      scene.background = new THREE.Color(0xbfd1e5);
-      const camera = new THREE.PerspectiveCamera(60, 1, 0.1, 100);
-      camera.position.z = 3;
-      const geometry = new THREE.BoxGeometry(1, 1, 1);
-      const material = new THREE.MeshBasicMaterial({color: 0x44aa66});
-      scene.add(new THREE.Mesh(geometry, material));
-      renderer.render(scene, camera);
-      jsr.exportState({
-        revision: THREE.REVISION,
-        backend: jsr.three.capabilities.backend,
-        rawWebGL: jsr.three.capabilities.rawWebGL,
-        frame: renderer.info.render.frame,
-        geometries: renderer.info.memory.geometries
-      });
-    ''');
+    await engine.run(threeSmokeSceneJs());
 
     FlutterGpuThreeSurface? surface;
     for (var attempt = 0; attempt < 100; attempt++) {

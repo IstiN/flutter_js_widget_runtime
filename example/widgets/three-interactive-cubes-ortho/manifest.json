@@ -1,0 +1,13 @@
+{
+  "id": "three-interactive-cubes-ortho",
+  "name": "Interactive Orthographic Cubes — three.js r186",
+  "description": "Unmodified official webgl_interactive_cubes_ortho module on the JSR THREE R1/WebGL2 runtime.",
+  "version": "0.1.0",
+  "icon": "📦",
+  "allowedCommands": [],
+  "network": false,
+  "widget": {
+    "entry": "widget.js",
+    "interactive": true
+  }
+}

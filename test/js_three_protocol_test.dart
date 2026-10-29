@@ -4,23 +4,14 @@ import 'dart:typed_data';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:js_widget_runtime/src/renderer/nodes/three/js_three_protocol.dart';
 
+import 'support/three_protocol_bytes.dart';
+
 final _decoder = JsThreeProtocolDecoder();
-
-ByteData _view(Uint8List bytes) => ByteData.sublistView(bytes);
-
-void _u16(Uint8List bytes, int offset, int value) =>
-    _view(bytes).setUint16(offset, value, Endian.little);
-void _u32(Uint8List bytes, int offset, int value) =>
-    _view(bytes).setUint32(offset, value, Endian.little);
-void _f32(Uint8List bytes, int offset, double value) =>
-    _view(bytes).setFloat32(offset, value, Endian.little);
-void _ascii(Uint8List bytes, int offset, String value) =>
-    bytes.setAll(offset, ascii.encode(value));
 
 Uint8List _command(int opcode, Uint8List body) {
   final out = Uint8List(8 + body.length);
   out[0] = opcode;
-  _u32(out, 4, body.length);
+  setU32(out, 4, body.length);
   out.setAll(8, body);
   return out;
 }
@@ -36,10 +27,10 @@ Uint8List _r1(
     (total, command) => total + 8 + command.$2.length,
   );
   final out = Uint8List(length);
-  _ascii(out, 0, 'JSR1');
-  _u16(out, 4, version);
-  _u16(out, 6, flags);
-  _u32(out, 8, commandCount ?? commands.length);
+  setAscii(out, 0, 'JSR1');
+  setU16(out, 4, version);
+  setU16(out, 6, flags);
+  setU32(out, 8, commandCount ?? commands.length);
   var offset = 12;
   for (final (opcode, body) in commands) {
     final command = _command(opcode, body);
@@ -59,15 +50,15 @@ Uint8List _t1(
   final surfaceBytes = utf8.encode(surface);
   final headerBytes = 32 + engineBytes.length + surfaceBytes.length;
   final out = Uint8List(headerBytes + payload.length);
-  _ascii(out, 0, 'JSR3');
+  setAscii(out, 0, 'JSR3');
   out[4] = 1;
   out[5] = 1;
-  _u16(out, 6, headerBytes);
-  _u32(out, 8, sequence);
-  _u32(out, 12, payload.length);
-  _u16(out, 16, engineBytes.length);
-  _u16(out, 18, surfaceBytes.length);
-  _u32(out, 24, out.length);
+  setU16(out, 6, headerBytes);
+  setU32(out, 8, sequence);
+  setU32(out, 12, payload.length);
+  setU16(out, 16, engineBytes.length);
+  setU16(out, 18, surfaceBytes.length);
+  setU32(out, 24, out.length);
   out.setAll(32, engineBytes);
   out.setAll(32 + engineBytes.length, surfaceBytes);
   out.setAll(headerBytes, payload);
@@ -97,30 +88,30 @@ Uint8List _geometry({
       indices.length * 4 +
       (wireIndices == null ? 0 : 4 + wireIndices.length * 4);
   final out = Uint8List(length);
-  _u32(out, 0, id);
-  _u32(out, 4, version);
-  _u32(out, 8, mask);
-  _u32(out, 12, vertexCount);
-  _u32(out, 16, indices.length);
-  _u32(out, 20, primitive);
+  setU32(out, 0, id);
+  setU32(out, 4, version);
+  setU32(out, 8, mask);
+  setU32(out, 12, vertexCount);
+  setU32(out, 16, indices.length);
+  setU32(out, 20, primitive);
   var offset = 28;
   for (final attribute in attributes) {
-    _u32(out, offset, attribute.length * 4);
+    setU32(out, offset, attribute.length * 4);
     offset += 4;
     for (final value in attribute) {
-      _f32(out, offset, value);
+      setF32(out, offset, value);
       offset += 4;
     }
   }
   for (final index in indices) {
-    _u32(out, offset, index);
+    setU32(out, offset, index);
     offset += 4;
   }
   if (wireIndices != null) {
-    _u32(out, offset, wireIndices.length);
+    setU32(out, offset, wireIndices.length);
     offset += 4;
     for (final index in wireIndices) {
-      _u32(out, offset, index);
+      setU32(out, offset, index);
       offset += 4;
     }
   }
@@ -137,13 +128,13 @@ Uint8List _texture({
   List<int> data = const [1, 2, 3, 4],
 }) {
   final out = Uint8List(28 + data.length);
-  _u32(out, 0, id);
-  _u32(out, 4, version);
-  _u32(out, 8, width);
-  _u32(out, 12, height);
-  _u32(out, 16, encoding);
-  _u32(out, 20, flags);
-  _u32(out, 24, data.length);
+  setU32(out, 0, id);
+  setU32(out, 4, version);
+  setU32(out, 8, width);
+  setU32(out, 12, height);
+  setU32(out, 16, encoding);
+  setU32(out, 20, flags);
+  setU32(out, 24, data.length);
   out.setAll(28, data);
   return out;
 }
@@ -165,47 +156,47 @@ Uint8List _material({
 }) {
   final phong = kind == JsThreeMaterialKind.meshPhong;
   final out = Uint8List((phong ? 72 : 56) + (emissive ? 16 : 0));
-  _u32(out, 0, id);
-  _u32(out, 4, version);
-  _u32(out, 8, kind.wireValue);
-  _u32(out, 12, 2);
-  _u32(out, 16, 31 | (wireframe ? 32 : 0));
-  _u32(out, 20, 2);
-  _f32(out, 24, 0.25);
-  _f32(out, 28, 0.5);
-  _f32(out, 32, 0.75);
-  _f32(out, 36, 0.8);
-  _f32(out, 40, 0.4);
-  _f32(out, 44, 0.3);
-  _f32(out, 48, 0.2);
-  _f32(out, 52, 2.5);
+  setU32(out, 0, id);
+  setU32(out, 4, version);
+  setU32(out, 8, kind.wireValue);
+  setU32(out, 12, 2);
+  setU32(out, 16, 31 | (wireframe ? 32 : 0));
+  setU32(out, 20, 2);
+  setF32(out, 24, 0.25);
+  setF32(out, 28, 0.5);
+  setF32(out, 32, 0.75);
+  setF32(out, 36, 0.8);
+  setF32(out, 40, 0.4);
+  setF32(out, 44, 0.3);
+  setF32(out, 48, 0.2);
+  setF32(out, 52, 2.5);
   if (phong) {
-    _f32(out, 56, specularR);
-    _f32(out, 60, specularG);
-    _f32(out, 64, specularB);
-    _f32(out, 68, shininess);
+    setF32(out, 56, specularR);
+    setF32(out, 60, specularG);
+    setF32(out, 64, specularB);
+    setF32(out, 68, shininess);
   }
   if (emissive) {
     final offset = phong ? 72 : 56;
-    _f32(out, offset, emissiveR);
-    _f32(out, offset + 4, emissiveG);
-    _f32(out, offset + 8, emissiveB);
-    _f32(out, offset + 12, emissiveIntensity);
+    setF32(out, offset, emissiveR);
+    setF32(out, offset + 4, emissiveG);
+    setF32(out, offset + 8, emissiveB);
+    setF32(out, offset + 12, emissiveIntensity);
   }
   return out;
 }
 
 Uint8List _node({int id = 7}) {
   final out = Uint8List(92);
-  _u32(out, 0, id);
-  _u32(out, 8, 1);
-  _u32(out, 12, 3);
-  _u32(out, 16, 1);
-  _u32(out, 20, 1);
+  setU32(out, 0, id);
+  setU32(out, 8, 1);
+  setU32(out, 12, 3);
+  setU32(out, 16, 1);
+  setU32(out, 20, 1);
   for (var i = 0; i < 16; i++) {
-    _f32(out, 24 + i * 4, i % 5 == 0 ? 1 : 0);
+    setF32(out, 24 + i * 4, i % 5 == 0 ? 1 : 0);
   }
-  _u32(out, 88, 3);
+  setU32(out, 88, 3);
   return out;
 }
 
@@ -228,21 +219,21 @@ Uint8List _drawBatch({
             ]
           : const <double>[]);
   final out = Uint8List(20 + parts.length * 16 + matrixValues.length * 4);
-  _u32(out, 0, nodeId);
-  _u32(out, 4, version);
-  _u32(out, 8, instanceCount);
-  _u32(out, 12, flags);
-  _u32(out, 16, partCount ?? parts.length);
+  setU32(out, 0, nodeId);
+  setU32(out, 4, version);
+  setU32(out, 8, instanceCount);
+  setU32(out, 12, flags);
+  setU32(out, 16, partCount ?? parts.length);
   var offset = 20;
   for (final (geometryId, materialId, partOffset, count) in parts) {
-    _u32(out, offset, geometryId);
-    _u32(out, offset + 4, materialId);
-    _u32(out, offset + 8, partOffset);
-    _u32(out, offset + 12, count);
+    setU32(out, offset, geometryId);
+    setU32(out, offset + 4, materialId);
+    setU32(out, offset + 8, partOffset);
+    setU32(out, offset + 12, count);
     offset += 16;
   }
   for (final value in matrixValues) {
-    _f32(out, offset, value);
+    setF32(out, offset, value);
     offset += 4;
   }
   return out;
@@ -250,10 +241,10 @@ Uint8List _drawBatch({
 
 Uint8List _camera({int id = 9}) {
   final out = Uint8List(200);
-  _u32(out, 0, id);
-  _u32(out, 4, 1);
+  setU32(out, 0, id);
+  setU32(out, 4, 1);
   for (var i = 0; i < 48; i++) {
-    _f32(out, 8 + i * 4, i + 0.5);
+    setF32(out, 8 + i * 4, i + 0.5);
   }
   return out;
 }
@@ -267,19 +258,19 @@ Uint8List _light({
 }) {
   final hemisphere = type == JsThreeLightType.hemisphere;
   final out = Uint8List(hemisphere ? 64 : 48);
-  _u32(out, 0, id);
-  _u32(out, 4, type.wireValue);
-  _f32(out, 8, 0.1);
-  _f32(out, 12, 0.2);
-  _f32(out, 16, 0.3);
-  _f32(out, 20, 2);
+  setU32(out, 0, id);
+  setU32(out, 4, type.wireValue);
+  setF32(out, 8, 0.1);
+  setF32(out, 12, 0.2);
+  setF32(out, 16, 0.3);
+  setF32(out, 20, 2);
   for (var i = 0; i < 6; i++) {
-    _f32(out, 24 + i * 4, i - 0.5);
+    setF32(out, 24 + i * 4, i - 0.5);
   }
   if (hemisphere) {
-    _f32(out, 48, groundR);
-    _f32(out, 52, groundG);
-    _f32(out, 56, groundB);
+    setF32(out, 48, groundR);
+    setF32(out, 52, groundG);
+    setF32(out, 56, groundB);
   }
   return out;
 }
@@ -303,38 +294,38 @@ Uint8List _frame({
       ? 0
       : 4 + culledShadowNodeIds.length * 4;
   final out = Uint8List(136 + mainLength + shadowLength);
-  _u32(out, 0, scene);
-  _u32(out, 4, camera);
-  _f32(out, 8, 0.1);
-  _f32(out, 12, 0.2);
-  _f32(out, 16, 0.3);
-  _f32(out, 20, 0.4);
-  _f32(out, 24, exposure);
-  _u32(out, 28, fogMode);
-  _f32(out, 32, 0.5);
-  _f32(out, 36, 0.6);
-  _f32(out, 40, 0.7);
-  _f32(out, 44, fogNear);
-  _f32(out, 48, fogFar);
-  _u32(out, 52, shadowWidth);
-  _u32(out, 56, shadowHeight);
-  _f32(out, 60, -0.0001);
-  _f32(out, 64, 0.02);
-  _f32(out, 68, 1);
+  setU32(out, 0, scene);
+  setU32(out, 4, camera);
+  setF32(out, 8, 0.1);
+  setF32(out, 12, 0.2);
+  setF32(out, 16, 0.3);
+  setF32(out, 20, 0.4);
+  setF32(out, 24, exposure);
+  setU32(out, 28, fogMode);
+  setF32(out, 32, 0.5);
+  setF32(out, 36, 0.6);
+  setF32(out, 40, 0.7);
+  setF32(out, 44, fogNear);
+  setF32(out, 48, fogFar);
+  setU32(out, 52, shadowWidth);
+  setU32(out, 56, shadowHeight);
+  setF32(out, 60, -0.0001);
+  setF32(out, 64, 0.02);
+  setF32(out, 68, 1);
   for (final index in [0, 5, 10, 15]) {
-    _f32(out, 72 + index * 4, 1);
+    setF32(out, 72 + index * 4, 1);
   }
   if (culledNodeIds.isNotEmpty || culledShadowNodeIds.isNotEmpty) {
-    _u32(out, 136, culledNodeIds.length);
+    setU32(out, 136, culledNodeIds.length);
     for (var index = 0; index < culledNodeIds.length; index++) {
-      _u32(out, 140 + index * 4, culledNodeIds[index]);
+      setU32(out, 140 + index * 4, culledNodeIds[index]);
     }
   }
   if (culledShadowNodeIds.isNotEmpty) {
     final offset = 136 + mainLength;
-    _u32(out, offset, culledShadowNodeIds.length);
+    setU32(out, offset, culledShadowNodeIds.length);
     for (var index = 0; index < culledShadowNodeIds.length; index++) {
-      _u32(out, offset + 4 + index * 4, culledShadowNodeIds[index]);
+      setU32(out, offset + 4 + index * 4, culledShadowNodeIds[index]);
     }
   }
   return out;
@@ -342,14 +333,14 @@ Uint8List _frame({
 
 Uint8List _u32Body(int value) {
   final out = Uint8List(4);
-  _u32(out, 0, value);
+  setU32(out, 0, value);
   return out;
 }
 
 Uint8List _disposal({int id = 1, int kind = 1}) {
   final out = Uint8List(8);
-  _u32(out, 0, id);
-  _u32(out, 4, kind);
+  setU32(out, 0, id);
+  setU32(out, 4, kind);
   return out;
 }
 
@@ -476,67 +467,67 @@ void main() {
     expect(() => batch.parts.add(batch.parts.single), throwsUnsupportedError);
   });
 
-  test('R1 v2 adds strict HemisphereLight payloads without invalidating v1', () {
-    final legacy = _decoder.decodeR1(_r1([(7, _light())]));
-    expect(legacy.version, 1);
-    final legacyLight = legacy.commands.single as JsThreeLightUpsert;
-    expect(legacyLight.type, JsThreeLightType.point);
-    expect(legacyLight.groundColorR, 0);
-    expect(legacyLight.groundColorG, 0);
-    expect(legacyLight.groundColorB, 0);
+  test(
+    'R1 v2 adds strict HemisphereLight payloads without invalidating v1',
+    () {
+      final legacy = _decoder.decodeR1(_r1([(7, _light())]));
+      expect(legacy.version, 1);
+      final legacyLight = legacy.commands.single as JsThreeLightUpsert;
+      expect(legacyLight.type, JsThreeLightType.point);
+      expect(legacyLight.groundColorR, 0);
+      expect(legacyLight.groundColorG, 0);
+      expect(legacyLight.groundColorB, 0);
 
-    final legacyInV2 = _decoder.decodeR1(
-      _r1([(7, _light())], version: 2),
-    );
-    expect(legacyInV2.version, 2);
-    expect(legacyInV2.commands.single, isA<JsThreeLightUpsert>());
+      final legacyInV2 = _decoder.decodeR1(_r1([(7, _light())], version: 2));
+      expect(legacyInV2.version, 2);
+      expect(legacyInV2.commands.single, isA<JsThreeLightUpsert>());
 
-    final body = _light(type: JsThreeLightType.hemisphere);
-    final decoded = _decoder.decodeR1(_r1([(7, body)], version: 2));
-    final light = decoded.commands.single as JsThreeLightUpsert;
-    expect(decoded.version, 2);
-    expect(light.type, JsThreeLightType.hemisphere);
-    expect(light.type, isNot(JsThreeLightType.ambient));
-    expect(light.colorR, closeTo(0.1, 1e-6));
-    expect(light.colorG, closeTo(0.2, 1e-6));
-    expect(light.colorB, closeTo(0.3, 1e-6));
-    expect(light.intensity, 2);
-    expect(light.worldPosition, hasLength(3));
-    expect(light.worldDirection, hasLength(3));
-    expect(light.groundColorR, 0.75);
-    expect(light.groundColorG, 0.5);
-    expect(light.groundColorB, 0.25);
+      final body = _light(type: JsThreeLightType.hemisphere);
+      final decoded = _decoder.decodeR1(_r1([(7, body)], version: 2));
+      final light = decoded.commands.single as JsThreeLightUpsert;
+      expect(decoded.version, 2);
+      expect(light.type, JsThreeLightType.hemisphere);
+      expect(light.type, isNot(JsThreeLightType.ambient));
+      expect(light.colorR, closeTo(0.1, 1e-6));
+      expect(light.colorG, closeTo(0.2, 1e-6));
+      expect(light.colorB, closeTo(0.3, 1e-6));
+      expect(light.intensity, 2);
+      expect(light.worldPosition, hasLength(3));
+      expect(light.worldDirection, hasLength(3));
+      expect(light.groundColorR, 0.75);
+      expect(light.groundColorG, 0.5);
+      expect(light.groundColorB, 0.25);
 
-    _bad(() => _decoder.decodeR1(_r1([(7, body)])));
-    _bad(
-      () => _decoder.decodeR1(
-        _r1([(7, Uint8List.sublistView(body, 0, 60))], version: 2),
-      ),
-    );
-    _bad(
-      () => _decoder.decodeR1(
-        _r1([(7, Uint8List.fromList([...body, 0]))], version: 2),
-      ),
-    );
-    final reserved = Uint8List.fromList(body);
-    _u32(reserved, 60, 1);
-    _bad(() => _decoder.decodeR1(_r1([(7, reserved)], version: 2)));
-    final legacyExtended = Uint8List.fromList([..._light(), ...Uint8List(16)]);
-    _bad(
-      () => _decoder.decodeR1(
-        _r1([(7, legacyExtended)], version: 2),
-      ),
-    );
-    for (final offset in [48, 52, 56]) {
-      for (final value in [double.nan, double.infinity]) {
-        final invalid = Uint8List.fromList(body);
-        _f32(invalid, offset, value);
-        _bad(
-          () => _decoder.decodeR1(_r1([(7, invalid)], version: 2)),
-        );
+      _bad(() => _decoder.decodeR1(_r1([(7, body)])));
+      _bad(
+        () => _decoder.decodeR1(
+          _r1([(7, Uint8List.sublistView(body, 0, 60))], version: 2),
+        ),
+      );
+      _bad(
+        () => _decoder.decodeR1(
+          _r1([
+            (7, Uint8List.fromList([...body, 0])),
+          ], version: 2),
+        ),
+      );
+      final reserved = Uint8List.fromList(body);
+      setU32(reserved, 60, 1);
+      _bad(() => _decoder.decodeR1(_r1([(7, reserved)], version: 2)));
+      final legacyExtended = Uint8List.fromList([
+        ..._light(),
+        ...Uint8List(16),
+      ]);
+      _bad(() => _decoder.decodeR1(_r1([(7, legacyExtended)], version: 2)));
+      for (final offset in [48, 52, 56]) {
+        for (final value in [double.nan, double.infinity]) {
+          final invalid = Uint8List.fromList(body);
+          setF32(invalid, offset, value);
+          _bad(() => _decoder.decodeR1(_r1([(7, invalid)], version: 2)));
+        }
       }
-    }
-  });
+    },
+  );
 
   test(
     'accepts primitive, color stride, encoded texture, and empty variants',
@@ -618,13 +609,7 @@ void main() {
                 shininess: 0,
               ),
             ),
-            (
-              1,
-              _geometry(
-                mask: 1,
-                wireIndices: const [0, 1, 1, 2, 2, 0],
-              ),
-            ),
+            (1, _geometry(mask: 1, wireIndices: const [0, 1, 1, 2, 2, 0])),
           ]),
         )
         .commands;
@@ -654,10 +639,7 @@ void main() {
           _r1([
             (
               3,
-              _material(
-                kind: JsThreeMaterialKind.meshNormal,
-                wireframe: true,
-              ),
+              _material(kind: JsThreeMaterialKind.meshNormal, wireframe: true),
             ),
             for (final kind in [
               JsThreeMaterialKind.meshLambert,
@@ -684,10 +666,7 @@ void main() {
       expect(material.emissiveIntensity, 2);
     }
     final legacy =
-        _decoder
-                .decodeR1(_r1([(3, _material())]))
-                .commands
-                .single
+        _decoder.decodeR1(_r1([(3, _material())])).commands.single
             as JsThreeMaterialUpsert;
     expect(legacy.emissiveR, 0);
     expect(legacy.emissiveIntensity, 1);
@@ -714,16 +693,14 @@ void main() {
       final truncated = _material(kind: kind, emissive: true);
       _bad(
         () => _decoder.decodeR1(
-          _r1([
-            (3, Uint8List.sublistView(truncated, 0, truncated.length - 1)),
-          ]),
+          _r1([(3, Uint8List.sublistView(truncated, 0, truncated.length - 1))]),
         ),
       );
       final negative = _material(kind: kind, emissive: true);
-      _f32(negative, negative.length - 4, -0.01);
+      setF32(negative, negative.length - 4, -0.01);
       _bad(() => _decoder.decodeR1(_r1([(3, negative)])));
       final nonFinite = _material(kind: kind, emissive: true);
-      _f32(nonFinite, nonFinite.length - 16, double.nan);
+      setF32(nonFinite, nonFinite.length - 16, double.nan);
       _bad(() => _decoder.decodeR1(_r1([(3, nonFinite)])));
     }
   });
@@ -731,22 +708,14 @@ void main() {
   test('rejects malformed Phong and wireframe extensions', () {
     final phong = _material(kind: JsThreeMaterialKind.meshPhong);
     _bad(
-      () => _decoder.decodeR1(
-        _r1([(3, Uint8List.sublistView(phong, 0, 56))]),
-      ),
+      () => _decoder.decodeR1(_r1([(3, Uint8List.sublistView(phong, 0, 56))])),
     );
-    _f32(phong, 68, -1);
+    setF32(phong, 68, -1);
     _bad(() => _decoder.decodeR1(_r1([(3, phong)])));
     _bad(
       () => _decoder.decodeR1(
         _r1([
-          (
-            3,
-            _material(
-              kind: JsThreeMaterialKind.lineBasic,
-              wireframe: true,
-            ),
-          ),
+          (3, _material(kind: JsThreeMaterialKind.lineBasic, wireframe: true)),
         ]),
       ),
     );
@@ -777,7 +746,7 @@ void main() {
       ),
     );
     final quota = _geometry(mask: 1, wireIndices: const []);
-    _u32(quota, quota.length - 4, JsThreeProtocolDecoder.maxIndexCount + 1);
+    setU32(quota, quota.length - 4, JsThreeProtocolDecoder.maxIndexCount + 1);
     _bad(() => _decoder.decodeR1(_r1([(1, quota)])));
   });
 
@@ -821,7 +790,7 @@ void main() {
       ),
     );
     final noRadius = _frame();
-    _f32(noRadius, 68, 0);
+    setF32(noRadius, 68, 0);
     _bad(() => _decoder.decodeR1(_r1([(8, noRadius)])));
   });
 
@@ -861,7 +830,7 @@ void main() {
 
   test('node rejects unknown shadow flags', () {
     final node = _node();
-    _u32(node, 88, 4);
+    setU32(node, 88, 4);
     _bad(() => _decoder.decodeR1(_r1([(4, node)])));
   });
 
@@ -899,19 +868,19 @@ void main() {
 
   test('DRAW_BATCH and REMOVE_BATCH reject malformed bounded bodies', () {
     final mutations = <void Function(Uint8List)>[
-      (body) => _u32(body, 0, 0),
-      (body) => _u32(body, 4, 0),
-      (body) => _u32(body, 8, 0),
-      (body) => _u32(body, 8, 2),
-      (body) => _u32(body, 12, 2),
-      (body) => _u32(body, 16, 0),
-      (body) => _u32(body, 16, 65537),
-      (body) => _u32(body, 20, 0),
-      (body) => _u32(body, 24, 0),
-      (body) => _u32(body, 32, 0),
+      (body) => setU32(body, 0, 0),
+      (body) => setU32(body, 4, 0),
+      (body) => setU32(body, 8, 0),
+      (body) => setU32(body, 8, 2),
+      (body) => setU32(body, 12, 2),
+      (body) => setU32(body, 16, 0),
+      (body) => setU32(body, 16, 65537),
+      (body) => setU32(body, 20, 0),
+      (body) => setU32(body, 24, 0),
+      (body) => setU32(body, 32, 0),
       (body) {
-        _u32(body, 28, 0xffffffff);
-        _u32(body, 32, 2);
+        setU32(body, 28, 0xffffffff);
+        setU32(body, 32, 2);
       },
     ];
     for (final mutate in mutations) {
@@ -959,16 +928,16 @@ void main() {
         (b) => b[0] = 0,
         (b) => b[4] = 2,
         (b) => b[5] = 0x1b,
-        (b) => _u16(b, 6, 32),
-        (b) => _u32(b, 8, 0),
-        (b) => _u32(b, 12, 1),
-        (b) => _u16(b, 16, 0),
-        (b) => _u16(b, 16, 129),
-        (b) => _u16(b, 18, 0),
-        (b) => _u16(b, 18, 129),
-        (b) => _u32(b, 20, 1),
-        (b) => _u32(b, 24, 0),
-        (b) => _u32(b, 28, 1),
+        (b) => setU16(b, 6, 32),
+        (b) => setU32(b, 8, 0),
+        (b) => setU32(b, 12, 1),
+        (b) => setU16(b, 16, 0),
+        (b) => setU16(b, 16, 129),
+        (b) => setU16(b, 18, 0),
+        (b) => setU16(b, 18, 129),
+        (b) => setU32(b, 20, 1),
+        (b) => setU32(b, 24, 0),
+        (b) => setU32(b, 28, 1),
       ];
       for (final mutate in mutations) {
         final bytes = _t1(_r1(const []));
@@ -994,7 +963,7 @@ void main() {
       badSurface[32 + utf8.encode('engine').length] = 0xff;
       _bad(() => _decoder.decodeEnvelope(badSurface));
       final overflow = _t1(_r1(const []));
-      _u32(overflow, 12, 0xffffffff);
+      setU32(overflow, 12, 0xffffffff);
       _bad(() => _decoder.decodeEnvelope(overflow));
     },
   );
@@ -1036,8 +1005,8 @@ void main() {
       ];
       commandCases[0][0] = 0;
       commandCases[1][13] = 1;
-      _u16(commandCases[2], 14, 1);
-      _u32(commandCases[3], 16, 0xffffffff);
+      setU16(commandCases[2], 14, 1);
+      setU32(commandCases[3], 16, 0xffffffff);
       for (final bytes in commandCases) {
         _bad(() => _decoder.decodeR1(bytes));
       }
@@ -1059,20 +1028,20 @@ void main() {
     'geometry enforces quotas, masks, primitive counts, strides, and indices',
     () {
       final mutations = <void Function(Uint8List)>[
-        (b) => _u32(b, 0, 0),
-        (b) => _u32(b, 4, 0),
-        (b) => _u32(b, 8, 0),
-        (b) => _u32(b, 8, 16),
-        (b) => _u32(b, 12, 0),
-        (b) => _u32(b, 12, 4000001),
-        (b) => _u32(b, 16, 12000001),
-        (b) => _u32(b, 16, 2),
-        (b) => _u32(b, 20, 3),
-        (b) => _u32(b, 24, 1),
-        (b) => _u32(b, 28, 12),
-        (b) => _u32(b, 68, 12),
-        (b) => _u32(b, 108, 12),
-        (b) => _u32(b, 136, 12),
+        (b) => setU32(b, 0, 0),
+        (b) => setU32(b, 4, 0),
+        (b) => setU32(b, 8, 0),
+        (b) => setU32(b, 8, 16),
+        (b) => setU32(b, 12, 0),
+        (b) => setU32(b, 12, 4000001),
+        (b) => setU32(b, 16, 12000001),
+        (b) => setU32(b, 16, 2),
+        (b) => setU32(b, 20, 3),
+        (b) => setU32(b, 24, 1),
+        (b) => setU32(b, 28, 12),
+        (b) => setU32(b, 68, 12),
+        (b) => setU32(b, 108, 12),
+        (b) => setU32(b, 136, 12),
       ];
       for (final mutate in mutations) {
         final body = _geometry();
@@ -1113,13 +1082,13 @@ void main() {
     'texture enforces encoding, dimensions, flags, exact data, and quotas',
     () {
       final mutations = <void Function(Uint8List)>[
-        (b) => _u32(b, 0, 0),
-        (b) => _u32(b, 4, 0),
-        (b) => _u32(b, 8, 0),
-        (b) => _u32(b, 12, 0),
-        (b) => _u32(b, 16, 3),
-        (b) => _u32(b, 20, 128),
-        (b) => _u32(b, 24, 3),
+        (b) => setU32(b, 0, 0),
+        (b) => setU32(b, 4, 0),
+        (b) => setU32(b, 8, 0),
+        (b) => setU32(b, 12, 0),
+        (b) => setU32(b, 16, 3),
+        (b) => setU32(b, 20, 128),
+        (b) => setU32(b, 24, 3),
       ];
       for (final mutate in mutations) {
         final body = _texture();
@@ -1133,12 +1102,12 @@ void main() {
           ),
         );
         final excessive = _texture(encoding: encoding);
-        _u32(excessive, 24, 64 * 1024 * 1024 + 1);
+        setU32(excessive, 24, 64 * 1024 * 1024 + 1);
         _bad(() => _decoder.decodeR1(_r1([(2, excessive)])));
       }
       final overflow = _texture();
-      _u32(overflow, 8, 0x3fffffff);
-      _u32(overflow, 12, 0x3fffffff);
+      setU32(overflow, 8, 0x3fffffff);
+      setU32(overflow, 12, 0x3fffffff);
       _bad(() => _decoder.decodeR1(_r1([(2, overflow)])));
     },
   );
@@ -1168,27 +1137,27 @@ void main() {
       ];
       for (final (opcode, original, offset, value) in cases) {
         final body = Uint8List.fromList(original);
-        _u32(body, offset, value);
+        setU32(body, offset, value);
         _bad(() => _decoder.decodeR1(_r1([(opcode, body)])));
       }
       _bad(() => _decoder.decodeR1(_r1([(5, _u32Body(0))])));
       for (final offset in [36, 40, 44, 48]) {
         for (final value in [-0.01, 1.01]) {
           final body = _material();
-          _f32(body, offset, value);
+          setF32(body, offset, value);
           _bad(() => _decoder.decodeR1(_r1([(3, body)])));
         }
       }
       for (final value in [0.0, -1.0]) {
         final material = _material();
-        _f32(material, 52, value);
+        setF32(material, 52, value);
         _bad(() => _decoder.decodeR1(_r1([(3, material)])));
         final frame = _frame();
-        _f32(frame, 24, value);
+        setF32(frame, 24, value);
         _bad(() => _decoder.decodeR1(_r1([(8, frame)])));
       }
       final light = _light();
-      _f32(light, 20, -0.01);
+      setF32(light, 20, -0.01);
       _bad(() => _decoder.decodeR1(_r1([(7, light)])));
     },
   );
@@ -1227,7 +1196,7 @@ void main() {
           double.negativeInfinity,
         ]) {
           final body = build();
-          _f32(body, offset, value);
+          setF32(body, offset, value);
           _bad(() => _decoder.decodeR1(_r1([(opcode, body)])));
         }
       }
@@ -1250,7 +1219,7 @@ void main() {
     }
     for (final offset in offsets) {
       final invalid = Uint8List.fromList(body);
-      _f32(invalid, offset, double.nan);
+      setF32(invalid, offset, double.nan);
       _bad(() => _decoder.decodeR1(_r1([(1, invalid)])));
     }
   });

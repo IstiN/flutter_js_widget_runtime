@@ -56,4 +56,11 @@ flutter:
     - widgets/three-buffergeometry-points/
     - widgets/three-geometry-terrain-raycast/
     - widgets/three-math-orientation-transform/
+    - widgets/three-interactive-raycasting-points/
+    - widgets/three-interactive-cubes/
+    - widgets/three-interactive-cubes-ortho/
+    - widgets/three-math-obb/
+    - widgets/three-buffergeometry-points-interleaved/
+    - widgets/three-interactive-voxelpainter/
+    - widgets/three-panorama-equirectangular/
     - assets/models/

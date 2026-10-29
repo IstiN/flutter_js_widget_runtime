@@ -12,6 +12,7 @@ import 'package:js_widget_runtime/src/renderer/nodes/three/flutter_gpu_three_hos
     show FlutterGpuThreeSurface;
 import 'package:js_widget_runtime/src/runtime/js_widget_engine_quickjs.dart';
 
+import '../support/three_test_config.dart';
 import '../support/widget_logic_helper.dart';
 
 /// A real Flutter GPU golden, not a JSON-renderer approximation.
@@ -38,15 +39,10 @@ void main() {
     );
     final host = createFlutterGpuThreeHost();
     const engineId = 'three-r1-golden';
-    final config = JsRuntimeConfig(
-      widgetId: engineId,
-      instanceId: engineId,
-      threeEnabled: true,
+    final config = threeTestConfig(
+      engineId: engineId,
+      host: host,
       threeSource: threeSource,
-      threeHost: host,
-      onRender: (_) {},
-      onSetTitle: (_) {},
-      onStorageUpdate: (_) {},
     );
     final backend = QuickjsWidgetEngineBackend(config: config);
     final engine = JsWidgetEngine(config: config.copyWith(backend: backend));
