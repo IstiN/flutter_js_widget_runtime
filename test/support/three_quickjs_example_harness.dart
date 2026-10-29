@@ -31,12 +31,42 @@ final class ThreeQuickjsExampleHarness {
         ).readAsString(),
       ),
     );
+    return _start(
+      threeSource: sources!.three,
+      widgetSource: sources.widget,
+      widgetId: widgetId,
+      instanceId: instanceId,
+    );
+  }
+
+  static Future<ThreeQuickjsExampleHarness> bootSource(
+    WidgetTester tester, {
+    required String source,
+    required String instanceId,
+  }) async {
+    final threeSource = await tester.runAsync(
+      () => rootBundle.loadString('assets/three/three.native.js'),
+    );
+    return _start(
+      threeSource: threeSource!,
+      widgetSource: source,
+      widgetId: 'three-native-test',
+      instanceId: instanceId,
+    );
+  }
+
+  static Future<ThreeQuickjsExampleHarness> _start({
+    required String threeSource,
+    required String widgetSource,
+    required String widgetId,
+    required String instanceId,
+  }) async {
     final host = createFlutterGpuThreeHost();
     final config = JsRuntimeConfig(
       widgetId: widgetId,
       instanceId: instanceId,
       threeEnabled: true,
-      threeSource: sources!.three,
+      threeSource: threeSource,
       threeHost: host,
       onRender: (_) {},
       onSetTitle: (_) {},
@@ -46,7 +76,7 @@ final class ThreeQuickjsExampleHarness {
     final engine = JsWidgetEngine(config: config.copyWith(backend: backend));
     addTearDown(engine.dispose);
     await engine.init();
-    await engine.run(sources.widget);
+    await engine.run(widgetSource);
     return ThreeQuickjsExampleHarness._(
       instanceId: instanceId,
       host: host,

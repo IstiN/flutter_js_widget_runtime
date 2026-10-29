@@ -128,6 +128,10 @@ Renderer effects ported from YoClip: radial gradients, box shadows, blur nodes, 
   real upstream renderer and WebGL2 on a Worker OffscreenCanvas, then sends
   bounded ImageBitmap frames over a structured-clone lane (never JSON/GL
   proxies). Asset failures are `three.assetFailure`.
+- Native raycasts on large indexed single-material meshes use a cached BVH
+  only to filter candidates; upstream THREE still performs final triangle
+  tests. Attribute/array identity and versions invalidate it; morph, skinned,
+  non-indexed and bounded-draw-range cases retain the stock implementation.
 - Per-surface state keys include engine/surface/resource ids; preserve strict
   atomic decode, cross-engine checks, upload dedup, resize/DPR, input
   cancellation, capture and disposal tests on every lifecycle change. Pointer
