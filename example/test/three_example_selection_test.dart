@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'dart:io';
 
+import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:js_widget_runtime_example/three_example.dart';
 
@@ -49,6 +50,17 @@ void main() {
       expect(prepareManifest['example'], selection.exampleId);
       expect(prepareManifest['example'], examples[selection]);
       expect(prepareManifest['build']['offline'], isTrue);
+    }
+  });
+
+  testWidgets('official widget sources are declared in the asset bundle', (
+    tester,
+  ) async {
+    for (final selection in ThreeExampleSelection.values) {
+      final source = await tester.runAsync(
+        () => rootBundle.loadString(selection.assetPath),
+      );
+      expect(source, isNotEmpty, reason: selection.assetPath);
     }
   });
 }
