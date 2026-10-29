@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:flutter_test/flutter_test.dart';
 import 'package:js_widget_runtime/js_widget_runtime.dart';
 import 'package:js_widget_runtime/src/renderer/nodes/three/flutter_gpu_three_host.dart'
@@ -8,6 +10,14 @@ import 'support/three_test_config.dart';
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
+  if (Platform.isLinux) {
+    test(
+      'flutter_js native bridge',
+      () {},
+      skip: 'flutter_js does not package its Linux QuickJS plugin binary',
+    );
+    return;
+  }
 
   test('upstream THREE crosses the flutter_js base64 binary lane', () async {
     final host = createFlutterGpuThreeHost();
