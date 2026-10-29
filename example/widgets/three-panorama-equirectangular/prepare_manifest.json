@@ -13,7 +13,7 @@
     "sourceFilesHashed": 757
   },
   "tools": {
-    "node": "v26.7.0",
+    "node": ">=22",
     "esbuild": "0.25.5",
     "esbuildRequire": "tool/three/package.json"
   },
@@ -544,8 +544,8 @@
       "sha256": "f5cb1b499c1dc83d71a6f03d319de89743e91667f4d94f86586f8a9650c6f753"
     },
     "tool/three_example/prepare.mjs": {
-      "bytes": 29423,
-      "sha256": "1896547454bb21926a987c4bea7628bdca38658d9b658df4b981af1f65cffc17"
+      "bytes": 29566,
+      "sha256": "58399bb2ee9377c7bc1604ce34ca1ab791d2d6a896fd519b444ce362aafc4087"
     },
     "tool/three_example/stats_adapter.js": {
       "bytes": 2107,
