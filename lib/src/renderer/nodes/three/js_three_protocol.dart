@@ -30,7 +30,8 @@ enum JsThreeMaterialKind {
   meshStandard(2),
   lineBasic(3),
   pointsBasic(4),
-  meshPhong(5);
+  meshPhong(5),
+  meshNormal(6);
 
   const JsThreeMaterialKind(this.wireValue);
   final int wireValue;
@@ -224,6 +225,10 @@ final class JsThreeMaterialUpsert extends JsThreeCommand {
     required this.specularG,
     required this.specularB,
     required this.shininess,
+    required this.emissiveR,
+    required this.emissiveG,
+    required this.emissiveB,
+    required this.emissiveIntensity,
   }) : super._(3);
 
   final int materialId;
@@ -244,6 +249,10 @@ final class JsThreeMaterialUpsert extends JsThreeCommand {
   final double specularG;
   final double specularB;
   final double shininess;
+  final double emissiveR;
+  final double emissiveG;
+  final double emissiveB;
+  final double emissiveIntensity;
 
   bool get vertexColors => flags & 0x01 != 0;
   bool get flatShading => flags & 0x02 != 0;
@@ -751,7 +760,8 @@ final class JsThreeProtocolDecoder {
         kind != JsThreeMaterialKind.meshBasic &&
         kind != JsThreeMaterialKind.meshLambert &&
         kind != JsThreeMaterialKind.meshStandard &&
-        kind != JsThreeMaterialKind.meshPhong) {
+        kind != JsThreeMaterialKind.meshPhong &&
+        kind != JsThreeMaterialKind.meshNormal) {
       body.fail('wireframe requires a mesh material');
     }
     final side = body.enumValue(
@@ -773,7 +783,7 @@ final class JsThreeProtocolDecoder {
     var specularB = 0.0;
     var shininess = 0.0;
     if (kind == JsThreeMaterialKind.meshPhong) {
-      if (body.remaining != 16) {
+      if (body.remaining != 16 && body.remaining != 32) {
         body.fail('Phong material requires specular RGB and shininess');
       }
       specularR = body.finiteFloat('material specular red');
@@ -781,6 +791,27 @@ final class JsThreeProtocolDecoder {
       specularB = body.finiteFloat('material specular blue');
       shininess = body.finiteFloat('material shininess');
       if (shininess < 0) body.fail('material shininess must be nonnegative');
+    }
+    var emissiveR = 0.0;
+    var emissiveG = 0.0;
+    var emissiveB = 0.0;
+    var emissiveIntensity = 1.0;
+    if (body.remaining != 0) {
+      if (kind != JsThreeMaterialKind.meshLambert &&
+          kind != JsThreeMaterialKind.meshStandard &&
+          kind != JsThreeMaterialKind.meshPhong) {
+        body.fail('emissive payload requires a lit mesh material');
+      }
+      if (body.remaining != 16) {
+        body.fail('emissive payload requires RGB and intensity');
+      }
+      emissiveR = body.finiteFloat('material emissive red');
+      emissiveG = body.finiteFloat('material emissive green');
+      emissiveB = body.finiteFloat('material emissive blue');
+      emissiveIntensity = body.finiteFloat('material emissive intensity');
+      if (emissiveIntensity < 0) {
+        body.fail('material emissive intensity must be nonnegative');
+      }
     }
     return JsThreeMaterialUpsert._(
       materialId: id,
@@ -801,6 +832,10 @@ final class JsThreeProtocolDecoder {
       specularG: specularG,
       specularB: specularB,
       shininess: shininess,
+      emissiveR: emissiveR,
+      emissiveG: emissiveG,
+      emissiveB: emissiveB,
+      emissiveIntensity: emissiveIntensity,
     );
   }
 

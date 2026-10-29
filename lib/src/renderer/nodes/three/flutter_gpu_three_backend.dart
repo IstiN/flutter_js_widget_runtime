@@ -1489,8 +1489,8 @@ ByteData _threeVertexUniform(
   _writeFloats(data, 192, [
     draw.material.pointSize * pointSizeScale,
     shadowPass ? 1 : 0,
-    0,
-    0,
+    draw.material.side.wireValue.toDouble(),
+    draw.material.transparent ? 1 : 0,
   ]);
   final shadowMatrix = shadowPass
       ? frame.shadowMatrix
@@ -1574,7 +1574,7 @@ const _threeBooleanFloat = <bool, double>{false: 0, true: 1};
 
 ByteData _threeMaterialUniform(ThreeDrawItem draw) {
   final material = draw.material;
-  final data = ByteData(64);
+  final data = ByteData(80);
   _writeFloats(data, 0, [
     material.colorR,
     material.colorG,
@@ -1598,6 +1598,12 @@ ByteData _threeMaterialUniform(ThreeDrawItem draw) {
     material.specularG,
     material.specularB,
     material.shininess,
+  ]);
+  _writeFloats(data, 64, [
+    material.emissiveR,
+    material.emissiveG,
+    material.emissiveB,
+    material.emissiveIntensity,
   ]);
   return data;
 }

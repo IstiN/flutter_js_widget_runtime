@@ -149,9 +149,10 @@ export function textureCommand(id, version, width, height, encoding, flags, data
   return command(OPCODE.TEXTURE, body.finish());
 }
 
-export function materialCommand(id, version, kind, mapId, flags, side, color, opacity, roughness, metalness, alphaTest, pointSize, specular = null, shininess = 0) {
+export function materialCommand(id, version, kind, mapId, flags, side, color, opacity, roughness, metalness, alphaTest, pointSize, specular = null, shininess = 0, emissive = null, emissiveIntensity = 1) {
   if ((kind === 5) !== (specular !== null)) throw new Error('three.invalid: Phong material requires exactly one specular payload');
-  const body = new ByteWriter(specular ? 72 : 56);
+  if (emissive !== null && kind !== 1 && kind !== 2 && kind !== 5) throw new Error('three.invalid: emissive payload requires a lit mesh material');
+  const body = new ByteWriter(56 + (specular ? 16 : 0) + (emissive ? 16 : 0));
   body.u32(id);
   body.u32(version);
   body.u32(kind);
@@ -171,6 +172,12 @@ export function materialCommand(id, version, kind, mapId, flags, side, color, op
     body.f32(specular.g);
     body.f32(specular.b);
     body.f32(shininess);
+  }
+  if (emissive) {
+    body.f32(emissive.r);
+    body.f32(emissive.g);
+    body.f32(emissive.b);
+    body.f32(emissiveIntensity);
   }
   return command(OPCODE.MATERIAL, body.finish());
 }

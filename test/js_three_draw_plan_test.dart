@@ -117,6 +117,47 @@ void main() {
       expect(invalid.diagnostics.warnings.join('\n'), contains('wireframe'));
     });
 
+    test('plans Normal independently and forwards side and emissive state', () {
+      final fixture = _Fixture.basic()
+        ..geometry(1)
+        ..material(
+          2,
+          kind: JsThreeMaterialKind.meshNormal,
+          transparent: true,
+          vertexColors: true,
+          flatShading: true,
+          side: JsThreeSide.double,
+        )
+        ..material(
+          3,
+          version: 2,
+          kind: JsThreeMaterialKind.meshStandard,
+          emissive: true,
+        )
+        ..node(2, parentId: 1, materialId: 2)
+        ..node(3, parentId: 1, materialId: 3);
+
+      final plan = const ThreeDrawPlanner().plan(fixture.state());
+
+      expect(plan.diagnostics.warnings, isEmpty);
+      expect(plan.diagnostics.incompatibleMaterialCount, 0);
+      expect(plan.draws, hasLength(2));
+      final normal = plan.draws.singleWhere((draw) => draw.node.nodeId == 2);
+      expect(normal.material.kind, JsThreeMaterialKind.meshNormal);
+      expect(normal.material.vertexColors, isTrue);
+      expect(normal.material.flatShading, isTrue);
+      expect(normal.primitive, ThreeDrawPrimitive.triangles);
+      final normalVertex = debugThreeVertexUniform(normal, plan, 1);
+      expect(normalVertex.getFloat32(200, Endian.little), 2);
+      expect(normalVertex.getFloat32(204, Endian.little), 1);
+      final emissive = plan.draws.singleWhere((draw) => draw.node.nodeId == 3);
+      expect(emissive.material.version, 2);
+      expect(emissive.material.emissiveR, 0.125);
+      expect(emissive.material.emissiveG, 0.25);
+      expect(emissive.material.emissiveB, 0.5);
+      expect(emissive.material.emissiveIntensity, 3);
+    });
+
     test('supports independent lines and explicitly selected line strips', () {
       final fixture = _Fixture.basic()
         ..geometry(
@@ -593,7 +634,11 @@ final class _Fixture {
     JsThreeMaterialKind kind = JsThreeMaterialKind.meshBasic,
     bool transparent = false,
     bool wireframe = false,
+    bool vertexColors = false,
+    bool flatShading = false,
+    JsThreeSide side = JsThreeSide.front,
     int mapTextureId = 0,
+    bool emissive = false,
   }) {
     commands.add(
       _command(
@@ -604,7 +649,11 @@ final class _Fixture {
           kind: kind,
           transparent: transparent,
           wireframe: wireframe,
+          vertexColors: vertexColors,
+          flatShading: flatShading,
+          side: side,
           mapTextureId: mapTextureId,
+          emissive: emissive,
         ),
       ),
     );
@@ -766,10 +815,13 @@ Uint8List _material(
   bool transparent = false,
   bool wireframe = false,
   bool vertexColors = false,
+  bool flatShading = false,
+  JsThreeSide side = JsThreeSide.front,
   int mapTextureId = 0,
+  bool emissive = false,
 }) {
   final phong = kind == JsThreeMaterialKind.meshPhong;
-  final data = ByteData(phong ? 72 : 56);
+  final data = ByteData((phong ? 72 : 56) + (emissive ? 16 : 0));
   data.setUint32(0, id, Endian.little);
   data.setUint32(4, version, Endian.little);
   data.setUint32(8, kind.wireValue, Endian.little);
@@ -780,9 +832,11 @@ Uint8List _material(
         8 |
         16 |
         (vertexColors ? 1 : 0) |
+        (flatShading ? 2 : 0) |
         (wireframe ? 32 : 0),
     Endian.little,
   );
+  data.setUint32(20, side.wireValue, Endian.little);
   data.setFloat32(24, 1, Endian.little);
   data.setFloat32(28, 1, Endian.little);
   data.setFloat32(32, 1, Endian.little);
@@ -796,6 +850,13 @@ Uint8List _material(
     data.setFloat32(60, 0.25, Endian.little);
     data.setFloat32(64, 0.5, Endian.little);
     data.setFloat32(68, 64, Endian.little);
+  }
+  if (emissive) {
+    final offset = phong ? 72 : 56;
+    data.setFloat32(offset, 0.125, Endian.little);
+    data.setFloat32(offset + 4, 0.25, Endian.little);
+    data.setFloat32(offset + 8, 0.5, Endian.little);
+    data.setFloat32(offset + 12, 3, Endian.little);
   }
   return Uint8List.view(data.buffer);
 }

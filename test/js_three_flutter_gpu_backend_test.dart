@@ -75,6 +75,12 @@ _drawResources({
   double specularG = 0,
   double specularB = 0,
   double shininess = 0,
+  bool emissive = false,
+  double emissiveR = 0,
+  double emissiveG = 0,
+  double emissiveB = 0,
+  double emissiveIntensity = 1,
+  JsThreeSide side = JsThreeSide.front,
 }) {
   final geometry = Uint8List(
     92 + (wireIndices == null ? 0 : 4 + wireIndices.length * 4),
@@ -97,11 +103,14 @@ _drawResources({
   }
 
   final phong = kind == JsThreeMaterialKind.meshPhong;
-  final material = Uint8List(phong ? 72 : 56);
+  final material = Uint8List(
+    (phong ? 72 : 56) + (emissive ? 16 : 0),
+  );
   _u32(material, 0, 1);
   _u32(material, 4, 1);
   _u32(material, 8, kind.wireValue);
   _u32(material, 16, 24 | (wireframe ? 32 : 0));
+  _u32(material, 20, side.wireValue);
   _f32(material, 24, 1);
   _f32(material, 28, 1);
   _f32(material, 32, 1);
@@ -114,6 +123,13 @@ _drawResources({
     _f32(material, 60, specularG);
     _f32(material, 64, specularB);
     _f32(material, 68, shininess);
+  }
+  if (emissive) {
+    final offset = phong ? 72 : 56;
+    _f32(material, offset, emissiveR);
+    _f32(material, offset + 4, emissiveG);
+    _f32(material, offset + 8, emissiveB);
+    _f32(material, offset + 12, emissiveIntensity);
   }
 
   final node = Uint8List(92);
@@ -142,6 +158,12 @@ ThreeDrawItem _draw({
   double specularG = 0,
   double specularB = 0,
   double shininess = 0,
+  bool emissive = false,
+  double emissiveR = 0,
+  double emissiveG = 0,
+  double emissiveB = 0,
+  double emissiveIntensity = 1,
+  JsThreeSide side = JsThreeSide.front,
 }) {
   final resources = _drawResources(
     kind: kind,
@@ -151,6 +173,12 @@ ThreeDrawItem _draw({
     specularG: specularG,
     specularB: specularB,
     shininess: shininess,
+    emissive: emissive,
+    emissiveR: emissiveR,
+    emissiveG: emissiveG,
+    emissiveB: emissiveB,
+    emissiveIntensity: emissiveIntensity,
+    side: side,
   );
   return ThreeDrawItem(
     node: resources.node,
@@ -255,8 +283,8 @@ void main() {
     final lambert = debugThreeMaterialUniform(
       _draw(kind: JsThreeMaterialKind.meshLambert),
     );
-    expect(phong.lengthInBytes, 64);
-    expect(lambert.lengthInBytes, 64);
+    expect(phong.lengthInBytes, 80);
+    expect(lambert.lengthInBytes, 80);
     expect(phong.getFloat32(28, Endian.little), 5);
     expect(lambert.getFloat32(28, Endian.little), 1);
     expect(phong.getFloat32(48, Endian.little), 0.25);
@@ -275,6 +303,47 @@ void main() {
     );
     expect(changed.getFloat32(48, Endian.little), 1);
     expect(changed.getFloat32(60, Endian.little), 12);
+  });
+
+  test('Normal is distinct and emissive edits reach the 80-byte GPU ABI', () {
+    final normal = debugThreeMaterialUniform(
+      _draw(kind: JsThreeMaterialKind.meshNormal, side: JsThreeSide.double),
+    );
+    expect(normal.lengthInBytes, 80);
+    expect(normal.getFloat32(28, Endian.little), 6);
+    expect(normal.getFloat32(64, Endian.little), 0);
+    expect(normal.getFloat32(76, Endian.little), 1);
+
+    final emissive = debugThreeMaterialUniform(
+      _draw(
+        kind: JsThreeMaterialKind.meshStandard,
+        emissive: true,
+        emissiveR: 0.125,
+        emissiveG: 0.25,
+        emissiveB: 0.5,
+        emissiveIntensity: 3,
+      ),
+    );
+    expect(emissive.getFloat32(64, Endian.little), 0.125);
+    expect(emissive.getFloat32(68, Endian.little), 0.25);
+    expect(emissive.getFloat32(72, Endian.little), 0.5);
+    expect(emissive.getFloat32(76, Endian.little), 3);
+
+    final changed = debugThreeMaterialUniform(
+      _draw(
+        kind: JsThreeMaterialKind.meshPhong,
+        emissive: true,
+        emissiveR: 0.75,
+        emissiveG: 0.5,
+        emissiveB: 0.25,
+        emissiveIntensity: 7,
+      ),
+    );
+    expect(changed.getFloat32(28, Endian.little), 5);
+    expect(changed.getFloat32(64, Endian.little), 0.75);
+    expect(changed.getFloat32(68, Endian.little), 0.5);
+    expect(changed.getFloat32(72, Endian.little), 0.25);
+    expect(changed.getFloat32(76, Endian.little), 7);
   });
 
   test('wireframe index ranges use wire counts instead of triangle counts', () {

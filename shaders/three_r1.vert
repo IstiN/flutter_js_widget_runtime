@@ -11,6 +11,9 @@ in vec4 instanceModel3;
 
 out vec3 worldPosition;
 out vec3 worldNormal;
+layout(location = 6) out vec3 viewNormal;
+layout(location = 7) out vec3 viewPosition;
+layout(location = 8) out vec2 materialState;
 out vec2 textureUv;
 out vec4 vertexColor;
 out float viewDepth;
@@ -36,15 +39,21 @@ void main() {
   vec4 world = worldModel * vec4(position, 1.0);
   worldPosition = world.xyz;
   worldNormal = mat3(transpose(inverse(worldModel))) * normal;
+  viewNormal = mat3(vertex_info.view) * worldNormal;
+  materialState = vertex_info.pointSize.zw;
+  if (materialState.x > 0.5 && materialState.x < 1.5) {
+    viewNormal = -viewNormal;
+  }
   vec3 shadowNormal = length(worldNormal) > 0.0 ? normalize(worldNormal) : vec3(0.0);
   shadowPosition = vertex_info.shadowMatrix *
       vec4(world.xyz + shadowNormal * vertex_info.shadowNormalBiasReserved.x, 1.0);
   textureUv = uv;
   vertexColor = color;
   gl_PointSize = vertex_info.pointSize.x;
-  vec4 viewPosition = vertex_info.view * world;
-  viewDepth = -viewPosition.z;
-  gl_Position = vertex_info.projection * viewPosition;
+  vec4 viewPosition4 = vertex_info.view * world;
+  viewPosition = -viewPosition4.xyz;
+  viewDepth = -viewPosition4.z;
+  gl_Position = vertex_info.projection * viewPosition4;
   if (vertex_info.pointSize.y > 0.5) {
     gl_Position = vec4(
         shadowPosition.xy * 2.0 - 1.0, shadowPosition.z, 1.0);

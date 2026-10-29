@@ -689,7 +689,8 @@ final class ThreeDrawPlanner {
       material == JsThreeMaterialKind.meshBasic ||
           material == JsThreeMaterialKind.meshLambert ||
           material == JsThreeMaterialKind.meshStandard ||
-          material == JsThreeMaterialKind.meshPhong,
+          material == JsThreeMaterialKind.meshPhong ||
+          material == JsThreeMaterialKind.meshNormal,
     JsThreeObjectKind.line => material == JsThreeMaterialKind.lineBasic,
     JsThreeObjectKind.points => material == JsThreeMaterialKind.pointsBasic,
   };

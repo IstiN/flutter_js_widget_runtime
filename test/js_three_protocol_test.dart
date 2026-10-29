@@ -157,9 +157,14 @@ Uint8List _material({
   double specularG = 0.25,
   double specularB = 0.5,
   double shininess = 64,
+  bool emissive = false,
+  double emissiveR = 0.125,
+  double emissiveG = 0.25,
+  double emissiveB = 0.5,
+  double emissiveIntensity = 2,
 }) {
   final phong = kind == JsThreeMaterialKind.meshPhong;
-  final out = Uint8List(phong ? 72 : 56);
+  final out = Uint8List((phong ? 72 : 56) + (emissive ? 16 : 0));
   _u32(out, 0, id);
   _u32(out, 4, version);
   _u32(out, 8, kind.wireValue);
@@ -179,6 +184,13 @@ Uint8List _material({
     _f32(out, 60, specularG);
     _f32(out, 64, specularB);
     _f32(out, 68, shininess);
+  }
+  if (emissive) {
+    final offset = phong ? 72 : 56;
+    _f32(out, offset, emissiveR);
+    _f32(out, offset + 4, emissiveG);
+    _f32(out, offset + 8, emissiveB);
+    _f32(out, offset + 12, emissiveIntensity);
   }
   return out;
 }
@@ -560,6 +572,86 @@ void main() {
           .wireIndices,
       isNull,
     );
+  });
+
+  test('decodes Normal distinctly and additive lit emissive payloads', () {
+    final commands = _decoder
+        .decodeR1(
+          _r1([
+            (
+              3,
+              _material(
+                kind: JsThreeMaterialKind.meshNormal,
+                wireframe: true,
+              ),
+            ),
+            for (final kind in [
+              JsThreeMaterialKind.meshLambert,
+              JsThreeMaterialKind.meshStandard,
+              JsThreeMaterialKind.meshPhong,
+            ])
+              (3, _material(kind: kind, emissive: true)),
+          ]),
+        )
+        .commands;
+    final normal = commands[0] as JsThreeMaterialUpsert;
+    expect(normal.kind, JsThreeMaterialKind.meshNormal);
+    expect(normal.kind.wireValue, 6);
+    expect(normal.wireframe, isTrue);
+    expect(normal.emissiveR, 0);
+    expect(normal.emissiveG, 0);
+    expect(normal.emissiveB, 0);
+    expect(normal.emissiveIntensity, 1);
+    for (var index = 1; index < commands.length; index++) {
+      final material = commands[index] as JsThreeMaterialUpsert;
+      expect(material.emissiveR, 0.125);
+      expect(material.emissiveG, 0.25);
+      expect(material.emissiveB, 0.5);
+      expect(material.emissiveIntensity, 2);
+    }
+    final legacy =
+        _decoder
+                .decodeR1(_r1([(3, _material())]))
+                .commands
+                .single
+            as JsThreeMaterialUpsert;
+    expect(legacy.emissiveR, 0);
+    expect(legacy.emissiveIntensity, 1);
+  });
+
+  test('rejects malformed or unsupported emissive extensions', () {
+    for (final kind in [
+      JsThreeMaterialKind.meshBasic,
+      JsThreeMaterialKind.lineBasic,
+      JsThreeMaterialKind.pointsBasic,
+      JsThreeMaterialKind.meshNormal,
+    ]) {
+      _bad(
+        () => _decoder.decodeR1(
+          _r1([(3, _material(kind: kind, emissive: true))]),
+        ),
+      );
+    }
+    for (final kind in [
+      JsThreeMaterialKind.meshLambert,
+      JsThreeMaterialKind.meshStandard,
+      JsThreeMaterialKind.meshPhong,
+    ]) {
+      final truncated = _material(kind: kind, emissive: true);
+      _bad(
+        () => _decoder.decodeR1(
+          _r1([
+            (3, Uint8List.sublistView(truncated, 0, truncated.length - 1)),
+          ]),
+        ),
+      );
+      final negative = _material(kind: kind, emissive: true);
+      _f32(negative, negative.length - 4, -0.01);
+      _bad(() => _decoder.decodeR1(_r1([(3, negative)])));
+      final nonFinite = _material(kind: kind, emissive: true);
+      _f32(nonFinite, nonFinite.length - 16, double.nan);
+      _bad(() => _decoder.decodeR1(_r1([(3, nonFinite)])));
+    }
   });
 
   test('rejects malformed Phong and wireframe extensions', () {
@@ -982,7 +1074,7 @@ void main() {
       final cases = <(int, Uint8List, int, int)>[
         (3, _material(), 0, 0),
         (3, _material(), 4, 0),
-        (3, _material(), 8, 6),
+        (3, _material(), 8, 7),
         (3, _material(), 16, 64),
         (3, _material(), 20, 3),
         (3, _material(), 52, 0),

@@ -79,11 +79,21 @@ Uint8List _texture(int id, int version, {int value = 1}) {
   return out;
 }
 
-Uint8List _material(int id, int version, {double color = 0.5}) {
-  final out = Uint8List(56);
+Uint8List _material(
+  int id,
+  int version, {
+  double color = 0.5,
+  JsThreeMaterialKind kind = JsThreeMaterialKind.meshBasic,
+  bool emissive = false,
+  double emissiveR = 0,
+  double emissiveG = 0,
+  double emissiveB = 0,
+  double emissiveIntensity = 1,
+}) {
+  final out = Uint8List(56 + (emissive ? 16 : 0));
   _u32(out, 0, id);
   _u32(out, 4, version);
-  _u32(out, 8, 0);
+  _u32(out, 8, kind.wireValue);
   _u32(out, 20, 0);
   _f32(out, 24, color);
   _f32(out, 28, 0.5);
@@ -93,6 +103,12 @@ Uint8List _material(int id, int version, {double color = 0.5}) {
   _f32(out, 44, 0.5);
   _f32(out, 48, 0);
   _f32(out, 52, 1);
+  if (emissive) {
+    _f32(out, 56, emissiveR);
+    _f32(out, 60, emissiveG);
+    _f32(out, 64, emissiveB);
+    _f32(out, 68, emissiveIntensity);
+  }
   return out;
 }
 
@@ -235,6 +251,54 @@ void main() {
       expect(() => store.surfaces.clear(), throwsUnsupportedError);
     },
   );
+
+  test('newer emissive material versions replace render state', () {
+    final store = JsThreeStateStore();
+    store.apply(
+      _envelope(1, [
+        (
+          3,
+          _material(
+            3,
+            1,
+            kind: JsThreeMaterialKind.meshLambert,
+            emissive: true,
+            emissiveR: 0.125,
+            emissiveG: 0.25,
+            emissiveB: 0.5,
+            emissiveIntensity: 2,
+          ),
+        ),
+      ]),
+    );
+    final state = store.surface('engine', 'surface')!;
+    expect(state.materials[3]!.emissiveR, 0.125);
+    expect(state.materials[3]!.emissiveIntensity, 2);
+
+    final changed = store.apply(
+      _envelope(2, [
+        (
+          3,
+          _material(
+            3,
+            2,
+            kind: JsThreeMaterialKind.meshLambert,
+            emissive: true,
+            emissiveR: 0.75,
+            emissiveG: 0.5,
+            emissiveB: 0.25,
+            emissiveIntensity: 6,
+          ),
+        ),
+      ]),
+    );
+    expect(changed.materialUploads, hasLength(1));
+    expect(state.materials[3]!.version, 2);
+    expect(state.materials[3]!.emissiveR, 0.75);
+    expect(state.materials[3]!.emissiveG, 0.5);
+    expect(state.materials[3]!.emissiveB, 0.25);
+    expect(state.materials[3]!.emissiveIntensity, 6);
+  });
 
   test('geometry, texture, and material upload only for newer versions', () {
     final store = JsThreeStateStore();

@@ -180,12 +180,18 @@ function materialKind(material) {
   if (material.isLineBasicMaterial && !material.isLineDashedMaterial) return 3;
   if (material.isPointsMaterial) return 4;
   if (material.isMeshPhongMaterial) return 5;
+  if (material.isMeshNormalMaterial) return 6;
   unsupported('material', material.type || 'unknown material');
+}
+
+function supportsEmissive(material) {
+  return material.isMeshLambertMaterial || material.isMeshPhongMaterial ||
+    (material.isMeshStandardMaterial && !material.isMeshPhysicalMaterial);
 }
 
 function validateMaterial(material) {
   if (material.isShaderMaterial || material.isRawShaderMaterial) unsupported('ShaderMaterial', 'arbitrary shaders require 1B');
-  if (material.wireframe && !(material.isMeshBasicMaterial || material.isMeshLambertMaterial || material.isMeshPhongMaterial || (material.isMeshStandardMaterial && !material.isMeshPhysicalMaterial))) unsupported('wireframe', 'R1 wireframe requires a mesh material');
+  if (material.wireframe && !(material.isMeshBasicMaterial || material.isMeshLambertMaterial || material.isMeshPhongMaterial || material.isMeshNormalMaterial || (material.isMeshStandardMaterial && !material.isMeshPhysicalMaterial))) unsupported('wireframe', 'R1 wireframe requires a mesh material');
   if (material.wireframe && (material.wireframeLinewidth !== 1 || material.wireframeLinecap !== 'round' || material.wireframeLinejoin !== 'round')) unsupported('wireframeStyle', 'R1 supports one-pixel round wireframe lines');
   if (material.blending !== NormalBlending) unsupported('materialBlending');
   if (material.alphaHash || material.premultipliedAlpha || material.colorWrite === false || material.stencilWrite || material.polygonOffset) unsupported('materialState', 'alphaHash/premultipliedAlpha/colorWrite/stencil/polygonOffset');
@@ -193,8 +199,10 @@ function validateMaterial(material) {
   if (Object.prototype.hasOwnProperty.call(material, 'onBeforeCompile')) unsupported('onBeforeCompile', 'arbitrary shaders require 1B');
   const maps = ['alphaMap', 'aoMap', 'bumpMap', 'displacementMap', 'emissiveMap', 'envMap', 'lightMap', 'metalnessMap', 'normalMap', 'roughnessMap', 'specularMap', 'clearcoatMap', 'transmissionMap'];
   for (const name of maps) if (material[name]) unsupported('materialTexture', `${material.type}.${name}`);
-  if (material.emissive && (material.emissive.r !== 0 || material.emissive.g !== 0 || material.emissive.b !== 0)) unsupported('emissiveMaterial');
-  if (material.emissiveIntensity !== undefined && material.emissiveIntensity !== 1 && material.emissive && (material.emissive.r || material.emissive.g || material.emissive.b)) unsupported('emissiveMaterial');
+  if (!supportsEmissive(material) && material.emissive &&
+      (material.emissive.r !== 0 || material.emissive.g !== 0 || material.emissive.b !== 0)) {
+    unsupported('emissiveMaterial', `${material.type} has no upstream emissive support`);
+  }
 }
 
 function sideValue(side) {
@@ -219,7 +227,7 @@ export class JsrWebGLRenderer {
       rawWebGL: false,
       isWebGL2: false,
       backend: 'flutterGpu',
-      features: Object.freeze({ geometry: true, textures: true, lambert: true, standard: true, phong: true, wireframe: true, rawWebGL: false, shaderMaterial: false })
+      features: Object.freeze({ geometry: true, textures: true, lambert: true, standard: true, phong: true, normal: true, emissive: true, wireframe: true, rawWebGL: false, shaderMaterial: false })
     });
     this.outputColorSpace = SRGBColorSpace;
     this.toneMapping = NoToneMapping;
@@ -515,20 +523,27 @@ export class JsrWebGLRenderer {
     const pointSize = material.size === undefined ? 1 : material.size;
     const specular = kind === 5 ? material.specular : null;
     const shininess = kind === 5 ? material.shininess : 0;
+    const emissive = supportsEmissive(material) ? material.emissive : null;
+    const emissiveIntensity = emissive ? material.emissiveIntensity : 1;
     requireFinite(color.r, 'material color'); requireFinite(color.g, 'material color'); requireFinite(color.b, 'material color');
     if (!Number.isFinite(opacity) || opacity < 0 || opacity > 1 || !Number.isFinite(roughness) || roughness < 0 || roughness > 1 || !Number.isFinite(metalness) || metalness < 0 || metalness > 1 || !Number.isFinite(alphaTest) || alphaTest < 0 || alphaTest > 1 || !Number.isFinite(pointSize) || pointSize <= 0) throw new Error('three.invalid: material scalar range');
     if (specular) {
       requireFinite(specular.r, 'material specular'); requireFinite(specular.g, 'material specular'); requireFinite(specular.b, 'material specular');
       if (!Number.isFinite(shininess) || shininess < 0) throw new Error('three.invalid: material shininess must be finite and nonnegative');
     }
+    if (emissive) {
+      requireFinite(emissive.r, 'material emissive'); requireFinite(emissive.g, 'material emissive'); requireFinite(emissive.b, 'material emissive');
+      if (!Number.isFinite(emissiveIntensity) || emissiveIntensity < 0) throw new Error('three.invalid: material emissiveIntensity must be finite and nonnegative');
+    }
     const side = sideValue(material.side);
     const flags = (material.vertexColors ? 1 : 0) | (material.flatShading ? 2 : 0) | (material.transparent ? 4 : 0) | (material.depthTest ? 8 : 0) | (material.depthWrite ? 16 : 0) | (material.wireframe ? 32 : 0);
     const signature = [kind, mapId, material.map ? this._state.textures.get(resourceId(material.map))?.version || 0 : 0,
       flags, side, color.r, color.g, color.b, opacity, roughness, metalness, alphaTest, pointSize,
-      specular ? specular.r : 0, specular ? specular.g : 0, specular ? specular.b : 0, shininess, material.version].join('|');
+      specular ? specular.r : 0, specular ? specular.g : 0, specular ? specular.b : 0, shininess,
+      emissive ? emissive.r : 0, emissive ? emissive.g : 0, emissive ? emissive.b : 0, emissiveIntensity, material.version].join('|');
     const changed = this._nextVersion(this._state.materials, id, signature);
     if (changed) {
-      commands.push(materialCommand(id, changed.version, kind, mapId, flags, side, color, opacity, roughness, metalness, alphaTest, pointSize, specular, shininess));
+      commands.push(materialCommand(id, changed.version, kind, mapId, flags, side, color, opacity, roughness, metalness, alphaTest, pointSize, specular, shininess, emissive, emissiveIntensity));
       this._mapSet(this._state.materials, id, { signature, version: changed.version, object: material });
     }
     this._frameMaterials.set(id, id);
