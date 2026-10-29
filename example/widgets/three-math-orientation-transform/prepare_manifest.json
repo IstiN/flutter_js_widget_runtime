@@ -540,7 +540,7 @@
     },
     "tool/three_example/lil_gui_adapter.js": {
       "bytes": 8919,
-      "sha256": "06c9c09460325771432d40ce245ed3bd5b4d0a8c96e13946457e7e5a067a72e1"
+      "sha256": "f5cb1b499c1dc83d71a6f03d319de89743e91667f4d94f86586f8a9650c6f753"
     },
     "tool/three_example/prepare.mjs": {
       "bytes": 23403,
@@ -570,7 +570,7 @@
     },
     "widget.js": {
       "bytes": 56782,
-      "sha256": "27088c6b42939aa82466f2582e3390c22fddcd61a0a6d60bec7e1cd822075f3a"
+      "sha256": "63fd0520c41668e2287f1eca491f9b9d64661ef83c4e8377e07908e36f6f1b2e"
     }
   }
 }

@@ -51,7 +51,7 @@ function rootTree(root) {
   const children = [{
     type: 'text',
     data: root._title,
-    style: { color: '#FF111111', fontSize: 12, fontWeight: 'w600' }
+    style: { color: '#FFEBEBEB', fontSize: 12, fontWeight: 'w600' }
   }];
   if (!root._closed) {
     for (const controller of root.controllers) {
@@ -63,7 +63,7 @@ function rootTree(root) {
     positioned: { right: 8, top: 48 },
     width: 245,
     padding: 8,
-    decoration: { color: '#F2F2F2F2', borderRadius: 4 },
+    decoration: { color: '#F21F1F1F', borderRadius: 4 },
     child: { type: 'column', mainAxisSize: 'min', children }
   };
 }
