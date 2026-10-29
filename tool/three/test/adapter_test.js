@@ -35,7 +35,7 @@ function decode(packet) {
   const surfaceId = decoder.decode(bytes.subarray(32 + engineLength, headerBytes));
   const payload = bytes.subarray(headerBytes);
   assert.equal(payload.subarray(0, 4).toString(), 'JSR1');
-  assert.equal(payload.readUInt16LE(4), 1);
+  assert.equal(payload.readUInt16LE(4), 2);
   assert.equal(payload.readUInt16LE(6), 0);
   const count = payload.readUInt32LE(8);
   const commands = [];
@@ -528,6 +528,80 @@ test('materials, cameras and ambient/directional/point lights have exact bodies 
   near(f32(changedPhong, 60), 0.5);
   near(f32(changedPhong, 64), 0.75);
   near(f32(changedPhong, 68), 12);
+});
+
+test('HemisphereLight has an exact additive payload, world direction and dirty/error updates', () => {
+  const host = createHost();
+  const T = host.THREE;
+  const renderer = new T.WebGLRenderer({ canvas: host.jsr.three.createCanvas('main') });
+  const scene = new T.Scene();
+  const camera = new T.PerspectiveCamera();
+  const hemisphere = new T.HemisphereLight(0x80c0ff, 0x402010, 2.5);
+  hemisphere.position.set(0, 2, 0);
+  scene.add(hemisphere);
+  renderer.render(scene, camera);
+  assert.equal(renderer.capabilities.features.hemisphereLight, true);
+  let body = only(host.packets()[0], 7)[0].body;
+  assert.equal(body.length, 64);
+  assert.equal(u32(body, 0), id(hemisphere));
+  assert.equal(u32(body, 4), 3);
+  assert.notEqual(u32(body, 4), 0, 'HemisphereLight must not alias AmbientLight');
+  near(f32(body, 8), hemisphere.color.r);
+  near(f32(body, 12), hemisphere.color.g);
+  near(f32(body, 16), hemisphere.color.b);
+  near(f32(body, 20), 2.5);
+  near(f32(body, 24), 0);
+  near(f32(body, 28), 2);
+  near(f32(body, 32), 0);
+  near(f32(body, 36), 0);
+  near(f32(body, 40), 1);
+  near(f32(body, 44), 0);
+  near(f32(body, 48), hemisphere.groundColor.r);
+  near(f32(body, 52), hemisphere.groundColor.g);
+  near(f32(body, 56), hemisphere.groundColor.b);
+  assert.equal(u32(body, 60), 0);
+
+  renderer.render(scene, camera);
+  assert.deepEqual(opcodes(host.packets()[1]), [8], 'unchanged hemisphere must not reupload');
+  hemisphere.color.setRGB(0.125, 0.25, 0.5);
+  hemisphere.groundColor.setRGB(0.75, 0.5, 0.25);
+  hemisphere.intensity = 4;
+  hemisphere.position.set(3, 4, 0);
+  renderer.render(scene, camera);
+  assert.deepEqual(opcodes(host.packets()[2]), [7, 8]);
+  body = only(host.packets()[2], 7)[0].body;
+  near(f32(body, 8), 0.125);
+  near(f32(body, 12), 0.25);
+  near(f32(body, 16), 0.5);
+  near(f32(body, 20), 4);
+  near(f32(body, 24), 3);
+  near(f32(body, 28), 4);
+  near(f32(body, 36), 0.6);
+  near(f32(body, 40), 0.8);
+  near(f32(body, 44), 0);
+  near(f32(body, 48), 0.75);
+  near(f32(body, 52), 0.5);
+  near(f32(body, 56), 0.25);
+
+  let sent = host.rawPackets.length;
+  hemisphere.groundColor.b = NaN;
+  assert.throws(() => renderer.render(scene, camera), /groundColor/);
+  assert.equal(host.rawPackets.length, sent, 'invalid ground color must roll back the packet');
+  hemisphere.groundColor.setRGB(0.75, 0.5, 0.25);
+  renderer.render(scene, camera);
+  assert.deepEqual(opcodes(host.packets()[3]), [8], 'rollback preserves the valid hemisphere cache');
+
+  hemisphere.groundColor.setRGB(0.375, 0.25, 0.125);
+  renderer.render(scene, camera);
+  assert.deepEqual(opcodes(host.packets()[4]), [7, 8]);
+  near(f32(only(host.packets()[4], 7)[0].body, 48), 0.375);
+  sent = host.rawPackets.length;
+  hemisphere.intensity = -1;
+  assert.throws(() => renderer.render(scene, camera), /light intensity/);
+  assert.equal(host.rawPackets.length, sent);
+  hemisphere.intensity = 4;
+  renderer.render(scene, camera);
+  assert.deepEqual(opcodes(host.packets()[5]), [8]);
 });
 
 test('Normal and lit emissive materials have exact payloads, dirty updates and transactional validation', () => {

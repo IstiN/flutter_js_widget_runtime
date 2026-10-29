@@ -187,6 +187,9 @@ ByteData debugThreeVertexUniform(
 ByteData debugThreeFrameUniform(ThreeDrawPlan plan) => _threeFrameUniform(plan);
 
 @visibleForTesting
+ByteData debugThreeLightsUniform(ThreeDrawPlan plan) => _threeLightsUniform(plan);
+
+@visibleForTesting
 ByteData debugThreeMaterialUniform(ThreeDrawItem draw) =>
     _threeMaterialUniform(draw);
 
@@ -1515,7 +1518,7 @@ ByteData _threeFrameUniform(ThreeDrawPlan plan, {bool shadowEnabled = true}) {
   _writeFloats(data, 32, [
     plan.directionalLights.length.toDouble(),
     plan.pointLights.length.toDouble(),
-    0,
+    plan.hemisphereLights.length.toDouble(),
     0,
   ]);
   _writeFloats(data, 48, [
@@ -1536,7 +1539,7 @@ ByteData _threeFrameUniform(ThreeDrawPlan plan, {bool shadowEnabled = true}) {
 }
 
 ByteData _threeLightsUniform(ThreeDrawPlan plan) {
-  final data = ByteData(384);
+  final data = ByteData(576);
   for (var index = 0; index < plan.directionalLights.length; index++) {
     final light = plan.directionalLights[index];
     _writeFloats(data, index * 16, [
@@ -1564,6 +1567,27 @@ ByteData _threeLightsUniform(ThreeDrawPlan plan) {
       light.colorR,
       light.colorG,
       light.colorB,
+      1,
+    ]);
+  }
+  for (var index = 0; index < plan.hemisphereLights.length; index++) {
+    final light = plan.hemisphereLights[index];
+    _writeFloats(data, 384 + index * 16, [
+      light.worldDirection[0],
+      light.worldDirection[1],
+      light.worldDirection[2],
+      light.intensity,
+    ]);
+    _writeFloats(data, 448 + index * 16, [
+      light.colorR,
+      light.colorG,
+      light.colorB,
+      1,
+    ]);
+    _writeFloats(data, 512 + index * 16, [
+      light.groundColorR,
+      light.groundColorG,
+      light.groundColorB,
       1,
     ]);
   }
@@ -1782,6 +1806,8 @@ final class FlutterGpuThreeBackend {
         _lastPlan?.diagnostics.droppedDirectionalLightCount ?? 0,
     'lastDroppedPointLights':
         _lastPlan?.diagnostics.droppedPointLightCount ?? 0,
+    'lastDroppedHemisphereLights':
+        _lastPlan?.diagnostics.droppedHemisphereLightCount ?? 0,
   };
 
   /// Uploads current resources and renders [frame] (or state.currentFrame).

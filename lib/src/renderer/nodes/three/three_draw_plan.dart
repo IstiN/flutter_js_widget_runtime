@@ -72,6 +72,7 @@ final class ThreeDrawPlanDiagnostics {
   var hierarchyCycleCount = 0;
   var droppedDirectionalLightCount = 0;
   var droppedPointLightCount = 0;
+  var droppedHemisphereLightCount = 0;
 
   List<String> get warnings => List.unmodifiable(_warnings);
 
@@ -88,6 +89,7 @@ final class ThreeDrawPlan {
     required this.ambient,
     required this.directionalLights,
     required this.pointLights,
+    required this.hemisphereLights,
     required this.diagnostics,
   });
 
@@ -98,6 +100,7 @@ final class ThreeDrawPlan {
   final ThreeRgb ambient;
   final List<JsThreeLightUpsert> directionalLights;
   final List<JsThreeLightUpsert> pointLights;
+  final List<JsThreeLightUpsert> hemisphereLights;
   final ThreeDrawPlanDiagnostics diagnostics;
 
   Iterable<ThreeDrawItem> get draws sync* {
@@ -184,6 +187,7 @@ final class ThreeDrawPlanner {
 
   static const int maxDirectionalLights = 4;
   static const int maxPointLights = 8;
+  static const int maxHemisphereLights = 4;
 
   ThreeDrawPlan plan(
     JsThreeSurfaceState state, {
@@ -248,6 +252,7 @@ final class ThreeDrawPlanner {
       ambient: lights.ambient,
       directionalLights: List.unmodifiable(lights.directional),
       pointLights: List.unmodifiable(lights.points),
+      hemisphereLights: List.unmodifiable(lights.hemisphere),
       diagnostics: diagnostics,
     );
   }
@@ -256,6 +261,7 @@ final class ThreeDrawPlanner {
     ThreeRgb ambient,
     List<JsThreeLightUpsert> directional,
     List<JsThreeLightUpsert> points,
+    List<JsThreeLightUpsert> hemisphere,
   })
   _selectLights(
     JsThreeSurfaceState state,
@@ -268,6 +274,7 @@ final class ThreeDrawPlanner {
     var ambientB = 0.0;
     final directional = <JsThreeLightUpsert>[];
     final points = <JsThreeLightUpsert>[];
+    final hemisphere = <JsThreeLightUpsert>[];
     for (final light in lights) {
       switch (light.type) {
         case JsThreeLightType.ambient:
@@ -286,6 +293,12 @@ final class ThreeDrawPlanner {
           } else {
             diagnostics.droppedPointLightCount++;
           }
+        case JsThreeLightType.hemisphere:
+          if (hemisphere.length < maxHemisphereLights) {
+            hemisphere.add(light);
+          } else {
+            diagnostics.droppedHemisphereLightCount++;
+          }
       }
     }
     if (diagnostics.droppedDirectionalLightCount != 0) {
@@ -300,10 +313,17 @@ final class ThreeDrawPlanner {
         'dropped ${diagnostics.droppedPointLightCount} highest ids',
       );
     }
+    if (diagnostics.droppedHemisphereLightCount != 0) {
+      diagnostics.warn(
+        'hemisphere light cap $maxHemisphereLights exceeded; '
+        'dropped ${diagnostics.droppedHemisphereLightCount} highest ids',
+      );
+    }
     return (
       ambient: (r: ambientR, g: ambientG, b: ambientB),
       directional: directional,
       points: points,
+      hemisphere: hemisphere,
     );
   }
 
@@ -318,6 +338,7 @@ final class ThreeDrawPlanner {
     ambient: (r: 0.0, g: 0.0, b: 0.0),
     directionalLights: const [],
     pointLights: const [],
+    hemisphereLights: const [],
     diagnostics: diagnostics,
   );
 

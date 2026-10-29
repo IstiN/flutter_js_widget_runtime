@@ -67,7 +67,8 @@ enum JsThreeCameraType {
 enum JsThreeLightType {
   ambient(0),
   directional(1),
-  point(2);
+  point(2),
+  hemisphere(3);
 
   const JsThreeLightType(this.wireValue);
   final int wireValue;
@@ -125,8 +126,9 @@ final class JsThreeDecodedR1 {
 }
 
 final class JsThreeR1Stream {
-  const JsThreeR1Stream._(this.commands);
+  const JsThreeR1Stream._(this.version, this.commands);
 
+  final int version;
   final List<JsThreeCommand> commands;
 
   int get commandCount => commands.length;
@@ -320,16 +322,26 @@ final class JsThreeLightUpsert extends JsThreeCommand {
     required this.intensity,
     required this.worldPosition,
     required this.worldDirection,
+    required this.groundColorR,
+    required this.groundColorG,
+    required this.groundColorB,
   }) : super._(7);
 
   final int lightId;
   final JsThreeLightType type;
+
+  /// Sky color for hemisphere lights, ordinary color for all other types.
   final double colorR;
   final double colorG;
   final double colorB;
   final double intensity;
   final Float32List worldPosition;
   final Float32List worldDirection;
+
+  /// Zero for legacy light types; finite ground RGB for hemisphere lights.
+  final double groundColorR;
+  final double groundColorG;
+  final double groundColorB;
 }
 
 final class JsThreeSubmitFrame extends JsThreeCommand {
@@ -448,7 +460,8 @@ final class JsThreeRemoveBatch extends JsThreeCommand {
   final int nodeId;
 }
 
-/// Checked T1/R1 v1 decoding. No surface state is changed by this class.
+/// Checked T1/R1 decoding. Legacy v1 and additive v2 streams are accepted.
+/// No surface state is changed by this class.
 final class JsThreeProtocolDecoder {
   JsThreeProtocolDecoder({this.maxEnvelopeBytes = defaultMaxEnvelopeBytes}) {
     if (maxEnvelopeBytes < t1HeaderBytes) {
@@ -462,6 +475,7 @@ final class JsThreeProtocolDecoder {
 
   static const int t1HeaderBytes = 32;
   static const int r1HeaderBytes = 12;
+  static const int latestR1Version = 2;
   static const int defaultMaxEnvelopeBytes = 64 * 1024 * 1024;
   static const int maxEncodedTextureBytes = 64 * 1024 * 1024;
   static const int maxCommandCount = 100000;
@@ -574,7 +588,9 @@ final class JsThreeProtocolDecoder {
     final reader = _Reader(payload);
     reader.expectAscii('JSR1');
     final version = reader.u16('R1 version');
-    if (version != 1) reader.fail('unsupported R1 version $version');
+    if (version < 1 || version > latestR1Version) {
+      reader.fail('unsupported R1 version $version');
+    }
     final flags = reader.u16('R1 flags');
     if (flags != 0) reader.fail('R1 flags must be zero');
     final count = reader.u32('command count');
@@ -594,11 +610,11 @@ final class JsThreeProtocolDecoder {
       reader.require(bodyBytes, 'command body');
       final body = _Reader(payload, reader.offset, reader.offset + bodyBytes);
       reader.skip(bodyBytes);
-      commands.add(_decodeCommand(opcode, body));
+      commands.add(_decodeCommand(opcode, body, version));
       body.requireEnd('opcode $opcode body');
     }
     reader.requireEnd('R1 stream');
-    return JsThreeR1Stream._(List.unmodifiable(commands));
+    return JsThreeR1Stream._(version, List.unmodifiable(commands));
   }
 
   JsThreeGeometryUpsert _geometry(_Reader body) {
@@ -934,18 +950,34 @@ final class JsThreeProtocolDecoder {
     );
   }
 
-  JsThreeLightUpsert _light(_Reader body) {
+  JsThreeLightUpsert _light(_Reader body, int version) {
     final id = body.nonzeroId('light id');
     final type = body.enumValue(
       JsThreeLightType.values,
       body.u32('light type'),
       'light type',
     );
+    if (type == JsThreeLightType.hemisphere && version < 2) {
+      body.fail('hemisphere lights require R1 version 2');
+    }
     final red = body.finiteFloat('light color red');
     final green = body.finiteFloat('light color green');
     final blue = body.finiteFloat('light color blue');
     final intensity = body.finiteFloat('light intensity');
     if (intensity < 0) body.fail('light intensity must be nonnegative');
+    final position = body.float32List(3, 'light world position');
+    final direction = body.float32List(3, 'light world direction');
+    var groundRed = 0.0;
+    var groundGreen = 0.0;
+    var groundBlue = 0.0;
+    if (type == JsThreeLightType.hemisphere) {
+      groundRed = body.finiteFloat('light ground color red');
+      groundGreen = body.finiteFloat('light ground color green');
+      groundBlue = body.finiteFloat('light ground color blue');
+      if (body.u32('light reserved') != 0) {
+        body.fail('light reserved field must be zero');
+      }
+    }
     return JsThreeLightUpsert._(
       lightId: id,
       type: type,
@@ -953,8 +985,11 @@ final class JsThreeProtocolDecoder {
       colorG: green,
       colorB: blue,
       intensity: intensity,
-      worldPosition: body.float32List(3, 'light world position'),
-      worldDirection: body.float32List(3, 'light world direction'),
+      worldPosition: position,
+      worldDirection: direction,
+      groundColorR: groundRed,
+      groundColorG: groundGreen,
+      groundColorB: groundBlue,
     );
   }
 
@@ -1070,7 +1105,6 @@ final _r1CommandDecoders = <int, _R1CommandDecode>{
   4: (decoder, body) => decoder._node(body),
   5: (decoder, body) => JsThreeRemoveNode._(body.nonzeroId('node id')),
   6: (decoder, body) => decoder._camera(body),
-  7: (decoder, body) => decoder._light(body),
   8: (decoder, body) => decoder._frame(body),
   9: (decoder, body) {
     final id = body.nonzeroId('resource id');
@@ -1089,7 +1123,8 @@ final _r1CommandDecoders = <int, _R1CommandDecode>{
 };
 
 extension _JsThreeR1CommandDecoder on JsThreeProtocolDecoder {
-  JsThreeCommand _decodeCommand(int opcode, _Reader body) {
+  JsThreeCommand _decodeCommand(int opcode, _Reader body, int version) {
+    if (opcode == 7) return _light(body, version);
     final decode = _r1CommandDecoders[opcode];
     if (decode == null) body.fail('unknown R1 opcode $opcode');
     return decode(this, body);

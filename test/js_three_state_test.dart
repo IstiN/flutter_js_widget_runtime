@@ -12,10 +12,10 @@ void _f32(Uint8List b, int o, double v) =>
     _view(b).setFloat32(o, v, Endian.little);
 void _ascii(Uint8List b, int o, String s) => b.setAll(o, ascii.encode(s));
 
-Uint8List _r1(List<(int, Uint8List)> commands) {
+Uint8List _r1(List<(int, Uint8List)> commands, {int version = 1}) {
   final out = Uint8List(commands.fold<int>(12, (n, c) => n + 8 + c.$2.length));
   _ascii(out, 0, 'JSR1');
-  _u16(out, 4, 1);
+  _u16(out, 4, version);
   _u32(out, 8, commands.length);
   var offset = 12;
   for (final (opcode, body) in commands) {
@@ -32,8 +32,9 @@ Uint8List _envelope(
   List<(int, Uint8List)> commands, {
   String engine = 'engine',
   String surface = 'surface',
+  int version = 1,
 }) {
-  final payload = _r1(commands);
+  final payload = _r1(commands, version: version);
   final e = utf8.encode(engine);
   final s = utf8.encode(surface);
   final header = 32 + e.length + s.length;
@@ -165,14 +166,29 @@ Uint8List _camera(int id, {double matrix = 0}) {
   return out;
 }
 
-Uint8List _light(int id, {double intensity = 1}) {
-  final out = Uint8List(48);
+Uint8List _light(
+  int id, {
+  double intensity = 1,
+  JsThreeLightType type = JsThreeLightType.ambient,
+  double sky = 1,
+  double ground = 0,
+  double direction = 0,
+}) {
+  final hemisphere = type == JsThreeLightType.hemisphere;
+  final out = Uint8List(hemisphere ? 64 : 48);
   _u32(out, 0, id);
-  _u32(out, 4, 0);
-  _f32(out, 8, 1);
-  _f32(out, 12, 1);
-  _f32(out, 16, 1);
+  _u32(out, 4, type.wireValue);
+  _f32(out, 8, sky);
+  _f32(out, 12, sky);
+  _f32(out, 16, sky);
   _f32(out, 20, intensity);
+  if (hemisphere) {
+    _f32(out, 36, direction);
+    _f32(out, 40, direction == 0 ? 0 : 1 - direction);
+    _f32(out, 48, ground);
+    _f32(out, 52, ground);
+    _f32(out, 56, ground);
+  }
   return out;
 }
 
@@ -298,6 +314,67 @@ void main() {
     expect(state.materials[3]!.emissiveG, 0.5);
     expect(state.materials[3]!.emissiveB, 0.25);
     expect(state.materials[3]!.emissiveIntensity, 6);
+  });
+
+  test('HemisphereLight edits replace immutable state and shadow revision', () {
+    final store = JsThreeStateStore();
+    store.apply(
+      _envelope(
+        1,
+        [
+          (
+            7,
+            _light(
+              4,
+              type: JsThreeLightType.hemisphere,
+              intensity: 2,
+              sky: 0.25,
+              ground: 0.125,
+            ),
+          ),
+        ],
+        version: 2,
+      ),
+    );
+    final state = store.surface('engine', 'surface')!;
+    final original = state.lights[4]!;
+    expect(original.type, JsThreeLightType.hemisphere);
+    expect(original.colorR, 0.25);
+    expect(original.groundColorR, 0.125);
+    expect(original.intensity, 2);
+    expect(state.contentRevision, 1);
+
+    final changed = store.apply(
+      _envelope(
+        2,
+        [
+          (
+            7,
+            _light(
+              4,
+              type: JsThreeLightType.hemisphere,
+              intensity: 3,
+              sky: 0.75,
+              ground: 0.5,
+              direction: 0.25,
+            ),
+          ),
+        ],
+        version: 2,
+      ),
+    );
+    final current = state.lights[4]!;
+    expect(changed.changedLights, hasLength(1));
+    expect(current, isNot(same(original)));
+    expect(current.colorR, 0.75);
+    expect(current.groundColorR, 0.5);
+    expect(current.intensity, 3);
+    expect(current.worldDirection[0], 0.25);
+    expect(current.worldDirection[1], 0.75);
+    expect(original.colorR, 0.25);
+    expect(original.groundColorR, 0.125);
+    expect(original.worldDirection[0], 0);
+    expect(state.contentRevision, 2);
   });
 
   test('geometry, texture, and material upload only for newer versions', () {

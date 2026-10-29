@@ -54,7 +54,7 @@ function decode(packet) {
   const surfaceLength = bytes.readUInt16LE(18);
   const payload = bytes.subarray(headerBytes);
   assert.equal(payload.subarray(0, 4).toString(), 'JSR1');
-  assert.equal(payload.readUInt16LE(4), 1);
+  assert.equal(payload.readUInt16LE(4), 2);
   const commands = [];
   let offset = 12;
   for (let i = 0; i < payload.readUInt32LE(8); i++) {

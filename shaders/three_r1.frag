@@ -2,6 +2,7 @@
 
 #define MAX_DIRECTIONAL_LIGHTS 4
 #define MAX_POINT_LIGHTS 8
+#define MAX_HEMISPHERE_LIGHTS 4
 #define PI 3.14159265358979323846
 #define EPSILON 0.0001
 
@@ -34,6 +35,9 @@ uniform Lights {
   vec4 directionalColor[MAX_DIRECTIONAL_LIGHTS];
   vec4 pointPositionIntensity[MAX_POINT_LIGHTS];
   vec4 pointColor[MAX_POINT_LIGHTS];
+  vec4 hemisphereDirectionIntensity[MAX_HEMISPHERE_LIGHTS];
+  vec4 hemisphereSkyColor[MAX_HEMISPHERE_LIGHTS];
+  vec4 hemisphereGroundColor[MAX_HEMISPHERE_LIGHTS];
 } lights;
 
 uniform MaterialInfo {
@@ -92,6 +96,20 @@ vec3 blinnPhongSpecular(vec3 n, vec3 v, vec3 l, vec3 specularColor, float shinin
   vec3 f = fresnelSchlick(vDotH, specularColor);
   float d = (shininess * 0.5 + 1.0) * pow(nDotH, shininess) / PI;
   return f * (0.25 * d);
+}
+
+vec3 hemisphereIrradiance(vec3 n, int hemisphereCount) {
+  vec3 irradiance = vec3(0.0);
+  for (int i = 0; i < MAX_HEMISPHERE_LIGHTS; ++i) {
+    if (i < hemisphereCount) {
+      vec4 directionIntensity = lights.hemisphereDirectionIntensity[i];
+      float weight = 0.5 * dot(n, directionIntensity.xyz) + 0.5;
+      vec3 sky = lights.hemisphereSkyColor[i].rgb;
+      vec3 ground = lights.hemisphereGroundColor[i].rgb;
+      irradiance += mix(ground, sky, weight) * directionIntensity.w;
+    }
+  }
+  return irradiance;
 }
 
 vec3 linearToSrgb(vec3 value) {
@@ -173,7 +191,10 @@ void main() {
     }
     vec3 v = normalize(frame_info.cameraPositionExposure.xyz - worldPosition);
     vec3 baseColor = albedo.rgb;
-    color = baseColor * frame_info.ambientColor.rgb / PI;
+    int hemisphereCount = int(frame_info.lightCounts.z + 0.5);
+    vec3 indirect = frame_info.ambientColor.rgb +
+                    hemisphereIrradiance(n, hemisphereCount);
+    color = baseColor * indirect / PI;
 
     int directionalCount = int(frame_info.lightCounts.x + 0.5);
     int pointCount = int(frame_info.lightCounts.y + 0.5);
@@ -219,7 +240,7 @@ void main() {
       vec3 f0 = mix(vec3(0.04), baseColor, metalness);
       vec3 ambientF = fresnelSchlick(max(dot(n, v), 0.0), f0);
       color = baseColor * (1.0 - ambientF) * (1.0 - metalness) *
-              frame_info.ambientColor.rgb / PI;
+              indirect / PI;
       for (int i = 0; i < MAX_DIRECTIONAL_LIGHTS; ++i) {
         if (i < directionalCount) {
           vec3 l = normalize(lights.directionalDirectionIntensity[i].xyz);

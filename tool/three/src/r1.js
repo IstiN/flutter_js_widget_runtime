@@ -2,7 +2,7 @@ import { checkedU32 } from './errors.js';
 import { utf8 } from './runtime.js';
 
 export const T1_VERSION = 1;
-export const R1_VERSION = 1;
+export const R1_VERSION = 2;
 export const STREAM_R1 = 1;
 export const MAX_ENVELOPE = 64 * 1024 * 1024;
 export const OPCODE = Object.freeze({
@@ -250,8 +250,9 @@ export function cameraCommand(id, type, matrixWorldInverse, projectionMatrix, ma
   return command(OPCODE.CAMERA, body.finish());
 }
 
-export function lightCommand(id, type, color, intensity, position, direction) {
-  const body = new ByteWriter(48);
+export function lightCommand(id, type, color, intensity, position, direction, groundColor = null) {
+  if ((type === 3) !== (groundColor !== null)) throw new Error('three.invalid: HemisphereLight requires exactly one ground color payload');
+  const body = new ByteWriter(groundColor ? 64 : 48);
   body.u32(id);
   body.u32(type);
   body.f32(color.r);
@@ -264,6 +265,12 @@ export function lightCommand(id, type, color, intensity, position, direction) {
   body.f32(direction.x);
   body.f32(direction.y);
   body.f32(direction.z);
+  if (groundColor) {
+    body.f32(groundColor.r);
+    body.f32(groundColor.g);
+    body.f32(groundColor.b);
+    body.u32(0);
+  }
   return command(OPCODE.LIGHT, body.finish());
 }
 
