@@ -225,11 +225,12 @@ builds the Impeller shaderbundle reproducibly. Official example preparation
 uses `dart run bin/jsr_three_example.dart prepare <example-id>`; supported
 ids include `webgl_geometry_minecraft`, `webgl_lines_colors`,
 `webgl_geometry_colors`, `webgl_buffergeometry_uint`,
-`webgl_buffergeometry_lines_indexed` and `webgl_buffergeometry_points`. It
-preserves exact original/module bytes and resolves only the pinned
-addons/local assets. `webgl_buffergeometry_indexed` (HemisphereLight) and
-`webgl_buffergeometry_lines` (morph targets) stay excluded until R1 supports
-those features. The runner accepts
+`webgl_buffergeometry_indexed`, `webgl_buffergeometry_lines_indexed`,
+`webgl_buffergeometry_points`, `webgl_geometry_terrain_raycast` and
+`webgl_math_orientation_transform`. It preserves exact original/module bytes
+and resolves only the pinned addons/local assets.
+`webgl_buffergeometry_lines` (morph targets) stays excluded until R1 supports
+that feature. The runner accepts
 `--dart-define=JSR_THREE_EXAMPLE=<example-id>` for automated native/Web
 smokes; native compatibility still has to pass the actual R1 gates.
 

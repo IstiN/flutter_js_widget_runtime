@@ -51,6 +51,7 @@ flutter:
     - widgets/three-geometry-colors/
     - widgets/three-lines-colors/
     - widgets/three-buffergeometry-uint/
+    - widgets/three-buffergeometry-indexed/
     - widgets/three-buffergeometry-lines-indexed/
     - widgets/three-buffergeometry-points/
     - widgets/three-geometry-terrain-raycast/

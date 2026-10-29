@@ -31,6 +31,12 @@ enum ThreeExampleSelection {
     widgetId: 'three-buffergeometry-uint',
     assetPath: 'widgets/three-buffergeometry-uint/widget.js',
   ),
+  bufferGeometryIndexed(
+    exampleId: 'webgl_buffergeometry_indexed',
+    label: 'Indexed BufferGeometry',
+    widgetId: 'three-buffergeometry-indexed',
+    assetPath: 'widgets/three-buffergeometry-indexed/widget.js',
+  ),
   bufferGeometryLinesIndexed(
     exampleId: 'webgl_buffergeometry_lines_indexed',
     label: 'Indexed BufferGeometry Lines',

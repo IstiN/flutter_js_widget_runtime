@@ -66,6 +66,18 @@ const EXAMPLES = Object.freeze({
     },
     assets: []
   },
+  webgl_buffergeometry_indexed: {
+    id: 'three-buffergeometry-indexed',
+    directory: 'three-buffergeometry-indexed',
+    name: 'Indexed BufferGeometry — three.js r186',
+    description: 'Unmodified official webgl_buffergeometry_indexed module on the JSR THREE R1/WebGL2 runtime.',
+    icon: '🔺',
+    expected: {
+      html: '4370368307e79fcc83c43df84ba2c5f8a2624c66c8e653c8f63ae560801fc827',
+      module: '99212fb6c3fcba450bd0faa33106c90eeaf09175fb3d7f002febf03a4ab76608'
+    },
+    assets: []
+  },
   webgl_buffergeometry_lines_indexed: {
     id: 'three-buffergeometry-lines-indexed',
     directory: 'three-buffergeometry-lines-indexed',

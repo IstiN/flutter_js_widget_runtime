@@ -555,8 +555,8 @@
       "sha256": "f5cb1b499c1dc83d71a6f03d319de89743e91667f4d94f86586f8a9650c6f753"
     },
     "tool/three_example/prepare.mjs": {
-      "bytes": 23403,
-      "sha256": "0a2bd3f6e33712ac7d485c36a3bd907420e709bd7f47bb68549498891677aed6"
+      "bytes": 23912,
+      "sha256": "9bddbd1063f6b7de312b1d581e1eba330b2ddc50070895c4d0fbc06f281f5b54"
     },
     "tool/three_example/stats_adapter.js": {
       "bytes": 2107,

@@ -222,6 +222,7 @@ dart run bin/jsr_three_example.dart prepare webgl_geometry_minecraft
 dart run bin/jsr_three_example.dart prepare webgl_lines_colors
 dart run bin/jsr_three_example.dart prepare webgl_geometry_colors
 dart run bin/jsr_three_example.dart prepare webgl_buffergeometry_uint
+dart run bin/jsr_three_example.dart prepare webgl_buffergeometry_indexed
 dart run bin/jsr_three_example.dart prepare webgl_buffergeometry_lines_indexed
 dart run bin/jsr_three_example.dart prepare webgl_buffergeometry_points
 dart run bin/jsr_three_example.dart prepare webgl_geometry_terrain_raycast
@@ -235,17 +236,18 @@ flutter run -t lib/three_example.dart \
 
 The prepare step preserves the exact official HTML/module bytes and resolves
 only each module's pinned addons/local assets. Minecraft, Line Colors,
-Geometry Colors, Integer BufferGeometry, Indexed BufferGeometry Lines and
-BufferGeometry Points, Terrain Raycast and Orientation Transform run on native
-R1. Terrain uses the pinned OrbitControls addon with host pointer, wheel,
+Geometry Colors, Integer BufferGeometry, Indexed BufferGeometry, Indexed
+BufferGeometry Lines, BufferGeometry Points, Terrain Raycast and Orientation
+Transform run on native R1. Indexed BufferGeometry uses real hemisphere
+lighting and a functional wireframe checkbox through the bounded JSR lil-gui
+facade. Terrain uses the pinned OrbitControls addon with host pointer, wheel,
 capture and cancellation events plus the bounded generated-texture Canvas2D
 adapter. Orientation Transform uses a bounded native lil-gui boolean facade
 backed by a real JSR checkbox; a real browser document keeps the official
 lil-gui addon, while the Web Worker uses the functional JSR facade. Unsupported
 GUI controls and general DOM/CSS remain explicit failures. The official
-`webgl_buffergeometry_indexed` and `webgl_buffergeometry_lines` modules remain
-excluded because R1 deliberately rejects HemisphereLight and morph targets;
-they are not approximated or rewritten. Native runs require a Flutter
+`webgl_buffergeometry_lines` module remains excluded because R1 deliberately
+rejects morph targets; it is not approximated or rewritten. Native runs require a Flutter
 GPU/Impeller platform; the Web path requires Worker OffscreenCanvas + WebGL2
 (verify on real Chrome/Edge). The example overlay reports decode/frame time,
 calls, triangles and uploads.

@@ -12,6 +12,8 @@ void main() {
       ThreeExampleSelection.geometryColors: 'webgl_geometry_colors',
       ThreeExampleSelection.linesColors: 'webgl_lines_colors',
       ThreeExampleSelection.bufferGeometryUint: 'webgl_buffergeometry_uint',
+      ThreeExampleSelection.bufferGeometryIndexed:
+          'webgl_buffergeometry_indexed',
       ThreeExampleSelection.bufferGeometryLinesIndexed:
           'webgl_buffergeometry_lines_indexed',
       ThreeExampleSelection.bufferGeometryPoints: 'webgl_buffergeometry_points',
@@ -43,9 +45,13 @@ void main() {
     for (final selection in ThreeExampleSelection.values) {
       final widget = File(selection.assetPath);
       expect(widget.existsSync(), isTrue, reason: selection.assetPath);
-      final prepareManifest = jsonDecode(
-        File('${widget.parent.path}/prepare_manifest.json').readAsStringSync(),
-      ) as Map<String, dynamic>;
+      final prepareManifest =
+          jsonDecode(
+                File(
+                  '${widget.parent.path}/prepare_manifest.json',
+                ).readAsStringSync(),
+              )
+              as Map<String, dynamic>;
       expect(prepareManifest['id'], selection.widgetId);
       expect(prepareManifest['example'], selection.exampleId);
       expect(prepareManifest['example'], examples[selection]);
