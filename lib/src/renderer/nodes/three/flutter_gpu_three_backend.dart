@@ -187,7 +187,8 @@ ByteData debugThreeVertexUniform(
 ByteData debugThreeFrameUniform(ThreeDrawPlan plan) => _threeFrameUniform(plan);
 
 @visibleForTesting
-ByteData debugThreeLightsUniform(ThreeDrawPlan plan) => _threeLightsUniform(plan);
+ByteData debugThreeLightsUniform(ThreeDrawPlan plan) =>
+    _threeLightsUniform(plan);
 
 @visibleForTesting
 ByteData debugThreeMaterialUniform(ThreeDrawItem draw) =>
@@ -324,10 +325,7 @@ void _replaceThreeGeometry(
   final packed = interleaveThreeGeometry(source);
   final vertices = backend._context.createDeviceBufferWithCopy(packed.vertices);
   final indices = _createThreeIndices(backend._context, packed.indices);
-  final wireIndices = _createThreeIndices(
-    backend._context,
-    packed.wireIndices,
-  );
+  final wireIndices = _createThreeIndices(backend._context, packed.wireIndices);
   backend._geometries[key] = _GpuGeometry(
     source,
     vertices,
@@ -1275,24 +1273,36 @@ void _bindThreeIndices(
   _GpuGeometry geometry,
   ThreeDrawItem draw,
 ) {
-  final indices = draw.wireframe
-      ? geometry.wireIndicesView
-      : geometry.indicesView;
+  final indices = _threeIndexView(geometry, draw);
   if (indices == null) return;
-  if (_isFullThreeIndexRange(draw, geometry)) {
-    pass.bindIndexBuffer(indices, gpu.IndexType.int32);
+  if (!_isFullThreeIndexRange(draw, geometry)) {
+    _bindThreeIndexRange(pass, geometry, draw);
     return;
   }
+  pass.bindIndexBuffer(indices, gpu.IndexType.int32);
+}
+
+gpu.BufferView? _threeIndexView(_GpuGeometry geometry, ThreeDrawItem draw) =>
+    draw.wireframe ? geometry.wireIndicesView : geometry.indicesView;
+
+void _bindThreeIndexRange(
+  gpu.RenderPass pass,
+  _GpuGeometry geometry,
+  ThreeDrawItem draw,
+) {
   final range = _threeIndexRange(draw);
   pass.bindIndexBuffer(
     gpu.BufferView(
-      draw.wireframe ? geometry.wireIndices! : geometry.indices!,
+      _threeIndexBuffer(geometry, draw),
       offsetInBytes: range.offsetInBytes,
       lengthInBytes: range.lengthInBytes,
     ),
     gpu.IndexType.int32,
   );
 }
+
+gpu.DeviceBuffer _threeIndexBuffer(_GpuGeometry geometry, ThreeDrawItem draw) =>
+    draw.wireframe ? geometry.wireIndices! : geometry.indices!;
 
 void _drawThreeGeometry(
   gpu.RenderPass pass,
