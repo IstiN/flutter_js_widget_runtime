@@ -479,13 +479,15 @@ test('materials, cameras and ambient/directional/point lights have exact bodies 
   const materials = only(packet, 3).map(command => command.body);
   assert.deepEqual(materials.map(body => u32(body, 8)), [0, 1, 2, 5]);
   assert.equal(materials[0].length, 56);
+  assert.equal(materials[1].length, 72);
+  assert.equal(materials[2].length, 72);
   assert.equal(u32(materials[0], 20), 2);
   near(f32(materials[0], 36), 0.5);
   near(f32(materials[0], 48), 0.2);
   near(f32(materials[2], 40), 0.25);
   near(f32(materials[2], 44), 0.75);
   assert.equal(u32(materials[1], 16) & 2, 2);
-  assert.equal(materials[3].length, 72);
+  assert.equal(materials[3].length, 88);
   assert.equal(u32(materials[3], 16) & 3, 3);
   near(f32(materials[3], 56), phong.specular.r);
   near(f32(materials[3], 60), phong.specular.g);
@@ -526,6 +528,72 @@ test('materials, cameras and ambient/directional/point lights have exact bodies 
   near(f32(changedPhong, 60), 0.5);
   near(f32(changedPhong, 64), 0.75);
   near(f32(changedPhong, 68), 12);
+});
+
+test('Normal and lit emissive materials have exact payloads, dirty updates and transactional validation', () => {
+  const host = createHost();
+  const T = host.THREE;
+  const renderer = new T.WebGLRenderer({ canvas: host.jsr.three.createCanvas('main') });
+  const scene = new T.Scene();
+  const normal = new T.MeshNormalMaterial({
+    transparent: true, opacity: 0.375, side: T.DoubleSide, flatShading: true
+  });
+  const lit = [
+    new T.MeshLambertMaterial({ emissive: 0x402010, emissiveIntensity: 2 }),
+    new T.MeshStandardMaterial({ emissive: 0x102030, emissiveIntensity: 3 }),
+    new T.MeshPhongMaterial({ emissive: 0x304020, emissiveIntensity: 4 })
+  ];
+  scene.add(new T.Mesh(triangle(T), normal));
+  for (const material of lit) scene.add(new T.Mesh(triangle(T), material));
+  renderer.render(scene, new T.PerspectiveCamera());
+  assert.equal(renderer.capabilities.features.normal, true);
+  assert.equal(renderer.capabilities.features.emissive, true);
+  const byId = new Map(only(host.packets()[0], 3).map(command => [u32(command.body, 0), command.body]));
+  const normalBody = byId.get(id(normal));
+  assert.equal(u32(normalBody, 8), 6);
+  assert.notEqual(u32(normalBody, 8), 0);
+  assert.notEqual(u32(normalBody, 8), 5);
+  assert.equal(normalBody.length, 56);
+  assert.equal(u32(normalBody, 20), 2);
+  assert.equal(u32(normalBody, 16) & 6, 6);
+  near(f32(normalBody, 36), 0.375);
+  for (const material of lit) {
+    const body = byId.get(id(material));
+    const offset = material.isMeshPhongMaterial ? 72 : 56;
+    assert.equal(body.length, offset + 16);
+    near(f32(body, offset), material.emissive.r);
+    near(f32(body, offset + 4), material.emissive.g);
+    near(f32(body, offset + 8), material.emissive.b);
+    near(f32(body, offset + 12), material.emissiveIntensity);
+  }
+
+  renderer.render(scene, new T.PerspectiveCamera());
+  assert.deepEqual(opcodes(host.packets()[1]), [6, 8], 'new camera only');
+  normal.opacity = 0.625;
+  normal.flatShading = false;
+  lit[0].emissive.setRGB(0.125, 0.25, 0.5);
+  lit[0].emissiveIntensity = 5;
+  lit[1].emissive.setRGB(0.5, 0.25, 0.125);
+  lit[1].emissiveIntensity = 6;
+  lit[2].emissive.setRGB(0.25, 0.5, 0.125);
+  lit[2].emissiveIntensity = 7;
+  renderer.render(scene, new T.PerspectiveCamera());
+  const changed = only(host.packets()[2], 3).map(command => command.body);
+  assert.equal(changed.length, 4, 'Normal and every emissive edit must upload');
+  assert.ok(changed.every(body => u32(body, 4) === 2));
+  const changedLambert = changed.find(body => u32(body, 0) === id(lit[0]));
+  near(f32(changedLambert, 56), 0.125);
+  near(f32(changedLambert, 60), 0.25);
+  near(f32(changedLambert, 64), 0.5);
+  near(f32(changedLambert, 68), 5);
+
+  const sent = host.rawPackets.length;
+  lit[0].emissiveIntensity = -1;
+  assert.throws(() => renderer.render(scene, new T.PerspectiveCamera()), /emissiveIntensity/);
+  assert.equal(host.rawPackets.length, sent, 'invalid emissive must roll back the whole packet');
+  lit[0].emissiveIntensity = 5;
+  renderer.render(scene, new T.PerspectiveCamera());
+  assert.deepEqual(opcodes(host.packets().at(-1)), [6, 8], 'rollback preserves the last valid material cache');
 });
 
 test('mesh wireframe emits unique edges for indexed and non-indexed geometry with shared ownership', () => {

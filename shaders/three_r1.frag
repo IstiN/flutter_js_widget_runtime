@@ -7,6 +7,9 @@
 
 in vec3 worldPosition;
 in vec3 worldNormal;
+layout(location = 6) in vec3 viewNormal;
+layout(location = 7) in vec3 viewPosition;
+layout(location = 8) in vec2 materialState;
 in vec2 textureUv;
 in vec4 vertexColor;
 in float viewDepth;
@@ -38,6 +41,7 @@ uniform MaterialInfo {
   vec4 roughnessMetalnessAlphaTestKind;
   vec4 vertexColorsFlatShadingHasMapReserved;
   vec4 specularShininess;
+  vec4 emissiveIntensity;
 } material_info;
 
 float distributionGgx(vec3 n, vec3 h, float roughness) {
@@ -122,6 +126,23 @@ float directionalShadow() {
 }
 
 void main() {
+  int kind = int(material_info.roughnessMetalnessAlphaTestKind.w + 0.5);
+  if (kind == 6) {
+    vec3 n;
+    if (material_info.vertexColorsFlatShadingHasMapReserved.y > 0.5) {
+      n = normalize(cross(dFdx(viewPosition), dFdy(viewPosition)));
+    } else {
+      float normalLength = length(viewNormal);
+      n = normalLength > EPSILON ? viewNormal / normalLength : vec3(0.0, 0.0, 1.0);
+      if (materialState.x > 1.5 && !gl_FrontFacing) {
+        n = -n;
+      }
+    }
+    float opacity = materialState.y > 0.5 ? material_info.colorOpacity.a : 1.0;
+    outColor = vec4(normalize(n) * 0.5 + 0.5, opacity);
+    return;
+  }
+
   vec4 albedo = material_info.colorOpacity;
   if (material_info.vertexColorsFlatShadingHasMapReserved.x > 0.5) {
     albedo *= vertexColor;
@@ -133,7 +154,6 @@ void main() {
     discard;
   }
 
-  int kind = int(material_info.roughnessMetalnessAlphaTestKind.w + 0.5);
   vec3 color = albedo.rgb;
   if (kind != 0 && kind != 3 && kind != 4) {
     float normalLength = length(worldNormal);
@@ -223,6 +243,9 @@ void main() {
     }
   }
 
+  if (kind == 1 || kind == 2 || kind == 5) {
+    color += material_info.emissiveIntensity.rgb * material_info.emissiveIntensity.a;
+  }
   color *= frame_info.cameraPositionExposure.w;
   if (frame_info.fogFarModeReserved.y > 0.5) {
     float fogFactor = smoothstep(
