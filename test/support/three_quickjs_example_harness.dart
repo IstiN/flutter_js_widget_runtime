@@ -9,6 +9,8 @@ import 'package:js_widget_runtime/src/renderer/nodes/three/js_three_state.dart';
 import 'package:js_widget_runtime/src/renderer/nodes/three/three_draw_plan.dart';
 import 'package:js_widget_runtime/src/runtime/js_widget_engine_quickjs.dart';
 
+import 'three_test_config.dart';
+
 /// Shared real-QuickJS boot and frame pumping for official THREE examples.
 final class ThreeQuickjsExampleHarness {
   ThreeQuickjsExampleHarness._({
@@ -16,12 +18,14 @@ final class ThreeQuickjsExampleHarness {
     required this.host,
     required this.backend,
     required this.engine,
+    required this.renderTrees,
   });
 
   static Future<ThreeQuickjsExampleHarness> boot(
     WidgetTester tester, {
     required String widgetId,
     required String instanceId,
+    bool useIsolate = false,
   }) async {
     final sources = await tester.runAsync(
       () async => (
@@ -36,6 +40,8 @@ final class ThreeQuickjsExampleHarness {
       widgetSource: sources.widget,
       widgetId: widgetId,
       instanceId: instanceId,
+      useIsolate: useIsolate,
+      tester: tester,
     );
   }
 
@@ -52,6 +58,7 @@ final class ThreeQuickjsExampleHarness {
       widgetSource: source,
       widgetId: 'three-native-test',
       instanceId: instanceId,
+      tester: tester,
     );
   }
 
@@ -60,35 +67,43 @@ final class ThreeQuickjsExampleHarness {
     required String widgetSource,
     required String widgetId,
     required String instanceId,
+    required WidgetTester tester,
+    bool useIsolate = false,
   }) async {
     final host = createFlutterGpuThreeHost();
-    final config = JsRuntimeConfig(
+    final renderTrees = <Map<String, dynamic>>[];
+    final config = threeTestConfig(
+      engineId: instanceId,
       widgetId: widgetId,
-      instanceId: instanceId,
-      threeEnabled: true,
+      host: host,
       threeSource: threeSource,
-      threeHost: host,
-      onRender: (_) {},
-      onSetTitle: (_) {},
-      onStorageUpdate: (_) {},
+      onRender: renderTrees.add,
     );
-    final backend = QuickjsWidgetEngineBackend(config: config);
+    final backend = useIsolate
+        ? createQuickjsIsolateWidgetEngineBackend(config)
+        : QuickjsWidgetEngineBackend(config: config);
     final engine = JsWidgetEngine(config: config.copyWith(backend: backend));
-    addTearDown(engine.dispose);
+    addTearDown(() => tester.runAsync(engine.dispose));
     await engine.init();
-    await engine.run(widgetSource);
+    if (useIsolate) {
+      await tester.runAsync(() => engine.run(widgetSource));
+    } else {
+      await engine.run(widgetSource);
+    }
     return ThreeQuickjsExampleHarness._(
       instanceId: instanceId,
       host: host,
       backend: backend,
       engine: engine,
+      renderTrees: renderTrees,
     );
   }
 
   final String instanceId;
   final JsThreeHost host;
-  final QuickjsWidgetEngineBackend backend;
+  final JsWidgetEngineBackend backend;
   final JsWidgetEngine engine;
+  final List<Map<String, dynamic>> renderTrees;
   ThreeDrawPlan? plan;
 
   FlutterGpuThreeSurface? get surface =>
@@ -138,7 +153,7 @@ final class ThreeQuickjsExampleHarness {
   }
 
   Future<void> dispose(WidgetTester tester) async {
-    await engine.dispose();
+    await tester.runAsync(engine.dispose);
     await tester.pump();
   }
 }

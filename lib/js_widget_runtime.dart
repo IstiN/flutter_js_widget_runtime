@@ -85,6 +85,9 @@ export 'src/renderer/ui_view_tree_normalizer.dart' show UiViewTreeNormalizer;
 export 'src/runtime/js_widget_engine.dart' show JsWidgetEngine;
 export 'src/runtime/three_upstream_bundle.dart' show ThreeUpstreamBundle;
 export 'src/runtime/js_widget_engine_backend.dart' show JsWidgetEngineBackend;
+export 'src/runtime/js_widget_engine_quickjs_isolate_stub.dart'
+    if (dart.library.io) 'src/runtime/js_widget_engine_quickjs_isolate_vm.dart'
+    show createQuickjsIsolateWidgetEngineBackend;
 export 'src/runtime/js_widget_bridge.dart'
     show
         JsWidgetBridge,

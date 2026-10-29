@@ -12,6 +12,102 @@ const PIN = JSON.parse(await readFile(path.join(CORE, 'source-pin.json'), 'utf8'
 const require = createRequire(path.join(CORE, 'package.json'));
 const esbuild = require('esbuild');
 const EXAMPLES = Object.freeze({
+  webgl_interactive_raycasting_points: {
+    id: 'three-interactive-raycasting-points',
+    directory: 'three-interactive-raycasting-points',
+    name: 'Raycasting Points — three.js r186',
+    description: 'Unmodified official webgl_interactive_raycasting_points module on the JSR THREE R1/WebGL2 runtime.',
+    icon: '✨',
+    expected: {
+      html: '9655038850e98ddf095cdce3dbc57ecaaa9596e5f165036e58530774d232e21e',
+      module: 'e48baf7758a70a48ebdc7d8f189a0ed1dad52a505d1b42f592ed6d02baa9699d'
+    },
+    assets: []
+  },
+  webgl_interactive_cubes: {
+    id: 'three-interactive-cubes',
+    directory: 'three-interactive-cubes',
+    name: 'Interactive Cubes — three.js r186',
+    description: 'Unmodified official webgl_interactive_cubes module on the JSR THREE R1/WebGL2 runtime.',
+    icon: '🧊',
+    expected: {
+      html: '665b23cfd57c4363ae69d86cfbe9e07b15438f93d875ee48005b36e4a4908390',
+      module: '69bee4f741eeb050c2a16a46c13754786358814e5ecb06845a91b9cdf3a6ce1a'
+    },
+    assets: []
+  },
+  webgl_interactive_cubes_ortho: {
+    id: 'three-interactive-cubes-ortho',
+    directory: 'three-interactive-cubes-ortho',
+    name: 'Interactive Orthographic Cubes — three.js r186',
+    description: 'Unmodified official webgl_interactive_cubes_ortho module on the JSR THREE R1/WebGL2 runtime.',
+    icon: '📦',
+    expected: {
+      html: 'a91c33252326f0caa79147c992c56774818425f698a3fb8936ed912063d364ce',
+      module: 'f65518ff74e76c5c531e7447d797bd54da7ab542f3fa19456ef0fac8f069a9f1'
+    },
+    assets: []
+  },
+  webgl_math_obb: {
+    id: 'three-math-obb',
+    directory: 'three-math-obb',
+    name: 'Oriented Bounding Boxes — three.js r186',
+    description: 'Unmodified official webgl_math_obb module on the JSR THREE R1/WebGL2 runtime.',
+    icon: '📐',
+    expected: {
+      html: 'e13fcaabb7b4a8a1e088757a9d8ac019e4ab67d0eb8335bf7687b7dd4c31a65c',
+      module: 'a1e2acbadc56eaa6b596edbceee41735aa1dbdb4b9850274086ef567f7c31a6b'
+    },
+    assets: []
+  },
+  webgl_buffergeometry_points_interleaved: {
+    id: 'three-buffergeometry-points-interleaved',
+    directory: 'three-buffergeometry-points-interleaved',
+    name: 'Interleaved BufferGeometry Points — three.js r186',
+    description: 'Unmodified official webgl_buffergeometry_points_interleaved module on the JSR THREE R1/WebGL2 runtime.',
+    icon: '✨',
+    expected: {
+      html: '4351a7405346edf378b97a562d415b39cf11986881858bb9718e2bf7d11c1fbe',
+      module: '04bf67e452407c12ac29de87a61dc4e89ceb0e02c4a6e09e7da5ab968f625384'
+    },
+    assets: []
+  },
+  webgl_interactive_voxelpainter: {
+    id: 'three-interactive-voxelpainter',
+    directory: 'three-interactive-voxelpainter',
+    name: 'Voxel Painter — three.js r186',
+    description: 'Unmodified official webgl_interactive_voxelpainter module on the JSR THREE R1/WebGL2 runtime.',
+    icon: '🧱',
+    expected: {
+      html: 'dec8afd0c945a59e0b333751930ea4bb2e60c7e44946f6ccb67aa38aafe00a9f',
+      module: '0d012790ce1b18ac1ca5a877ef46ea0e902431843d856c03fa643b4a0766c3aa'
+    },
+    assets: [{
+      url: 'textures/square-outline-textured.png',
+      output: 'square-outline-textured.png',
+      mime: 'image/png',
+      diagnostic: 'voxelTexture',
+      sha256: 'a217d5f472ae122acd2107d0f5dbd225ba8e197998e89fee579dd5b11fd3e717'
+    }]
+  },
+  webgl_panorama_equirectangular: {
+    id: 'three-panorama-equirectangular',
+    directory: 'three-panorama-equirectangular',
+    name: 'Equirectangular Panorama — three.js r186',
+    description: 'Unmodified official webgl_panorama_equirectangular module on the JSR THREE R1/WebGL2 runtime.',
+    icon: '🌐',
+    expected: {
+      html: 'dfdfa57c273051b2bf2b46d0f8621847bf02612ca784a806f2c3dfcea6aec27f',
+      module: 'c7da06fcf02a68836cd21af07802134cae1b207b0f2d64bac6eacc90286374e0'
+    },
+    assets: [{
+      url: 'textures/2294472375_24a3b8ef46_o.jpg',
+      output: 'panorama.jpg',
+      mime: 'image/jpeg',
+      diagnostic: 'panorama',
+      sha256: '3efa22071f3f84ec26248ee58aa05aba635a0a9d810bca93da5a94f33e907524'
+    }]
+  },
   webgl_geometry_minecraft: {
     id: 'three-minecraft',
     directory: 'three-minecraft',
@@ -393,13 +489,48 @@ function pngDimensions(bytes, url) {
   return { width: bytes.readUInt32BE(16), height: bytes.readUInt32BE(20) };
 }
 
+function jpegDimensions(bytes, url) {
+  if (bytes.length < 4 || bytes[0] !== 0xff || bytes[1] !== 0xd8) {
+    throw new Error(`${url} is not a JPEG`);
+  }
+  const startOfFrame = new Set([
+    0xc0, 0xc1, 0xc2, 0xc3, 0xc5, 0xc6, 0xc7,
+    0xc9, 0xca, 0xcb, 0xcd, 0xce, 0xcf
+  ]);
+  let offset = 2;
+  while (offset < bytes.length) {
+    if (bytes[offset] !== 0xff) throw new Error(`${url} has an invalid JPEG marker`);
+    while (offset < bytes.length && bytes[offset] === 0xff) offset++;
+    if (offset >= bytes.length) break;
+    const marker = bytes[offset++];
+    if (marker === 0xd8 || marker === 0x01 || (marker >= 0xd0 && marker <= 0xd7)) continue;
+    if (marker === 0xd9 || marker === 0xda || offset + 2 > bytes.length) break;
+    const length = bytes.readUInt16BE(offset);
+    if (length < 2 || offset + length > bytes.length) {
+      throw new Error(`${url} has an invalid JPEG segment`);
+    }
+    if (startOfFrame.has(marker)) {
+      if (length < 7) throw new Error(`${url} has an invalid JPEG frame header`);
+      return {
+        height: bytes.readUInt16BE(offset + 3),
+        width: bytes.readUInt16BE(offset + 5)
+      };
+    }
+    offset += length;
+  }
+  throw new Error(`${url} has no JPEG dimensions`);
+}
+
 async function prepareAssets(source, definitions) {
   const assets = [];
   for (const definition of definitions) {
     const bytes = await readFile(path.join(source, 'examples', definition.url));
     if (sha(bytes) !== definition.sha256) throw new Error(`${definition.url} differs from the pinned r186 bytes`);
-    if (definition.mime !== 'image/png') throw new Error(`Unsupported prepared asset type: ${definition.mime}`);
-    const dimensions = pngDimensions(bytes, definition.url);
+    let dimensions;
+    if (definition.mime === 'image/png') dimensions = pngDimensions(bytes, definition.url);
+    else if (definition.mime === 'image/jpeg') dimensions = jpegDimensions(bytes, definition.url);
+    else throw new Error(`Unsupported prepared asset type: ${definition.mime}`);
+    if (!dimensions.width || !dimensions.height) throw new Error(`${definition.url} has invalid texture dimensions`);
     assets.push({ ...definition, bytes, ...dimensions });
   }
   return assets;

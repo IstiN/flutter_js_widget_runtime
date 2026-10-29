@@ -1,6 +1,13 @@
 import 'dart:io';
 
 const _examples = <String>{
+  'webgl_interactive_raycasting_points',
+  'webgl_interactive_cubes',
+  'webgl_interactive_cubes_ortho',
+  'webgl_math_obb',
+  'webgl_buffergeometry_points_interleaved',
+  'webgl_interactive_voxelpainter',
+  'webgl_panorama_equirectangular',
   'webgl_geometry_minecraft',
   'webgl_geometry_colors',
   'webgl_lines_colors',
@@ -59,7 +66,11 @@ Future<void> main(List<String> arguments) async {
 void _usage([IOSink? sink]) {
   (sink ?? stdout).writeln(
     'Usage: dart run bin/jsr_three_example.dart prepare '
-    '<webgl_geometry_minecraft|webgl_geometry_colors|webgl_lines_colors|'
+    '<webgl_interactive_raycasting_points|webgl_interactive_cubes|'
+    'webgl_interactive_cubes_ortho|webgl_math_obb|'
+    'webgl_buffergeometry_points_interleaved|webgl_interactive_voxelpainter|'
+    'webgl_panorama_equirectangular|'
+    'webgl_geometry_minecraft|webgl_geometry_colors|webgl_lines_colors|'
     'webgl_buffergeometry_uint|webgl_buffergeometry_indexed|'
     'webgl_buffergeometry_lines_indexed|'
     'webgl_buffergeometry_points|webgl_geometry_terrain_raycast|'

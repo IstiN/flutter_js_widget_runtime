@@ -2,6 +2,7 @@ import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 
 import 'package:js_widget_runtime/src/renderer/nodes/three/js_three_host.dart';
+import 'package:js_widget_runtime/src/renderer/nodes/three/three_error_message.dart';
 
 /// Visual mount for one upstream THREE canvas.
 ///
@@ -182,7 +183,7 @@ class _JsThreeNodeState extends State<JsThreeNode> with WidgetsBindingObserver {
     final height = _number(widget.config['height']);
     Widget child;
     if (surface == null) {
-      child = _ThreeError(error: _error ?? 'three.unsupported');
+      child = ThreeErrorMessage(_error ?? 'three.unsupported');
     } else {
       child = AnimatedBuilder(
         animation: surface,
@@ -228,31 +229,5 @@ class _JsThreeNodeState extends State<JsThreeNode> with WidgetsBindingObserver {
     if (value is num) return value.toDouble();
     if (value is String) return double.tryParse(value);
     return null;
-  }
-}
-
-class _ThreeError extends StatelessWidget {
-  const _ThreeError({required this.error});
-
-  final String error;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    return ColoredBox(
-      color: theme.colorScheme.surfaceContainerHighest,
-      child: Center(
-        child: Padding(
-          padding: const EdgeInsets.all(12),
-          child: Text(
-            error,
-            textAlign: TextAlign.center,
-            style: theme.textTheme.bodySmall?.copyWith(
-              color: theme.colorScheme.error,
-            ),
-          ),
-        ),
-      ),
-    );
   }
 }

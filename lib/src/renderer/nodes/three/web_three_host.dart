@@ -5,6 +5,7 @@ import 'dart:ui_web' as ui_web;
 
 import 'package:flutter/material.dart';
 import 'package:js_widget_runtime/src/renderer/nodes/three/js_three_host.dart';
+import 'package:js_widget_runtime/src/renderer/nodes/three/three_error_message.dart';
 import 'package:js_widget_runtime/src/renderer/nodes/three/web_three_host_core.dart';
 import 'package:web/web.dart' as web;
 
@@ -213,13 +214,13 @@ class WebThreeHost implements JsThreeHost {
     Map<String, dynamic> config,
   ) {
     if (surface is! WebThreeSurface || surface._host != this) {
-      return const _WebThreeError('three.surface: foreign Web surface');
+      return const ThreeErrorMessage('three.surface: foreign Web surface');
     }
     if (surface.isDisposed) {
-      return const _WebThreeError('three.surface: disposed');
+      return const ThreeErrorMessage('three.surface: disposed');
     }
     final error = surface.error;
-    if (error != null) return _WebThreeError(error);
+    if (error != null) return ThreeErrorMessage(error);
     return HtmlElementView(viewType: surface.viewType);
   }
 
@@ -775,30 +776,4 @@ extension type _WebThreeMessage._(JSObject _) implements JSObject {
   external JSAny? get width;
   external JSAny? get height;
   external JSAny? get bitmap;
-}
-
-class _WebThreeError extends StatelessWidget {
-  const _WebThreeError(this.error);
-
-  final String error;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    return ColoredBox(
-      color: theme.colorScheme.surfaceContainerHighest,
-      child: Center(
-        child: Padding(
-          padding: const EdgeInsets.all(12),
-          child: Text(
-            error,
-            textAlign: TextAlign.center,
-            style: theme.textTheme.bodySmall?.copyWith(
-              color: theme.colorScheme.error,
-            ),
-          ),
-        ),
-      ),
-    );
-  }
 }

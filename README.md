@@ -231,6 +231,13 @@ dart run bin/jsr_three_example.dart prepare webgl_buffergeometry_lines_indexed
 dart run bin/jsr_three_example.dart prepare webgl_buffergeometry_points
 dart run bin/jsr_three_example.dart prepare webgl_geometry_terrain_raycast
 dart run bin/jsr_three_example.dart prepare webgl_math_orientation_transform
+dart run bin/jsr_three_example.dart prepare webgl_interactive_raycasting_points
+dart run bin/jsr_three_example.dart prepare webgl_interactive_cubes
+dart run bin/jsr_three_example.dart prepare webgl_interactive_cubes_ortho
+dart run bin/jsr_three_example.dart prepare webgl_math_obb
+dart run bin/jsr_three_example.dart prepare webgl_buffergeometry_points_interleaved
+dart run bin/jsr_three_example.dart prepare webgl_interactive_voxelpainter
+dart run bin/jsr_three_example.dart prepare webgl_panorama_equirectangular
 cd example
 flutter run -d macos -t lib/three_example.dart
 # Or select the initial module before using the sample sidebar:
@@ -246,11 +253,25 @@ flutter build macos --release -t lib/three_example.dart
 open build/macos/Build/Products/Release/js_widget_runtime_example.app
 ```
 
+The native sample runner opts into
+`createQuickjsIsolateWidgetEngineBackend` through
+`JsRuntimeConfig.backendFactory`: QuickJS and JS-side R1 encoding run in a
+persistent background isolate, while the bridge, RAF/timers, assets and
+Flutter GPU hosts stay on the main isolate. The factory receives the final
+wrapped config (unlike a preconstructed `backend`, which can capture an old
+`onRender`). The direct QuickJS backend remains available for synchronous
+host timing. `quickjs_runtime >=0.4.8` is required for isolate OS-thread
+migration safety.
+
 The prepare step preserves the exact official HTML/module bytes and resolves
 only each module's pinned addons/local assets. Minecraft, Line Colors,
 Geometry Colors, Integer BufferGeometry, Indexed BufferGeometry, Indexed
-BufferGeometry Lines, BufferGeometry Points, Terrain Raycast and Orientation
-Transform run on native R1. Indexed BufferGeometry uses real hemisphere
+BufferGeometry Lines, BufferGeometry Points, Terrain Raycast, Orientation
+Transform, Raycasting Points, Interactive Cubes (perspective and
+orthographic), Oriented Bounding Boxes, Interleaved BufferGeometry Points,
+Voxel Painter and Equirectangular Panorama run on native R1. The two
+texture-backed additions use pinned PNG/JPEG assets with byte, hash and
+dimension validation. Indexed BufferGeometry uses real hemisphere
 lighting and a functional wireframe checkbox through the bounded JSR lil-gui
 facade. Terrain uses the pinned OrbitControls addon with host pointer, wheel,
 capture and cancellation events plus the bounded generated-texture Canvas2D
@@ -259,9 +280,11 @@ backed by a real JSR checkbox; a real browser document keeps the official
 lil-gui addon, while the Web Worker uses the functional JSR facade. Unsupported
 GUI controls and general DOM/CSS remain explicit failures. The official
 `webgl_buffergeometry_lines` module remains excluded because R1 deliberately
-rejects morph targets; it is not approximated or rewritten. Native runs require a Flutter
+rejects morph targets; Extrude Shapes and Interactive Lines are likewise
+excluded for unsupported non-indexed material groups and nested DOM
+containers. None is approximated or rewritten. Native runs require a Flutter
 GPU/Impeller platform; the Web path requires Worker OffscreenCanvas + WebGL2
-(verify on real Chrome/Edge). The sample browser sidebar switches all nine
+(verify on real Chrome/Edge). The sample browser sidebar switches all sixteen
 integrated modules without restarting; its overlay reports presented-frame
 FPS, decode/frame time, calls, triangles and uploads.
 

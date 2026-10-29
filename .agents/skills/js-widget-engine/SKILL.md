@@ -241,6 +241,17 @@ that feature. The runner accepts
 `--dart-define=JSR_THREE_EXAMPLE=<example-id>` for automated native/Web
 smokes; native compatibility still has to pass the actual R1 gates.
 
+For nonblocking native startup, opt in with
+`backendFactory: createQuickjsIsolateWidgetEngineBackend`. The persistent
+isolate owns QuickJS and JS-side R1 encoding; the main isolate retains the
+bridge, scheduler, Promise resolvers and hosts. Binary payloads cross as
+owned `TransferableTypedData`, never as a retained native pointer. Use the
+factory (not a preconstructed `backend`) so `JsWidgetRuntimeWidget`'s final
+`onRender` wrapper reaches the backend. Keep direct-backend timing tests
+unchanged and use `tester.runAsync` for real isolate startup/disposal in
+widget tests. quickjs_runtime 0.4.8+ re-anchors QuickJS's stack top when the
+VM migrates an isolate between OS threads.
+
 Tests are layered: strict protocol quotas/malformed input, per-surface state,
 pure draw planning, real QuickJS JS↔Dart R1 (including 300 camera frames
 without reupload), Web VM lifecycle + real Chrome bitmap/ack tests, then an

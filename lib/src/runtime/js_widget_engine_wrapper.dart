@@ -25,7 +25,10 @@ class JsWidgetEngine {
   factory JsWidgetEngine({required JsRuntimeConfig config}) {
     final id = config.instanceId ?? 'i${_instanceCounter++}';
     final effective = config.copyWith(instanceId: id);
-    final backend = effective.backend ?? _defaultBackend(effective);
+    final backend =
+        effective.backend ??
+        effective.backendFactory?.call(effective) ??
+        _defaultBackend(effective);
     backend.setEngineInstanceId(id);
     return JsWidgetEngine._(effective, backend);
   }

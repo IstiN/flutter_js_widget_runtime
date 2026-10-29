@@ -60,6 +60,48 @@ enum ThreeExampleSelection {
     label: 'Orientation Transform',
     widgetId: 'three-math-orientation-transform',
     assetPath: 'widgets/three-math-orientation-transform/widget.js',
+  ),
+  interactiveRaycastingPoints(
+    exampleId: 'webgl_interactive_raycasting_points',
+    label: 'Raycasting Points',
+    widgetId: 'three-interactive-raycasting-points',
+    assetPath: 'widgets/three-interactive-raycasting-points/widget.js',
+  ),
+  interactiveCubes(
+    exampleId: 'webgl_interactive_cubes',
+    label: 'Interactive Cubes',
+    widgetId: 'three-interactive-cubes',
+    assetPath: 'widgets/three-interactive-cubes/widget.js',
+  ),
+  interactiveCubesOrtho(
+    exampleId: 'webgl_interactive_cubes_ortho',
+    label: 'Orthographic Cubes',
+    widgetId: 'three-interactive-cubes-ortho',
+    assetPath: 'widgets/three-interactive-cubes-ortho/widget.js',
+  ),
+  mathObb(
+    exampleId: 'webgl_math_obb',
+    label: 'Oriented Bounding Boxes',
+    widgetId: 'three-math-obb',
+    assetPath: 'widgets/three-math-obb/widget.js',
+  ),
+  bufferGeometryPointsInterleaved(
+    exampleId: 'webgl_buffergeometry_points_interleaved',
+    label: 'Interleaved Points',
+    widgetId: 'three-buffergeometry-points-interleaved',
+    assetPath: 'widgets/three-buffergeometry-points-interleaved/widget.js',
+  ),
+  interactiveVoxelPainter(
+    exampleId: 'webgl_interactive_voxelpainter',
+    label: 'Voxel Painter',
+    widgetId: 'three-interactive-voxelpainter',
+    assetPath: 'widgets/three-interactive-voxelpainter/widget.js',
+  ),
+  panoramaEquirectangular(
+    exampleId: 'webgl_panorama_equirectangular',
+    label: 'Equirectangular Panorama',
+    widgetId: 'three-panorama-equirectangular',
+    assetPath: 'widgets/three-panorama-equirectangular/widget.js',
   );
 
   const ThreeExampleSelection({
@@ -129,29 +171,63 @@ class ThreeExampleApp extends StatefulWidget {
 
 class _ThreeExampleAppState extends State<ThreeExampleApp> {
   ThreeExampleSelection _selection = ThreeExampleSelection.initial;
+  ThreeExampleSelection? _pendingSelection;
+
+  void _selectExample(ThreeExampleSelection selection) {
+    final displayedSelection = _pendingSelection ?? _selection;
+    if (selection == displayedSelection) return;
+    if (selection == _selection) {
+      setState(() => _pendingSelection = null);
+      return;
+    }
+
+    // Paint the loading overlay before disposing the old engine and starting
+    // the next one. Both operations can synchronously occupy the UI isolate.
+    setState(() => _pendingSelection = selection);
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted || _pendingSelection != selection) return;
+      setState(() {
+        _selection = selection;
+        _pendingSelection = null;
+      });
+    });
+  }
 
   @override
-  Widget build(BuildContext context) => MaterialApp(
-    title: 'THREE r186 Samples',
-    debugShowCheckedModeBanner: false,
-    theme: ThemeData.dark(useMaterial3: true),
-    home: Scaffold(
-      body: Row(
-        children: [
-          _ThreeExampleSidebar(
-            selection: _selection,
-            onChanged: (selection) => setState(() => _selection = selection),
-          ),
-          Expanded(
-            child: ThreeExamplePage(
-              key: ValueKey(_selection),
-              selection: _selection,
+  Widget build(BuildContext context) {
+    final displayedSelection = _pendingSelection ?? _selection;
+    final pendingSelection = _pendingSelection;
+    return MaterialApp(
+      title: 'THREE r186 Samples',
+      debugShowCheckedModeBanner: false,
+      theme: ThemeData.dark(useMaterial3: true),
+      home: Scaffold(
+        body: Row(
+          children: [
+            _ThreeExampleSidebar(
+              selection: displayedSelection,
+              onChanged: _selectExample,
             ),
-          ),
-        ],
+            Expanded(
+              child: Stack(
+                fit: StackFit.expand,
+                children: [
+                  ThreeExamplePage(
+                    key: ValueKey(_selection),
+                    selection: _selection,
+                  ),
+                  if (pendingSelection != null)
+                    Positioned.fill(
+                      child: _ThreeExampleLoading(selection: pendingSelection),
+                    ),
+                ],
+              ),
+            ),
+          ],
+        ),
       ),
-    ),
-  );
+    );
+  }
 }
 
 class _ThreeExampleSidebar extends StatelessWidget {
@@ -164,64 +240,66 @@ class _ThreeExampleSidebar extends StatelessWidget {
   final ValueChanged<ThreeExampleSelection> onChanged;
 
   @override
-  Widget build(BuildContext context) => Container(
-    width: 248,
+  Widget build(BuildContext context) => Material(
     color: const Color(0xFF111827),
-    padding: const EdgeInsets.symmetric(vertical: 20),
-    child: Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        const Padding(
-          padding: EdgeInsets.symmetric(horizontal: 20),
-          child: Text(
-            'THREE r186',
-            style: TextStyle(fontSize: 22, fontWeight: FontWeight.w700),
-          ),
-        ),
-        const Padding(
-          padding: EdgeInsets.fromLTRB(20, 4, 20, 18),
-          child: Text(
-            'OFFICIAL SAMPLES  •  0.186.1',
-            style: TextStyle(
-              color: Color(0xFF94A3B8),
-              fontSize: 10,
-              letterSpacing: 1.1,
+    child: Container(
+      width: 248,
+      padding: const EdgeInsets.symmetric(vertical: 20),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Padding(
+            padding: EdgeInsets.symmetric(horizontal: 20),
+            child: Text(
+              'THREE r186',
+              style: TextStyle(fontSize: 22, fontWeight: FontWeight.w700),
             ),
           ),
-        ),
-        Expanded(
-          child: ListView(
-            children: [
-              for (final example in ThreeExampleSelection.values)
-                ListTile(
-                  dense: true,
-                  selected: example == selection,
-                  selectedColor: const Color(0xFFE0F2FE),
-                  selectedTileColor: const Color(0xFF164E63),
-                  leading: Icon(
-                    example == selection
-                        ? Icons.play_circle_fill
-                        : Icons.play_circle_outline,
-                    size: 19,
+          const Padding(
+            padding: EdgeInsets.fromLTRB(20, 4, 20, 18),
+            child: Text(
+              'OFFICIAL SAMPLES  •  0.186.1',
+              style: TextStyle(
+                color: Color(0xFF94A3B8),
+                fontSize: 10,
+                letterSpacing: 1.1,
+              ),
+            ),
+          ),
+          Expanded(
+            child: ListView(
+              children: [
+                for (final example in ThreeExampleSelection.values)
+                  ListTile(
+                    dense: true,
+                    selected: example == selection,
+                    selectedColor: const Color(0xFFE0F2FE),
+                    selectedTileColor: const Color(0xFF164E63),
+                    leading: Icon(
+                      example == selection
+                          ? Icons.play_circle_fill
+                          : Icons.play_circle_outline,
+                      size: 19,
+                    ),
+                    title: Text(example.label),
+                    onTap: () => onChanged(example),
                   ),
-                  title: Text(example.label),
-                  onTap: () => onChanged(example),
-                ),
-            ],
-          ),
-        ),
-        const Padding(
-          padding: EdgeInsets.fromLTRB(20, 12, 20, 0),
-          child: Text(
-            'QuickJS  /  R1  /  Flutter GPU\n9 integrated native samples',
-            style: TextStyle(
-              color: Color(0xFF64748B),
-              fontSize: 11,
-              height: 1.5,
+              ],
             ),
           ),
-        ),
-      ],
+          const Padding(
+            padding: EdgeInsets.fromLTRB(20, 12, 20, 0),
+            child: Text(
+              'QuickJS isolate  /  R1  /  Flutter GPU\n16 integrated native samples',
+              style: TextStyle(
+                color: Color(0xFF64748B),
+                fontSize: 11,
+                height: 1.5,
+              ),
+            ),
+          ),
+        ],
+      ),
     ),
   );
 }
@@ -243,24 +321,48 @@ class _ThreeExamplePageState extends State<ThreeExamplePage> {
   late final JsThreeHost _threeHost = kIsWeb
       ? createWebThreeHost(diagnosticsEnabled: true)
       : createFlutterGpuThreeHost();
-  late final Future<String> _source = rootBundle.loadString(
-    widget.selection.assetPath,
-  );
+  late final Future<String> _source = _loadSource();
   late final JsRuntimeConfig _config = JsRuntimeConfig(
     widgetId: widget.selection.widgetId,
     instanceId: _engineId,
     threeEnabled: true,
     threeHost: _threeHost,
+    backendFactory: kIsWeb ? null : createQuickjsIsolateWidgetEngineBackend,
     onRender: (_) {},
     onSetTitle: (_) {},
     onStorageUpdate: (_) {},
   );
   final ThreeFpsSampler _fpsSampler = ThreeFpsSampler();
   Timer? _diagnosticsTimer;
+  Object? _error;
+  bool _ready = false;
+  bool _startRuntime = false;
+
+  Future<String> _loadSource() async {
+    try {
+      return await rootBundle.loadString(widget.selection.assetPath);
+    } catch (error) {
+      _showError(error);
+      rethrow;
+    }
+  }
+
+  void _showError(Object error) {
+    if (!mounted) return;
+    setState(() {
+      _error = error;
+      _ready = false;
+    });
+  }
 
   @override
   void initState() {
     super.initState();
+    // Paint the loader once before creating the engine. Native QuickJS then
+    // evaluates in its own isolate, so the indicator keeps animating.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) setState(() => _startRuntime = true);
+    });
     _diagnosticsTimer = Timer.periodic(const Duration(milliseconds: 250), (_) {
       if (!mounted) return;
       final frames =
@@ -269,6 +371,7 @@ class _ThreeExamplePageState extends State<ThreeExamplePage> {
                       ?.diagnostics['presentedFrames'] ??
                   0)
               .toInt();
+      if (frames > 0 && _error == null) _ready = true;
       _fpsSampler.sample(frames, DateTime.now());
       setState(() {});
     });
@@ -296,14 +399,15 @@ class _ThreeExamplePageState extends State<ThreeExamplePage> {
               );
             }
             final source = snapshot.data;
-            if (source == null) {
-              return const Center(child: CircularProgressIndicator());
+            if (source == null || !_startRuntime) {
+              return const SizedBox.expand();
             }
             return JsWidgetRuntimeWidget(
               jsSource: source,
               config: _config,
               onError: (error, stackTrace) {
                 debugPrint('THREE example error: $error');
+                _showError(error);
               },
             );
           },
@@ -354,9 +458,126 @@ class _ThreeExamplePageState extends State<ThreeExamplePage> {
             ),
           ),
         ),
+        Positioned.fill(
+          child: IgnorePointer(
+            ignoring: _ready,
+            child: ExcludeSemantics(
+              excluding: _ready,
+              child: AnimatedOpacity(
+                opacity: _ready ? 0 : 1,
+                duration: _ready
+                    ? const Duration(milliseconds: 300)
+                    : Duration.zero,
+                curve: Curves.easeOut,
+                child: _ThreeExampleLoading(
+                  selection: widget.selection,
+                  error: _error,
+                ),
+              ),
+            ),
+          ),
+        ),
       ],
     ),
   );
+}
+
+class _ThreeExampleLoading extends StatelessWidget {
+  const _ThreeExampleLoading({required this.selection, this.error});
+
+  final ThreeExampleSelection selection;
+  final Object? error;
+
+  @override
+  Widget build(BuildContext context) {
+    final error = this.error;
+    return ColoredBox(
+      color: const Color(0xFF0F172A),
+      child: Center(
+        child: Padding(
+          padding: const EdgeInsets.all(24),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              if (error == null)
+                Container(
+                  width: 76,
+                  height: 76,
+                  decoration: const BoxDecoration(
+                    shape: BoxShape.circle,
+                    color: Color(0xFF111C31),
+                    boxShadow: [
+                      BoxShadow(color: Color(0x3338BDF8), blurRadius: 32),
+                    ],
+                  ),
+                  child: const Stack(
+                    alignment: Alignment.center,
+                    children: [
+                      SizedBox(
+                        width: 52,
+                        height: 52,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2.5,
+                          strokeCap: StrokeCap.round,
+                          color: Color(0xFF38BDF8),
+                          backgroundColor: Color(0xFF1E3A4C),
+                        ),
+                      ),
+                      Icon(
+                        Icons.view_in_ar_outlined,
+                        color: Color(0xFFE0F2FE),
+                        size: 21,
+                      ),
+                    ],
+                  ),
+                )
+              else
+                const Icon(
+                  Icons.error_outline_rounded,
+                  color: Color(0xFFFCA5A5),
+                  size: 52,
+                ),
+              const SizedBox(height: 24),
+              Text(
+                error == null
+                    ? 'Loading ${selection.label}'
+                    : 'Could not load ${selection.label}',
+                textAlign: TextAlign.center,
+                style: const TextStyle(
+                  color: Color(0xFFF1F5F9),
+                  fontSize: 20,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+              const SizedBox(height: 9),
+              Text(
+                error == null
+                    ? selection.exampleId
+                    : 'three.assetFailure: $error',
+                textAlign: TextAlign.center,
+                maxLines: 4,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(
+                  color: Color(0xFF94A3B8),
+                  fontFamily: 'monospace',
+                  fontSize: 11,
+                  height: 1.5,
+                ),
+              ),
+              if (error == null) ...[
+                const SizedBox(height: 18),
+                const Text(
+                  'Starting the scene and preparing the first frame',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(color: Color(0xFF64748B), fontSize: 12),
+                ),
+              ],
+            ],
+          ),
+        ),
+      ),
+    );
+  }
 }
 
 class _ThreeDiagnostics extends StatelessWidget {

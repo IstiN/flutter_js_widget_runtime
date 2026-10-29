@@ -7,8 +7,9 @@ import 'package:js_widget_runtime/src/defaults/vm_default_handlers.dart';
 import 'package:js_widget_runtime/src/model/js_runtime_config.dart';
 import 'package:js_widget_runtime/src/runtime/js_widget_bootstrap.dart';
 import 'package:js_widget_runtime/src/runtime/js_widget_bridge.dart';
-import 'package:js_widget_runtime/src/renderer/nodes/js_voxel_node.dart';
 import 'package:js_widget_runtime/src/runtime/js_widget_engine_backend.dart';
+import 'package:js_widget_runtime/src/runtime/quickjs_diagnostics.dart';
+import 'package:js_widget_runtime/src/runtime/quickjs_payload.dart';
 import 'package:quickjs_runtime/quickjs_runtime.dart';
 
 bool _quickjsAllowAll(String _) => true;
@@ -30,7 +31,9 @@ bool _quickjsAllowAll(String _) => true;
 /// instructions (`tool/build_quickjs.sh` inside that package, or set the
 /// `JSR_QUICKJS_LIB` environment variable). A missing library makes [init]
 /// throw a [StateError] explaining that.
-class QuickjsWidgetEngineBackend implements JsWidgetEngineBackend {
+class QuickjsWidgetEngineBackend
+    with QuickjsBackendDiagnostics
+    implements JsWidgetEngineBackend {
   QuickjsWidgetEngineBackend({required JsRuntimeConfig config})
     : _config = config {
     _bridge = JsWidgetBridge(
@@ -71,8 +74,9 @@ class QuickjsWidgetEngineBackend implements JsWidgetEngineBackend {
 
   QuickjsRuntime? _runtime;
   bool _disposed = false;
-  final List<Map<String, dynamic>> _consoleLogs = [];
-  static const int _maxLogs = 200;
+
+  @override
+  JsWidgetBridge get quickjsBridge => _bridge;
 
   @override
   Future<void> init() async {
@@ -80,23 +84,6 @@ class QuickjsWidgetEngineBackend implements JsWidgetEngineBackend {
     // been built; DynamicLibrary.open's raw error is far less helpful.
     _requireLibrary();
   }
-
-  @override
-  List<Map<String, dynamic>> flushLogs() {
-    final logs = List<Map<String, dynamic>>.from(_consoleLogs);
-    _consoleLogs.clear();
-    return logs;
-  }
-
-  @override
-  List<Map<String, dynamic>> peekLogs() =>
-      List<Map<String, dynamic>>.from(_consoleLogs);
-
-  @override
-  Map<String, dynamic>? get exportedState => _bridge.exportedState;
-
-  @override
-  JsVoxelWorld? get voxelWorld => _bridge.voxelWorld;
 
   @override
   void updateTheme(Map<String, dynamic> colors) {
@@ -126,7 +113,7 @@ class QuickjsWidgetEngineBackend implements JsWidgetEngineBackend {
     _runtime = null;
 
     _disposed = false;
-    _consoleLogs.clear();
+    quickjsConsoleLogs.clear();
 
     try {
       _requireLibrary();
@@ -383,48 +370,18 @@ class QuickjsWidgetEngineBackend implements JsWidgetEngineBackend {
     if (argsJson.startsWith('["__jsr_log",')) {
       if (!_isLive(rt)) return;
       final msg = _decodeLogPayload(argsJson);
-      unawaited(_bridge.dispatch('__jsr_log', _unwrapRawId(msg)));
+      unawaited(_bridge.dispatch('__jsr_log', unwrapQuickjsPayload(msg)));
       return;
     }
     final args = jsonDecode(argsJson);
     if (args is! List || args.length != 2 || args[0] is! String) return;
     if (!_isLive(rt)) return;
     unawaited(
-      _bridge.dispatch(args[0] as String, _unwrapRawId(args[1], args[0])),
+      _bridge.dispatch(
+        args[0] as String,
+        unwrapQuickjsPayload(args[1], args[0]),
+      ),
     );
-  }
-
-  /// Raw-string channels receive their payload wrapped as {iid, id} by the
-  /// shared bootstrap's iid tagging (needed for the JSC cross-engine
-  /// router). QuickJS routes per-engine natively, so unwrap back to the raw
-  /// string before dispatch. JSON-object payloads pass through untouched
-  /// (the extra `iid` key is ignored by their handlers).
-  /// Channels whose bootstrap `__tag` wraps string payloads as
-  /// `{iid, id}` — the engine unwraps them back to the raw string before
-  /// dispatch (per-engine routing makes the iid redundant on QuickJS).
-  static const Set<String> _rawIdChannels = {
-    '__jsr_log',
-    '__jsr_set_title',
-    '__jsr_clear_interval',
-    '__jsr_caf',
-    '__jsr_host_call_binary',
-  };
-
-  dynamic _unwrapRawId(dynamic payload, [String? channel]) {
-    if (payload is! String) return payload;
-    if (channel != null && !_rawIdChannels.contains(channel)) {
-      return payload;
-    }
-    if (!payload.startsWith('{"iid":')) return payload;
-    try {
-      final decoded = jsonDecode(payload);
-      if (decoded is Map<String, dynamic> &&
-          decoded.containsKey('iid') &&
-          decoded.containsKey('id')) {
-        return decoded['id'];
-      }
-    } catch (_) {}
-    return payload;
   }
 
   /// Extracts the message string from a `["__jsr_log","<msg>"]` payload by
@@ -445,12 +402,7 @@ class QuickjsWidgetEngineBackend implements JsWidgetEngineBackend {
     _config.onLog?.call(msg);
   }
 
-  void _appendConsoleLog(String msg) {
-    _consoleLogs.add({'ts': DateTime.now().millisecondsSinceEpoch, 'msg': msg});
-    if (_consoleLogs.length > _maxLogs) {
-      _consoleLogs.removeRange(0, _consoleLogs.length - _maxLogs);
-    }
-  }
+  void _appendConsoleLog(String msg) => appendQuickjsLog(msg);
 
   void _handleIntervalTick(QuickjsRuntime rt, String id) {
     if (!_isLive(rt)) return;

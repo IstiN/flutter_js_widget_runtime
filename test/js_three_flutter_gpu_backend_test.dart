@@ -6,24 +6,15 @@ import 'package:js_widget_runtime/src/renderer/nodes/three/flutter_gpu_three_bac
 import 'package:js_widget_runtime/src/renderer/nodes/three/js_three_protocol.dart';
 import 'package:js_widget_runtime/src/renderer/nodes/three/three_draw_plan.dart';
 
-ByteData _view(Uint8List bytes) => ByteData.sublistView(bytes);
-
-void _u16(Uint8List bytes, int offset, int value) =>
-    _view(bytes).setUint16(offset, value, Endian.little);
-
-void _u32(Uint8List bytes, int offset, int value) =>
-    _view(bytes).setUint32(offset, value, Endian.little);
-
-void _f32(Uint8List bytes, int offset, double value) =>
-    _view(bytes).setFloat32(offset, value, Endian.little);
+import 'support/three_protocol_bytes.dart';
 
 JsThreeCommand _decode(int opcode, Uint8List body) {
   final bytes = Uint8List(20 + body.length);
   bytes.setAll(0, [0x4a, 0x53, 0x52, 0x31]);
-  _u16(bytes, 4, 1);
-  _u32(bytes, 8, 1);
+  setU16(bytes, 4, 1);
+  setU32(bytes, 8, 1);
   bytes[12] = opcode;
-  _u32(bytes, 16, body.length);
+  setU32(bytes, 16, body.length);
   bytes.setAll(20, body);
   return JsThreeProtocolDecoder().decodeR1(bytes).commands.single;
 }
@@ -48,16 +39,16 @@ Uint8List _batch({bool instanced = true}) {
   final instanceCount = instanced ? 2 : 1;
   final matrixCount = instanced ? 32 : 0;
   final body = Uint8List(36 + matrixCount * 4);
-  _u32(body, 0, 1);
-  _u32(body, 4, 1);
-  _u32(body, 8, instanceCount);
-  _u32(body, 12, instanced ? 1 : 0);
-  _u32(body, 16, 1);
-  _u32(body, 20, 1);
-  _u32(body, 24, 1);
-  _u32(body, 32, 3);
+  setU32(body, 0, 1);
+  setU32(body, 4, 1);
+  setU32(body, 8, instanceCount);
+  setU32(body, 12, instanced ? 1 : 0);
+  setU32(body, 16, 1);
+  setU32(body, 20, 1);
+  setU32(body, 24, 1);
+  setU32(body, 32, 3);
   for (var index = 0; index < matrixCount; index++) {
-    _f32(body, 36 + index * 4, index + 0.25);
+    setF32(body, 36 + index * 4, index + 0.25);
   }
   return body;
 }
@@ -85,61 +76,59 @@ _drawResources({
   final geometry = Uint8List(
     92 + (wireIndices == null ? 0 : 4 + wireIndices.length * 4),
   );
-  _u32(geometry, 0, 1);
-  _u32(geometry, 4, 1);
-  _u32(geometry, 8, 1);
-  _u32(geometry, 12, 3);
-  _u32(geometry, 16, 6);
-  _u32(geometry, 28, 36);
+  setU32(geometry, 0, 1);
+  setU32(geometry, 4, 1);
+  setU32(geometry, 8, 1);
+  setU32(geometry, 12, 3);
+  setU32(geometry, 16, 6);
+  setU32(geometry, 28, 36);
   const indices = [0, 1, 2, 2, 1, 0];
   for (var index = 0; index < indices.length; index++) {
-    _u32(geometry, 68 + index * 4, indices[index]);
+    setU32(geometry, 68 + index * 4, indices[index]);
   }
   if (wireIndices != null) {
-    _u32(geometry, 92, wireIndices.length);
+    setU32(geometry, 92, wireIndices.length);
     for (var index = 0; index < wireIndices.length; index++) {
-      _u32(geometry, 96 + index * 4, wireIndices[index]);
+      setU32(geometry, 96 + index * 4, wireIndices[index]);
     }
   }
 
   final phong = kind == JsThreeMaterialKind.meshPhong;
-  final material = Uint8List(
-    (phong ? 72 : 56) + (emissive ? 16 : 0),
-  );
-  _u32(material, 0, 1);
-  _u32(material, 4, 1);
-  _u32(material, 8, kind.wireValue);
-  _u32(material, 16, 24 | (wireframe ? 32 : 0));
-  _u32(material, 20, side.wireValue);
-  _f32(material, 24, 1);
-  _f32(material, 28, 1);
-  _f32(material, 32, 1);
-  _f32(material, 36, 1);
-  _f32(material, 40, 0.5);
-  _f32(material, 44, 0.5);
-  _f32(material, 52, 1);
+  final material = Uint8List((phong ? 72 : 56) + (emissive ? 16 : 0));
+  setU32(material, 0, 1);
+  setU32(material, 4, 1);
+  setU32(material, 8, kind.wireValue);
+  setU32(material, 16, 24 | (wireframe ? 32 : 0));
+  setU32(material, 20, side.wireValue);
+  setF32(material, 24, 1);
+  setF32(material, 28, 1);
+  setF32(material, 32, 1);
+  setF32(material, 36, 1);
+  setF32(material, 40, 0.5);
+  setF32(material, 44, 0.5);
+  setF32(material, 52, 1);
   if (phong) {
-    _f32(material, 56, specularR);
-    _f32(material, 60, specularG);
-    _f32(material, 64, specularB);
-    _f32(material, 68, shininess);
+    setF32(material, 56, specularR);
+    setF32(material, 60, specularG);
+    setF32(material, 64, specularB);
+    setF32(material, 68, shininess);
   }
   if (emissive) {
     final offset = phong ? 72 : 56;
-    _f32(material, offset, emissiveR);
-    _f32(material, offset + 4, emissiveG);
-    _f32(material, offset + 8, emissiveB);
-    _f32(material, offset + 12, emissiveIntensity);
+    setF32(material, offset, emissiveR);
+    setF32(material, offset + 4, emissiveG);
+    setF32(material, offset + 8, emissiveB);
+    setF32(material, offset + 12, emissiveIntensity);
   }
 
   final node = Uint8List(92);
-  _u32(node, 0, 1);
-  _u32(node, 8, 1);
-  _u32(node, 12, 1);
-  _u32(node, 16, 1);
-  _u32(node, 20, 1);
+  setU32(node, 0, 1);
+  setU32(node, 8, 1);
+  setU32(node, 12, 1);
+  setU32(node, 16, 1);
+  setU32(node, 20, 1);
   for (final index in [0, 5, 10, 15]) {
-    _f32(node, 24 + index * 4, 1);
+    setF32(node, 24 + index * 4, 1);
   }
   return (
     node: _decode(4, node) as JsThreeNodeUpsert,
@@ -270,40 +259,39 @@ void main() {
     );
   });
 
-  test('Phong material uniforms carry distinct kind specular and shininess', () {
-    final phong = debugThreeMaterialUniform(
-      _draw(
-        kind: JsThreeMaterialKind.meshPhong,
-        specularR: 0.25,
-        specularG: 0.5,
-        specularB: 0.75,
-        shininess: 64,
-      ),
-    );
-    final lambert = debugThreeMaterialUniform(
-      _draw(kind: JsThreeMaterialKind.meshLambert),
-    );
-    expect(phong.lengthInBytes, 80);
-    expect(lambert.lengthInBytes, 80);
-    expect(phong.getFloat32(28, Endian.little), 5);
-    expect(lambert.getFloat32(28, Endian.little), 1);
-    expect(phong.getFloat32(48, Endian.little), 0.25);
-    expect(phong.getFloat32(52, Endian.little), 0.5);
-    expect(phong.getFloat32(56, Endian.little), 0.75);
-    expect(phong.getFloat32(60, Endian.little), 64);
-    expect(lambert.getFloat32(48, Endian.little), 0);
-    expect(lambert.getFloat32(60, Endian.little), 0);
+  test(
+    'Phong material uniforms carry distinct kind specular and shininess',
+    () {
+      final phong = debugThreeMaterialUniform(
+        _draw(
+          kind: JsThreeMaterialKind.meshPhong,
+          specularR: 0.25,
+          specularG: 0.5,
+          specularB: 0.75,
+          shininess: 64,
+        ),
+      );
+      final lambert = debugThreeMaterialUniform(
+        _draw(kind: JsThreeMaterialKind.meshLambert),
+      );
+      expect(phong.lengthInBytes, 80);
+      expect(lambert.lengthInBytes, 80);
+      expect(phong.getFloat32(28, Endian.little), 5);
+      expect(lambert.getFloat32(28, Endian.little), 1);
+      expect(phong.getFloat32(48, Endian.little), 0.25);
+      expect(phong.getFloat32(52, Endian.little), 0.5);
+      expect(phong.getFloat32(56, Endian.little), 0.75);
+      expect(phong.getFloat32(60, Endian.little), 64);
+      expect(lambert.getFloat32(48, Endian.little), 0);
+      expect(lambert.getFloat32(60, Endian.little), 0);
 
-    final changed = debugThreeMaterialUniform(
-      _draw(
-        kind: JsThreeMaterialKind.meshPhong,
-        specularR: 1,
-        shininess: 12,
-      ),
-    );
-    expect(changed.getFloat32(48, Endian.little), 1);
-    expect(changed.getFloat32(60, Endian.little), 12);
-  });
+      final changed = debugThreeMaterialUniform(
+        _draw(kind: JsThreeMaterialKind.meshPhong, specularR: 1, shininess: 12),
+      );
+      expect(changed.getFloat32(48, Endian.little), 1);
+      expect(changed.getFloat32(60, Endian.little), 12);
+    },
+  );
 
   test('Normal is distinct and emissive edits reach the 80-byte GPU ABI', () {
     final normal = debugThreeMaterialUniform(
@@ -356,12 +344,7 @@ void main() {
     expect(range.lengthInBytes, 8);
     expect(
       () => debugThreeIndexRange(
-        _draw(
-          offset: 2,
-          count: 2,
-          wireframe: true,
-          wireIndices: const [0, 1],
-        ),
+        _draw(offset: 2, count: 2, wireframe: true, wireIndices: const [0, 1]),
       ),
       throwsArgumentError,
     );
@@ -386,13 +369,13 @@ void main() {
 
   test('manual shadow revision overrides global content invalidation', () {
     final body = Uint8List(148);
-    _u32(body, 0, 1);
-    _u32(body, 4, 1);
-    _f32(body, 24, 1);
-    _u32(body, 52, 1024);
-    _u32(body, 56, 1024);
-    _f32(body, 68, 1);
-    _u32(body, 144, 7);
+    setU32(body, 0, 1);
+    setU32(body, 4, 1);
+    setF32(body, 24, 1);
+    setU32(body, 52, 1024);
+    setU32(body, 56, 1024);
+    setF32(body, 68, 1);
+    setU32(body, 144, 7);
     final frame = _decode(8, body) as JsThreeSubmitFrame;
     expect(frame.shadowContentRevision, 7);
     expect(frame.culledNodeIds, isEmpty);

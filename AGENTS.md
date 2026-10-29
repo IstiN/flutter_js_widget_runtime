@@ -151,6 +151,9 @@ Renderer effects ported from YoClip: radial gradients, box shadows, blur nodes, 
   `cd example && flutter run -t lib/three_example.dart` (select the initial
   module with `--dart-define=JSR_THREE_EXAMPLE=<example-id>`). See README,
   `prepare_manifest.json` and the engine/authoring skills for the matrix.
+- The native runner uses the opt-in isolated QuickJS backend and shows a
+  first-presented-frame loading overlay while official example modules run
+  through native R1; it does not use a WebView catalog.
 - The local heavy reference profile lives in `tool/three_minecraft_stress/`
   and runs with `example/lib/three_minecraft_stress.dart`; generated output
   stays in `/tmp` and the unlicensed reference is never redistributed.
@@ -230,6 +233,13 @@ See the dedicated skill in `.agents/skills/js-widget-authoring/SKILL.md` for the
 
 - `JsWidgetEngine` is a conditional export: VM on native, Web on `dart.library.html`.
 - An opt-in QuickJS FFI backend (`lib/src/runtime/js_widget_engine_quickjs.dart`, VM-only — never import it from a web-reachable path) implements the same interface on the [quickjs_runtime](https://github.com/IstiN/quickjs_runtime) package (pure Dart, usable from CLI tools without the Flutter SDK) with synchronous host calls (`NativeCallable`). Pass it via `JsRuntimeConfig.backend`; build its native library inside the package checkout (`bash <quickjs_runtime>/tool/build_quickjs.sh`, CI does this before `flutter test`) or point `JSR_QUICKJS_LIB` at an existing `libquickjs_bridge.so`.
+- Opt-in isolated QuickJS: set `JsRuntimeConfig.backendFactory` to
+  `createQuickjsIsolateWidgetEngineBackend` (conditional public export).
+  The persistent worker owns only QuickJS/evaluation/JS-side encoding;
+  `JsWidgetBridge`, RAF/timers, Promise I/O, hosts and GPU stay on the main
+  isolate. Use the factory rather than a preconstructed `backend` so it
+  receives the final widget-wrapped `onRender`. Requires quickjs_runtime
+  >=0.4.8 (isolate OS-thread migration fix); the direct backend is unchanged.
 - `JsWidgetBridge` is platform-agnostic and dispatches `__jsr_*` channels.
 - `kJsWidgetBootstrap` defines the JS runtime API. Any new `jsr.*` API must be added here and wired through `JsWidgetBridge` and both VM/Web engines.
 - Engine handlers are injected via `JsRuntimeConfig`. The package provides defaults, but hosts override them for real permissions, storage, networking, etc.

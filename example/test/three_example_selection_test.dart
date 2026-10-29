@@ -1,8 +1,10 @@
 import 'dart:convert';
 import 'dart:io';
 
+import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:js_widget_runtime/js_widget_runtime.dart';
 import 'package:js_widget_runtime_example/three_example.dart';
 
 void main() {
@@ -21,6 +23,18 @@ void main() {
           'webgl_geometry_terrain_raycast',
       ThreeExampleSelection.mathOrientationTransform:
           'webgl_math_orientation_transform',
+      ThreeExampleSelection.interactiveRaycastingPoints:
+          'webgl_interactive_raycasting_points',
+      ThreeExampleSelection.interactiveCubes: 'webgl_interactive_cubes',
+      ThreeExampleSelection.interactiveCubesOrtho:
+          'webgl_interactive_cubes_ortho',
+      ThreeExampleSelection.mathObb: 'webgl_math_obb',
+      ThreeExampleSelection.bufferGeometryPointsInterleaved:
+          'webgl_buffergeometry_points_interleaved',
+      ThreeExampleSelection.interactiveVoxelPainter:
+          'webgl_interactive_voxelpainter',
+      ThreeExampleSelection.panoramaEquirectangular:
+          'webgl_panorama_equirectangular',
     };
     const requestedExample = String.fromEnvironment('JSR_THREE_EXAMPLE');
     expect(ThreeExampleSelection.values, hasLength(examples.length));
@@ -83,5 +97,24 @@ void main() {
       );
       expect(source, isNotEmpty, reason: selection.assetPath);
     }
+  });
+
+  testWidgets('sample switching paints a loader before starting the engine', (
+    tester,
+  ) async {
+    await tester.pumpWidget(const ThreeExampleApp());
+    expect(find.text('Loading Minecraft'), findsOneWidget);
+    expect(find.byType(CircularProgressIndicator), findsOneWidget);
+    expect(find.byType(JsWidgetRuntimeWidget), findsNothing);
+
+    await tester.tap(find.text('Vertex Colors'));
+    await tester.pump();
+    expect(find.text('Loading Vertex Colors'), findsOneWidget);
+    await tester.pump();
+    expect(find.text('Loading Vertex Colors'), findsOneWidget);
+    expect(find.byType(CircularProgressIndicator), findsOneWidget);
+    expect(find.byType(JsWidgetRuntimeWidget), findsNothing);
+
+    await tester.pumpWidget(const SizedBox());
   });
 }

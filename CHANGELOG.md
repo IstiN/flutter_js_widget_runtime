@@ -1,10 +1,21 @@
 ## 0.4.191
 
+- Add opt-in nonblocking native QuickJS through
+  `JsRuntimeConfig.backendFactory` and
+  `createQuickjsIsolateWidgetEngineBackend`. QuickJS and JS-side R1 encoding
+  run in a persistent worker isolate while bridge handlers, timers, Promise
+  I/O and Flutter GPU hosts remain on the main isolate. Includes owned
+  binary handoff and dispose/restart lifecycle guards.
+- Expand the native official-example browser to sixteen R1 modules with a
+  first-presented-frame loading overlay. Add reproducibly pinned Raycasting
+  Points, perspective/orthographic Interactive Cubes, Oriented Bounding
+  Boxes, Interleaved Points, Voxel Painter and Equirectangular Panorama,
+  including validated PNG/JPEG texture preparation.
 - Add opt-in upstream three.js r186 support with independent native Flutter
   GPU (versioned T1/R1 resources) and real Worker OffscreenCanvas WebGL2
   hosts. Includes surface-scoped lifecycle/input/assets, bounded frame
   coalescing, capture and the reproducibly prepared official
-  `webgl_geometry_minecraft` example (`lib/three_example.dart`).
+  `webgl_geometry_minecraft` example (`example/lib/three_example.dart`).
 - Add native R1 `InstancedMesh` batching (`DRAW_BATCH`) with per-material GPU
   draws and instance-aware diagnostics, plus the reproducible local
   `three_minecraft_stress` reference target and macOS probe.
