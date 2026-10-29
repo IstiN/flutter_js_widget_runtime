@@ -59,6 +59,21 @@ void main() {
     }
   });
 
+  test('FPS sampler uses presented frames and handles counter resets', () {
+    final sampler = ThreeFpsSampler();
+    final start = DateTime.utc(2026);
+
+    expect(sampler.sample(100, start), isNull);
+    expect(
+      sampler.sample(130, start.add(const Duration(milliseconds: 500))),
+      60,
+    );
+    expect(sampler.sample(160, start.add(const Duration(seconds: 1))), 60);
+    expect(sampler.sample(160, start.add(const Duration(seconds: 1))), 60);
+    expect(sampler.sample(2, start.add(const Duration(seconds: 2))), isNull);
+    expect(sampler.sample(62, start.add(const Duration(seconds: 3))), 60);
+  });
+
   testWidgets('official widget sources are declared in the asset bundle', (
     tester,
   ) async {

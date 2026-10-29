@@ -228,10 +228,18 @@ dart run bin/jsr_three_example.dart prepare webgl_buffergeometry_points
 dart run bin/jsr_three_example.dart prepare webgl_geometry_terrain_raycast
 dart run bin/jsr_three_example.dart prepare webgl_math_orientation_transform
 cd example
-flutter run -t lib/three_example.dart
-# Or select the initial module without using the dropdown:
+flutter run -d macos -t lib/three_example.dart
+# Or select the initial module before using the sample sidebar:
 flutter run -t lib/three_example.dart \
   --dart-define=JSR_THREE_EXAMPLE=webgl_lines_colors
+```
+
+For meaningful FPS numbers, use the standalone release build:
+
+```sh
+cd example
+flutter build macos --release -t lib/three_example.dart
+open build/macos/Build/Products/Release/js_widget_runtime_example.app
 ```
 
 The prepare step preserves the exact official HTML/module bytes and resolves
@@ -249,8 +257,9 @@ GUI controls and general DOM/CSS remain explicit failures. The official
 `webgl_buffergeometry_lines` module remains excluded because R1 deliberately
 rejects morph targets; it is not approximated or rewritten. Native runs require a Flutter
 GPU/Impeller platform; the Web path requires Worker OffscreenCanvas + WebGL2
-(verify on real Chrome/Edge). The example overlay reports decode/frame time,
-calls, triangles and uploads.
+(verify on real Chrome/Edge). The sample browser sidebar switches all nine
+integrated modules without restarting; its overlay reports presented-frame
+FPS, decode/frame time, calls, triangles and uploads.
 
 ![Official three.js Minecraft example on Flutter GPU](doc/widgets/three-minecraft.png)
 
