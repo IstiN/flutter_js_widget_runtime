@@ -42,6 +42,18 @@ enum ThreeExampleSelection {
     label: 'BufferGeometry Points',
     widgetId: 'three-buffergeometry-points',
     assetPath: 'widgets/three-buffergeometry-points/widget.js',
+  ),
+  geometryTerrainRaycast(
+    exampleId: 'webgl_geometry_terrain_raycast',
+    label: 'Terrain Raycast',
+    widgetId: 'three-geometry-terrain-raycast',
+    assetPath: 'widgets/three-geometry-terrain-raycast/widget.js',
+  ),
+  mathOrientationTransform(
+    exampleId: 'webgl_math_orientation_transform',
+    label: 'Orientation Transform',
+    widgetId: 'three-math-orientation-transform',
+    assetPath: 'widgets/three-math-orientation-transform/widget.js',
   );
 
   const ThreeExampleSelection({

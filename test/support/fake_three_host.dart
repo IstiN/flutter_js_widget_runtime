@@ -97,6 +97,17 @@ class FakeThreeHost implements JsThreeHost {
   }
 
   @override
+  Future<JsThreeCanvas2DResult> rasterizeCanvas2D(
+    String boundEngineId,
+    Map<String, dynamic> request,
+  ) => Future.error(
+    const JsThreeUnsupportedException(
+      'canvas2d',
+      'fake THREE host does not provide Flutter Canvas',
+    ),
+  );
+
+  @override
   Widget build(
     BuildContext context,
     JsThreeSurface surface,
