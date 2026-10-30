@@ -54,7 +54,9 @@ function decode(packet) {
   const surfaceLength = bytes.readUInt16LE(18);
   const payload = bytes.subarray(headerBytes);
   assert.equal(payload.subarray(0, 4).toString(), 'JSR1');
-  assert.equal(payload.readUInt16LE(4), 3);
+  // R1 envelope version: v5 at r186 wave-3; accept v3..v5 like the Dart decoder.
+  const envelopeVersion = payload.readUInt16LE(4);
+  assert.ok(envelopeVersion >= 3 && envelopeVersion <= 5, `unexpected R1 envelope version ${envelopeVersion}`);
   const commands = [];
   let offset = 12;
   for (let i = 0; i < payload.readUInt32LE(8); i++) {
@@ -537,19 +539,19 @@ test('manual shadow revisions are explicit and ignore ordinary scene uploads', (
   renderer.shadowMap.needsUpdate = true;
   renderer.render(scene, camera);
   let frames = host.packets().flatMap(packet => only(packet, 8));
-  assert.equal(frames[0].body.length, 152);
-  assert.equal(u32(frames[0].body, 148), 1);
+  assert.equal(frames[0].body.length, 184); // 152 + v5 point-shadow block 32
+  assert.equal(u32(frames[0].body, 180), 1);
   renderer.render(scene, camera);
   frames = host.packets().flatMap(packet => only(packet, 8));
-  assert.equal(u32(frames[1].body, 148), 1);
+  assert.equal(u32(frames[1].body, 180), 1);
   renderer.shadowMap.needsUpdate = true;
   renderer.render(scene, camera);
   frames = host.packets().flatMap(packet => only(packet, 8));
-  assert.equal(u32(frames[2].body, 148), 2);
+  assert.equal(u32(frames[2].body, 180), 2);
   renderer.shadowMap.autoUpdate = true;
   renderer.render(scene, camera);
   frames = host.packets().flatMap(packet => only(packet, 8));
-  assert.equal(frames[3].body.length, 140, 'default shadow mode keeps the optional-id layout');
+  assert.equal(frames[3].body.length, 172, 'default shadow mode keeps the optional-id layout after the v5 tail');
 });
 
 function rendererHost(host) {

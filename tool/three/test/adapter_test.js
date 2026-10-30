@@ -35,7 +35,11 @@ function decode(packet) {
   const surfaceId = decoder.decode(bytes.subarray(32 + engineLength, headerBytes));
   const payload = bytes.subarray(headerBytes);
   assert.equal(payload.subarray(0, 4).toString(), 'JSR1');
-  assert.equal(payload.readUInt16LE(4), 3);
+  // R1 envelope version: the native facade emits R1_VERSION (v5 at r186
+  // wave-3); the strict Dart decoder accepts v3..v5. Pin the accepted
+  // range, not one number, so a bump does not silently stale this suite.
+  const envelopeVersion = payload.readUInt16LE(4);
+  assert.ok(envelopeVersion >= 3 && envelopeVersion <= 5, `unexpected R1 envelope version ${envelopeVersion}`);
   assert.equal(payload.readUInt16LE(6), 0);
   const count = payload.readUInt32LE(8);
   const commands = [];
@@ -256,13 +260,13 @@ test('canonical mount, T1/R1 bytes, resize and dirty/no-reupload diffing', () =>
   assert.equal(packets[0].sequence, 1);
   assert.deepEqual(opcodes(packets[0]), [4, 1, 3, 4, 6, 8]);
   const frame = only(packets[0], 8)[0].body;
-  assert.equal(frame.length, 140);
+  assert.equal(frame.length, 172); // v5 frame: v3 140 + v5 point-shadow block 32
   assert.equal(u32(frame, 0), id(scene));
   assert.equal(u32(frame, 4), id(camera));
   near(f32(frame, 24), 1);
   const nodes = only(packets[0], 4);
   const meshNode = nodes.find(node => u32(node.body, 0) === id(mesh)).body;
-  assert.equal(meshNode.length, 92);
+  assert.equal(meshNode.length, 104); // v5 node tail: sprite center xy + reserved u32
   assert.equal(u32(meshNode, 4), id(scene));
   assert.equal(u32(meshNode, 8), id(mesh.geometry));
   assert.equal(u32(meshNode, 12), id(mesh.material));
@@ -314,9 +318,9 @@ test('main-camera frustum culling is explicit and respects opt-out', () => {
   renderer.render(scene, camera);
   let packet = host.packets()[0];
   let frame = only(packet, 8)[0].body;
-  assert.equal(frame.length, 148);
-  assert.equal(u32(frame, 140), 1);
-  assert.equal(u32(frame, 144), id(mesh));
+  assert.equal(frame.length, 180); // 172 fixed + main-cull count/id
+  assert.equal(u32(frame, 172), 1);
+  assert.equal(u32(frame, 176), id(mesh));
   assert.equal(renderer.info.render.calls, 0);
   assert.equal(renderer.info.render.triangles, 0);
 
@@ -324,7 +328,7 @@ test('main-camera frustum culling is explicit and respects opt-out', () => {
   renderer.render(scene, camera);
   packet = host.packets()[1];
   frame = only(packet, 8)[0].body;
-  assert.equal(frame.length, 140);
+  assert.equal(frame.length, 172); // v5 frame: v3 140 + v5 point-shadow block 32
   assert.equal(renderer.info.render.calls, 1);
 });
 
@@ -342,16 +346,16 @@ test('shadow-camera culling is independent from main-camera culling', () => {
   mesh.position.x = 100;
   renderer.render(scene, camera);
   let frame = only(host.packets()[0], 8)[0].body;
-  assert.equal(frame.length, 156);
-  assert.equal(u32(frame, 140), 1);
-  assert.equal(u32(frame, 144), id(mesh));
-  assert.equal(u32(frame, 148), 1);
-  assert.equal(u32(frame, 152), id(mesh));
+  assert.equal(frame.length, 188); // 172 + main(4+4) + shadow(4+4) cull ids
+  assert.equal(u32(frame, 172), 1);
+  assert.equal(u32(frame, 176), id(mesh));
+  assert.equal(u32(frame, 180), 1);
+  assert.equal(u32(frame, 184), id(mesh));
 
   mesh.position.x = 0;
   renderer.render(scene, camera);
   frame = only(host.packets()[1], 8)[0].body;
-  assert.equal(frame.length, 140);
+  assert.equal(frame.length, 172); // v5 frame: v3 140 + v5 point-shadow block 32
 });
 
 test('empty instanced meshes skip draw uploads and retain correct node lifetime', () => {
@@ -478,21 +482,21 @@ test('materials, cameras and ambient/directional/point lights have exact bodies 
   let packet = host.packets()[0];
   const materials = only(packet, 3).map(command => command.body);
   assert.deepEqual(materials.map(body => u32(body, 8)), [0, 1, 2, 5]);
-  assert.equal(materials[0].length, 64);
-  assert.equal(materials[1].length, 80);
-  assert.equal(materials[2].length, 80);
+  assert.equal(materials[0].length, 164); // v4 slot + v5 matcap/gradient tails
+  assert.equal(materials[1].length, 180); // + emissive block
+  assert.equal(materials[2].length, 180); // + emissive block
   assert.equal(u32(materials[0], 20), 2);
   near(f32(materials[0], 36), 0.5);
   near(f32(materials[0], 48), 0.2);
   near(f32(materials[2], 40), 0.25);
   near(f32(materials[2], 44), 0.75);
   assert.equal(u32(materials[1], 16) & 2, 2);
-  assert.equal(materials[3].length, 96);
+  assert.equal(materials[3].length, 196); // + specular + emissive after v4/v5 tails
   assert.equal(u32(materials[3], 16) & 3, 3);
-  near(f32(materials[3], 64), phong.specular.r);
-  near(f32(materials[3], 68), phong.specular.g);
-  near(f32(materials[3], 72), phong.specular.b);
-  near(f32(materials[3], 76), 64);
+  near(f32(materials[3], 164), phong.specular.r); // v4/v5 tails precede specular
+  near(f32(materials[3], 168), phong.specular.g);
+  near(f32(materials[3], 172), phong.specular.b);
+  near(f32(materials[3], 176), 64);
   assert.notEqual(u32(materials[3], 8), u32(materials[1], 8), 'Phong must not alias Lambert');
   const lights = only(packet, 7).map(command => command.body);
   assert.deepEqual(lights.map(body => u32(body, 4)), [0, 1, 2]);
@@ -524,10 +528,10 @@ test('materials, cameras and ambient/directional/point lights have exact bodies 
   assert.deepEqual(opcodes(packet), [3, 8]);
   const changedPhong = only(packet, 3)[0].body;
   assert.equal(u32(changedPhong, 4), 2);
-  near(f32(changedPhong, 64), 0.25);
-  near(f32(changedPhong, 68), 0.5);
-  near(f32(changedPhong, 72), 0.75);
-  near(f32(changedPhong, 76), 12);
+  near(f32(changedPhong, 164), 0.25);
+  near(f32(changedPhong, 168), 0.5);
+  near(f32(changedPhong, 172), 0.75);
+  near(f32(changedPhong, 176), 12);
 });
 
 test('HemisphereLight has an exact additive payload, world direction and dirty/error updates', () => {
@@ -627,13 +631,13 @@ test('Normal and lit emissive materials have exact payloads, dirty updates and t
   assert.equal(u32(normalBody, 8), 6);
   assert.notEqual(u32(normalBody, 8), 0);
   assert.notEqual(u32(normalBody, 8), 5);
-  assert.equal(normalBody.length, 64);
+  assert.equal(normalBody.length, 164); // v4 slot + v5 tails
   assert.equal(u32(normalBody, 20), 2);
   assert.equal(u32(normalBody, 16) & 6, 6);
   near(f32(normalBody, 36), 0.375);
   for (const material of lit) {
     const body = byId.get(id(material));
-    const offset = material.isMeshPhongMaterial ? 80 : 64;
+    const offset = material.isMeshPhongMaterial ? 180 : 164; // after v4/v5 tails (+ specular for Phong)
     assert.equal(body.length, offset + 16);
     near(f32(body, offset), material.emissive.r);
     near(f32(body, offset + 4), material.emissive.g);
@@ -656,10 +660,10 @@ test('Normal and lit emissive materials have exact payloads, dirty updates and t
   assert.equal(changed.length, 4, 'Normal and every emissive edit must upload');
   assert.ok(changed.every(body => u32(body, 4) === 2));
   const changedLambert = changed.find(body => u32(body, 0) === id(lit[0]));
-  near(f32(changedLambert, 64), 0.125);
-  near(f32(changedLambert, 68), 0.25);
-  near(f32(changedLambert, 72), 0.5);
-  near(f32(changedLambert, 76), 5);
+  near(f32(changedLambert, 164), 0.125);
+  near(f32(changedLambert, 168), 0.25);
+  near(f32(changedLambert, 172), 0.5);
+  near(f32(changedLambert, 176), 5);
 
   const sent = host.rawPackets.length;
   lit[0].emissiveIntensity = -1;
@@ -948,8 +952,10 @@ test('capability failures are loud, transactional and name 1B', () => {
   renderer.render(scene, camera);
   assert.equal(host.rawPackets.length, 1, 'failed render must not poison sent caches');
   renderer.toneMapping = T.ACESFilmicToneMapping;
-  capability(() => renderer.render(scene, camera), 'toneMapping');
-  assert.equal(host.rawPackets.length, 1);
+  // Wave-3a: tone mappings are native R1 (frame u32) — ACES renders
+  // instead of failing loudly.
+  renderer.render(scene, camera);
+  assert.equal(host.rawPackets.length, 2);
 });
 
 test('dispose is idempotent, cancels RAF, releases resources/surface and advances generation', () => {
