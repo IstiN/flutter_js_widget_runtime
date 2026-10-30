@@ -399,8 +399,31 @@ class ThreeExampleApp extends StatefulWidget {
 }
 
 class _ThreeExampleAppState extends State<ThreeExampleApp> {
+  static const _autoMs = int.fromEnvironment('JSR_THREE_AUTO');
   ThreeExampleSelection _selection = ThreeExampleSelection.initial;
   ThreeExampleSelection? _pendingSelection;
+  Timer? _autoTimer;
+  int _autoIndex = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    if (_autoMs > 0) {
+      _autoTimer = Timer.periodic(Duration(milliseconds: _autoMs), (_) {
+        if (!mounted) return;
+        final order = ThreeExampleSelection.sidebarOrder;
+        _autoIndex = (_autoIndex + 1) % order.length;
+        debugPrint('AUTO switch -> ${order[_autoIndex].exampleId}');
+        _selectExample(order[_autoIndex]);
+      });
+    }
+  }
+
+  @override
+  void dispose() {
+    _autoTimer?.cancel();
+    super.dispose();
+  }
 
   void _selectExample(ThreeExampleSelection selection) {
     final displayedSelection = _pendingSelection ?? _selection;
@@ -546,6 +569,10 @@ class ThreeExamplePage extends StatefulWidget {
 }
 
 class _ThreeExamplePageState extends State<ThreeExamplePage> {
+  static const _switchLog = bool.fromEnvironment('JSR_SWITCH_LOG');
+  final Stopwatch _openSw = Stopwatch()..start();
+  bool _loggedSource = false;
+  bool _loggedFirstFrame = false;
   late final String _engineId = '${widget.selection.widgetId}-example';
   late final JsThreeHost _threeHost = kIsWeb
       ? createWebThreeHost(diagnosticsEnabled: true)
@@ -569,7 +596,15 @@ class _ThreeExamplePageState extends State<ThreeExamplePage> {
 
   Future<String> _loadSource() async {
     try {
-      return await rootBundle.loadString(widget.selection.assetPath);
+      final source = await rootBundle.loadString(widget.selection.assetPath);
+      if (_switchLog && !_loggedSource) {
+        _loggedSource = true;
+        debugPrint(
+          'SWITCH ${widget.selection.exampleId}: sourceLoaded='
+          '${_openSw.elapsedMilliseconds}ms bytes=${source.length}',
+        );
+      }
+      return source;
     } catch (error) {
       _showError(error);
       rethrow;
@@ -600,7 +635,16 @@ class _ThreeExamplePageState extends State<ThreeExamplePage> {
                       ?.diagnostics['presentedFrames'] ??
                   0)
               .toInt();
-      if (frames > 0 && _error == null) _ready = true;
+      if (frames > 0 && _error == null) {
+        _ready = true;
+        if (_switchLog && !_loggedFirstFrame) {
+          _loggedFirstFrame = true;
+          debugPrint(
+            'SWITCH ${widget.selection.exampleId}: firstFrame='
+            '${_openSw.elapsedMilliseconds}ms',
+          );
+        }
+      }
       _fpsSampler.sample(frames, DateTime.now());
       setState(() {});
     });

@@ -98,6 +98,9 @@ flutter:
     - widgets/three-raycaster-texture/
     - widgets/three-camera-logarithmicdepthbuffer/
     - widgets/three-instancing-performance/
+    - widgets/three-instancing-scatter/
+    - widgets/three-materials-matcap/
+    - widgets/three-materials-toon/
     - widgets/three-shadowmap-pointlight/
     - widgets/three-loader-xyz/
     - widgets/three-geometry-convex/

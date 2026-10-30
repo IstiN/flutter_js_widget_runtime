@@ -3,7 +3,6 @@ import 'dart:convert';
 import 'dart:isolate';
 
 import 'package:flutter/foundation.dart';
-
 import 'package:js_widget_runtime/src/defaults/vm_default_handlers.dart';
 import 'package:js_widget_runtime/src/model/js_runtime_config.dart';
 import 'package:js_widget_runtime/src/runtime/js_widget_bootstrap.dart';
@@ -12,6 +11,14 @@ import 'package:js_widget_runtime/src/runtime/js_widget_engine_backend.dart';
 import 'package:js_widget_runtime/src/runtime/quickjs_diagnostics.dart';
 import 'package:js_widget_runtime/src/runtime/quickjs_payload.dart';
 import 'package:quickjs_runtime/quickjs_runtime.dart';
+
+/// Compile-time switch logging (dart-define=JSR_SWITCH_LOG=1). Zero cost
+/// when absent; unlike kDebugMode it also works in Release/profile builds,
+/// which is where switch latency actually matters.
+const _kSwitchLog = bool.fromEnvironment('JSR_SWITCH_LOG');
+void _switchLog(String message) {
+  if (_kSwitchLog) debugPrint(message);
+}
 
 /// Creates an opt-in QuickJS backend whose JS runtime lives in an isolate.
 JsWidgetEngineBackend createQuickjsIsolateWidgetEngineBackend(
@@ -84,6 +91,8 @@ class QuickjsIsolateWidgetEngineBackend
   StreamSubscription<dynamic>? _exitSubscription;
   SendPort? _commands;
   Completer<SendPort>? _commandReady;
+  Future<void>? _shutdownInFlight;
+  bool _workerStopped = false;
   Completer<void>? _shutdown;
   final Map<int, Completer<void>> _pending = {};
   int _nextRequest = 0;
@@ -137,13 +146,12 @@ class QuickjsIsolateWidgetEngineBackend
         'debug': kDebugMode,
       });
       await request.value;
-      if (kDebugMode) {
-        debugPrint(
-          'JSBOOT main: dispose=${disposeMs}ms workerSpawn+evalAck='
-          '${runSw.elapsedMilliseconds - disposeMs}ms widgetBytes='
-          '${widgetJs.length}',
-        );
-      }
+      _switchLog(
+        'JSBOOT main id=${_config.instanceId ?? _config.widgetId}: '
+        'dispose=${disposeMs}ms workerSpawn+evalAck='
+        '${runSw.elapsedMilliseconds - disposeMs}ms widgetBytes='
+        '${widgetJs.length}',
+      );
       if (!_disposed && generation == _generation) {
         _config.onResolveReady?.call(_bridge.resolveCallback);
       }
@@ -232,27 +240,49 @@ class QuickjsIsolateWidgetEngineBackend
   /// stuck eval is recoverable (process exit), a corrupted registry is not.
   /// Root fix is an interrupt handler in quickjs_runtime (see memory).
   Future<void> _shutdownWorker() async {
+    // Idempotent: a second dispose() on an already-stopped backend must NOT
+    // send another 'shutdown' into the (exiting) isolate — the ack would
+    // never arrive and the 10s timeout would stall the global engine
+    // lifecycle gate (observed as the 10-second module switch hang).
+    if (_workerStopped) return;
+    if (_shutdownInFlight != null) return await _shutdownInFlight;
     final isolate = _isolate;
     final commands = _commands;
-    if (isolate != null && commands != null) {
-      final shutdown = Completer<void>();
-      _shutdown = shutdown;
-      commands.send(const {'type': 'shutdown'});
-      final acked = shutdown.future
-          .then((_) => true)
-          .timeout(const Duration(seconds: 10), onTimeout: () => false);
-      final ack = await acked;
-      if (ack == true) {
-        // The worker dequeued 'shutdown': it will run NO further evals, so
-        // the bridge can be disposed immediately. Its JS_FreeRuntime may
-        // still be unwinding on the worker thread — do NOT kill the
-        // isolate now (same mid-native-call hazard as killing mid-eval);
-        // it exits by itself once close() finishes.
-        return;
-      }
+    if (isolate == null || commands == null) return;
+    final done = _shutdownWorkerLocked(isolate, commands).then((_) {
+      _workerStopped = true;
+    });
+    _shutdownInFlight = done;
+    try {
+      await done;
+    } finally {
+      _shutdownInFlight = null;
+    }
+  }
+
+  Future<void> _shutdownWorkerLocked(Isolate isolate, SendPort commands) async {
+    final shutdown = Completer<void>();
+    _shutdown = shutdown;
+    final sw2 = Stopwatch()..start();
+    commands.send(const {'type': 'shutdown'});
+    final acked = shutdown.future
+        .then((_) => true)
+        .timeout(const Duration(seconds: 10), onTimeout: () => false);
+    final ack = await acked;
+    _switchLog(
+      'JSSHUT id=${_config.instanceId ?? _config.widgetId} '
+      'acked=$ack ms=${sw2.elapsedMilliseconds}',
+    );
+    if (ack == true) {
+      // The worker dequeued 'shutdown': it will run NO further evals, so
+      // the bridge can be disposed immediately. Its JS_FreeRuntime may
+      // still be unwinding on the worker thread — do NOT kill the
+      // isolate now (same mid-native-call hazard as killing mid-eval);
+      // it exits by itself once close() finishes.
+      return;
     }
     // Stuck worker (infinite JS loop): last-resort teardown.
-    isolate?.kill(priority: Isolate.immediate);
+    isolate.kill(priority: Isolate.immediate);
   }
 
   Future<SendPort> _startWorker() async {
@@ -533,9 +563,10 @@ ${raw['widget']}
 })();
 ''';
     _workerEval(runtime, code, '<js_widget_isolate>');
-    if (kDebugMode) {
+    if (kDebugMode || _kSwitchLog) {
       debugPrint(
-        'JSBOOT worker: runtimeCreate=${createMs}ms '
+        'JSBOOT worker id=${raw['instanceId']}: '
+        'runtimeCreate=${createMs}ms '
         'widgetEval=${sw.elapsedMilliseconds - createMs}ms',
       );
     }

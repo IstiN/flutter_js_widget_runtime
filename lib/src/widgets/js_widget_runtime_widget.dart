@@ -31,6 +31,9 @@ class JsWidgetRuntimeWidget extends StatefulWidget {
 }
 
 class _JsWidgetRuntimeWidgetState extends State<JsWidgetRuntimeWidget> {
+  /// dart-define=JSR_SWITCH_LOG=true — see the isolate backend for details.
+  static const _kRuntimeWidgetLog = bool.fromEnvironment('JSR_SWITCH_LOG');
+
   /// Serializes engine lifecycles ACROSS widget instances. dispose() is
   /// fire-and-forget from the framework, so a ValueKey remount (module
   /// switch) starts the NEXT engine while the previous isolate QuickJS
@@ -72,9 +75,16 @@ class _JsWidgetRuntimeWidgetState extends State<JsWidgetRuntimeWidget> {
     final engine = _engine;
     _engine = null;
     if (engine != null) {
-      _lifecycleGate = _lifecycleGate
-          .then((_) => engine.dispose())
+      final chained = _lifecycleGate
+          .then((_) async {
+            final sw = Stopwatch()..start();
+            await engine.dispose();
+            if (_kRuntimeWidgetLog) {
+              debugPrint('ENGDSP total=${sw.elapsedMilliseconds}ms');
+            }
+          })
           .catchError((Object _) {});
+      _lifecycleGate = chained;
       _lifecycleGateDone = Completer<void>();
       _lifecycleGate.whenComplete(() => _lifecycleGateDone.complete());
     }
@@ -87,7 +97,13 @@ class _JsWidgetRuntimeWidgetState extends State<JsWidgetRuntimeWidget> {
     // hop before the engine exists changes first-pump timing for hosts and
     // tests (keyboard focus claim, blur dispatch). Serialization only
     // matters when a previous lifecycle is ACTUALLY in flight.
-    if (!_lifecycleGateDone.isCompleted) await _lifecycleGate;
+    if (!_lifecycleGateDone.isCompleted) {
+      final sw = Stopwatch()..start();
+      await _lifecycleGate;
+      if (_kRuntimeWidgetLog) {
+        debugPrint('GATE waited=${sw.elapsedMilliseconds}ms');
+      }
+    }
     if (generation != _generation) return;
     final engine = JsWidgetEngine(
       config: widget.config.copyWith(
