@@ -84,6 +84,38 @@ void _bindThreeDrawUniforms(
     gradientBinding.texture,
     sampler: gradientBinding.sampler(),
   );
+  final normalBinding = backend._textureBinding(
+    draw.material.normalMapTextureId,
+  );
+  pass.bindTexture(
+    slots.normalMap,
+    normalBinding.texture,
+    sampler: normalBinding.sampler(),
+  );
+  final bumpBinding = backend._textureBinding(
+    draw.material.bumpMapTextureId,
+  );
+  pass.bindTexture(
+    slots.bumpMap,
+    bumpBinding.texture,
+    sampler: bumpBinding.sampler(),
+  );
+  final roughnessBinding = backend._textureBinding(
+    draw.material.roughnessMapTextureId,
+  );
+  pass.bindTexture(
+    slots.roughnessMap,
+    roughnessBinding.texture,
+    sampler: roughnessBinding.sampler(),
+  );
+  final metalnessBinding = backend._textureBinding(
+    draw.material.metalnessMapTextureId,
+  );
+  pass.bindTexture(
+    slots.metalnessMap,
+    metalnessBinding.texture,
+    sampler: metalnessBinding.sampler(),
+  );
 }
 
 gpu.BufferView _bindThreeUniform(
@@ -411,7 +443,12 @@ ByteData _threeMaterialUniform(ThreeDrawItem draw, [ThreeDrawPlan? plan]) {
     _threeBooleanFloat[material.alphaMapTextureId != 0]!,
     _threeBooleanFloat[material.envMapTextureId != 0]!,
     material.envMapIntensity,
-    0,
+    // w (R1 v6): bit 1 = tangentless normal map, bit 2 = derivative bump
+    // map (upstream picks normal mapping when both are present).
+    (material.normalMapTextureId != 0 ? 1.0 : 0.0) +
+        (material.bumpMapTextureId != 0 ? 2.0 : 0.0) +
+        (material.roughnessMapTextureId != 0 ? 4.0 : 0.0) +
+        (material.metalnessMapTextureId != 0 ? 8.0 : 0.0),
   ]);
   // three.js Matrix3.elements arrive column-major; each column is written
   // as one vec4 (w padding) so the shader rebuilds mat3(col0, col1, col2).
@@ -429,9 +466,11 @@ ByteData _threeMaterialUniform(ThreeDrawItem draw, [ThreeDrawPlan? plan]) {
   ]);
   _writeFloats(data, 208, [
     cubeEnv ? (envTexture!.height * 2).toDouble() : 0,
-    0,
-    0,
-    0,
+    // yz (R1 v6): per-axis normal-map scale.
+    material.normalScaleX,
+    material.normalScaleY,
+    // w (R1 v6): bump-map height scale.
+    material.bumpScale,
   ]);
   return data;
 }

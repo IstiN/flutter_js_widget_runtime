@@ -108,30 +108,24 @@ void main() {
       expect(ao['registered'], isTrue);
       expect(ao['bytes'] as int, greaterThan(700));
 
-      // init() threw at the cube env map load (official_module.js:135),
-      // which precedes initGui() and the Stats construction — so the GUI
-      // stays empty and every subsequent RAF tick dies on stats.begin()
-      // before any renderer.render() call.
+      // The CubeTextureLoader facade lane works now, so init() completes:
+      // the GUI mounts and Stats ticks. The remaining gap moved to the
+      // material texture family — every RAF render throws
+      // materialTexture (MeshStandardMaterial.aoMap) after stats.begin().
       final gui = exported['gui'] as Map<String, dynamic>;
-      expect(gui['controllers'], 0);
-      expect(gui['values'], isEmpty);
+      expect(gui['controllers'], 7);
+      expect(gui['values'], hasLength(7));
       final stats = exported['stats'] as Map<String, dynamic>;
-      expect(stats['begins'], 0);
-      expect(stats['ends'], 0);
-      expect(stats['frames'], 0);
+      expect(stats['begins'], greaterThan(0));
       expect((exported['renderer'] as Map<String, dynamic>)['frame'], 0);
 
-      // The mount envelope went out, then the standard error card with the
-      // exact facade message; later ticks re-render the stats TypeError.
+      // The mount envelope went out, then the standard capability card
+      // naming the aoMap slot (no more OffscreenCanvas facade error).
       expect(harness.renderTrees.first['type'], 'three');
       expect(
         harness.renderTrees.any((tree) => tree.toString().contains(
-            'local web textures require OffscreenCanvas')),
+            'materialTexture (MeshStandardMaterial.aoMap)')),
         isTrue,
-      );
-      expect(
-        harness.renderTrees.last.toString(),
-        contains("begin' of undefined"),
       );
       expect(harness.surface, isNull);
 

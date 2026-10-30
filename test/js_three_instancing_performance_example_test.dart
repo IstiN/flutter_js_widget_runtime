@@ -85,29 +85,31 @@ void main() {
     // has no host asset loader — the asset map is empty.
     expect(exported['assets'] as Map<String, dynamic>, isEmpty);
 
-    // The GUI root registered, then the FIRST add() threw: zero
-    // controllers on the stock lane.
+    // The bounded lil-gui facade supports options-map add() now (the
+    // dropdown lane), so init() completes: both official controllers
+    // register on the stock lane.
     final gui = exported['gui'] as Map<String, dynamic>;
     expect(gui['roots'], 1);
-    expect(gui['controllers'], 0);
-    expect((gui['values'] as List), isEmpty);
+    expect(gui['controllers'], 2);
+    expect((gui['values'] as List), hasLength(2));
 
     // The pinned failure card replaces the overlay; the animation loop
     // itself keeps rendering the empty white scene into the still-mounted
     // surface (renderer.frame counts the RAF ticks).
     expect(harness.renderTrees.first['type'], 'three');
     expect(harness.renderTrees.first['canvasId'], 'main');
-    const primaryCause =
-        'three.unsupported: lil-gui.add(1 options) is outside the bounded '
-        'native facade';
+    // The options-map gap is closed, but init() still dies one step later:
+    // the facade returns undefined for the next GUI chain call, so the
+    // pinned failure is now 'cannot read property add of undefined'.
+    const primaryCause = "cannot read property 'add' of undefined";
     final errorCards = harness.renderTrees
         .map((tree) => tree.toString())
         .where((tree) => tree.contains('Widget error'))
         .toList();
     expect(errorCards, isNotEmpty);
     expect(errorCards.first.contains(primaryCause), isTrue,
-        reason: 'the init-time lil-gui options-map card must be the first '
-            'failure; got ${errorCards.take(3)}');
+        reason: 'the next facade GUI gap must be the first failure; '
+            'got ${errorCards.take(3)}');
 
     // The animation loop itself keeps running on the stock lane: the JS
     // renderer counts real render() ticks even though the error card owns

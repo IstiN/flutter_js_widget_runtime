@@ -59,7 +59,7 @@ void main() {
 
   testWidgets(
       'webgl_raycaster_texture boots but dies in CircleTexture init on the '
-      'native lane (OffscreenCanvas img facade gap)', (tester) async {
+      'native lane (bounded Canvas2D clearRect gap)', (tester) async {
     // Part 1 — the unmodified widget: healthy boot, zero R1 submits.
     final harness = await ThreeQuickjsExampleHarness.boot(
       tester,
@@ -90,7 +90,10 @@ void main() {
     expect(harness.renderTrees, isNotEmpty);
     expect(harness.renderTrees.first['type'], 'three');
     expect(harness.renderTrees.first['canvasId'], 'main');
-    const primaryCause = 'local web textures require OffscreenCanvas';
+    // The facade serves the CircleTexture canvas now, so the first failure
+    // moved to the bounded Canvas2D profile's clearRect.
+    const primaryCause =
+        'example canvas clearRect is outside the bounded profile';
     final errorCards = harness.renderTrees
         .map((tree) => tree.toString())
         .where((tree) => tree.contains('Widget error'))
@@ -144,13 +147,10 @@ void main() {
     // The 1024x1024 canvas resize reached the native delegate (the
     // software-pixel fallback was never needed).
     expect(facts['canvas2dWidth'], 1024);
-    // The `<img>` factory guard is the exact throw site: reached and
-    // thrown, with the module id prefix from the facade.
-    expect(facts['imgGuardHit'], isTrue);
-    expect(facts['imgGuardWidget'], 'three-raycaster-texture');
-    // The official `_draw` body never ran: the constructor threw on the
-    // img factory BEFORE reaching clearRect/stroke.
-    expect(facts['drawCalls'], 0);
+    // The img-factory OffscreenCanvas guard is gone from the runtime, so
+    // the official `_draw` body now RUNS — and dies on the bounded
+    // Canvas2D clearRect (the Part-1 error card).
+    expect(facts['drawCalls'], greaterThan(0));
 
     await probe.dispose(tester);
   }, timeout: const Timeout(Duration(seconds: 180)));
@@ -215,25 +215,6 @@ String _raycasterProbeSource() {
         'globalThis.__JSR_PROBE.canvas2dNative=true,'
         'globalThis.__JSR_PROBE_EXPORT();'
         'return ${m[1]}(${m[2]},"main",{width:300,height:150})}',
-  );
-
-  // 2 — the img factory guard: `if(typeof <G>.OffscreenCanvas!="function")
-  //     throw new Error(`${<W>}: local web textures require OffscreenCanvas`);
-  //     ...`. Record + publish before the throw so the probe survives the
-  //     module abort; the statements after the guard stay untouched.
-  patchOnce(
-    'img OffscreenCanvas guard',
-    RegExp(
-      r'if\(typeof ([A-Za-z_$][\w$]*)\.OffscreenCanvas!="function"\)'
-      r'throw new Error\(`\$\{([A-Za-z_$][\w$]*)\}: local web textures '
-      r'require OffscreenCanvas`\);',
-    ),
-    (m) => 'if(typeof ${m[1]}.OffscreenCanvas!="function"){'
-        'globalThis.__JSR_PROBE.imgGuardHit=true,'
-        'globalThis.__JSR_PROBE.imgGuardWidget=String(${m[2]}),'
-        'globalThis.__JSR_PROBE_EXPORT();'
-        'throw new Error(`\$\{${m[2]}\}: local web textures require '
-        'OffscreenCanvas`)}',
   );
 
   // 3 — the official 1024x1024 canvas resize inside the CircleTexture

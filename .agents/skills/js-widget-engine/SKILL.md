@@ -297,6 +297,13 @@ point-light shadows through the dual-paraboloid map (per-light v5 tail);
 `webgl_materials_matcap` / `webgl_materials_toon` run stock on the new
 matcap/ton material kinds (EXR decode is pure JS feeding data textures;
 the toon OutlineEffect is bounded — exact GLSL outlines stay web-lane).
+Wave-4 (R1 v6): stock normal/bump maps (`MeshPhongMaterial.bumpMap` /
+`normalMap`, `MeshStandardMaterial.normalMap`) — tangent-less
+`perturbNormalArb` dFdx/dFdy math + normalScale flipY; `webgl_materials_normalmap`
+runs stock via a local-only EffectComposer/RenderPass render-to-screen shim
+(no intermediate targets); specularMap is dropped with a warning.
+MeshStandardMaterial roughness/metalness map slots close the stock
+webgl_lights_physical floor (all seven textures attach).
 Remaining wave-2 gaps: `webgl_materials_texture_filters`
 (`Texture.clone()` canvas2d source), `webgl_materials_texture_anisotropy`
 (DOM overlay + GIF lane; getMaxAnisotropy is real since wave-3),

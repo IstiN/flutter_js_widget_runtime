@@ -2,7 +2,7 @@ import { checkedU32 } from './errors.js';
 import { utf8 } from './runtime.js';
 
 export const T1_VERSION = 1;
-export const R1_VERSION = 5;
+export const R1_VERSION = 6;
 export const STREAM_R1 = 1;
 export const MAX_ENVELOPE = 64 * 1024 * 1024;
 export const OPCODE = Object.freeze({
@@ -156,7 +156,7 @@ export const TEXTURE_FLAG_CUBE = 0x80;
 
 export const MATERIAL_CLIP_FLAGS = Object.freeze({ intersection: 1, shadows: 2 });
 
-export function materialCommand(id, version, kind, mapId, flags, side, color, opacity, roughness, metalness, alphaTest, pointSize, specular = null, shininess = 0, emissive = null, emissiveIntensity = 1, clipId = 0, clipFlags = 0, textureSlots = null, v5Slots = null) {
+export function materialCommand(id, version, kind, mapId, flags, side, color, opacity, roughness, metalness, alphaTest, pointSize, specular = null, shininess = 0, emissive = null, emissiveIntensity = 1, clipId = 0, clipFlags = 0, textureSlots = null, v5Slots = null, v6Slots = null) {
   if ((kind === 5) !== (specular !== null)) throw new Error('three.invalid: Phong material requires exactly one specular payload');
   if (emissive !== null && kind !== 1 && kind !== 2 && kind !== 5 && kind !== 8) throw new Error('three.invalid: emissive payload requires a lit mesh material');
   if (!Number.isInteger(clipId) || clipId < 0) throw new Error('three.invalid: material clip id');
@@ -172,7 +172,10 @@ export function materialCommand(id, version, kind, mapId, flags, side, color, op
   }
   const tail = v5Slots || { matcapId: 0, gradientMapId: 0, rotation: 0 };
   if (!Number.isFinite(tail.rotation)) throw new Error('three.invalid: material sprite rotation must be finite');
-  const body = new ByteWriter(164 + (specular ? 16 : 0) + (emissive ? 16 : 0));
+  const normal = v6Slots || { normalMapId: 0, normalScaleX: 1, normalScaleY: 1, bumpMapId: 0, bumpScale: 1, roughnessMapId: 0, metalnessMapId: 0 };
+  if (!Number.isFinite(normal.normalScaleX) || !Number.isFinite(normal.normalScaleY)) throw new Error('three.invalid: material normalScale must be finite');
+  if (!Number.isFinite(normal.bumpScale)) throw new Error('three.invalid: material bumpScale must be finite');
+  const body = new ByteWriter(192 + (specular ? 16 : 0) + (emissive ? 16 : 0));
   body.u32(id);
   body.u32(version);
   body.u32(kind);
@@ -201,6 +204,16 @@ export function materialCommand(id, version, kind, mapId, flags, side, color, op
   body.u32(tail.gradientMapId);
   body.f32(tail.rotation);
   body.u32(0);
+  // v6 tail: tangentless normal-map texture id and the XY normal scale,
+  // then the derivative bump-map texture id and its height scale.
+  body.u32(normal.normalMapId);
+  body.f32(normal.normalScaleX);
+  body.f32(normal.normalScaleY);
+  body.u32(normal.bumpMapId);
+  body.f32(normal.bumpScale);
+  // v6 PBR factor maps: roughness (G) and metalness (B) multipliers.
+  body.u32(normal.roughnessMapId);
+  body.u32(normal.metalnessMapId);
   if (specular) {
     body.f32(specular.r);
     body.f32(specular.g);

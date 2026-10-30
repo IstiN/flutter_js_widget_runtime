@@ -30,6 +30,12 @@ uniform sampler2D gradientMapTexture;
 uniform sampler2D matcapTexture;
 uniform sampler2D pointShadowFrontTexture;
 uniform sampler2D pointShadowBackTexture;
+// R1 v6 tangent-space normal map (derivative TBN, no tangent attributes)
+// and the derivative bump map sharing the same UV lane.
+uniform sampler2D normalMapTexture;
+uniform sampler2D bumpMapTexture;
+uniform sampler2D roughnessMapTexture;
+uniform sampler2D metalnessMapTexture;
 
 uniform FrameInfo {
   vec4 cameraPositionExposure;
@@ -459,6 +465,17 @@ void main() {
     return;
   }
 
+  int detailMaps = int(material_info.alphaEnvIntensity.w + 0.5);
+  // R1 v6 PBR factor maps (upstream roughnessmap/metalnessmap_fragment):
+  // roughness comes from the G channel, metalness from the B channel.
+  float roughnessFactor = material_info.roughnessMetalnessAlphaTestKind.x;
+  float metalnessFactor = material_info.roughnessMetalnessAlphaTestKind.y;
+  if ((detailMaps & 4) != 0) {
+    roughnessFactor *= texture(roughnessMapTexture, textureUv).g;
+  }
+  if ((detailMaps & 8) != 0) {
+    metalnessFactor *= texture(metalnessMapTexture, textureUv).b;
+  }
   vec4 albedo = material_info.colorOpacity * instanceDiffuse;
   if (material_info.vertexColorsFlatShadingHasMapReserved.x > 0.5) {
     albedo *= vertexColor;
@@ -515,6 +532,40 @@ void main() {
     }
     if (!gl_FrontFacing) {
       n = -n;
+    }
+    if ((detailMaps & 1) != 0) {
+      // R1 v6 tangentless normal mapping (upstream normal_fragment_maps
+      // without tangent attributes): build the derivative TBN around the
+      // world-space normal; lighting below already runs in world space.
+      // The map samples the plain UV lane (no per-normal-map UV matrix).
+      vec3 mapN = texture(normalMapTexture, textureUv).xyz * 2.0 - 1.0;
+      mapN.xy *= material_info.atlasParams.yz;
+      vec3 q0 = dFdx(worldPosition);
+      vec3 q1 = dFdy(worldPosition);
+      vec2 st0 = dFdx(textureUv);
+      vec2 st1 = dFdy(textureUv);
+      float det = st0.x * st1.y - st1.x * st0.y;
+      vec3 T = q0 * st1.y - q1 * st0.y;
+      if (abs(det) > 1e-12 && dot(T, T) > 1e-12) {
+        T = normalize(T);
+        vec3 B = -normalize(cross(n, T));
+        n = normalize(mat3(T, B, n) * mapN);
+      }
+    } else if ((detailMaps & 2) != 0) {
+      // R1 v6 derivative bump mapping (upstream bumpmap_pars_fragment
+      // perturbNormalArb, world space): height gradients tilt the normal
+      // against the surface derivative frame.
+      float height = texture(bumpMapTexture, textureUv).x;
+      vec2 dH = vec2(dFdx(height), dFdy(height)) * material_info.atlasParams.w;
+      vec3 sigmaX = dFdx(worldPosition);
+      vec3 sigmaY = dFdy(worldPosition);
+      vec3 R1 = cross(sigmaY, n);
+      vec3 R2 = cross(n, sigmaX);
+      float fDet = dot(sigmaX, R1);
+      if (abs(fDet) > 1e-12) {
+        vec3 vGrad = sign(fDet) * (dH.x * R1 + dH.y * R2);
+        n = normalize(abs(fDet) * n - vGrad);
+      }
     }
     vec3 v = normalize(frame_info.cameraPositionExposure.xyz - worldPosition);
     vec3 baseColor = albedo.rgb;
@@ -608,10 +659,8 @@ void main() {
         }
       }
     } else {
-      float roughness = clamp(
-          material_info.roughnessMetalnessAlphaTestKind.x, 0.045, 1.0);
-      float metalness = clamp(
-          material_info.roughnessMetalnessAlphaTestKind.y, 0.0, 1.0);
+      float roughness = clamp(roughnessFactor, 0.045, 1.0);
+      float metalness = clamp(metalnessFactor, 0.0, 1.0);
       vec3 f0 = mix(vec3(0.04), baseColor, metalness);
       vec3 ambientF = fresnelSchlick(max(dot(n, v), 0.0), f0);
       color = baseColor * (1.0 - ambientF) * (1.0 - metalness) *
@@ -678,8 +727,7 @@ void main() {
         ? texture(envMapTexture, cubeAtlasUv(reflectVec)).rgb
         : texture(envMapTexture, equirectUv(reflectVec)).rgb;
     color += envColor * material_info.alphaEnvIntensity.z *
-        (1.0 - clamp(material_info.roughnessMetalnessAlphaTestKind.x,
-                     0.0, 1.0));
+        (1.0 - clamp(roughnessFactor, 0.0, 1.0));
   }
   color *= frame_info.cameraPositionExposure.w;
   color = applyToneMapping(color);

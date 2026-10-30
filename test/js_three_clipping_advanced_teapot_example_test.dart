@@ -119,26 +119,15 @@ void main() {
     await harness.dispose(tester);
   }, timeout: const Timeout(Duration(seconds: 120)));
 
-  testWidgets('webgl_geometry_teapot still aborts on the pisa cube load '
-      '(unshimmed CubeTextureLoader); everything else renders', (
+  testWidgets('webgl_geometry_teapot boots the pisa cube loader and renders '
+      'the glossy teapot (CubeTextureLoader + envMap slots supported)', (
     tester,
   ) async {
-    // Documented two-layer gap, layer 1 pinned on the unmodified widget:
-    // the six pisa cube faces ship as embedded registered assets, but the
-    // native bundle only replaces TextureLoader/FileLoader
-    // (tool/three/src/native_three_shim.js:4) — upstream CubeTextureLoader
-    // still creates one <img> per face, and the wrapper's img path throws
-    // `three-geometry-teapot: local web textures require OffscreenCanvas`
-    // (tool/three_example/example_adapter.js:189) because the QuickJS host
-    // exposes no OffscreenCanvas. init() aborts at official_module.js:71,
-    // before setupGui() and before the module's single render() call.
-    //
-    // Layer 2 (latent, NOT reachable while layer 1 stands): the reflective
-    // shading option needs the cube texture as MeshPhongMaterial.envMap,
-    // which sits in the rejected materialTexture slots list
-    // (lib/src/renderer/nodes/three/native_renderer.js:200) — so even with
-    // a cube loader shim, the 'reflective' material would be rejected until
-    // envMap slots are supported.
+    // Both documented layers are CLOSED on the unmodified widget: the
+    // CubeTextureLoader facade lane decodes the six embedded pisa faces
+    // (no OffscreenCanvas needed) and the envMap material slot binds them,
+    // so init() completes and the glossy teapot renders. Part 2 keeps the
+    // loader-stubbed control proving the envMap is the only external input.
     final harness = await ThreeQuickjsExampleHarness.boot(
       tester,
       widgetId: 'three-geometry-teapot',
@@ -169,21 +158,28 @@ void main() {
           reason: '$url must be embedded');
     }
 
-    // init() dies at the cube load: GUI never registers and no frame is
-    // ever submitted (this module has no animation loop).
+    // Both historic layers are closed: the CubeTextureLoader facade lane
+    // decodes the six pisa faces and the envMap material slot binds them,
+    // so the stock module completes init(), registers all seven official
+    // GUI controllers and submits real frames for the glossy teapot.
+    await harness.pumpUntil(
+      tester,
+      (state, plan) =>
+          state.geometryUploadCount > 0 &&
+          plan.draws.isNotEmpty &&
+          state.submittedFrameCount >= 1,
+    );
     final gui = exported['gui'] as Map<String, dynamic>;
-    expect(gui['roots'], 0);
-    expect(gui['controllers'], 0);
+    expect(gui['roots'], 1);
+    expect(gui['controllers'], 7);
     expect(harness.renderTrees.first['type'], 'three');
     expect(harness.renderTrees.first['canvasId'], 'main');
+    expect(harness.surface, isNotNull);
+    expect(harness.plan!.draws, hasLength(1));
     expect(
-      harness.renderTrees.map((tree) => tree.toString()).join('\n'),
-      contains('Widget error: three-geometry-teapot: local web textures '
-          'require OffscreenCanvas'),
+      harness.plan!.draws.single.material.kind,
+      JsThreeMaterialKind.meshPhong,
     );
-    expect(harness.surface, isNull);
-    expect((exported['renderer'] as Map<String, dynamic>)['frame'], 0);
-    expect((exported['stats'] as Map<String, dynamic>)['begins'], 0);
     await harness.dispose(tester);
 
     // Proof that layer 1 is the ONLY boot blocker: the same widget with

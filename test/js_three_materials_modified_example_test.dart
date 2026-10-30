@@ -163,8 +163,8 @@ String _modifiedProbeSource() {
   ).readAsStringSync();
   source = source
       .replaceAll(
-        'function On(i){let e=new sn;return e.onBeforeCompile=',
-        'function On(i){let e=new sn;'
+        'function Bn(i){let e=new on;return e.onBeforeCompile=',
+        'function Bn(i){let e=new on;'
         'console.log("JSR_TWIST amount="+i+" type="+e.type);'
         'return e.onBeforeCompile=',
       )
@@ -174,13 +174,13 @@ String _modifiedProbeSource() {
         'console.log("JSR_GLB head geometry parsed");',
       )
       .replaceAll(
-        'function Er(){gr(),Nt.update()}',
-        'function Er(){console.log("JSR_ANIM meshes="+pe.children.length)'
-        ',gr(),Nt.update()}',
+        'function Er(){xr(),Ot.update()}',
+        'function Er(){console.log("JSR_ANIM meshes="+de.children.length)'
+        ',xr(),Ot.update()}',
       )
       .replaceAll(
-        'K.render(pe,re)',
-        '(function(){try{K.render(pe,re)}catch(e){console.error('
+        'X.render(de,re)',
+        '(function(){try{X.render(de,re)}catch(e){console.error('
         '"JSR_RENDERFAIL code="+e.code+" feature="+e.feature'
         '+" msg="+e.message)}})()',
       );

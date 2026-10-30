@@ -15,7 +15,8 @@ import 'support/widget_logic_helper.dart';
 /// feeding a `MeshBasicMaterial({map})` on a stock `BoxGeometry`, animated by
 /// `mesh.rotation.x += 0.005; mesh.rotation.y += 0.01` inside
 /// `renderer.setAnimationLoop`. It is also the first wave-2 consumer of the
-/// NEW `image/gif` asset lane (crate.gif, 67585 bytes, embedded base64).
+/// NEW `image/gif` asset lane (crate.gif, 119768 bytes, embedded base64;
+/// the pinned three.js asset ships PNG bytes under the historic .gif name).
 ///
 /// Verdict — RENDER-WITH-GAP. The scene graph, geometry, material and the
 /// RAF rotation loop are fully healthy (1 draw, 36 indices, matrices drifting
@@ -41,8 +42,9 @@ void main() {
     return;
   }
 
-  testWidgets('webgl_geometry_cube renders the rotating box but the crate.gif '
-      'texture lane never binds', (tester) async {
+  testWidgets('webgl_geometry_cube renders the rotating textured box: the '
+      'crate.gif asset carries PNG bytes and binds through the texture lane',
+      (tester) async {
     final harness = await ThreeQuickjsExampleHarness.boot(
       tester,
       widgetId: 'three-geometry-cube',
@@ -64,7 +66,7 @@ void main() {
     final assets = exported['assets'] as Map<String, dynamic>;
     final crate = assets['textures/crate.gif'] as Map<String, dynamic>;
     expect(crate['registered'], isTrue);
-    expect(crate['bytes'], 67585);
+    expect(crate['bytes'], 119768);
     // No GUI in this official module.
     expect((exported['gui'] as Map<String, dynamic>)['controllers'], 0);
 
@@ -85,11 +87,12 @@ void main() {
     expect(draw.material.colorG, closeTo(1, 0.001));
     expect(draw.material.colorB, closeTo(1, 0.001));
 
-    // THE GAP: the GIF texture never decoded, so the material upsert has
-    // no bound texture and the texture lane never uploaded anything.
-    expect(draw.material.mapTextureId, 0);
-    expect(state.textureUploadCount, 0);
-    expect(state.textures, isEmpty);
+    // The crate.gif asset is PNG-encoded (three.js ships PNG bytes under
+    // the historic .gif name), so the PNG/JPEG/raw gate accepts it: the
+    // material upsert binds the decoded texture and the lane uploads it.
+    expect(draw.material.mapTextureId, greaterThan(0));
+    expect(state.textureUploadCount, 1);
+    expect(state.textures, hasLength(1));
 
     // The RAF loop is alive and the official animate() rotation increments
     // reach the wire: the mesh matrixWorld drifts between samples.
@@ -118,8 +121,8 @@ void main() {
     await harness.dispose(tester);
   }, timeout: const Timeout(Duration(seconds: 180)));
 
-  testWidgets('crate.gif probe: the texture loader rejects GIF bytes with the '
-      'PNG/JPEG/raw gate while every RAF render succeeds', (tester) async {
+  testWidgets('crate.gif probe: the PNG-encoded asset loads without an '
+      'onError while every RAF render succeeds', (tester) async {
     // State-flag probe (no log scraping): an onError callback is appended to
     // the unique texture load call and the animate loop's render call is
     // routed through a counting wrapper. Findings land on
@@ -131,13 +134,11 @@ void main() {
     );
     final report = await _awaitProbe(probe, tester) ?? const <String, dynamic>{};
 
-    // The registered GIF asset reached JsrTextureLoader and the runtime's
-    // format gate rejected it — the exact pinned failure.
-    expect(report['gifErrors'], 1);
-    expect(
-      report['gifMessage'],
-      contains('only PNG, JPEG, or registered raw RGBA8 bytes are supported'),
-    );
+    // The registered asset reaches JsrTextureLoader and decodes as PNG —
+    // no onError fires (the historic GIF-rejection gap closed when the
+    // pinned three.js asset switched to PNG bytes).
+    expect(report['gifErrors'], 0);
+    expect(report['gifMessage'], 'unreached');
 
     // The rest of the pipeline is healthy: the official animate() ran and
     // every renderer.render() succeeded on the untextured fallback.
@@ -145,12 +146,12 @@ void main() {
     expect(report['renderErrors'], 0);
     expect(report['renderOk'] as int? ?? 0, greaterThan(10));
 
-    // And the probe surface mirrors the unmodified widget: frames submitted,
-    // zero texture uploads.
+    // And the probe surface mirrors the unmodified widget: frames submitted
+    // with the decoded crate texture uploaded.
     final state = probe.state;
     expect(state, isNotNull);
     expect(state!.submittedFrameCount, greaterThan(10));
-    expect(state.textureUploadCount, 0);
+    expect(state.textureUploadCount, 1);
 
     await probe.dispose(tester);
   }, timeout: const Timeout(Duration(seconds: 180)));
@@ -169,7 +170,7 @@ Future<Map<String, dynamic>?> _awaitProbe(
     final probeState = exported?['probe'];
     if (probeState is Map) {
       latest = probeState.cast<String, dynamic>();
-      if ((latest['gifErrors'] as int? ?? 0) > 0 &&
+      if ((latest['renderOk'] as int? ?? 0) > 10 &&
           (latest['animateCalls'] as int? ?? 0) > 10) {
         return latest;
       }

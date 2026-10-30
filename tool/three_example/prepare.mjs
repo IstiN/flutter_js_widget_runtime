@@ -695,6 +695,92 @@ webgl_loader_ply: {
 `
     }
   },
+  webgl_materials_normalmap: {
+    id: 'three-materials-normalmap',
+    directory: 'three-materials-normalmap',
+    name: 'Materials Normalmap — three.js r186',
+    description: 'Unmodified official webgl_materials_normalmap module on the JSR THREE R1/WebGL2 runtime.',
+    icon: '📐',
+    expected: {
+      html: '60d920cef908de10d41e946cf0b28c3ff8dff431e310274ba0626f3307983d3b',
+      module: '5d8f60caec18ee59f03b595c6905c5a8a224522f37fa26f95a5611b9437680f4'
+    },
+    assets: [
+          {
+                "url": "models/gltf/LeePerrySmith/Map-COL.jpg",
+                "mime": "image/jpeg",
+                'output': 'Map-COL.jpg',
+      "sha256": "e976d73b31407f8d0967412bf468019ed26a5d5a32cf5811aabff7e816458a65"
+          },
+          {
+                "url": "models/gltf/LeePerrySmith/Map-SPEC.jpg",
+                "mime": "image/jpeg",
+                'output': 'Map-SPEC.jpg',
+      "sha256": "cbb96b60e355b804d9b6c7338372d13ec8cc7adf664f50a00a3d32c66afd293a"
+          },
+          {
+                "url": "models/gltf/LeePerrySmith/Infinite-Level_02_Tangent_SmoothUV.jpg",
+                "mime": "image/jpeg",
+                'output': 'Infinite-Level_02_Tangent_SmoothUV.jpg',
+      "sha256": "36925e51ad9b324b94e8faf4692da1b4132809f2762bb8d5bd549ffd215d4ca6"
+          },
+          {
+                "url": "models/gltf/LeePerrySmith/LeePerrySmith.glb",
+                "mime": "model/gltf-binary",
+                'output': 'LeePerrySmith.glb',
+      "sha256": "402b8a8ac9f03232e6d64b5962929703a069daf99d3c49ac8eb0e48bedc9c576"
+          }
+    ],
+    // R1 v6 renders the real tangentless normal map; specularMap stays 1B
+    // and is peeled once with a warning (upstream bytes stay pinned).
+    facadeWraps: {
+      MeshPhongMaterial: `Base => {
+        let warned = false;
+        return class extends Base {
+          constructor(params) {
+            if (params && params.specularMap) {
+              const peeled = Object.assign({}, params);
+              delete peeled.specularMap;
+              if (!warned) {
+                warned = true;
+                console.warn('three-materials-normalmap: R1 drops MeshPhongMaterial.specularMap (unsupported); normal mapping kept.');
+              }
+              super(peeled);
+            } else {
+              super(params);
+            }
+          }
+        };
+      }`
+    },
+    // The postprocessing chain (bleach/color correction/FXAA) needs
+    // arbitrary ShaderMaterial, outside R1: render the scene directly
+    // through the composer facade instead of failing every frame.
+    addonShims: {
+      'three/addons/postprocessing/EffectComposer.js': `export class EffectComposer {
+  constructor(renderer) { this.renderer = renderer; this.scene = null; this.camera = null; }
+  addPass(pass) {
+    if (pass && pass.scene && pass.camera) { this.scene = pass.scene; this.camera = pass.camera; }
+  }
+  render() { if (this.scene && this.camera) this.renderer.render(this.scene, this.camera); }
+  setSize() {}
+  setPixelRatio() {}
+}
+`,
+      'three/addons/postprocessing/RenderPass.js': `export class RenderPass {
+  constructor(scene, camera) { this.scene = scene; this.camera = camera; this.enabled = true; }
+}
+`,
+      'three/addons/postprocessing/ShaderPass.js': `export class ShaderPass {
+  constructor(shader) { this.uniforms = shader && shader.uniforms ? shader.uniforms : {}; this.enabled = true; }
+}
+`,
+      'three/addons/postprocessing/FXAAPass.js': `export class FXAAPass { constructor() { this.enabled = true; } }
+`,
+      'three/addons/postprocessing/OutputPass.js': `export class OutputPass { constructor() { this.enabled = true; } }
+`
+    }
+  },
   webgl_materials_bumpmap: {
     id: 'three-materials-bumpmap',
     directory: 'three-materials-bumpmap',

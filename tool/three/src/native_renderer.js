@@ -248,11 +248,28 @@ function validateMaterial(material) {
   if (Object.prototype.hasOwnProperty.call(material, 'onBeforeCompile')) unsupported('onBeforeCompile', 'arbitrary shaders require 1B');
   // alphaMap, envMap (R1 v4), matcap and gradientMap (R1 v5) ride the
   // material texture slots; the rest of the upstream map family stays 1B.
-  const maps = ['aoMap', 'bumpMap', 'displacementMap', 'emissiveMap', 'lightMap', 'metalnessMap', 'normalMap', 'roughnessMap', 'specularMap', 'clearcoatMap', 'transmissionMap'];
+  const maps = ['aoMap', 'displacementMap', 'emissiveMap', 'lightMap', 'specularMap', 'clearcoatMap', 'transmissionMap'];
   for (const name of maps) if (material[name]) unsupported('materialTexture', `${material.type}.${name}`);
   if (material.envMap && !(material.isMeshBasicMaterial || material.isMeshLambertMaterial ||
       (material.isMeshStandardMaterial && !material.isMeshPhysicalMaterial) || material.isMeshPhongMaterial)) {
     unsupported('materialTexture', `${material.type}.envMap`);
+  }
+  // R1 v6: tangentless (derivative TBN) normal mapping on the lit mesh
+  // materials; explicit tangent attributes stay outside the profile.
+  if ((material.normalMap || material.bumpMap) && !(material.isMeshLambertMaterial || material.isMeshPhongMaterial ||
+      (material.isMeshStandardMaterial && !material.isMeshPhysicalMaterial))) {
+    unsupported('materialTexture', `${material.type}.normalMap/bumpMap`);
+  }
+  if (material.bumpMap && !Number.isFinite(material.bumpScale)) {
+    throw new Error('three.invalid: material bumpScale must be finite');
+  }
+  if ((material.roughnessMap || material.metalnessMap) &&
+      !(material.isMeshStandardMaterial && !material.isMeshPhysicalMaterial)) {
+    unsupported('materialTexture', `${material.type}.roughnessMap/metalnessMap`);
+  }
+  if (material.normalMap && material.normalScale &&
+      (!Number.isFinite(material.normalScale.x) || !Number.isFinite(material.normalScale.y))) {
+    throw new Error('three.invalid: material normalScale must be finite');
   }
   if (material.matcap && !material.isMeshMatcapMaterial) unsupported('materialTexture', `${material.type}.matcap`);
   if (material.gradientMap && !material.isMeshToonMaterial) unsupported('materialTexture', `${material.type}.gradientMap`);
@@ -712,6 +729,13 @@ export class JsrWebGLRenderer {
     const envMapId = this._ensureTexture(material.envMap || null, commands, 'envMap');
     const matcapId = material.isMeshMatcapMaterial ? this._ensureTexture(material.matcap || null, commands, 'matcap') : (material.matcap ? unsupported('materialTexture', `${material.type}.matcap`) : 0);
     const gradientMapId = material.isMeshToonMaterial ? this._ensureTexture(material.gradientMap || null, commands, 'gradientMap') : (material.gradientMap ? unsupported('materialTexture', `${material.type}.gradientMap`) : 0);
+    const normalMapId = this._ensureTexture(material.normalMap || null, commands, 'map');
+    const normalScaleX = material.normalMap && material.normalScale ? material.normalScale.x : 1;
+    const normalScaleY = material.normalMap && material.normalScale ? material.normalScale.y : 1;
+    const bumpMapId = this._ensureTexture(material.bumpMap || null, commands, 'map');
+    const bumpScale = material.bumpMap && material.bumpScale !== undefined ? material.bumpScale : 1;
+    const roughnessMapId = this._ensureTexture(material.roughnessMap || null, commands, 'map');
+    const metalnessMapId = this._ensureTexture(material.metalnessMap || null, commands, 'map');
     const spriteRotation = material.isSpriteMaterial ? material.rotation : 0;
     if (spriteRotation && !Number.isFinite(spriteRotation)) throw new Error('three.invalid: material sprite rotation must be finite');
     const mapUvMatrix = uvTransformElements(material.map || null);
@@ -747,12 +771,13 @@ export class JsrWebGLRenderer {
       emissive ? emissive.r : 0, emissive ? emissive.g : 0, emissive ? emissive.b : 0, emissiveIntensity, material.version,
       clip.signature, clip.flags, alphaMapId, envMapId, envMapIntensity,
       mapUvMatrix ? mapUvMatrix.join(',') : 'I', alphaMapUvMatrix ? alphaMapUvMatrix.join(',') : 'I',
-      matcapId, gradientMapId, spriteRotation].join('|');
+      matcapId, gradientMapId, spriteRotation, normalMapId, normalScaleX, normalScaleY, bumpMapId, bumpScale, roughnessMapId, metalnessMapId].join('|');
     const changed = this._nextVersion(this._state.materials, id, signature);
     if (changed) {
       commands.push(materialCommand(id, changed.version, kind, mapId, flags, side, color, opacity, roughness, metalness, alphaTest, pointSize, specular, shininess, emissive, emissiveIntensity, clip.id, clip.flags,
         { alphaMapId, envMapId, envMapIntensity, mapUvMatrix, alphaMapUvMatrix },
-        { matcapId, gradientMapId, rotation: spriteRotation }));
+        { matcapId, gradientMapId, rotation: spriteRotation },
+        { normalMapId, normalScaleX, normalScaleY, bumpMapId, bumpScale, roughnessMapId, metalnessMapId }));
       this._mapSet(this._state.materials, id, { signature, version: changed.version, object: material });
     }
     this._frameMaterials.set(id, id);

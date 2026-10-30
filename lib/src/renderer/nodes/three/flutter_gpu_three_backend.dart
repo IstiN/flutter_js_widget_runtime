@@ -668,6 +668,10 @@ final class _ThreeUniformSlots {
     this.gradientMap,
     this.pointShadowFront,
     this.pointShadowBack,
+    this.normalMap,
+    this.bumpMap,
+    this.roughnessMap,
+    this.metalnessMap,
   );
 
   final gpu.UniformSlot frame;
@@ -683,6 +687,10 @@ final class _ThreeUniformSlots {
   final gpu.UniformSlot gradientMap;
   final gpu.UniformSlot pointShadowFront;
   final gpu.UniformSlot pointShadowBack;
+  final gpu.UniformSlot normalMap;
+  final gpu.UniformSlot bumpMap;
+  final gpu.UniformSlot roughnessMap;
+  final gpu.UniformSlot metalnessMap;
 }
 
 _GpuGeometry? _threeGeometryForDraw(
@@ -746,6 +754,10 @@ final class _ThreeFrameEncoder {
       backend._fragmentShader.getUniformSlot('gradientMapTexture'),
       backend._fragmentShader.getUniformSlot('pointShadowFrontTexture'),
       backend._fragmentShader.getUniformSlot('pointShadowBackTexture'),
+      backend._fragmentShader.getUniformSlot('normalMapTexture'),
+      backend._fragmentShader.getUniformSlot('bumpMapTexture'),
+      backend._fragmentShader.getUniformSlot('roughnessMapTexture'),
+      backend._fragmentShader.getUniformSlot('metalnessMapTexture'),
     );
     final frameUniform = _bindThreeUniform(
       backend,
@@ -875,20 +887,8 @@ final class _ThreeFrameEncoder {
     int face,
   ) {
     final pass = command.createRenderPass(_pointShadowFaceTarget(face));
-    pass
-      ..bindPipeline(backend._pointShadowPipeline!)
-      ..setViewport(
-        gpu.Viewport(
-          width: frame.shadowMapWidth,
-          height: frame.shadowMapHeight,
-        ),
-      )
-      ..setWindingOrder(gpu.WindingOrder.counterClockwise)
-      ..setPrimitiveType(gpu.PrimitiveType.triangle)
-      ..setDepthCompareOperation(gpu.CompareFunction.lessEqual)
-      ..setDepthWriteEnable(true)
-      ..setColorBlendEnable(false)
-      ..setCullMode(gpu.CullMode.none);
+    _configureShadowPass(pass, backend._pointShadowPipeline!, frame);
+    pass.setCullMode(gpu.CullMode.none);
     final vertexSlot = backend._vertexShader.getUniformSlot('VertexInfo');
     final materialSlot = backend._pointShadowFragmentShader!
         .getUniformSlot('MaterialInfo');
@@ -1002,7 +1002,16 @@ final class _ThreeFrameEncoder {
         ),
       ),
     );
-    return pass
+    _configureShadowPass(pass, pipeline, frame);
+    return pass;
+  }
+
+  void _configureShadowPass(
+    gpu.RenderPass pass,
+    gpu.RenderPipeline pipeline,
+    JsThreeSubmitFrame frame,
+  ) {
+    pass
       ..bindPipeline(pipeline)
       ..setViewport(
         gpu.Viewport(

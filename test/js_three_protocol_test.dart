@@ -1467,7 +1467,7 @@ void main() {
       }
       _bad(() => _decoder.decodeR1(Uint8List.fromList([...valid, 0])));
       _bad(() => _decoder.decodeR1(_r1(const [], version: 0)));
-      _bad(() => _decoder.decodeR1(_r1(const [], version: 6)));
+      _bad(() => _decoder.decodeR1(_r1(const [], version: 7)));
       _bad(() => _decoder.decodeR1(_r1(const [], flags: 1)));
       _bad(() => _decoder.decodeR1(_r1(const [], commandCount: 100001)));
       _bad(() => _decoder.decodeR1(_r1([(13, Uint8List(0))])));

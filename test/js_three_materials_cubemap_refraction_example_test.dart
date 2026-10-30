@@ -58,8 +58,8 @@ void main() {
   }
 
   testWidgets(
-      'webgl_materials_cubemap_refraction dies at boot on the unshimmed '
-      'CubeTextureLoader img path (OffscreenCanvas facade gap)',
+      'webgl_materials_cubemap_refraction boots through the CubeTextureLoader '
+      'lane but every frame throws the CubeRefractionMapping textureMapping gap',
       (tester) async {
     // Part 1 — the unmodified widget: synchronous init() death.
     final harness = await ThreeQuickjsExampleHarness.boot(
@@ -73,8 +73,8 @@ void main() {
     expect(exported['example'], 'webgl_materials_cubemap_refraction');
     expect(exported['backend'], 'flutterGpu');
     expect(exported['canvasCount'], 1);
-    // init() died before the renderer canvas was appended.
-    expect(exported['mounted'], isFalse);
+    // The CubeTextureLoader facade lane works now, so the canvas mounts.
+    expect(exported['mounted'], isTrue);
     // The PLY statue asset ships embedded — but none of the six Park3Med
     // cube faces do (layer-2 gap: an OffscreenCanvas shim alone would hit
     // `unregistered image URL textures/cube/Park3Med/px.jpg` next).
@@ -90,15 +90,15 @@ void main() {
         reason: 'textures/cube/Park3Med/$face.jpg must not be embedded',
       );
     }
-    // The exact boot-death string from the facade img shim — NOT a
-    // three.unsupported capability error.
+    // The remaining gap is the refraction env mapping itself: every RAF
+    // render throws textureMapping — CubeRefractionMapping stays a
+    // documented web-lane entry (CubeReflectionMapping is supported).
     expect(
       harness.renderTrees.last.toString(),
-      contains('Widget error: three-materials-cubemap-refraction: local web '
-          'textures require OffscreenCanvas'),
+      contains('textureMapping'),
     );
-    final allTrees = harness.renderTrees.map((tree) => tree.toString());
-    expect(allTrees.join('\n'), isNot(contains('three.unsupported')));
+    // The canvas mounted but no frame ever submits (the textureMapping
+    // throw precedes the first surface attach).
     expect(harness.surface, isNull);
     expect((exported['renderer'] as Map<String, dynamic>)['frame'], 0);
     expect((exported['stats'] as Map<String, dynamic>)['updates'], 0);

@@ -21,7 +21,7 @@ import 'support/widget_logic_helper.dart';
 ///   element (`<canvas id="drawing-canvas">`, original.html:30) that the
 ///   prepared facade never synthesizes — `tool/three_example/prepare.mjs`
 ///   only feeds inline `<script id>` blocks to `getElementById`. The module
-///   throws `cannot read property 'getContext' of null` during init, while
+///   throws `not a function` on the bounded Canvas2D facade during init, while
 ///   the already-mounted R1 surface keeps rendering the (untextured) box:
 ///   the interactive paint path would additionally need the bounded
 ///   Canvas2D profile to grow `moveTo`/`lineTo`/`stroke`.
@@ -44,8 +44,8 @@ void main() {
   }
 
   testWidgets(
-    'webgl_materials_bumpmap boots assets and GUI but every frame throws '
-    'the bumpMap materialTexture gap',
+    'webgl_materials_bumpmap renders the Lee Perry head with the v6 '
+    'bumpMap slot bound',
     (tester) async {
       final harness = await ThreeQuickjsExampleHarness.boot(
         tester,
@@ -55,11 +55,8 @@ void main() {
       await harness.pumpUntil(
         tester,
         (state, plan) =>
-            harness.renderTrees.any(
-              (tree) => tree.toString().contains('materialTexture'),
-            ) ||
-            harness.renderTrees.length > 4,
-        attempts: 120,
+            state.submittedFrameCount >= 1 && plan.draws.isNotEmpty,
+        attempts: 400,
       );
 
       // Boot facts from the module: both offline assets register (the
@@ -93,16 +90,18 @@ void main() {
       expect(values[1]['property'], 'bumpScale');
       expect(values[1]['value'], 10);
 
-      // The GLB geometry loaded (the mesh exists) but the Phong material's
-      // bumpMap slot is R1-unsupported: the standard error card carries the
-      // exact capability text and no R1 frame was ever submitted.
-      final errorCard = harness.renderTrees.last.toString();
-      expect(errorCard, contains('three.unsupported: materialTexture'));
-      expect(errorCard, contains('(MeshPhongMaterial.bumpMap)'));
-      expect(errorCard, contains('native R1 does not provide this capability'));
-      expect(harness.surface, isNull);
-      expect((exported['renderer'] as Map<String, dynamic>)['frame'], 0);
-      expect((exported['stats'] as Map<String, dynamic>)['updates'], 0);
+      // Wave-4 (R1 v6): the Phong bumpMap slot binds the decoded
+      // displacement jpg and real frames submit — no capability card.
+      expect(harness.surface, isNotNull);
+      expect(harness.plan!.draws, isNotEmpty);
+      expect(
+        harness.plan!.draws.any(
+          (draw) => draw.material.bumpMapTextureId > 0,
+        ),
+        isTrue,
+        reason: 'the v6 bumpMap texture slot must bind on the GLB head',
+      );
+      expect(harness.state!.submittedFrameCount, greaterThanOrEqualTo(1));
 
       await harness.dispose(tester);
     },
@@ -129,13 +128,13 @@ void main() {
     expect(exported['assets'], isEmpty);
     expect((exported['gui'] as Map<String, dynamic>)['controllers'], 0);
 
-    // setupCanvasDrawing() runs after init() and dies on the facade:
-    // getElementById('drawing-canvas') is null because the drawing canvas
-    // is declared only in the official HTML, which the facade does not
-    // synthesize.
+    // setupCanvasDrawing() runs after init() and dies on the bounded
+    // Canvas2D facade: the drawing canvas element is stubbed now (no more
+    // null getElementById), so the failure moved to the first real 2D
+    // context call — a plain 'not a function' TypeError.
     final errorCard = harness.renderTrees.last.toString();
     expect(errorCard, contains('Widget error:'));
-    expect(errorCard, contains("getContext' of null"));
+    expect(errorCard, contains('not a function'));
 
     // The renderer was already mounted before the throw, so the R1
     // surface stays alive: the BoxGeometry(200,200,200) and its

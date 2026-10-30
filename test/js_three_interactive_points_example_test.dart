@@ -81,12 +81,12 @@ void main() {
     ).readAsStringSync();
     source = source
         .replaceAll(
-          'function et(){tt(),_e.update()}',
-          'function et(){console.log("JSR_ANIM");tt(),_e.update()}',
+          'function tt(){rt(),le.update()}',
+          'function tt(){console.log("JSR_ANIM");rt(),le.update()}',
         )
         .replaceAll(
-          'I.render(pe,N)}})();',
-          '(function(){try{return I.render(pe,N)}catch(e){console.error('
+          'v.render(_e,N)}})();',
+          '(function(){try{return v.render(_e,N)}catch(e){console.error('
           '"JSR_RENDERFAIL code="+e.code+" feature="+e.feature'
           '+" msg="+e.message)}})()}})();'
           'console.log("JSR_GLOBALS createImageBitmap="'

@@ -100,6 +100,7 @@ flutter:
     - widgets/three-instancing-performance/
     - widgets/three-instancing-scatter/
     - widgets/three-materials-matcap/
+    - widgets/three-materials-normalmap/
     - widgets/three-materials-toon/
     - widgets/three-shadowmap-pointlight/
     - widgets/three-loader-xyz/

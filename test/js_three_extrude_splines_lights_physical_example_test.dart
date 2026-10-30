@@ -221,9 +221,8 @@ void main() {
   }, timeout: const Timeout(Duration(seconds: 120)));
 
   testWidgets(
-      'webgl_lights_physical renders with Reinhard tone mapping until the '
-      'bump/roughness/metalness map slots attach (wave-3 tone lane + '
-      'remaining materialTexture gap)', (tester) async {
+      'webgl_lights_physical renders with Reinhard tone mapping and the v6 '
+      'bump/roughness/metalness map slots attached', (tester) async {
     // The official module sets `renderer.toneMapping = THREE
     // .ReinhardToneMapping` (init) and re-asserts `toneMappingExposure =
     // Math.pow(params.exposure, 5.0)` on every animate() tick.
@@ -236,21 +235,17 @@ void main() {
     // (anisotropy clamps to the native sampler maximum of exactly 1 like
     // upstream; repeat composes the R1 v4 map UV transform).
     //
-    // The REMAINING blocker is the extra material texture family:
-    // bumpMap/roughnessMap/metalnessMap stay outside the R1 material kinds
-    // (tool/three/src/native_renderer.js validateMaterial — wave-3 shipped
-    // only alphaMap + envMap slots). init() completes, the GUI mounts and
-    // the scene renders (Reinhard frames submit) until the 7 embedded JPEGs
-    // decode and the async callbacks attach MeshStandardMaterial.bumpMap —
-    // then every later render throws materialTexture.
+    // Wave-4 (R1 v6) closed the extra material texture family:
+    // bumpMap/roughnessMap/metalnessMap bind through the new material
+    // slots, so the stock module sustains rendering with all 7 embedded
+    // JPEGs attached.
     //
     // Part 1 — the stock widget: GUI fully mounted, Reinhard frames
-    // submitted, then the materialTexture error card per tick.
-    // Part 2 — R1-legal probe (only the three map-slot assignments inert):
-    // sustained rendering with the module's OWN ReinhardToneMapping, the
-    // exposure GUI controller live-switched through callEvent, and a
-    // deterministic renderer.toneMapping flip Reinhard -> ACES -> Neutral
-    // observed in the frame plan.
+    // submitted, v6 map slots bound on the standard-material floor.
+    // Part 2 — stock probe with only a deterministic tick-counted tone
+    // flip injected: the module's OWN ReinhardToneMapping, the exposure
+    // GUI controller live-switched through callEvent, and a renderer
+    // .toneMapping flip Reinhard -> ACES -> Neutral observed in the plan.
 
     // Part 1 — the unmodified widget.
     final harness = await ThreeQuickjsExampleHarness.boot(
@@ -258,17 +253,30 @@ void main() {
       widgetId: 'three-lights-physical',
       instanceId: 'three-lights-physical-test',
     );
-    // The module init completes and the first animation tick throws the
-    // remaining map-slot gap (the embedded JPEGs attach before the first
-    // render): stock R1 still cannot sustain this module.
-    for (var attempt = 0; attempt < 20; attempt++) {
-      await harness.pumpFrame(tester);
-    }
+    // Wave-4 (R1 v6) closed the remaining map-slot gap: the stock module
+    // now sustains rendering with bump/roughness/metalness maps attached.
+    await harness.pumpUntil(
+      tester,
+      (state, plan) =>
+          state.submittedFrameCount >= 2 &&
+          plan.draws.isNotEmpty &&
+          state.textureUploadCount >= 7,
+      attempts: 400,
+    );
+    final plan = harness.plan!;
+    expect(plan.draws, isNotEmpty);
+    // The standard-material floor binds the v6 roughness/metalness/bump
+    // slots (no materialTexture error card anymore).
     expect(
-      harness.renderTrees.last.toString(),
-      contains('materialTexture (MeshStandardMaterial.bumpMap)'),
-      reason: 'the remaining documented gap is the bump/roughness/metalness '
-          'material texture family, not tone mapping',
+      plan.draws.any(
+        (draw) =>
+            draw.material.bumpMapTextureId > 0 ||
+            draw.material.roughnessMapTextureId > 0 ||
+            draw.material.metalnessMapTextureId > 0,
+      ),
+      isTrue,
+      reason: 'v6 bump/roughness/metalness slots must bind on the stock '
+          'lights_physical floor material',
     );
     final exported = harness.engine.exportedState!;
     expect(exported['example'], 'webgl_lights_physical');
@@ -298,36 +306,22 @@ void main() {
 
     await harness.dispose(tester);
 
-    // Part 2 — R1-legal probe: the module's own tone mapping + exposure
-    // kept INTACT (minified anchors from the current prepared bundle),
-    // only the three unsupported map-slot assignments made inert, plus a
-    // deterministic tick-counted tone mode flip injected into animate().
+    // Part 2 — stock probe: the module's own tone mapping + exposure kept
+    // INTACT, plus a deterministic tick-counted tone mode flip injected
+    // into animate().
     var source = File(
       'example/widgets/three-lights-physical/widget.js',
     ).readAsStringSync();
-    source = source
-        .replaceAll(
-          'function ni(){T.toneMappingExposure=',
-          'function ni(){T.toneMappingExposure=',
-        )
-        .replaceAll(
-          '.bumpMap=h,',
-          '.userDataBumpMap=h,',
-        )
-        .replaceAll('.roughnessMap=h,', '.userDataRoughnessMap=h,')
-        .replaceAll('.metalnessMap=h,', '.userDataMetalnessMap=h,')
-        // Inject a tick-counted mode flip: Reinhard(2) for the first 15
-        // ticks, ACESFilmic(4) until tick 30, Neutral(7) afterwards — the
-        // upstream tone mapping constant VALUES, valid R1 modes.
-        .replaceAll(
-          'function ni(){T.toneMappingExposure=Math.pow(F.exposure,5)',
-          'function ni(){globalThis.__jsrTickCount=(globalThis.__jsrTickCount'
-          '||0)+1,T.toneMapping=globalThis.__jsrTickCount<15?2:'
-          '(globalThis.__jsrTickCount<30?4:7),T.toneMappingExposure='
-          'Math.pow(F.exposure,5)',
-        );
-    expect(source.contains('.bumpMap=h,'), isFalse);
-    expect(source.contains('function ni(){globalThis.__jsrTickCount'), isTrue,
+    // Wave-4: the map slots are supported, so no inert-ing is needed —
+    // the probe only injects the deterministic tone-mode flip.
+    source = source.replaceAll(
+      'function pi(){T.toneMappingExposure=Math.pow(F.exposure,5)',
+      'function pi(){globalThis.__jsrTickCount=(globalThis.__jsrTickCount'
+      '||0)+1,T.toneMapping=globalThis.__jsrTickCount<15?2:'
+      '(globalThis.__jsrTickCount<30?4:7),T.toneMappingExposure='
+      'Math.pow(F.exposure,5)',
+    );
+    expect(source.contains('function pi(){globalThis.__jsrTickCount'), isTrue,
         reason: 'the tone mode flip anchor must apply');
 
     final probe = await ThreeQuickjsExampleHarness.bootSource(

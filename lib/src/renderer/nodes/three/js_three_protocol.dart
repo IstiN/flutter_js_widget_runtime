@@ -312,6 +312,13 @@ final class JsThreeMaterialUpsert extends JsThreeCommand {
     required this.matcapTextureId,
     required this.gradientMapTextureId,
     required this.spriteRotation,
+    this.normalMapTextureId = 0,
+    this.normalScaleX = 1.0,
+    this.normalScaleY = 1.0,
+    this.bumpMapTextureId = 0,
+    this.bumpScale = 1.0,
+    this.roughnessMapTextureId = 0,
+    this.metalnessMapTextureId = 0,
   }) : super._(3);
 
   final int materialId;
@@ -367,6 +374,19 @@ final class JsThreeMaterialUpsert extends JsThreeCommand {
 
   /// SpriteMaterial rotation in radians (R1 v5), zero for non-sprites.
   final double spriteRotation;
+
+  /// R1 v6 tangentless normal-map texture (zero unset) and XY scale.
+  final int normalMapTextureId;
+  final double normalScaleX;
+  final double normalScaleY;
+
+  /// R1 v6 derivative bump-map texture (zero unset) and its height scale.
+  final int bumpMapTextureId;
+  final double bumpScale;
+
+  /// R1 v6 PBR factor-map textures (zero unset): roughness G / metalness B.
+  final int roughnessMapTextureId;
+  final int metalnessMapTextureId;
 
   bool get hasAlphaMap => alphaMapTextureId != 0;
   bool get hasEnvMap => envMapTextureId != 0;
@@ -675,7 +695,7 @@ final class JsThreeProtocolDecoder {
 
   static const int t1HeaderBytes = 32;
   static const int r1HeaderBytes = 12;
-  static const int latestR1Version = 5;
+  static const int latestR1Version = 6;
   static const int defaultMaxEnvelopeBytes = 64 * 1024 * 1024;
   static const int maxEncodedTextureBytes = 64 * 1024 * 1024;
   static const int maxCommandCount = 100000;
@@ -1017,6 +1037,18 @@ final class JsThreeProtocolDecoder {
       >= 5 => _materialV5Tail(body, kind),
       _ => (matcapTextureId: 0, gradientMapTextureId: 0, spriteRotation: 0.0),
     };
+    final v6 = switch (streamVersion) {
+      >= 6 => _materialV6Tail(body, kind),
+      _ => (
+          normalMapTextureId: 0,
+          normalScaleX: 1.0,
+          normalScaleY: 1.0,
+          bumpMapTextureId: 0,
+          bumpScale: 1.0,
+          roughnessMapTextureId: 0,
+          metalnessMapTextureId: 0,
+        ),
+    };
     final phong = _phongMaterial(body, kind);
     final emissive = _emissiveMaterial(body, kind);
     return JsThreeMaterialUpsert._(
@@ -1052,6 +1084,52 @@ final class JsThreeProtocolDecoder {
       matcapTextureId: v5.matcapTextureId,
       gradientMapTextureId: v5.gradientMapTextureId,
       spriteRotation: v5.spriteRotation,
+      normalMapTextureId: v6.normalMapTextureId,
+      normalScaleX: v6.normalScaleX,
+      normalScaleY: v6.normalScaleY,
+      bumpMapTextureId: v6.bumpMapTextureId,
+      bumpScale: v6.bumpScale,
+      roughnessMapTextureId: v6.roughnessMapTextureId,
+      metalnessMapTextureId: v6.metalnessMapTextureId,
+    );
+  }
+
+  /// Decodes the R1 v6 material tail: tangentless normal-map texture id and
+  /// the per-axis normal scale (only lit mesh materials may carry one).
+  ({
+    int normalMapTextureId,
+    double normalScaleX,
+    double normalScaleY,
+    int bumpMapTextureId,
+    double bumpScale,
+    int roughnessMapTextureId,
+    int metalnessMapTextureId,
+  }) _materialV6Tail(_Reader body, JsThreeMaterialKind kind) {
+    final normalMapTextureId = body.u32('material normal map texture id');
+    final normalScaleX = body.finiteFloat('material normal scale x');
+    final normalScaleY = body.finiteFloat('material normal scale y');
+    final bumpMapTextureId = body.u32('material bump map texture id');
+    final bumpScale = body.finiteFloat('material bump scale');
+    final roughnessMapTextureId = body.u32('material roughness map texture id');
+    final metalnessMapTextureId = body.u32('material metalness map texture id');
+    if ((roughnessMapTextureId != 0 || metalnessMapTextureId != 0) &&
+        kind != JsThreeMaterialKind.meshStandard) {
+      body.fail('roughness/metalness maps require a standard material');
+    }
+    if ((normalMapTextureId != 0 || bumpMapTextureId != 0) &&
+        kind != JsThreeMaterialKind.meshLambert &&
+        kind != JsThreeMaterialKind.meshPhong &&
+        kind != JsThreeMaterialKind.meshStandard) {
+      body.fail('normal/bump map requires a lit mesh material');
+    }
+    return (
+      normalMapTextureId: normalMapTextureId,
+      normalScaleX: normalScaleX,
+      normalScaleY: normalScaleY,
+      bumpMapTextureId: bumpMapTextureId,
+      bumpScale: bumpScale,
+      roughnessMapTextureId: roughnessMapTextureId,
+      metalnessMapTextureId: metalnessMapTextureId,
     );
   }
 

@@ -229,21 +229,33 @@ List<ThreeDrawItem> _autoInstanceOpaqueDraws(
   return result;
 }
 
+const _meshMaterialKinds = {
+  JsThreeMaterialKind.meshBasic,
+  JsThreeMaterialKind.meshLambert,
+  JsThreeMaterialKind.meshStandard,
+  JsThreeMaterialKind.meshPhong,
+  JsThreeMaterialKind.meshNormal,
+  JsThreeMaterialKind.meshTon,
+  JsThreeMaterialKind.meshMatcap,
+  JsThreeMaterialKind.shadow,
+};
+
+const _autoInstanceMaterialKinds = {
+  JsThreeMaterialKind.meshBasic,
+  JsThreeMaterialKind.meshLambert,
+  JsThreeMaterialKind.meshStandard,
+  JsThreeMaterialKind.meshPhong,
+  JsThreeMaterialKind.meshTon,
+  JsThreeMaterialKind.meshMatcap,
+};
+
 bool _eligibleAutoInstanceDraw(ThreeDrawItem draw) =>
     draw.batch == null &&
     draw.primitive == ThreeDrawPrimitive.triangles &&
     !draw.transparent &&
     !draw.wireframe &&
     draw.node.objectKind != JsThreeObjectKind.sprite &&
-    switch (draw.material.kind) {
-      JsThreeMaterialKind.meshBasic ||
-      JsThreeMaterialKind.meshLambert ||
-      JsThreeMaterialKind.meshStandard ||
-      JsThreeMaterialKind.meshPhong ||
-      JsThreeMaterialKind.meshTon ||
-      JsThreeMaterialKind.meshMatcap => true,
-      _ => false,
-    };
+    _autoInstanceMaterialKinds.contains(draw.material.kind);
 
 bool _sameAutoInstanceState(
   ThreeDrawItem a,
@@ -287,8 +299,21 @@ bool _sameMaterialTextureSlots(JsThreeMaterialUpsert x, JsThreeMaterialUpsert y)
       x.envMapIntensity == y.envMapIntensity &&
       x.matcapTextureId == y.matcapTextureId &&
       x.gradientMapTextureId == y.gradientMapTextureId &&
+      _sameNormalBumpPbrSlots(x, y) &&
       _sameUvMatrix(x.mapUvMatrix, y.mapUvMatrix) &&
       _sameUvMatrix(x.alphaMapUvMatrix, y.alphaMapUvMatrix);
+}
+
+/// R1 v6 normal/bump/PBR slots: identical ids and scale factors are
+/// required before two draws may merge into one auto-instance run.
+bool _sameNormalBumpPbrSlots(JsThreeMaterialUpsert x, JsThreeMaterialUpsert y) {
+  return x.normalMapTextureId == y.normalMapTextureId &&
+      x.normalScaleX == y.normalScaleX &&
+      x.normalScaleY == y.normalScaleY &&
+      x.bumpMapTextureId == y.bumpMapTextureId &&
+      x.bumpScale == y.bumpScale &&
+      x.roughnessMapTextureId == y.roughnessMapTextureId &&
+      x.metalnessMapTextureId == y.metalnessMapTextureId;
 }
 
 /// Byte-equality over the 9-float column-major UV transform: auto-instanced
@@ -873,6 +898,10 @@ final class ThreeDrawPlanner {
       ('envMap', material.envMapTextureId),
       ('matcap', material.matcapTextureId),
       ('gradientMap', material.gradientMapTextureId),
+      ('normalMap', material.normalMapTextureId),
+      ('bumpMap', material.bumpMapTextureId),
+      ('roughnessMap', material.roughnessMapTextureId),
+      ('metalnessMap', material.metalnessMapTextureId),
     ]) {
       if (id != 0 && !context.state.textures.containsKey(id)) {
         context.diagnostics.missingResourceCount++;
@@ -914,15 +943,7 @@ final class ThreeDrawPlanner {
     JsThreeObjectKind.sprite =>
       // SpriteMaterial rides the unlit meshBasic shading path (R1 v5).
       material == JsThreeMaterialKind.meshBasic,
-    JsThreeObjectKind.mesh =>
-      material == JsThreeMaterialKind.meshBasic ||
-          material == JsThreeMaterialKind.meshLambert ||
-          material == JsThreeMaterialKind.meshStandard ||
-          material == JsThreeMaterialKind.meshPhong ||
-          material == JsThreeMaterialKind.meshNormal ||
-          material == JsThreeMaterialKind.meshTon ||
-          material == JsThreeMaterialKind.meshMatcap ||
-          material == JsThreeMaterialKind.shadow,
+    JsThreeObjectKind.mesh => _meshMaterialKinds.contains(material),
     JsThreeObjectKind.line => material == JsThreeMaterialKind.lineBasic,
     JsThreeObjectKind.points => material == JsThreeMaterialKind.pointsBasic,
   };

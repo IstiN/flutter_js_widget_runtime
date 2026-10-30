@@ -131,15 +131,15 @@ void main() {
       'example/widgets/three-materials-partialupdate/widget.js',
     ).readAsStringSync();
     final copyNeedle =
-        'Ge(N),R.copyTextureToTexture(N,F,null,z)),R.render(\$,b)}';
+        'Fe(U),y.copyTextureToTexture(U,F,null,\$)),y.render(K,w)}';
     expect(copyNeedle.allMatches(source), hasLength(1));
     source = source.replaceAll(
       copyNeedle,
-      'Ge(N),(function(){try{return R.copyTextureToTexture(N,F,null,z)}'
+      'Fe(U),(function(){try{return y.copyTextureToTexture(U,F,null,\$)}'
       'catch(e){console.error("JSR_COPYFAIL typeof="'
-      '+(typeof R.copyTextureToTexture)+" name="+e.name'
+      '+(typeof y.copyTextureToTexture)+" name="+e.name'
       '+" msg="+e.message);throw e}})()),'
-      'R.render(\$,b),console.log("JSR_FRAME")}',
+      'y.render(K,w),console.log("JSR_FRAME")}',
     );
     final probe = await ThreeQuickjsExampleHarness.bootSource(
       tester,

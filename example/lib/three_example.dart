@@ -277,6 +277,12 @@ enum ThreeExampleSelection {
     widgetId: 'three-materials-matcap',
     assetPath: 'widgets/three-materials-matcap/widget.js',
   ),
+  materialsNormalmap(
+    exampleId: 'webgl_materials_normalmap',
+    label: 'Normal Map Material',
+    widgetId: 'three-materials-normalmap',
+    assetPath: 'widgets/three-materials-normalmap/widget.js',
+  ),
   materialsToon(
     exampleId: 'webgl_materials_toon',
     label: 'Toon Material (gradient map)',
@@ -353,6 +359,7 @@ enum ThreeExampleSelection {
     sprites,
     raycasterSprite,
     materialsMatcap,
+    materialsNormalmap,
     materialsToon,
     extrudeShapes,
     ..._launchOrder,

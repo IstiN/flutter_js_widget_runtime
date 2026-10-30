@@ -194,16 +194,16 @@ void main() {
     ).readAsStringSync();
     source = source
         .replaceAll(
-          'function ye(){D.update();',
-          'function ye(){console.log("JSR_ANIM");D.update();',
+          'function Ae(){I.update();',
+          'function Ae(){console.log("JSR_ANIM");I.update();',
         )
         .replaceAll(
-          'I.morphTargetInfluences[0]=Math.abs(Math.sin(Ee)),'
-              'A.render(Q,v),J.update()}',
-          '(function(){try{return A.render(Q,v)}catch(e)'
+          'v.morphTargetInfluences[0]=Math.abs(Math.sin(xe)),'
+              'F.render(Y,P),Q.update()}',
+          '(function(){try{return F.render(Y,P)}catch(e)'
               '{console.error("JSR_RENDERFAIL code="+e.code'
               '+" feature="+e.feature+" msg="+e.message)}})()'
-              ',J.update()}',
+              ',Q.update()}',
         );
     final probe = await ThreeQuickjsExampleHarness.bootSource(
       tester,
@@ -227,10 +227,14 @@ void main() {
     ).readAsStringSync();
     source = source
         .replaceAll(
-          'new H(a,3)),Ae(t),t.computeBoundingSphere()',
-          'new H(a,3)),t.computeBoundingSphere()',
+          'new k(a,3)),Fe(r),r.computeBoundingSphere()',
+          'new k(a,3)),r.computeBoundingSphere()',
         )
-        .replaceAll('I.morphTargetInfluences[0]=Math.abs(Math.sin(Ee)),', '');
+        .replaceAll('v.morphTargetInfluences[0]=Math.abs(Math.sin(xe)),', '');
+    source = source.replaceAll(
+      'F.render(Y,P),Q.update()}',
+      '(function(){try{return F.render(Y,P)}catch(e){console.error("DEMORPHFAIL "+e.code+" "+e.message)}})(),Q.update()}',
+    );
     final clean = await ThreeQuickjsExampleHarness.bootSource(
       tester,
       source: source,

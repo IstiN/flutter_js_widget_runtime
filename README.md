@@ -418,6 +418,17 @@ JS and feeds R1 data textures; `webgl_materials_matcap` and
 the bounded lane), and data + cube textures (`DataTexture` uploads,
 `CubeTexture` bounded to `CubeReflectionMapping`; `CubeRefractionMapping`
 stays a documented web-lane entry).
+Wave-4 (R1 protocol v6) adds the normal/bump-map fragment lane: stock
+`MeshPhongMaterial.bumpMap`/`normalMap` and `MeshStandardMaterial.normalMap`
+upload through dedicated v6 map slots and shade through the three.js
+tangent-less `perturbNormalArb` dFdx/dFdy math (normalScale sign flip
+included), so `webgl_materials_normalmap` runs stock — its
+EffectComposer/RenderPass chain resolves to a local-only render-to-screen
+composer shim (no intermediate render targets). `MeshPhongMaterial.specularMap`
+is deliberately dropped with a console warning (normal mapping kept).
+`MeshStandardMaterial` also gained roughness/metalness map slots, so the
+stock `webgl_lights_physical` floor now renders with all seven embedded
+textures attached (the wave-3 tone lane stays intact).
 Wave-2 gap modules, each pinned by a dedicated regression test (the
 sprite pair graduated with R1 v5 — their tests now pin the working sprite
 lane instead of the gap): `webgl_materials_texture_filters` (`Texture.clone()`
