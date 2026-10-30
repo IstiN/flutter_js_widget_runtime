@@ -240,6 +240,19 @@ void main() {
       expect(emptyPlan.diagnostics.warnings, isEmpty);
     });
 
+    test('rejects malformed batch shapes with scoped diagnostics', () {
+      // Bare-mesh node carrying direct resources: rejected by the batch
+      // shape validation (invalidBatchCount warning, no draws).
+      final resourced = _Fixture.basic()
+        ..geometry(1)
+        ..batch(5, geometryId: 9);
+      final resourcedPlan = const ThreeDrawPlanner().plan(resourced.state());
+      expect(resourcedPlan.draws, isEmpty);
+      expect(resourcedPlan.diagnostics.warnings, isNotEmpty);
+      expect(resourcedPlan.diagnostics.warnings.first, contains('5'));
+
+    });
+
     test('auto-instances the 200-mesh Orthographic shape into one draw', () {
       final fixture = _Fixture.basic()..geometry(1);
       for (var index = 0; index < 200; index++) {
@@ -569,7 +582,7 @@ void main() {
         expect(plan.hemisphereLights.single.groundColorR, 0.75);
 
         final frame = debugThreeFrameUniform(plan);
-        expect(frame.lengthInBytes, 96);
+        expect(frame.lengthInBytes, 112);
         expect(frame.getFloat32(32, Endian.little), 0);
         expect(frame.getFloat32(36, Endian.little), 0);
         expect(frame.getFloat32(40, Endian.little), 1);
@@ -843,7 +856,7 @@ void main() {
       expect(shadowVertex.getFloat32(196, Endian.little), 1);
 
       final frame = debugThreeFrameUniform(plan);
-      expect(frame.lengthInBytes, 96);
+      expect(frame.lengthInBytes, 112);
       expect(frame.getFloat32(80, Endian.little), closeTo(-0.0001, 1e-6));
       expect(frame.getFloat32(84, Endian.little), 1 / 2048);
       expect(frame.getFloat32(88, Endian.little), 1 / 2048);
@@ -1116,13 +1129,19 @@ final class _Fixture {
     int version = 1,
     int instanceCount = 1,
     bool instanced = false,
+    int geometryId = 0,
     List<(int, int, int, int)> parts = const [(1, 1, 0, 3)],
     List<double>? matrices,
   }) {
     commands.add(
       _command(
         4,
-        _node(id, parentId: parentId, objectKind: JsThreeObjectKind.mesh),
+        _node(
+          id,
+          parentId: parentId,
+          geometryId: geometryId,
+          objectKind: JsThreeObjectKind.mesh,
+        ),
       ),
     );
     commands.add(

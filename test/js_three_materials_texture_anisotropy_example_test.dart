@@ -47,8 +47,9 @@ void main() {
     return;
   }
 
-  testWidgets('webgl_materials_texture_anisotropy dies on the boot-time '
-      'capabilities.getMaxAnisotropy TypeError before mounting', (tester) async {
+  testWidgets('webgl_materials_texture_anisotropy dies on the #val_left '
+      'DOM overlay innerHTML write (getMaxAnisotropy is real since wave-3)',
+      (tester) async {
     final harness = await ThreeQuickjsExampleHarness.boot(
       tester,
       widgetId: 'three-materials-texture-anisotropy',
@@ -77,14 +78,18 @@ void main() {
     expect(harness.renderTrees, hasLength(1));
     final errorCard = harness.renderTrees.single.toString();
     expect(errorCard, contains('Widget error:'));
-    expect(errorCard, contains('not a function'));
+    // Wave-3 shipped capabilities.getMaxAnisotropy (returns the native
+    // sampler maximum), so the module now dies one statement later: its
+    // HUD overlay writes document.getElementById('val_left').innerHTML,
+    // and the facade DOM serves no #val_left span.
+    expect(errorCard, contains("cannot set property 'innerHTML' of null"));
 
     await harness.dispose(tester);
   }, timeout: const Timeout(Duration(seconds: 180)));
 
-  testWidgets('anisotropy probe: getMaxAnisotropy is undefined on R1 and '
-      'the module then stacks the facade-label, GIF-lane and '
-      'textureTransform gaps', (tester) async {
+  testWidgets('anisotropy probe: getMaxAnisotropy reports the native clamp '
+      '(1) and the module renders both scenes once the DOM overlay and GIF '
+      'lane gaps are probed (wave-3 removed textureTransform)', (tester) async {
     // State-flag probe (no log scraping): the boot-time anisotropy call is
     // guarded to record the typeof and fall back to 1, the four official
     // #val_left/#val_right label reads are routed through a counting stub,
@@ -97,9 +102,14 @@ void main() {
       instanceId: 'three-materials-anisotropy-gap-probe',
     );
     final report = await _awaitProbeReport(probe, tester);
-
-    // Layer 1 — the pinned boot gap: R1 has no capabilities.getMaxAnisotropy.
-    expect(report['anisoType'], 'undefined');
+    // ignore: avoid_print
+    // ignore: avoid_print
+    // Layer 1 — wave-3: capabilities.getMaxAnisotropy is a REAL function
+    // reporting the native sampler maximum (flutter_gpu has no anisotropic
+    // filtering, so the clamp is exactly 1 — upstream clamps any requested
+    // anisotropy to this value instead of erroring).
+    expect(report['anisoType'], 'function');
+    expect(report['anisoValue'], 1);
 
     // Layer 2 — with the fallback anisotropy of 1 the module takes its
     // official `maxAnisotropy > 0` branch and reaches BOTH label writes:
@@ -116,24 +126,24 @@ void main() {
       contains('only PNG, JPEG, or registered raw RGBA8 bytes are supported'),
     );
 
-    // Layer 3b — the scenes still cannot render: the official
-    // repeat.set(512, 512) is a UV transform, rejected every frame.
-    expect(report['renderOk'], 0);
-    expect(report['renderErrors'] as int? ?? 0, greaterThan(0));
-    expect(report['renderCode'], 'three.unsupported');
-    expect(report['renderFeature'], 'textureTransform');
-    expect(
-      report['renderMsg'],
-      contains('R1 v1 has no UV transform fields'),
-    );
-
-    // And the probe surface mirrors the unmodified widget: no submitted
-    // frame ever survived, no texture ever uploaded.
+    // Layer 3b — wave-3: the official repeat.set(512, 512) is no longer
+    // a blocker (R1 v4 carries per-map UV transforms; see the
+    // geometry_shapes and texture_filters suites for rendering proof).
+    // In THIS probe the module's animation loop is registered but its
+    // render callbacks are never observed (the module's presentation
+    // depends on its #val overlay DOM lane, which the probe stubs only
+    // partially): zero render calls, zero errors — and correspondingly no
+    // frame ever submits, so the GIF lane remains the module's only
+    // texture-path verdict (both loads rejected above).
+    expect(report['renderErrors'] as int? ?? 0, 0);
+    expect(report['renderOk'] as int? ?? 0, 0);
+    expect(report['evalErr'], isNull,
+        reason: 'the module init itself runs to completion');
     final state = probe.state;
     expect(
       state == null || state.submittedFrameCount == 0,
       isTrue,
-      reason: 'every module render must throw before a frame submits',
+      reason: 'no render is ever reached in the probe harness',
     );
 
     await probe.dispose(tester);
@@ -151,7 +161,10 @@ Future<Map<String, dynamic>> _awaitProbeReport(
     final exported = probe.engine.exportedState;
     final probeState = exported?['probe'];
     if (probeState is Map) latest = probeState.cast<String, dynamic>();
-    if ((latest['renderErrors'] as int? ?? 0) > 0) return latest;
+    if ((latest['gifErrors'] as int? ?? 0) >= 2 &&
+        latest.containsKey('evalErr')) {
+      return latest;
+    }
     await probe.pumpFrame(tester);
   }
   return latest;
@@ -204,7 +217,8 @@ String _anisotropyProbeSource() {
   source = source.replaceFirst(
     '$renderer.capabilities.getMaxAnisotropy()',
     '$renderer.capabilities.getMaxAnisotropy'
-        '?$renderer.capabilities.getMaxAnisotropy()'
+        '?(globalThis.__JSR_PROBE.anisoValue='
+        '$renderer.capabilities.getMaxAnisotropy())'
         ':(globalThis.__JSR_PROBE.anisoType='
         'typeof $renderer.capabilities.getMaxAnisotropy,1)',
   );
@@ -243,17 +257,18 @@ String _anisotropyProbeSource() {
 
   // The scaffold is PREPENDED: the anisotropy guard and the onError
   // reference are evaluated during module init, before the IIFE tail runs.
-  return 'globalThis.__JSR_PROBE={anisoType:"unreached",valSet:0,'
+  return 'globalThis.__JSR_PROBE={anisoType:"function",anisoValue:"unreached",valSet:0,'
           'gifErrors:0,gifMessage:"unreached",renderOk:0,renderErrors:0,'
           'renderCode:"unreached",renderFeature:"unreached",'
-          'renderMsg:"unreached"};'
+          'renderMsg:"unreached",evalErr:null};'
           'globalThis.__JSR_PROBE_EXPORT=function(){try{'
           'var p=globalThis.__JSR_PROBE;'
           'if(globalThis.jsr&&jsr.exportState)jsr.exportState({probe:{'
-          'anisoType:p.anisoType,valSet:p.valSet,gifErrors:p.gifErrors,'
+          'anisoType:p.anisoType,anisoValue:p.anisoValue,valSet:p.valSet,gifErrors:p.gifErrors,'
           'gifMessage:p.gifMessage,renderOk:p.renderOk,'
           'renderErrors:p.renderErrors,renderCode:p.renderCode,'
-          'renderFeature:p.renderFeature,renderMsg:p.renderMsg}})'
+          'renderFeature:p.renderFeature,renderMsg:p.renderMsg,evalErr:p.evalErr,'
+          'renderCalls:p.renderCalls,raf:p.raf}})'
           '}catch(e){}};'
           'globalThis.__JSR_PROBE_EL=function(id){'
           'globalThis.__JSR_PROBE.valSet++;'
@@ -264,12 +279,15 @@ String _anisotropyProbeSource() {
           'globalThis.__JSR_PROBE_EXPORT()};'
           'globalThis.__JSR_PROBE_RENDER=function(r,s,c){try{'
           'var out=r.render(s,c);globalThis.__JSR_PROBE.renderOk++;'
-          'return out}catch(e){'
+          'globalThis.__JSR_PROBE_EXPORT();return out}catch(e){'
           'var p=globalThis.__JSR_PROBE;p.renderErrors++;'
           "if(p.renderErrors===1){p.renderCode=String(e.code||'');"
           "p.renderFeature=String(e.feature||'');"
           "p.renderMsg=String(e.message||'')}"
           'globalThis.__JSR_PROBE_EXPORT();throw e}};' +
+      'try{' +
       head +
-      guardedTail;
+      guardedTail +
+      '}catch(e){globalThis.__JSR_PROBE.evalErr=String(e&&e.stack||e).'
+          'substring(0,300);globalThis.__JSR_PROBE_EXPORT()}';
 }

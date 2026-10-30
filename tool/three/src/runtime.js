@@ -387,6 +387,10 @@ export class ThreeCompatibilityRuntime {
     this.activeCanvas = null;
     this.hostAssetLoader = typeof previous.loadAssetBytes === 'function' ? previous.loadAssetBytes : null;
     this.document = new JsrThreeDocument(this);
+    // getMaxAnisotropy mirrors upstream WebGLCapabilities: the maximum the
+    // sampler hardware exposes. The native flutter_gpu sampler has no
+    // anisotropic filtering, so R1 reports 1 (anisotropy values above the
+    // maximum clamp to it exactly like upstream WebGLRenderer).
     this.capabilities = Object.freeze({
       backend: web ? 'webgl2' : 'flutterGpu',
       rawWebGL: !!web,
@@ -394,7 +398,8 @@ export class ThreeCompatibilityRuntime {
       r1: !web,
       shaderMaterial: !!web,
       webgpu: false,
-      dom: false
+      dom: false,
+      getMaxAnisotropy: () => 1
     });
   }
 

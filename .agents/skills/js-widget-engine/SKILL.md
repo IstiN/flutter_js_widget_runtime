@@ -260,7 +260,7 @@ ids include `webgl_geometry_minecraft`, `webgl_lines_colors`,
 `webgl_materials_bumpmap`, `webgl_materials_modified`,
 `webgl_materials_displacementmap`, `webgl_materials_texture_canvas`,
 `webgl_materials_texture_partialupdate`,
-`webgl_materials_texture_rotation` and `webgl_points_billboards`, plus
+`webgl_materials_texture_partialupdate`, plus
 wave-2: `webgl_loader_xyz`, `webgl_geometry_text_shapes`,
 `webgl_geometry_convex`, `webgl_geometry_cube`,
 `webgl_instancing_performance`, `webgl_geometry_shapes`, `webgl_sprites`,
@@ -276,21 +276,19 @@ Documented 1B-only gaps (prepared, regression-pinned, excluded from the
 sample sidebar): `webgl_lights_hemisphere` and `webgl_interactive_points`
 (ShaderMaterial), `webgl_buffergeometry_lines` (morph targets),
 `webgl_geometry_teapot` (unshimmed CubeTextureLoader → OffscreenCanvas,
-plus envMap slot), `webgl_lights_physical` (ReinhardToneMapping — R1 is
-NoToneMapping-only — plus bump/metalness map slots and anisotropy),
-`webgl_points_billboards` (FogExp2 — R1 supports linear THREE.Fog only),
+plus envMap slot), `webgl_lights_physical` (bump/roughness/metalness map slots — wave-3
+R1 v4 carries tone mapping + exposure + anisotropy end-to-end),
 `webgl_materials_bumpmap` / `webgl_materials_displacementmap`
 (materialTexture slots beyond `map`), `webgl_materials_modified`
-(onBeforeCompile), `webgl_materials_texture_rotation` (textureTransform —
-R1 v1 has no UV transform fields), `webgl_materials_texture_canvas`
+(onBeforeCompile),  `webgl_materials_texture_canvas`
 (HTML-only `<canvas>` element outside the prepared document facade).
 `webgl_materials_texture_partialupdate` renders but pins the missing
-`copyTextureToTexture` API. Wave-2 gaps: `webgl_geometry_shapes`
-(textureTransform), `webgl_sprites` / `webgl_raycaster_sprite` (Sprite
-objectType; the sprite raycast pointer path itself works on `three.input`),
-`webgl_materials_texture_filters` (textureTransform repeat +
-`Texture.clone()` canvas2d source), `webgl_materials_texture_anisotropy`
-(textureTransform), `webgl_shadowmap_pointlight` (Phong alphaMap slot;
+`copyTextureToTexture` API. Wave-2 gaps: `webgl_sprites` /
+`webgl_raycaster_sprite` (Sprite objectType; the sprite raycast pointer
+path itself works on `three.input`), `webgl_materials_texture_filters`
+(`Texture.clone()` canvas2d source), `webgl_materials_texture_anisotropy`
+(DOM overlay + GIF lane; getMaxAnisotropy is real since wave-3),
+`webgl_shadowmap_pointlight` (renders stock with the wave-3 alphaMap slot;
 point-light shadows are silently dropped — R1 scans directional+spot
 only), `webgl_camera_logarithmicdepthbuffer` (facade lacks
 `#renderer_border`; with a stub the flag is silently ignored and the

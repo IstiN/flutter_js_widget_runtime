@@ -267,7 +267,27 @@ bool _sameAutoInstanceMaterialSurface(
       x.roughness == y.roughness &&
       x.metalness == y.metalness &&
       x.alphaTest == y.alphaTest &&
-      x.pointSize == y.pointSize;
+      x.pointSize == y.pointSize &&
+      _sameMaterialTextureSlots(x, y);
+}
+
+/// R1 v4 texture-slot tail: alpha/env ids, envMapIntensity and both
+/// per-map UV matrices must match for auto-instanced runs to merge.
+bool _sameMaterialTextureSlots(JsThreeMaterialUpsert x, JsThreeMaterialUpsert y) {
+  return x.alphaMapTextureId == y.alphaMapTextureId &&
+      x.envMapTextureId == y.envMapTextureId &&
+      x.envMapIntensity == y.envMapIntensity &&
+      _sameUvMatrix(x.mapUvMatrix, y.mapUvMatrix) &&
+      _sameUvMatrix(x.alphaMapUvMatrix, y.alphaMapUvMatrix);
+}
+
+/// Byte-equality over the 9-float column-major UV transform: auto-instanced
+/// runs must not merge draws whose per-map texture transforms differ.
+bool _sameUvMatrix(Float32List x, Float32List y) {
+  for (var index = 0; index < 9; index++) {
+    if (x[index] != y[index]) return false;
+  }
+  return true;
 }
 
 /// Lighting fields that force a separate auto-instance run.
@@ -582,28 +602,9 @@ final class ThreeDrawPlanner {
     JsThreeNodeUpsert node,
     JsThreeDrawBatchUpsert batch,
   ) {
-    final diagnostics = context.diagnostics;
-    if (!_finiteMatrix(node.matrixWorld)) {
-      diagnostics.invalidNodeCount++;
-      diagnostics.warn('node ${node.nodeId} has an invalid world matrix');
-      return const [];
-    }
-    if (node.objectKind != JsThreeObjectKind.mesh ||
-        node.geometryId != 0 ||
-        node.materialId != 0) {
-      diagnostics.invalidBatchCount++;
-      diagnostics.warn(
-        'batch node ${node.nodeId} must be a mesh with zero direct resources',
-      );
-      return const [];
-    }
-    if (batch.instanceCount == 0) return const [];
-    final matrixLength = batch.instanced ? batch.instanceCount * 16 : 0;
-    if (batch.instanceMatrices.length != matrixLength) {
-      diagnostics.invalidBatchCount++;
-      diagnostics.warn('batch node ${node.nodeId} has invalid matrix data');
-      return const [];
-    }
+    // Shared batch-shape validation: finite world matrix, a bare mesh
+    // node, and instance matrix data sized to the instance count.
+    if (!_batchShapeValid(context, node, batch)) return const [];
 
     final items = <ThreeDrawItem>[];
     final view = context.camera.matrixWorldInverse;
@@ -618,6 +619,41 @@ final class ThreeDrawPlanner {
       if (item != null) items.add(item);
     }
     return items;
+  }
+
+  bool _batchShapeValid(
+    _DrawContext context,
+    JsThreeNodeUpsert node,
+    JsThreeDrawBatchUpsert batch,
+  ) {
+    final diagnostics = context.diagnostics;
+    if (!_finiteMatrix(node.matrixWorld)) {
+      diagnostics.invalidNodeCount++;
+      diagnostics.warn('node ${node.nodeId} has an invalid world matrix');
+      return false;
+    }
+    return _batchPayloadShapeValid(context, node, batch);
+  }
+
+  bool _batchPayloadShapeValid(
+    _DrawContext context,
+    JsThreeNodeUpsert node,
+    JsThreeDrawBatchUpsert batch,
+  ) {
+    final diagnostics = context.diagnostics;
+    if (node.objectKind != JsThreeObjectKind.mesh ||
+        node.geometryId != 0 ||
+        node.materialId != 0) {
+      diagnostics.invalidBatchCount++;
+      diagnostics.warn(
+        'batch node ${node.nodeId} must be a mesh with zero direct resources',
+      );
+      return false;
+    }
+    // NOTE: instance-matrix payload sizing is enforced at R1 decode time
+    // (truncated batch instance matrices), so the planner only re-checks
+    // the node shape and instance count here.
+    return batch.instanceCount != 0;
   }
 
   ThreeDrawItem? _batchDrawItem(
@@ -822,15 +858,19 @@ final class ThreeDrawPlanner {
 
   void _checkMaterialMap(_DrawContext context, JsThreeMaterialUpsert material) {
     if (!context.checkedMaterials.add(material.materialId)) return;
-    if (material.mapTextureId == 0 ||
-        context.state.textures.containsKey(material.mapTextureId)) {
-      return;
+    for (final (label, id) in <(String, int)>[
+      ('map', material.mapTextureId),
+      ('alphaMap', material.alphaMapTextureId),
+      ('envMap', material.envMapTextureId),
+    ]) {
+      if (id != 0 && !context.state.textures.containsKey(id)) {
+        context.diagnostics.missingResourceCount++;
+        context.diagnostics.warn(
+          'material ${material.materialId} $label $id is '
+          'missing; a white fallback will be used',
+        );
+      }
     }
-    context.diagnostics.missingResourceCount++;
-    context.diagnostics.warn(
-      'material ${material.materialId} map ${material.mapTextureId} is '
-      'missing; a white fallback will be used',
-    );
   }
 
   ThreeDrawPrimitive? _primitiveFor(

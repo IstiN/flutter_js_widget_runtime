@@ -607,6 +607,8 @@ final class _ThreeUniformSlots {
     this.map,
     this.shadowMap,
     this.vertex,
+    this.alphaMap,
+    this.envMap,
   );
 
   final gpu.UniformSlot frame;
@@ -616,6 +618,8 @@ final class _ThreeUniformSlots {
   final gpu.UniformSlot map;
   final gpu.UniformSlot shadowMap;
   final gpu.UniformSlot vertex;
+  final gpu.UniformSlot alphaMap;
+  final gpu.UniformSlot envMap;
 }
 
 _GpuGeometry? _threeGeometryForDraw(
@@ -654,6 +658,8 @@ final class _ThreeFrameEncoder {
       backend._fragmentShader.getUniformSlot('mapTexture'),
       backend._fragmentShader.getUniformSlot('shadowMapTexture'),
       backend._vertexShader.getUniformSlot('VertexInfo'),
+      backend._fragmentShader.getUniformSlot('alphaMapTexture'),
+      backend._fragmentShader.getUniformSlot('envMapTexture'),
     );
     final frameUniform = _bindThreeUniform(
       backend,

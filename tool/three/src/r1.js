@@ -2,7 +2,7 @@ import { checkedU32 } from './errors.js';
 import { utf8 } from './runtime.js';
 
 export const T1_VERSION = 1;
-export const R1_VERSION = 3;
+export const R1_VERSION = 4;
 export const STREAM_R1 = 1;
 export const MAX_ENVELOPE = 64 * 1024 * 1024;
 export const OPCODE = Object.freeze({
@@ -152,14 +152,21 @@ export function textureCommand(id, version, width, height, encoding, flags, data
 
 export const MATERIAL_CLIP_FLAGS = Object.freeze({ intersection: 1, shadows: 2 });
 
-export function materialCommand(id, version, kind, mapId, flags, side, color, opacity, roughness, metalness, alphaTest, pointSize, specular = null, shininess = 0, emissive = null, emissiveIntensity = 1, clipId = 0, clipFlags = 0) {
+export function materialCommand(id, version, kind, mapId, flags, side, color, opacity, roughness, metalness, alphaTest, pointSize, specular = null, shininess = 0, emissive = null, emissiveIntensity = 1, clipId = 0, clipFlags = 0, textureSlots = null) {
   if ((kind === 5) !== (specular !== null)) throw new Error('three.invalid: Phong material requires exactly one specular payload');
   if (emissive !== null && kind !== 1 && kind !== 2 && kind !== 5) throw new Error('three.invalid: emissive payload requires a lit mesh material');
   if (!Number.isInteger(clipId) || clipId < 0) throw new Error('three.invalid: material clip id');
   if (clipFlags !== 0 && clipFlags !== 1 && clipFlags !== 2 && clipFlags !== 3) {
     throw new Error('three.invalid: material clip flags');
   }
-  const body = new ByteWriter(64 + (specular ? 16 : 0) + (emissive ? 16 : 0));
+  const slots = textureSlots || { alphaMapId: 0, envMapId: 0, envMapIntensity: 1, mapUvMatrix: null, alphaMapUvMatrix: null };
+  for (const name of ['mapUvMatrix', 'alphaMapUvMatrix']) {
+    const matrix = slots[name];
+    if (matrix && matrix.length !== 9) {
+      throw new Error('three.invalid: material uv matrix requires nine floats');
+    }
+  }
+  const body = new ByteWriter(148 + (specular ? 16 : 0) + (emissive ? 16 : 0));
   body.u32(id);
   body.u32(version);
   body.u32(kind);
@@ -176,6 +183,13 @@ export function materialCommand(id, version, kind, mapId, flags, side, color, op
   body.f32(pointSize);
   body.u32(clipId);
   body.u32(clipFlags);
+  // v4 texture-slot tail: alpha/env map ids, envMapIntensity and the two
+  // column-major 3x3 per-map UV transforms (three.js Matrix3.elements).
+  body.u32(slots.alphaMapId);
+  body.u32(slots.envMapId);
+  body.f32(slots.envMapIntensity);
+  for (let i = 0; i < 9; i++) body.f32(slots.mapUvMatrix ? slots.mapUvMatrix[i] : (i % 4 === 0 ? 1 : 0));
+  for (let i = 0; i < 9; i++) body.f32(slots.alphaMapUvMatrix ? slots.alphaMapUvMatrix[i] : (i % 4 === 0 ? 1 : 0));
   if (specular) {
     body.f32(specular.r);
     body.f32(specular.g);
@@ -342,7 +356,7 @@ export function clippingCommand(id, version, planes) {
   return command(OPCODE.CLIPPING, body.finish());
 }
 
-export function frameCommand(sceneId, cameraId, background, exposure, fog, shadow = NO_SHADOW, culledNodeIds = [], culledShadowNodeIds = [], shadowLightType = 0) {
+export function frameCommand(sceneId, cameraId, background, exposure, fog, shadow = NO_SHADOW, culledNodeIds = [], culledShadowNodeIds = [], shadowLightType = 0, toneMapping = 0) {
   const hasContentRevision = shadow.contentRevision !== undefined;
   const hasOptionalIds = culledNodeIds.length || culledShadowNodeIds.length || hasContentRevision;
   const optionalLength = (hasOptionalIds ? 4 + culledNodeIds.length * 4 : 0) +
@@ -350,7 +364,9 @@ export function frameCommand(sceneId, cameraId, background, exposure, fog, shado
     (hasContentRevision ? 4 : 0);
   // v3: fixed trailing u32 naming which light owns the shadow map
   // (0 none, 1 directional, 2 spot) so shading can scope it correctly.
-  const body = new ByteWriter(140 + optionalLength);
+  // v4: tone mapping mode (three.js constants, u32) plus FogExp2 density
+  // (f32, zero unless fog.mode === 2) right after the fog near/far block.
+  const body = new ByteWriter(148 + optionalLength);
   body.u32(sceneId);
   body.u32(cameraId);
   body.f32(background.r);
@@ -364,6 +380,8 @@ export function frameCommand(sceneId, cameraId, background, exposure, fog, shado
   body.f32(fog.color.b);
   body.f32(fog.near);
   body.f32(fog.far);
+  body.u32(toneMapping);
+  body.f32(fog.mode === 2 ? fog.density : 0);
   body.u32(shadow.width);
   body.u32(shadow.height);
   body.f32(shadow.bias);

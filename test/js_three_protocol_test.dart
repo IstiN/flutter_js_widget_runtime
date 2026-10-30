@@ -186,6 +186,100 @@ Uint8List _material({
   return out;
 }
 
+
+/// R1 v4 frame body: the v3 layout with the tone-mapping u32 + FogExp2
+/// density f32 tail inserted right after fogFar (offsets 52/56) and a
+/// shadow content revision u32 at the end (matches frameCommand in
+/// tool/three/src/r1.js).
+Uint8List _frameV4({
+  int scene = 7,
+  int camera = 9,
+  double exposure = 2.5,
+  int toneMapping = 4,
+  int fogMode = 2,
+  double fogDensity = 0.0025,
+  double fogNear = 50,
+  double fogFar = 75,
+}) {
+  final out = Uint8List(148);
+  setU32(out, 0, scene);
+  setU32(out, 4, camera);
+  setF32(out, 8, 0.1);
+  setF32(out, 12, 0.2);
+  setF32(out, 16, 0.3);
+  setF32(out, 20, 0.4);
+  setF32(out, 24, exposure);
+  setU32(out, 28, fogMode);
+  setF32(out, 32, 0.5);
+  setF32(out, 36, 0.6);
+  setF32(out, 40, 0.7);
+  setF32(out, 44, fogNear);
+  setF32(out, 48, fogFar);
+  setU32(out, 52, toneMapping);
+  setF32(out, 56, fogDensity);
+  setU32(out, 60, 0);
+  setU32(out, 64, 0);
+  setF32(out, 68, -0.0001);
+  setF32(out, 72, 0.02);
+  setF32(out, 76, 1);
+  for (final index in [0, 5, 10, 15]) {
+    setF32(out, 80 + index * 4, 1);
+  }
+  setU32(out, 144, 0);
+  return out;
+}
+
+/// R1 v4 material body: the v3 layout with the texture-slot tail
+/// (alphaMapId, envMapId, envMapIntensity and two column-major 3x3 UV
+/// matrices) between the clip fields and the Phong payload — matches
+/// materialCommand in tool/three/src/r1.js.
+Uint8List _materialV4({
+  int id = 3,
+  int kind = 0,
+  int mapId = 11,
+  int alphaMapId = 12,
+  int envMapId = 13,
+  double envMapIntensity = 1.75,
+  List<double>? mapUv,
+  List<double>? alphaMapUv,
+}) {
+  final phong = kind == 5;
+  final out = Uint8List((phong ? 164 : 148));
+  setU32(out, 0, id);
+  setU32(out, 4, 1);
+  setU32(out, 8, kind);
+  setU32(out, 12, mapId);
+  setU32(out, 16, 31);
+  setU32(out, 20, 2);
+  setF32(out, 24, 0.25);
+  setF32(out, 28, 0.5);
+  setF32(out, 32, 0.75);
+  setF32(out, 36, 0.8);
+  setF32(out, 40, 0.4);
+  setF32(out, 44, 0.3);
+  setF32(out, 48, 0.2);
+  setF32(out, 52, 2.5);
+  setU32(out, 56, 0);
+  setU32(out, 60, 0);
+  setU32(out, 64, alphaMapId);
+  setU32(out, 68, envMapId);
+  setF32(out, 72, envMapIntensity);
+  final map = mapUv ?? [for (var i = 0; i < 9; i++) i % 4 == 0 ? 1 : 0];
+  final alpha =
+      alphaMapUv ?? [for (var i = 0; i < 9; i++) i % 4 == 0 ? 1 : 0];
+  for (var i = 0; i < 9; i++) {
+    setF32(out, 76 + i * 4, map[i]);
+    setF32(out, 112 + i * 4, alpha[i]);
+  }
+  if (phong) {
+    setF32(out, 148, 0.125);
+    setF32(out, 152, 0.25);
+    setF32(out, 156, 0.5);
+    setF32(out, 160, 64);
+  }
+  return out;
+}
+
 Uint8List _node({int id = 7}) {
   final out = Uint8List(92);
   setU32(out, 0, id);
@@ -381,11 +475,138 @@ List<(int, Uint8List)> _allCommands() => [
   (12, _u32Body(7)),
 ];
 
+/// Copy of [body] with the u32/f32 at [offset] overwritten by [value].
+Uint8List _frameVariant(Uint8List body, int offset, num value) {
+  final out = Uint8List.fromList(body);
+  if (value is int) {
+    setU32(out, offset, value);
+  } else {
+    setF32(out, offset, value.toDouble());
+  }
+  return out;
+}
+
 void _bad(void Function() action) {
   expect(action, throwsA(isA<JsThreeProtocolException>()));
 }
 
 void main() {
+
+  test('decodes the R1 v4 frame tone mapping + FogExp2 tail', () {
+    final decoded = _decoder.decodeR1(_r1([(8, _frameV4())], version: 4));
+    final frame = decoded.commands.whereType<JsThreeSubmitFrame>().single;
+    expect(frame.toneMapping, JsThreeToneMapping.acesFilmic);
+    expect(frame.exposure, 2.5);
+    expect(frame.toneMappingExposure, 2.5);
+    expect(frame.fogMode, JsThreeFogMode.exp2);
+    expect(frame.fogDensity, closeTo(0.0025, 1e-9));
+    // The rest of the frame still decodes identically to v3.
+    expect(frame.sceneId, 7);
+    expect(frame.fogNear, 50);
+    expect(frame.fogFar, 75);
+    expect(frame.shadowContentRevision, isNull);
+  });
+
+  test('v3 streams still decode with v4-default tone/fog fields', () {
+    final decoded = _decoder.decodeR1(
+      _r1(
+        [(8, _frame(shadowLightType: 1, shadowWidth: 1024, shadowHeight: 1024))],
+        version: 3,
+      ),
+    );
+    final frame = decoded.commands.whereType<JsThreeSubmitFrame>().single;
+    expect(frame.toneMapping, JsThreeToneMapping.none);
+    // v3 streams carry exposure through; tone mapping stays none.
+    expect(frame.toneMappingExposure, 1.25);
+    expect(frame.fogDensity, 0);
+    expect(frame.shadowLightType, 1);
+    _bad(
+      () => _decoder.decodeR1(
+        _r1([(8, _frameVariant(_frameV4(), 28, 2))], version: 3),
+      ),
+    );
+  });
+
+  test('validates the R1 v4 tone/fog tail ranges', () {
+    _bad(
+      () => _decoder.decodeR1(
+        _r1([(8, _frameVariant(_frameV4(), 56, -1))], version: 4),
+      ),
+    );
+    _bad(
+      () => _decoder.decodeR1(
+        // linear fog (mode 1) with a nonzero density
+        _r1([
+          (
+            8,
+            _frameVariant(_frameVariant(_frameV4(), 28, 1), 56, 0.5),
+          ),
+        ], version: 4),
+      ),
+    );
+    _bad(
+      () => _decoder.decodeR1(
+        _r1([(8, _frameVariant(_frameV4(), 52, 99))], version: 4),
+      ),
+    );
+  });
+
+  test('decodes the R1 v4 material texture-slot tail', () {
+    final decoded = _decoder.decodeR1(
+      _r1(
+        [
+          (
+            3,
+            _materialV4(
+              mapUv: [0.008, 0, 0, 0, 0.008, 0, 0.5, 0.25, 1],
+              alphaMapUv: [2, 0, 0, 0, 2, 0, 0, 0, 1],
+            ),
+          ),
+        ],
+        version: 4,
+      ),
+    );
+    final material = decoded.commands
+        .whereType<JsThreeMaterialUpsert>()
+        .single;
+    expect(material.mapTextureId, 11);
+    expect(material.alphaMapTextureId, 12);
+    expect(material.hasAlphaMap, isTrue);
+    expect(material.envMapTextureId, 13);
+    expect(material.hasEnvMap, isTrue);
+    expect(material.envMapIntensity, 1.75);
+    // Column-major three.js Matrix3 elements round-trip byte-exact.
+    expect(material.mapUvMatrix[0], closeTo(0.008, 1e-7));
+    expect(material.mapUvMatrix[4], closeTo(0.008, 1e-7));
+    expect(material.mapUvMatrix[6], 0.5);
+    expect(material.mapUvMatrix[7], 0.25);
+    expect(material.alphaMapUvMatrix[0], 2);
+    // v3 materials decode with the identity/default slot tail.
+    final legacy = _decoder.decodeR1(
+      _r1([(3, _material())]),
+    ).commands.whereType<JsThreeMaterialUpsert>().single;
+    expect(legacy.alphaMapTextureId, 0);
+    expect(legacy.hasAlphaMap, isFalse);
+    expect(legacy.envMapTextureId, 0);
+    expect(legacy.envMapIntensity, 1);
+    expect(legacy.mapUvMatrix, everyElement(isNotNull));
+    expect(legacy.mapUvMatrix[0], 1);
+    expect(legacy.mapUvMatrix[1], 0);
+    // Negative envMapIntensity is rejected.
+    _bad(
+      () => _decoder.decodeR1(
+        _r1(
+          [
+            (
+              3,
+              _frameVariant(_materialV4(), 72, -0.5),
+            ),
+          ],
+        ),
+      ),
+    );
+  });
+
   test('decodes T1 metadata and every R1 opcode into immutable values', () {
     final bytes = _t1(
       _r1(_allCommands()),
@@ -1075,7 +1296,7 @@ void main() {
       }
       _bad(() => _decoder.decodeR1(Uint8List.fromList([...valid, 0])));
       _bad(() => _decoder.decodeR1(_r1(const [], version: 0)));
-      _bad(() => _decoder.decodeR1(_r1(const [], version: 4)));
+      _bad(() => _decoder.decodeR1(_r1(const [], version: 5)));
       _bad(() => _decoder.decodeR1(_r1(const [], flags: 1)));
       _bad(() => _decoder.decodeR1(_r1(const [], commandCount: 100001)));
       _bad(() => _decoder.decodeR1(_r1([(13, Uint8List(0))])));

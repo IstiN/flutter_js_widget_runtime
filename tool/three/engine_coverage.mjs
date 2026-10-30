@@ -92,7 +92,7 @@ const EXPLICIT = new Map([
   ].map((n) => [n, { status: 'ok', note: 'upstream JS utility runs in QuickJS' }]),
   ['ShapeGeometry', { status: 'ok', note: 'generateShapes triangulated in JS' }],
   ['PolyhedronGeometry', { status: 'ok', note: 'CPU-generated geometry' }],
-  ['FogExp2', { status: 'no', note: 'R1 supports linear Fog only (points_billboards gap)' }],
+  ['FogExp2', { status: 'ok', note: 'R1 v4 frame fog mode + density (exp2 in three_r1.frag)' }],
   ['MeshMatcapMaterial', { status: 'no', note: 'material kind outside R1 kinds' }],
   ['MeshToonMaterial', { status: 'no', note: 'material kind outside R1 kinds' }],
   ['StereoCamera', { status: 'no', note: 'stereo rendering outside R1' }],

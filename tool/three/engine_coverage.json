@@ -3,26 +3,26 @@
   "generatedAt": "2026-10-30",
   "totals": {
     "engineExports": 454,
-    "r1Ok": 144,
+    "r1Ok": 151,
     "r1Bounded": 13,
-    "r1No": 54,
+    "r1No": 49,
     "upstreamCpu": 41,
-    "constants": 183,
+    "constants": 181,
     "nativeAbsent": 4,
     "unclassified": 15,
-    "renderHonored": 157,
-    "renderRelevantClassified": 211,
-    "quickjsUsable": 381,
-    "renderHonoredPct": 34.6,
-    "quickjsUsablePct": 83.9,
+    "renderHonored": 164,
+    "renderRelevantClassified": 213,
+    "quickjsUsable": 386,
+    "renderHonoredPct": 36.1,
+    "quickjsUsablePct": 85,
     "webLanePct": 100
   },
   "rows": [
     {
       "symbol": "ACESFilmicToneMapping",
-      "lane": "web-only",
-      "status": "no",
-      "flutterAnalog": "R1 requires NoToneMapping"
+      "lane": "r1",
+      "status": "ok",
+      "flutterAnalog": "R1 v4 frame toneMapping (frag tonemapping_fragment math)"
     },
     {
       "symbol": "AddEquation",
@@ -50,9 +50,9 @@
     },
     {
       "symbol": "AgXToneMapping",
-      "lane": "constant",
-      "status": "constant",
-      "flutterAnalog": "enum value accepted; only the R1-honored subset changes pixels"
+      "lane": "r1",
+      "status": "ok",
+      "flutterAnalog": "R1 v4 frame toneMapping"
     },
     {
       "symbol": "AlphaFormat",
@@ -314,9 +314,9 @@
     },
     {
       "symbol": "CineonToneMapping",
-      "lane": "constant",
-      "status": "constant",
-      "flutterAnalog": "enum value accepted; only the R1-honored subset changes pixels"
+      "lane": "r1",
+      "status": "ok",
+      "flutterAnalog": "R1 v4 frame toneMapping"
     },
     {
       "symbol": "CircleGeometry",
@@ -758,9 +758,9 @@
     },
     {
       "symbol": "FogExp2",
-      "lane": "web-only",
-      "status": "no",
-      "flutterAnalog": "R1 supports linear Fog only (points_billboards gap)"
+      "lane": "r1",
+      "status": "ok",
+      "flutterAnalog": "R1 v4 frame fog mode + density (exp2 in three_r1.frag)"
     },
     {
       "symbol": "FramebufferTexture",
@@ -1196,9 +1196,9 @@
     },
     {
       "symbol": "LinearToneMapping",
-      "lane": "web-only",
-      "status": "no",
-      "flutterAnalog": "R1 requires NoToneMapping"
+      "lane": "r1",
+      "status": "ok",
+      "flutterAnalog": "R1 v4 frame toneMapping"
     },
     {
       "symbol": "LinearTransfer",
@@ -1424,9 +1424,9 @@
     },
     {
       "symbol": "NeutralToneMapping",
-      "lane": "web-only",
-      "status": "no",
-      "flutterAnalog": "R1 requires NoToneMapping"
+      "lane": "r1",
+      "status": "ok",
+      "flutterAnalog": "R1 v4 frame toneMapping"
     },
     {
       "symbol": "NeverCompare",
@@ -2018,9 +2018,9 @@
     },
     {
       "symbol": "ReinhardToneMapping",
-      "lane": "web-only",
-      "status": "no",
-      "flutterAnalog": "R1 requires NoToneMapping"
+      "lane": "r1",
+      "status": "ok",
+      "flutterAnalog": "R1 v4 frame toneMapping"
     },
     {
       "symbol": "RenderObjectRefreshType",

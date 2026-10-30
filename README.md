@@ -334,21 +334,33 @@ gap modules (each pinned by a regression test that asserts the exact
 instrumented probe): `webgl_lights_hemisphere` and `webgl_interactive_points`
 (ShaderMaterial), `webgl_buffergeometry_lines` (morph targets),
 `webgl_geometry_teapot` (CubeTextureLoader→OffscreenCanvas, envMap slot),
-`webgl_lights_physical` (ReinhardToneMapping, bump/metalness map slots,
-anisotropy), `webgl_points_billboards` (FogExp2 — R1 supports linear fog
-only), `webgl_materials_bumpmap` and `webgl_materials_displacementmap`
-(materialTexture slots beyond `map`), `webgl_materials_modified`
-(onBeforeCompile), `webgl_materials_texture_rotation` (UV transform fields),
-`webgl_materials_texture_canvas` (HTML-only canvas element).
+`webgl_lights_physical` (bump/roughness/metalness map slots — the wave-3
+tone-mapping lane carries its ReinhardToneMapping + GUI exposure
+end-to-end), `webgl_materials_bumpmap` and `webgl_materials_displacementmap`
+(materialTexture slots beyond `map`/`alphaMap`/`envMap`), `webgl_materials_modified`
+(onBeforeCompile), `webgl_materials_texture_canvas` (HTML-only canvas
+element).
+
+Wave-3 (R1 protocol v4) shipped four capability families natively: frame
+tone mapping (Linear/Reinhard/Cineon/ACES/AgX/Neutral + toneExposure, the
+three.js tonemapping_fragment math in `three_r1.frag`), FogExp2
+(`1 - exp(-d²·depth²)` mixing; linear fog unchanged), per-map UV transforms
+(offset/repeat/rotation/center → mat3 per map slot, applied to the map and
+alphaMap UV paths) with a real `capabilities.getMaxAnisotropy()` (clamped
+to the native sampler maximum of 1), and material texture slots beyond
+`map`: `alphaMap` (alpha multiply + alphaTest) and `envMap`
+(equirect reflection via reflect(viewDir, normal), `envMapIntensity`).
+Graduated to the app sidebar + expanded suite: `webgl_geometry_shapes`,
+`webgl_materials_texture_rotation`, `webgl_points_billboards`,
+`webgl_shadowmap_pointlight`.
 Wave-2 gap modules, each pinned by a dedicated regression test:
-`webgl_geometry_shapes` (textureTransform — `texture.repeat.set`),
 `webgl_sprites` and `webgl_raycaster_sprite` (Sprite objectType; the
 raycaster's pointer→material flip otherwise works end-to-end on the
-`three.input` lane), `webgl_materials_texture_filters` (textureTransform
-floor repeat + `Texture.clone()` canvas2d source), `webgl_materials_texture_anisotropy`
-(textureTransform), `webgl_shadowmap_pointlight` (Phong alphaMap slot;
-castShadow point lights are silently dropped by the R1 shadow scan —
-directional+spot only), `webgl_camera_logarithmicdepthbuffer` (official
+`three.input` lane), `webgl_materials_texture_filters` (`Texture.clone()`
+canvas2d source — the wave-3 UV-transform lane removed the floor-repeat
+blocker), `webgl_materials_texture_anisotropy` (`#val_left` DOM overlay
+write + the wave-2 GIF lane; `capabilities.getMaxAnisotropy()` is real
+since wave-3), `webgl_camera_logarithmicdepthbuffer` (official
 init derefs a facade-absent `#renderer_border` DOM node; with a stub the
 `logarithmicDepthBuffer` flag is silently ignored and the second renderer
 hits the one-active-renderer-per-canvas guard), `webgl_materials_cubemap_refraction`

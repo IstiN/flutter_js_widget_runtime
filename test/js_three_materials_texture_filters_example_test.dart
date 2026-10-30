@@ -59,7 +59,8 @@ void main() {
   }
 
   testWidgets('webgl_materials_texture_filters boots and mounts but every '
-      'frame throws the floor repeat textureTransform gap', (tester) async {
+      'frame throws the CanvasTexture canvas2d.source gap (wave-3 removed '
+      'the textureTransform blocker)', (tester) async {
     final harness = await ThreeQuickjsExampleHarness.boot(
       tester,
       widgetId: 'three-materials-texture-filters',
@@ -69,7 +70,7 @@ void main() {
       tester,
       (state, plan) =>
           harness.renderTrees.any((tree) => tree.toString().contains(
-                'three.unsupported: textureTransform',
+                'three.unsupported: canvas2d.source',
               )) ||
           harness.renderTrees.length > 4,
       attempts: 120,
@@ -94,10 +95,11 @@ void main() {
     expect(gui['controllers'], 0);
     expect(gui['values'], isEmpty);
 
-    // No frame was ever submitted: no surface, renderer.frame 0.
-    expect(harness.surface, isNull);
-    expect((exported['renderer'] as Map<String, dynamic>)['frame'], 0);
-    expect((exported['stats'] as Map<String, dynamic>)['updates'], 0);
+    // The LINEAR half of the module renders (surface + frames submit —
+    // the wave-3 UV-transform lane accepts the floor tiling), then the
+    // NEAREST half's clone adoption throws canvas2d.source every tick.
+    expect(harness.surface, isNotNull);
+    expect(harness.state!.submittedFrameCount, greaterThan(0));
 
     // The render tree is the three mount envelope followed by repeating
     // capability error cards.
@@ -105,8 +107,15 @@ void main() {
     expect(harness.renderTrees.first['canvasId'], 'main');
     final errorCard = harness.renderTrees.last.toString();
     expect(errorCard, contains('Widget error:'));
-    expect(errorCard, contains('three.unsupported: textureTransform'));
-    expect(errorCard, contains('R1 v1 has no UV transform fields'));
+    // Wave-3 shipped per-map UV transforms (R1 v4), so the floor's
+    // repeat.set(1000, 1000) no longer throws; the remaining blocker is
+    // the module's tiled floor CanvasTexture, whose canvas source the
+    // native CanvasTexture lane cannot adopt (wave-2 documented gap).
+    expect(errorCard, contains('three.unsupported: canvas2d.source'));
+    expect(
+      errorCard,
+      contains('native CanvasTexture requires a Flutter canvas2d image'),
+    );
     expect(errorCard, contains('native R1 does not provide this capability'));
 
     await harness.dispose(tester);

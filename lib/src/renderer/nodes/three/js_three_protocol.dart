@@ -79,9 +79,26 @@ enum JsThreeLightType {
 
 enum JsThreeFogMode {
   none(0),
-  linear(1);
+  linear(1),
+  exp2(2);
 
   const JsThreeFogMode(this.wireValue);
+  final int wireValue;
+}
+
+/// Frame-level tone mapping; wire values are the upstream three.js
+/// constants (src/constants.js r186) so the facade forwards them verbatim.
+enum JsThreeToneMapping {
+  none(0),
+  linear(1),
+  reinhard(2),
+  cineon(3),
+  acesFilmic(4),
+  custom(5),
+  agx(6),
+  neutral(7);
+
+  const JsThreeToneMapping(this.wireValue);
   final int wireValue;
 }
 
@@ -94,6 +111,17 @@ enum JsThreeShadowLightType {
   const JsThreeShadowLightType(this.wireValue);
   final int wireValue;
 }
+
+/// Identity UV transform (three.js `Matrix3().setUvTransform(0,0,1,1,0,0,0,0)`
+/// / untouched `texture.matrix`), column-major like `Matrix3.elements`.
+const List<double> _threeIdentityUvMatrixRows = <double>[
+  1, 0, 0, //
+  0, 1, 0,
+  0, 0, 1,
+];
+
+final Float32List _threeIdentityUvMatrix =
+    Float32List.fromList(_threeIdentityUvMatrixRows).asUnmodifiableView();
 
 enum JsThreeResourceKind {
   geometry(1),
@@ -246,6 +274,11 @@ final class JsThreeMaterialUpsert extends JsThreeCommand {
     required this.emissiveIntensity,
     required this.clipId,
     required this.clipFlags,
+    required this.alphaMapTextureId,
+    required this.envMapTextureId,
+    required this.envMapIntensity,
+    required this.mapUvMatrix,
+    required this.alphaMapUvMatrix,
   }) : super._(3);
 
   final int materialId;
@@ -277,6 +310,24 @@ final class JsThreeMaterialUpsert extends JsThreeCommand {
   /// [clipIntersection] bit 0, [clipShadows] bit 1.
   final int clipFlags;
 
+  /// Alpha-map texture (R1 v4) sampling the green channel; zero when unset.
+  final int alphaMapTextureId;
+
+  /// Equirectangular environment texture (R1 v4); zero when unset.
+  final int envMapTextureId;
+
+  /// Upstream `Material.envMapIntensity` (R1 v4).
+  final double envMapIntensity;
+
+  /// Column-major 3x3 UV transform composed from the map texture's
+  /// offset/repeat/rotation/center (R1 v4). Identity for v3 streams.
+  final Float32List mapUvMatrix;
+
+  /// Same composition for [alphaMapTextureId] (R1 v4).
+  final Float32List alphaMapUvMatrix;
+
+  bool get hasAlphaMap => alphaMapTextureId != 0;
+  bool get hasEnvMap => envMapTextureId != 0;
   bool get hasClipping => clipId != 0;
   bool get clipIntersection => clipFlags & 1 != 0;
   bool get clipShadows => clipFlags & 2 != 0;
@@ -405,6 +456,9 @@ final class JsThreeSubmitFrame extends JsThreeCommand {
     this.shadowContentRevision,
     this.culledNodeIds = const <int>{},
     this.culledShadowNodeIds = const <int>{},
+    this.toneMapping = JsThreeToneMapping.none,
+    this.toneMappingExposure = 1,
+    this.fogDensity = 0,
   }) : super._(8);
 
   final int sceneId;
@@ -429,6 +483,17 @@ final class JsThreeSubmitFrame extends JsThreeCommand {
 
   /// Which light owns the frame's single shadow map (R1 v3).
   final int shadowLightType;
+
+  /// Frame tone mapping mode (R1 v4); [JsThreeToneMapping.none] for v3
+  /// streams, matching the pre-v4 NoToneMapping-only renderer.
+  final JsThreeToneMapping toneMapping;
+
+  /// Upstream `WebGLRenderer.toneMappingExposure` (R1 v4). Kept in sync with
+  /// [exposure]; both carry the same value, [exposure] predates v4.
+  final double toneMappingExposure;
+
+  /// FogExp2 density (R1 v4); zero unless [fogMode] is exp2.
+  final double fogDensity;
 
   bool get hasSpotShadow => shadowLightType == JsThreeShadowLightType.spot.wireValue;
 
@@ -538,7 +603,7 @@ final class JsThreeProtocolDecoder {
 
   static const int t1HeaderBytes = 32;
   static const int r1HeaderBytes = 12;
-  static const int latestR1Version = 3;
+  static const int latestR1Version = 4;
   static const int defaultMaxEnvelopeBytes = 64 * 1024 * 1024;
   static const int maxEncodedTextureBytes = 64 * 1024 * 1024;
   static const int maxCommandCount = 100000;
@@ -865,6 +930,16 @@ final class JsThreeProtocolDecoder {
       clipFlags = body.u32('material clip flags');
       if (clipFlags & ~3 != 0) body.fail('unknown material clip flag');
     }
+    final slots = switch (streamVersion) {
+      >= 4 => _materialTextureSlotTail(body),
+      _ => (
+          alphaMapTextureId: 0,
+          envMapTextureId: 0,
+          envMapIntensity: 1.0,
+          mapUvMatrix: _threeIdentityUvMatrix,
+          alphaMapUvMatrix: _threeIdentityUvMatrix,
+        ),
+    };
     final phong = _phongMaterial(body, kind);
     final emissive = _emissiveMaterial(body, kind);
     return JsThreeMaterialUpsert._(
@@ -892,6 +967,11 @@ final class JsThreeProtocolDecoder {
       emissiveIntensity: emissive.intensity,
       clipId: clipId,
       clipFlags: clipFlags,
+      alphaMapTextureId: slots.alphaMapTextureId,
+      envMapTextureId: slots.envMapTextureId,
+      envMapIntensity: slots.envMapIntensity,
+      mapUvMatrix: slots.mapUvMatrix,
+      alphaMapUvMatrix: slots.alphaMapUvMatrix,
     );
   }
 
@@ -1158,10 +1238,11 @@ final class JsThreeProtocolDecoder {
     final fogBlue = body.finiteFloat('fog color blue');
     final fogNear = body.finiteFloat('fog near');
     final fogFar = body.finiteFloat('fog far');
-    if (fogMode == JsThreeFogMode.linear &&
-        (fogNear < 0 || fogFar <= fogNear)) {
-      body.fail('linear fog requires 0 <= near < far');
-    }
+    _validateFog(body, fogMode, fogNear, fogFar, version);
+    final (toneMapping, fogDensity) = switch (version) {
+      >= 4 => _frameToneFogTail(body, fogMode),
+      _ => (JsThreeToneMapping.none, 0.0),
+    };
     final shadowWidth = body.u32('shadow map width');
     final shadowHeight = body.u32('shadow map height');
     final shadowBias = body.finiteFloat('shadow bias');
@@ -1208,6 +1289,68 @@ final class JsThreeProtocolDecoder {
       shadowContentRevision: shadowContentRevision,
       culledNodeIds: culledNodeIds,
       culledShadowNodeIds: culledShadowNodeIds,
+      toneMapping: toneMapping,
+      toneMappingExposure: exposure,
+      fogDensity: fogDensity,
+    );
+  }
+
+  /// Linear fog needs an ordered range; FogExp2 arrived with R1 v4.
+  void _validateFog(
+    _Reader body,
+    JsThreeFogMode fogMode,
+    double fogNear,
+    double fogFar,
+    int version,
+  ) {
+    if (fogMode == JsThreeFogMode.linear &&
+        (fogNear < 0 || fogFar <= fogNear)) {
+      body.fail('linear fog requires 0 <= near < far');
+    }
+    if (fogMode == JsThreeFogMode.exp2 && version < 4) {
+      body.fail('exp2 fog requires R1 version 4');
+    }
+  }
+
+  /// Decodes the R1 v4 frame tail: tone mapping mode + FogExp2 density.
+  (JsThreeToneMapping, double) _frameToneFogTail(
+    _Reader body,
+    JsThreeFogMode fogMode,
+  ) {
+    final toneMapping = body.enumValue(
+      JsThreeToneMapping.values,
+      body.u32('tone mapping'),
+      'tone mapping',
+    );
+    final fogDensity = body.finiteFloat('fog density');
+    if (fogDensity < 0) body.fail('fog density must be nonnegative');
+    if (fogMode != JsThreeFogMode.exp2 && fogDensity != 0) {
+      body.fail('fog density requires exp2 fog');
+    }
+    return (toneMapping, fogDensity);
+  }
+
+  /// Decodes the R1 v4 material texture-slot tail: alpha/env map ids,
+  /// envMapIntensity and the two column-major 3x3 per-map UV transforms.
+  ({
+    int alphaMapTextureId,
+    int envMapTextureId,
+    double envMapIntensity,
+    Float32List mapUvMatrix,
+    Float32List alphaMapUvMatrix,
+  }) _materialTextureSlotTail(_Reader body) {
+    final alphaMapTextureId = body.u32('material alpha map texture id');
+    final envMapTextureId = body.u32('material env map texture id');
+    final envMapIntensity = body.finiteFloat('material env map intensity');
+    if (envMapIntensity < 0) {
+      body.fail('material env map intensity must be nonnegative');
+    }
+    return (
+      alphaMapTextureId: alphaMapTextureId,
+      envMapTextureId: envMapTextureId,
+      envMapIntensity: envMapIntensity,
+      mapUvMatrix: body.float32List(9, 'material map uv matrix'),
+      alphaMapUvMatrix: body.float32List(9, 'material alpha map uv matrix'),
     );
   }
 

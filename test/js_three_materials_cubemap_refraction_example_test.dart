@@ -188,19 +188,22 @@ void main() {
     expect(probeFacts['cubeStubed'], isTrue);
     expect(probeFacts['plyVerts'], 50002);
     expect(probeFacts['plyFaces'], 100000);
-    // The pinned end-state per-frame failure: the envMap slot rejects the
-    // cube texture (native_renderer.js:200-201).
+    // The pinned end-state per-frame failure: the wave-3 envMap lane
+    // accepts a single equirect 2D texture, but this module's six-jpg
+    // CubeTexture never resolves to a facade THREE.Texture at all (the
+    // Park3Med jpgs are not registered assets), so the material map slot
+    // rejects the raw cube object — the module stays web-lane.
     final failure = logs.firstWhere(
       (msg) => msg.contains('JSR_RENDERFAIL'),
       orElse: () => '',
     );
     expect(failure, isNotEmpty);
     expect(failure, contains('code=three.unsupported'));
-    expect(failure, contains('feature=materialTexture'));
+    expect(failure, contains('feature=texture'));
     expect(
       failure,
-      contains('msg=three.unsupported: materialTexture '
-          '(MeshPhongMaterial.envMap)'),
+      contains('msg=three.unsupported: texture '
+          '(material map is not a THREE.Texture)'),
     );
     expect(failure, contains('native R1 does not provide this capability'));
     // Frame submission evidence: while the scene was still empty

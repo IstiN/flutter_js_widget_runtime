@@ -58,6 +58,18 @@ void _bindThreeDrawUniforms(
   );
   final binding = backend._textureBinding(draw.material.mapTextureId);
   pass.bindTexture(slots.map, binding.texture, sampler: binding.sampler());
+  final alphaBinding = backend._textureBinding(draw.material.alphaMapTextureId);
+  pass.bindTexture(
+    slots.alphaMap,
+    alphaBinding.texture,
+    sampler: alphaBinding.sampler(),
+  );
+  final envBinding = backend._textureBinding(draw.material.envMapTextureId);
+  pass.bindTexture(
+    slots.envMap,
+    envBinding.texture,
+    sampler: envBinding.sampler(),
+  );
 }
 
 gpu.BufferView _bindThreeUniform(
@@ -137,7 +149,10 @@ double _threeShadowTexelSize(bool active, int dimension) =>
     active ? 1 / dimension : 0;
 
 ByteData _threeFrameUniform(ThreeDrawPlan plan, {bool shadowEnabled = true}) {
-  final data = ByteData(96);
+  // 7 vec4s: camera/exposure, ambient, light counts, fog color+near,
+  // fog far+mode+spot-shadow, shadow bias/texel/radius, tone mapping+fog
+  // density (R1 v4 tail; the shadow pass never binds FrameInfo).
+  final data = ByteData(112);
   final frame = plan.frame!;
   final camera = plan.cameraPosition;
   _writeFloats(data, 0, [camera.x, camera.y, camera.z, frame.exposure]);
@@ -166,6 +181,15 @@ ByteData _threeFrameUniform(ThreeDrawPlan plan, {bool shadowEnabled = true}) {
     _threeShadowTexelSize(shadowActive, frame.shadowMapWidth),
     _threeShadowTexelSize(shadowActive, frame.shadowMapHeight),
     frame.shadowRadius,
+  ]);
+  // Tone mapping mode carries the three.js constant verbatim (0 none,
+  // 1 linear, 2 reinhard, 3 cineon, 4 ACES, 6 AgX, 7 neutral); fog density
+  // is only meaningful for mode 2 (exp2) fog.
+  _writeFloats(data, 96, [
+    frame.toneMapping.wireValue.toDouble(),
+    frame.fogMode == JsThreeFogMode.exp2 ? frame.fogDensity : 0,
+    0,
+    0,
   ]);
   return data;
 }
@@ -296,7 +320,10 @@ ByteData _threeClippingUniform(
 
 ByteData _threeMaterialUniform(ThreeDrawItem draw) {
   final material = draw.material;
-  final data = ByteData(80);
+  // 12 vec4s: base 5 (color/kind/flags/specular/emissive, R1 v1..v3 ABI)
+  // plus the v4 texture-slot tail — alpha/env flags+intensity and the two
+  // column-major 3x3 UV transforms padded to one vec4 per column.
+  final data = ByteData(192);
   _writeFloats(
     data,
     0,
@@ -328,5 +355,26 @@ ByteData _threeMaterialUniform(ThreeDrawItem draw) {
     material.emissiveB,
     material.emissiveIntensity,
   ]);
+  _writeFloats(data, 80, [
+    _threeBooleanFloat[material.alphaMapTextureId != 0]!,
+    _threeBooleanFloat[material.envMapTextureId != 0]!,
+    material.envMapIntensity,
+    0,
+  ]);
+  // three.js Matrix3.elements arrive column-major; each column is written
+  // as one vec4 (w padding) so the shader rebuilds mat3(col0, col1, col2).
+  _writeUvMatrix(data, 96, material.mapUvMatrix);
+  _writeUvMatrix(data, 144, material.alphaMapUvMatrix);
   return data;
+}
+
+void _writeUvMatrix(ByteData data, int offset, Float32List matrix) {
+  for (var column = 0; column < 3; column++) {
+    _writeFloats(data, offset + column * 16, [
+      matrix[column * 3],
+      matrix[column * 3 + 1],
+      matrix[column * 3 + 2],
+      0,
+    ]);
+  }
 }

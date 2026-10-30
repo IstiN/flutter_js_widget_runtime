@@ -67,6 +67,30 @@ enum ThreeExampleSelection {
     widgetId: 'three-geometry-extrude-splines',
     assetPath: 'widgets/three-geometry-extrude-splines/widget.js',
   ),
+  materialsTextureRotation(
+    exampleId: 'webgl_materials_texture_rotation',
+    label: 'Texture Rotation (UV matrix)',
+    widgetId: 'three-materials-texture-rotation',
+    assetPath: 'widgets/three-materials-texture-rotation/widget.js',
+  ),
+  geometryShapes(
+    exampleId: 'webgl_geometry_shapes',
+    label: 'Geometry Shapes',
+    widgetId: 'three-geometry-shapes',
+    assetPath: 'widgets/three-geometry-shapes/widget.js',
+  ),
+  pointsBillboards(
+    exampleId: 'webgl_points_billboards',
+    label: 'Points Billboards (Exp2 Fog)',
+    widgetId: 'three-points-billboards',
+    assetPath: 'widgets/three-points-billboards/widget.js',
+  ),
+  shadowmapPointlight(
+    exampleId: 'webgl_shadowmap_pointlight',
+    label: 'Shadowmap PointLight (alphaMap)',
+    widgetId: 'three-shadowmap-pointlight',
+    assetPath: 'widgets/three-shadowmap-pointlight/widget.js',
+  ),
   loaderPly(
     exampleId: 'webgl_loader_ply',
     label: 'PLY Loader',

@@ -1,9 +1,10 @@
 import {
-  BackSide, Color, DoubleSide, FrontSide, Frustum, LinearFilter, Matrix4, MeshBasicMaterial,
-  MeshLambertMaterial, MeshStandardMaterial, MirroredRepeatWrapping, NearestFilter,
-  NearestMipmapNearestFilter, NearestMipmapLinearFilter, NormalBlending, NoToneMapping,
-  PointsMaterial, RGBAFormat, RepeatWrapping, SRGBColorSpace, UVMapping,
-  UnsignedByteType, Vector3
+  ACESFilmicToneMapping, AgXToneMapping, BackSide, CineonToneMapping, Color, CustomToneMapping,
+  DoubleSide, EquirectangularReflectionMapping, FrontSide, Frustum, LinearFilter, LinearToneMapping,
+  Matrix4, MeshBasicMaterial, MeshLambertMaterial, MeshStandardMaterial, MirroredRepeatWrapping,
+  NeutralToneMapping, NearestFilter, NearestMipmapNearestFilter, NearestMipmapLinearFilter,
+  NoToneMapping, NormalBlending, PointsMaterial, ReinhardToneMapping, RGBAFormat, RepeatWrapping,
+  SRGBColorSpace, UVMapping, UnsignedByteType, Vector3
 } from 'three';
 import { unsupported, requireFinite } from './errors.js';
 import { getThreeRuntime } from './runtime.js';
@@ -16,6 +17,10 @@ import {
 } from './r1.js';
 
 const ATTR_NAMES = ['position', 'normal', 'uv', 'color'];
+// Every upstream tone mapping constant has an R1 fragment implementation
+// (shaders/three_r1.frag, three.js r186 tonemapping_pars_fragment math).
+const TONE_MAPPINGS = new Set([NoToneMapping, LinearToneMapping, ReinhardToneMapping,
+  CineonToneMapping, ACESFilmicToneMapping, CustomToneMapping, AgXToneMapping, NeutralToneMapping]);
 const MAX_INSTANCES = 1000000;
 const MAX_BATCH_PARTS = 1024;
 const RESOURCE_KIND = { geometry: 1, texture: 2, material: 3, node: 4, light: 5, camera: 6 };
@@ -173,6 +178,18 @@ function textureSignature(texture) {
     texture.format, texture.type].join('|');
 }
 
+// Composes the per-map UV transform exactly like upstream
+// WebGLMaterials.refreshTransformUniform: updateMatrix() when matrixAutoUpdate,
+// then the column-major Matrix3 elements feed the R1 v4 material tail.
+function uvTransformElements(texture) {
+  if (!texture) return null;
+  if (texture.matrixAutoUpdate) texture.updateMatrix();
+  const elements = texture.matrix && texture.matrix.elements;
+  if (!Array.isArray(elements) || elements.length !== 9) unsupported('textureTransform', 'uv transform requires a 3x3 matrix');
+  for (let i = 0; i < 9; i++) requireFinite(elements[i], 'uv transform matrix');
+  return elements;
+}
+
 function materialKind(material) {
   if (material.isMeshBasicMaterial) return 0;
   if (material.isMeshLambertMaterial) return 1;
@@ -197,8 +214,14 @@ function validateMaterial(material) {
   if (material.blending !== NormalBlending) unsupported('materialBlending');
   if (material.alphaHash || material.premultipliedAlpha || material.colorWrite === false || material.stencilWrite || material.polygonOffset) unsupported('materialState', 'alphaHash/premultipliedAlpha/colorWrite/stencil/polygonOffset');
   if (Object.prototype.hasOwnProperty.call(material, 'onBeforeCompile')) unsupported('onBeforeCompile', 'arbitrary shaders require 1B');
-  const maps = ['alphaMap', 'aoMap', 'bumpMap', 'displacementMap', 'emissiveMap', 'envMap', 'lightMap', 'metalnessMap', 'normalMap', 'roughnessMap', 'specularMap', 'clearcoatMap', 'transmissionMap'];
+  // alphaMap and envMap ride the R1 v4 material texture slots; the rest of
+  // the upstream map family stays 1B-only.
+  const maps = ['aoMap', 'bumpMap', 'displacementMap', 'emissiveMap', 'lightMap', 'metalnessMap', 'normalMap', 'roughnessMap', 'specularMap', 'clearcoatMap', 'transmissionMap'];
   for (const name of maps) if (material[name]) unsupported('materialTexture', `${material.type}.${name}`);
+  if (material.envMap && !(material.isMeshBasicMaterial || material.isMeshLambertMaterial ||
+      (material.isMeshStandardMaterial && !material.isMeshPhysicalMaterial) || material.isMeshPhongMaterial)) {
+    unsupported('materialTexture', `${material.type}.envMap`);
+  }
   if (!supportsEmissive(material) && material.emissive &&
       (material.emissive.r !== 0 || material.emissive.g !== 0 || material.emissive.b !== 0)) {
     unsupported('emissiveMaterial', `${material.type} has no upstream emissive support`);
@@ -227,7 +250,7 @@ export class JsrWebGLRenderer {
       rawWebGL: false,
       isWebGL2: false,
       backend: 'flutterGpu',
-      features: Object.freeze({ geometry: true, textures: true, lambert: true, standard: true, phong: true, normal: true, emissive: true, hemisphereLight: true, spotLight: true, clipping: true, wireframe: true, rawWebGL: false, shaderMaterial: false })
+      features: Object.freeze({ geometry: true, textures: true, lambert: true, standard: true, phong: true, normal: true, emissive: true, hemisphereLight: true, spotLight: true, clipping: true, wireframe: true, toneMapping: true, fogExp2: true, textureTransform: true, alphaMap: true, envMap: true, rawWebGL: false, shaderMaterial: false })
     });
     this.outputColorSpace = SRGBColorSpace;
     this.toneMapping = NoToneMapping;
@@ -494,7 +517,7 @@ export class JsrWebGLRenderer {
     return isNativeCanvas2D(canvas) ? canvas : null;
   }
 
-  _ensureTexture(texture, commands) {
+  _ensureTexture(texture, commands, role = 'map') {
     if (!texture) return 0;
     if (!texture.isTexture) unsupported('texture', 'material map is not a THREE.Texture');
     if (texture.isCubeTexture || texture.isDataArrayTexture || texture.isData3DTexture || texture.isCompressedTexture || texture.isVideoTexture || texture.isFramebufferTexture || texture.isDepthTexture || texture.isExternalTexture) unsupported('textureType', texture.type);
@@ -505,9 +528,20 @@ export class JsrWebGLRenderer {
       this._adoptCanvasTexture(entry);
       if (!canvas._ready) return 0;
     }
-    if (texture.mapping !== UVMapping) unsupported('textureMapping');
-    if (texture.premultiplyAlpha || texture.anisotropy > 1 || (texture.mipmaps && texture.mipmaps.length)) unsupported('textureState', 'premultiplyAlpha/anisotropy/custom mipmaps');
-    if (texture.channel !== 0 || texture.offset.x !== 0 || texture.offset.y !== 0 || texture.repeat.x !== 1 || texture.repeat.y !== 1 || texture.center.x !== 0 || texture.center.y !== 0 || texture.rotation !== 0) unsupported('textureTransform', 'R1 v1 has no UV transform fields');
+    // The env lane samples one equirect 2D texture directly (R1 has no cube
+    // texture lanes); map/alphaMap stay plain UV-mapped 2D textures.
+    const mappingOk = role === 'envMap'
+      ? texture.mapping === EquirectangularReflectionMapping || texture.mapping === UVMapping
+      : texture.mapping === UVMapping;
+    if (!mappingOk) unsupported('textureMapping', role === 'envMap'
+      ? 'R1 envMap supports EquirectangularReflectionMapping on a single 2D texture'
+      : undefined);
+    if (texture.premultiplyAlpha || (texture.mipmaps && texture.mipmaps.length)) unsupported('textureState', 'premultiplyAlpha/custom mipmaps');
+    // Upstream clamps anisotropy to the device maximum; the native sampler
+    // maximum is 1 (flutter_gpu has no anisotropic filtering), so any value
+    // degrades to exactly that clamp rather than being rejected.
+    if (Number.isFinite(texture.anisotropy) === false || texture.anisotropy < 0) unsupported('textureState', 'anisotropy must be a nonnegative number');
+    if (texture.channel !== 0) unsupported('textureChannel', 'R1 maps texture channel 0 only');
     const image = texture.image;
     if (!image || !image.data) return 0;
     const id = resourceId(texture);
@@ -555,6 +589,12 @@ export class JsrWebGLRenderer {
     if (frameCached !== undefined) return frameCached;
     this._listen(material, 'materials', this._state.materials, id);
     const mapId = this._ensureTexture(material.map || null, commands);
+    const alphaMapId = this._ensureTexture(material.alphaMap || null, commands);
+    const envMapId = this._ensureTexture(material.envMap || null, commands, 'envMap');
+    const mapUvMatrix = uvTransformElements(material.map || null);
+    const alphaMapUvMatrix = uvTransformElements(material.alphaMap || null);
+    const envMapIntensity = material.envMap ? material.envMapIntensity : 1;
+    if (!Number.isFinite(envMapIntensity) || envMapIntensity < 0) throw new Error('three.invalid: material envMapIntensity must be finite and nonnegative');
     const color = material.color || new Color(0xffffff);
     const opacity = material.opacity === undefined ? 1 : material.opacity;
     const roughness = material.roughness === undefined ? 0 : material.roughness;
@@ -582,10 +622,12 @@ export class JsrWebGLRenderer {
       flags, side, color.r, color.g, color.b, opacity, roughness, metalness, alphaTest, pointSize,
       specular ? specular.r : 0, specular ? specular.g : 0, specular ? specular.b : 0, shininess,
       emissive ? emissive.r : 0, emissive ? emissive.g : 0, emissive ? emissive.b : 0, emissiveIntensity, material.version,
-      clip.signature, clip.flags].join('|');
+      clip.signature, clip.flags, alphaMapId, envMapId, envMapIntensity,
+      mapUvMatrix ? mapUvMatrix.join(',') : 'I', alphaMapUvMatrix ? alphaMapUvMatrix.join(',') : 'I'].join('|');
     const changed = this._nextVersion(this._state.materials, id, signature);
     if (changed) {
-      commands.push(materialCommand(id, changed.version, kind, mapId, flags, side, color, opacity, roughness, metalness, alphaTest, pointSize, specular, shininess, emissive, emissiveIntensity, clip.id, clip.flags));
+      commands.push(materialCommand(id, changed.version, kind, mapId, flags, side, color, opacity, roughness, metalness, alphaTest, pointSize, specular, shininess, emissive, emissiveIntensity, clip.id, clip.flags,
+        { alphaMapId, envMapId, envMapIntensity, mapUvMatrix, alphaMapUvMatrix }));
       this._mapSet(this._state.materials, id, { signature, version: changed.version, object: material });
     }
     this._frameMaterials.set(id, id);
@@ -980,12 +1022,17 @@ export class JsrWebGLRenderer {
   _fog(scene) {
     const fog = scene.fog;
     if (fog === null || fog === undefined) {
-      return { mode: 0, color: { r: 0, g: 0, b: 0 }, near: 0, far: 0 };
+      return { mode: 0, color: { r: 0, g: 0, b: 0 }, near: 0, far: 0, density: 0 };
     }
-    if (!fog.isFog) unsupported('fogType', 'R1 supports linear THREE.Fog');
+    if (fog.isFogExp2) {
+      finiteArray([fog.color.r, fog.color.g, fog.color.b, fog.density], 'fog');
+      if (fog.density < 0) throw new Error('three.invalid: FogExp2 density must be nonnegative');
+      return { mode: 2, color: fog.color, near: 0, far: 0, density: fog.density };
+    }
+    if (!fog.isFog) unsupported('fogType', 'R1 supports linear Fog and FogExp2');
     finiteArray([fog.color.r, fog.color.g, fog.color.b, fog.near, fog.far], 'fog');
     if (fog.near < 0 || fog.far <= fog.near) throw new Error('three.invalid: fog requires 0 <= near < far');
-    return { mode: 1, color: fog.color, near: fog.near, far: fog.far };
+    return { mode: 1, color: fog.color, near: fog.near, far: fog.far, density: 0 };
   }
 
   _shadow(scene, light) {
@@ -1060,7 +1107,7 @@ export class JsrWebGLRenderer {
     if (this.domElement.disposed) throw new Error('three.surface: canvas is disposed');
     if (!scene || !scene.isScene) throw new Error('three.invalid: render requires a Scene');
     if (this.outputColorSpace !== SRGBColorSpace) unsupported('outputColorSpace', 'native R1 requires SRGBColorSpace');
-    if (this.toneMapping !== NoToneMapping) unsupported('toneMapping', 'native R1 requires NoToneMapping');
+    if (!TONE_MAPPINGS.has(this.toneMapping)) unsupported('toneMapping', `${this.toneMapping} is not an upstream tone mapping constant`);
     if (this.xr.enabled) unsupported('xr');
     if (scene.environment || scene.overrideMaterial) unsupported('sceneFeature', 'environment/overrideMaterial are outside R1 v1');
     if (!Array.isArray(this.clippingPlanes)) throw new Error('three.invalid: renderer.clippingPlanes must be an array');
@@ -1173,7 +1220,7 @@ export class JsrWebGLRenderer {
     const shadowLightType = shadow === NO_SHADOW || !shadowLight
       ? 0
       : shadowLight.isSpotLight ? 2 : 1;
-    commands.push(frameCommand(resourceId(scene), cameraId, background, this.toneMappingExposure, fog, shadow, culledNodeIds, culledShadowNodeIds, shadowLightType));
+    commands.push(frameCommand(resourceId(scene), cameraId, background, this.toneMappingExposure, fog, shadow, culledNodeIds, culledShadowNodeIds, shadowLightType, this.toneMapping));
     this._emit(commands);
     this._lastScene = scene;
     this._lastCamera = camera;

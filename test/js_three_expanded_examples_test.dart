@@ -50,10 +50,15 @@ const _examples = <(String, String, bool)>[
   ('three-loader-stl', 'webgl_loader_stl', false),
   // Wave-2 additions: only modules that boot AND render stock (no probe
   // shims) join this suite — its gate requires non-empty draw plans. The
-  // documented-gap wave-2 modules (sprites, raycaster-sprite, raycaster-
-  // texture, texture-filters, texture-anisotropy, shadowmap-pointlight,
-  // camera-logarithmicdepthbuffer, cubemap-refraction, geometry-shapes,
-  // instancing-performance) carry their own dedicated tests.
+  // still-gap modules (sprites, raycaster-sprite, raycaster-texture,
+  // texture-filters, texture-anisotropy, camera-logarithmicdepthbuffer,
+  // cubemap-refraction, instancing-performance) carry their own dedicated
+  // tests. Wave-3 graduated geometry-shapes, texture-rotation, shadowmap-pointlight
+  // and points-billboards from that list (UV transforms, alphaMap, FogExp2).
+  ('three-materials-texture-rotation', 'webgl_materials_texture_rotation', false),
+  ('three-geometry-shapes', 'webgl_geometry_shapes', false),
+  ('three-shadowmap-pointlight', 'webgl_shadowmap_pointlight', false),
+  ('three-points-billboards', 'webgl_points_billboards', false),
   ('three-loader-xyz', 'webgl_loader_xyz', false),
   ('three-geometry-text-shapes', 'webgl_geometry_text_shapes', false),
   ('three-geometry-convex', 'webgl_geometry_convex', false),

@@ -4,7 +4,7 @@ import 'dart:typed_data';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:js_widget_runtime/src/renderer/nodes/three/js_three_protocol.dart'
-    show JsThreeFogMode, JsThreeMaterialKind;
+    show JsThreeFogMode, JsThreeMaterialKind, JsThreeToneMapping;
 import 'package:js_widget_runtime/src/renderer/nodes/three/js_three_state.dart'
     show JsThreeSurfaceState;
 import 'package:js_widget_runtime/src/renderer/nodes/three/three_draw_plan.dart';
@@ -12,38 +12,23 @@ import 'package:js_widget_runtime/src/renderer/nodes/three/three_draw_plan.dart'
 import 'support/three_quickjs_example_harness.dart';
 import 'support/widget_logic_helper.dart';
 
-/// webgl_points_billboards — DOCUMENTED GAP: FogExp2 + PREP-MISSING widget.
+/// webgl_points_billboards — R1 RENDERING (wave-3 FogExp2 lane).
 ///
 /// Official module facts (r186 webgl_points_billboards.html):
 /// - PerspectiveCamera(55, aspect, 2, 200), camera.position.z = 100.
-/// - scene.fog = FogExp2(0x000000, 0.001).
-/// - 100 particles at ±100 on each axis (200 * Math.random() - 100).
-/// - TextureLoader loads textures/sprites/disc.png with SRGBColorSpace.
-/// - PointsMaterial(size: 35, sizeAttenuation: true, map: sprite,
-///   alphaTest: 0.5, transparent: true); blending is NEVER set, so the
-///   material stays on the default NormalBlending (no AdditiveBlending in
-///   this r186 module).
+/// - scene.fog = FogExp2(0x000000, 0.001) — the R1 v4 frame carries
+///   fogMode=exp2 + fogDensity (protocol v4; `1 - exp(-d^2 * depth^2)` in
+///   shaders/three_r1.frag, three.js fog_fragment FOG_EXP2 math).
+/// - 10000 particles at +/-100 per axis (r186), TextureLoader disc.png (sRGB),
+///   PointsMaterial(size: 35, sizeAttenuation: true, map, alphaTest: 0.5,
+///   transparent: true); NormalBlending (never set in this r186 module).
 /// - animate() hue-cycles material.color.setHSL and camera-lerps toward the
 ///   pointer; render() runs on every setAnimationLoop tick.
 ///
-/// R1 verdict:
-/// - tool/three/src/native_renderer.js:985 — `_fog(scene)`:
-///   `if (!fog.isFog) unsupported('fogType', 'R1 supports linear THREE.Fog')`.
-///   FogExp2 (isFog === undefined) therefore throws
-///   `three.unsupported: fogType (R1 supports linear THREE.Fog)` inside every
-///   renderer.render() call, before any frame is submitted — the same
-///   per-frame-error-card shape as the ShaderMaterial gap tests.
-/// - Everything else in the module is R1-clean: PointsMaterial (kind
-///   pointsBasic) with pointSize/alphaTest/sizeAttenuation flags, the
-///   registered disc.png sprite texture (32x32 sRGB), and a 100-vertex
-///   points draw.
-///
-/// Additionally the prepared widget was MISSING from this checkout at the
-/// time this test was written (see the skip reason on test 1); test 2 is a
-/// self-contained probe that runs the official module body (verbatim, minus
-/// its two ESM import lines) against the shared three.native.js runtime and
-/// pins both halves of the verdict today: the exact fogType capability
-/// error, and the full fogless (linear-Fog substitute) draw plan.
+/// Test 1 drives the prepared widget (stock module, no shims) and pins the
+/// draw plan + frame fog fields. Test 2 runs the VERBATIM official module
+/// body (minus its two import lines) on the shared three.native.js runtime
+/// through the probe harness, proving the stock FogExp2 scene renders.
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
   if (!hasQuickjsNativeLib) {
@@ -52,34 +37,15 @@ void main() {
     return;
   }
 
-  final widgetFile = File('example/widgets/three-points-billboards/widget.js');
-  final prepared = widgetFile.existsSync();
-
-  if (!prepared) {
-    test(
-      'webgl_points_billboards widget boots but every frame throws the '
-      'FogExp2 fogType capability error',
-      () {},
-      skip: 'PREP-MISSING: example/widgets/three-points-billboards was never '
-          'generated — webgl_points_billboards is absent from the '
-          'tool/three_example/prepare.mjs EXAMPLES registry and from the '
-          'bin/jsr_three_example.dart _examples set, and '
-          'tool/three/api_matrix.json marks it "prepared": false. Run the '
-          'official prep pipeline and declare the widget assets; this test '
-          'activates automatically once widget.js exists.',
-    );
-  } else {
-    testWidgets(
-      'webgl_points_billboards widget boots but every frame throws the '
-      'FogExp2 fogType capability error',
-      _runPreparedWidgetGapTest,
-      timeout: const Timeout(Duration(seconds: 180)),
-    );
-  }
+  testWidgets(
+    'webgl_points_billboards renders on R1 with FogExp2 (prepared widget)',
+    _runPreparedWidgetTest,
+    timeout: const Timeout(Duration(seconds: 180)),
+  );
 
   testWidgets(
-    'webgl_points_billboards probe: official module body on the shared R1 '
-    'runtime (fogType gap + fogless draw plan)',
+    'webgl_points_billboards probe: verbatim official module body renders '
+    'with exp2 fog on the shared R1 runtime',
     (tester) async {
       final disc = _readOfficialDiscSprite();
       final harness = await ThreeQuickjsExampleHarness.bootSource(
@@ -87,21 +53,6 @@ void main() {
         source: _probeSource(disc),
         instanceId: 'three-points-billboards-probe',
       );
-      await harness.pumpFrames(tester, 20);
-
-      // Part 1 — the exact capability error for the module's FogExp2.
-      final exported = harness.engine.exportedState!;
-      expect(exported['example'], 'webgl_points_billboards');
-      expect(exported['fogProbeDone'], isTrue, reason: '$exported');
-      expect(exported['gapCode'], 'three.unsupported');
-      expect(exported['gapFeature'], 'fogType');
-      expect(
-        exported['gapMessage'],
-        contains('R1 supports linear THREE.Fog'),
-      );
-
-      // Part 2 — linear Fog substitute + official animation loop: the
-      // fogless scene renders fully on R1.
       final plan = await harness.pumpUntil(
         tester,
         (state, plan) =>
@@ -119,18 +70,20 @@ void main() {
       final exportedFramesBefore =
           (harness.engine.exportedState!['rendererFrame'] as num).toInt();
       await harness.pumpFrames(tester, 10);
-      expect(
-        harness.state!.submittedFrameCount,
-        greaterThan(framesBefore),
-      );
+      expect(harness.state!.submittedFrameCount, greaterThan(framesBefore));
       final exportedLate = harness.engine.exportedState!;
       expect(
         (exportedLate['rendererFrame'] as num).toInt(),
         greaterThan(exportedFramesBefore),
       );
-      expect((exportedLate['rendererPoints'] as num).toInt(), 100);
+      expect((exportedLate['rendererPoints'] as num).toInt(), 10000);
       expect((exportedLate['memoryTextures'] as num).toInt(), 1);
       expect((exportedLate['memoryGeometries'] as num).toInt(), 1);
+      // The stock module still carries its FogExp2 — no substitution.
+      expect(exportedLate['gapCode'], 'none');
+      expect(exportedLate['gapFeature'], '');
+      expect(exportedLate['fogIsFogExp2'], isTrue);
+      expect((exportedLate['fogDensity'] as num).toDouble(), closeTo(0.001, 1e-9));
 
       await harness.dispose(tester);
     },
@@ -138,37 +91,40 @@ void main() {
   );
 }
 
-/// The real widget test, activated once the prepared widget exists. The
-/// module boots completely (canvas mounted, exports live, disc.png asset
-/// registered) but every renderer.render() throws the R1 fogType capability
-/// error for FogExp2, so no frame is ever submitted.
-Future<void> _runPreparedWidgetGapTest(WidgetTester tester) async {
+/// The real widget test: the stock module renders every frame with its
+/// official FogExp2(0x000000, 0.001) attached to the frame plan.
+Future<void> _runPreparedWidgetTest(WidgetTester tester) async {
   final harness = await ThreeQuickjsExampleHarness.boot(
     tester,
     widgetId: 'three-points-billboards',
     instanceId: 'three-points-billboards-test',
   );
-  await harness.pumpFrames(tester, 120);
+  final plan = await harness.pumpUntil(
+    tester,
+    (state, plan) =>
+        state.textureUploadCount > 0 &&
+        plan.draws.isNotEmpty &&
+        state.submittedFrameCount >= 1,
+  );
+  harness.expectHealthy('webgl_points_billboards');
 
   final exported = harness.engine.exportedState!;
-  expect(exported['example'], 'webgl_points_billboards');
   expect(exported['backend'], 'flutterGpu');
   expect(exported['canvasCount'], 1);
   expect(exported['mounted'], isTrue);
-  // The prepared widget registers the official disc.png sprite.
   final assets = exported['assets'] as Map<String, dynamic>;
   expect(assets['textures/sprites/disc.png']['registered'], isTrue);
+  _expectOfficialPointsScene(plan!, harness.state!);
 
-  // Every RAF tick throws inside renderer.render() before the frame is
-  // submitted: the error card is the last render tree, no surface is ever
-  // created and the module-visible render/stats counters stay 0.
-  expect(harness.renderTrees, isNotEmpty);
-  expect(harness.renderTrees.last.toString(), contains('fogType'));
-  expect(harness.renderTrees.last.toString(),
-      contains('R1 supports linear THREE.Fog'));
-  expect(harness.surface, isNull);
-  expect((exported['renderer'] as Map<String, dynamic>)['frame'], 0);
-  expect((exported['stats'] as Map<String, dynamic>)['updates'], 0);
+  // The hue-cycling loop keeps rendering: renderer.info counts tick up.
+  final framesBefore = harness.state!.submittedFrameCount;
+  await harness.pumpFrames(tester, 10);
+  expect(harness.state!.submittedFrameCount, greaterThan(framesBefore));
+  final rendererInfo = exported['renderer'] as Map<String, dynamic>;
+  expect(rendererInfo['frame'], greaterThan(0));
+  // The exported adapter snapshot may aggregate across the export interval;
+  // the per-frame draw plan (100 vertices) is already pinned above.
+  expect((rendererInfo['points'] as num).toInt(), greaterThanOrEqualTo(10000));
 
   await harness.dispose(tester);
 }
@@ -186,11 +142,11 @@ Uint8List _readOfficialDiscSprite() {
 }
 
 void _expectOfficialPointsScene(ThreeDrawPlan plan, JsThreeSurfaceState state) {
-  // Exactly one Points object: 100 particles, un-indexed position attribute.
+  // Exactly one Points object: 10000 particles, un-indexed position attribute.
   expect(plan.draws, hasLength(1));
   final draw = plan.draws.single;
   expect(draw.primitive, ThreeDrawPrimitive.points);
-  expect(draw.drawCount, 100);
+  expect(draw.drawCount, 10000);
   expect(draw.indexed, isFalse);
 
   // PointsMaterial facts straight from the official constructor call.
@@ -213,13 +169,15 @@ void _expectOfficialPointsScene(ThreeDrawPlan plan, JsThreeSurfaceState state) {
   expect(state.textureUploadCount, greaterThanOrEqualTo(1));
   expect(state.geometryUploadCount, 1);
 
-  // Fog-less probe frame: linear Fog substitute (near 100, far 800), no
-  // lights and no shadow map in the official scene.
+  // Official frame fog: FogExp2(0x000000, 0.001) rides the v4 frame —
+  // mode exp2 with density 0.001 (no near/far), no lights/shadow map.
   final frame = plan.frame!;
-  expect(frame.fogMode, JsThreeFogMode.linear);
-  expect(frame.fogNear, 100);
-  expect(frame.fogFar, 800);
+  expect(frame.fogMode, JsThreeFogMode.exp2);
+  expect(frame.fogDensity, closeTo(0.001, 1e-9));
+  expect(frame.fogNear, 0);
+  expect(frame.fogFar, 0);
   expect(frame.hasShadow, isFalse);
+  expect(frame.toneMapping, JsThreeToneMapping.none);
   expect(plan.spotLights, isEmpty);
   expect(plan.directionalLights, isEmpty);
   expect(plan.pointLights, isEmpty);
@@ -364,7 +322,7 @@ String _probeSource(Uint8List discPng) {
     const sprite = new THREE.TextureLoader().load( 'textures/sprites/disc.png' );
     sprite.colorSpace = THREE.SRGBColorSpace;
 
-    for ( let i = 0; i < 100; i ++ ) {
+    for ( let i = 0; i < 10000; i ++ ) {
 
       const x = 200 * Math.random() - 100;
       const y = 200 * Math.random() - 100;
@@ -433,12 +391,19 @@ String _probeSource(Uint8List discPng) {
   }
   // ============== end of official webgl_points_billboards module body ====
 
-  // Probe instrumentation: silence the loop the module started, capture the
-  // exact FogExp2 capability error, then run the official loop with the
-  // documented linear-Fog substitute.
+  // Probe instrumentation: render once eagerly (FogExp2 is now an R1 v4
+  // lane — a throw here would surface through gapFeature), then keep the
+  // official animation loop running.
   renderer.setAnimationLoop( null );
 
-  const probe = { done: false, attempts: 0, code: '', feature: '', message: '' };
+  const probe = { code: 'none', feature: '', message: '' };
+  try {
+    renderer.render( scene, camera );
+  } catch ( error ) {
+    probe.code = ( error && error.code ) || 'unknown';
+    probe.feature = ( error && error.feature ) || '';
+    probe.message = ( error && error.message ) || String( error );
+  }
 
   function publish() {
     const info = renderer.info;
@@ -446,11 +411,12 @@ String _probeSource(Uint8List discPng) {
       example: 'webgl_points_billboards',
       backend: jsr.three.getCapabilities().backend,
       canvasCount: 1,
-      fogProbeDone: probe.done,
-      gapAttempts: probe.attempts,
+      fogProbeDone: true,
       gapCode: probe.code,
       gapFeature: probe.feature,
       gapMessage: probe.message,
+      fogIsFogExp2: !!( scene.fog && scene.fog.isFogExp2 ),
+      fogDensity: scene.fog ? scene.fog.density : -1,
       rendererFrame: info.render.frame,
       rendererPoints: info.render.points,
       memoryTextures: info.memory.textures,
@@ -459,35 +425,11 @@ String _probeSource(Uint8List discPng) {
     });
   }
 
-  function attemptFogGap() {
-    probe.attempts++;
-    try {
-      renderer.render( scene, camera );
-      probe.code = 'none';
-      probe.feature = '';
-      probe.message = 'FogExp2 render unexpectedly succeeded';
-    } catch ( error ) {
-      probe.code = ( error && error.code ) || 'unknown';
-      probe.feature = ( error && error.feature ) || '';
-      probe.message = ( error && error.message ) || String( error );
-    }
-    const decoded = !!( material.map.image && material.map.image.width > 0 );
-    if ( probe.feature === 'fogType' || ( decoded && probe.attempts >= 2 ) ||
-        probe.attempts >= 50 ) {
-      probe.done = true;
-      scene.fog = new THREE.Fog( 0x000000, 100, 800 );
-      renderer.setAnimationLoop( ( time ) => {
-        animate( time );
-        publish();
-      } );
-    } else {
-      setTimeout( attemptFogGap, 20 );
-    }
-    publish();
-  }
-
   publish();
-  setTimeout( attemptFogGap, 0 );
+  renderer.setAnimationLoop( ( time ) => {
+    animate( time );
+    publish();
+  } );
 })();
 ''';
   final header = ByteData.sublistView(discPng, 16, 24);
