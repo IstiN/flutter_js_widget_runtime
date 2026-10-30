@@ -115,7 +115,10 @@ class QuickjsIsolateWidgetEngineBackend
     String? hostBootstrapJs,
     Map<String, dynamic> initialTheme = const {},
   }) async {
+    // BOOT PROBE (debug only): wall-clock phases of a module switch.
+    final runSw = Stopwatch()..start();
     await dispose();
+    final disposeMs = runSw.elapsedMilliseconds;
     _disposed = false;
     quickjsConsoleLogs.clear();
     final generation = ++_generation;
@@ -134,6 +137,13 @@ class QuickjsIsolateWidgetEngineBackend
         'debug': kDebugMode,
       });
       await request.value;
+      if (kDebugMode) {
+        debugPrint(
+          'JSBOOT main: dispose=${disposeMs}ms workerSpawn+evalAck='
+          '${runSw.elapsedMilliseconds - disposeMs}ms widgetBytes='
+          '${widgetJs.length}',
+        );
+      }
       if (!_disposed && generation == _generation) {
         _config.onResolveReady?.call(_bridge.resolveCallback);
       }
@@ -486,8 +496,12 @@ final class _QuickJsWorker {
   }
 
   void _run(Map<dynamic, dynamic> raw) {
+    // BOOT PROBE (debug only): QuickJS runtime creation + full widget eval
+    // (prepared widgets inline the whole three bundle — ~600KB per module).
+    final sw = Stopwatch()..start();
     _generation = raw['generation'] as int;
     final runtime = QuickjsRuntime();
+    final createMs = sw.elapsedMilliseconds;
     _runtime = runtime;
     runtime.registerHostFunction('sendMessage', _sendMessage);
     // The NATIVE bytes lane stays DISABLED in the persistent worker: under
@@ -519,6 +533,12 @@ ${raw['widget']}
 })();
 ''';
     _workerEval(runtime, code, '<js_widget_isolate>');
+    if (kDebugMode) {
+      debugPrint(
+        'JSBOOT worker: runtimeCreate=${createMs}ms '
+        'widgetEval=${sw.elapsedMilliseconds - createMs}ms',
+      );
+    }
   }
 
   String? _sendMessage(String argsJson) {

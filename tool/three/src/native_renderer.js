@@ -64,6 +64,24 @@ function attributeSignature(attribute) {
     attribute.data ? token(attribute.data.array) : 0, attribute.offset || 0].join(':');
 }
 
+// FNV-1a over an attribute's raw element storage. Upstream helpers
+// (SpotLightHelper/CameraHelper/...) rewrite their geometry EVERY update()
+// and set needsUpdate even when the light did not move, so attribute.version
+// bumps on frames whose byte content is IDENTICAL. The signature cache below
+// hashes the storage when version changes and treats a matching hash as
+// unchanged, skipping the full 200KB+ re-upload those helpers used to cause
+// on every frame.
+function attributeContentHash(array) {
+  if (!array || !array.length) return 0;
+  let hash = 0x811c9dc5;
+  const n = array.length;
+  for (let i = 0; i < n; i++) {
+    hash ^= array[i] | 0;
+    hash = (hash * 0x01000193) | 0;
+  }
+  return hash >>> 0;
+}
+
 function geometrySignature(geometry, primitive, mode) {
   const attributes = ATTR_NAMES.map(name => attributeSignature(geometry.attributes[name])).join('|');
   const index = geometry.index;
@@ -758,8 +776,71 @@ export class JsrWebGLRenderer {
     return { id, flags, signature };
   }
 
-  _ensureGeometry(geometry, primitive, mode, commands, wireframe = false) {
-    if (!geometry || !geometry.isBufferGeometry) unsupported('geometry', 'only BufferGeometry is supported');
+  // Per-geometry signature cache. Rebuilding the signature string for every
+  // drawable on every frame is pure QuickJS string churn (~tens of KB of
+  // garbage per frame — the dominant cost of a static scene's traverse).
+  // Fast path: no attribute/index version moved since last frame -> reuse
+  // the string. Slow path: a version moved -> hash that attribute's storage;
+  // an identical hash means a helper set needsUpdate with the same content
+  // (see attributeContentHash) -> still reuse the string, just refresh the
+  // cached versions. Only genuinely different content rebuilds the string.
+  _geometrySignatureCached(geometry, primitive, mode, includeWire) {
+    let cache = this._geometrySignatureCache ? null : null;
+    const store = this._geometrySignatureCache || (this._geometrySignatureCache = new Map());
+    cache = store.get(geometry);
+    const range = geometry.drawRange || { start: 0, count: Infinity };
+    if (cache && cache.primitive === primitive && cache.mode === mode &&
+        cache.wire === (includeWire ? 1 : 0) && cache.rangeStart === range.start &&
+        cache.rangeCount === range.count) {
+      let reuse = true;
+      let refreshed = false;
+      const names = ATTR_NAMES;
+      for (let i = 0; i < names.length; i++) {
+        const attribute = geometry.attributes[names[i]];
+        const version = attribute ? attribute.version + (attribute.data ? attribute.data.version * 65536 : 0) : -1;
+        if (version !== cache.versions[i]) {
+          if (attribute && attributeContentHash(attribute.array) === cache.hashes[i]) {
+            cache.versions[i] = version;
+            refreshed = true;
+          } else {
+            reuse = false;
+            break;
+          }
+        }
+      }
+      if (reuse) {
+        const index = geometry.index;
+        const indexVersion = index ? index.version : -1;
+        if (indexVersion !== cache.versions[4]) {
+          if (index && attributeContentHash(index.array) === cache.hashes[4]) {
+            cache.versions[4] = indexVersion;
+            refreshed = true;
+          } else {
+            reuse = false;
+          }
+        }
+      }
+      if (reuse) return cache.sig;
+    }
+    const versions = [-1, -1, -1, -1, -1];
+    const hashes = [0, 0, 0, 0, 0];
+    for (let i = 0; i < ATTR_NAMES.length; i++) {
+      const attribute = geometry.attributes[ATTR_NAMES[i]];
+      if (attribute) {
+        versions[i] = attribute.version + (attribute.data ? attribute.data.version * 65536 : 0);
+        hashes[i] = attributeContentHash(attribute.array);
+      }
+    }
+    if (geometry.index) {
+      versions[4] = geometry.index.version;
+      hashes[4] = attributeContentHash(geometry.index.array);
+    }
+    const sig = `${geometrySignature(geometry, primitive, mode)};wire:${includeWire ? 1 : 0}`;
+    store.set(geometry, { primitive, mode, wire: includeWire ? 1 : 0, rangeStart: range.start, rangeCount: range.count, versions, hashes, sig });
+    return sig;
+  }
+
+  _ensureGeometry(geometry, primitive, mode, commands, wireframe = false) {    if (!geometry || !geometry.isBufferGeometry) unsupported('geometry', 'only BufferGeometry is supported');
     if (geometry.isInstancedBufferGeometry) unsupported('instancedGeometry');
     if (geometry.index && (!geometry.index.array || geometry.index.isGLBufferAttribute)) unsupported('rawGLAttribute', 'index');
     if (geometry.morphAttributes && Object.keys(geometry.morphAttributes).some(key => geometry.morphAttributes[key] && geometry.morphAttributes[key].length)) unsupported('morphTargets');
@@ -774,7 +855,7 @@ export class JsrWebGLRenderer {
     if (frameCached && (!wireframe || frameCached.hasWireIndices)) return frameCached;
     this._listen(geometry, 'geometries', this._state.geometries, id);
     this._mapSet(this._geometryModes, id, { primitive, mode });
-    const signature = `${geometrySignature(geometry, primitive, mode)};wire:${includeWire ? 1 : 0}`;
+    const signature = this._geometrySignatureCached(geometry, primitive, mode, includeWire);
     const changed = this._nextVersion(this._state.geometries, id, signature);
     if (!changed) {
       const cached = this._state.geometries.get(id);
