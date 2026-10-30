@@ -582,7 +582,7 @@ void main() {
         expect(plan.hemisphereLights.single.groundColorR, 0.75);
 
         final frame = debugThreeFrameUniform(plan);
-        expect(frame.lengthInBytes, 112);
+        expect(frame.lengthInBytes, 144);
         expect(frame.getFloat32(32, Endian.little), 0);
         expect(frame.getFloat32(36, Endian.little), 0);
         expect(frame.getFloat32(40, Endian.little), 1);
@@ -834,7 +834,9 @@ void main() {
       final draw = plan.opaque.single;
 
       final vertex = debugThreeVertexUniform(draw, plan, 2);
-      expect(vertex.lengthInBytes, 320);
+      // Impeller reflects 304 used bytes + 32 trailing padding (R1 v5
+      // spriteParams tail at 288).
+      expect(vertex.lengthInBytes, 336);
       expect(vertex.getFloat32(196, Endian.little), 0);
       expect(vertex.getFloat32(208, Endian.little), 1);
       expect(vertex.getFloat32(272, Endian.little), closeTo(0.02, 1e-6));
@@ -856,12 +858,19 @@ void main() {
       expect(shadowVertex.getFloat32(196, Endian.little), 1);
 
       final frame = debugThreeFrameUniform(plan);
-      expect(frame.lengthInBytes, 112);
+      // v5 tail: point-shadow light/params vec4s at 112/128; this plan has
+      // no point shadow so the flag reads 0.
+      expect(frame.lengthInBytes, 144);
       expect(frame.getFloat32(80, Endian.little), closeTo(-0.0001, 1e-6));
       expect(frame.getFloat32(84, Endian.little), 1 / 2048);
       expect(frame.getFloat32(88, Endian.little), 1 / 2048);
       expect(frame.getFloat32(92, Endian.little), 1);
-      expect(debugThreeMaterialUniform(draw).getFloat32(44, Endian.little), 1);
+      expect(frame.getFloat32(112, Endian.little), 0);
+      expect(frame.getFloat32(128, Endian.little), 0);
+      expect(
+        debugThreeMaterialUniform(draw, plan).getFloat32(44, Endian.little),
+        1,
+      );
     });
 
     test('GPU point uniforms preserve size attenuation and viewport scale', () {

@@ -39,6 +39,8 @@ const _examples = <String>{
   'webgl_lights_spotlight',
   'webgl_loader_ply',
   'webgl_loader_stl',
+  'webgl_materials_matcap',
+  'webgl_materials_toon',
   'webgl_materials_bumpmap',
   'webgl_materials_displacementmap',
   'webgl_geometry_shapes',

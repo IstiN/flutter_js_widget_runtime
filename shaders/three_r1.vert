@@ -20,6 +20,8 @@ out vec4 vertexColor;
 layout(location = 9) out vec4 instanceDiffuse;
 out float viewDepth;
 layout(location = 5) out vec4 shadowPosition;
+// R1 v5: light-space position for the point-light dual-paraboloid shadow pass.
+layout(location = 10) out vec3 pointShadowPosition;
 
 uniform VertexInfo {
   mat4 model;
@@ -28,6 +30,12 @@ uniform VertexInfo {
   vec4 pointSize;
   mat4 shadowMatrix;
   vec4 shadowNormalBiasReserved;
+  // R1 v5: x sprite rotation (radians), y/z Sprite.center, w sprite flag.
+  // For point-shadow passes the base uniforms change meaning instead:
+  // shadowMatrix carries the light VIEW matrix and pointSize.y selects
+  // 2.0 = front / 3.0 = back paraboloid face with the far plane in
+  // shadowNormalBiasReserved.w.
+  vec4 spriteParams;
 } vertex_info;
 
 void main() {
@@ -39,6 +47,34 @@ void main() {
   );
   mat4 worldModel = vertex_info.model * instanceModel;
   vec4 world = worldModel * vec4(position, 1.0);
+
+  // R1 v5 point-light shadow pass: dual-paraboloid warp. The classic
+  // Heidrich/Seidel projection — a ray from the light origin maps to the
+  // unit disk regardless of distance, so depth (stored per fragment by the
+  // point-shadow fragment shader as the light-space length) stays exact.
+  float pointShadowMode = vertex_info.pointSize.y >= 1.5 ? vertex_info.pointSize.y - 1.0 : 0.0;
+  if (pointShadowMode >= 1.0) {
+    vec4 lightSpace = vertex_info.shadowMatrix * vec4(world.xyz, 1.0);
+    pointShadowPosition = lightSpace.xyz;
+    float length_ = length(lightSpace.xyz);
+    // front (mode 2.0 -> 1.0): z <= 0 hemisphere; back: z >= 0 mirrored on x.
+    float sign_ = pointShadowMode < 1.5 ? 1.0 : -1.0;
+    float denominator = max(length_ - sign_ * lightSpace.z, 0.0001);
+    vec2 disk = vec2(lightSpace.x, sign_ * lightSpace.y) / denominator;
+    gl_Position = vec4(disk, length_ * vertex_info.shadowNormalBiasReserved.w, 1.0);
+    worldPosition = world.xyz;
+    worldNormal = normal;
+    viewNormal = vec3(0.0);
+    viewPosition = vec3(0.0);
+    materialState = vec2(0.0);
+    textureUv = uv;
+    vertexColor = color;
+    instanceDiffuse = instanceColor;
+    viewDepth = 0.0;
+    shadowPosition = vec4(0.0);
+    return;
+  }
+
   worldPosition = world.xyz;
   worldNormal = mat3(transpose(inverse(worldModel))) * normal;
   viewNormal = mat3(vertex_info.view) * worldNormal;
@@ -52,6 +88,34 @@ void main() {
   textureUv = uv;
   vertexColor = color;
   instanceDiffuse = instanceColor;
+
+  if (vertex_info.spriteParams.w > 0.5) {
+    // THREE r186 sprite vertex math, verbatim shape: billboard the shared
+    // quad in view space around the sprite's world origin, scaled by the
+    // model matrix column lengths, rotated by SpriteMaterial.rotation and
+    // anchored at Sprite.center. sizeAttenuation=false keeps a constant
+    // screen size by scaling with the view depth (perspective cameras).
+    vec4 mvPosition = vertex_info.view * (vertex_info.model * vec4(0.0, 0.0, 0.0, 1.0));
+    vec2 scale = vec2(length(vertex_info.model[0].xyz), length(vertex_info.model[1].xyz));
+    if (vertex_info.shadowNormalBiasReserved.z < 0.5) {
+      scale *= max(-mvPosition.z, 0.0001);
+    }
+    vec2 alignedPosition = (position.xy -
+        (vertex_info.spriteParams.yz - vec2(0.5))) * scale;
+    float rotationCos = cos(vertex_info.spriteParams.x);
+    float rotationSin = sin(vertex_info.spriteParams.x);
+    vec2 rotatedPosition = vec2(
+        rotationCos * alignedPosition.x - rotationSin * alignedPosition.y,
+        rotationSin * alignedPosition.x + rotationCos * alignedPosition.y);
+    mvPosition.xy += rotatedPosition;
+    gl_Position = vertex_info.projection * mvPosition;
+    viewPosition = -mvPosition.xyz;
+    viewDepth = -mvPosition.z;
+    gl_Position.z = 0.5 * (gl_Position.z + gl_Position.w);
+    gl_PointSize = vertex_info.pointSize.x;
+    return;
+  }
+
   gl_PointSize = vertex_info.pointSize.x;
   vec4 viewPosition4 = vertex_info.view * world;
   if (vertex_info.shadowNormalBiasReserved.z > 0.5 &&

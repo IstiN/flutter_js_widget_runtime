@@ -99,6 +99,7 @@ final class ThreeDrawPlan {
     required this.hemisphereLights,
     required this.spotLights,
     required this.clippings,
+    required this.textures,
     required this.diagnostics,
   });
 
@@ -112,6 +113,9 @@ final class ThreeDrawPlan {
   final List<JsThreeLightUpsert> hemisphereLights;
   final List<JsThreeLightUpsert> spotLights;
   final Map<int, JsThreeClippingUpsert> clippings;
+
+  /// Texture upserts snapshot (cube atlas lookup for material uniforms).
+  final Map<int, JsThreeTextureUpsert> textures;
   final ThreeDrawPlanDiagnostics diagnostics;
 
   Iterable<ThreeDrawItem> get draws sync* {
@@ -230,11 +234,14 @@ bool _eligibleAutoInstanceDraw(ThreeDrawItem draw) =>
     draw.primitive == ThreeDrawPrimitive.triangles &&
     !draw.transparent &&
     !draw.wireframe &&
+    draw.node.objectKind != JsThreeObjectKind.sprite &&
     switch (draw.material.kind) {
       JsThreeMaterialKind.meshBasic ||
       JsThreeMaterialKind.meshLambert ||
       JsThreeMaterialKind.meshStandard ||
-      JsThreeMaterialKind.meshPhong => true,
+      JsThreeMaterialKind.meshPhong ||
+      JsThreeMaterialKind.meshTon ||
+      JsThreeMaterialKind.meshMatcap => true,
       _ => false,
     };
 
@@ -273,10 +280,13 @@ bool _sameAutoInstanceMaterialSurface(
 
 /// R1 v4 texture-slot tail: alpha/env ids, envMapIntensity and both
 /// per-map UV matrices must match for auto-instanced runs to merge.
+/// The v5 tail adds the matcap/gradient-map ids.
 bool _sameMaterialTextureSlots(JsThreeMaterialUpsert x, JsThreeMaterialUpsert y) {
   return x.alphaMapTextureId == y.alphaMapTextureId &&
       x.envMapTextureId == y.envMapTextureId &&
       x.envMapIntensity == y.envMapIntensity &&
+      x.matcapTextureId == y.matcapTextureId &&
+      x.gradientMapTextureId == y.gradientMapTextureId &&
       _sameUvMatrix(x.mapUvMatrix, y.mapUvMatrix) &&
       _sameUvMatrix(x.alphaMapUvMatrix, y.alphaMapUvMatrix);
 }
@@ -403,6 +413,7 @@ final class ThreeDrawPlanner {
       hemisphereLights: List.unmodifiable(lights.hemisphere),
       spotLights: List.unmodifiable(lights.spots),
       clippings: Map.unmodifiable(state.clippings),
+      textures: Map.unmodifiable(state.textures),
       diagnostics: diagnostics,
     );
   }
@@ -523,6 +534,7 @@ final class ThreeDrawPlanner {
     hemisphereLights: const [],
     spotLights: const [],
     clippings: const {},
+    textures: const {},
     diagnostics: diagnostics,
   );
 
@@ -862,6 +874,8 @@ final class ThreeDrawPlanner {
       ('map', material.mapTextureId),
       ('alphaMap', material.alphaMapTextureId),
       ('envMap', material.envMapTextureId),
+      ('matcap', material.matcapTextureId),
+      ('gradientMap', material.gradientMapTextureId),
     ]) {
       if (id != 0 && !context.state.textures.containsKey(id)) {
         context.diagnostics.missingResourceCount++;
@@ -883,6 +897,9 @@ final class ThreeDrawPlanner {
       material.wireframe
           ? ThreeDrawPrimitive.lines
           : ThreeDrawPrimitive.triangles,
+    // Sprites render their shared unit quad billboarded in the vertex stage.
+    (JsThreeObjectKind.sprite, JsThreePrimitive.triangles) =>
+      ThreeDrawPrimitive.triangles,
     (JsThreeObjectKind.line, JsThreePrimitive.lines) =>
       lineMode == ThreeLineMode.lines
           ? ThreeDrawPrimitive.lines
@@ -897,12 +914,17 @@ final class ThreeDrawPlanner {
     JsThreeMaterialKind material,
   ) => switch (object) {
     JsThreeObjectKind.group => false,
+    JsThreeObjectKind.sprite =>
+      // SpriteMaterial rides the unlit meshBasic shading path (R1 v5).
+      material == JsThreeMaterialKind.meshBasic,
     JsThreeObjectKind.mesh =>
       material == JsThreeMaterialKind.meshBasic ||
           material == JsThreeMaterialKind.meshLambert ||
           material == JsThreeMaterialKind.meshStandard ||
           material == JsThreeMaterialKind.meshPhong ||
           material == JsThreeMaterialKind.meshNormal ||
+          material == JsThreeMaterialKind.meshTon ||
+          material == JsThreeMaterialKind.meshMatcap ||
           material == JsThreeMaterialKind.shadow,
     JsThreeObjectKind.line => material == JsThreeMaterialKind.lineBasic,
     JsThreeObjectKind.points => material == JsThreeMaterialKind.pointsBasic,

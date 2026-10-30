@@ -24,6 +24,12 @@ uniform sampler2D mapTexture;
 uniform sampler2D shadowMapTexture;
 uniform sampler2D alphaMapTexture;
 uniform sampler2D envMapTexture;
+// R1 v5 tails: toon gradient ramp + matcap lookup, and the two paraboloid
+// faces of the point-light shadow map (front = z <= 0 hemisphere).
+uniform sampler2D gradientMapTexture;
+uniform sampler2D matcapTexture;
+uniform sampler2D pointShadowFrontTexture;
+uniform sampler2D pointShadowBackTexture;
 
 uniform FrameInfo {
   vec4 cameraPositionExposure;
@@ -35,6 +41,10 @@ uniform FrameInfo {
   // x: tone mapping mode (three.js constants: 0 none, 1 linear, 2 reinhard,
   // 3 cineon, 4 ACES filmic, 5 custom, 6 AgX, 7 neutral), y: FogExp2 density.
   vec4 toneMappingFogDensity;
+  // R1 v5 point-light shadow tail: x = enabled, yzw = light world position.
+  vec4 pointShadowLight;
+  // x = 1/far depth normalization, y = paraboloid texel size (1/mapWidth).
+  vec4 pointShadowParams;
 } frame_info;
 
 uniform Lights {
@@ -73,6 +83,12 @@ uniform MaterialInfo {
   vec4 alphaMapUvColumn0;
   vec4 alphaMapUvColumn1;
   vec4 alphaMapUvColumn2;
+  // R1 v5 tail: x = has matcap, y = has gradientMap, z = cube envMap atlas,
+  // w = cube atlas width in texels (textureSize() is unusable: it crashes
+  // the bundled spirv-cross, so dims ride the uniform).
+  vec4 matcapGradientCube;
+  // x = cube atlas height in texels; yzw reserved.
+  vec4 atlasParams;
 } material_info;
 
 float distributionGgx(vec3 n, vec3 h, float roughness) {
@@ -315,6 +331,87 @@ float directionalShadow() {
   return visibility / 9.0;
 }
 
+// R1 v5 point-light shadow sampling — the decode half of the dual
+// paraboloid map (see three_r1.vert): pick the face by the major
+// hemisphere of (fragment - light), rebuild the disk UV with the same
+// formula the vertex warp used, and PCF-compare light-space distances.
+// Depth is normalized by 1/far; fragments beyond far are fully lit.
+// Branch-free throughout (step/select instead of if): this function is
+// called inside the per-light loops, and spirv-cross recursed to a crash
+// on the added nesting depth.
+float pointShadowVisibility(vec3 fragmentWorldPosition, float receiveShadow) {
+  float enabled = step(0.5, frame_info.pointShadowLight.x) *
+                  step(0.499, receiveShadow);
+  vec3 delta = fragmentWorldPosition - frame_info.pointShadowLight.yzw;
+  float distance = length(delta);
+  float far = 1.0 / max(frame_info.pointShadowParams.x, 0.000001);
+  float withinFar = step(distance, far);
+  vec3 dir = delta / max(distance, EPSILON);
+  float frontFace = step(dir.z, 0.0);
+  // front face encodes (x, y) / (len - z); back (x, -y) / (len + z).
+  vec2 diskFront = dir.xy / (1.0 - dir.z);
+  vec2 diskBack = vec2(dir.x, -dir.y) / (1.0 + dir.z);
+  vec2 uv = mix(diskBack, diskFront, frontFace) * 0.5 + 0.5;
+  float texel = frame_info.pointShadowParams.y;
+  float compare = distance + frame_info.shadowBiasTexelRadius.x;
+  float visibility = 0.0;
+  for (int x = -1; x <= 1; ++x) {
+    for (int y = -1; y <= 1; ++y) {
+      // Clamp to the cleared rim (depth 1.0 = far) like upstream cube
+      // shadow border handling; both faces are always bound, picking the
+      // sample with a select keeps the loop uniform-control-flow friendly.
+      vec2 sampleUv = clamp(uv + vec2(float(x), float(y)) * texel,
+                            vec2(0.0), vec2(1.0));
+      float storedFront = texture(pointShadowFrontTexture, sampleUv).r;
+      float storedBack = texture(pointShadowBackTexture, sampleUv).r;
+      float stored = mix(storedBack, storedFront, frontFace);
+      visibility += step(compare, stored);
+    }
+  }
+  visibility /= 9.0;
+  return mix(1.0, visibility, enabled * withinFar);
+}
+
+// R1 v5 cube env lane: the six +X,-X,+Y,-Y,+Z,-Z faces arrive as one 3x2
+// atlas (row 0: +X,-X,+Y; row 1: -Y,+Z,-Z). Major-axis selection mirrors
+// the GL cube face conventions three.js samples hardware cubemaps with;
+// the half-texel inset keeps linear filtering from bleeding across cells.
+// Written branch-free (step/ternary selects) — spirv-cross recursed to a
+// crash on the nested if/else face ladder.
+vec2 cubeAtlasUv(vec3 dir) {
+  vec3 a = abs(dir);
+  float xMajor = step(max(a.y, a.z), a.x);
+  float yMajor = (1.0 - xMajor) * step(a.z, a.y);
+  float zMajor = 1.0 - xMajor - yMajor;
+  vec2 uvX = dir.x > 0.0 ? vec2(-dir.z, -dir.y) : vec2(dir.z, -dir.y);
+  vec2 uvY = dir.y > 0.0 ? vec2(dir.x, dir.z) : vec2(dir.x, -dir.z);
+  vec2 uvZ = dir.z > 0.0 ? vec2(dir.x, -dir.y) : vec2(-dir.x, -dir.y);
+  vec2 faceUv = uvX / max(a.x, EPSILON) * xMajor +
+                uvY / max(a.y, EPSILON) * yMajor +
+                uvZ / max(a.z, EPSILON) * zMajor;
+  float face = xMajor * (dir.x > 0.0 ? 0.0 : 1.0) +
+               yMajor * (dir.y > 0.0 ? 2.0 : 3.0) +
+               zMajor * (dir.z > 0.0 ? 4.0 : 5.0);
+  vec2 atlas = vec2(material_info.matcapGradientCube.w, material_info.atlasParams.x);
+  vec2 faceSize = atlas / vec2(3.0, 2.0);
+  vec2 origin = vec2(mod(face, 3.0), floor(face / 3.0)) * faceSize;
+  vec2 inCell = clamp(faceUv * 0.5 + 0.5, vec2(0.5) / faceSize,
+                      vec2(1.0) - vec2(0.5) / faceSize);
+  return (origin + inCell * faceSize) / atlas;
+}
+
+// THREE r186 gradientmap_pars_fragment: without a gradientMap the toon ramp
+// is the built-in two-stop 0.7/1.0 step (antialiased with fwidth), with one
+// the red channel of the 1D ramp texture drives the band.
+vec3 toonGradientIrradiance(float dotNL) {
+  float coord = dotNL * 0.5 + 0.5;
+  if (material_info.matcapGradientCube.y > 0.5) {
+    return vec3(texture(gradientMapTexture, vec2(coord, 0.5)).r);
+  }
+  float width = fwidth(coord) * 0.5;
+  return mix(vec3(0.7), vec3(1.0), smoothstep(0.7 - width, 0.7 + width, coord));
+}
+
 void applyClipping() {
   int clipCount = int(clipping_info.clipCountFlags.x + 0.5);
   if (clipCount <= 0) return;
@@ -379,7 +476,31 @@ void main() {
   }
 
   vec3 color = albedo.rgb;
-  if (kind != 0 && kind != 3 && kind != 4) {
+  if (kind == 9) {
+    // R1 v5 MeshMatcapMaterial — the REAL upstream meshmatcap_frag lookup:
+    // build a view-space tangent frame around the view direction and read
+    // the matcap at (dot(x,n), dot(y,n)) * 0.495 + 0.5; the 0.495 keeps
+    // undersized matcap disks from wrapping. Missing matcap falls back to
+    // upstream's mix(0.2, 0.8, uv.y) gray. Unlit, but fog + tone mapped.
+    vec3 matcapNormal = viewNormal;
+    if (material_info.vertexColorsFlatShadingHasMapReserved.y > 0.5) {
+      matcapNormal = cross(dFdx(viewPosition), dFdy(viewPosition));
+    }
+    float matcapNormalLength = length(matcapNormal);
+    matcapNormal = matcapNormalLength > EPSILON
+        ? matcapNormal / matcapNormalLength
+        : vec3(0.0, 0.0, 1.0);
+    if (!gl_FrontFacing) matcapNormal = -matcapNormal;
+    vec3 viewDir = normalize(viewPosition);
+    vec3 x = normalize(vec3(viewDir.z, 0.0, -viewDir.x));
+    vec3 y = cross(viewDir, x);
+    vec2 uv = vec2(dot(x, matcapNormal), dot(y, matcapNormal)) * 0.495 + 0.5;
+    vec4 matcapColor = material_info.matcapGradientCube.x > 0.5
+        ? texture(matcapTexture, uv)
+        : vec4(vec3(mix(0.2, 0.8, uv.y)), 1.0);
+    color = albedo.rgb * matcapColor.rgb;
+  }
+  if (kind != 0 && kind != 3 && kind != 4 && kind != 9) {
     float normalLength = length(worldNormal);
     vec3 smoothNormal = normalLength > EPSILON
         ? worldNormal / normalLength
@@ -408,6 +529,11 @@ void main() {
     float shadow = directionalShadow();
     float shadowFactor = frame_info.fogFarModeReserved.z > 0.5 ? 1.0 : shadow;
     float spotShadowFactor = frame_info.fogFarModeReserved.z > 0.5 ? shadow : 1.0;
+    // Evaluated once per fragment: the point shadow covers the frame's
+    // single point shadow light, so it is independent of the loop index.
+    float pointShadowFactor = pointShadowVisibility(
+        worldPosition,
+        material_info.vertexColorsFlatShadingHasMapReserved.w);
     if (kind == 7) {
       // ShadowMaterial: invisible where lit, opacity-colored where shadowed
       // (upstream: vec4(color, opacity * (1 - getShadowMask()))).
@@ -415,7 +541,7 @@ void main() {
       outColor = vec4(albedo.rgb, albedo.a * (1.0 - mask));
       return;
     }
-    if (kind == 1 || kind == 5) {
+    if (kind == 1 || kind == 5 || kind == 8) {
       for (int i = 0; i < MAX_DIRECTIONAL_LIGHTS; ++i) {
         if (i < directionalCount) {
           vec3 l = normalize(lights.directionalDirectionIntensity[i].xyz);
@@ -423,6 +549,11 @@ void main() {
                           lights.directionalDirectionIntensity[i].w;
           float nDotL = max(dot(n, l), 0.0);
           vec3 direct = baseColor / PI;
+          if (kind == 8) {
+            // R1 v5 MeshTonMaterial: three.js RE_Direct_Toon — the lambert
+            // nDotL factor is replaced by the gradient irradiance ramp.
+            direct *= toonGradientIrradiance(dot(n, l)) / max(nDotL, EPSILON);
+          }
           if (kind == 5) {
             direct += blinnPhongSpecular(
                 n, v, l, material_info.specularShininess.rgb,
@@ -440,12 +571,15 @@ void main() {
                           lights.pointPositionIntensity[i].w / distanceSquared;
           float nDotL = max(dot(n, l), 0.0);
           vec3 direct = baseColor / PI;
+          if (kind == 8) {
+            direct *= toonGradientIrradiance(dot(n, l)) / max(nDotL, EPSILON);
+          }
           if (kind == 5) {
             direct += blinnPhongSpecular(
                 n, v, l, material_info.specularShininess.rgb,
                 material_info.specularShininess.w);
           }
-          color += direct * radiance * nDotL;
+          color += direct * radiance * pointShadowFactor * nDotL;
         }
       }
       for (int i = 0; i < MAX_SPOT_LIGHTS; ++i) {
@@ -462,6 +596,9 @@ void main() {
                                               lights.spotDecayDistance[i].y);
           float nDotL = max(dot(n, l), 0.0);
           vec3 direct = baseColor / PI;
+          if (kind == 8) {
+            direct *= toonGradientIrradiance(dot(n, l)) / max(nDotL, EPSILON);
+          }
           if (kind == 5) {
             direct += blinnPhongSpecular(
                 n, v, l, material_info.specularShininess.rgb,
@@ -495,8 +632,9 @@ void main() {
           vec3 l = delta * inversesqrt(distanceSquared);
           vec3 radiance = lights.pointColor[i].rgb *
                           lights.pointPositionIntensity[i].w / distanceSquared;
+          float pointVisibility = pointShadowFactor;
           color += standardLight(
-              n, v, l, radiance, baseColor, f0, roughness, metalness);
+              n, v, l, radiance, baseColor, f0, roughness, metalness) * pointVisibility;
         }
       }
       for (int i = 0; i < MAX_SPOT_LIGHTS; ++i) {
@@ -521,11 +659,14 @@ void main() {
   if (kind == 1 || kind == 2 || kind == 5) {
     color += material_info.emissiveIntensity.rgb * material_info.emissiveIntensity.a;
   }
-  // R1 basic env reflection (three.js envmap_fragment shape): sample the
-  // equirect environment at reflect(fragment->camera inverted, normal) and
-  // add it scaled by envMapIntensity and (1 - roughness). Upstream PMREM
-  // prefiltered IBL and cube-face envMaps stay on the 1B web lane.
-  if (material_info.alphaEnvIntensity.y > 0.5 && kind != 3 && kind != 4) {
+  // R1 env reflection (three.js envmap_fragment shape): sample the
+  // environment at reflect(fragment->camera inverted, normal) scaled by
+  // envMapIntensity and (1 - roughness). R1 v5 supports two env lanes:
+  // equirect (v4) and the 3x2 cube atlas — the material flag selects the
+  // sampling function. Upstream PMREM prefiltered IBL stays on the 1B web
+  // lane.
+  if (material_info.alphaEnvIntensity.y > 0.5 &&
+      kind != 3 && kind != 4 && kind != 9) {
     vec3 envView = normalize(
         frame_info.cameraPositionExposure.xyz - worldPosition);
     float envNormalLength = length(worldNormal);
@@ -533,7 +674,9 @@ void main() {
         ? worldNormal / envNormalLength
         : vec3(0.0, 0.0, 1.0);
     vec3 reflectVec = reflect(-envView, envNormal);
-    vec3 envColor = texture(envMapTexture, equirectUv(reflectVec)).rgb;
+    vec3 envColor = material_info.matcapGradientCube.z > 0.5
+        ? texture(envMapTexture, cubeAtlasUv(reflectVec)).rgb
+        : texture(envMapTexture, equirectUv(reflectVec)).rgb;
     color += envColor * material_info.alphaEnvIntensity.z *
         (1.0 - clamp(material_info.roughnessMetalnessAlphaTestKind.x,
                      0.0, 1.0));

@@ -102,11 +102,14 @@ void main() {
     }
     expect(harness.state!.textures, hasLength(2));
 
-    // ...but NEITHER light casts: point-light shadows are silently
-    // dropped (documented render-with-gap, not an error).
+    // R1 v5: the first point light casts — a dual-paraboloid point-shadow
+    // lane (front z<=0 + back z>=0 faces, per-texel light-space distance;
+    // documented approximation of upstream's six-face cube map).
     final frame = plan.frame!;
-    expect(frame.shadowLightType, JsThreeShadowLightType.none.wireValue);
-    expect(frame.hasShadow, isFalse);
+    expect(frame.shadowLightType, JsThreeShadowLightType.point.wireValue);
+    expect(frame.hasShadow, isTrue);
+    expect(frame.hasPointShadow, 1);
+    expect(frame.pointShadowFar, greaterThan(0));
     // Frames keep submitting while the loop animates the light positions.
     final submitted = harness.state!.submittedFrameCount;
     await harness.pumpFrames(tester, 6);

@@ -294,11 +294,41 @@ Future<_DecodedPixels> _threeTexturePixels(
   JsThreeTextureUpsert source,
 ) async {
   if (source.encoding == JsThreeTextureEncoding.rawRgba8) {
+    if (source.isCube) return _threeCubeAtlasPixels(source);
     return _DecodedPixels(source.width, source.height, source.data);
   }
   final decoded = await _decodeThreeEncoded(source);
   _noteThreeDecodedDimensions(backend, source, decoded);
   return decoded;
+}
+
+/// R1 v5 cube lane: repacks the six concatenated +X,-X,+Y,-Y,+Z,-Z RGBA8
+/// faces into the 3x2 atlas the shader samples with major-axis selection
+/// (row 0: +X,-X,+Y; row 1: -Y,+Z,-Z). Cube mipmaps would blend across
+/// the atlas seams, so the native lane already drops the mipmap flag.
+_DecodedPixels _threeCubeAtlasPixels(JsThreeTextureUpsert source) {
+  final width = source.width;
+  final height = source.height;
+  final faceBytes = width * height * 4;
+  final atlasWidth = width * 3;
+  final atlasHeight = height * 2;
+  final atlas = Uint8List(atlasWidth * atlasHeight * 4);
+  for (var face = 0; face < 6; face++) {
+    final column = face % 3;
+    final row = face ~/ 3;
+    for (var y = 0; y < height; y++) {
+      final sourceOffset = face * faceBytes + y * width * 4;
+      final targetOffset =
+          (row * height + y) * atlasWidth * 4 + column * width * 4;
+      atlas.setRange(
+        targetOffset,
+        targetOffset + width * 4,
+        source.data,
+        sourceOffset,
+      );
+    }
+  }
+  return _DecodedPixels(atlasWidth, atlasHeight, atlas);
 }
 
 Future<_DecodedPixels> _decodeThreeEncoded(JsThreeTextureUpsert source) async {
@@ -358,7 +388,9 @@ int _threeTextureMipCount(
   int width,
   int height,
 ) {
-  if (!source.mipmaps) return 1;
+  // Cube atlases never mipmap (cross-cell bleeding); the native lane also
+  // clears the flag, this is defense in depth for hand-built streams.
+  if (!source.mipmaps || source.isCube) return 1;
   return _supportedThreeMipCount(backend, source, width, height);
 }
 

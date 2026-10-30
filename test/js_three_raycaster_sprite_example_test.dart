@@ -3,7 +3,6 @@ import 'dart:io';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:js_widget_runtime/src/runtime/js_widget_engine_quickjs.dart';
 
-import 'support/three_gap_documentation.dart';
 import 'support/three_quickjs_example_harness.dart';
 import 'support/widget_logic_helper.dart';
 import 'support/three_patch_once.dart';
@@ -71,13 +70,17 @@ void main() {
     // addon IS bundled, but it renders nothing by itself.
     expect(exported['assets'] as Map, isEmpty);
 
-    expect((exported['renderer'] as Map)['frame'], 0);
-    expect(harness.surface, isNull);
-    expect(harness.state, isNull);
+    // R1 v5: sprites render natively, so the surface mounts and streams.
+    expect(harness.surface, isNotNull);
+    expect(harness.state, isNotNull);
+    expect(harness.state!.submittedFrameCount, greaterThan(0));
     expect(harness.renderTrees, isNotEmpty);
     expect(harness.renderTrees.first['type'], 'three');
-    expect(harness.renderTrees.last.toString(),
-        contains('three.unsupported: objectType (Sprite)'));
+    expect(
+      harness.renderTrees.last.toString(),
+      isNot(contains('three.unsupported')),
+      reason: 'sprites render natively on R1 v5; no capability error card',
+    );
     await harness.dispose(tester);
 
     // Part 2 — instrumented copy: dispatch real pointermove host events and
@@ -94,8 +97,8 @@ void main() {
       await probe.pumpFrame(tester);
     }
     final p0 = probe.engine.exportedState!['probe'] as Map;
-    expect(p0['renderFeature'], 'objectType',
-        reason: 'the render loop must fail on sprites before probing input');
+    // R1 v5: sprites render, so there is no objectType failure to pin
+    // anymore; the probe still exports the viewport for event math.
     final vw = p0['vw'] as int;
     final vh = p0['vh'] as int;
     expect(vw, greaterThan(0));
@@ -190,20 +193,13 @@ void main() {
     expect(p2['moves'], dispatched);
     expect(p2['raycasts'], dispatched);
 
-    // The render loop kept failing on the sprite object type the whole time:
-    // the hover feedback exists only in JS state.
+    // R1 v5: the render loop renders the sprites the whole time (no
+    // capability errors), so the hover feedback exists in JS state AND on
+    // the GPU surface.
     expect(p2['ticks'], greaterThanOrEqualTo(3));
-    expect(p2['renderErrors'], greaterThanOrEqualTo(3));
-    expect(p2['renderCode'], 'three.unsupported');
-    expect(p2['renderFeature'], 'objectType');
-    expect(
-      p2['renderMsg'],
-      contains('three.unsupported: objectType (Sprite)'),
-    );
-
-    final logs = backend.peekLogs().map((entry) => entry['msg'] as String);
-    final failure = expectRenderFailFeature(logs, 'objectType');
-    expect(failure, contains('msg=three.unsupported: objectType (Sprite)'));
+    expect(p2['renderErrors'], 0);
+    expect(probe.surface, isNotNull);
+    expect(probe.state!.submittedFrameCount, greaterThanOrEqualTo(3));
     await probe.dispose(tester);
   }, timeout: const Timeout(Duration(seconds: 180)));
 }
@@ -229,7 +225,8 @@ String _raycastProbeSource() {
       'renderErrors:p.renderErrors,renderCode:p.renderCode,'
       'renderFeature:p.renderFeature,renderMsg:p.renderMsg,'
       'vw:p.vw,vh:p.vh}})}catch(e){}};'
-      'globalThis.__JSR_PROBE_RENDER=function(r,s,c){try{return r.render(s,c)}'
+      'globalThis.__JSR_PROBE_RENDER=function(r,s,c){'
+      'try{var v=r.render(s,c);globalThis.__JSR_PROBE_EXPORT();return v}'
       'catch(e){var p=globalThis.__JSR_PROBE;'
       'if(p.renderErrors===0){p.renderCode=String(e.code||"");'
       'p.renderFeature=String(e.feature||"");'

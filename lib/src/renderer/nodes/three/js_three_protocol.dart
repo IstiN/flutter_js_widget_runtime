@@ -33,7 +33,9 @@ enum JsThreeMaterialKind {
   pointsBasic(4),
   meshPhong(5),
   meshNormal(6),
-  shadow(7);
+  shadow(7),
+  meshTon(8),
+  meshMatcap(9);
 
   const JsThreeMaterialKind(this.wireValue);
   final int wireValue;
@@ -52,7 +54,8 @@ enum JsThreeObjectKind {
   group(0),
   mesh(1),
   line(2),
-  points(3);
+  points(3),
+  sprite(4);
 
   const JsThreeObjectKind(this.wireValue);
   final int wireValue;
@@ -106,7 +109,8 @@ enum JsThreeToneMapping {
 enum JsThreeShadowLightType {
   none(0),
   directional(1),
-  spot(2);
+  spot(2),
+  point(3);
 
   const JsThreeShadowLightType(this.wireValue);
   final int wireValue;
@@ -245,6 +249,10 @@ final class JsThreeTextureUpsert extends JsThreeCommand {
   bool get mipmaps => flags & 0x10 != 0;
   bool get repeatS => flags & 0x20 != 0;
   bool get repeatT => flags & 0x40 != 0;
+
+  /// Six-face cube payload (R1 v5): `data` concatenates +X,-X,+Y,-Y,+Z,-Z
+  /// raw RGBA8 faces of `width` x `height` each (6*w*h*4 bytes).
+  bool get isCube => flags & 0x80 != 0;
   bool get isEncoded => encoding != JsThreeTextureEncoding.rawRgba8;
 }
 
@@ -279,6 +287,9 @@ final class JsThreeMaterialUpsert extends JsThreeCommand {
     required this.envMapIntensity,
     required this.mapUvMatrix,
     required this.alphaMapUvMatrix,
+    required this.matcapTextureId,
+    required this.gradientMapTextureId,
+    required this.spriteRotation,
   }) : super._(3);
 
   final int materialId;
@@ -326,6 +337,15 @@ final class JsThreeMaterialUpsert extends JsThreeCommand {
   /// Same composition for [alphaMapTextureId] (R1 v4).
   final Float32List alphaMapUvMatrix;
 
+  /// Matcap texture (R1 v5), sampled by view-space normal UV; zero unset.
+  final int matcapTextureId;
+
+  /// Toon gradient map (R1 v5), one luminance stop per texel; zero unset.
+  final int gradientMapTextureId;
+
+  /// SpriteMaterial rotation in radians (R1 v5), zero for non-sprites.
+  final double spriteRotation;
+
   bool get hasAlphaMap => alphaMapTextureId != 0;
   bool get hasEnvMap => envMapTextureId != 0;
   bool get hasClipping => clipId != 0;
@@ -351,6 +371,8 @@ final class JsThreeNodeUpsert extends JsThreeCommand {
     required this.objectKind,
     required this.matrixWorld,
     required this.shadowFlags,
+    required this.spriteCenterX,
+    required this.spriteCenterY,
   }) : super._(4);
 
   final int nodeId;
@@ -361,6 +383,11 @@ final class JsThreeNodeUpsert extends JsThreeCommand {
   final JsThreeObjectKind objectKind;
   final Float32List matrixWorld;
   final int shadowFlags;
+
+  /// Sprite anchor X/Y (R1 v5), upstream `Sprite.center` in [0, 1]; both
+  /// default to 0.5 for v3/v4 streams and non-sprite nodes.
+  final double spriteCenterX;
+  final double spriteCenterY;
 
   bool get visible => flags & 1 != 0;
   bool get castShadow => shadowFlags & 1 != 0;
@@ -459,6 +486,11 @@ final class JsThreeSubmitFrame extends JsThreeCommand {
     this.toneMapping = JsThreeToneMapping.none,
     this.toneMappingExposure = 1,
     this.fogDensity = 0,
+    this.hasPointShadow = 0,
+    this.pointShadowLightX = 0,
+    this.pointShadowLightY = 0,
+    this.pointShadowLightZ = 0,
+    this.pointShadowFar = 0,
   }) : super._(8);
 
   final int sceneId;
@@ -495,7 +527,21 @@ final class JsThreeSubmitFrame extends JsThreeCommand {
   /// FogExp2 density (R1 v4); zero unless [fogMode] is exp2.
   final double fogDensity;
 
+  /// Whether the shadow map is a point-light dual-paraboloid pair (R1 v5);
+  /// 1 when [shadowLightType] is [JsThreeShadowLightType.point], else 0.
+  final int hasPointShadow;
+
+  /// Shadow-casting point light world position (R1 v5); zeros when inactive.
+  final double pointShadowLightX;
+  final double pointShadowLightY;
+  final double pointShadowLightZ;
+
+  /// Point shadow depth normalization range in world units (R1 v5); the
+  /// shadow pass maps light-space distance into [0, 1] with this far plane.
+  final double pointShadowFar;
+
   bool get hasSpotShadow => shadowLightType == JsThreeShadowLightType.spot.wireValue;
+  bool get hasPointShadowMap => shadowLightType == JsThreeShadowLightType.point.wireValue;
 
   /// Manual THREE shadow revision; null follows global scene content changes.
   final int? shadowContentRevision;
@@ -601,9 +647,13 @@ final class JsThreeProtocolDecoder {
     }
   }
 
+  /// R1 stream version of the stream currently being decoded; command
+  /// decoders in [_r1CommandDecoders] read it for versioned tails.
+  var _streamVersion = 1;
+
   static const int t1HeaderBytes = 32;
   static const int r1HeaderBytes = 12;
-  static const int latestR1Version = 4;
+  static const int latestR1Version = 5;
   static const int defaultMaxEnvelopeBytes = 64 * 1024 * 1024;
   static const int maxEncodedTextureBytes = 64 * 1024 * 1024;
   static const int maxCommandCount = 100000;
@@ -720,6 +770,7 @@ final class JsThreeProtocolDecoder {
     if (version < 1 || version > latestR1Version) {
       reader.fail('unsupported R1 version $version');
     }
+    _streamVersion = version;
     final flags = reader.u16('R1 flags');
     if (flags != 0) reader.fail('R1 flags must be zero');
     final count = reader.u32('command count');
@@ -862,7 +913,8 @@ final class JsThreeProtocolDecoder {
       'texture encoding',
     );
     final flags = body.u32('texture flags');
-    if (flags & ~0x7f != 0) body.fail('unknown texture flag');
+    if (flags & ~0xff != 0) body.fail('unknown texture flag');
+    final cube = flags & 0x80 != 0;
     final byteLength = body.u32('texture data length');
     if (encoding == JsThreeTextureEncoding.rawRgba8) {
       if (width == 0 || height == 0) {
@@ -870,14 +922,21 @@ final class JsThreeProtocolDecoder {
       }
       final expected = body.product(
         body.product(width, height, 'raw texture pixels'),
-        4,
+        cube ? 24 : 4,
         'raw texture bytes',
       );
       if (byteLength != expected) {
-        body.fail('raw RGBA8 byte length does not match dimensions');
+        body.fail(
+          cube
+              ? 'raw RGBA8 cube byte length must match six faces'
+              : 'raw RGBA8 byte length does not match dimensions',
+        );
       }
-    } else if (byteLength == 0 || byteLength > maxEncodedTextureBytes) {
-      body.fail('encoded texture data must be nonempty and at most 64 MiB');
+    } else {
+      if (cube) body.fail('cube textures require raw RGBA8 encoding');
+      if (byteLength == 0 || byteLength > maxEncodedTextureBytes) {
+        body.fail('encoded texture data must be nonempty and at most 64 MiB');
+      }
     }
     return JsThreeTextureUpsert._(
       textureId: id,
@@ -906,7 +965,9 @@ final class JsThreeProtocolDecoder {
         kind != JsThreeMaterialKind.meshLambert &&
         kind != JsThreeMaterialKind.meshStandard &&
         kind != JsThreeMaterialKind.meshPhong &&
-        kind != JsThreeMaterialKind.meshNormal) {
+        kind != JsThreeMaterialKind.meshNormal &&
+        kind != JsThreeMaterialKind.meshTon &&
+        kind != JsThreeMaterialKind.meshMatcap) {
       body.fail('wireframe requires a mesh material');
     }
     final side = body.enumValue(
@@ -940,6 +1001,10 @@ final class JsThreeProtocolDecoder {
           alphaMapUvMatrix: _threeIdentityUvMatrix,
         ),
     };
+    final v5 = switch (streamVersion) {
+      >= 5 => _materialV5Tail(body, kind),
+      _ => (matcapTextureId: 0, gradientMapTextureId: 0, spriteRotation: 0.0),
+    };
     final phong = _phongMaterial(body, kind);
     final emissive = _emissiveMaterial(body, kind);
     return JsThreeMaterialUpsert._(
@@ -972,6 +1037,40 @@ final class JsThreeProtocolDecoder {
       envMapIntensity: slots.envMapIntensity,
       mapUvMatrix: slots.mapUvMatrix,
       alphaMapUvMatrix: slots.alphaMapUvMatrix,
+      matcapTextureId: v5.matcapTextureId,
+      gradientMapTextureId: v5.gradientMapTextureId,
+      spriteRotation: v5.spriteRotation,
+    );
+  }
+
+  /// Decodes the R1 v5 material tail: matcap + gradient-map texture ids and
+  /// the SpriteMaterial rotation (radians; zero for non-sprite materials).
+  ({
+    int matcapTextureId,
+    int gradientMapTextureId,
+    double spriteRotation,
+  }) _materialV5Tail(_Reader body, JsThreeMaterialKind kind) {
+    final matcapTextureId = body.u32('material matcap texture id');
+    final gradientMapTextureId = body.u32('material gradient map texture id');
+    final spriteRotation = body.finiteFloat('material sprite rotation');
+    if (body.u32('material v5 reserved') != 0) {
+      body.fail('material v5 reserved field must be zero');
+    }
+    if (matcapTextureId != 0 && kind != JsThreeMaterialKind.meshMatcap) {
+      body.fail('matcap texture requires a matcap material');
+    }
+    if (gradientMapTextureId != 0 && kind != JsThreeMaterialKind.meshTon) {
+      body.fail('gradient map requires a ton material');
+    }
+    if (spriteRotation != 0 && kind != JsThreeMaterialKind.meshBasic) {
+      // SpriteMaterial rides the meshBasic kind; a rotation on any other
+      // kind means the encoder and decoder disagree about the tail.
+      body.fail('sprite rotation requires a sprite material');
+    }
+    return (
+      matcapTextureId: matcapTextureId,
+      gradientMapTextureId: gradientMapTextureId,
+      spriteRotation: spriteRotation,
     );
   }
 
@@ -1002,7 +1101,8 @@ final class JsThreeProtocolDecoder {
     }
     if (kind != JsThreeMaterialKind.meshLambert &&
         kind != JsThreeMaterialKind.meshStandard &&
-        kind != JsThreeMaterialKind.meshPhong) {
+        kind != JsThreeMaterialKind.meshPhong &&
+        kind != JsThreeMaterialKind.meshTon) {
       body.fail('emissive payload requires a lit mesh material');
     }
     if (body.remaining != 16) {
@@ -1018,7 +1118,7 @@ final class JsThreeProtocolDecoder {
     return (r: r, g: g, b: b, intensity: intensity);
   }
 
-  JsThreeNodeUpsert _node(_Reader body) {
+  JsThreeNodeUpsert _node(_Reader body, int streamVersion) {
     final id = body.nonzeroId('node id');
     final parentId = body.u32('parent id');
     final geometryId = body.u32('node geometry id');
@@ -1033,6 +1133,22 @@ final class JsThreeProtocolDecoder {
     final matrixWorld = body.float32List(16, 'world matrix');
     final shadowFlags = body.u32('node shadow flags');
     if (shadowFlags & ~3 != 0) body.fail('invalid node shadow flags');
+    var centerX = 0.5;
+    var centerY = 0.5;
+    if (streamVersion >= 5) {
+      centerX = body.finiteFloat('node sprite center x');
+      centerY = body.finiteFloat('node sprite center y');
+      if (body.u32('node reserved') != 0) {
+        body.fail('node reserved field must be zero');
+      }
+      if (kind != JsThreeObjectKind.sprite &&
+          (centerX != 0.5 || centerY != 0.5)) {
+        body.fail('sprite center requires a sprite node');
+      }
+    }
+    if (kind == JsThreeObjectKind.sprite && (geometryId == 0 || materialId == 0)) {
+      body.fail('sprite node requires geometry and material ids');
+    }
     return JsThreeNodeUpsert._(
       nodeId: id,
       parentId: parentId,
@@ -1042,6 +1158,8 @@ final class JsThreeProtocolDecoder {
       objectKind: kind,
       matrixWorld: matrixWorld,
       shadowFlags: shadowFlags,
+      spriteCenterX: centerX,
+      spriteCenterY: centerY,
     );
   }
 
@@ -1243,6 +1361,10 @@ final class JsThreeProtocolDecoder {
       >= 4 => _frameToneFogTail(body, fogMode),
       _ => (JsThreeToneMapping.none, 0.0),
     };
+    final pointShadow = switch (version) {
+      >= 5 => _framePointShadowTail(body),
+      _ => _noPointShadow,
+    };
     final shadowWidth = body.u32('shadow map width');
     final shadowHeight = body.u32('shadow map height');
     final shadowBias = body.finiteFloat('shadow bias');
@@ -1259,6 +1381,14 @@ final class JsThreeProtocolDecoder {
     if (shadowLightType != JsThreeShadowLightType.none.wireValue &&
         shadowWidth == 0) {
       body.fail('shadow light type requires a shadow map');
+    }
+    if (pointShadow.hasPointShadow != 0 &&
+        shadowLightType != JsThreeShadowLightType.point.wireValue) {
+      body.fail('point shadow fields require a point shadow light');
+    }
+    if (pointShadow.hasPointShadow == 0 &&
+        shadowLightType == JsThreeShadowLightType.point.wireValue) {
+      body.fail('point shadow light requires the point shadow fields');
     }
     final culledNodeIds = _optionalCulledIds(body, 'culled');
     final culledShadowNodeIds = _optionalCulledIds(body, 'culled shadow');
@@ -1292,6 +1422,62 @@ final class JsThreeProtocolDecoder {
       toneMapping: toneMapping,
       toneMappingExposure: exposure,
       fogDensity: fogDensity,
+      hasPointShadow: pointShadow.hasPointShadow,
+      pointShadowLightX: pointShadow.lightX,
+      pointShadowLightY: pointShadow.lightY,
+      pointShadowLightZ: pointShadow.lightZ,
+      pointShadowFar: pointShadow.far,
+    );
+  }
+
+  static const ({
+    int hasPointShadow,
+    double lightX,
+    double lightY,
+    double lightZ,
+    double far,
+  }) _noPointShadow = (
+    hasPointShadow: 0,
+    lightX: 0,
+    lightY: 0,
+    lightZ: 0,
+    far: 0,
+  );
+
+  /// Decodes the R1 v5 frame tail naming the shadow-casting point light:
+  /// flag + reserved u32, light world position and the depth-normalizing
+  /// far plane used by the dual-paraboloid shadow pass.
+  ({
+    int hasPointShadow,
+    double lightX,
+    double lightY,
+    double lightZ,
+    double far,
+  }) _framePointShadowTail(_Reader body) {
+    final hasPointShadow = body.u32('point shadow flag');
+    if (hasPointShadow != 0 && hasPointShadow != 1) {
+      body.fail('point shadow flag must be 0 or 1');
+    }
+    if (body.u32('point shadow reserved') != 0) {
+      body.fail('point shadow reserved field must be zero');
+    }
+    final lightX = body.finiteFloat('point shadow light x');
+    final lightY = body.finiteFloat('point shadow light y');
+    final lightZ = body.finiteFloat('point shadow light z');
+    final far = body.finiteFloat('point shadow far');
+    if (hasPointShadow == 0 &&
+        (lightX != 0 || lightY != 0 || lightZ != 0 || far != 0)) {
+      body.fail('point shadow fields require an active point shadow');
+    }
+    if (hasPointShadow != 0 && far <= 0) {
+      body.fail('point shadow far must be positive');
+    }
+    return (
+      hasPointShadow: hasPointShadow,
+      lightX: lightX,
+      lightY: lightY,
+      lightZ: lightZ,
+      far: far,
     );
   }
 
@@ -1406,7 +1592,7 @@ typedef _R1CommandDecode =
 final _r1CommandDecoders = <int, _R1CommandDecode>{
   1: (decoder, body) => decoder._geometry(body),
   2: (decoder, body) => decoder._texture(body),
-  4: (decoder, body) => decoder._node(body),
+  4: (decoder, body) => decoder._node(body, decoder._streamVersion),
   5: (decoder, body) => JsThreeRemoveNode._(body.nonzeroId('node id')),
   6: (decoder, body) => decoder._camera(body),
   9: (decoder, body) {
@@ -1429,6 +1615,7 @@ extension _JsThreeR1CommandDecoder on JsThreeProtocolDecoder {
   JsThreeCommand _decodeCommand(int opcode, _Reader body, int version) {
     if (opcode == 7) return _light(body, version);
     if (opcode == 3) return _material(body, version);
+    if (opcode == 4) return _node(body, version);
     if (opcode == 8) return _frame(body, version);
     if (opcode == 13) return _clipping(body, version);
     final decode = _r1CommandDecoders[opcode];

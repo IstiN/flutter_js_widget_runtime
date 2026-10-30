@@ -50,7 +50,7 @@ void _bindThreeDrawUniforms(
   pass.bindUniform(slots.lights, lightsUniform);
   pass.bindUniform(
     slots.material,
-    _emplaceThreeUniform(backend, _threeMaterialUniform(draw)),
+    _emplaceThreeUniform(backend, _threeMaterialUniform(draw, plan)),
   );
   pass.bindUniform(
     slots.clipping,
@@ -69,6 +69,20 @@ void _bindThreeDrawUniforms(
     slots.envMap,
     envBinding.texture,
     sampler: envBinding.sampler(),
+  );
+  final matcapBinding = backend._textureBinding(draw.material.matcapTextureId);
+  pass.bindTexture(
+    slots.matcap,
+    matcapBinding.texture,
+    sampler: matcapBinding.sampler(),
+  );
+  final gradientBinding = backend._textureBinding(
+    draw.material.gradientMapTextureId,
+  );
+  pass.bindTexture(
+    slots.gradientMap,
+    gradientBinding.texture,
+    sampler: gradientBinding.sampler(),
   );
 }
 
@@ -112,9 +126,11 @@ ByteData _threeVertexUniform(
   double pointSizeScale, {
   double viewportHeight = 1,
   bool shadowPass = false,
+  int pointShadowFace = 0,
 }) {
-  // Impeller adds 32 bytes of trailing padding after the used 288 bytes.
-  final data = ByteData(320);
+  // Impeller adds 32 bytes of trailing padding after the used 304 bytes
+  // (R1 v5 spriteParams tail included).
+  final data = ByteData(336);
   final frame = plan.frame!;
   _writeFloats(
     data,
@@ -125,7 +141,9 @@ ByteData _threeVertexUniform(
   _writeFloats(data, 128, plan.camera!.projectionMatrix);
   _writeFloats(data, 192, [
     draw.material.pointSize * pointSizeScale,
-    shadowPass ? 1 : 0,
+    // pointSize.y selects the pass: 0 main, 1 projected (directional/spot)
+    // shadow, 2 point front paraboloid, 3 point back paraboloid (R1 v5).
+    pointShadowFace > 0 ? 1.0 + pointShadowFace : (shadowPass ? 1 : 0),
     draw.material.side.wireValue.toDouble(),
     draw.material.transparent ? 1 : 0,
   ]);
@@ -137,7 +155,20 @@ ByteData _threeVertexUniform(
     frame.shadowNormalBias,
     viewportHeight / (2 * pointSizeScale),
     draw.material.sizeAttenuation ? 1 : 0,
-    0,
+    pointShadowFace > 0 && frame.hasPointShadow != 0
+        ? 1 / frame.pointShadowFar
+        : 0,
+  ]);
+  // R1 v5 spriteParams: SpriteMaterial rotation (radians), Sprite.center
+  // pivot, w = billboard flag. Three r186 sprite_vertex shape; for
+  // sizeAttenuation=false the quad keeps a constant screen size (see
+  // three_r1.vert).
+  final sprite = draw.node.objectKind == JsThreeObjectKind.sprite;
+  _writeFloats(data, 288, [
+    sprite ? draw.material.spriteRotation : 0,
+    draw.node.spriteCenterX,
+    draw.node.spriteCenterY,
+    sprite ? 1 : 0,
   ]);
   return data;
 }
@@ -149,10 +180,11 @@ double _threeShadowTexelSize(bool active, int dimension) =>
     active ? 1 / dimension : 0;
 
 ByteData _threeFrameUniform(ThreeDrawPlan plan, {bool shadowEnabled = true}) {
-  // 7 vec4s: camera/exposure, ambient, light counts, fog color+near,
+  // 9 vec4s: camera/exposure, ambient, light counts, fog color+near,
   // fog far+mode+spot-shadow, shadow bias/texel/radius, tone mapping+fog
-  // density (R1 v4 tail; the shadow pass never binds FrameInfo).
-  final data = ByteData(112);
+  // density (R1 v4 tail), point-light shadow light position + params
+  // (R1 v5 tail; the shadow pass never binds FrameInfo).
+  final data = ByteData(144);
   final frame = plan.frame!;
   final camera = plan.cameraPosition;
   _writeFloats(data, 0, [camera.x, camera.y, camera.z, frame.exposure]);
@@ -188,6 +220,22 @@ ByteData _threeFrameUniform(ThreeDrawPlan plan, {bool shadowEnabled = true}) {
   _writeFloats(data, 96, [
     frame.toneMapping.wireValue.toDouble(),
     frame.fogMode == JsThreeFogMode.exp2 ? frame.fogDensity : 0,
+    0,
+    0,
+  ]);
+  final pointShadowActive = shadowEnabled && frame.hasPointShadow != 0;
+  _writeFloats(data, 112, [
+    pointShadowActive ? 1 : 0,
+    frame.pointShadowLightX,
+    frame.pointShadowLightY,
+    frame.pointShadowLightZ,
+  ]);
+  // x = 1/far depth normalization, y = paraboloid texel footprint.
+  _writeFloats(data, 128, [
+    pointShadowActive && frame.pointShadowFar > 0
+        ? 1 / frame.pointShadowFar
+        : 0,
+    _threeShadowTexelSize(pointShadowActive, frame.shadowMapWidth),
     0,
     0,
   ]);
@@ -318,12 +366,14 @@ ByteData _threeClippingUniform(
   return data;
 }
 
-ByteData _threeMaterialUniform(ThreeDrawItem draw) {
+ByteData _threeMaterialUniform(ThreeDrawItem draw, [ThreeDrawPlan? plan]) {
   final material = draw.material;
-  // 12 vec4s: base 5 (color/kind/flags/specular/emissive, R1 v1..v3 ABI)
+  // 14 vec4s: base 5 (color/kind/flags/specular/emissive, R1 v1..v3 ABI)
   // plus the v4 texture-slot tail — alpha/env flags+intensity and the two
-  // column-major 3x3 UV transforms padded to one vec4 per column.
-  final data = ByteData(192);
+  // column-major 3x3 UV transforms padded to one vec4 per column — plus
+  // the v5 tail: matcap/gradient flags with the cube atlas dimensions
+  // (textureSize() crashes the bundled spirv-cross, so they ride here).
+  final data = ByteData(224);
   _writeFloats(
     data,
     0,
@@ -365,6 +415,22 @@ ByteData _threeMaterialUniform(ThreeDrawItem draw) {
   // as one vec4 (w padding) so the shader rebuilds mat3(col0, col1, col2).
   _writeUvMatrix(data, 96, material.mapUvMatrix);
   _writeUvMatrix(data, 144, material.alphaMapUvMatrix);
+  final envTexture = material.envMapTextureId == 0
+      ? null
+      : plan?.textures[material.envMapTextureId];
+  final cubeEnv = envTexture?.isCube ?? false;
+  _writeFloats(data, 192, [
+    _threeBooleanFloat[material.matcapTextureId != 0]!,
+    _threeBooleanFloat[material.gradientMapTextureId != 0]!,
+    _threeBooleanFloat[cubeEnv]!,
+    cubeEnv ? (envTexture!.width * 3).toDouble() : 0,
+  ]);
+  _writeFloats(data, 208, [
+    cubeEnv ? (envTexture!.height * 2).toDouble() : 0,
+    0,
+    0,
+    0,
+  ]);
   return data;
 }
 

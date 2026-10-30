@@ -610,6 +610,30 @@ webgl_loader_ply: {
           }
     ]
   },
+  webgl_materials_matcap: {
+    id: 'three-materials-matcap',
+    directory: 'three-materials-matcap',
+    name: 'Materials Matcap — three.js r186',
+    description: 'Unmodified official webgl_materials_matcap module on the JSR THREE R1/WebGL2 runtime.',
+    icon: '📐',
+    expected: {
+      html: '71c8fe686c1e8727c530bea8c493230c13ab5d6b62d16675f931ea1d56ce6a3b',
+      module: '0abc2fcda73cb87c7101698653b2419a2e6809ce33b93497db53de8f256d5aa5'
+    },
+    assets: []
+  },
+  webgl_materials_toon: {
+    id: 'three-materials-toon',
+    directory: 'three-materials-toon',
+    name: 'Materials Toon — three.js r186',
+    description: 'Unmodified official webgl_materials_toon module on the JSR THREE R1/WebGL2 runtime.',
+    icon: '📐',
+    expected: {
+      html: '9b0536f345ae2c333086f4d45bfc7c65ba67363ed1bba5c0838539b8fd51672f',
+      module: 'ed42f109b1bfa322b70da6c2261a18d72f4f108d457e6baae2f1edfe1ae07020'
+    },
+    assets: []
+  },
   webgl_materials_bumpmap: {
     id: 'three-materials-bumpmap',
     directory: 'three-materials-bumpmap',

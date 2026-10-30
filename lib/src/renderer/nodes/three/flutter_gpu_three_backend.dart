@@ -212,8 +212,8 @@ ByteData debugThreeClippingUniform(
 ) => _threeClippingUniform(plan, material);
 
 @visibleForTesting
-ByteData debugThreeMaterialUniform(ThreeDrawItem draw) =>
-    _threeMaterialUniform(draw);
+ByteData debugThreeMaterialUniform(ThreeDrawItem draw, [ThreeDrawPlan? plan]) =>
+    _threeMaterialUniform(draw, plan);
 
 Future<gpu.ShaderLibrary> _loadThreeShaderLibrary(String asset) async {
   Object? firstError;
@@ -454,6 +454,56 @@ bool _ensureThreeShadowTargets(
   return true;
 }
 
+// R1 v5 point-light dual-paraboloid targets: one R32Float color + depth
+// pair per hemisphere face; both are sampled by the main pass.
+bool _ensureThreePointShadowTargets(
+  FlutterGpuThreeBackend backend,
+  int width,
+  int height,
+) {
+  if (backend._pointShadowFrontColorTexture != null &&
+      backend._pointShadowWidth == width &&
+      backend._pointShadowHeight == height) {
+    return true;
+  }
+  const format = gpu.PixelFormat.r32Float;
+  final context = backend._context;
+  if (!_threeShadowFormatSupported(context)) return false;
+  backend._pointShadowFrontColorTexture = context.createTexture(
+    gpu.StorageMode.devicePrivate,
+    width,
+    height,
+    format: format,
+    enableRenderTargetUsage: true,
+    enableShaderReadUsage: true,
+  );
+  backend._pointShadowFrontDepthTexture = context.createTexture(
+    gpu.StorageMode.deviceTransient,
+    width,
+    height,
+    format: context.defaultDepthStencilFormat,
+    enableShaderReadUsage: false,
+  );
+  backend._pointShadowBackColorTexture = context.createTexture(
+    gpu.StorageMode.devicePrivate,
+    width,
+    height,
+    format: format,
+    enableRenderTargetUsage: true,
+    enableShaderReadUsage: true,
+  );
+  backend._pointShadowBackDepthTexture = context.createTexture(
+    gpu.StorageMode.deviceTransient,
+    width,
+    height,
+    format: context.defaultDepthStencilFormat,
+    enableShaderReadUsage: false,
+  );
+  backend._pointShadowWidth = width;
+  backend._pointShadowHeight = height;
+  return true;
+}
+
 gpu.RenderPass _createThreeRenderPass(
   FlutterGpuThreeBackend backend,
   ThreeDrawPlan plan,
@@ -609,6 +659,10 @@ final class _ThreeUniformSlots {
     this.vertex,
     this.alphaMap,
     this.envMap,
+    this.matcap,
+    this.gradientMap,
+    this.pointShadowFront,
+    this.pointShadowBack,
   );
 
   final gpu.UniformSlot frame;
@@ -620,6 +674,10 @@ final class _ThreeUniformSlots {
   final gpu.UniformSlot vertex;
   final gpu.UniformSlot alphaMap;
   final gpu.UniformSlot envMap;
+  final gpu.UniformSlot matcap;
+  final gpu.UniformSlot gradientMap;
+  final gpu.UniformSlot pointShadowFront;
+  final gpu.UniformSlot pointShadowBack;
 }
 
 _GpuGeometry? _threeGeometryForDraw(
@@ -660,6 +718,10 @@ final class _ThreeFrameEncoder {
       backend._vertexShader.getUniformSlot('VertexInfo'),
       backend._fragmentShader.getUniformSlot('alphaMapTexture'),
       backend._fragmentShader.getUniformSlot('envMapTexture'),
+      backend._fragmentShader.getUniformSlot('matcapTexture'),
+      backend._fragmentShader.getUniformSlot('gradientMapTexture'),
+      backend._fragmentShader.getUniformSlot('pointShadowFrontTexture'),
+      backend._fragmentShader.getUniformSlot('pointShadowBackTexture'),
     );
     final frameUniform = _bindThreeUniform(
       backend,
@@ -679,6 +741,20 @@ final class _ThreeFrameEncoder {
           ? backend._shadowColorTexture!
           : backend._fallbackTexture,
     );
+    final pointShadowActive =
+        backend._shadowFrameActive && plan.frame!.hasPointShadow != 0;
+    pass.bindTexture(
+      slots.pointShadowFront,
+      pointShadowActive
+          ? backend._pointShadowFrontColorTexture!
+          : backend._fallbackTexture,
+    );
+    pass.bindTexture(
+      slots.pointShadowBack,
+      pointShadowActive
+          ? backend._pointShadowBackColorTexture!
+          : backend._fallbackTexture,
+    );
     var recordedDraws = 0;
     for (final draw in plan.mainDraws) {
       recordedDraws += _recordDraw(
@@ -695,12 +771,147 @@ final class _ThreeFrameEncoder {
   int recordShadow(gpu.CommandBuffer command) {
     final frame = plan.frame!;
     if (!frame.hasShadow) return 0;
+    if (frame.shadowLightType == JsThreeShadowLightType.point) {
+      return _recordPointShadowPasses(command, frame);
+    }
     if (!_prepareShadow(frame)) return 0;
     backend._shadowFrameActive = true;
     final pass = _createShadowPass(command, frame, backend._shadowPipeline!);
     final vertexSlot = backend._vertexShader.getUniformSlot('VertexInfo');
     final clippingSlot = _shadowClippingSlot(backend._shadowFragmentShader);
     return _recordShadowDraws(pass, vertexSlot, clippingSlot);
+  }
+
+  // R1 v5 point-light shadow pass — a dual paraboloid map (see
+  // three_r1.vert): two full passes over the casters, one per light-space
+  // hemisphere, storing the exact light-space distance per texel. No face
+  // culling: back-hemisphere geometry must still write depth (upstream
+  // point shadows render double-sided too).
+  int _recordPointShadowPasses(
+    gpu.CommandBuffer command,
+    JsThreeSubmitFrame frame,
+  ) {
+    if (backend._pointShadowPipeline == null) {
+      backend._note('point shadow pipeline is unavailable');
+      return 0;
+    }
+    if (!_ensureThreePointShadowTargets(
+      backend,
+      frame.shadowMapWidth,
+      frame.shadowMapHeight,
+    )) {
+      backend._note('R32Float point shadow targets are unsupported');
+      return 0;
+    }
+    backend._shadowFrameActive = true;
+    var recordedDraws = 0;
+    recordedDraws += _recordPointShadowFace(command, frame, 1);
+    recordedDraws += _recordPointShadowFace(command, frame, 2);
+    return recordedDraws;
+  }
+
+  int _recordPointShadowFace(
+    gpu.CommandBuffer command,
+    JsThreeSubmitFrame frame,
+    int face,
+  ) {
+    final color = face == 1
+        ? backend._pointShadowFrontColorTexture
+        : backend._pointShadowBackColorTexture;
+    final pass = command.createRenderPass(
+      gpu.RenderTarget.singleColor(
+        gpu.ColorAttachment(texture: color!, clearValue: vm.Vector4(1, 1, 1, 1)),
+        depthStencilAttachment: gpu.DepthStencilAttachment(
+          texture: face == 1
+              ? backend._pointShadowFrontDepthTexture!
+              : backend._pointShadowBackDepthTexture!,
+          depthClearValue: 1,
+        ),
+      ),
+    );
+    pass
+      ..bindPipeline(backend._pointShadowPipeline!)
+      ..setViewport(
+        gpu.Viewport(
+          width: frame.shadowMapWidth,
+          height: frame.shadowMapHeight,
+        ),
+      )
+      ..setWindingOrder(gpu.WindingOrder.counterClockwise)
+      ..setPrimitiveType(gpu.PrimitiveType.triangle)
+      ..setDepthCompareOperation(gpu.CompareFunction.lessEqual)
+      ..setDepthWriteEnable(true)
+      ..setColorBlendEnable(false)
+      ..setCullMode(gpu.CullMode.none);
+    final vertexSlot = backend._vertexShader.getUniformSlot('VertexInfo');
+    final materialSlot = backend._pointShadowFragmentShader!
+        .getUniformSlot('MaterialInfo');
+    final clippingSlot = _shadowClippingSlot(backend._pointShadowFragmentShader);
+    final alphaMapSlot = backend._pointShadowFragmentShader!
+        .getUniformSlot('alphaMapTexture');
+    var recordedDraws = 0;
+    for (final draw in plan.draws) {
+      if (frame.culledShadowNodeIds.contains(draw.node.nodeId)) continue;
+      recordedDraws += _recordPointShadowDraw(
+        pass,
+        vertexSlot,
+        materialSlot,
+        clippingSlot,
+        alphaMapSlot,
+        draw,
+        face,
+      );
+    }
+    return recordedDraws;
+  }
+
+  int _recordPointShadowDraw(
+    gpu.RenderPass pass,
+    gpu.UniformSlot vertexSlot,
+    gpu.UniformSlot materialSlot,
+    gpu.UniformSlot? clippingSlot,
+    gpu.UniformSlot alphaMapSlot,
+    ThreeDrawItem draw,
+    int face,
+  ) {
+    if (!_isShadowCaster(draw)) return 0;
+    final resources = _shadowResources(draw);
+    if (resources == null) {
+      backend._skippedDrawCount++;
+      return 0;
+    }
+    final geometry = resources.geometry;
+    pass.bindVertexBuffer(resources.instances, slot: 1);
+    _bindThreeVertices(pass, geometry, draw);
+    _bindThreeIndices(pass, geometry, draw);
+    _bindThreeUniform(
+      backend,
+      pass,
+      vertexSlot,
+      _threeVertexUniform(
+        draw,
+        plan,
+        pointSizeScale,
+        viewportHeight: viewportHeight,
+        shadowPass: true,
+        pointShadowFace: face,
+      ),
+    );
+    _bindThreeUniform(
+      backend,
+      pass,
+      materialSlot,
+      _threeMaterialUniform(draw, plan),
+    );
+    _bindShadowClipping(backend, pass, clippingSlot, plan, draw.material);
+    final alphaBinding = backend._textureBinding(draw.material.alphaMapTextureId);
+    pass.bindTexture(
+      alphaMapSlot,
+      alphaBinding.texture,
+      sampler: alphaBinding.sampler(),
+    );
+    _drawThreeGeometry(pass, draw, geometry);
+    return 1;
   }
 
   int _recordShadowDraws(
@@ -766,7 +977,11 @@ final class _ThreeFrameEncoder {
   }
 
   bool _isShadowCaster(ThreeDrawItem draw) =>
-      draw.node.castShadow && draw.primitive == ThreeDrawPrimitive.triangles;
+      // Sprites never cast shadows (upstream Sprite docs); the native scan
+      // already omits them, this guards hand-built plans too.
+      draw.node.objectKind != JsThreeObjectKind.sprite &&
+      draw.node.castShadow &&
+      draw.primitive == ThreeDrawPrimitive.triangles;
 
   ({_GpuGeometry geometry, gpu.BufferView instances})? _shadowResources(
     ThreeDrawItem draw,
@@ -1003,6 +1218,7 @@ final class ThreeShadowCacheKey {
     required this.height,
     required this.bias,
     required this.normalBias,
+    required this.pointFar,
     required List<double> matrix,
   }) : matrix = Float32List.fromList(matrix);
 
@@ -1015,6 +1231,8 @@ final class ThreeShadowCacheKey {
     height: frame.shadowMapHeight,
     bias: frame.shadowBias,
     normalBias: frame.shadowNormalBias,
+    // Point shadows normalize depth by 1/far, so far joins the key.
+    pointFar: frame.hasPointShadow != 0 ? frame.pointShadowFar : 0,
     matrix: frame.shadowMatrix,
   );
 
@@ -1023,6 +1241,7 @@ final class ThreeShadowCacheKey {
   final int height;
   final double bias;
   final double normalBias;
+  final double pointFar;
   final Float32List matrix;
 
   @override
@@ -1032,7 +1251,8 @@ final class ThreeShadowCacheKey {
         width != other.width ||
         height != other.height ||
         bias != other.bias ||
-        normalBias != other.normalBias) {
+        normalBias != other.normalBias ||
+        pointFar != other.pointFar) {
       return false;
     }
     for (var index = 0; index < 16; index++) {
@@ -1048,6 +1268,7 @@ final class ThreeShadowCacheKey {
     height,
     bias,
     normalBias,
+    pointFar,
     Object.hashAll(matrix),
   );
 }
@@ -1089,6 +1310,8 @@ final class FlutterGpuThreeBackend {
     this._fragmentShader,
     this._shadowPipeline,
     this._shadowFragmentShader,
+    this._pointShadowPipeline,
+    this._pointShadowFragmentShader,
     this.lineMode,
   ) {
     _fallbackTexture = _createThreeFallbackTexture(_context);
@@ -1114,6 +1337,8 @@ final class FlutterGpuThreeBackend {
   final gpu.Shader _fragmentShader;
   final gpu.RenderPipeline? _shadowPipeline;
   final gpu.Shader? _shadowFragmentShader;
+  final gpu.RenderPipeline? _pointShadowPipeline;
+  final gpu.Shader? _pointShadowFragmentShader;
   final Map<_ThreeResourceKey, _GpuGeometry> _geometries = {};
   final Map<_ThreeResourceKey, _GpuTexture> _textures = {};
   final Map<_ThreeResourceKey, _GpuBatch> _batches = {};
@@ -1131,6 +1356,10 @@ final class FlutterGpuThreeBackend {
   gpu.Texture? _depthTexture;
   gpu.Texture? _shadowColorTexture;
   gpu.Texture? _shadowDepthTexture;
+  gpu.Texture? _pointShadowFrontColorTexture;
+  gpu.Texture? _pointShadowFrontDepthTexture;
+  gpu.Texture? _pointShadowBackColorTexture;
+  gpu.Texture? _pointShadowBackDepthTexture;
   ui.Image? _currentImage;
   ThreeDrawPlan? _lastPlan;
   Future<void> _renderTail = Future<void>.value();
@@ -1139,6 +1368,8 @@ final class FlutterGpuThreeBackend {
   var _height = 0;
   var _shadowWidth = 0;
   var _shadowHeight = 0;
+  var _pointShadowWidth = 0;
+  var _pointShadowHeight = 0;
   var _shadowFrameActive = false;
   var _shadowMapValid = false;
   ThreeShadowCacheKey? _cachedShadowKey;
@@ -1189,6 +1420,13 @@ final class FlutterGpuThreeBackend {
             vertex: shaders.vertex,
             fragment: shadowFragment,
           ));
+    final pointShadowFragment = library['ThreeR1PointShadowFragment'];
+    final pointShadowPipeline = pointShadowFragment == null
+        ? null
+        : _createThreePipeline(resolvedContext, (
+            vertex: shaders.vertex,
+            fragment: pointShadowFragment,
+          ));
     return FlutterGpuThreeBackend._(
       engineId,
       surfaceId,
@@ -1198,6 +1436,8 @@ final class FlutterGpuThreeBackend {
       shaders.fragment,
       shadowPipeline,
       shadowFragment,
+      pointShadowPipeline,
+      pointShadowFragment,
       lineMode,
     );
   }
@@ -1495,6 +1735,10 @@ final class FlutterGpuThreeBackend {
     _depthTexture = null;
     _shadowColorTexture = null;
     _shadowDepthTexture = null;
+    _pointShadowFrontColorTexture = null;
+    _pointShadowFrontDepthTexture = null;
+    _pointShadowBackColorTexture = null;
+    _pointShadowBackDepthTexture = null;
     _shadowFrameActive = false;
     _shadowMapValid = false;
     _imageSurface = null;

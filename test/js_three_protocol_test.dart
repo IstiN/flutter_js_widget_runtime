@@ -1296,7 +1296,7 @@ void main() {
       }
       _bad(() => _decoder.decodeR1(Uint8List.fromList([...valid, 0])));
       _bad(() => _decoder.decodeR1(_r1(const [], version: 0)));
-      _bad(() => _decoder.decodeR1(_r1(const [], version: 5)));
+      _bad(() => _decoder.decodeR1(_r1(const [], version: 6)));
       _bad(() => _decoder.decodeR1(_r1(const [], flags: 1)));
       _bad(() => _decoder.decodeR1(_r1(const [], commandCount: 100001)));
       _bad(() => _decoder.decodeR1(_r1([(13, Uint8List(0))])));
@@ -1423,13 +1423,13 @@ void main() {
       final cases = <(int, Uint8List, int, int)>[
         (3, _material(), 0, 0),
         (3, _material(), 4, 0),
-        (3, _material(), 8, 8),
+        (3, _material(), 8, 10),
         (3, _material(), 16, 128),
         (3, _material(), 20, 3),
         (3, _material(), 52, 0),
         (4, _node(), 0, 0),
         (4, _node(), 16, 2),
-        (4, _node(), 20, 4),
+        (4, _node(), 20, 5),
         (6, _camera(), 0, 0),
         (6, _camera(), 4, 2),
         (7, _light(), 0, 0),

@@ -2,7 +2,7 @@ import { checkedU32 } from './errors.js';
 import { utf8 } from './runtime.js';
 
 export const T1_VERSION = 1;
-export const R1_VERSION = 4;
+export const R1_VERSION = 5;
 export const STREAM_R1 = 1;
 export const MAX_ENVELOPE = 64 * 1024 * 1024;
 export const OPCODE = Object.freeze({
@@ -150,11 +150,15 @@ export function textureCommand(id, version, width, height, encoding, flags, data
   return command(OPCODE.TEXTURE, body.finish());
 }
 
+// Texture flag bit for the R1 v5 cube lane: `data` concatenates the six
+// +X,-X,+Y,-Y,+Z,-Z faces of `width` x `height` raw RGBA8 texel blocks.
+export const TEXTURE_FLAG_CUBE = 0x80;
+
 export const MATERIAL_CLIP_FLAGS = Object.freeze({ intersection: 1, shadows: 2 });
 
-export function materialCommand(id, version, kind, mapId, flags, side, color, opacity, roughness, metalness, alphaTest, pointSize, specular = null, shininess = 0, emissive = null, emissiveIntensity = 1, clipId = 0, clipFlags = 0, textureSlots = null) {
+export function materialCommand(id, version, kind, mapId, flags, side, color, opacity, roughness, metalness, alphaTest, pointSize, specular = null, shininess = 0, emissive = null, emissiveIntensity = 1, clipId = 0, clipFlags = 0, textureSlots = null, v5Slots = null) {
   if ((kind === 5) !== (specular !== null)) throw new Error('three.invalid: Phong material requires exactly one specular payload');
-  if (emissive !== null && kind !== 1 && kind !== 2 && kind !== 5) throw new Error('three.invalid: emissive payload requires a lit mesh material');
+  if (emissive !== null && kind !== 1 && kind !== 2 && kind !== 5 && kind !== 8) throw new Error('three.invalid: emissive payload requires a lit mesh material');
   if (!Number.isInteger(clipId) || clipId < 0) throw new Error('three.invalid: material clip id');
   if (clipFlags !== 0 && clipFlags !== 1 && clipFlags !== 2 && clipFlags !== 3) {
     throw new Error('three.invalid: material clip flags');
@@ -166,7 +170,9 @@ export function materialCommand(id, version, kind, mapId, flags, side, color, op
       throw new Error('three.invalid: material uv matrix requires nine floats');
     }
   }
-  const body = new ByteWriter(148 + (specular ? 16 : 0) + (emissive ? 16 : 0));
+  const tail = v5Slots || { matcapId: 0, gradientMapId: 0, rotation: 0 };
+  if (!Number.isFinite(tail.rotation)) throw new Error('three.invalid: material sprite rotation must be finite');
+  const body = new ByteWriter(164 + (specular ? 16 : 0) + (emissive ? 16 : 0));
   body.u32(id);
   body.u32(version);
   body.u32(kind);
@@ -190,6 +196,11 @@ export function materialCommand(id, version, kind, mapId, flags, side, color, op
   body.f32(slots.envMapIntensity);
   for (let i = 0; i < 9; i++) body.f32(slots.mapUvMatrix ? slots.mapUvMatrix[i] : (i % 4 === 0 ? 1 : 0));
   for (let i = 0; i < 9; i++) body.f32(slots.alphaMapUvMatrix ? slots.alphaMapUvMatrix[i] : (i % 4 === 0 ? 1 : 0));
+  // v5 tail: matcap + gradient-map texture ids and SpriteMaterial rotation.
+  body.u32(tail.matcapId);
+  body.u32(tail.gradientMapId);
+  body.f32(tail.rotation);
+  body.u32(0);
   if (specular) {
     body.f32(specular.r);
     body.f32(specular.g);
@@ -205,8 +216,9 @@ export function materialCommand(id, version, kind, mapId, flags, side, color, op
   return command(OPCODE.MATERIAL, body.finish());
 }
 
-export function nodeCommand(id, parentId, geometryId, materialId, visible, objectKind, matrixWorld, shadows = {}) {
-  const body = new ByteWriter(92);
+export function nodeCommand(id, parentId, geometryId, materialId, visible, objectKind, matrixWorld, shadows = {}, spriteCenter = null) {
+  const center = spriteCenter || { x: 0.5, y: 0.5 };
+  const body = new ByteWriter(108);
   body.u32(id);
   body.u32(parentId);
   body.u32(geometryId);
@@ -216,6 +228,10 @@ export function nodeCommand(id, parentId, geometryId, materialId, visible, objec
   body.floats(matrixWorld.elements || matrixWorld);
   body.u32((shadows.cast ? NODE_SHADOW_FLAGS.cast : 0) |
     (shadows.receive ? NODE_SHADOW_FLAGS.receive : 0));
+  // v5 tail: upstream Sprite.center (R1 sprites billboard around it).
+  body.f32(center.x);
+  body.f32(center.y);
+  body.u32(0);
   return command(OPCODE.NODE, body.finish());
 }
 
@@ -356,17 +372,20 @@ export function clippingCommand(id, version, planes) {
   return command(OPCODE.CLIPPING, body.finish());
 }
 
-export function frameCommand(sceneId, cameraId, background, exposure, fog, shadow = NO_SHADOW, culledNodeIds = [], culledShadowNodeIds = [], shadowLightType = 0, toneMapping = 0) {
+export function frameCommand(sceneId, cameraId, background, exposure, fog, shadow = NO_SHADOW, culledNodeIds = [], culledShadowNodeIds = [], shadowLightType = 0, toneMapping = 0, pointShadow = null) {
   const hasContentRevision = shadow.contentRevision !== undefined;
   const hasOptionalIds = culledNodeIds.length || culledShadowNodeIds.length || hasContentRevision;
   const optionalLength = (hasOptionalIds ? 4 + culledNodeIds.length * 4 : 0) +
     (culledShadowNodeIds.length || hasContentRevision ? 4 + culledShadowNodeIds.length * 4 : 0) +
     (hasContentRevision ? 4 : 0);
   // v3: fixed trailing u32 naming which light owns the shadow map
-  // (0 none, 1 directional, 2 spot) so shading can scope it correctly.
+  // (0 none, 1 directional, 2 spot, 3 point) so shading can scope it.
   // v4: tone mapping mode (three.js constants, u32) plus FogExp2 density
   // (f32, zero unless fog.mode === 2) right after the fog near/far block.
-  const body = new ByteWriter(148 + optionalLength);
+  // v5: point-shadow block naming the shadow-casting point light position
+  // and the dual-paraboloid far plane (flag u32, reserved u32, xyz, far).
+  const point = pointShadow || { active: 0, x: 0, y: 0, z: 0, far: 0 };
+  const body = new ByteWriter(172 + optionalLength);
   body.u32(sceneId);
   body.u32(cameraId);
   body.f32(background.r);
@@ -382,6 +401,12 @@ export function frameCommand(sceneId, cameraId, background, exposure, fog, shado
   body.f32(fog.far);
   body.u32(toneMapping);
   body.f32(fog.mode === 2 ? fog.density : 0);
+  body.u32(point.active);
+  body.u32(0);
+  body.f32(point.active ? point.x : 0);
+  body.f32(point.active ? point.y : 0);
+  body.f32(point.active ? point.z : 0);
+  body.f32(point.active ? point.far : 0);
   body.u32(shadow.width);
   body.u32(shadow.height);
   body.f32(shadow.bias);

@@ -14,7 +14,10 @@ Future<void> main() async {
   final shadowFragment = File.fromUri(
     shaders.uri.resolve('${_bundleName}_shadow.frag'),
   );
-  for (final source in [vertex, fragment, shadowFragment]) {
+  final pointShadowFragment = File.fromUri(
+    shaders.uri.resolve('${_bundleName}_point_shadow.frag'),
+  );
+  for (final source in [vertex, fragment, shadowFragment, pointShadowFragment]) {
     if (!source.existsSync()) {
       throw StateError('Missing shader source: ${source.path}');
     }
@@ -27,6 +30,10 @@ Future<void> main() async {
     'ThreeR1ShadowFragment': <String, String>{
       'type': 'fragment',
       'file': shadowFragment.absolute.path,
+    },
+    'ThreeR1PointShadowFragment': <String, String>{
+      'type': 'fragment',
+      'file': pointShadowFragment.absolute.path,
     },
     'ThreeR1Fragment': <String, String>{
       'type': 'fragment',

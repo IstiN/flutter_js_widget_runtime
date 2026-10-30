@@ -1,10 +1,11 @@
 import {
-  ACESFilmicToneMapping, AgXToneMapping, BackSide, CineonToneMapping, Color, CustomToneMapping,
-  DoubleSide, EquirectangularReflectionMapping, FrontSide, Frustum, LinearFilter, LinearToneMapping,
-  Matrix4, MeshBasicMaterial, MeshLambertMaterial, MeshStandardMaterial, MirroredRepeatWrapping,
-  NeutralToneMapping, NearestFilter, NearestMipmapNearestFilter, NearestMipmapLinearFilter,
-  NoToneMapping, NormalBlending, PointsMaterial, ReinhardToneMapping, RGBAFormat, RepeatWrapping,
-  SRGBColorSpace, UVMapping, UnsignedByteType, Vector3
+  ACESFilmicToneMapping, AgXToneMapping, BackSide, CineonToneMapping, Color, CubeReflectionMapping,
+  CustomToneMapping, DoubleSide, EquirectangularReflectionMapping, FrontSide, Frustum, LinearFilter,
+  LinearToneMapping, Matrix4, MeshBasicMaterial, MeshLambertMaterial, MeshStandardMaterial,
+  MirroredRepeatWrapping, NeutralToneMapping, NearestFilter, NearestMipmapNearestFilter,
+  NearestMipmapLinearFilter, NoToneMapping, NormalBlending, PointsMaterial, RedFormat,
+  ReinhardToneMapping, RGBAFormat, RepeatWrapping, SRGBColorSpace, UVMapping, UnsignedByteType,
+  Vector3
 } from 'three';
 import { unsupported, requireFinite } from './errors.js';
 import { getThreeRuntime } from './runtime.js';
@@ -25,6 +26,7 @@ const MAX_INSTANCES = 1000000;
 const MAX_BATCH_PARTS = 1024;
 const RESOURCE_KIND = { geometry: 1, texture: 2, material: 3, node: 4, light: 5, camera: 6 };
 const ZERO = new Vector3();
+const UP = new Vector3(0, 1, 0);
 const _position = new Vector3();
 const _target = new Vector3();
 const _direction = new Vector3();
@@ -199,29 +201,38 @@ function materialKind(material) {
   if (material.isMeshPhongMaterial) return 5;
   if (material.isMeshNormalMaterial) return 6;
   if (material.isShadowMaterial) return 7;
+  // R1 v5: SpriteMaterial rides the unlit meshBasic shading path (its map,
+  // color, opacity, fog and alphaTest semantics are basic's); MeshTonMaterial
+  // is a gradient-ramped Lambert; MeshMatcapMaterial is an unlit matcap lookup.
+  if (material.isSpriteMaterial) return 0;
+  if (material.isMeshTonMaterial) return 8;
+  if (material.isMeshMatcapMaterial) return 9;
   unsupported('material', material.type || 'unknown material');
 }
 
 function supportsEmissive(material) {
   return material.isMeshLambertMaterial || material.isMeshPhongMaterial ||
-    (material.isMeshStandardMaterial && !material.isMeshPhysicalMaterial);
+    (material.isMeshStandardMaterial && !material.isMeshPhysicalMaterial) ||
+    material.isMeshTonMaterial;
 }
 
 function validateMaterial(material) {
   if (material.isShaderMaterial || material.isRawShaderMaterial) unsupported('ShaderMaterial', 'arbitrary shaders require 1B');
-  if (material.wireframe && !(material.isMeshBasicMaterial || material.isMeshLambertMaterial || material.isMeshPhongMaterial || material.isMeshNormalMaterial || (material.isMeshStandardMaterial && !material.isMeshPhysicalMaterial))) unsupported('wireframe', 'R1 wireframe requires a mesh material');
+  if (material.wireframe && !(material.isMeshBasicMaterial || material.isMeshLambertMaterial || material.isMeshPhongMaterial || material.isMeshNormalMaterial || (material.isMeshStandardMaterial && !material.isMeshPhysicalMaterial) || material.isMeshTonMaterial || material.isMeshMatcapMaterial)) unsupported('wireframe', 'R1 wireframe requires a mesh material');
   if (material.wireframe && (material.wireframeLinewidth !== 1 || material.wireframeLinecap !== 'round' || material.wireframeLinejoin !== 'round')) unsupported('wireframeStyle', 'R1 supports one-pixel round wireframe lines');
   if (material.blending !== NormalBlending) unsupported('materialBlending');
   if (material.alphaHash || material.premultipliedAlpha || material.colorWrite === false || material.stencilWrite || material.polygonOffset) unsupported('materialState', 'alphaHash/premultipliedAlpha/colorWrite/stencil/polygonOffset');
   if (Object.prototype.hasOwnProperty.call(material, 'onBeforeCompile')) unsupported('onBeforeCompile', 'arbitrary shaders require 1B');
-  // alphaMap and envMap ride the R1 v4 material texture slots; the rest of
-  // the upstream map family stays 1B-only.
+  // alphaMap, envMap (R1 v4), matcap and gradientMap (R1 v5) ride the
+  // material texture slots; the rest of the upstream map family stays 1B.
   const maps = ['aoMap', 'bumpMap', 'displacementMap', 'emissiveMap', 'lightMap', 'metalnessMap', 'normalMap', 'roughnessMap', 'specularMap', 'clearcoatMap', 'transmissionMap'];
   for (const name of maps) if (material[name]) unsupported('materialTexture', `${material.type}.${name}`);
   if (material.envMap && !(material.isMeshBasicMaterial || material.isMeshLambertMaterial ||
       (material.isMeshStandardMaterial && !material.isMeshPhysicalMaterial) || material.isMeshPhongMaterial)) {
     unsupported('materialTexture', `${material.type}.envMap`);
   }
+  if (material.matcap && !material.isMeshMatcapMaterial) unsupported('materialTexture', `${material.type}.matcap`);
+  if (material.gradientMap && !material.isMeshTonMaterial) unsupported('materialTexture', `${material.type}.gradientMap`);
   if (!supportsEmissive(material) && material.emissive &&
       (material.emissive.r !== 0 || material.emissive.g !== 0 || material.emissive.b !== 0)) {
     unsupported('emissiveMaterial', `${material.type} has no upstream emissive support`);
@@ -250,7 +261,7 @@ export class JsrWebGLRenderer {
       rawWebGL: false,
       isWebGL2: false,
       backend: 'flutterGpu',
-      features: Object.freeze({ geometry: true, textures: true, lambert: true, standard: true, phong: true, normal: true, emissive: true, hemisphereLight: true, spotLight: true, clipping: true, wireframe: true, toneMapping: true, fogExp2: true, textureTransform: true, alphaMap: true, envMap: true, rawWebGL: false, shaderMaterial: false })
+      features: Object.freeze({ geometry: true, textures: true, lambert: true, standard: true, phong: true, normal: true, emissive: true, hemisphereLight: true, spotLight: true, clipping: true, wireframe: true, toneMapping: true, fogExp2: true, textureTransform: true, alphaMap: true, envMap: true, sprite: true, pointLightShadow: true, toonMaterial: true, matcapMaterial: true, cubeEnvMap: true, dataTexture: true, rawWebGL: false, shaderMaterial: false })
     });
     this.outputColorSpace = SRGBColorSpace;
     this.toneMapping = NoToneMapping;
@@ -338,6 +349,8 @@ export class JsrWebGLRenderer {
   setRenderTarget(target) { if (target !== null && target !== undefined) unsupported('renderTarget', 'R1 renders only the attached surface'); }
   getRenderTarget() { return null; }
   clear() { /* Resource/frame commands, rather than GL clear calls, define native presentation. */ }
+  clearDepth() { /* Each R1 frame carries its own depth attachment; retained as an API-compatible no-op (webgl_sprites calls it between its two per-tick renders). */ }
+  clearColor() { /* See clear(): the frame background defines presentation. */ }
 
   setAnimationLoop(callback) {
     if (callback !== null && typeof callback !== 'function') throw new TypeError('three.invalid: animation loop callback');
@@ -520,7 +533,8 @@ export class JsrWebGLRenderer {
   _ensureTexture(texture, commands, role = 'map') {
     if (!texture) return 0;
     if (!texture.isTexture) unsupported('texture', 'material map is not a THREE.Texture');
-    if (texture.isCubeTexture || texture.isDataArrayTexture || texture.isData3DTexture || texture.isCompressedTexture || texture.isVideoTexture || texture.isFramebufferTexture || texture.isDepthTexture || texture.isExternalTexture) unsupported('textureType', texture.type);
+    if (!texture.isCubeTexture && (texture.isDataArrayTexture || texture.isData3DTexture || texture.isCompressedTexture || texture.isVideoTexture || texture.isFramebufferTexture || texture.isDepthTexture || texture.isExternalTexture)) unsupported('textureType', texture.type);
+    if (texture.isCubeTexture && role !== 'envMap') unsupported('textureMapping', `R1 ${role} requires a plain 2D texture`);
     const canvas = this._canvasForTexture(texture);
     if (texture.isCanvasTexture && !canvas) unsupported('canvas2d.source', 'native CanvasTexture requires a Flutter canvas2d image');
     if (canvas) {
@@ -528,13 +542,16 @@ export class JsrWebGLRenderer {
       this._adoptCanvasTexture(entry);
       if (!canvas._ready) return 0;
     }
-    // The env lane samples one equirect 2D texture directly (R1 has no cube
-    // texture lanes); map/alphaMap stay plain UV-mapped 2D textures.
+    // The env lane samples one equirect 2D texture (R1 v4) or the six-face
+    // cube atlas (R1 v5, CubeReflectionMapping only — refraction and PMREM
+    // stay 1B); map/alphaMap/matcap/gradientMap stay plain UV-mapped 2D
+    // textures.
     const mappingOk = role === 'envMap'
-      ? texture.mapping === EquirectangularReflectionMapping || texture.mapping === UVMapping
+      ? texture.mapping === EquirectangularReflectionMapping || texture.mapping === UVMapping ||
+        (texture.isCubeTexture && texture.mapping === CubeReflectionMapping)
       : texture.mapping === UVMapping;
     if (!mappingOk) unsupported('textureMapping', role === 'envMap'
-      ? 'R1 envMap supports EquirectangularReflectionMapping on a single 2D texture'
+      ? 'R1 envMap supports EquirectangularReflectionMapping on a single 2D texture or CubeReflectionMapping faces'
       : undefined);
     if (texture.premultiplyAlpha || (texture.mipmaps && texture.mipmaps.length)) unsupported('textureState', 'premultiplyAlpha/custom mipmaps');
     // Upstream clamps anisotropy to the device maximum; the native sampler
@@ -542,6 +559,7 @@ export class JsrWebGLRenderer {
     // degrades to exactly that clamp rather than being rejected.
     if (Number.isFinite(texture.anisotropy) === false || texture.anisotropy < 0) unsupported('textureState', 'anisotropy must be a nonnegative number');
     if (texture.channel !== 0) unsupported('textureChannel', 'R1 maps texture channel 0 only');
+    if (texture.isCubeTexture) return this._ensureCubeTexture(texture, commands);
     const image = texture.image;
     if (!image || !image.data) return 0;
     const id = resourceId(texture);
@@ -556,7 +574,7 @@ export class JsrWebGLRenderer {
     }
     const data = image.data;
     if (!(data instanceof Uint8Array) && !ArrayBuffer.isView(data)) throw new Error('three.invalid: texture data must be a typed array');
-    const bytes = data instanceof Uint8Array ? data : new Uint8Array(data.buffer, data.byteOffset, data.byteLength);
+    let bytes = data instanceof Uint8Array ? data : new Uint8Array(data.buffer, data.byteOffset, data.byteLength);
     if (bytes.length > 64 * 1024 * 1024) throw new Error('three.invalid: texture exceeds 64 MiB');
     let encoding = image.encoding;
     let width = image.width || 0;
@@ -571,11 +589,69 @@ export class JsrWebGLRenderer {
       else encoding = 0;
     }
     if (encoding === 0) {
-      if (texture.format !== RGBAFormat || texture.type !== UnsignedByteType) unsupported('textureFormat', 'R1 raw textures require RGBA8/UnsignedByteType');
-      if (!width || !height || width * height * 4 !== bytes.byteLength) throw new Error('three.invalid: raw RGBA8 texture dimensions/data length');
+      if (texture.format !== RGBAFormat && texture.format !== RedFormat) unsupported('textureFormat', 'R1 raw textures require RGBA8 or R8/UnsignedByteType');
+      if (texture.type !== UnsignedByteType) unsupported('textureFormat', 'R1 raw textures require RGBA8 or R8/UnsignedByteType');
+      if (!width || !height) throw new Error('three.invalid: raw texture dimensions must be nonzero');
+      if (texture.format === RedFormat) {
+        if (width * height !== bytes.length) throw new Error('three.invalid: R8 raw texture dimensions/data length');
+        // Expand one luminance byte per texel (e.g. MeshTonMaterial
+        // gradientMap rows) into RGBA8; the shader reads .r.
+        const expanded = new Uint8Array(width * height * 4);
+        for (let i = 0; i < width * height; i++) {
+          expanded[i * 4] = bytes[i];
+          expanded[i * 4 + 1] = bytes[i];
+          expanded[i * 4 + 2] = bytes[i];
+          expanded[i * 4 + 3] = 255;
+        }
+        bytes = expanded;
+      } else if (width * height * 4 !== bytes.byteLength) {
+        throw new Error('three.invalid: raw RGBA8 texture dimensions/data length');
+      }
     } else if (encoding !== 1 && encoding !== 2) unsupported('textureEncoding', encoding);
     if (encoding !== 0 && bytes.length === 0) throw new Error('three.invalid: encoded texture bytes must be nonempty');
     commands.push(textureCommand(id, changed.version, width, height, encoding, textureFlags(texture), bytes));
+    this._mapSet(this._state.textures, id, { signature, version: changed.version, object: texture });
+    this._frameTextures.set(id, id);
+    return id;
+  }
+
+  // R1 v5 cube lane: CubeTexture.image is six +X,-X,+Y,-Y,+Z,-Z faces. Each
+  // face must already carry raw RGBA8 `{ data, width, height }` (DataTexture
+  // faces or loader-decoded pixels); the host re-packs them into a 3x2 atlas
+  // and samples by major-axis selection on the reflect vector. Cube mipmaps
+  // would blend across the atlas seams, so the mipmap bit is dropped.
+  _ensureCubeTexture(texture, commands) {
+    const faces = texture.image;
+    if (!Array.isArray(faces) || faces.length !== 6) unsupported('textureType', 'R1 cube textures require exactly six faces');
+    const id = resourceId(texture);
+    const frameCached = this._frameTextures.get(id);
+    if (frameCached !== undefined) return frameCached;
+    this._listen(texture, 'textures', this._state.textures, id);
+    const signature = textureSignature(texture);
+    const changed = this._nextVersion(this._state.textures, id, signature);
+    if (!changed) {
+      this._frameTextures.set(id, id);
+      return id;
+    }
+    const width = faces[0].width;
+    const height = faces[0].height;
+    if (!Number.isInteger(width) || !Number.isInteger(height) || width <= 0 || height <= 0) {
+      throw new Error('three.invalid: cube face dimensions');
+    }
+    const expected = width * height * 4;
+    const payload = new Uint8Array(expected * 6);
+    for (let face = 0; face < 6; face++) {
+      const image = faces[face];
+      const data = image && image.data;
+      if (!data || image.width !== width || image.height !== height) {
+        throw new Error('three.invalid: cube faces must share raw RGBA8 dimensions');
+      }
+      const bytes = data instanceof Uint8Array ? data : new Uint8Array(data.buffer, data.byteOffset, data.byteLength);
+      if (bytes.length !== expected) throw new Error('three.invalid: cube face payload must be raw RGBA8');
+      payload.set(bytes, face * expected);
+    }
+    const flags = textureFlags(texture) & ~0x10 | 0x80;
+    commands.push(textureCommand(id, changed.version, width, height, 0, flags, payload));
     this._mapSet(this._state.textures, id, { signature, version: changed.version, object: texture });
     this._frameTextures.set(id, id);
     return id;
@@ -591,6 +667,10 @@ export class JsrWebGLRenderer {
     const mapId = this._ensureTexture(material.map || null, commands);
     const alphaMapId = this._ensureTexture(material.alphaMap || null, commands);
     const envMapId = this._ensureTexture(material.envMap || null, commands, 'envMap');
+    const matcapId = material.isMeshMatcapMaterial ? this._ensureTexture(material.matcap || null, commands, 'matcap') : (material.matcap ? unsupported('materialTexture', `${material.type}.matcap`) : 0);
+    const gradientMapId = material.isMeshTonMaterial ? this._ensureTexture(material.gradientMap || null, commands, 'gradientMap') : (material.gradientMap ? unsupported('materialTexture', `${material.type}.gradientMap`) : 0);
+    const spriteRotation = material.isSpriteMaterial ? material.rotation : 0;
+    if (spriteRotation && !Number.isFinite(spriteRotation)) throw new Error('three.invalid: material sprite rotation must be finite');
     const mapUvMatrix = uvTransformElements(material.map || null);
     const alphaMapUvMatrix = uvTransformElements(material.alphaMap || null);
     const envMapIntensity = material.envMap ? material.envMapIntensity : 1;
@@ -623,11 +703,13 @@ export class JsrWebGLRenderer {
       specular ? specular.r : 0, specular ? specular.g : 0, specular ? specular.b : 0, shininess,
       emissive ? emissive.r : 0, emissive ? emissive.g : 0, emissive ? emissive.b : 0, emissiveIntensity, material.version,
       clip.signature, clip.flags, alphaMapId, envMapId, envMapIntensity,
-      mapUvMatrix ? mapUvMatrix.join(',') : 'I', alphaMapUvMatrix ? alphaMapUvMatrix.join(',') : 'I'].join('|');
+      mapUvMatrix ? mapUvMatrix.join(',') : 'I', alphaMapUvMatrix ? alphaMapUvMatrix.join(',') : 'I',
+      matcapId, gradientMapId, spriteRotation].join('|');
     const changed = this._nextVersion(this._state.materials, id, signature);
     if (changed) {
       commands.push(materialCommand(id, changed.version, kind, mapId, flags, side, color, opacity, roughness, metalness, alphaTest, pointSize, specular, shininess, emissive, emissiveIntensity, clip.id, clip.flags,
-        { alphaMapId, envMapId, envMapIntensity, mapUvMatrix, alphaMapUvMatrix }));
+        { alphaMapId, envMapId, envMapIntensity, mapUvMatrix, alphaMapUvMatrix },
+        { matcapId, gradientMapId, rotation: spriteRotation }));
       this._mapSet(this._state.materials, id, { signature, version: changed.version, object: material });
     }
     this._frameMaterials.set(id, id);
@@ -733,22 +815,27 @@ export class JsrWebGLRenderer {
     return result;
   }
 
-  _updateNode(object, id, parentId, geometryId, materialId, visible, objectKind, commands) {
+  _updateNode(object, id, parentId, geometryId, materialId, visible, objectKind, commands, spriteCenter) {
     const matrix = object.matrixWorld;
-    const castShadow = object.castShadow === true;
-    const receiveShadow = object.receiveShadow === true;
+    const castShadow = object.castShadow === true && !object.isSprite;
+    const receiveShadow = object.receiveShadow === true && !object.isSprite;
     const old = this._state.nodes.get(id);
     const unchanged = old && old.parentId === parentId &&
       old.geometryId === geometryId && old.materialId === materialId &&
       old.visible === visible && old.objectKind === objectKind &&
       old.castShadow === castShadow && old.receiveShadow === receiveShadow &&
+      old.spriteCenterX === spriteCenter.x && old.spriteCenterY === spriteCenter.y &&
       cachedMatrixEquals(old.matrix, matrix);
     if (!unchanged) {
       finiteArray(matrix.elements, 'matrixWorld');
-      commands.push(nodeCommand(id, parentId, geometryId, materialId, visible, objectKind, matrix, { cast: castShadow, receive: receiveShadow }));
+      requireFinite(spriteCenter.x, 'sprite center');
+      requireFinite(spriteCenter.y, 'sprite center');
+      commands.push(nodeCommand(id, parentId, geometryId, materialId, visible, objectKind, matrix,
+        { cast: castShadow, receive: receiveShadow }, spriteCenter));
       this._mapSet(this._state.nodes, id, {
         parentId, geometryId, materialId, visible, objectKind,
-        castShadow, receiveShadow, matrix: matrix.elements.slice(), object
+        castShadow, receiveShadow, matrix: matrix.elements.slice(), object,
+        spriteCenterX: spriteCenter.x, spriteCenterY: spriteCenter.y
       });
     }
   }
@@ -901,10 +988,13 @@ export class JsrWebGLRenderer {
     const materialVisible = !object.material || object.material.visible !== false;
     const visible = !!object.visible && materialVisible;
     const batched = !!object.isInstancedMesh || !!(object.isMesh && Array.isArray(object.material));
+    const spriteCenter = object.isSprite
+      ? (object.center || { x: 0.5, y: 0.5 })
+      : { x: 0.5, y: 0.5 };
     if ((!drawVisible || !materialVisible) && !object.isLight && !object.isCamera) {
-      const objectKind = object.isMesh ? 1 : (object.isPoints ? 3 : ((object.isLine || object.isLineSegments) ? 2 : 0));
+      const objectKind = this._objectKind(object);
       if (!batched) this._removeBatch(id, commands);
-      this._updateNode(object, id, parentId, 0, 0, visible, objectKind, commands);
+      this._updateNode(object, id, parentId, 0, 0, visible, objectKind, commands, spriteCenter);
       return { id, draw: null };
     }
     if (object.isInstancedMesh && object.count === 0) {
@@ -916,7 +1006,7 @@ export class JsrWebGLRenderer {
       } else {
         this._removeBatch(id, commands);
       }
-      this._updateNode(object, id, parentId, 0, 0, visible, 1, commands);
+      this._updateNode(object, id, parentId, 0, 0, visible, 1, commands, spriteCenter);
       return { id, draw: null };
     }
     let geometryId = 0;
@@ -924,7 +1014,21 @@ export class JsrWebGLRenderer {
     let objectKind = 0;
     let draw = null;
     let batch = null;
-    if (object.isMesh || object.isLine || object.isLineSegments || object.isPoints) {
+    if (object.isSprite) {
+      // R1 v5 sprite lane: the shared upstream quad (positions in
+      // [-0.5, 0.5]², unit UVs) billboards against the camera in the vertex
+      // stage using the node world matrix columns as the sprite scale; the
+      // SpriteMaterial rides the unlit meshBasic shading path. Sprites never
+      // cast or receive shadows (upstream Object3D docs).
+      if (Array.isArray(object.material)) unsupported('multiMaterial', 'R1 sprites take a single material');
+      const material = object.material;
+      if (!material || !material.isSpriteMaterial) unsupported('material', 'R1 sprites require a SpriteMaterial');
+      const geometry = this._ensureGeometry(object.geometry, 0, 'triangles', commands);
+      geometryId = geometry.id;
+      materialId = this._ensureMaterial(material, commands);
+      objectKind = 4;
+      draw = { primitive: 0, count: geometry.drawCount };
+    } else if (object.isMesh || object.isLine || object.isLineSegments || object.isPoints) {
       if (object.isSkinnedMesh || object.isBatchedMesh || object.isSprite) unsupported('objectType', object.type);
       if (object.isLineLoop) unsupported('LineLoop');
       const material = object.material;
@@ -948,13 +1052,21 @@ export class JsrWebGLRenderer {
       }
     } else if (object.isLight || object.isCamera) {
       return null;
-    } else if (object.isSkinnedMesh || object.isInstancedMesh || object.isBatchedMesh || object.isSprite || object.isLOD) {
+    } else if (object.isSkinnedMesh || object.isInstancedMesh || object.isBatchedMesh || object.isLOD) {
       unsupported('objectType', object.type);
     }
     if (!batched) this._removeBatch(id, commands);
-    this._updateNode(object, id, parentId, geometryId, materialId, visible, objectKind, commands);
+    this._updateNode(object, id, parentId, geometryId, materialId, visible, objectKind, commands, spriteCenter);
     if (batch) draw = this._ensureBatch(object, id, batch.geometry, batch.materials, commands);
     return { id, draw };
+  }
+
+  _objectKind(object) {
+    if (object.isMesh) return 1;
+    if (object.isSprite) return 4;
+    if (object.isPoints) return 3;
+    if (object.isLine || object.isLineSegments) return 2;
+    return 0;
   }
 
   _ensureLight(light, commands) {
@@ -1041,9 +1153,17 @@ export class JsrWebGLRenderer {
     const shadow = light.shadow;
     const width = Math.floor(shadow.mapSize.x);
     const height = Math.floor(shadow.mapSize.y);
+    if (light.isPointLight) return this._pointShadow(light, shadow, width, height);
     light.target.updateMatrixWorld(true);
     shadow.camera.updateProjectionMatrix();
     shadow.updateMatrices(light);
+    return this._directionalShadowMetadata(shadow, width, height);
+  }
+
+  // Shared bias/normalBias/radius/manual-revision state for the projected
+  // (directional + spot) shadow lane; camera stays set so the renderer can
+  // frustum-cull shadow casters.
+  _directionalShadowMetadata(shadow, width, height) {
     const manual = this.shadowMap.autoUpdate === false;
     if (manual && this.shadowMap.needsUpdate === true) {
       this._manualShadowRevision = (this._manualShadowRevision + 1) >>> 0;
@@ -1062,6 +1182,46 @@ export class JsrWebGLRenderer {
       radius: shadow.radius, matrix: shadow.matrix, camera: shadow.camera,
       contentRevision: manual ? this._manualShadowRevision : undefined,
       refreshCulling
+    };
+  }
+
+  // R1 v5 point-light shadow lane — an HONEST dual-paraboloid approximation,
+  // not upstream's six-face cube map:
+  // - The shadow matrix carries the light VIEW matrix (camera at the light
+  //   looking toward the world origin), not bias*projection*view. The shadow
+  //   pass warps light-space positions onto the two paraboloid disks
+  //   (front = z <= 0 hemisphere, back = z >= 0) and stores the light-space
+  //   distance per texel; the main pass samples the matching face by
+  //   major-hemisphere selection on (fragment - light).
+  // - Depth is normalized with far = light.distance || shadow.camera.far and
+  //   fragments beyond far are treated as unoccluded.
+  // - The paraboloid warp happens per vertex, so very large caster triangles
+  //   shear near the silhouette; upstream-quality geometry needs the 1B lane.
+  // - There is no meaningful 2D frustum for a hemisphere, so point-light
+  //   shadow casters are never frustum-culled (culling data stays empty).
+  _pointShadow(light, shadow, width, height) {
+    const manual = this.shadowMap.autoUpdate === false;
+    if (manual && this.shadowMap.needsUpdate === true) {
+      this._manualShadowRevision = (this._manualShadowRevision + 1) >>> 0;
+      if (this._manualShadowRevision === 0) this._manualShadowRevision = 1;
+      this.shadowMap.needsUpdate = false;
+    }
+    light.getWorldPosition(_position);
+    const far = light.distance || shadow.camera.far;
+    const view = new Matrix4();
+    view.lookAt(_position, ZERO, UP);
+    // view must carry the translation -R*lightPos; Matrix4.lookAt only
+    // produces the rotation rows.
+    _target.copy(_position).negate().applyMatrix4(view);
+    view.setPosition(_target);
+    if (!Number.isFinite(far) || far <= 0) throw new Error('three.invalid: point shadow far must be positive');
+    finiteArray(view.elements, 'point shadow view');
+    return {
+      width, height, bias: shadow.bias, normalBias: shadow.normalBias,
+      radius: shadow.radius, matrix: view, camera: null,
+      contentRevision: manual ? this._manualShadowRevision : undefined,
+      refreshCulling: false,
+      pointShadow: { active: 1, x: _position.x, y: _position.y, z: _position.z, far }
     };
   }
 
@@ -1148,7 +1308,7 @@ export class JsrWebGLRenderer {
       if (object.isLight) {
         if (object.visible) seenLights.add(this._ensureLight(object, commands));
         if (!shadowLight && object.visible && object.castShadow &&
-            (object.isDirectionalLight || object.isSpotLight)) {
+            (object.isDirectionalLight || object.isSpotLight || object.isPointLight)) {
           shadowLight = object;
         }
         parents.set(object, parents.get(object.parent) || 0);
@@ -1166,7 +1326,9 @@ export class JsrWebGLRenderer {
       if (result) {
         seenNodes.add(result.id);
         parents.set(object, result.id);
-        if (result.draw && object.castShadow) shadowCandidates.push(object);
+        // Upstream sprites never cast shadows, so they stay out of the
+        // shadow scan even with a user-set castShadow flag.
+        if (result.draw && object.castShadow && !object.isSprite) shadowCandidates.push(object);
         const culled = result.draw && object.frustumCulled && !_frustum.intersectsObject(object);
         if (culled) culledNodeIds.push(result.id);
         if (!culled && result.draw && result.draw.parts) {
@@ -1219,8 +1381,14 @@ export class JsrWebGLRenderer {
     finiteArray([background.r, background.g, background.b, background.a], 'background');
     const shadowLightType = shadow === NO_SHADOW || !shadowLight
       ? 0
-      : shadowLight.isSpotLight ? 2 : 1;
-    commands.push(frameCommand(resourceId(scene), cameraId, background, this.toneMappingExposure, fog, shadow, culledNodeIds, culledShadowNodeIds, shadowLightType, this.toneMapping));
+      : shadowLight.isSpotLight ? 2 : (shadowLight.isPointLight ? 3 : 1);
+    const pointShadow = shadowLight && shadowLight.isPointLight && shadow !== NO_SHADOW && shadow.pointShadow
+      ? shadow.pointShadow
+      : null;
+    if (shadowLight && shadowLight.isPointLight && shadow !== NO_SHADOW && !pointShadow) {
+      throw new Error('three.invalid: point light shadow matrix is required');
+    }
+    commands.push(frameCommand(resourceId(scene), cameraId, background, this.toneMappingExposure, fog, shadow, culledNodeIds, culledShadowNodeIds, shadowLightType, this.toneMapping, pointShadow));
     this._emit(commands);
     this._lastScene = scene;
     this._lastCamera = camera;
