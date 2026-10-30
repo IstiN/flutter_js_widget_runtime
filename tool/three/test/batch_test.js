@@ -386,7 +386,7 @@ test('non-indexed multi-material groups preserve exact vertex ranges and stay bo
   assert.equal(host.rawPackets.length, 1);
 });
 
-test('invalid matrices, counts, malformed instanceColor and transparent instancing reject without poisoning batch versions', () => {
+test('invalid matrices, counts and malformed instanceColor reject while transparent instancing renders without poisoning batch versions', () => {
   const host = createHost();
   const T = host.THREE;
   const { renderer, scene, camera } = rendererHost(host);
@@ -449,14 +449,14 @@ test('invalid matrices, counts, malformed instanceColor and transparent instanci
     invalid(() => renderer.render(scene, camera), count === 3 ? 'capacity' : 'count');
   }
   mesh.count = 2;
-  assert.equal(host.rawPackets.length, 5);
+  assert.equal(host.rawPackets.length, 6);
   renderer.render(scene, camera);
   assert.deepEqual(
-    opcodes(host.packets()[5]),
-    [11, 8],
-    'clearing instanceColor re-emits the batch without the color flag',
+    opcodes(host.packets()[6]),
+    [3, 8],
+    'an unchanged batch suppresses re-upload; only the material restores',
   );
-  assert.equal(u32(only(host.packets()[5], 11)[0].body, 12), 1);
+  assert.equal(only(host.packets()[6], 11).length, 0);
 });
 
 test('node disposal removes and recreates batches with rollback-safe per-surface state', () => {
