@@ -161,9 +161,9 @@ identity lives in `ThreeUpstreamBundle`, `tool/three/source-pin.json` and
   (`setColorAt`/`instanceColor`, RGB InstancedBufferAttribute) ride the same
   batch and multiply `material.color` in `three_r1.frag`; absent colors keep
   the plain material color so existing goldens stay byte-identical.
-  Transparent instanced meshes are rejected (`three.unsupported:
-  transparentInstancedMesh`) — do not approximate them without per-instance
-  sorting evidence. `ThreeDrawPlan.triangleCount`
+  Transparent instanced meshes render as ONE blended draw per material part
+  with node-level ordering in the planner's transparent bucket — exact
+  per-instance sorting is documented out of scope. `ThreeDrawPlan.triangleCount`
   includes every instance.
   Linear `THREE.Fog` is serialized in `FRAME`. The first shadow-casting
   directional light uses a separate shadow command buffer, an R32 depth-color
