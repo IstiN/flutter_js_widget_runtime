@@ -1285,22 +1285,21 @@ final class ThreeShadowCacheKey {
   final double pointFar;
   final Float32List matrix;
 
+  /// Field list for structural equality (keeps == complexity at bay; the
+  /// matrix rides as its identity-free element hash).
+  List<Object?> get _keyFields => [
+        contentRevision,
+        width,
+        height,
+        bias,
+        normalBias,
+        pointFar,
+        Object.hashAll(matrix),
+      ];
+
   @override
-  bool operator ==(Object other) {
-    if (other is! ThreeShadowCacheKey) return false;
-    if (contentRevision != other.contentRevision ||
-        width != other.width ||
-        height != other.height ||
-        bias != other.bias ||
-        normalBias != other.normalBias ||
-        pointFar != other.pointFar) {
-      return false;
-    }
-    for (var index = 0; index < 16; index++) {
-      if (matrix[index] != other.matrix[index]) return false;
-    }
-    return true;
-  }
+  bool operator ==(Object other) =>
+      other is ThreeShadowCacheKey && listEquals(_keyFields, other._keyFields);
 
   @override
   int get hashCode => Object.hash(
