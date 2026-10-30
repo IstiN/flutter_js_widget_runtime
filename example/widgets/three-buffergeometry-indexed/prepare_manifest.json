@@ -504,12 +504,12 @@
   },
   "inputs": {
     "assets/three/three.native.js": {
-      "bytes": 707824,
-      "sha256": "f7bbcc7f2a1f17fd97d9a4d1ad2708d8df4bf9fa0cd3ffcdf8853994b58f5fe6"
+      "bytes": 713340,
+      "sha256": "cfed41fdc4900d7f243a5ff8ef29465f67a169a8bbf679f422585331920bf8d7"
     },
     "assets/three/three.web.js": {
-      "bytes": 834257,
-      "sha256": "36dd4267b32524652764d4022604b426fbe542c3f65c8dc29ae4b05a40fe2fc4"
+      "bytes": 834367,
+      "sha256": "b853bf89b6d11d1a83cf23594cc3b462ea37992c6df2430e620bd823b7aab360"
     },
     "source/LICENSE": {
       "bytes": 1081,
@@ -532,20 +532,20 @@
       "sha256": "d71a218de612a39cf195fb1dab1989a8ea60bd9c89905b533355f2006d60a608"
     },
     "tool/three_example/example_adapter.js": {
-      "bytes": 10591,
-      "sha256": "d2e5956b557f4a77be311423ba44a137e40c04cc95f759d86d391c9ca5b35c51"
+      "bytes": 11409,
+      "sha256": "c742c01cd548526e1283ad7fd7a2358ee1f427263a1f04ae6f71582bddac3044"
     },
     "tool/three_example/example_canvas2d.js": {
       "bytes": 10478,
       "sha256": "4bdf9cbdaecdc528c6dbcacb69e539cf3dc2ade9c689f0086c3aff7a5608d15b"
     },
     "tool/three_example/lil_gui_adapter.js": {
-      "bytes": 8919,
-      "sha256": "f5cb1b499c1dc83d71a6f03d319de89743e91667f4d94f86586f8a9650c6f753"
+      "bytes": 21966,
+      "sha256": "704d224911ff24e5de4847d4aa77067c16033e18f2ad3ba615fd7017672b4e1c"
     },
     "tool/three_example/prepare.mjs": {
-      "bytes": 29566,
-      "sha256": "58399bb2ee9377c7bc1604ce34ca1ab791d2d6a896fd519b444ce362aafc4087"
+      "bytes": 53681,
+      "sha256": "2c25d1e534dc0c0be33ab1ed96bd2bf969409b164acf2608d553a5d223ef5d11"
     },
     "tool/three_example/stats_adapter.js": {
       "bytes": 2107,
@@ -570,8 +570,8 @@
       "sha256": "4370368307e79fcc83c43df84ba2c5f8a2624c66c8e653c8f63ae560801fc827"
     },
     "widget.js": {
-      "bytes": 58092,
-      "sha256": "e9dbeaacdbfcfaa0f2c21e8083a362590927743074ee644500906d67a2254026"
+      "bytes": 64243,
+      "sha256": "aecd16dc7e5ef83237f9d9424f2c0fa0cd026e15ef724b4e09ade26779749f05"
     }
   }
 }

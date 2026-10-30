@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:math' as math;
 import 'dart:typed_data';
 
 /// A malformed T1 envelope or R1 payload.
@@ -31,7 +32,8 @@ enum JsThreeMaterialKind {
   lineBasic(3),
   pointsBasic(4),
   meshPhong(5),
-  meshNormal(6);
+  meshNormal(6),
+  shadow(7);
 
   const JsThreeMaterialKind(this.wireValue);
   final int wireValue;
@@ -68,7 +70,8 @@ enum JsThreeLightType {
   ambient(0),
   directional(1),
   point(2),
-  hemisphere(3);
+  hemisphere(3),
+  spot(4);
 
   const JsThreeLightType(this.wireValue);
   final int wireValue;
@@ -79,6 +82,16 @@ enum JsThreeFogMode {
   linear(1);
 
   const JsThreeFogMode(this.wireValue);
+  final int wireValue;
+}
+
+/// Which light owns the frame's single shadow map (R1 v3 frame trailer).
+enum JsThreeShadowLightType {
+  none(0),
+  directional(1),
+  spot(2);
+
+  const JsThreeShadowLightType(this.wireValue);
   final int wireValue;
 }
 
@@ -231,6 +244,8 @@ final class JsThreeMaterialUpsert extends JsThreeCommand {
     required this.emissiveG,
     required this.emissiveB,
     required this.emissiveIntensity,
+    required this.clipId,
+    required this.clipFlags,
   }) : super._(3);
 
   final int materialId;
@@ -256,12 +271,23 @@ final class JsThreeMaterialUpsert extends JsThreeCommand {
   final double emissiveB;
   final double emissiveIntensity;
 
+  /// Resolved clipping set (R1 v3); zero when the material is unclipped.
+  final int clipId;
+
+  /// [clipIntersection] bit 0, [clipShadows] bit 1.
+  final int clipFlags;
+
+  bool get hasClipping => clipId != 0;
+  bool get clipIntersection => clipFlags & 1 != 0;
+  bool get clipShadows => clipFlags & 2 != 0;
+
   bool get vertexColors => flags & 0x01 != 0;
   bool get flatShading => flags & 0x02 != 0;
   bool get transparent => flags & 0x04 != 0;
   bool get depthTest => flags & 0x08 != 0;
   bool get depthWrite => flags & 0x10 != 0;
   bool get wireframe => flags & 0x20 != 0;
+  bool get sizeAttenuation => flags & 0x40 == 0;
 }
 
 final class JsThreeNodeUpsert extends JsThreeCommand {
@@ -325,6 +351,10 @@ final class JsThreeLightUpsert extends JsThreeCommand {
     required this.groundColorR,
     required this.groundColorG,
     required this.groundColorB,
+    required this.spotAngle,
+    required this.spotPenumbra,
+    required this.spotDistance,
+    required this.spotDecay,
   }) : super._(7);
 
   final int lightId;
@@ -342,6 +372,12 @@ final class JsThreeLightUpsert extends JsThreeCommand {
   final double groundColorR;
   final double groundColorG;
   final double groundColorB;
+
+  /// Zero for non-spot types; cone parameters for spot lights.
+  final double spotAngle;
+  final double spotPenumbra;
+  final double spotDistance;
+  final double spotDecay;
 }
 
 final class JsThreeSubmitFrame extends JsThreeCommand {
@@ -364,6 +400,7 @@ final class JsThreeSubmitFrame extends JsThreeCommand {
     required this.shadowBias,
     required this.shadowNormalBias,
     required this.shadowRadius,
+    required this.shadowLightType,
     required this.shadowMatrix,
     this.shadowContentRevision,
     this.culledNodeIds = const <int>{},
@@ -389,6 +426,11 @@ final class JsThreeSubmitFrame extends JsThreeCommand {
   final double shadowNormalBias;
   final double shadowRadius;
   final Float32List shadowMatrix;
+
+  /// Which light owns the frame's single shadow map (R1 v3).
+  final int shadowLightType;
+
+  bool get hasSpotShadow => shadowLightType == JsThreeShadowLightType.spot.wireValue;
 
   /// Manual THREE shadow revision; null follows global scene content changes.
   final int? shadowContentRevision;
@@ -440,6 +482,7 @@ final class JsThreeDrawBatchUpsert extends JsThreeCommand {
     required this.flags,
     required this.parts,
     required this.instanceMatrices,
+    required this.instanceColors,
   }) : super._(11);
 
   final int nodeId;
@@ -448,16 +491,36 @@ final class JsThreeDrawBatchUpsert extends JsThreeCommand {
   final int flags;
   final List<JsThreeDrawBatchPart> parts;
 
-  /// Sixteen column-major floats per instance, with no per-instance colors.
+  /// Sixteen column-major floats per instance.
   final Float32List instanceMatrices;
 
+  /// Three linear-space RGB floats per instance; empty without flag bit 2.
+  final Float32List instanceColors;
+
   bool get instanced => flags & 1 != 0;
+  bool get hasInstanceColors => flags & 2 != 0;
 }
 
 final class JsThreeRemoveBatch extends JsThreeCommand {
   const JsThreeRemoveBatch._(this.nodeId) : super._(12);
 
   final int nodeId;
+}
+
+/// A resolved set of world-space clipping planes (R1 v3).
+/// Each plane is four floats: unit normal XYZ + constant.
+final class JsThreeClippingUpsert extends JsThreeCommand {
+  const JsThreeClippingUpsert._({
+    required this.clipId,
+    required this.version,
+    required this.planes,
+  }) : super._(13);
+
+  final int clipId;
+  final int version;
+  final Float32List planes;
+
+  int get planeCount => planes.length ~/ 4;
 }
 
 /// Checked T1/R1 decoding. Legacy v1 and additive v2 streams are accepted.
@@ -475,7 +538,7 @@ final class JsThreeProtocolDecoder {
 
   static const int t1HeaderBytes = 32;
   static const int r1HeaderBytes = 12;
-  static const int latestR1Version = 2;
+  static const int latestR1Version = 3;
   static const int defaultMaxEnvelopeBytes = 64 * 1024 * 1024;
   static const int maxEncodedTextureBytes = 64 * 1024 * 1024;
   static const int maxCommandCount = 100000;
@@ -483,6 +546,7 @@ final class JsThreeProtocolDecoder {
   static const int maxIndexCount = 12000000;
   static const int maxDrawBatchPartCount = 65536;
   static const int maxDrawBatchInstanceCount = 1000000;
+  static const int maxClippingPlaneCount = 8;
 
   final int maxEnvelopeBytes;
 
@@ -761,7 +825,7 @@ final class JsThreeProtocolDecoder {
     );
   }
 
-  JsThreeMaterialUpsert _material(_Reader body) {
+  JsThreeMaterialUpsert _material(_Reader body, int streamVersion) {
     final id = body.nonzeroId('material id');
     final version = body.nonzeroVersion();
     final kind = body.enumValue(
@@ -771,7 +835,7 @@ final class JsThreeProtocolDecoder {
     );
     final mapTextureId = body.u32('map texture id');
     final flags = body.u32('material flags');
-    if (flags & ~0x3f != 0) body.fail('unknown material flag');
+    if (flags & ~0x7f != 0) body.fail('unknown material flag');
     if (flags & 0x20 != 0 &&
         kind != JsThreeMaterialKind.meshBasic &&
         kind != JsThreeMaterialKind.meshLambert &&
@@ -794,6 +858,13 @@ final class JsThreeProtocolDecoder {
     final alphaTest = body.unitFloat('material alpha test');
     final pointSize = body.finiteFloat('point size');
     if (pointSize <= 0) body.fail('point size must be positive');
+    var clipId = 0;
+    var clipFlags = 0;
+    if (streamVersion >= 3) {
+      clipId = body.u32('material clip id');
+      clipFlags = body.u32('material clip flags');
+      if (clipFlags & ~3 != 0) body.fail('unknown material clip flag');
+    }
     final phong = _phongMaterial(body, kind);
     final emissive = _emissiveMaterial(body, kind);
     return JsThreeMaterialUpsert._(
@@ -819,6 +890,8 @@ final class JsThreeProtocolDecoder {
       emissiveG: emissive.g,
       emissiveB: emissive.b,
       emissiveIntensity: emissive.intensity,
+      clipId: clipId,
+      clipFlags: clipFlags,
     );
   }
 
@@ -897,41 +970,31 @@ final class JsThreeProtocolDecoder {
     final version = body.nonzeroVersion();
     final instanceCount = body.u32('batch instance count');
     final flags = body.u32('batch flags');
-    if (flags & ~1 != 0) body.fail('only batch instancing flag is valid');
+    if (flags & ~3 != 0) {
+      body.fail('only batch instancing and color flags are valid');
+    }
     final instanced = flags & 1 != 0;
+    final hasColors = flags & 2 != 0;
+    if (!instanced && hasColors) {
+      body.fail('instance colors require an instanced batch');
+    }
     if (!instanced && instanceCount != 1) {
       body.fail('a non-instanced batch must have exactly one instance');
     }
     if (instanceCount > maxDrawBatchInstanceCount) {
       body.fail('batch instance count exceeds $maxDrawBatchInstanceCount');
     }
-    final partCount = body.u32('batch part count');
-    if (partCount == 0 || partCount > maxDrawBatchPartCount) {
-      body.fail('batch part count outside 1..$maxDrawBatchPartCount');
-    }
-    final parts = <JsThreeDrawBatchPart>[];
-    for (var index = 0; index < partCount; index++) {
-      final geometryId = body.nonzeroId('batch part geometry id');
-      final materialId = body.nonzeroId('batch part material id');
-      final offset = body.u32('batch part offset');
-      final count = body.u32('batch part count');
-      if (count == 0) body.fail('batch part count must be nonzero');
-      if (offset > 0xffffffff - count) {
-        body.fail('batch part offset/count overflows u32');
-      }
-      parts.add(
-        JsThreeDrawBatchPart._(
-          geometryId: geometryId,
-          materialId: materialId,
-          offset: offset,
-          count: count,
-        ),
-      );
-    }
+    final parts = _decodeBatchParts(body);
     final matrices = instanced
         ? body.float32List(
             body.product(instanceCount, 16, 'batch matrix floats'),
             'batch instance matrices',
+          )
+        : Float32List(0).asUnmodifiableView();
+    final colors = hasColors
+        ? body.float32List(
+            body.product(instanceCount, 3, 'batch color floats'),
+            'batch instance colors',
           )
         : Float32List(0).asUnmodifiableView();
     return JsThreeDrawBatchUpsert._(
@@ -941,6 +1004,36 @@ final class JsThreeProtocolDecoder {
       flags: flags,
       parts: List.unmodifiable(parts),
       instanceMatrices: matrices,
+      instanceColors: colors,
+    );
+  }
+
+  List<JsThreeDrawBatchPart> _decodeBatchParts(_Reader body) {
+    final partCount = body.u32('batch part count');
+    if (partCount == 0 || partCount > maxDrawBatchPartCount) {
+      body.fail('batch part count outside 1..$maxDrawBatchPartCount');
+    }
+    final parts = <JsThreeDrawBatchPart>[];
+    for (var index = 0; index < partCount; index++) {
+      parts.add(_decodeBatchPart(body));
+    }
+    return parts;
+  }
+
+  JsThreeDrawBatchPart _decodeBatchPart(_Reader body) {
+    final geometryId = body.nonzeroId('batch part geometry id');
+    final materialId = body.nonzeroId('batch part material id');
+    final offset = body.u32('batch part offset');
+    final count = body.u32('batch part count');
+    if (count == 0) body.fail('batch part count must be nonzero');
+    if (offset > 0xffffffff - count) {
+      body.fail('batch part offset/count overflows u32');
+    }
+    return JsThreeDrawBatchPart._(
+      geometryId: geometryId,
+      materialId: materialId,
+      offset: offset,
+      count: count,
     );
   }
 
@@ -970,6 +1063,9 @@ final class JsThreeProtocolDecoder {
     if (type == JsThreeLightType.hemisphere && version < 2) {
       body.fail('hemisphere lights require R1 version 2');
     }
+    if (type == JsThreeLightType.spot && version < 3) {
+      body.fail('spot lights require R1 version 3');
+    }
     final red = body.finiteFloat('light color red');
     final green = body.finiteFloat('light color green');
     final blue = body.finiteFloat('light color blue');
@@ -980,6 +1076,10 @@ final class JsThreeProtocolDecoder {
     var groundRed = 0.0;
     var groundGreen = 0.0;
     var groundBlue = 0.0;
+    var spotAngle = 0.0;
+    var spotPenumbra = 0.0;
+    var spotDistance = 0.0;
+    var spotDecay = 0.0;
     if (type == JsThreeLightType.hemisphere) {
       groundRed = body.finiteFloat('light ground color red');
       groundGreen = body.finiteFloat('light ground color green');
@@ -987,6 +1087,13 @@ final class JsThreeProtocolDecoder {
       if (body.u32('light reserved') != 0) {
         body.fail('light reserved field must be zero');
       }
+    }
+    if (type == JsThreeLightType.spot) {
+      final spot = _spotLightParams(body);
+      spotAngle = spot.angle;
+      spotPenumbra = spot.penumbra;
+      spotDistance = spot.distance;
+      spotDecay = spot.decay;
     }
     return JsThreeLightUpsert._(
       lightId: id,
@@ -1000,10 +1107,39 @@ final class JsThreeProtocolDecoder {
       groundColorR: groundRed,
       groundColorG: groundGreen,
       groundColorB: groundBlue,
+      spotAngle: spotAngle,
+      spotPenumbra: spotPenumbra,
+      spotDistance: spotDistance,
+      spotDecay: spotDecay,
     );
   }
 
-  JsThreeSubmitFrame _frame(_Reader body) {
+  ({double angle, double penumbra, double distance, double decay})
+  _spotLightParams(_Reader body) {
+    final angle = body.finiteFloat('spot light angle');
+    final penumbra = body.finiteFloat('spot light penumbra');
+    final distance = body.finiteFloat('spot light distance');
+    final decay = body.finiteFloat('spot light decay');
+    if (angle <= 0 || angle > math.pi / 2) {
+      body.fail('spot light angle must be within (0, PI/2]');
+    }
+    if (penumbra < 0 || penumbra > 8) {
+      // Upstream does not clamp penumbra; official examples tween above 1
+      // (webgl_lights_spotlights: `penumbra: Math.random() + 1`).
+      body.fail('spot light penumbra must be within [0, 8]');
+    }
+    if (distance < 0 || decay < 0) {
+      body.fail('spot light distance/decay must be nonnegative');
+    }
+    return (
+      angle: angle,
+      penumbra: penumbra,
+      distance: distance,
+      decay: decay,
+    );
+  }
+
+  JsThreeSubmitFrame _frame(_Reader body, int version) {
     final sceneId = body.nonzeroId('scene id');
     final cameraId = body.nonzeroId('frame camera id');
     final red = body.finiteFloat('background red');
@@ -1032,12 +1168,17 @@ final class JsThreeProtocolDecoder {
     final shadowNormalBias = body.finiteFloat('shadow normal bias');
     final shadowRadius = body.finiteFloat('shadow radius');
     final shadowMatrix = body.float32List(16, 'shadow matrix');
+    final shadowLightType = _shadowLightType(body, version);
     if ((shadowWidth == 0) != (shadowHeight == 0) ||
         shadowWidth > 8192 ||
         shadowHeight > 8192) {
       body.fail('shadow map dimensions must be zero or within 1..8192');
     }
     if (shadowRadius <= 0) body.fail('shadow radius must be positive');
+    if (shadowLightType != JsThreeShadowLightType.none.wireValue &&
+        shadowWidth == 0) {
+      body.fail('shadow light type requires a shadow map');
+    }
     final culledNodeIds = _optionalCulledIds(body, 'culled');
     final culledShadowNodeIds = _optionalCulledIds(body, 'culled shadow');
     final shadowContentRevision = body.remaining == 0
@@ -1062,12 +1203,23 @@ final class JsThreeProtocolDecoder {
       shadowBias: shadowBias,
       shadowNormalBias: shadowNormalBias,
       shadowRadius: shadowRadius,
+      shadowLightType: shadowLightType,
       shadowMatrix: shadowMatrix,
       shadowContentRevision: shadowContentRevision,
       culledNodeIds: culledNodeIds,
       culledShadowNodeIds: culledShadowNodeIds,
     );
   }
+
+  int _shadowLightType(_Reader body, int version) => version < 3
+      ? JsThreeShadowLightType.none.wireValue
+      : body
+            .enumValue(
+              JsThreeShadowLightType.values,
+              body.u32('shadow light type'),
+              'shadow light type',
+            )
+            .wireValue;
 
   Set<int> _optionalCulledIds(_Reader body, String label) {
     if (body.remaining == 0) return const <int>{};
@@ -1111,11 +1263,9 @@ typedef _R1CommandDecode =
 final _r1CommandDecoders = <int, _R1CommandDecode>{
   1: (decoder, body) => decoder._geometry(body),
   2: (decoder, body) => decoder._texture(body),
-  3: (decoder, body) => decoder._material(body),
   4: (decoder, body) => decoder._node(body),
   5: (decoder, body) => JsThreeRemoveNode._(body.nonzeroId('node id')),
   6: (decoder, body) => decoder._camera(body),
-  8: (decoder, body) => decoder._frame(body),
   9: (decoder, body) {
     final id = body.nonzeroId('resource id');
     final wireKind = body.u32('resource kind');
@@ -1135,9 +1285,41 @@ final _r1CommandDecoders = <int, _R1CommandDecode>{
 extension _JsThreeR1CommandDecoder on JsThreeProtocolDecoder {
   JsThreeCommand _decodeCommand(int opcode, _Reader body, int version) {
     if (opcode == 7) return _light(body, version);
+    if (opcode == 3) return _material(body, version);
+    if (opcode == 8) return _frame(body, version);
+    if (opcode == 13) return _clipping(body, version);
     final decode = _r1CommandDecoders[opcode];
     if (decode == null) body.fail('unknown R1 opcode $opcode');
     return decode(this, body);
+  }
+
+  JsThreeClippingUpsert _clipping(_Reader body, int version) {
+    if (version < 3) body.fail('clipping requires R1 version 3');
+    final id = body.nonzeroId('clipping id');
+    final clipVersion = body.nonzeroVersion();
+    final count = body.u32('clipping plane count');
+    if (count == 0 ||
+        count > JsThreeProtocolDecoder.maxClippingPlaneCount) {
+      body.fail(
+        'clipping plane count outside'
+        ' 1..${JsThreeProtocolDecoder.maxClippingPlaneCount}',
+      );
+    }
+    final planes = body.float32List(count * 4, 'clipping planes');
+    for (var index = 0; index < count; index++) {
+      final offset = index * 4;
+      final nx = planes[offset];
+      final ny = planes[offset + 1];
+      final nz = planes[offset + 2];
+      if (nx * nx + ny * ny + nz * nz <= 0) {
+        body.fail('clipping plane normal must be nonzero');
+      }
+    }
+    return JsThreeClippingUpsert._(
+      clipId: id,
+      version: clipVersion,
+      planes: planes,
+    );
   }
 }
 

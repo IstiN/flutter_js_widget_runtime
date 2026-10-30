@@ -78,6 +78,23 @@ function findCheckbox(tree, label) {
   return null;
 }
 
+function findSlider(tree, label) {
+  if (!tree || typeof tree !== 'object') return null;
+  if (tree.type === 'slider' && tree.label === label) return tree;
+  for (const value of Object.values(tree)) {
+    if (Array.isArray(value)) {
+      for (const child of value) {
+        const found = findSlider(child, label);
+        if (found) return found;
+      }
+    } else {
+      const found = findSlider(value, label);
+      if (found) return found;
+    }
+  }
+  return null;
+}
+
 function boot(widget, instanceId) {
   const renders = [];
   const states = [];
@@ -216,6 +233,34 @@ assert.ok(mathCommands.some(command => command.opcode === 3 && command.body.read
   'orientation cone emits native MeshNormalMaterial');
 assert.equal(math.timers.size, 1, 'official recurring target timer remains scheduled');
 
+const raycastInfo = await verifyOfficial(
+  'webgl_instancing_raycast', 'three-instancing-raycast'
+);
+const raycast = boot(
+  await readFile(path.join(raycastInfo.out, 'widget.js'), 'utf8'), 'instancing-gui-test'
+);
+raycast.frame(0);
+raycast.frame(16);
+assert.equal(raycast.states.at(-1).renderer.calls, 1,
+  '1000 official instanced icosahedra submit one DRAW_BATCH call');
+assert.ok(raycast.states.at(-1).renderer.triangles > 0);
+const slider = findSlider(raycast.renders.at(-1), 'count');
+assert.ok(slider, 'native lil-gui emits a real JSR slider for mesh.count');
+assert.equal(slider.min, 0);
+assert.equal(slider.max, 1000);
+assert.equal(raycast.states.at(-1).gui.values[0].kind, 'number');
+raycast.jsr._handler(slider.onChanged, { value: 500 });
+assert.equal(raycast.states.at(-1).gui.values[0].value, 500,
+  'slider events update the official mesh.count');
+assert.equal(raycast.states.at(-1).gui.changes, 1);
+raycast.jsr._handler(slider.onChanged, { value: 4000 });
+assert.equal(raycast.states.at(-1).gui.values[0].value, 1000,
+  'number values clamp to the official max');
+const raycastCommands = raycast.packets.flatMap(packet => commands(packet));
+assert.ok(raycastCommands.some(command => command.opcode === 3 &&
+  command.body.readUInt32LE(8) === 5),
+  'official instanced raycast scene uses MeshPhongMaterial');
+
 console.log(JSON.stringify({
   ok: true,
   terrain: {
@@ -228,5 +273,10 @@ console.log(JSON.stringify({
     moduleSha256: mathInfo.manifest.outputs['official_module.js'].sha256,
     jsrCheckbox: true, paramsUpdated: true, instantLookAtObserved: true,
     normalMaterial: true
+  },
+  instancingRaycast: {
+    moduleSha256: raycastInfo.manifest.outputs['official_module.js'].sha256,
+    jsrSlider: true, countUpdated: true, clampedToMax: true,
+    phongInstancedBatch: true
   }
 }, null, 2));

@@ -494,5 +494,26 @@ void main() {
       await backend.dispose();
       _backends.remove(backend);
     });
+
+    testWidgets('RAF and timer callback exceptions surface as error trees',
+        (tester) async {
+      final r = _Recorder();
+      final backend = _backend(r);
+      await backend.init();
+      await backend.run('''
+(function() {
+  requestAnimationFrame(function(t) { throw new Error('raf boom'); });
+})();
+''');
+      await tester.pump(const Duration(milliseconds: 100));
+      // The throw previously vanished silently (eval returns null instead
+      // of throwing); it must now render the standard error card.
+      expect(
+        r.renders.last.toString(),
+        contains('raf boom'),
+      );
+      await backend.dispose();
+      _backends.remove(backend);
+    });
   });
 }

@@ -884,12 +884,16 @@ class JsRafScheduler {
   int _lastTickerElapsed = -1;
   int _lastSentMs = -1;
 
-  // Grace frames before stopping an idle ticker: a widget that re-requests
-  // rAF every frame can legitimately miss a vsync when the worker round
-  // trip lags; stopping+restarting the Ticker every time costs more than
-  // a few no-op ticks.
+  // Grace ticks before stopping an idle ticker. The isolate backend's rAF
+  // re-request is an asynchronous worker->host->worker round trip: a widget
+  // that re-requests every frame can legitimately miss MANY vsyncs while
+  // that message is in flight (under host load or in fake-async tests the
+  // delivery can lag well past three frames). Stopping too early froze
+  // animated widgets on the isolated backend after a few frames (and could
+  // starve the very first frame). One second of true idleness still stops
+  // the ticker, so idle engines keep their zero-tick cost.
   int _emptyTicks = 0;
-  static const int _stopAfterEmptyTicks = 3;
+  static const int _stopAfterEmptyTicks = 60;
 
   void requestFrame(String id) {
     _pending[id] = true;

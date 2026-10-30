@@ -677,6 +677,16 @@ class JsonWidgetRenderer with JsonWidgetDecoration {
     );
   }
 
+  /// One cached GlobalKey per (engineId, surfaceId): identity-stable across
+  /// renders so Flutter reparents the three node instead of remounting it.
+  static final Map<String, Key> _threeSurfaceKeys = {};
+
+  static Key _threeSurfaceKey(String engineId, String surfaceId) =>
+      _threeSurfaceKeys.putIfAbsent(
+        '$engineId/$surfaceId',
+        () => GlobalKey(debugLabel: 'jsr-three/$engineId/$surfaceId'),
+      );
+
   Widget _three(Map<String, dynamic> m) {
     final host = threeHost;
     if (host == null) {
@@ -686,10 +696,24 @@ class JsonWidgetRenderer with JsonWidgetDecoration {
         label: 'three.unsupported: host',
       );
     }
-    return JsThreeNode(
-      host: host,
-      config: Map<String, dynamic>.from(m),
-      onEvent: onThreeEvent,
+    // Reparent-stable identity: the R1 render stream can flip the tree ROOT
+    // between renders (e.g. a bare `three` root before the widget's first
+    // jsr.render on the isolate lane). Without a stable GlobalKey Flutter
+    // remounts the node on every render and the second attach races the old
+    // state's release → `three.surface: main#1 is already attached`.
+    // GlobalObjectKey is unsuitable here: it compares its value by
+    // `identical()`, and a freshly interpolated string is a new instance
+    // every build — the key must be a SINGLE cached instance per surface.
+    return KeyedSubtree(
+      key: _threeSurfaceKey(
+        '${m['engineId']}',
+        '${m['surfaceId'] ?? m['canvasId'] ?? 'main'}',
+      ),
+      child: JsThreeNode(
+        host: host,
+        config: Map<String, dynamic>.from(m),
+        onEvent: onThreeEvent,
+      ),
     );
   }
 

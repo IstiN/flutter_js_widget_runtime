@@ -43,6 +43,42 @@ enum ThreeExampleSelection {
     widgetId: 'three-buffergeometry-lines-indexed',
     assetPath: 'widgets/three-buffergeometry-lines-indexed/widget.js',
   ),
+  bufferGeometry(
+    exampleId: 'webgl_buffergeometry',
+    label: 'BufferGeometry',
+    widgetId: 'three-buffergeometry',
+    assetPath: 'widgets/three-buffergeometry/widget.js',
+  ),
+  camera(
+    exampleId: 'webgl_camera',
+    label: 'Camera (O/P keys)',
+    widgetId: 'three-camera',
+    assetPath: 'widgets/three-camera/widget.js',
+  ),
+  clippingAdvanced(
+    exampleId: 'webgl_clipping_advanced',
+    label: 'Clipping Advanced',
+    widgetId: 'three-clipping-advanced',
+    assetPath: 'widgets/three-clipping-advanced/widget.js',
+  ),
+  geometryExtrudeSplines(
+    exampleId: 'webgl_geometry_extrude_splines',
+    label: 'Extrude Splines',
+    widgetId: 'three-geometry-extrude-splines',
+    assetPath: 'widgets/three-geometry-extrude-splines/widget.js',
+  ),
+  loaderPly(
+    exampleId: 'webgl_loader_ply',
+    label: 'PLY Loader',
+    widgetId: 'three-loader-ply',
+    assetPath: 'widgets/three-loader-ply/widget.js',
+  ),
+  loaderStl(
+    exampleId: 'webgl_loader_stl',
+    label: 'STL Loader',
+    widgetId: 'three-loader-stl',
+    assetPath: 'widgets/three-loader-stl/widget.js',
+  ),
   bufferGeometryPoints(
     exampleId: 'webgl_buffergeometry_points',
     label: 'BufferGeometry Points',
@@ -79,6 +115,72 @@ enum ThreeExampleSelection {
     widgetId: 'three-interactive-cubes-ortho',
     assetPath: 'widgets/three-interactive-cubes-ortho/widget.js',
   ),
+  interactiveLines(
+    exampleId: 'webgl_interactive_lines',
+    label: 'Interactive Lines',
+    widgetId: 'three-interactive-lines',
+    assetPath: 'widgets/three-interactive-lines/widget.js',
+  ),
+  interactiveBufferGeometry(
+    exampleId: 'webgl_interactive_buffergeometry',
+    label: 'Interactive BufferGeometry',
+    widgetId: 'three-interactive-buffergeometry',
+    assetPath: 'widgets/three-interactive-buffergeometry/widget.js',
+  ),
+  clipping(
+    exampleId: 'webgl_clipping',
+    label: 'Clipping',
+    widgetId: 'three-clipping',
+    assetPath: 'widgets/three-clipping/widget.js',
+  ),
+  clippingIntersection(
+    exampleId: 'webgl_clipping_intersection',
+    label: 'Clipping Intersection',
+    widgetId: 'three-clipping-intersection',
+    assetPath: 'widgets/three-clipping-intersection/widget.js',
+  ),
+  lightsSpotlights(
+    exampleId: 'webgl_lights_spotlights',
+    label: 'Spot Lights',
+    widgetId: 'three-lights-spotlights',
+    assetPath: 'widgets/three-lights-spotlights/widget.js',
+  ),
+  lightsHemisphere(
+    exampleId: 'webgl_lights_hemisphere',
+    label: 'Hemisphere Light',
+    widgetId: 'three-lights-hemisphere',
+    assetPath: 'widgets/three-lights-hemisphere/widget.js',
+  ),
+  interactivePoints(
+    exampleId: 'webgl_interactive_points',
+    label: 'Interactive Points',
+    widgetId: 'three-interactive-points',
+    assetPath: 'widgets/three-interactive-points/widget.js',
+  ),
+  helpers(
+    exampleId: 'webgl_helpers',
+    label: 'Helpers',
+    widgetId: 'three-helpers',
+    assetPath: 'widgets/three-helpers/widget.js',
+  ),
+  geometrySplineEditor(
+    exampleId: 'webgl_geometry_spline_editor',
+    label: 'Spline Editor',
+    widgetId: 'three-geometry-spline-editor',
+    assetPath: 'widgets/three-geometry-spline-editor/widget.js',
+  ),
+  instancingRaycast(
+    exampleId: 'webgl_instancing_raycast',
+    label: 'Instancing Raycast',
+    widgetId: 'three-instancing-raycast',
+    assetPath: 'widgets/three-instancing-raycast/widget.js',
+  ),
+  extrudeShapes(
+    exampleId: 'webgl_geometry_extrude_shapes',
+    label: 'Extrude Shapes',
+    widgetId: 'three-extrude-shapes',
+    assetPath: 'widgets/three-extrude-shapes/widget.js',
+  ),
   mathObb(
     exampleId: 'webgl_math_obb',
     label: 'Oriented Bounding Boxes',
@@ -102,6 +204,30 @@ enum ThreeExampleSelection {
     label: 'Equirectangular Panorama',
     widgetId: 'three-panorama-equirectangular',
     assetPath: 'widgets/three-panorama-equirectangular/widget.js',
+  ),
+  loaderXyz(
+    exampleId: 'webgl_loader_xyz',
+    label: 'XYZ Loader',
+    widgetId: 'three-loader-xyz',
+    assetPath: 'widgets/three-loader-xyz/widget.js',
+  ),
+  geometryTextShapes(
+    exampleId: 'webgl_geometry_text_shapes',
+    label: 'Text Shapes',
+    widgetId: 'three-geometry-text-shapes',
+    assetPath: 'widgets/three-geometry-text-shapes/widget.js',
+  ),
+  geometryConvex(
+    exampleId: 'webgl_geometry_convex',
+    label: 'Convex Geometry',
+    widgetId: 'three-geometry-convex',
+    assetPath: 'widgets/three-geometry-convex/widget.js',
+  ),
+  geometryCube(
+    exampleId: 'webgl_geometry_cube',
+    label: 'Geometry Cube',
+    widgetId: 'three-geometry-cube',
+    assetPath: 'widgets/three-geometry-cube/widget.js',
   );
 
   const ThreeExampleSelection({
@@ -113,7 +239,7 @@ enum ThreeExampleSelection {
 
   static ThreeExampleSelection get initial {
     const exampleId = String.fromEnvironment('JSR_THREE_EXAMPLE');
-    if (exampleId.isEmpty) return minecraft;
+    if (exampleId.isEmpty) return clipping;
     for (final selection in values) {
       if (selection.exampleId == exampleId) return selection;
     }
@@ -123,6 +249,50 @@ enum ThreeExampleSelection {
       'Unsupported official three.js example',
     );
   }
+
+  /// Sidebar order: newest modules first so additions are visible without
+  /// scrolling, then the launch order of the original set.
+  ///
+  /// Excluded from the sidebar (documented 1B-only gaps, see their tests):
+  /// lightsHemisphere and interactivePoints render a ShaderMaterial
+  /// (skydome / point sprites) that native R1 does not provide by design.
+  static final List<ThreeExampleSelection> sidebarOrder = [
+    clipping,
+    clippingIntersection,
+    lightsSpotlights,
+    helpers,
+    geometrySplineEditor,
+    interactiveLines,
+    interactiveBufferGeometry,
+    instancingRaycast,
+    extrudeShapes,
+    ..._launchOrder,
+  ];
+
+  static final List<ThreeExampleSelection> _launchOrder = [
+    minecraft,
+    geometryColors,
+    linesColors,
+    bufferGeometryUint,
+    bufferGeometryIndexed,
+    bufferGeometryLinesIndexed,
+    bufferGeometryPoints,
+    geometryTerrainRaycast,
+    mathOrientationTransform,
+    interactiveRaycastingPoints,
+    interactiveCubes,
+    interactiveCubesOrtho,
+    mathObb,
+    bufferGeometry,
+    camera,
+    clippingAdvanced,
+    geometryExtrudeSplines,
+    loaderPly,
+    loaderStl,
+    bufferGeometryPointsInterleaved,
+    interactiveVoxelPainter,
+    panoramaEquirectangular,
+  ];
 
   final String exampleId;
   final String label;
@@ -269,7 +439,7 @@ class _ThreeExampleSidebar extends StatelessWidget {
           Expanded(
             child: ListView(
               children: [
-                for (final example in ThreeExampleSelection.values)
+                for (final example in ThreeExampleSelection.sidebarOrder)
                   ListTile(
                     dense: true,
                     selected: example == selection,
@@ -290,7 +460,7 @@ class _ThreeExampleSidebar extends StatelessWidget {
           const Padding(
             padding: EdgeInsets.fromLTRB(20, 12, 20, 0),
             child: Text(
-              'QuickJS isolate  /  R1  /  Flutter GPU\n16 integrated native samples',
+              'QuickJS isolate  /  R1  /  Flutter GPU\n20 integrated native samples',
               style: TextStyle(
                 color: Color(0xFF64748B),
                 fontSize: 11,

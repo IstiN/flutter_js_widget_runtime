@@ -3,6 +3,7 @@ import { reportGui, useBrowserGui } from './example_adapter.js';
 
 const MAX_ROOTS = 8;
 const MAX_CONTROLLERS = 64;
+const MAX_FOLDERS = 8;
 const roots = new Set();
 const controllers = new Map();
 let nextRoot = 0;
@@ -28,6 +29,7 @@ function snapshot() {
       property: controller.property,
       name: controller._name,
       kind: controller.kind,
+      folder: controller.container._title,
       value: controller.getValue(),
       open: !controller.root._closed,
       visible: !controller.root._hidden && !controller._hidden,
@@ -36,14 +38,54 @@ function snapshot() {
   };
 }
 
-function controllerTree(controller) {
-  if (controller.kind !== 'boolean') unsupported(`render(${controller.kind})`);
-  return {
-    type: 'checkbox',
-    label: controller._name,
-    value: controller.getValue(),
-    onChanged: controller._disabled ? null : controller.action
-  };
+function controllerRow(controller) {
+  if (controller.kind === 'boolean') {
+    return {
+      type: 'checkbox',
+      label: controller._name,
+      value: controller.getValue(),
+      onChanged: controller._disabled ? null : controller.action
+    };
+  }
+  if (controller.kind === 'number') {
+    if (controller._min === undefined || controller._max === undefined) {
+      // Bare numeric controller (bounds not set yet): numeric text input —
+      // the event router parses the string back to a finite number.
+      return {
+        type: 'textField',
+        hint: controller._name,
+        value: String(controller.getValue()),
+        onChange: controller._disabled ? null : controller.action
+      };
+    }
+    return {
+      type: 'slider',
+      label: controller._name,
+      value: controller.getValue(),
+      min: controller._min,
+      max: controller._max,
+      onChanged: controller._disabled ? null : controller.action
+    };
+  }
+  if (controller.kind === 'function') {
+    return {
+      type: 'button',
+      label: controller._name,
+      onPressed: controller._disabled ? null : controller.action
+    };
+  }
+  if (controller.kind === 'options') {
+    // Host dropdown node; values stringified for the items list, the typed
+    // original is restored on the event path below.
+    return {
+      type: 'dropdown',
+      label: controller._name,
+      value: String(controller.getValue()),
+      items: controller.allowed.map(v => String(v)),
+      onChanged: controller._disabled ? null : controller.action
+    };
+  }
+  unsupported(`render(${controller.kind})`);
 }
 
 function rootTree(root) {
@@ -55,7 +97,19 @@ function rootTree(root) {
   }];
   if (!root._closed) {
     for (const controller of root.controllers) {
-      if (!controller._hidden) children.push(controllerTree(controller));
+      if (!controller._hidden) children.push(controllerRow(controller));
+    }
+    for (const folder of root.folders) {
+      if (folder._hidden) continue;
+      children.push({
+        type: 'text',
+        data: folder._title,
+        style: { color: '#FF9E9EA6', fontSize: 11, fontWeight: 'w600' }
+      });
+      if (folder._closed) continue;
+      for (const controller of folder.controllers) {
+        if (!controller._hidden) children.push(controllerRow(controller));
+      }
     }
   }
   return {
@@ -70,13 +124,14 @@ function rootTree(root) {
 
 function renderRoots() {
   const overlays = Array.from(roots).map(rootTree).filter(Boolean);
-  if (!overlays.length) return;
+  if (!overlays.length) return false;
   const JSR = roots.values().next().value.JSR;
   JSR.render({
     type: 'stack',
     fit: 'expand',
     children: [{ type: 'three', canvasId: 'main' }, ...overlays]
   });
+  return true;
 }
 
 function reportRoots() {
@@ -90,6 +145,7 @@ function installEvents(JSR) {
     throw new Error('three.unsupported: native lil-gui requires the normal jsr.onEvent path');
   }
   eventsInstalled = true;
+  JSR.three._guiRerender = renderRoots;
   delegatedHandler = typeof JSR._handler === 'function' ? JSR._handler : null;
   const register = JSR.onEvent;
   JSR.onEvent = function(handler) {
@@ -98,11 +154,35 @@ function installEvents(JSR) {
   register.call(JSR, (action, payload) => {
     const controller = controllers.get(String(action));
     if (controller) {
-      if (!controller._disabled && !controller._hidden && !controller.root._hidden) {
-        if (!payload || typeof payload.value !== 'boolean') {
-          throw new Error('three.invalid: lil-gui boolean events require a boolean value');
+      const container = controller.container;
+      if (!controller._disabled && !controller._hidden && !controller.root._hidden &&
+          !container._hidden && !container._closed) {
+        if (controller.kind === 'boolean') {
+          if (!payload || typeof payload.value !== 'boolean') {
+            throw new Error('three.invalid: lil-gui boolean events require a boolean value');
+          }
+        } else if (controller.kind === 'number') {
+          const raw = payload ? payload.value : undefined;
+          const numeric = typeof raw === 'number'
+            ? raw
+            : (typeof raw === 'string' && raw.trim() !== '' ? Number(raw) : NaN);
+          if (!Number.isFinite(numeric)) {
+            throw new Error('three.invalid: lil-gui number events require a finite number value');
+          }
+          payload = { value: numeric };
+        } else if (controller.kind === 'options') {
+          // The host dropdown delivers a stringified value; restore the
+          // typed member before validating membership in setValue.
+          const raw = payload ? payload.value : undefined;
+          const typed = controller.allowed.find(v => String(v) === String(raw));
+          if (typed === undefined) {
+            throw new Error('three.invalid: lil-gui options events require a listed value');
+          }
+          payload = { value: typed };
+        } else if (controller.kind !== 'function') {
+          unsupported(`event(${controller.kind})`);
         }
-        controller.setValue(payload.value);
+        controller.setValue(payload ? payload.value : undefined);
         controller._callOnFinishChange();
         reportRoots();
       }
@@ -113,14 +193,15 @@ function installEvents(JSR) {
 }
 
 export class Controller {
-  constructor(root, object, property, kind) {
+  constructor(container, object, property, kind) {
     if (!object || typeof property !== 'string' || !property || property.length > 128) {
       throw new Error('three.invalid: lil-gui requires a bounded object property');
     }
-    if (root.controllers.length >= MAX_CONTROLLERS) {
+    if (controllers.size >= MAX_CONTROLLERS) {
       throw new Error('three.invalid: lil-gui controller quota exceeded');
     }
-    this.root = root;
+    this.container = container;
+    this.root = container.root !== undefined ? container.root : container;
     this.object = object;
     this.property = property;
     this.kind = kind;
@@ -130,7 +211,7 @@ export class Controller {
     this._disabled = false;
     this._changed = false;
     this.action = `three.gui.${++nextController}`;
-    root.controllers.push(this);
+    container.controllers.push(this);
     controllers.set(this.action, this);
   }
 
@@ -142,13 +223,13 @@ export class Controller {
   _callOnChange() {
     this._changed = true;
     changes++;
-    this.root._callOnChange(this);
+    this.container._callOnChange(this);
     if (this._onChange) this._onChange.call(this, this.getValue());
   }
   _callOnFinishChange() {
     if (!this._changed) return;
     finishes++;
-    this.root._callOnFinishChange(this);
+    this.container._callOnFinishChange(this);
     if (this._onFinishChange) this._onFinishChange.call(this, this.getValue());
     this._changed = false;
   }
@@ -161,23 +242,26 @@ export class Controller {
   save() { return this.getValue(); }
   load(value) { this.setValue(value); this._callOnFinishChange(); reportRoots(); return this; }
   destroy() {
-    const index = this.root.controllers.indexOf(this);
-    if (index >= 0) this.root.controllers.splice(index, 1);
+    const index = this.container.controllers.indexOf(this);
+    if (index >= 0) this.container.controllers.splice(index, 1);
     controllers.delete(this.action);
     reportRoots();
   }
-  listen() { unsupported('listen'); }
-  options() { unsupported('options'); }
+  // Upstream listen() makes the display auto-refresh from the object; the
+  // native facade snapshots values on demand, so a silent pass-through keeps
+  // official modules (e.g. webgl_clipping_advanced 'Visualize'.listen())
+  // booting without changing value semantics.
+  listen() { return this; }
+  options(allowed) { return this.container.add(this.object, this.property, allowed); }
   min() { unsupported('min'); }
   max() { unsupported('max'); }
-  step() { unsupported('step'); }
   decimals() { unsupported('decimals'); }
 }
 
 export class BooleanController extends Controller {
-  constructor(root, object, property) {
+  constructor(container, object, property) {
     if (typeof object[property] !== 'boolean') unsupported(`add(${typeof object[property]})`);
-    super(root, object, property, 'boolean');
+    super(container, object, property, 'boolean');
   }
   setValue(value) {
     if (typeof value !== 'boolean') throw new Error('three.invalid: lil-gui boolean value required');
@@ -185,10 +269,225 @@ export class BooleanController extends Controller {
   }
 }
 
+// lil-gui dropdown: add(obj, prop, ['a', 'b']) / add(obj, prop, [2, 4, 8]).
+// Bounded native facade: values must be strings or finite numbers, list
+// capped at MAX_OPTIONS entries; setValue validates membership.
+const MAX_OPTIONS = 32;
+
+export class OptionsController extends Controller {
+  constructor(container, object, property, allowed) {
+    if (!Array.isArray(allowed) || allowed.length === 0 || allowed.length > MAX_OPTIONS) {
+      unsupported('add(options list empty or over quota)');
+    }
+    for (const v of allowed) {
+      if (typeof v !== 'string' && (typeof v !== 'number' || !Number.isFinite(v))) {
+        unsupported(`add(options ${typeof v})`);
+      }
+    }
+    super(container, object, property, 'options');
+    this.allowed = allowed.slice();
+  }
+  setValue(value) {
+    const ok = this.allowed.some(v => v === value ||
+      (typeof v === 'number' && typeof value === 'number' && Number.isFinite(v) && v === value));
+    if (!ok) throw new Error('three.invalid: lil-gui options value required');
+    return super.setValue(value);
+  }
+}
+
+const MAX_SLIDER_RANGE = 1e9;
+
+// lil-gui function properties render as buttons; a press invokes the
+// function once (no value semantics, no finish round trip).
+export class FunctionController extends Controller {
+  constructor(container, object, property) {
+    if (typeof object[property] !== 'function') {
+      unsupported(`add(function expected, got ${typeof object[property]})`);
+    }
+    super(container, object, property, 'function');
+  }
+  setValue() {
+    const fn = this.object[this.property];
+    fn();
+    this._callOnChange();
+    reportRoots();
+    return this;
+  }
+  getValue() { return undefined; }
+}
+
+export class NumberController extends Controller {
+  constructor(container, object, property, min, max, step) {
+    if (typeof object[property] !== 'number' || !Number.isFinite(object[property])) {
+      unsupported(`add(number expected, got ${typeof object[property]})`);
+    }
+    // Bounds may be omitted (bare `add(o, 'x')`) and late-bound via the
+    // official `.min().max()` chain; validate only what is provided.
+    for (const bound of [min, max]) {
+      if (bound !== undefined &&
+          (typeof bound !== 'number' || !Number.isFinite(bound))) {
+        unsupported('add(number bounds)');
+      }
+    }
+    if (min !== undefined && max !== undefined &&
+        (!(min <= max) || max - min > MAX_SLIDER_RANGE)) {
+      unsupported('add(number range)');
+    }
+    if (step !== undefined && (typeof step !== 'number' || !Number.isFinite(step) || step <= 0)) {
+      unsupported('add(number step)');
+    }
+    super(container, object, property, 'number');
+    this._min = min;
+    this._max = max;
+    this._step = step;
+  }
+  // lil-gui's chained .min(v)/.max(v): late-bound slider bounds (the
+  // official examples' `gui.add(o, 'x').min(0).max(1)` idiom). Validated
+  // like constructor bounds and re-snapshotted.
+  min(value) {
+    if (typeof value !== 'number' || !Number.isFinite(value)) {
+      throw new Error('three.invalid: lil-gui min must be a finite number');
+    }
+    this._min = value;
+    if (this._max !== undefined && !(this._min <= this._max)) {
+      throw new Error('three.invalid: lil-gui min must not exceed max');
+    }
+    this.setValue(this.getValue());
+    reportRoots();
+    return this;
+  }
+  max(value) {
+    if (typeof value !== 'number' || !Number.isFinite(value)) {
+      throw new Error('three.invalid: lil-gui max must be a finite number');
+    }
+    this._max = value;
+    if (this._min !== undefined && !(this._min <= this._max)) {
+      throw new Error('three.invalid: lil-gui max must not be below min');
+    }
+    this.setValue(this.getValue());
+    reportRoots();
+    return this;
+  }
+  // lil-gui's chained .step(value): snap slider values to the increment.
+  // Stored and applied on setValue; the native facade has no fine-drag
+  // semantics, so this only quantizes programmatic/GUI-driven updates.
+  step(value) {
+    if (typeof value !== 'number' || !Number.isFinite(value) || value <= 0) {
+      throw new Error('three.invalid: lil-gui step must be a positive number');
+    }
+    this._step = value;
+    this.setValue(this.getValue());
+    reportRoots();
+    return this;
+  }
+  setValue(value) {
+    if (typeof value !== 'number' || !Number.isFinite(value)) {
+      throw new Error('three.invalid: lil-gui number value required');
+    }
+    var snapped = value;
+    if (this._step !== undefined) {
+      const base = this._min === undefined ? 0 : this._min;
+      snapped = base + Math.round((value - base) / this._step) * this._step;
+    }
+    // Late-bound bounds: clamp only the sides that are already set, so the
+    // official `.min(0).max(1)` chain on a bare controller never NaNs the
+    // controlled property before both bounds exist.
+    var clamped = snapped;
+    if (this._min !== undefined) clamped = Math.max(this._min, clamped);
+    if (this._max !== undefined) clamped = Math.min(this._max, clamped);
+    return super.setValue(clamped);
+  }
+}
+
+// A bounded folder section: one nesting level only, no tap-to-collapse (the
+// native facade has no header gestures); open()/close() stay programmatic.
+class NativeFolder {
+  constructor(root, title) {
+    if (root.folders.length >= MAX_FOLDERS) {
+      throw new Error('three.invalid: lil-gui folder quota exceeded');
+    }
+    this.root = root;
+    this.controllers = [];
+    this.folders = [];
+    this._title = String(title).slice(0, 128);
+    this._closed = false;
+    this._hidden = false;
+  }
+
+  add(object, property, ...options) {
+    let controller;
+    if (!options.length && typeof object[property] === 'function') {
+      controller = new FunctionController(this, object, property);
+    } else if (!options.length && typeof object[property] === 'number' &&
+               Number.isFinite(object[property])) {
+      // Bare numeric add: late-bound slider/text controller (`.min().max()`
+      // chain supplies bounds); booleans keep the checkbox path below.
+      controller = new NumberController(this, object, property, undefined, undefined);
+    } else if (!options.length) {
+      controller = new BooleanController(this, object, property);
+    } else if (options.length === 1 && Array.isArray(options[0])) {
+      controller = new OptionsController(this, object, property, options[0]);
+    } else if (options.length === 2 || options.length === 3) {
+      controller = new NumberController(this, object, property, options[0], options[1], options[2]);
+    } else {
+      unsupported(`add(${options.length} options)`);
+    }
+    reportRoots();
+    return controller;
+  }
+  open(value = true) { this._closed = !value; reportRoots(); return this; }
+  close() { return this.open(false); }
+  show(value = true) { this._hidden = !value; reportRoots(); return this; }
+  hide() { return this.show(false); }
+  title(value) { this._title = String(value).slice(0, 128); reportRoots(); return this; }
+  onChange(callback) { this._onChange = callback; return this; }
+  onFinishChange(callback) { this._onFinishChange = callback; return this; }
+  _callOnChange(controller) {
+    if (this._onChange) this._onChange.call(this, {
+      object: controller.object, property: controller.property,
+      value: controller.getValue(), controller
+    });
+    this.root._callOnChange(controller);
+  }
+  _callOnFinishChange(controller) {
+    if (this._onFinishChange) this._onFinishChange.call(this, {
+      object: controller.object, property: controller.property,
+      value: controller.getValue(), controller
+    });
+    this.root._callOnFinishChange(controller);
+  }
+  reset() { for (const controller of this.controllers) controller.reset(); return this; }
+  controllersRecursive() { return this.controllers.slice(); }
+  foldersRecursive() { return []; }
+  save() { unsupported('save'); }
+  load() { unsupported('load'); }
+  addColor() { unsupported('addColor'); }
+  addFolder() { unsupported('addFolder.nested'); }
+  openAnimated() { unsupported('openAnimated'); }
+  destroy() {
+    for (const controller of this.controllers.slice()) controller.destroy();
+    const index = this.root.folders.indexOf(this);
+    if (index >= 0) this.root.folders.splice(index, 1);
+    reportRoots();
+  }
+}
+
 class NativeGUI {
   constructor(options = {}) {
     if (!options || typeof options !== 'object' || Array.isArray(options)) unsupported('constructor options');
-    for (const key of Object.keys(options)) if (key !== 'title') unsupported(`constructor option ${key}`);
+    // `width` is a pure layout hint (official modules pass e.g. {width: 285});
+    // the native panel lays out host-side, so accept and clamp it. Anything
+    // else stays outside the bounded facade.
+    for (const key of Object.keys(options)) {
+      if (key === 'width') {
+        if (typeof options[key] !== 'number' || !Number.isFinite(options[key]) ||
+            options[key] < 0 || options[key] > 4096) {
+          unsupported('constructor option width');
+        }
+        continue;
+      }
+      if (key !== 'title') unsupported(`constructor option ${key}`);
+    }
     if (roots.size >= MAX_ROOTS) throw new Error('three.invalid: lil-gui root quota exceeded');
     this.JSR = globalThis.jsr;
     this.controllers = [];
@@ -203,9 +502,24 @@ class NativeGUI {
   }
 
   add(object, property, ...options) {
-    if (options.length) unsupported('add options');
-    if (typeof object[property] !== 'boolean') unsupported(`add(${typeof object[property]})`);
-    const controller = new BooleanController(this, object, property);
+    let controller;
+    if (!options.length && typeof object[property] === 'function') {
+      controller = new FunctionController(this, object, property);
+    } else if (!options.length && typeof object[property] === 'number' &&
+               Number.isFinite(object[property])) {
+      // Bare numeric add: late-bound slider/text controller (`.min().max()`
+      // chain supplies bounds); booleans keep the checkbox path below.
+      controller = new NumberController(this, object, property, undefined, undefined);
+    } else if (!options.length) {
+      controller = new BooleanController(this, object, property);
+    } else if (options.length === 1 && Array.isArray(options[0])) {
+      controller = new OptionsController(this, object, property, options[0]);
+    } else if (options.length === 2 || options.length === 3) {
+      controller = new NumberController(
+        this, object, property, options[0], options[1], options[2]);
+    } else {
+      unsupported(`add(${options.length} options)`);
+    }
     reportRoots();
     return controller;
   }
@@ -228,15 +542,37 @@ class NativeGUI {
       value: controller.getValue(), controller
     });
   }
-  reset() { for (const controller of this.controllers) controller.reset(); return this; }
-  controllersRecursive() { return this.controllers.slice(); }
-  foldersRecursive() { return []; }
+  reset() {
+    for (const controller of this.controllers) controller.reset();
+    for (const folder of this.folders) folder.reset();
+    return this;
+  }
+  controllersRecursive() {
+    return [
+      ...this.controllers,
+      ...this.folders.flatMap(folder => folder.controllers)
+    ];
+  }
+  foldersRecursive() { return this.folders.slice(); }
   save() { unsupported('save'); }
   load() { unsupported('load'); }
   addColor() { unsupported('addColor'); }
-  addFolder() { unsupported('addFolder'); }
+  addFolder(title) {
+    if (typeof title !== 'string' || !title || title.length > 128) {
+      throw new Error('three.invalid: lil-gui folder title is required');
+    }
+    const folder = new NativeFolder(this, title);
+    this.folders.push(folder);
+    reportRoots();
+    return folder;
+  }
   openAnimated() { unsupported('openAnimated'); }
-  destroy() { for (const controller of this.controllers.slice()) controller.destroy(); roots.delete(this); reportRoots(); }
+  destroy() {
+    for (const controller of this.controllers.slice()) controller.destroy();
+    for (const folder of this.folders.slice()) folder.destroy();
+    roots.delete(this);
+    reportRoots();
+  }
 }
 
 // Real browser documents retain lil-gui's official DOM implementation. The

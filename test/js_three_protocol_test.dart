@@ -208,6 +208,7 @@ Uint8List _drawBatch({
   int? partCount,
   List<(int, int, int, int)> parts = const [(1, 3, 0, 3)],
   List<double>? matrices,
+  List<double>? colors,
 }) {
   final matrixValues =
       matrices ??
@@ -218,7 +219,20 @@ Uint8List _drawBatch({
                   component % 5 == 0 ? 1.0 : 0.0,
             ]
           : const <double>[]);
-  final out = Uint8List(20 + parts.length * 16 + matrixValues.length * 4);
+  final colorValues =
+      colors ??
+      (flags & 2 != 0
+          ? [
+              for (var instance = 0; instance < instanceCount; instance++) ...[
+                0.25,
+                0.5,
+                0.75,
+              ],
+            ]
+          : const <double>[]);
+  final out = Uint8List(
+    20 + parts.length * 16 + matrixValues.length * 4 + colorValues.length * 4,
+  );
   setU32(out, 0, nodeId);
   setU32(out, 4, version);
   setU32(out, 8, instanceCount);
@@ -233,6 +247,10 @@ Uint8List _drawBatch({
     offset += 16;
   }
   for (final value in matrixValues) {
+    setF32(out, offset, value);
+    offset += 4;
+  }
+  for (final value in colorValues) {
     setF32(out, offset, value);
     offset += 4;
   }
@@ -286,14 +304,17 @@ Uint8List _frame({
   int shadowHeight = 0,
   List<int> culledNodeIds = const [],
   List<int> culledShadowNodeIds = const [],
+  int? shadowLightType,
 }) {
+  final v3 = shadowLightType != null;
+  final base = v3 ? 140 : 136;
   final mainLength = culledNodeIds.isEmpty && culledShadowNodeIds.isEmpty
       ? 0
       : 4 + culledNodeIds.length * 4;
   final shadowLength = culledShadowNodeIds.isEmpty
       ? 0
       : 4 + culledShadowNodeIds.length * 4;
-  final out = Uint8List(136 + mainLength + shadowLength);
+  final out = Uint8List(base + mainLength + shadowLength);
   setU32(out, 0, scene);
   setU32(out, 4, camera);
   setF32(out, 8, 0.1);
@@ -315,14 +336,15 @@ Uint8List _frame({
   for (final index in [0, 5, 10, 15]) {
     setF32(out, 72 + index * 4, 1);
   }
+  if (v3) setU32(out, 136, shadowLightType);
   if (culledNodeIds.isNotEmpty || culledShadowNodeIds.isNotEmpty) {
-    setU32(out, 136, culledNodeIds.length);
+    setU32(out, base, culledNodeIds.length);
     for (var index = 0; index < culledNodeIds.length; index++) {
-      setU32(out, 140 + index * 4, culledNodeIds[index]);
+      setU32(out, base + 4 + index * 4, culledNodeIds[index]);
     }
   }
   if (culledShadowNodeIds.isNotEmpty) {
-    final offset = 136 + mainLength;
+    final offset = base + mainLength;
     setU32(out, offset, culledShadowNodeIds.length);
     for (var index = 0; index < culledShadowNodeIds.length; index++) {
       setU32(out, offset + 4 + index * 4, culledShadowNodeIds[index]);
@@ -597,8 +619,21 @@ void main() {
     },
   );
 
-  test('decodes Phong scalars and optional unique-edge wire indices', () {
+  test('decodes the ShadowMaterial kind with its color/opacity payload', () {
     final commands = _decoder
+        .decodeR1(
+          _r1([
+            (3, _material(kind: JsThreeMaterialKind.shadow)),
+          ]),
+        )
+        .commands;
+    final material = commands[0] as JsThreeMaterialUpsert;
+    expect(material.kind, JsThreeMaterialKind.shadow);
+    expect(material.transparent, isTrue);
+    expect(material.opacity, closeTo(0.8, 1e-6));
+  });
+
+  test('decodes Phong scalars and optional unique-edge wire indices', () {    final commands = _decoder
         .decodeR1(
           _r1([
             (
@@ -864,6 +899,34 @@ void main() {
     expect(empty.instanceCount, 0);
     expect(empty.parts, hasLength(1));
     expect(empty.instanceMatrices, isEmpty);
+    expect(empty.hasInstanceColors, isFalse);
+    expect(empty.instanceColors, isEmpty);
+  });
+
+  test('decodes per-instance colors behind flag bit 2', () {
+    final commands = _decoder
+        .decodeR1(
+          _r1([
+            (
+              11,
+              _drawBatch(
+                instanceCount: 2,
+                flags: 3,
+                matrices: List<double>.filled(32, 0.5),
+                colors: const [0.1, 0.2, 0.3, 0.4, 0.5, 0.6],
+              ),
+            ),
+          ]),
+        )
+        .commands;
+    final batch = commands.single as JsThreeDrawBatchUpsert;
+    expect(batch.instanced, isTrue);
+    expect(batch.hasInstanceColors, isTrue);
+    final expected = const [0.1, 0.2, 0.3, 0.4, 0.5, 0.6];
+    for (var index = 0; index < expected.length; index++) {
+      expect(batch.instanceColors[index], closeTo(expected[index], 1e-6));
+    }
+    expect(() => batch.instanceColors[0] = 0, throwsUnsupportedError);
   });
 
   test('DRAW_BATCH and REMOVE_BATCH reject malformed bounded bodies', () {
@@ -915,6 +978,27 @@ void main() {
       () => _decoder.decodeR1(
         _r1([
           (11, _drawBatch(instanceCount: 0, flags: 1, matrices: const [1])),
+        ]),
+      ),
+    );
+    _bad(() => _decoder.decodeR1(_r1([(11, _drawBatch(flags: 4))])));
+    _bad(() => _decoder.decodeR1(_r1([(11, _drawBatch(flags: 2))])));
+    _bad(
+      () => _decoder.decodeR1(
+        _r1([(11, _drawBatch(instanceCount: 2, flags: 3, colors: const []))]),
+      ),
+    );
+    _bad(
+      () => _decoder.decodeR1(
+        _r1([
+          (
+            11,
+            _drawBatch(
+              instanceCount: 2,
+              flags: 3,
+              colors: const [0.1, 0.2, double.nan],
+            ),
+          ),
         ]),
       ),
     );
@@ -991,7 +1075,7 @@ void main() {
       }
       _bad(() => _decoder.decodeR1(Uint8List.fromList([...valid, 0])));
       _bad(() => _decoder.decodeR1(_r1(const [], version: 0)));
-      _bad(() => _decoder.decodeR1(_r1(const [], version: 3)));
+      _bad(() => _decoder.decodeR1(_r1(const [], version: 4)));
       _bad(() => _decoder.decodeR1(_r1(const [], flags: 1)));
       _bad(() => _decoder.decodeR1(_r1(const [], commandCount: 100001)));
       _bad(() => _decoder.decodeR1(_r1([(13, Uint8List(0))])));
@@ -1118,8 +1202,8 @@ void main() {
       final cases = <(int, Uint8List, int, int)>[
         (3, _material(), 0, 0),
         (3, _material(), 4, 0),
-        (3, _material(), 8, 7),
-        (3, _material(), 16, 64),
+        (3, _material(), 8, 8),
+        (3, _material(), 16, 128),
         (3, _material(), 20, 3),
         (3, _material(), 52, 0),
         (4, _node(), 0, 0),
@@ -1222,5 +1306,197 @@ void main() {
       setF32(invalid, offset, double.nan);
       _bad(() => _decoder.decodeR1(_r1([(1, invalid)])));
     }
+  });
+
+  group('R1 v3', () {
+    Uint8List spotLight({
+      double angle = 0.6283,
+      double penumbra = 0.2,
+      double distance = 0,
+      double decay = 0,
+    }) {
+      final out = Uint8List(64);
+      setU32(out, 0, 4);
+      setU32(out, 4, JsThreeLightType.spot.wireValue);
+      setF32(out, 8, 0.1);
+      setF32(out, 12, 0.2);
+      setF32(out, 16, 0.3);
+      setF32(out, 20, 60);
+      for (var i = 0; i < 6; i++) {
+        setF32(out, 24 + i * 4, i - 0.5);
+      }
+      setF32(out, 48, angle);
+      setF32(out, 52, penumbra);
+      setF32(out, 56, distance);
+      setF32(out, 60, decay);
+      return out;
+    }
+
+    Uint8List clippedMaterial({int clipId = 11, int clipFlags = 2}) {
+      final out = Uint8List(80);
+      setU32(out, 0, 3);
+      setU32(out, 4, 1);
+      setU32(out, 8, JsThreeMaterialKind.meshPhong.wireValue);
+      setU32(out, 20, 2);
+      setF32(out, 24, 0.25);
+      setF32(out, 28, 0.5);
+      setF32(out, 32, 0.75);
+      setF32(out, 36, 1);
+      setF32(out, 40, 0.5);
+      setF32(out, 44, 0.5);
+      setF32(out, 48, 0);
+      setF32(out, 52, 1);
+      setU32(out, 56, clipId);
+      setU32(out, 60, clipFlags);
+      setF32(out, 64, 0.9);
+      setF32(out, 68, 0.8);
+      setF32(out, 72, 0.7);
+      setF32(out, 76, 100);
+      return out;
+    }
+
+    Uint8List clipping({int id = 11, int version = 1, int count = 1}) {
+      final planes = <double>[
+        for (var index = 0; index < count; index++) ...[
+          0,
+          -1,
+          0,
+          0.8 - index,
+        ],
+      ];
+      final out = Uint8List(12 + planes.length * 4);
+      setU32(out, 0, id);
+      setU32(out, 4, version);
+      setU32(out, 8, count);
+      for (var index = 0; index < planes.length; index++) {
+        setF32(out, 12 + index * 4, planes[index]);
+      }
+      return out;
+    }
+
+    test('spot light decodes cone parameters and validates ranges', () {
+      final stream = _decoder.decodeR1(_r1([(7, spotLight())], version: 3));
+      final light = stream.commands.single as JsThreeLightUpsert;
+      expect(light.type, JsThreeLightType.spot);
+      expect(light.intensity, 60);
+      expect(light.spotAngle, closeTo(0.6283, 0.0001));
+      expect(light.spotPenumbra, closeTo(0.2, 0.0001));
+      expect(light.spotDistance, 0);
+      expect(light.spotDecay, 0);
+      expect(light.groundColorR, 0);
+
+      _bad(() => _decoder.decodeR1(_r1([(7, spotLight())], version: 2)));
+      _bad(
+        () => _decoder.decodeR1(
+          _r1([(7, spotLight(angle: 0))], version: 3),
+        ),
+      );
+      _bad(
+        () => _decoder.decodeR1(
+          _r1([(7, spotLight(angle: 3.1416))], version: 3),
+        ),
+      );
+      _bad(
+        () => _decoder.decodeR1(
+          _r1([(7, spotLight(penumbra: 8.5))], version: 3),
+        ),
+      );
+      // Upstream tweens penumbra above 1 (webgl_lights_spotlights); the
+      // accepted band is [0, 8].
+      final overOne = _decoder
+          .decodeR1(_r1([(7, spotLight(penumbra: 1.5))], version: 3))
+          .commands;
+      final overOneLight = overOne
+          .whereType<JsThreeLightUpsert>()
+          .single;
+      expect(overOneLight.spotPenumbra, 1.5);
+      _bad(
+        () => _decoder.decodeR1(
+          _r1([(7, spotLight(distance: -1))], version: 3),
+        ),
+      );
+    });
+
+    test('materials carry clip id and flags', () {
+      final stream = _decoder.decodeR1(
+        _r1([(3, clippedMaterial())], version: 3),
+      );
+      final material = stream.commands.single as JsThreeMaterialUpsert;
+      expect(material.clipId, 11);
+      expect(material.hasClipping, isTrue);
+      expect(material.clipShadows, isTrue);
+      expect(material.clipIntersection, isFalse);
+      expect(material.shininess, 100);
+
+      final badFlags = Uint8List.fromList(clippedMaterial(clipFlags: 4));
+      _bad(
+        () => _decoder.decodeR1(_r1([(3, badFlags)], version: 3)),
+      );
+    });
+
+    test('clipping command decodes normalized planes and bounds counts', () {
+      final stream = _decoder.decodeR1(
+        _r1([(13, clipping(count: 2))], version: 3),
+      );
+      final command = stream.commands.single as JsThreeClippingUpsert;
+      expect(command.clipId, 11);
+      expect(command.planeCount, 2);
+      expect(command.planes[1], closeTo(-1, 0.0001));
+      expect(command.planes[7], closeTo(-0.2, 0.0001));
+
+      _bad(() => _decoder.decodeR1(_r1([(13, clipping())], version: 2)));
+      _bad(
+        () => _decoder.decodeR1(
+          _r1([(13, clipping(count: 9))], version: 3),
+        ),
+      );
+      final zeroNormal = clipping();
+      setF32(zeroNormal, 12, 0);
+      setF32(zeroNormal, 16, 0);
+      _bad(
+        () => _decoder.decodeR1(_r1([(13, zeroNormal)], version: 3)),
+      );
+    });
+
+    test('frame names its shadow light owner and rejects mismatches', () {
+      final stream = _decoder.decodeR1(
+        _r1(
+          [
+            (
+              8,
+              _frame(
+                shadowWidth: 1024,
+                shadowHeight: 1024,
+                shadowLightType: 2,
+                culledNodeIds: [4],
+              ),
+            ),
+          ],
+          version: 3,
+        ),
+      );
+      final frame = stream.commands.single as JsThreeSubmitFrame;
+      expect(frame.hasSpotShadow, isTrue);
+      expect(frame.culledNodeIds, [4]);
+
+      _bad(
+        () => _decoder.decodeR1(
+          _r1(
+            [
+              (
+                8,
+                _frame(shadowWidth: 1024, shadowHeight: 1024, shadowLightType: 3),
+              ),
+            ],
+            version: 3,
+          ),
+        ),
+      );
+      _bad(
+        () => _decoder.decodeR1(
+          _r1([(8, _frame(shadowLightType: 1))], version: 3),
+        ),
+      );
+    });
   });
 }

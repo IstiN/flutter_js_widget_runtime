@@ -2,17 +2,12 @@
 library;
 
 import 'dart:io';
-import 'dart:typed_data';
 
-import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:js_widget_runtime/js_widget_runtime.dart';
-import 'package:js_widget_runtime/src/renderer/nodes/three/flutter_gpu_three_host.dart'
-    show FlutterGpuThreeSurface;
-import 'package:js_widget_runtime/src/runtime/js_widget_engine_quickjs.dart';
+import 'package:js_widget_runtime/src/renderer/nodes/three/three_draw_plan.dart';
 
-import '../support/three_test_config.dart';
+import '../support/three_gpu_golden_harness.dart';
 import '../support/widget_logic_helper.dart';
 
 /// A real Flutter GPU golden, not a JSON-renderer approximation.
@@ -37,21 +32,13 @@ void main() {
     final threeSource = await tester.runAsync(
       () => rootBundle.loadString('assets/three/three.native.js'),
     );
-    final host = createFlutterGpuThreeHost();
     const engineId = 'three-r1-golden';
-    final config = threeTestConfig(
-      engineId: engineId,
-      host: host,
-      threeSource: threeSource,
+    final run = await bootThreeGpuGolden(
+      tester,
+      engineId,
+      threeSource,
     );
-    final backend = QuickjsWidgetEngineBackend(config: config);
-    final engine = JsWidgetEngine(config: config.copyWith(backend: backend));
-    addTearDown(() async {
-      await engine.dispose();
-      host.disposeEngine(engineId);
-    });
-    await engine.init();
-    await engine.run(r'''
+    await run.engine.run(r'''
       const canvas = jsr.three.createCanvas('main');
       const renderer = new THREE.WebGLRenderer({canvas: canvas});
       renderer.setSize(256, 256);
@@ -125,45 +112,15 @@ void main() {
       renderer.render(scene, camera);
       renderer.render(scene, camera);
     ''');
+    final surface = await attachThreeGpuGolden(tester, run);
 
-    final surface =
-        host.findSurface(engineId, 'main#1') as FlutterGpuThreeSurface?;
-    expect(surface, isNotNull);
-    host.attach(engineId, 'main#1', const {});
-    surface!.resize(const Size(256, 256), 1);
-    await tester.pumpWidget(
-      MaterialApp(
-        debugShowCheckedModeBanner: false,
-        home: Center(
-          child: SizedBox(
-            width: 256,
-            height: 256,
-            child: AnimatedBuilder(
-              animation: surface,
-              builder: (context, _) => host.build(context, surface, const {}),
-            ),
-          ),
-        ),
-      ),
+    final png = await captureThreeGpuGolden(
+      tester,
+      surface,
+      (diagnostics) =>
+          (diagnostics['shadowCacheHits'] ?? 0) >= 1 &&
+          (diagnostics['batchCacheHits'] ?? 0) >= 1,
     );
-
-    Uint8List? png;
-    for (var attempt = 0; attempt < 400; attempt++) {
-      if (surface.diagnostics['failedPresentations'] == 0 &&
-          (surface.diagnostics['presentedFrames'] ?? 0) >= 2 &&
-          (surface.diagnostics['shadowCacheHits'] ?? 0) >= 1 &&
-          (surface.diagnostics['batchCacheHits'] ?? 0) >= 1 &&
-          surface.diagnostics['backendReady'] == 1) {
-        png = await tester.runAsync<Uint8List?>(
-          () => surface.capture().timeout(const Duration(seconds: 5)),
-        );
-        if (png != null) break;
-      }
-      await tester.pump(const Duration(milliseconds: 25));
-      await tester.runAsync(
-        () => Future<void>.delayed(const Duration(milliseconds: 25)),
-      );
-    }
     expect(png, isNotNull, reason: 'diagnostics=${surface.diagnostics}');
     expect(surface.lastError, isNull);
     expect(surface.diagnostics['failedPresentations'], 0);
@@ -180,9 +137,138 @@ void main() {
         matchesGoldenFile('goldens/three-r1-instancing-shadows-macos.png'),
       ),
     );
+  });
 
-    await tester.pumpWidget(const SizedBox.shrink());
-    await engine.dispose();
-    host.disposeEngine(engineId);
+  testWidgets('R1 spot shadow and clipping match the GPU golden', (
+    tester,
+  ) async {
+    final threeSource = await tester.runAsync(
+      () => rootBundle.loadString('assets/three/three.native.js'),
+    );
+    const engineId = 'three-r1-clipping-golden';
+    final run = await bootThreeGpuGolden(
+      tester,
+      engineId,
+      threeSource,
+    );
+    await run.engine.run(r'''
+      const canvas = jsr.three.createCanvas('main');
+      const renderer = new THREE.WebGLRenderer({canvas: canvas});
+      renderer.setSize(256, 256);
+      renderer.setPixelRatio(1);
+      renderer.shadowMap.enabled = true;
+      renderer.localClippingEnabled = true;
+
+      const scene = new THREE.Scene();
+      scene.background = new THREE.Color(0x182238);
+      const camera = new THREE.PerspectiveCamera(45, 1, 0.1, 100);
+      camera.position.set(0, 1.2, 4.2);
+      camera.lookAt(0, 0, 0);
+
+      scene.add(new THREE.AmbientLight(0xffffff, 0.5));
+      const spot = new THREE.SpotLight(0xffffff, 90);
+      spot.angle = Math.PI / 5;
+      spot.penumbra = 0.25;
+      spot.position.set(2.5, 3.5, 2.5);
+      spot.castShadow = true;
+      spot.shadow.mapSize.set(512, 512);
+      spot.shadow.camera.near = 1;
+      spot.shadow.camera.far = 12;
+      spot.shadow.bias = 0.0005;
+      spot.shadow.normalBias = 0.02;
+      scene.add(spot);
+      scene.add(spot.target);
+
+      const material = new THREE.MeshPhongMaterial({
+        color: 0x00aabb,
+        shininess: 80,
+        clippingPlanes: [new THREE.Plane(new THREE.Vector3(0, -1, 0), 0.35)],
+        clipShadows: true
+      });
+      const knot = new THREE.Mesh(new THREE.TorusKnotGeometry(0.6, 0.18, 128, 24), material);
+      knot.castShadow = true;
+      knot.receiveShadow = true;
+      scene.add(knot);
+
+      renderer.render(scene, camera);
+      renderer.render(scene, camera);
+    ''');
+    final surface = await attachThreeGpuGolden(tester, run);
+
+    final png = await captureThreeGpuGolden(
+      tester,
+      surface, (_) => true);
+    expect(png, isNotNull, reason: 'diagnostics=${surface.diagnostics}');
+    expect(surface.lastError, isNull);
+    expect(surface.diagnostics['failedPresentations'], 0);
+    expect(surface.diagnostics['calls'], greaterThanOrEqualTo(1));
+    expect(surface.diagnostics['triangles'], 6144);
+    expect(surface.diagnostics['renderedShadowDraws'], 1);
+    // The frame names the spot as the shadow map owner and the resolved plan
+    // carries the spot light and the knot's clipShadows set.
+    final state = surface.state!;
+    final plan = const ThreeDrawPlanner().plan(state);
+    expect(plan.frame?.hasSpotShadow, isTrue);
+    expect(plan.spotLights, hasLength(1));
+    final knotMaterial = plan.draws
+        .map((draw) => draw.material)
+        .firstWhere((material) => material.shininess == 80);
+    expect(knotMaterial.hasClipping, isTrue);
+    expect(knotMaterial.clipShadows, isTrue);
+    expect(
+      state.clippings[knotMaterial.clipId]!.planeCount,
+      1,
+    );
+
+    // Pixel probes (scan rows, not single pixels: the torus knot has gaps).
+    // The camera sits at distance 4.2 with a 45° fov, so 128 px ≈ 1.74 world
+    // units: the knot's unclipped top would reach image row ~90, and the
+    // clip plane y = 0.35 cuts at row ~102. three.js Plane semantics keep
+    // the `normal·p + constant >= 0` half-space: with plane (0,-1,0), 0.35
+    // the knot is VISIBLE below the cut (rows > 102) and discarded above it.
+    // The pre-fix binding wrote the raw constant and inverted the visible
+    // half-space, leaving only a sliver below world y ≈ -0.35 (rows ~146+).
+    final probe = await decodeThreeGpuGolden(tester, png!);
+    expect(probe.lengthInBytes, 256 * 256 * 4);
+    const background = 0x382218; // 0x182238 in little-endian RGBA bytes.
+    int litCount(int y) {
+      var count = 0;
+      for (var x = 40; x < 216; x++) {
+        final offset = (y * 256 + x) * 4;
+        final rgb =
+            probe.getUint8(offset) |
+            (probe.getUint8(offset + 1) << 8) |
+            (probe.getUint8(offset + 2) << 16);
+        if (rgb != background) count++;
+      }
+      return count;
+    }
+
+    // Row 90 is where the unclipped knot top would reach: the clip plane
+    // must keep the whole band above the cut empty.
+    expect(
+      litCount(90),
+      0,
+      reason: 'clip plane must discard the knot above the cut',
+    );
+    // Just below the cut the knot must be lit (three.js keeps y <= 0.35).
+    expect(
+      litCount(115),
+      greaterThan(10),
+      reason: 'knot body must render right below the cut',
+    );
+    expect(
+      litCount(170),
+      greaterThan(10),
+      reason: 'knot body must render below the cut',
+    );
+
+    // Golden file IO must run outside the fake-async test zone.
+    await tester.runAsync(
+      () => expectLater(
+        png,
+        matchesGoldenFile('goldens/three-r1-spot-clipping-macos.png'),
+      ),
+    );
   });
 }

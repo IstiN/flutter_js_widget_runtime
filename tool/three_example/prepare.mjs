@@ -48,6 +48,30 @@ const EXAMPLES = Object.freeze({
     },
     assets: []
   },
+  webgl_interactive_lines: {
+    id: 'three-interactive-lines',
+    directory: 'three-interactive-lines',
+    name: 'Interactive Lines — three.js r186',
+    description: 'Unmodified official webgl_interactive_lines module on the JSR THREE R1/WebGL2 runtime.',
+    icon: '〰️',
+    expected: {
+      html: '8bb34d7bc72ad8beb9b5a0ad9a991ece8890bf1bb817ca1eef516389a7f6ddf4',
+      module: '403e26a214f2cd7a6ddc3a1389bf444a1ca940993eb90fd9f2676802ac5e74f0'
+    },
+    assets: []
+  },
+  webgl_geometry_extrude_shapes: {
+    id: 'three-extrude-shapes',
+    directory: 'three-extrude-shapes',
+    name: 'Extrude Shapes — three.js r186',
+    description: 'Unmodified official webgl_geometry_extrude_shapes module on the JSR THREE R1/WebGL2 runtime.',
+    icon: '🧩',
+    expected: {
+      html: 'afe16ab46f6e8842b40e1972169e27655ecdb4a5d08267fac74088fc6c23b00a',
+      module: '44482c872f96bde77d59a2c30b6a97c6ccd88bcb89621686fa1d619f75a3cc27'
+    },
+    assets: []
+  },
   webgl_math_obb: {
     id: 'three-math-obb',
     directory: 'three-math-obb',
@@ -221,7 +245,792 @@ const EXAMPLES = Object.freeze({
       module: '148bbdb22c24e0c617af871927a589a26d1a296528c2f1c5248f5f56c7fcc94a'
     },
     assets: []
-  }
+  },
+  webgl_instancing_raycast: {
+    id: 'three-instancing-raycast',
+    directory: 'three-instancing-raycast',
+    name: 'Instancing Raycast — three.js r186',
+    description: 'Unmodified official webgl_instancing_raycast module on the JSR THREE R1/WebGL2 runtime.',
+    icon: '🎯',
+    expected: {
+      html: '9f5488f1c20afcb93a09c8ab6e4440ab681ce706c8ce904e46b2c51a40cad3cd',
+      module: '54b91333db3da2c53a8e34a29d24febb7058249a16c97c728b9f9fc8f41316c3'
+    },
+    assets: []
+  },
+  webgl_interactive_buffergeometry: {
+    id: 'three-interactive-buffergeometry',
+    directory: 'three-interactive-buffergeometry',
+    name: 'Interactive BufferGeometry — three.js r186',
+    description: 'Unmodified official webgl_interactive_buffergeometry module on the JSR THREE R1/WebGL2 runtime.',
+    icon: '🕸️',
+    expected: {
+      html: '86e1204da36571b57ebc5e157dad1ba63e849d99444c30f620347526b26b0be2',
+      module: '579739e4f7a0ad792112b952851ac7fb3a29043feb6f26badd67cc5dfea04add'
+    },
+    assets: []
+  },
+  webgl_clipping: {
+    id: 'three-clipping',
+    directory: 'three-clipping',
+    name: 'Clipping — three.js r186',
+    description: 'Unmodified official webgl_clipping module on the JSR THREE R1/WebGL2 runtime.',
+    icon: '✂️',
+    expected: {
+      html: 'e752317dcaf15569e2eb4e7939906100771be23fe1b78e9b010bd869bb958fd6',
+      module: 'a2c8a7af45c9fce2447ce99c8d17acdb81c58e10bc297a32c0a70ebdbf5faf02'
+    },
+    assets: []
+  },
+  webgl_clipping_intersection: {
+    id: 'three-clipping-intersection',
+    directory: 'three-clipping-intersection',
+    name: 'Clipping Intersection — three.js r186',
+    description: 'Unmodified official webgl_clipping_intersection module on the JSR THREE R1/WebGL2 runtime.',
+    icon: '⧉',
+    expected: {
+      html: '6fdd5071b3f92616d9ec9d5f7d4d963a72480d6c6f5252c8545426b64545aa0d',
+      module: 'b2dc4a5d2bcc01c10a59d7346b6cc33cb7fc9775ec2a871ad74f839507542569'
+    },
+    assets: []
+  },
+  webgl_lights_spotlights: {
+    id: 'three-lights-spotlights',
+    directory: 'three-lights-spotlights',
+    name: 'Spot Lights — three.js r186',
+    description: 'Unmodified official webgl_lights_spotlights module on the JSR THREE R1/WebGL2 runtime.',
+    icon: '💡',
+    expected: {
+      html: '81fde3f358975457db976ba426fd167bae80f3c44592e6182b5cbf1dc36347e4',
+      module: 'd4ae903ca1f3788cde5026d07c02de878ee3b6966e555b7097076cd3d7e0bb83'
+    },
+    assets: []
+  },
+  webgl_lights_hemisphere: {
+    id: 'three-lights-hemisphere',
+    directory: 'three-lights-hemisphere',
+    name: 'Hemisphere Light — three.js r186',
+    description: 'Unmodified official webgl_lights_hemisphere module on the JSR THREE R1/WebGL2 runtime.',
+    icon: '🌤️',
+    expected: {
+      html: 'e79713c62965513d9a020de4f389314aaf6d184170ab39466becaef0af32a70c',
+      module: '3d753e24af9f326cfc0861f276d45de49b8b346eeb77624232996940237bc649'
+    },
+    assets: [{
+      url: 'models/gltf/Flamingo.glb',
+      output: 'flamingo.glb',
+      mime: 'model/gltf-binary',
+      sha256: '9eabeb58587e4e0d11d5e23b30a26b73e4b8e6e8c83f2c36b3c5c3fe04dcf19f',
+      diagnostic: 'flamingo'
+    }]
+  },
+  webgl_interactive_points: {
+    id: 'three-interactive-points',
+    directory: 'three-interactive-points',
+    name: 'Interactive Points — three.js r186',
+    description: 'Unmodified official webgl_interactive_points module on the JSR THREE R1/WebGL2 runtime.',
+    icon: '✦',
+    expected: {
+      html: '4b9bfec1d4ef700daf5bb52d65a1712df265576910561534d8fc14b5f533bf12',
+      module: '5736b2b91b1f99ffc603bea0a8dfc8b64d4a521d03079e848681f25df93720ba'
+    },
+    assets: [{
+      url: 'textures/sprites/disc.png',
+      output: 'disc.png',
+      mime: 'image/png',
+      sha256: '1f3816715f028ac32065a10f40f5ef218b4efc67eb46f0d908a8d503f25b69cb',
+      diagnostic: 'discSprite'
+    }]
+  },
+  webgl_helpers: {
+    id: 'three-helpers',
+    directory: 'three-helpers',
+    name: 'Helpers — three.js r186',
+    description: 'Unmodified official webgl_helpers module on the JSR THREE R1/WebGL2 runtime.',
+    icon: '🧭',
+    expected: {
+      html: '8c7fe346aeb456b512ea32bdbdbe10e59a251ba4c8dbf7a26e8154ce6b961bcf',
+      module: '52cd7651225521b9dbca0a31a5b8c7b11fe740a649762d1a683404c84892cb15'
+    },
+    assets: [{
+      url: 'models/gltf/LeePerrySmith/LeePerrySmith.glb',
+      output: 'leeperry.glb',
+      mime: 'model/gltf-binary',
+      sha256: '402b8a8ac9f03232e6d64b5962929703a069daf99d3c49ac8eb0e48bedc9c576',
+      diagnostic: 'leePerry'
+    }]
+  },
+  webgl_geometry_spline_editor: {
+    id: 'three-geometry-spline-editor',
+    directory: 'three-geometry-spline-editor',
+    name: 'Spline Editor — three.js r186',
+    description: 'Unmodified official webgl_geometry_spline_editor module on the JSR THREE R1/WebGL2 runtime.',
+    icon: '🌀',
+    expected: {
+      html: 'fb552fe113bb287d28d563dbf579245138edadc869370240991d88ab50fb164c',
+      module: '27840098f2ede8b243e8fdaae08853a3906132cff2bfe2b9dedd7e4246ee806b'
+    },
+    assets: []
+  },
+  webgl_buffergeometry: {
+    id: 'three-buffergeometry',
+    directory: 'three-buffergeometry',
+    name: 'Buffergeometry — three.js r186',
+    description: 'Unmodified official webgl_buffergeometry module on the JSR THREE R1/WebGL2 runtime.',
+    icon: '📐',
+    expected: {
+      html: '7a4ac8162786e2a3e7ceefe0a07434f5c4d5afab790b5dd2462d68211fd0122d',
+      module: 'b5e32eeaa0ef1063ded69810983291f05e82d0a637065480c457dab115de706f'
+    },
+    assets: []
+  },
+  webgl_camera: {
+    id: 'three-camera',
+    directory: 'three-camera',
+    name: 'Camera — three.js r186',
+    description: 'Unmodified official webgl_camera module on the JSR THREE R1/WebGL2 runtime.',
+    icon: '📐',
+    expected: {
+      html: 'a97d4efbc7b530844793187301eca9e68572d78e01c3723704b2624d010b8b87',
+      module: '73bb638ac7baea09544e95978016c00652c4b0dd1239c29e8f359d26952667d6'
+    },
+    assets: []
+  },
+  webgl_clipping_advanced: {
+    id: 'three-clipping-advanced',
+    directory: 'three-clipping-advanced',
+    name: 'Clipping Advanced — three.js r186',
+    description: 'Unmodified official webgl_clipping_advanced module on the JSR THREE R1/WebGL2 runtime.',
+    icon: '📐',
+    expected: {
+      html: 'ea9090598a4218a2ed7d09dd02f4ce0a9d01514d09cf18375a8f9aa135f4cc9e',
+      module: '75c429241c6098ec781115b6986291936a6d1225a9ab654e6cb3d478ee4cf345'
+    },
+    assets: []
+  },
+  webgl_geometry_teapot: {
+    id: 'three-geometry-teapot',
+    directory: 'three-geometry-teapot',
+    name: 'Geometry Teapot — three.js r186',
+    description: 'Unmodified official webgl_geometry_teapot module on the JSR THREE R1/WebGL2 runtime.',
+    icon: '📐',
+    expected: {
+      html: '92daa0b21527b7bd743c0c312e0361b7ca7e317ccb1fa282fc97914883375f91',
+      module: '19e25cdad0107ff074d94eea293491c34785e905a0542019ecea486b258e45b6'
+    },
+    assets: [
+          {
+                "url": "textures/uv_grid_opengl.jpg",
+                "mime": "image/jpeg",
+                'output': 'uv_grid_opengl.jpg',
+      "sha256": "909d9a1eb2a5d5de9d221a5e8de4e9119d409decddf522d48896bd51523d354d"
+          },
+          {
+                "url": "textures/cube/pisa/px.png",
+                "mime": "image/png",
+                'output': 'px.png',
+      "sha256": "11d859640e7da526ac0654dbfa1cc18f40dd8fc100db197730485218a7c9d24d"
+          },
+          {
+                "url": "textures/cube/pisa/nx.png",
+                "mime": "image/png",
+                'output': 'nx.png',
+      "sha256": "cf01cfc9a168e7c71bf66d0bed8dcad3a4fd353f528e73caaba62d1a097c49a1"
+          },
+          {
+                "url": "textures/cube/pisa/py.png",
+                "mime": "image/png",
+                'output': 'py.png',
+      "sha256": "b34a1cec12e62327c9555ca9f82a38bea73f519915e1368fa69bbd51c82ec712"
+          },
+          {
+                "url": "textures/cube/pisa/ny.png",
+                "mime": "image/png",
+                'output': 'ny.png',
+      "sha256": "61a94678f04f9853509d7a864fd839cf688c6705ee9df02fc4e42bfca858270b"
+          },
+          {
+                "url": "textures/cube/pisa/pz.png",
+                "mime": "image/png",
+                'output': 'pz.png',
+      "sha256": "bd528b739e9e0ea6c1e8627e949caa950991719069c983e8abdc3a8640039667"
+          },
+          {
+                "url": "textures/cube/pisa/nz.png",
+                "mime": "image/png",
+                'output': 'nz.png',
+      "sha256": "e5c1774f9a41d8124f8f223c9810e95d277f256104f8aee57ad2e5ef73a64424"
+          },    ]
+  },
+  webgl_geometry_extrude_splines: {
+    id: 'three-geometry-extrude-splines',
+    directory: 'three-geometry-extrude-splines',
+    name: 'Geometry Extrude Splines — three.js r186',
+    description: 'Unmodified official webgl_geometry_extrude_splines module on the JSR THREE R1/WebGL2 runtime.',
+    icon: '📐',
+    expected: {
+      html: 'd3d7cbd515b7e5743b1bfec51272e75fa0dd622b524607621f476084c0c83588',
+      module: '72862671e94e84489b95cfc48551cd3d43498bb44ced8592eaaaea1944729522'
+    },
+    assets: []
+  },
+  webgl_lights_physical: {
+    id: 'three-lights-physical',
+    directory: 'three-lights-physical',
+    name: 'Lights Physical — three.js r186',
+    description: 'Unmodified official webgl_lights_physical module on the JSR THREE R1/WebGL2 runtime.',
+    icon: '📐',
+    expected: {
+      html: '7f92cf57c44e8bd7b95ba49373569f5af793f77766b4e54f04fcbc968941aff7',
+      module: 'f9e95c8df76fca71394694fa8ddf6c899aa37bf24692e980a8797fbf99e84730'
+    },
+    assets: [
+          {
+                "url": "textures/hardwood2_diffuse.jpg",
+                "mime": "image/jpeg",
+                'output': 'hardwood2_diffuse.jpg',
+      "sha256": "3986fe3bd7d3c24b18e7da17ae72bbef9385dbc355c931c52a04dbfe1412c802"
+          },
+          {
+                "url": "textures/hardwood2_bump.jpg",
+                "mime": "image/jpeg",
+                'output': 'hardwood2_bump.jpg',
+      "sha256": "0f07254a3eb31274b7f7cc71968b74a5a39a799d33e8b290c4b8dca6ce43654d"
+          },
+          {
+                "url": "textures/hardwood2_roughness.jpg",
+                "mime": "image/jpeg",
+                'output': 'hardwood2_roughness.jpg',
+      "sha256": "bdce31ae1138fd110703f5fb37a4979b4b03cd6a057f58897c16d27839d7d17b"
+          },
+          {
+                "url": "textures/brick_diffuse.jpg",
+                "mime": "image/jpeg",
+                'output': 'brick_diffuse.jpg',
+      "sha256": "b49b0ab13aa4455cc7348cb4bfbbffcb344f2f81b17121eb1e57bcd3b387febe"
+          },
+          {
+                "url": "textures/brick_bump.jpg",
+                "mime": "image/jpeg",
+                'output': 'brick_bump.jpg',
+      "sha256": "fad2311729a8f98c2fdcb6d9442e8c2b70c97c169eb653005e5554680fa18a53"
+          },
+          {
+                "url": "textures/planets/earth_atmos_2048.jpg",
+                "mime": "image/jpeg",
+                'output': 'earth_atmos_2048.jpg',
+      "sha256": "2faa400d1eade3bc44caf6750d1b772bd9bbb6d87362c02bc7c3304e78fa0a9d"
+          },
+          {
+                "url": "textures/planets/earth_specular_2048.jpg",
+                "mime": "image/jpeg",
+                'output': 'earth_specular_2048.jpg',
+      "sha256": "2df48906732d7a458b2d0a7cdec51a829262307c6bdee4cfdf079a4dd7c71c69"
+          }
+    ]
+  },
+  webgl_lights_spotlight: {
+    id: 'three-lights-spotlight',
+    directory: 'three-lights-spotlight',
+    name: 'Lights Spotlight — three.js r186',
+    description: 'Unmodified official webgl_lights_spotlight module on the JSR THREE R1/WebGL2 runtime.',
+    icon: '📐',
+    expected: {
+      html: '0b618837471d5541ddfc4f9a4cd3967e728213473212a736fe91d266dd0e907a',
+      module: '53c9479a0cca34cba5e22d3fb1347c2b7e862292bf709876957c135724f0233a'
+    },
+    assets: [
+          {
+                "url": "models/ply/binary/Lucy100k.ply",
+                "mime": "application/octet-stream",
+                'output': 'Lucy100k.ply',
+      "sha256": "837f769e67155dc4a6e9a90683a61d6f6b4571a2a97d79586831011f450e66e2"
+          }
+    ]
+  },
+webgl_loader_ply: {
+    id: 'three-loader-ply',
+    directory: 'three-loader-ply',
+    name: 'Loader Ply — three.js r186',
+    description: 'Unmodified official webgl_loader_ply module on the JSR THREE R1/WebGL2 runtime.',
+    icon: '📐',
+    expected: {
+      html: 'af54a0ced7acec9584290214972696835af2dc8dbd95be87a0762c7c131a80ad',
+      module: 'f6e098e707704afecb4383bbc7f2b7ba05a3b113f2121a38559dcd3fa9515b78'
+    },
+    assets: [
+          {
+                "url": "models/ply/ascii/dolphins.ply",
+                "mime": "application/octet-stream",
+                "output": "dolphins.ply",
+                "sha256": "1246b1050ebc1e2e6b9de796a004bd3914e525546d402a5e286fbe6f13940c8e"
+          },
+          {
+                "url": "models/ply/binary/Lucy100k.ply",
+                "mime": "application/octet-stream",
+                "output": "Lucy100k.ply",
+                "sha256": "837f769e67155dc4a6e9a90683a61d6f6b4571a2a97d79586831011f450e66e2"
+          }
+    ]
+  },
+  webgl_loader_stl: {
+    id: 'three-loader-stl',
+    directory: 'three-loader-stl',
+    name: 'Loader Stl — three.js r186',
+    description: 'Unmodified official webgl_loader_stl module on the JSR THREE R1/WebGL2 runtime.',
+    icon: '📐',
+    expected: {
+      html: '9098d9547d5ccb14e4371dd7ff21ff222f4640d16cedc3151049b25803357d82',
+      module: 'e8a0ce82285c704e61204a95aff80d92168f3f4adc4df3e5e0621142c5c77082'
+    },
+    assets: [
+          {
+                "url": "models/stl/ascii/slotted_disk.stl",
+                "mime": "application/octet-stream",
+                "output": "slotted_disk.stl",
+                "sha256": "5c0d95ca55352ccf5cca12197a5f9fa17eb2e905d1bb3a45c8ba51c9a22699a4"
+          },
+          {
+                "url": "models/stl/binary/pr2_head_pan.stl",
+                "mime": "application/octet-stream",
+                "output": "pr2_head_pan.stl",
+                "sha256": "c4ebcc17156642a8e4df8564a09f730b54db236e783320d71af3e51de17e8315"
+          },
+          {
+                "url": "models/stl/binary/pr2_head_tilt.stl",
+                "mime": "application/octet-stream",
+                "output": "pr2_head_tilt.stl",
+                "sha256": "4c98307430589fbb86f0310b25b1896bbb0ac4c4f5b97d9dc4f03d3250003533"
+          },
+          {
+                "url": "models/stl/binary/colored.stl",
+                "mime": "application/octet-stream",
+                "output": "colored.stl",
+                "sha256": "0012b62d4bb485f902a972192eef29d6ce4b97a9deb2de67a02d30a5b738f461"
+          }
+    ]
+  },
+  webgl_materials_bumpmap: {
+    id: 'three-materials-bumpmap',
+    directory: 'three-materials-bumpmap',
+    name: 'Materials Bumpmap — three.js r186',
+    description: 'Unmodified official webgl_materials_bumpmap module on the JSR THREE R1/WebGL2 runtime.',
+    icon: '📐',
+    expected: {
+      html: '619b576992f4ab8e96247b5289ad7c9e4f2861ed274353d556063ac48ff455a9',
+      module: '598cd98dcfcfe0f87d2be38989541543c99c320f1df6cfaf7b143e73f81d21fe'
+    },
+    assets: [
+          {
+                "url": "models/gltf/LeePerrySmith/Infinite-Level_02_Disp_NoSmoothUV-4096.jpg",
+                "mime": "image/jpeg",
+                'output': 'Infinite-Level_02_Disp_NoSmoothUV-4096.jpg',
+      "sha256": "937dea3ab1adea4624c9743ea0653fcb022235e6dcdebfb6e739b93f9d2a5cef"
+          },
+          {
+                "url": "models/gltf/LeePerrySmith/LeePerrySmith.glb",
+                "mime": "model/gltf-binary",
+                'output': 'LeePerrySmith.glb',
+      "sha256": "402b8a8ac9f03232e6d64b5962929703a069daf99d3c49ac8eb0e48bedc9c576"
+          }
+    ]
+  },
+  webgl_materials_texture_canvas: {
+    id: 'three-materials-texture-canvas',
+    directory: 'three-materials-texture-canvas',
+    name: 'Materials Texture Canvas — three.js r186',
+    description: 'Unmodified official webgl_materials_texture_canvas module on the JSR THREE R1/WebGL2 runtime.',
+    icon: '📐',
+    expected: {
+      html: '55d945e495a55dc385532f35521b5d595cff8b5787c152495c96c12d347ef960',
+      module: '652b934745aba9cf007602b95bc7d79b69db61a945db0c99ce5fa0afff78f59c'
+    },
+    assets: []
+  },
+  webgl_materials_texture_rotation: {
+    id: 'three-materials-texture-rotation',
+    directory: 'three-materials-texture-rotation',
+    name: 'Materials Texture Rotation — three.js r186',
+    description: 'Unmodified official webgl_materials_texture_rotation module on the JSR THREE R1/WebGL2 runtime.',
+    icon: '📐',
+    expected: {
+      html: '07b2a844ac657c4324fc0b6bc1ba3e7418f74f1447c36dd8d6bc4fd2b483b74a',
+      module: '62748d06a1d4a5ca393025b5dc82186198da21839e9967187f44866ae93c2f0d'
+    },
+    assets: [
+          {
+                "url": "textures/uv_grid_opengl.jpg",
+                "mime": "image/jpeg",
+                'output': 'uv_grid_opengl.jpg',
+      "sha256": "909d9a1eb2a5d5de9d221a5e8de4e9119d409decddf522d48896bd51523d354d"
+          }
+    ]
+  },
+  webgl_materials_displacementmap: {
+    id: 'three-materials-displacementmap',
+    directory: 'three-materials-displacementmap',
+    name: 'Materials Displacementmap — three.js r186',
+    description: 'Unmodified official webgl_materials_displacementmap module on the JSR THREE R1/WebGL2 runtime.',
+    icon: '📐',
+    expected: {
+      html: 'c65e1d2aff2975307afae8c5ecd0a85a6211244bd0263555981cc7b0ad2cf5bd',
+      module: '6d582d9a6a7511e96744d6d822005ed0e0b0cbb71ff3ccb98e3534c4545f5463'
+    },
+    assets: [
+          {
+                "url": "models/obj/ninja/normal.png",
+                "mime": "image/png",
+                'output': 'normal.png',
+      "sha256": "aa147cbb271787f793b437607b076fb170555f3f8dc3c392cc29910ca7a63d49"
+          },
+          {
+                "url": "models/obj/ninja/ao.jpg",
+                "mime": "image/jpeg",
+                'output': 'ao.jpg',
+      "sha256": "004c1b0c9829fd5c25d413fce2ff0224e5e62f17f8064af9e34d9c2887e6b41b"
+          },
+          {
+                "url": "models/obj/ninja/displacement.jpg",
+                "mime": "image/jpeg",
+                'output': 'displacement.jpg',
+      "sha256": "5da43d969f6c178b1d2d819c5da523c66432a24f351d80afc88b1ada5f2c3f3b"
+          },
+          {
+                "url": "models/obj/ninja/ninjaHead_Low.obj",
+                "mime": "application/octet-stream",
+                'output': 'ninjaHead_Low.obj',
+      "sha256": "07819eacecae77a8539fbaf673d9a0908ec2e6383d1b6cedd94544b2a2f2c53b"
+          }
+    ]
+  },
+
+  webgl_materials_modified: {
+    id: 'three-materials-modified',
+    directory: 'three-materials-modified',
+    name: 'Materials Modified — three.js r186',
+    description: 'Unmodified official webgl_materials_modified module on the JSR THREE R1/WebGL2 runtime.',
+    icon: '📐',
+    expected: {
+      html: '902d2c154d8c2cb8b84b75333c9b5f9aa28540bec31c51e957e57f8806b8e303',
+      module: '443b6067810ed01cb763b413148a0218208248ad18399e1554f1640bab405183'
+    },
+    assets: [
+          {
+                "url": "models/gltf/LeePerrySmith/LeePerrySmith.glb",
+                'output': 'LeePerrySmith.glb',
+                "mime": "model/gltf-binary",
+      "sha256": "402b8a8ac9f03232e6d64b5962929703a069daf99d3c49ac8eb0e48bedc9c576"
+          }
+    ]
+  },
+
+  webgl_buffergeometry_lines: {
+    id: 'three-buffergeometry-lines',
+    directory: 'three-buffergeometry-lines',
+    name: 'Buffergeometry Lines — three.js r186',
+    description: 'Unmodified official webgl_buffergeometry_lines module on the JSR THREE R1/WebGL2 runtime.',
+    icon: '📐',
+    expected: {
+      html: 'ec83469cf911cb4a39a828a74dc33c29db4290dd9da1ed99891dbc6fcc79f824',
+      module: '55f3a0ce6d86897acf805c9e19f736c622d99a53c7fa96e98ca918951b42415b'
+    },
+    assets: []
+  },
+  webgl_materials_texture_partialupdate: {
+    id: 'three-materials-partialupdate',
+    directory: 'three-materials-partialupdate',
+    name: 'Materials Texture Partialupdate — three.js r186',
+    description: 'Unmodified official webgl_materials_texture_partialupdate module on the JSR THREE R1/WebGL2 runtime.',
+    icon: '📐',
+    expected: {
+      html: '61cf6d8f41f8408b62a9e31f22e9267877351383184ddb7961186fb2b53652bc',
+      module: 'e08c0ff113b4211624f36ddd598d7f3af604d454f7789d42749ec7a9792d6e43'
+    },
+    assets: [
+          {
+                "url": "textures/floors/FloorsCheckerboard_S_Diffuse.jpg",
+                "mime": "image/jpeg",
+                'output': 'FloorsCheckerboard_S_Diffuse.jpg',
+      "sha256": "d7547036c6221a840b80ce11138dc2c1a26df2630419217234c479b00e50a119"
+          }
+    ]
+  },
+  webgl_points_billboards: {
+    id: 'three-points-billboards',
+    directory: 'three-points-billboards',
+    name: 'Points Billboards — three.js r186',
+    description: 'Unmodified official webgl_points_billboards module on the JSR THREE R1/WebGL2 runtime.',
+    icon: '📐',
+    expected: {
+      html: 'c26f1566bc4a027afd79202f6caee8abe3079cd6037fda281bf31c69f19f6faf',
+      module: '88b1c30f87ed0caf00a495b03fc8019e235029ad5518ce3b93b8ca313a8aecd4'
+    },
+    assets: [
+          {
+                "url": "textures/sprites/disc.png",
+                "mime": "image/png",
+                'output': 'disc.png',
+      "sha256": "1f3816715f028ac32065a10f40f5ef218b4efc67eb46f0d908a8d503f25b69cb"
+          }
+    ]
+  },
+webgl_geometry_shapes: {
+    id: 'three-geometry-shapes',
+    directory: 'three-geometry-shapes',
+    name: 'Geometry Shapes — three.js r186',
+    description: 'Unmodified official webgl_geometry_shapes module on the JSR THREE R1/WebGL2 runtime.',
+    icon: '📐',
+    expected: {
+      html: '8c29395a7d7f3eca80383bff1a260408edf26a64ef9426af32e2de60f536b051',
+      module: 'b22907f9ba17e46fc75887c6ee1a5377a4e4baef9f14e095378d25b13b2afbc1'
+    },
+    assets: [
+          {
+                "url": "textures/uv_grid_opengl.jpg",
+                "mime": "image/jpeg",
+                "output": "uv_grid_opengl.jpg",
+                "sha256": "909d9a1eb2a5d5de9d221a5e8de4e9119d409decddf522d48896bd51523d354d"
+          }
+    ]
+  },
+  webgl_geometry_text_shapes: {
+    id: 'three-geometry-text-shapes',
+    directory: 'three-geometry-text-shapes',
+    name: 'Geometry Text Shapes — three.js r186',
+    description: 'Unmodified official webgl_geometry_text_shapes module on the JSR THREE R1/WebGL2 runtime.',
+    icon: '📐',
+    expected: {
+      html: '0468d42e536566602bdd72162738238c1bdd3ac0463c29bd2fa88e80b68a1249',
+      module: '65f0b38c67536381adfb8dc2191a1b47535f854933dc5a0dc94f93fbc07d954b'
+    },
+    assets: [
+          {
+                "url": "fonts/helvetiker_regular.typeface.json",
+                "mime": "application/json",
+                "output": "helvetiker_regular.typeface.json",
+                "sha256": "d5c5467690f74061179a292af83bd85c4c551e0f106b2af99714f11184c96981"
+          }
+    ]
+  },
+  webgl_sprites: {
+    id: 'three-sprites',
+    directory: 'three-sprites',
+    name: 'Sprites — three.js r186',
+    description: 'Unmodified official webgl_sprites module on the JSR THREE R1/WebGL2 runtime.',
+    icon: '📐',
+    expected: {
+      html: '48d6ae182b791cb2539eb2569fe812d47f7c0c9e85d1111c12adbb7642d12c36',
+      module: 'e532443ad7acaa4ecba94e9536874d2c29187e39f636f43ac957034fe80820af'
+    },
+    assets: [
+          {
+                "url": "textures/sprite0.png",
+                "mime": "image/png",
+                "output": "sprite0.png",
+                "sha256": "79592d002649e69628ed7ea9dc79ab911c43dded78c716362742e225acec32fb"
+          },
+          {
+                "url": "textures/sprite1.png",
+                "mime": "image/png",
+                "output": "sprite1.png",
+                "sha256": "0c69d3d1eaed72c3f13ddf93db0e233475b0cf850d3e3d9e45fd7a3803cac9e4"
+          },
+          {
+                "url": "textures/sprite2.png",
+                "mime": "image/png",
+                "output": "sprite2.png",
+                "sha256": "85fbb827b321ce6238088d2a7e895c2c53c015ecb7076db855c90c0109b46707"
+          }
+    ]
+  },
+  webgl_raycaster_sprite: {
+    id: 'three-raycaster-sprite',
+    directory: 'three-raycaster-sprite',
+    name: 'Raycaster Sprite — three.js r186',
+    description: 'Unmodified official webgl_raycaster_sprite module on the JSR THREE R1/WebGL2 runtime.',
+    icon: '📐',
+    expected: {
+      html: '4c33f7db6a19eba628803e57461dc3fc59bb39214f35cd7ad79bf1a74e68ff7a',
+      module: '1c666877a6c1c4ca09587f3d4f25255ee568339ce39affd6e98fd0c454968d21'
+    },
+    assets: []
+  },
+  webgl_raycaster_texture: {
+    id: 'three-raycaster-texture',
+    directory: 'three-raycaster-texture',
+    name: 'Raycaster Texture — three.js r186',
+    description: 'Unmodified official webgl_raycaster_texture module on the JSR THREE R1/WebGL2 runtime.',
+    icon: '📐',
+    expected: {
+      html: '5858801b68cffc10012a39a38b5eb5d6c8cf55a333eb8c105c79426d9807c133',
+      module: '623c5c427d235d4d3c48b3a1bf1e130c1091a29ab42000c1de9de9929975dc9b'
+    },
+    assets: [
+          {
+                "url": "textures/uv_grid_opengl.jpg",
+                "mime": "image/jpeg",
+                "output": "uv_grid_opengl.jpg",
+                "sha256": "909d9a1eb2a5d5de9d221a5e8de4e9119d409decddf522d48896bd51523d354d"
+          }
+    ]
+  },
+  webgl_camera_logarithmicdepthbuffer: {
+    id: 'three-camera-logarithmicdepthbuffer',
+    directory: 'three-camera-logarithmicdepthbuffer',
+    name: 'Camera Logarithmicdepthbuffer — three.js r186',
+    description: 'Unmodified official webgl_camera_logarithmicdepthbuffer module on the JSR THREE R1/WebGL2 runtime.',
+    icon: '📐',
+    expected: {
+      html: 'ab3e4d8d3e713cc539f5608f6234333ba585d0a093672dd3a90a7249969ee90c',
+      module: '646f52b3453142cd0ec25f5348da4fe2ac235ce7d6b5058b4109ba4b1ed82044'
+    },
+    assets: [
+          {
+                "url": "fonts/helvetiker_regular.typeface.json",
+                "mime": "application/json",
+                "output": "helvetiker_regular.typeface.json",
+                "sha256": "d5c5467690f74061179a292af83bd85c4c551e0f106b2af99714f11184c96981"
+          }
+    ]
+  },
+  webgl_instancing_performance: {
+    id: 'three-instancing-performance',
+    directory: 'three-instancing-performance',
+    name: 'Instancing Performance — three.js r186',
+    description: 'Unmodified official webgl_instancing_performance module on the JSR THREE R1/WebGL2 runtime.',
+    icon: '📐',
+    expected: {
+      html: '241ca59d6decbeb027fb17a13a89b364c626141bbb18fabda594a832e7514e2d',
+      module: '4aa00c361d5731aa5a6ac583a0179208b2f90f990a53214ab53068e301f9ec16'
+    },
+    assets: []
+  },
+  webgl_shadowmap_pointlight: {
+    id: 'three-shadowmap-pointlight',
+    directory: 'three-shadowmap-pointlight',
+    name: 'Shadowmap Pointlight — three.js r186',
+    description: 'Unmodified official webgl_shadowmap_pointlight module on the JSR THREE R1/WebGL2 runtime.',
+    icon: '📐',
+    expected: {
+      html: '1ee42f8769e1cbc26c34bd9ee478ebf93df2df3969a455ca624b9be0f3097f95',
+      module: '31eba24e5b1cad0713afeab9d51c538188760b4b6dfc2f7e5d60a117bf6d45ff'
+    },
+    assets: []
+  },
+  webgl_loader_xyz: {
+    id: 'three-loader-xyz',
+    directory: 'three-loader-xyz',
+    name: 'Loader Xyz — three.js r186',
+    description: 'Unmodified official webgl_loader_xyz module on the JSR THREE R1/WebGL2 runtime.',
+    icon: '📐',
+    expected: {
+      html: '1f6893f73bfc106d64df9758d9b61a54cc092318b0ca830f11f79286b938755e',
+      module: '25864f2a972ad99765e0c97b6d3a7259b8effcc23587cf46cbd074291ec4e14b'
+    },
+    assets: [
+          {
+                "url": "models/xyz/helix_201.xyz",
+                "mime": "application/octet-stream",
+                "output": "helix_201.xyz",
+                "sha256": "489c27c4b619c9a47c15df62ebb7a5474791a7ae85f0c9c3f8323a9504288519"
+          }
+    ]
+  },
+  webgl_geometry_convex: {
+    id: 'three-geometry-convex',
+    directory: 'three-geometry-convex',
+    name: 'Geometry Convex — three.js r186',
+    description: 'Unmodified official webgl_geometry_convex module on the JSR THREE R1/WebGL2 runtime.',
+    icon: '📐',
+    expected: {
+      html: 'f0793807bde99bb16fa436f316846b0b462c0cb1ad6b7c0b15d577806eafcd28',
+      module: 'f96da8f9025bbde0d4c1ffe8e6d1f3b5880b09aa943c2b6760f270c3df3ad8cb'
+    },
+    assets: [
+          {
+                "url": "textures/sprites/disc.png",
+                "mime": "image/png",
+                "output": "disc.png",
+                "sha256": "1f3816715f028ac32065a10f40f5ef218b4efc67eb46f0d908a8d503f25b69cb"
+          }
+    ]
+  },
+  webgl_materials_texture_filters: {
+    id: 'three-materials-texture-filters',
+    directory: 'three-materials-texture-filters',
+    name: 'Materials Texture Filters — three.js r186',
+    description: 'Unmodified official webgl_materials_texture_filters module on the JSR THREE R1/WebGL2 runtime.',
+    icon: '📐',
+    expected: {
+      html: 'd6ce875f22df04b91e87151119fc6e8553522e8db3f321dd00850fa1ed3fcd06',
+      module: '761da5a03bc502d2737ac6081406a8694e6bd8df9fedd14a02d8744b8176ea14'
+    },
+    assets: [
+          {
+                "url": "textures/758px-Canestra_di_frutta_(Caravaggio).jpg",
+                "mime": "image/jpeg",
+                "output": "758px-Canestra_di_frutta_(Caravaggio).jpg",
+                "sha256": "3f9a556c4e12583981427e2d6b7fa268c1a46c9036a23514acd9e179c22ae37f"
+          }
+    ]
+  },
+  webgl_materials_cubemap_refraction: {
+    id: 'three-materials-cubemap-refraction',
+    directory: 'three-materials-cubemap-refraction',
+    name: 'Materials Cubemap Refraction — three.js r186',
+    description: 'Unmodified official webgl_materials_cubemap_refraction module on the JSR THREE R1/WebGL2 runtime.',
+    icon: '📐',
+    expected: {
+      html: 'db2a94274dc1b4092856947bd65910dbcdcf044f2442eb69d28db901f7afeb10',
+      module: '7c9a1e3b6319307f4b87b415565b71b93e0d978a2e87bb28168de8b05146b213'
+    },
+    assets: [
+          {
+                "url": "models/ply/binary/Lucy100k.ply",
+                "mime": "application/octet-stream",
+                "output": "Lucy100k.ply",
+                "sha256": "837f769e67155dc4a6e9a90683a61d6f6b4571a2a97d79586831011f450e66e2"
+          }
+    ]
+  },
+  webgl_geometry_cube: {
+    id: 'three-geometry-cube',
+    directory: 'three-geometry-cube',
+    name: 'Geometry Cube — three.js r186',
+    description: 'Unmodified official webgl_geometry_cube module on the JSR THREE R1/WebGL2 runtime.',
+    icon: '📐',
+    expected: {
+      html: '022a3727ba58f70020ab9a48ac27d510e4881426f75db6d5838f044e1ed18430',
+      module: '22beb8e4fc189e649cc7fd9e84e8b71ed35ad85859cfba99c0811867fcc4b742'
+    },
+    assets: [
+          {
+                "url": "textures/crate.gif",
+                "mime": "image/gif",
+                "output": "crate.gif",
+                "sha256": "a890f0a89eadc083cb39bfbe597c1395d7acf47a19f673b5643d4a9c174ea52f"
+          }
+    ]
+  },
+  webgl_materials_texture_anisotropy: {
+    id: 'three-materials-texture-anisotropy',
+    directory: 'three-materials-texture-anisotropy',
+    name: 'Materials Texture Anisotropy — three.js r186',
+    description: 'Unmodified official webgl_materials_texture_anisotropy module on the JSR THREE R1/WebGL2 runtime.',
+    icon: '📐',
+    expected: {
+      html: 'f139a7724d0bd0bd38754e6c7dadf248c616c330590f85b20c001a95a950fe00',
+      module: 'a22c049a0c3948355984549df2dd9163b7a5e326b9f13b250f39dfda0fd34845'
+    },
+    assets: [
+          {
+                "url": "textures/crate.gif",
+                "mime": "image/gif",
+                "output": "crate.gif",
+                "sha256": "a890f0a89eadc083cb39bfbe597c1395d7acf47a19f673b5643d4a9c174ea52f"
+          }
+    ]
+  },
 });
 const slash = value => value.split(path.sep).join('/');
 const sha = bytes => createHash('sha256').update(bytes).digest('hex');
@@ -340,6 +1149,32 @@ function scriptType(openTag) {
   return match ? (match[1] || match[2] || match[3]).trim().toLowerCase() : '';
 }
 
+function scriptId(openTag) {
+  const match = openTag.match(/\s+id\s*=\s*(?:"([^"]*)"|'([^']*)'|([^\s>]+))/i);
+  return match ? (match[1] || match[2] || match[3]).trim() : '';
+}
+
+// Inline `<script id=... type="x-shader/...">` blocks are the official
+// modules' shader sources; the adapter's getElementById serves their text.
+function extractInlineScripts(html) {
+  const text = html.toString('latin1');
+  const opening = /<script\b[^>]*>/gi;
+  const scripts = {};
+  let match;
+  while ((match = opening.exec(text))) {
+    const close = /<\/script\s*>/gi;
+    close.lastIndex = opening.lastIndex;
+    const end = close.exec(text);
+    if (!end) throw new Error(`Unclosed script at byte ${match.index}`);
+    const type = scriptType(match[0]);
+    const id = scriptId(match[0]);
+    if (!id || type === 'module' || type === 'importmap') continue;
+    scripts[id] = html.toString('utf8', opening.lastIndex, end.index);
+    opening.lastIndex = end.index + end[0].length;
+  }
+  return scripts;
+}
+
 function extractOfficial(html) {
   // latin1 gives a one-byte-to-one-character view, so all Buffer offsets and
   // the extracted official bytes remain exact even if the HTML gains UTF-8.
@@ -374,7 +1209,12 @@ function extractOfficial(html) {
       importmap.imports['three/addons/'] !== './jsm/') {
     throw new Error('Official importmap does not contain the pinned three/addons mappings');
   }
-  return { importmapBytes: importmaps[0].bytes, importmap, moduleBytes: modules[0].bytes };
+  return {
+    importmapBytes: importmaps[0].bytes,
+    importmap,
+    moduleBytes: modules[0].bytes,
+    inlineScripts: extractInlineScripts(html)
+  };
 }
 
 function addonPath(jsmRoot, specifier) {
@@ -489,6 +1329,15 @@ function pngDimensions(bytes, url) {
   return { width: bytes.readUInt32BE(16), height: bytes.readUInt32BE(20) };
 }
 
+// GIF: logical screen descriptor at bytes 6-9 (little-endian width/height)
+// after the 6-byte signature ('GIF87a'/'GIF89a').
+function gifDimensions(bytes, url) {
+  if (bytes.length < 10 || bytes.toString('latin1', 0, 3) !== 'GIF') {
+    throw new Error(`${url} is not a GIF`);
+  }
+  return { width: bytes.readUInt16LE(6), height: bytes.readUInt16LE(8) };
+}
+
 function jpegDimensions(bytes, url) {
   if (bytes.length < 4 || bytes[0] !== 0xff || bytes[1] !== 0xd8) {
     throw new Error(`${url} is not a JPEG`);
@@ -529,6 +1378,28 @@ async function prepareAssets(source, definitions) {
     let dimensions;
     if (definition.mime === 'image/png') dimensions = pngDimensions(bytes, definition.url);
     else if (definition.mime === 'image/jpeg') dimensions = jpegDimensions(bytes, definition.url);
+    else if (definition.mime === 'image/gif') dimensions = gifDimensions(bytes, definition.url);
+    else if (definition.mime === 'model/gltf-binary') {
+      // Binary glTF models have no pixel dimensions; validate the GLB magic
+      // ('glTF' in ASCII) instead so corrupted files fail at prepare time.
+      if (bytes.length < 20 || bytes.toString('latin1', 0, 4) !== 'glTF') {
+        throw new Error(`${definition.url} is not a binary glTF asset`);
+      }
+      assets.push({ ...definition, bytes });
+      continue;
+    }
+    else if (definition.mime === 'application/octet-stream') {
+      // Raw model payloads (PLY/OBJ and friends): the sha256 pin above is
+      // the only integrity gate; loaders parse at runtime.
+      assets.push({ ...definition, bytes });
+      continue;
+    }
+    else if (definition.mime === 'application/json') {
+      // Pinned data documents (FontLoader .typeface.json and friends): no
+      // pixel dimensions to derive; the sha256 gate is the integrity check.
+      assets.push({ ...definition, bytes, width: null, height: null });
+      continue;
+    }
     else throw new Error(`Unsupported prepared asset type: ${definition.mime}`);
     if (!dimensions.width || !dimensions.height) throw new Error(`${definition.url} has invalid texture dimensions`);
     assets.push({ ...definition, bytes, ...dimensions });
@@ -565,8 +1436,8 @@ async function main() {
     url: asset.url,
     data: asset.bytes.toString('base64'),
     mime: asset.mime,
-    width: asset.width,
-    height: asset.height,
+    width: asset.width ?? 0,
+    height: asset.height ?? 0,
     bytes: asset.bytes.length,
     diagnostic: asset.diagnostic
   }));
@@ -600,7 +1471,8 @@ async function main() {
     define: {
       __JSR_THREE_EXAMPLE_ID__: JSON.stringify(options.example),
       __JSR_THREE_WIDGET_ID__: JSON.stringify(definition.id),
-      __JSR_THREE_EXAMPLE_ASSETS_JSON__: JSON.stringify(JSON.stringify(adapterAssets))
+      __JSR_THREE_EXAMPLE_ASSETS_JSON__: JSON.stringify(JSON.stringify(adapterAssets)),
+      __JSR_THREE_EXAMPLE_SCRIPTS_JSON__: JSON.stringify(JSON.stringify(extracted.inlineScripts))
     }
   });
   if (result.outputFiles.length !== 1) throw new Error(`Expected one widget output, got ${result.outputFiles.length}`);

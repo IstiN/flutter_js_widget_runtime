@@ -59,8 +59,50 @@ flutter:
     - widgets/three-interactive-raycasting-points/
     - widgets/three-interactive-cubes/
     - widgets/three-interactive-cubes-ortho/
+    - widgets/three-interactive-lines/
+    - widgets/three-interactive-buffergeometry/
+    - widgets/three-clipping/
+    - widgets/three-clipping-intersection/
+    - widgets/three-lights-spotlights/
+    - widgets/three-lights-hemisphere/
+    - widgets/three-interactive-points/
+    - widgets/three-helpers/
+    - widgets/three-geometry-spline-editor/
+    - widgets/three-buffergeometry/
+    - widgets/three-buffergeometry-lines/
+    - widgets/three-materials-displacementmap/
+    - widgets/three-camera/
+    - widgets/three-clipping-advanced/
+    - widgets/three-geometry-teapot/
+    - widgets/three-geometry-extrude-splines/
+    - widgets/three-lights-physical/
+    - widgets/three-lights-spotlight/
+    - widgets/three-loader-ply/
+    - widgets/three-loader-stl/
+    - widgets/three-materials-bumpmap/
+    - widgets/three-materials-texture-canvas/
+    - widgets/three-materials-partialupdate/
+    - widgets/three-materials-texture-rotation/
+    - widgets/three-materials-modified/
+    - widgets/three-instancing-raycast/
+    - widgets/three-extrude-shapes/
     - widgets/three-math-obb/
     - widgets/three-buffergeometry-points-interleaved/
     - widgets/three-interactive-voxelpainter/
     - widgets/three-panorama-equirectangular/
+    - widgets/three-points-billboards/
+    - widgets/three-geometry-shapes/
+    - widgets/three-geometry-text-shapes/
+    - widgets/three-sprites/
+    - widgets/three-raycaster-sprite/
+    - widgets/three-raycaster-texture/
+    - widgets/three-camera-logarithmicdepthbuffer/
+    - widgets/three-instancing-performance/
+    - widgets/three-shadowmap-pointlight/
+    - widgets/three-loader-xyz/
+    - widgets/three-geometry-convex/
+    - widgets/three-materials-texture-filters/
+    - widgets/three-materials-cubemap-refraction/
+    - widgets/three-geometry-cube/
+    - widgets/three-materials-texture-anisotropy/
     - assets/models/

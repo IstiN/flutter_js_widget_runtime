@@ -35,20 +35,24 @@ ThreeShadowCacheKey _shadowKey({
   matrix: matrix ?? List<double>.generate(16, (index) => index.toDouble()),
 );
 
-Uint8List _batch({bool instanced = true}) {
+Uint8List _batch({bool instanced = true, List<double>? colors}) {
   final instanceCount = instanced ? 2 : 1;
   final matrixCount = instanced ? 32 : 0;
-  final body = Uint8List(36 + matrixCount * 4);
+  final colorCount = colors?.length ?? 0;
+  final body = Uint8List(36 + matrixCount * 4 + colorCount * 4);
   setU32(body, 0, 1);
   setU32(body, 4, 1);
   setU32(body, 8, instanceCount);
-  setU32(body, 12, instanced ? 1 : 0);
+  setU32(body, 12, instanced ? (colors != null ? 3 : 1) : 0);
   setU32(body, 16, 1);
   setU32(body, 20, 1);
   setU32(body, 24, 1);
   setU32(body, 32, 3);
   for (var index = 0; index < matrixCount; index++) {
     setF32(body, 36 + index * 4, index + 0.25);
+  }
+  for (var index = 0; index < colorCount; index++) {
+    setF32(body, 36 + matrixCount * 4 + index * 4, colors![index]);
   }
   return body;
 }
@@ -60,6 +64,7 @@ Uint8List _batch({bool instanced = true}) {
 })
 _drawResources({
   JsThreeMaterialKind kind = JsThreeMaterialKind.meshBasic,
+  bool indexed = true,
   bool wireframe = false,
   List<int>? wireIndices,
   double specularR = 0,
@@ -72,24 +77,33 @@ _drawResources({
   double emissiveB = 0,
   double emissiveIntensity = 1,
   JsThreeSide side = JsThreeSide.front,
+  int nodeId = 1,
+  List<double>? matrixWorld,
+  List<double> color = const [1, 1, 1],
+  double opacity = 1,
 }) {
   final geometry = Uint8List(
-    92 + (wireIndices == null ? 0 : 4 + wireIndices.length * 4),
+    68 +
+        (indexed ? 24 : 0) +
+        (wireIndices == null ? 0 : 4 + wireIndices.length * 4),
   );
   setU32(geometry, 0, 1);
   setU32(geometry, 4, 1);
   setU32(geometry, 8, 1);
   setU32(geometry, 12, 3);
-  setU32(geometry, 16, 6);
+  setU32(geometry, 16, indexed ? 6 : 0);
   setU32(geometry, 28, 36);
   const indices = [0, 1, 2, 2, 1, 0];
-  for (var index = 0; index < indices.length; index++) {
-    setU32(geometry, 68 + index * 4, indices[index]);
+  if (indexed) {
+    for (var index = 0; index < indices.length; index++) {
+      setU32(geometry, 68 + index * 4, indices[index]);
+    }
   }
   if (wireIndices != null) {
-    setU32(geometry, 92, wireIndices.length);
+    final wireOffset = indexed ? 92 : 68;
+    setU32(geometry, wireOffset, wireIndices.length);
     for (var index = 0; index < wireIndices.length; index++) {
-      setU32(geometry, 96 + index * 4, wireIndices[index]);
+      setU32(geometry, wireOffset + 4 + index * 4, wireIndices[index]);
     }
   }
 
@@ -100,10 +114,10 @@ _drawResources({
   setU32(material, 8, kind.wireValue);
   setU32(material, 16, 24 | (wireframe ? 32 : 0));
   setU32(material, 20, side.wireValue);
-  setF32(material, 24, 1);
-  setF32(material, 28, 1);
-  setF32(material, 32, 1);
-  setF32(material, 36, 1);
+  setF32(material, 24, color[0]);
+  setF32(material, 28, color[1]);
+  setF32(material, 32, color[2]);
+  setF32(material, 36, opacity);
   setF32(material, 40, 0.5);
   setF32(material, 44, 0.5);
   setF32(material, 52, 1);
@@ -122,13 +136,17 @@ _drawResources({
   }
 
   final node = Uint8List(92);
-  setU32(node, 0, 1);
+  setU32(node, 0, nodeId);
   setU32(node, 8, 1);
   setU32(node, 12, 1);
   setU32(node, 16, 1);
   setU32(node, 20, 1);
-  for (final index in [0, 5, 10, 15]) {
-    setF32(node, 24 + index * 4, 1);
+  for (var index = 0; index < 16; index++) {
+    setF32(
+      node,
+      24 + index * 4,
+      matrixWorld?[index] ?? (index % 5 == 0 ? 1 : 0),
+    );
   }
   return (
     node: _decode(4, node) as JsThreeNodeUpsert,
@@ -141,6 +159,7 @@ ThreeDrawItem _draw({
   int offset = 0,
   int? count,
   JsThreeMaterialKind kind = JsThreeMaterialKind.meshBasic,
+  bool indexed = true,
   bool wireframe = false,
   List<int>? wireIndices,
   double specularR = 0,
@@ -153,9 +172,14 @@ ThreeDrawItem _draw({
   double emissiveB = 0,
   double emissiveIntensity = 1,
   JsThreeSide side = JsThreeSide.front,
+  int nodeId = 1,
+  List<double>? matrixWorld,
+  List<double> color = const [1, 1, 1],
+  double opacity = 1,
 }) {
   final resources = _drawResources(
     kind: kind,
+    indexed: indexed,
     wireframe: wireframe,
     wireIndices: wireIndices,
     specularR: specularR,
@@ -168,6 +192,10 @@ ThreeDrawItem _draw({
     emissiveB: emissiveB,
     emissiveIntensity: emissiveIntensity,
     side: side,
+    nodeId: nodeId,
+    matrixWorld: matrixWorld,
+    color: color,
+    opacity: opacity,
   );
   return ThreeDrawItem(
     node: resources.node,
@@ -198,24 +226,26 @@ void main() {
     expect(source, List<double>.generate(16, (index) => index.toDouble()));
   });
 
-  test('vertex layout binds four column vectors at instance rate', () {
+  test('vertex layout binds matrix columns and color at instance rate', () {
     final layout = debugThreeVertexLayout();
 
     expect(layout.buffers, hasLength(2));
     final instances = layout.buffers[1];
-    expect(instances.strideInBytes, 64);
+    expect(instances.strideInBytes, 80);
     expect(instances.stepMode, gpu.VertexStepMode.instance);
     expect(instances.attributes.map((attribute) => attribute.name), [
       'instanceModel0',
       'instanceModel1',
       'instanceModel2',
       'instanceModel3',
+      'instanceColor',
     ]);
     expect(instances.attributes.map((attribute) => attribute.offsetInBytes), [
       0,
       16,
       32,
       48,
+      64,
     ]);
     expect(
       instances.attributes.every(
@@ -225,27 +255,111 @@ void main() {
     );
   });
 
-  test('ordinary identity and real instance payloads have exact ABI bytes', () {
+  test('ordinary and explicit instance payloads preserve exact ABI bytes', () {
     final identity = debugThreeIdentityInstanceData();
-    expect(identity.lengthInBytes, 64);
+    expect(identity.lengthInBytes, 80);
     for (var index = 0; index < 16; index++) {
       expect(
         identity.getFloat32(index * 4, Endian.little),
         index % 5 == 0 ? 1.0 : 0.0,
       );
     }
+    for (var component = 0; component < 4; component++) {
+      expect(identity.getFloat32(64 + component * 4, Endian.little), 1);
+    }
 
     final source = _decode(11, _batch()) as JsThreeDrawBatchUpsert;
     final packed = debugThreeInstanceData(source);
-    expect(packed.lengthInBytes, 128);
-    for (var index = 0; index < 32; index++) {
-      expect(packed.getFloat32(index * 4, Endian.little), index + 0.25);
+    expect(packed.lengthInBytes, 160);
+    for (var instance = 0; instance < 2; instance++) {
+      for (var index = 0; index < 16; index++) {
+        expect(
+          packed.getFloat32(instance * 80 + index * 4, Endian.little),
+          instance * 16 + index + 0.25,
+        );
+      }
+      for (var component = 0; component < 4; component++) {
+        expect(
+          packed.getFloat32(instance * 80 + 64 + component * 4, Endian.little),
+          1,
+        );
+      }
     }
     final ordinary = _decode(11, _batch(instanced: false));
     expect(
       () => debugThreeInstanceData(ordinary as JsThreeDrawBatchUpsert),
       throwsArgumentError,
     );
+
+    final coloredSource =
+        _decode(11, _batch(colors: const [0.25, 0.5, 0.75, 0.9, 0.1, 0.2]))
+            as JsThreeDrawBatchUpsert;
+    expect(coloredSource.hasInstanceColors, isTrue);
+    final colored = debugThreeInstanceData(coloredSource);
+    expect(colored.lengthInBytes, 160);
+    expect(colored.getFloat32(64, Endian.little), 0.25);
+    expect(colored.getFloat32(68, Endian.little), 0.5);
+    expect(colored.getFloat32(72, Endian.little), 0.75);
+    expect(colored.getFloat32(76, Endian.little), 1);
+    expect(colored.getFloat32(80 + 64, Endian.little), closeTo(0.9, 1e-6));
+    expect(colored.getFloat32(80 + 68, Endian.little), closeTo(0.1, 1e-6));
+    expect(colored.getFloat32(80 + 72, Endian.little), closeTo(0.2, 1e-6));
+    expect(colored.getFloat32(80 + 76, Endian.little), 1);
+  });
+
+  test('auto-instance payload preserves 200 distinct matrices and colors', () {
+    final draws = List<ThreeDrawItem>.generate(
+      200,
+      (instance) => _draw(
+        nodeId: instance + 7,
+        kind: JsThreeMaterialKind.meshPhong,
+        matrixWorld: List<double>.generate(
+          16,
+          (index) => instance * 20 + index + 0.5,
+        ),
+        color: [instance / 199, (instance % 10) / 10, 0.75],
+        opacity: instance.isEven ? 0.5 : 0.75,
+      ),
+    );
+    final first = draws.first;
+    final draw = ThreeDrawItem(
+      node: first.node,
+      geometry: first.geometry,
+      material: first.material,
+      primitive: first.primitive,
+      viewDepth: 0,
+      drawCount: first.drawCount,
+      instanceCount: draws.length,
+      autoInstanceDraws: draws,
+    );
+
+    final packed = debugThreeAutoInstanceData(draw);
+    expect(packed.lengthInBytes, 200 * 80);
+    for (var instance = 0; instance < draws.length; instance++) {
+      for (var index = 0; index < 16; index++) {
+        expect(
+          packed.getFloat32(instance * 80 + index * 4, Endian.little),
+          instance * 20 + index + 0.5,
+        );
+      }
+      final expected = [
+        instance / 199,
+        (instance % 10) / 10,
+        0.75,
+        instance.isEven ? 0.5 : 0.75,
+      ];
+      for (var component = 0; component < 4; component++) {
+        expect(
+          packed.getFloat32(instance * 80 + 64 + component * 4, Endian.little),
+          closeTo(expected[component], 1e-6),
+        );
+      }
+    }
+    final material = debugThreeMaterialUniform(draw);
+    for (var component = 0; component < 4; component++) {
+      expect(material.getFloat32(component * 4, Endian.little), 1);
+    }
+    expect(() => debugThreeAutoInstanceData(first), throwsArgumentError);
   });
 
   test('indexed batch metadata becomes a byte subrange', () {
@@ -257,6 +371,19 @@ void main() {
       () => debugThreeIndexRange(_draw(offset: 6, count: 3)),
       throwsArgumentError,
     );
+  });
+
+  test('non-indexed batch metadata becomes an interleaved vertex subrange', () {
+    final range = debugThreeVertexRange(
+      _draw(indexed: false, offset: 1, count: 2),
+    );
+    expect(range.offsetInBytes, ThreeInterleavedGeometry.strideInBytes);
+    expect(range.lengthInBytes, ThreeInterleavedGeometry.strideInBytes * 2);
+    expect(
+      () => debugThreeVertexRange(_draw(indexed: false, offset: 2, count: 2)),
+      throwsArgumentError,
+    );
+    expect(() => debugThreeVertexRange(_draw()), throwsArgumentError);
   });
 
   test(

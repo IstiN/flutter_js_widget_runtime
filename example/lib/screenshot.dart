@@ -28,7 +28,9 @@ import 'package:js_widget_runtime/src/runtime/js_widget_engine_quickjs.dart';
 final _kWidget = Platform.environment['JSR_WIDGET'] ?? '';
 final _kWidgetPath = Platform.environment['JSR_WIDGET_PATH'] ?? '';
 final _kOut = Platform.environment['JSR_OUT'] ?? '/tmp/jsr-screenshot.png';
-final _kThree = _kWidget == 'three-minecraft';
+// Prepared official three.js modules all need the R1 host; ids are the
+// example/widgets/three-* directories.
+final _kThree = _kWidget.startsWith('three-');
 
 Future<String> _loadWidgetJs() {
   if (_kWidgetPath.isNotEmpty) return File(_kWidgetPath).readAsString();
@@ -134,7 +136,11 @@ class _CaptureFrameState extends State<_CaptureFrame> {
     );
     // Keep screenshots on deterministic QuickJS while using the production
     // wrapper for opt-in bundles, global THREE setup and host bootstrap.
-    final backend = QuickjsWidgetEngineBackend(config: config);
+    // JSR_ISOLATE=1 opt-in: run through the isolated QuickJS backend like the
+    // three_example app does, so app-only presentation bugs reproduce here.
+    final backend = Platform.environment['JSR_ISOLATE'] == '1'
+        ? createQuickjsIsolateWidgetEngineBackend(config)
+        : QuickjsWidgetEngineBackend(config: config);
     final engine = JsWidgetEngine(config: config.copyWith(backend: backend));
     _engine = engine;
     await engine.init();

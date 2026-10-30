@@ -238,6 +238,44 @@ dart run bin/jsr_three_example.dart prepare webgl_math_obb
 dart run bin/jsr_three_example.dart prepare webgl_buffergeometry_points_interleaved
 dart run bin/jsr_three_example.dart prepare webgl_interactive_voxelpainter
 dart run bin/jsr_three_example.dart prepare webgl_panorama_equirectangular
+dart run bin/jsr_three_example.dart prepare webgl_clipping
+dart run bin/jsr_three_example.dart prepare webgl_clipping_intersection
+dart run bin/jsr_three_example.dart prepare webgl_lights_spotlights
+dart run bin/jsr_three_example.dart prepare webgl_helpers
+dart run bin/jsr_three_example.dart prepare webgl_geometry_spline_editor
+dart run bin/jsr_three_example.dart prepare webgl_lights_hemisphere
+dart run bin/jsr_three_example.dart prepare webgl_interactive_points
+dart run bin/jsr_three_example.dart prepare webgl_buffergeometry
+dart run bin/jsr_three_example.dart prepare webgl_camera
+dart run bin/jsr_three_example.dart prepare webgl_buffergeometry_lines
+dart run bin/jsr_three_example.dart prepare webgl_clipping_advanced
+dart run bin/jsr_three_example.dart prepare webgl_geometry_teapot
+dart run bin/jsr_three_example.dart prepare webgl_geometry_extrude_splines
+dart run bin/jsr_three_example.dart prepare webgl_lights_physical
+dart run bin/jsr_three_example.dart prepare webgl_lights_spotlight
+dart run bin/jsr_three_example.dart prepare webgl_loader_ply
+dart run bin/jsr_three_example.dart prepare webgl_loader_stl
+dart run bin/jsr_three_example.dart prepare webgl_materials_bumpmap
+dart run bin/jsr_three_example.dart prepare webgl_materials_modified
+dart run bin/jsr_three_example.dart prepare webgl_materials_displacementmap
+dart run bin/jsr_three_example.dart prepare webgl_materials_texture_canvas
+dart run bin/jsr_three_example.dart prepare webgl_materials_texture_partialupdate
+dart run bin/jsr_three_example.dart prepare webgl_materials_texture_rotation
+dart run bin/jsr_three_example.dart prepare webgl_points_billboards
+dart run bin/jsr_three_example.dart prepare webgl_loader_xyz
+dart run bin/jsr_three_example.dart prepare webgl_geometry_text_shapes
+dart run bin/jsr_three_example.dart prepare webgl_geometry_shapes
+dart run bin/jsr_three_example.dart prepare webgl_sprites
+dart run bin/jsr_three_example.dart prepare webgl_raycaster_sprite
+dart run bin/jsr_three_example.dart prepare webgl_geometry_convex
+dart run bin/jsr_three_example.dart prepare webgl_materials_texture_filters
+dart run bin/jsr_three_example.dart prepare webgl_geometry_cube
+dart run bin/jsr_three_example.dart prepare webgl_materials_texture_anisotropy
+dart run bin/jsr_three_example.dart prepare webgl_shadowmap_pointlight
+dart run bin/jsr_three_example.dart prepare webgl_camera_logarithmicdepthbuffer
+dart run bin/jsr_three_example.dart prepare webgl_materials_cubemap_refraction
+dart run bin/jsr_three_example.dart prepare webgl_raycaster_texture
+dart run bin/jsr_three_example.dart prepare webgl_instancing_performance
 cd example
 flutter run -d macos -t lib/three_example.dart
 # Or select the initial module before using the sample sidebar:
@@ -268,8 +306,12 @@ only each module's pinned addons/local assets. Minecraft, Line Colors,
 Geometry Colors, Integer BufferGeometry, Indexed BufferGeometry, Indexed
 BufferGeometry Lines, BufferGeometry Points, Terrain Raycast, Orientation
 Transform, Raycasting Points, Interactive Cubes (perspective and
-orthographic), Oriented Bounding Boxes, Interleaved BufferGeometry Points,
-Voxel Painter and Equirectangular Panorama run on native R1. The two
+orthographic), Interactive Lines, Extrude Shapes, Oriented Bounding Boxes,
+Interleaved BufferGeometry Points, Voxel Painter, Equirectangular Panorama,
+Instancing Raycast, Interactive BufferGeometry, Clipping, Clipping
+Intersection, Spot Lights, Helpers and the Spline Editor
+run on native R1. XYZ Loader, Text Shapes, Convex Geometry and Geometry
+Cube (wave 2) also run stock. The two
 texture-backed additions use pinned PNG/JPEG assets with byte, hash and
 dimension validation. Indexed BufferGeometry uses real hemisphere
 lighting and a functional wireframe checkbox through the bounded JSR lil-gui
@@ -277,15 +319,61 @@ facade. Terrain uses the pinned OrbitControls addon with host pointer, wheel,
 capture and cancellation events plus the bounded generated-texture Canvas2D
 adapter. Orientation Transform uses a bounded native lil-gui boolean facade
 backed by a real JSR checkbox; a real browser document keeps the official
-lil-gui addon, while the Web Worker uses the functional JSR facade. Unsupported
-GUI controls and general DOM/CSS remain explicit failures. The official
-`webgl_buffergeometry_lines` module remains excluded because R1 deliberately
-rejects morph targets; Extrude Shapes and Interactive Lines are likewise
-excluded for unsupported non-indexed material groups and nested DOM
-containers. None is approximated or rewritten. Native runs require a Flutter
-GPU/Impeller platform; the Web path requires Worker OffscreenCanvas + WebGL2
-(verify on real Chrome/Edge). The sample browser sidebar switches all sixteen
-integrated modules without restarting; its overlay reports presented-frame
+lil-gui addon, while the Web Worker uses the functional JSR facade. Instancing
+Raycast uses a bounded number slider for `mesh.count` and per-instance colors
+via `setColorAt`. Spot Lights exercises the R1 v3 spot-light path with six
+tweened movers and a live PCF shadow map; Helpers renders the Lee Perry Smith
+head with normal/tangent/grid/box helpers and a moving point light; the Spline
+Editor motivated the dedicated ShadowMaterial wire kind (shadow-factor-as-
+alpha under a castShadow spot) plus lil-gui function buttons. Late RAF/promise callback failures surface as widget error cards instead
+of vanishing silently. The bounded lil-gui facade supports boolean, number,
+function and options (dropdown) controllers, chained `.step()/.min()/.max()`,
+`listen()` pass-through and `new GUI({width})`. Prepared-but-documented 1B
+gap modules (each pinned by a regression test that asserts the exact
+`three.unsupported` card and proves the single root cause via an
+instrumented probe): `webgl_lights_hemisphere` and `webgl_interactive_points`
+(ShaderMaterial), `webgl_buffergeometry_lines` (morph targets),
+`webgl_geometry_teapot` (CubeTextureLoader→OffscreenCanvas, envMap slot),
+`webgl_lights_physical` (ReinhardToneMapping, bump/metalness map slots,
+anisotropy), `webgl_points_billboards` (FogExp2 — R1 supports linear fog
+only), `webgl_materials_bumpmap` and `webgl_materials_displacementmap`
+(materialTexture slots beyond `map`), `webgl_materials_modified`
+(onBeforeCompile), `webgl_materials_texture_rotation` (UV transform fields),
+`webgl_materials_texture_canvas` (HTML-only canvas element).
+Wave-2 gap modules, each pinned by a dedicated regression test:
+`webgl_geometry_shapes` (textureTransform — `texture.repeat.set`),
+`webgl_sprites` and `webgl_raycaster_sprite` (Sprite objectType; the
+raycaster's pointer→material flip otherwise works end-to-end on the
+`three.input` lane), `webgl_materials_texture_filters` (textureTransform
+floor repeat + `Texture.clone()` canvas2d source), `webgl_materials_texture_anisotropy`
+(textureTransform), `webgl_shadowmap_pointlight` (Phong alphaMap slot;
+castShadow point lights are silently dropped by the R1 shadow scan —
+directional+spot only), `webgl_camera_logarithmicdepthbuffer` (official
+init derefs a facade-absent `#renderer_border` DOM node; with a stub the
+`logarithmicDepthBuffer` flag is silently ignored and the second renderer
+hits the one-active-renderer-per-canvas guard), `webgl_materials_cubemap_refraction`
+(OffscreenCanvas img guard + envMap slot; only Lucy100k.ply is embedded —
+the six Park3Med jpgs are not registered assets), `webgl_raycaster_texture`
+(OffscreenCanvas img decode + canvas2d `clearRect`/path ops outside the
+bounded profile — the paint loop is never reached stock),
+`webgl_instancing_performance` (stock init dies on a lil-gui object-map
+options add and missing `console.time`; with probe shims the module renders
+one InstancedMesh draw whose `instanceCount` live-switches 1000→10000 via
+the GUI dropdown, NAIVE mode fans out to per-instance draws, at ~40 fps
+test-pump pacing). Silent-ignore audits: `webgl_camera_logarithmicdepthbuffer`'s
+`logarithmicDepthBuffer` flag and `webgl_clipping`'s `alphaToCoverage`
+checkbox have no R1/flutter_gpu counterpart (alpha-to-coverage pipeline
+state is not exposed by flutter_gpu) — the controls live but render no
+difference; clipShadows IS honored end-to-end (overlay checkbox → material
+upsert → shadow-pass discard gate, pinned by the live-switch test).
+`webgl_materials_texture_partialupdate` renders the checkerboard plane but
+pins the missing `copyTextureToTexture` API. Unsupported
+GUI controls and general DOM/CSS remain explicit failures. None is
+approximated or rewritten. Native runs require
+a Flutter GPU/Impeller platform; the Web path requires Worker
+OffscreenCanvas + WebGL2 (verify on real Chrome/Edge). The sample browser
+sidebar switches all thirty-seven integrated modules without restarting; its
+overlay reports presented-frame
 FPS, decode/frame time, calls, triangles and uploads.
 
 ![Official three.js Minecraft example on Flutter GPU](doc/widgets/three-minecraft.png)

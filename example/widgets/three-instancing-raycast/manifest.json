@@ -1,0 +1,13 @@
+{
+  "id": "three-instancing-raycast",
+  "name": "Instancing Raycast — three.js r186",
+  "description": "Unmodified official webgl_instancing_raycast module on the JSR THREE R1/WebGL2 runtime.",
+  "version": "0.1.0",
+  "icon": "🎯",
+  "allowedCommands": [],
+  "network": false,
+  "widget": {
+    "entry": "widget.js",
+    "interactive": true
+  }
+}

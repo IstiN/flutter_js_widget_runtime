@@ -406,33 +406,64 @@ class QuickjsWidgetEngineBackend
 
   void _handleIntervalTick(QuickjsRuntime rt, String id) {
     if (!_isLive(rt)) return;
+    final evalError = <String?>[];
     try {
-      rt.eval('if(__iv_cbs["$id"])__iv_cbs["$id"]()');
+      rt.eval('if(__iv_cbs["$id"])__iv_cbs["$id"]()', errMsg: evalError);
       rt.executePendingJobs();
-    } catch (_) {}
+    } catch (e) {
+      _reportAsyncError(rt, 'interval tick', e.toString());
+    }
+    if (evalError.isNotEmpty) {
+      _reportAsyncError(rt, 'interval tick', evalError.single!);
+    }
   }
 
   void _handleRafTick(QuickjsRuntime rt, String id, int elapsedMs) {
     if (!_isLive(rt)) return;
+    final evalError = <String?>[];
     try {
       rt.eval(
         'if(__raf_cbs["$id"]){__raf_cbs["$id"]($elapsedMs);delete __raf_cbs["$id"];}',
+        errMsg: evalError,
       );
       rt.executePendingJobs();
     } catch (e) {
-      debugPrint('[QuickjsWidgetEngineBackend] RAF tick error: $e');
+      _reportAsyncError(rt, 'RAF tick', e.toString());
+      return;
     }
+    if (evalError.isNotEmpty) {
+      _reportAsyncError(rt, 'RAF tick', evalError.single!);
+    }
+  }
+
+  /// Late JS errors (timer/RAF/promise callbacks run outside the widget's
+  /// startup try/catch) previously vanished silently — quickjs_runtime's
+  /// eval returns null instead of throwing. Surface them as a widget error
+  /// card, exactly like startup eval failures.
+  void _reportAsyncError(QuickjsRuntime rt, String phase, String message) {
+    debugPrint('[QuickjsWidgetEngineBackend] $phase error: $message');
+    final encoded = jsonEncode('Widget error: $message');
+    try {
+      rt.eval('try{jsr.showError($encoded)}catch(_){}');
+      rt.executePendingJobs();
+    } catch (_) {}
   }
 
   void _resolveCallback(QuickjsRuntime rt, String id, dynamic value) {
     if (!_isLive(rt)) return;
+    final evalError = <String?>[];
     try {
       rt.eval(
         'if(__cbs["$id"]){__cbs["$id"](${jsonEncode(value)});delete __cbs["$id"];}',
+        errMsg: evalError,
       );
       rt.executePendingJobs();
     } catch (e) {
-      debugPrint('[QuickjsWidgetEngineBackend] resolve callback error: $e');
+      _reportAsyncError(rt, 'resolve callback', e.toString());
+      return;
+    }
+    if (evalError.isNotEmpty) {
+      _reportAsyncError(rt, 'resolve callback', evalError.single!);
     }
   }
 }

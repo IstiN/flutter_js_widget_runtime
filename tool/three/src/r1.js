@@ -2,7 +2,7 @@ import { checkedU32 } from './errors.js';
 import { utf8 } from './runtime.js';
 
 export const T1_VERSION = 1;
-export const R1_VERSION = 2;
+export const R1_VERSION = 3;
 export const STREAM_R1 = 1;
 export const MAX_ENVELOPE = 64 * 1024 * 1024;
 export const OPCODE = Object.freeze({
@@ -17,7 +17,8 @@ export const OPCODE = Object.freeze({
   DISPOSE_RESOURCE: 9,
   DISPOSE_SURFACE: 10,
   DRAW_BATCH: 11,
-  REMOVE_BATCH: 12
+  REMOVE_BATCH: 12,
+  CLIPPING: 13
 });
 
 export const NODE_SHADOW_FLAGS = Object.freeze({ cast: 1, receive: 2 });
@@ -149,10 +150,16 @@ export function textureCommand(id, version, width, height, encoding, flags, data
   return command(OPCODE.TEXTURE, body.finish());
 }
 
-export function materialCommand(id, version, kind, mapId, flags, side, color, opacity, roughness, metalness, alphaTest, pointSize, specular = null, shininess = 0, emissive = null, emissiveIntensity = 1) {
+export const MATERIAL_CLIP_FLAGS = Object.freeze({ intersection: 1, shadows: 2 });
+
+export function materialCommand(id, version, kind, mapId, flags, side, color, opacity, roughness, metalness, alphaTest, pointSize, specular = null, shininess = 0, emissive = null, emissiveIntensity = 1, clipId = 0, clipFlags = 0) {
   if ((kind === 5) !== (specular !== null)) throw new Error('three.invalid: Phong material requires exactly one specular payload');
   if (emissive !== null && kind !== 1 && kind !== 2 && kind !== 5) throw new Error('three.invalid: emissive payload requires a lit mesh material');
-  const body = new ByteWriter(56 + (specular ? 16 : 0) + (emissive ? 16 : 0));
+  if (!Number.isInteger(clipId) || clipId < 0) throw new Error('three.invalid: material clip id');
+  if (clipFlags !== 0 && clipFlags !== 1 && clipFlags !== 2 && clipFlags !== 3) {
+    throw new Error('three.invalid: material clip flags');
+  }
+  const body = new ByteWriter(64 + (specular ? 16 : 0) + (emissive ? 16 : 0));
   body.u32(id);
   body.u32(version);
   body.u32(kind);
@@ -167,6 +174,8 @@ export function materialCommand(id, version, kind, mapId, flags, side, color, op
   body.f32(metalness);
   body.f32(alphaTest);
   body.f32(pointSize);
+  body.u32(clipId);
+  body.u32(clipFlags);
   if (specular) {
     body.f32(specular.r);
     body.f32(specular.g);
@@ -202,17 +211,25 @@ export function removeNodeCommand(id) {
   return command(OPCODE.REMOVE_NODE, body.finish());
 }
 
-export function drawBatchCommand(id, version, instanceCount, flags, parts, matrices = null) {
+export function drawBatchCommand(id, version, instanceCount, flags, parts, matrices = null, colors = null) {
   checkedU32(id, 'batch nodeId');
   checkedU32(version, 'batch version');
   checkedU32(instanceCount, 'batch instanceCount');
-  if (flags !== 0 && flags !== 1) throw new Error('three.invalid: batch flags');
+  if (flags < 0 || flags > 3) throw new Error('three.invalid: batch flags');
+  if ((flags & 2) !== 0 && (flags & 1) === 0) throw new Error('three.invalid: instance colors require instanced batches');
   if (flags === 0 && instanceCount !== 1) throw new Error('three.invalid: non-instanced batch instanceCount must be one');
   if (!Array.isArray(parts)) throw new Error('three.invalid: batch parts');
   checkedU32(parts.length, 'batch partCount');
-  const matrixLength = flags === 1 ? instanceCount * 16 : 0;
+  const matrixLength = flags === 1 || flags === 3 ? instanceCount * 16 : 0;
   if (matrixLength > 0 && (!matrices || matrices.length < matrixLength)) throw new Error('three.invalid: batch instance matrix payload');
-  const bodyLength = 20 + parts.length * 16 + matrixLength * 4;
+  const colorLength = flags === 3 ? instanceCount * 3 : 0;
+  if (colorLength > 0) {
+    if (!colors || colors.length < colorLength) throw new Error('three.invalid: batch instance color payload');
+    for (let i = 0; i < colorLength; i++) {
+      if (!Number.isFinite(colors[i])) throw new Error('three.invalid: batch instance colors must be finite');
+    }
+  }
+  const bodyLength = 20 + parts.length * 16 + matrixLength * 4 + colorLength * 4;
   if (bodyLength > MAX_ENVELOPE) throw new Error('three.invalid: batch exceeds 64 MiB');
   const body = new ByteWriter(bodyLength);
   body.u32(id);
@@ -230,6 +247,11 @@ export function drawBatchCommand(id, version, instanceCount, flags, parts, matri
     body.bytes(new Uint8Array(matrices.buffer, matrices.byteOffset, matrixLength * 4));
   } else {
     for (let i = 0; i < matrixLength; i++) body.f32(matrices[i]);
+  }
+  if (ArrayBuffer.isView(colors)) {
+    body.bytes(new Uint8Array(colors.buffer, colors.byteOffset, colorLength * 4));
+  } else {
+    for (let i = 0; i < colorLength; i++) body.f32(colors[i]);
   }
   return command(OPCODE.DRAW_BATCH, body.finish());
 }
@@ -250,9 +272,10 @@ export function cameraCommand(id, type, matrixWorldInverse, projectionMatrix, ma
   return command(OPCODE.CAMERA, body.finish());
 }
 
-export function lightCommand(id, type, color, intensity, position, direction, groundColor = null) {
+export function lightCommand(id, type, color, intensity, position, direction, groundColor = null, spot = null) {
   if ((type === 3) !== (groundColor !== null)) throw new Error('three.invalid: HemisphereLight requires exactly one ground color payload');
-  const body = new ByteWriter(groundColor ? 64 : 48);
+  if ((type === 4) !== (spot !== null)) throw new Error('three.invalid: SpotLight requires exactly one spot payload');
+  const body = new ByteWriter(64);
   body.u32(id);
   body.u32(type);
   body.f32(color.r);
@@ -271,16 +294,63 @@ export function lightCommand(id, type, color, intensity, position, direction, gr
     body.f32(groundColor.b);
     body.u32(0);
   }
+  if (spot) {
+    if (!Number.isFinite(spot.angle) || spot.angle <= 0 || spot.angle > Math.PI / 2) {
+      throw new Error('three.invalid: SpotLight angle must be within (0, PI/2]');
+    }
+    if (!Number.isFinite(spot.penumbra) || spot.penumbra < 0 || spot.penumbra > 8) {
+      // Upstream does not clamp penumbra; official examples tween it above 1
+      // (webgl_lights_spotlights: `penumbra: Math.random() + 1`).
+      throw new Error('three.invalid: SpotLight penumbra must be within [0, 8]');
+    }
+    if (!Number.isFinite(spot.distance) || spot.distance < 0 ||
+        !Number.isFinite(spot.decay) || spot.decay < 0) {
+      throw new Error('three.invalid: SpotLight distance/decay must be finite and non-negative');
+    }
+    body.f32(spot.angle);
+    body.f32(spot.penumbra);
+    body.f32(spot.distance);
+    body.f32(spot.decay);
+  }
   return command(OPCODE.LIGHT, body.finish());
 }
 
-export function frameCommand(sceneId, cameraId, background, exposure, fog, shadow = NO_SHADOW, culledNodeIds = [], culledShadowNodeIds = []) {
+export function clippingCommand(id, version, planes) {
+  checkedU32(id, 'clipping id');
+  checkedU32(version, 'clipping version');
+  if (!Array.isArray(planes) || planes.length === 0 || planes.length > 8) {
+    throw new Error('three.invalid: clipping plane count must be within 1..8');
+  }
+  for (const plane of planes) {
+    if (!plane || !Number.isFinite(plane.normalX) || !Number.isFinite(plane.normalY) ||
+        !Number.isFinite(plane.normalZ) || !Number.isFinite(plane.constant)) {
+      throw new Error('three.invalid: clipping plane components must be finite');
+    }
+    const lengthSquared = plane.normalX * plane.normalX + plane.normalY * plane.normalY + plane.normalZ * plane.normalZ;
+    if (lengthSquared <= 0) throw new Error('three.invalid: clipping plane normal must be nonzero');
+  }
+  const body = new ByteWriter(16 + planes.length * 16);
+  body.u32(id);
+  body.u32(version);
+  body.u32(planes.length);
+  for (const plane of planes) {
+    body.f32(plane.normalX);
+    body.f32(plane.normalY);
+    body.f32(plane.normalZ);
+    body.f32(plane.constant);
+  }
+  return command(OPCODE.CLIPPING, body.finish());
+}
+
+export function frameCommand(sceneId, cameraId, background, exposure, fog, shadow = NO_SHADOW, culledNodeIds = [], culledShadowNodeIds = [], shadowLightType = 0) {
   const hasContentRevision = shadow.contentRevision !== undefined;
   const hasOptionalIds = culledNodeIds.length || culledShadowNodeIds.length || hasContentRevision;
   const optionalLength = (hasOptionalIds ? 4 + culledNodeIds.length * 4 : 0) +
     (culledShadowNodeIds.length || hasContentRevision ? 4 + culledShadowNodeIds.length * 4 : 0) +
     (hasContentRevision ? 4 : 0);
-  const body = new ByteWriter(136 + optionalLength);
+  // v3: fixed trailing u32 naming which light owns the shadow map
+  // (0 none, 1 directional, 2 spot) so shading can scope it correctly.
+  const body = new ByteWriter(140 + optionalLength);
   body.u32(sceneId);
   body.u32(cameraId);
   body.f32(background.r);
@@ -300,6 +370,7 @@ export function frameCommand(sceneId, cameraId, background, exposure, fog, shado
   body.f32(shadow.normalBias);
   body.f32(shadow.radius);
   body.floats(shadow.matrix.elements || shadow.matrix);
+  body.u32(shadowLightType);
   if (hasOptionalIds) {
     body.u32(culledNodeIds.length);
     for (const id of culledNodeIds) body.u32(id);

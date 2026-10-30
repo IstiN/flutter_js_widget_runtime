@@ -194,6 +194,22 @@ identity lives in `ThreeUpstreamBundle`, `tool/three/source-pin.json` and
   irradiance to Lambert/Standard/Phong, never Basic/Normal or shadow maps;
   four hemisphere slots are independent of directional/point quotas and
   overflow is diagnosed deterministically.
+- R1 v3 adds SpotLight (type 4: angle/penumbra/distance/decay packed after
+  the direction), perspective SPOT SHADOWS (the vertex shadow override
+  divides xy by `shadowPosition.w`; FRAME names the single shadow owner
+  0/1/2 so the map is applied only to its owning light kind) and CLIPPING:
+  a CLIPPING opcode carries normalized world-space plane sets (1..8), the
+  MATERIAL command gains clipId + intersection/shadows flags, one resolved
+  set lives per material id (version-bumped in place — plane-slider drags
+  must NOT accumulate content-keyed sets), union/intersection discard lives
+  in both the main and shadow fragment shaders, and `clipShadows` gates the
+  shadow-pass discard. Lights UBO is 832 bytes (spot block at 576+), and
+  legacy v1/v2 envelopes stay decodable. Reference module: `webgl_clipping`.
+- The bounded native lil-gui facade supports one-level `addFolder` sections
+  (quota 8/root, programmatic open/close, no tap-to-collapse gesture);
+  controller change/finish callbacks bubble folder → root, and the shared
+  64-controller quota counts folder controllers. Nested folders, options
+  dropdowns, addColor and listen() remain explicit `three.unsupported`.
 - Native large indexed single-material meshes accelerate `Raycaster` with a
   cached BVH (`native_raycast_bvh.js`). It only filters candidates; upstream
   `_computeIntersections` still performs final triangle/UV/normal/material
@@ -233,11 +249,69 @@ uses `dart run bin/jsr_three_example.dart prepare <example-id>`; supported
 ids include `webgl_geometry_minecraft`, `webgl_lines_colors`,
 `webgl_geometry_colors`, `webgl_buffergeometry_uint`,
 `webgl_buffergeometry_indexed`, `webgl_buffergeometry_lines_indexed`,
-`webgl_buffergeometry_points`, `webgl_geometry_terrain_raycast` and
-`webgl_math_orientation_transform`. It preserves exact original/module bytes
-and resolves only the pinned addons/local assets.
-`webgl_buffergeometry_lines` (morph targets) stays excluded until R1 supports
-that feature. The runner accepts
+`webgl_buffergeometry_points`, `webgl_geometry_terrain_raycast`,
+`webgl_math_orientation_transform`, `webgl_clipping`,
+`webgl_clipping_intersection`, `webgl_lights_spotlights`, `webgl_helpers`,
+`webgl_geometry_spline_editor`, `webgl_interactive_points`,
+`webgl_buffergeometry`, `webgl_camera`, `webgl_buffergeometry_lines`,
+`webgl_clipping_advanced`, `webgl_geometry_teapot`,
+`webgl_geometry_extrude_splines`, `webgl_lights_physical`,
+`webgl_lights_spotlight`, `webgl_loader_ply`, `webgl_loader_stl`,
+`webgl_materials_bumpmap`, `webgl_materials_modified`,
+`webgl_materials_displacementmap`, `webgl_materials_texture_canvas`,
+`webgl_materials_texture_partialupdate`,
+`webgl_materials_texture_rotation` and `webgl_points_billboards`, plus
+wave-2: `webgl_loader_xyz`, `webgl_geometry_text_shapes`,
+`webgl_geometry_convex`, `webgl_geometry_cube`,
+`webgl_instancing_performance`, `webgl_geometry_shapes`, `webgl_sprites`,
+`webgl_raycaster_sprite`, `webgl_materials_texture_filters`,
+`webgl_materials_texture_anisotropy`, `webgl_shadowmap_pointlight`,
+`webgl_camera_logarithmicdepthbuffer`, `webgl_materials_cubemap_refraction`
+and `webgl_raycaster_texture`. It
+preserves exact original/module bytes
+and resolves only the pinned addons/local assets (raw model payloads like
+PLY/OBJ ride the `application/octet-stream` asset lane; asset entries need
+an `output` filename).
+Documented 1B-only gaps (prepared, regression-pinned, excluded from the
+sample sidebar): `webgl_lights_hemisphere` and `webgl_interactive_points`
+(ShaderMaterial), `webgl_buffergeometry_lines` (morph targets),
+`webgl_geometry_teapot` (unshimmed CubeTextureLoader → OffscreenCanvas,
+plus envMap slot), `webgl_lights_physical` (ReinhardToneMapping — R1 is
+NoToneMapping-only — plus bump/metalness map slots and anisotropy),
+`webgl_points_billboards` (FogExp2 — R1 supports linear THREE.Fog only),
+`webgl_materials_bumpmap` / `webgl_materials_displacementmap`
+(materialTexture slots beyond `map`), `webgl_materials_modified`
+(onBeforeCompile), `webgl_materials_texture_rotation` (textureTransform —
+R1 v1 has no UV transform fields), `webgl_materials_texture_canvas`
+(HTML-only `<canvas>` element outside the prepared document facade).
+`webgl_materials_texture_partialupdate` renders but pins the missing
+`copyTextureToTexture` API. Wave-2 gaps: `webgl_geometry_shapes`
+(textureTransform), `webgl_sprites` / `webgl_raycaster_sprite` (Sprite
+objectType; the sprite raycast pointer path itself works on `three.input`),
+`webgl_materials_texture_filters` (textureTransform repeat +
+`Texture.clone()` canvas2d source), `webgl_materials_texture_anisotropy`
+(textureTransform), `webgl_shadowmap_pointlight` (Phong alphaMap slot;
+point-light shadows are silently dropped — R1 scans directional+spot
+only), `webgl_camera_logarithmicdepthbuffer` (facade lacks
+`#renderer_border`; with a stub the flag is silently ignored and the
+second renderer trips the one-active-renderer guard),
+`webgl_materials_cubemap_refraction` (OffscreenCanvas img guard + envMap;
+Park3Med jpgs not registered), `webgl_raycaster_texture` (OffscreenCanvas
+img decode + canvas2d clearRect/path ops unbounded), and
+`webgl_instancing_performance` (stock: lil-gui object-map options add +
+missing `console.time`; probe-shimmed it renders one instanced draw,
+live-switches 1000↔10000 via dropdown, NAIVE fans out per-instance
+draws). R1 clipping planes carry three.js Plane constants and the GPU
+binding NEGATES the constant (`discard where dot(n,p) < -constant`) —
+pinned by the draw-plan uniform test and the spot-clipping golden. The lil-gui facade supports boolean/number/
+function/options controllers, chained `.step()/.min()/.max()`,
+`listen()` pass-through and `new GUI({width})`. After ANY `tool/three/src/**` change,
+rebuild `assets/three/three.native.js` (`node tool/three/build.mjs`) and
+re-prepare every example — the facade is baked into each widget.js and
+prepare manifests pin its inputs. Late RAF/timer/promise callback JS
+exceptions surface as widget error cards
+(`_reportAsyncError` in the QuickJS backend) — never swallow them back to
+silent. The runner accepts
 `--dart-define=JSR_THREE_EXAMPLE=<example-id>` for automated native/Web
 smokes; native compatibility still has to pass the actual R1 gates.
 

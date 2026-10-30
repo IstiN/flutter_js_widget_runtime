@@ -1,4 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
+import 'package:js_widget_runtime/src/renderer/nodes/three/three_draw_plan.dart';
 
 import 'support/three_quickjs_example_harness.dart';
 import 'support/widget_logic_helper.dart';
@@ -11,6 +12,23 @@ const _examples = <(String, String, bool)>[
   ),
   ('three-interactive-cubes', 'webgl_interactive_cubes', false),
   ('three-interactive-cubes-ortho', 'webgl_interactive_cubes_ortho', false),
+  ('three-interactive-lines', 'webgl_interactive_lines', false),
+  (
+    'three-interactive-buffergeometry',
+    'webgl_interactive_buffergeometry',
+    false,
+  ),
+  ('three-clipping', 'webgl_clipping', false),
+  (
+    'three-clipping-intersection',
+    'webgl_clipping_intersection',
+    false,
+  ),
+  ('three-lights-spotlights', 'webgl_lights_spotlights', false),
+  ('three-helpers', 'webgl_helpers', false),
+  ('three-geometry-spline-editor', 'webgl_geometry_spline_editor', false),
+  ('three-instancing-raycast', 'webgl_instancing_raycast', false),
+  ('three-extrude-shapes', 'webgl_geometry_extrude_shapes', false),
   ('three-math-obb', 'webgl_math_obb', false),
   (
     'three-buffergeometry-points-interleaved',
@@ -19,6 +37,30 @@ const _examples = <(String, String, bool)>[
   ),
   ('three-interactive-voxelpainter', 'webgl_interactive_voxelpainter', false),
   ('three-panorama-equirectangular', 'webgl_panorama_equirectangular', true),
+  ('three-buffergeometry', 'webgl_buffergeometry', false),
+  ('three-camera', 'webgl_camera', false),
+  (
+    'three-buffergeometry-lines-indexed',
+    'webgl_buffergeometry_lines_indexed',
+    false,
+  ),
+  ('three-clipping-advanced', 'webgl_clipping_advanced', false),
+  ('three-geometry-extrude-splines', 'webgl_geometry_extrude_splines', false),
+  ('three-loader-ply', 'webgl_loader_ply', false),
+  ('three-loader-stl', 'webgl_loader_stl', false),
+  // Wave-2 additions: only modules that boot AND render stock (no probe
+  // shims) join this suite — its gate requires non-empty draw plans. The
+  // documented-gap wave-2 modules (sprites, raycaster-sprite, raycaster-
+  // texture, texture-filters, texture-anisotropy, shadowmap-pointlight,
+  // camera-logarithmicdepthbuffer, cubemap-refraction, geometry-shapes,
+  // instancing-performance) carry their own dedicated tests.
+  ('three-loader-xyz', 'webgl_loader_xyz', false),
+  ('three-geometry-text-shapes', 'webgl_geometry_text_shapes', false),
+  ('three-geometry-convex', 'webgl_geometry_convex', false),
+  // Stock boot of geometry-cube is the untextured white box (the gif
+  // texture lane needs the fetch→resolveAsset shim lane covered by its
+  // dedicated test), so no texture gate here.
+  ('three-geometry-cube', 'webgl_geometry_cube', false),
 ];
 
 void main() {
@@ -64,6 +106,19 @@ void main() {
       expect(state.submittedFrameCount, greaterThanOrEqualTo(1));
       expect(state.pendingFrameCount, lessThanOrEqualTo(2));
       expect(harness.plan!.draws, isNotEmpty);
+      if (exampleId == 'webgl_interactive_cubes_ortho') {
+        final nativePlan = const ThreeDrawPlanner(
+          autoInstance: true,
+        ).plan(state);
+        expect(nativePlan.drawCallCount, lessThanOrEqualTo(3));
+        expect(
+          nativePlan.draws.fold<int>(
+            0,
+            (total, draw) => total + draw.instanceCount,
+          ),
+          2000,
+        );
+      }
       await harness.dispose(tester);
     }, timeout: const Timeout(Duration(seconds: 120)));
   }

@@ -9,7 +9,7 @@ import { unsupported, requireFinite } from './errors.js';
 import { getThreeRuntime } from './runtime.js';
 import { isNativeCanvas2D } from './native_canvas2d.js';
 import {
-  OPCODE, NO_SHADOW, cameraCommand, command, disposeResourceCommand, disposeSurfaceCommand,
+  OPCODE, NO_SHADOW, cameraCommand, clippingCommand, command, disposeResourceCommand, disposeSurfaceCommand,
   drawBatchCommand, encodeEnvelope, frameCommand, geometryCommand, lightCommand,
   materialCommand, nodeCommand, removeBatchCommand, removeNodeCommand, resourceId,
   textureCommand
@@ -181,6 +181,7 @@ function materialKind(material) {
   if (material.isPointsMaterial) return 4;
   if (material.isMeshPhongMaterial) return 5;
   if (material.isMeshNormalMaterial) return 6;
+  if (material.isShadowMaterial) return 7;
   unsupported('material', material.type || 'unknown material');
 }
 
@@ -195,7 +196,6 @@ function validateMaterial(material) {
   if (material.wireframe && (material.wireframeLinewidth !== 1 || material.wireframeLinecap !== 'round' || material.wireframeLinejoin !== 'round')) unsupported('wireframeStyle', 'R1 supports one-pixel round wireframe lines');
   if (material.blending !== NormalBlending) unsupported('materialBlending');
   if (material.alphaHash || material.premultipliedAlpha || material.colorWrite === false || material.stencilWrite || material.polygonOffset) unsupported('materialState', 'alphaHash/premultipliedAlpha/colorWrite/stencil/polygonOffset');
-  if (material.clippingPlanes && material.clippingPlanes.length) unsupported('clippingPlanes');
   if (Object.prototype.hasOwnProperty.call(material, 'onBeforeCompile')) unsupported('onBeforeCompile', 'arbitrary shaders require 1B');
   const maps = ['alphaMap', 'aoMap', 'bumpMap', 'displacementMap', 'emissiveMap', 'envMap', 'lightMap', 'metalnessMap', 'normalMap', 'roughnessMap', 'specularMap', 'clearcoatMap', 'transmissionMap'];
   for (const name of maps) if (material[name]) unsupported('materialTexture', `${material.type}.${name}`);
@@ -227,7 +227,7 @@ export class JsrWebGLRenderer {
       rawWebGL: false,
       isWebGL2: false,
       backend: 'flutterGpu',
-      features: Object.freeze({ geometry: true, textures: true, lambert: true, standard: true, phong: true, normal: true, emissive: true, hemisphereLight: true, wireframe: true, rawWebGL: false, shaderMaterial: false })
+      features: Object.freeze({ geometry: true, textures: true, lambert: true, standard: true, phong: true, normal: true, emissive: true, hemisphereLight: true, spotLight: true, clipping: true, wireframe: true, rawWebGL: false, shaderMaterial: false })
     });
     this.outputColorSpace = SRGBColorSpace;
     this.toneMapping = NoToneMapping;
@@ -262,6 +262,9 @@ export class JsrWebGLRenderer {
     this._pendingDisposals = [];
     this._resources = new Map();
     this._geometryModes = new Map();
+    this._geometryResourceKeys = new Map();
+    this._geometryResourceOwners = new Map();
+    this._nextGeometryAlias = 0x80000000;
     this._canvasTextures = new Map();
     this._canvasRefreshHandle = null;
     this._lastScene = null;
@@ -269,7 +272,8 @@ export class JsrWebGLRenderer {
     this._state = canvas._r1State || (canvas._r1State = {
       sequence: 0,
       geometries: new Map(), textures: new Map(), materials: new Map(),
-      nodes: new Map(), batches: new Map(), lights: new Map(), cameras: new Map()
+      nodes: new Map(), batches: new Map(), lights: new Map(), cameras: new Map(),
+      clippings: new Map()
     });
   }
 
@@ -354,22 +358,58 @@ export class JsrWebGLRenderer {
     return map.delete(id);
   }
 
+  _geometryResourceId(geometry, primitive, mode) {
+    const baseId = resourceId(geometry);
+    const key = `${baseId}:${primitive}:${mode}`;
+    const cached = this._geometryResourceKeys.get(key);
+    if (cached !== undefined) return cached;
+    let id = baseId;
+    if (this._geometryResourceOwners.has(id)) {
+      const first = this._nextGeometryAlias;
+      do {
+        id = this._nextGeometryAlias;
+        this._nextGeometryAlias = id === 0xfffffffe ? 0x80000000 : id + 1;
+        if (this._nextGeometryAlias === first) throw new Error('three.invalid: geometry resource aliases exhausted');
+      } while (this._geometryResourceOwners.has(id));
+    }
+    this._geometryResourceKeys.set(key, id);
+    this._geometryResourceOwners.set(id, key);
+    return id;
+  }
+
+  _releaseGeometryResource(id) {
+    const key = this._geometryResourceOwners.get(id);
+    if (key === undefined) return;
+    this._geometryResourceOwners.delete(id);
+    this._geometryResourceKeys.delete(key);
+  }
+
   _listen(resource, type, map, id) {
-    if (!resource || !resource.addEventListener || this._resources.has(resource)) return;
+    if (!resource || !resource.addEventListener) return;
+    const previous = this._resources.get(resource);
+    if (previous) {
+      if (type === 'geometries' && !previous.ids.includes(id)) previous.ids.push(id);
+      return;
+    }
     const kinds = { geometries: RESOURCE_KIND.geometry, textures: RESOURCE_KIND.texture, materials: RESOURCE_KIND.material, nodes: RESOURCE_KIND.node };
-    const listener = () => {
+    const item = { type, id, ids: [id], listener: null };
+    item.listener = () => {
       this._unlisten(resource);
       if (type === 'textures') this._unwatchCanvasTexture(resource);
-      if (type === 'geometries') this._mapDelete(this._geometryModes, id);
-      if (this._state[type].has(id)) {
-        this._mapDelete(this._state[type], id);
-        const item = { id, kind: kinds[type] };
-        if (type === 'nodes' && this._mapDelete(this._state.batches, id)) item.batch = true;
-        this._pendingDisposals.push(item);
+      for (const resourceId of item.ids) {
+        if (type === 'geometries') {
+          this._releaseGeometryResource(resourceId);
+          this._mapDelete(this._geometryModes, resourceId);
+        }
+        if (!this._state[type].has(resourceId)) continue;
+        this._mapDelete(this._state[type], resourceId);
+        const disposal = { id: resourceId, kind: kinds[type] };
+        if (type === 'nodes' && this._mapDelete(this._state.batches, resourceId)) disposal.batch = true;
+        this._pendingDisposals.push(disposal);
       }
     };
-    resource.addEventListener('dispose', listener);
-    this._resources.set(resource, { type, id, listener });
+    resource.addEventListener('dispose', item.listener);
+    this._resources.set(resource, item);
     if (this._transactionListens) this._transactionListens.push(resource);
   }
 
@@ -536,18 +576,62 @@ export class JsrWebGLRenderer {
       if (!Number.isFinite(emissiveIntensity) || emissiveIntensity < 0) throw new Error('three.invalid: material emissiveIntensity must be finite and nonnegative');
     }
     const side = sideValue(material.side);
-    const flags = (material.vertexColors ? 1 : 0) | (material.flatShading ? 2 : 0) | (material.transparent ? 4 : 0) | (material.depthTest ? 8 : 0) | (material.depthWrite ? 16 : 0) | (material.wireframe ? 32 : 0);
+    const flags = (material.vertexColors ? 1 : 0) | (material.flatShading ? 2 : 0) | (material.transparent ? 4 : 0) | (material.depthTest ? 8 : 0) | (material.depthWrite ? 16 : 0) | (material.wireframe ? 32 : 0) | (material.sizeAttenuation === false ? 64 : 0);
+    const clip = this._resolveClipping(material, commands);
     const signature = [kind, mapId, material.map ? this._state.textures.get(resourceId(material.map))?.version || 0 : 0,
       flags, side, color.r, color.g, color.b, opacity, roughness, metalness, alphaTest, pointSize,
       specular ? specular.r : 0, specular ? specular.g : 0, specular ? specular.b : 0, shininess,
-      emissive ? emissive.r : 0, emissive ? emissive.g : 0, emissive ? emissive.b : 0, emissiveIntensity, material.version].join('|');
+      emissive ? emissive.r : 0, emissive ? emissive.g : 0, emissive ? emissive.b : 0, emissiveIntensity, material.version,
+      clip.signature, clip.flags].join('|');
     const changed = this._nextVersion(this._state.materials, id, signature);
     if (changed) {
-      commands.push(materialCommand(id, changed.version, kind, mapId, flags, side, color, opacity, roughness, metalness, alphaTest, pointSize, specular, shininess, emissive, emissiveIntensity));
+      commands.push(materialCommand(id, changed.version, kind, mapId, flags, side, color, opacity, roughness, metalness, alphaTest, pointSize, specular, shininess, emissive, emissiveIntensity, clip.id, clip.flags));
       this._mapSet(this._state.materials, id, { signature, version: changed.version, object: material });
     }
     this._frameMaterials.set(id, id);
     return id;
+  }
+
+  _resolveClipping(material, commands) {
+    const localPlanes = this.localClippingEnabled && Array.isArray(material.clippingPlanes)
+      ? material.clippingPlanes
+      : null;
+    const planes = [];
+    if (this.clippingPlanes.length) planes.push(...this.clippingPlanes);
+    if (localPlanes) planes.push(...localPlanes);
+    if (!planes.length) return { id: 0, flags: 0, signature: 'none' };
+    if (planes.length > 8) unsupported('clippingPlanes', 'R1 supports at most 8 clipping planes');
+    const normalized = planes.map(plane => {
+      if (!plane || plane.isPlane !== true) {
+        throw new Error('three.invalid: clipping planes must be THREE.Plane instances');
+      }
+      const length = Math.hypot(plane.normal.x, plane.normal.y, plane.normal.z);
+      if (!Number.isFinite(length) || length <= 0) {
+        throw new Error('three.invalid: clipping plane normal must be finite and nonzero');
+      }
+      if (!Number.isFinite(plane.constant)) {
+        throw new Error('three.invalid: clipping plane constant must be finite');
+      }
+      return {
+        normalX: plane.normal.x / length,
+        normalY: plane.normal.y / length,
+        normalZ: plane.normal.z / length,
+        constant: plane.constant / length
+      };
+    });
+    const signature = normalized.map(plane =>
+      `${plane.normalX}:${plane.normalY}:${plane.normalZ}:${plane.constant}`).join('|');
+    // One in-place set per material (clipping ids share the material's id but
+    // live in the CLIPPING command namespace): GUI plane drags bump the
+    // version instead of accumulating content-keyed sets forever.
+    const id = resourceId(material);
+    const changed = this._nextVersion(this._state.clippings, id, signature);
+    if (changed) {
+      commands.push(clippingCommand(id, changed.version, normalized));
+      this._mapSet(this._state.clippings, id, { signature, version: changed.version });
+    }
+    const flags = (material.clipIntersection ? 1 : 0) | (material.clipShadows ? 2 : 0);
+    return { id, flags, signature };
   }
 
   _ensureGeometry(geometry, primitive, mode, commands, wireframe = false) {
@@ -559,15 +643,13 @@ export class JsrWebGLRenderer {
     if (!position) throw new Error('three.invalid: position attribute is required');
     const vertexCount = position.count;
     if (!Number.isInteger(vertexCount) || vertexCount <= 0 || vertexCount > 4000000) throw new Error('three.invalid: vertexCount');
-    const id = resourceId(geometry);
-    const oldMode = this._geometryModes.get(id);
-    if (oldMode && (oldMode.primitive !== primitive || oldMode.mode !== mode)) unsupported('sharedGeometryPrimitive', 'one geometry cannot be used with multiple R1 primitive modes on a surface');
+    const id = this._geometryResourceId(geometry, primitive, mode);
     const old = this._state.geometries.get(id);
     const includeWire = primitive === 0 && (wireframe || (old && old.hasWireIndices));
     const frameCached = this._frameGeometries.get(id);
     if (frameCached && (!wireframe || frameCached.hasWireIndices)) return frameCached;
-    this._mapSet(this._geometryModes, id, { primitive, mode });
     this._listen(geometry, 'geometries', this._state.geometries, id);
+    this._mapSet(this._geometryModes, id, { primitive, mode });
     const signature = `${geometrySignature(geometry, primitive, mode)};wire:${includeWire ? 1 : 0}`;
     const changed = this._nextVersion(this._state.geometries, id, signature);
     if (!changed) {
@@ -635,7 +717,6 @@ export class JsrWebGLRenderer {
   }
 
   _instanceData(object, materials) {
-    if (object.instanceColor) unsupported('instanceColor', 'R1 instancing supports matrices only');
     for (const material of materials) {
       if (material.transparent) unsupported('transparentInstancedMesh', 'R1 instanced draws must be opaque');
     }
@@ -649,9 +730,30 @@ export class JsrWebGLRenderer {
     if (!Number.isInteger(attribute.count) || attribute.count < 0 || count > attribute.count) throw new Error('three.invalid: InstancedMesh.count exceeds instanceMatrix capacity');
     const valueCount = count * 16;
     if (valueCount > array.length) throw new Error('three.invalid: instanceMatrix payload is outside its array bounds');
+    let colors = null;
+    let colorCount = 0;
+    let colorAttribute = null;
+    if (object.instanceColor) {
+      colorAttribute = object.instanceColor;
+      if (!colorAttribute || !colorAttribute.isInstancedBufferAttribute || colorAttribute.isGLBufferAttribute || colorAttribute.itemSize !== 3) {
+        throw new Error('three.invalid: instanceColor must be a 3-component InstancedBufferAttribute');
+      }
+      if (!colorAttribute.array || !ArrayBuffer.isView(colorAttribute.array)) throw new Error('three.invalid: instanceColor array');
+      if (!Number.isInteger(colorAttribute.count) || count > colorAttribute.count) {
+        throw new Error('three.invalid: InstancedMesh.count exceeds instanceColor capacity');
+      }
+      colorCount = count * 3;
+      if (colorCount > colorAttribute.array.length) {
+        throw new Error('three.invalid: instanceColor payload is outside its array bounds');
+      }
+      colors = colorAttribute.array;
+    }
     return {
-      count, array, valueCount,
-      signature: [attribute.version, token(attribute), token(array), attribute.count].join(':')
+      count, array, valueCount, colors, colorCount,
+      signature: [
+        attribute.version, token(attribute), token(array), attribute.count,
+        colors ? `${colorAttribute.version}:${token(colors)}:${colorAttribute.count}` : 'nocolor'
+      ].join(':')
     };
   }
 
@@ -662,15 +764,13 @@ export class JsrWebGLRenderer {
     const groups = object.geometry.groups;
     if (!groups || groups.length === 0) unsupported('multiMaterialGroups', 'material arrays require BufferGeometry.groups');
     if (groups.length > MAX_BATCH_PARTS) throw new Error(`three.invalid: batch partCount exceeds ${MAX_BATCH_PARTS}`);
-    if (!object.geometry.index && (groups.length !== 1 || groups[0].start !== 0 || groups[0].count !== geometry.sourceCount)) {
-      unsupported('nonIndexedGroups', 'R1 supports only one full-geometry group for non-indexed material arrays');
-    }
     const rangeEnd = geometry.rangeStart + geometry.rangeCount;
     const parts = [];
     for (const group of groups) {
       if (!group || !Number.isInteger(group.start) || group.start < 0 || !Number.isInteger(group.count) || group.count < 0) throw new Error('three.invalid: geometry group start/count');
       if (!Number.isInteger(group.materialIndex) || group.materialIndex < 0 || group.materialIndex >= materials.length) throw new Error('three.invalid: geometry group materialIndex');
       if (group.start > geometry.sourceCount || group.count > geometry.sourceCount - group.start) throw new Error('three.invalid: geometry group is outside geometry bounds');
+      if (group.start % 3 !== 0) throw new Error('three.invalid: triangle group start is not aligned');
       if (group.count % 3 !== 0) throw new Error('three.invalid: triangle group count is not aligned');
       const groupEnd = group.start + group.count;
       const start = Math.min(rangeEnd, Math.max(geometry.rangeStart, group.start));
@@ -696,6 +796,7 @@ export class JsrWebGLRenderer {
     if (simpleInstanced) {
       simpleMaterialId = this._ensureMaterial(materials[0], commands);
       const attribute = object.instanceMatrix;
+      const colorAttribute = object.instanceColor || null;
       const geometryState = this._state.geometries.get(geometry.id);
       const materialState = this._state.materials.get(simpleMaterialId);
       if (previous && previous.simpleInstanced && previous.object === object &&
@@ -703,6 +804,10 @@ export class JsrWebGLRenderer {
           previous.material === materials[0] && previous.materialVersion === materialState.version &&
           previous.instanceMatrix === attribute && previous.instanceVersion === attribute.version &&
           previous.instanceAttributeCount === attribute.count && previous.instanceArray === attribute.array &&
+          previous.instanceColor === colorAttribute &&
+          previous.instanceColorVersion === (colorAttribute ? colorAttribute.version : 0) &&
+          previous.instanceColorArray === (colorAttribute ? colorAttribute.array : null) &&
+          previous.instanceColorCapacity === (colorAttribute ? colorAttribute.count : 0) &&
           previous.instanceCount === object.count && previous.parts.length === 1 &&
           previous.parts[0].geometryId === geometry.id && previous.parts[0].materialId === simpleMaterialId &&
           previous.parts[0].offset === 0 && previous.parts[0].count === geometry.drawCount) {
@@ -719,9 +824,16 @@ export class JsrWebGLRenderer {
     if (changed) {
       if (instance) {
         for (let i = 0; i < instance.valueCount; i++) requireFinite(instance.array[i], 'instanceMatrix');
+        if (instance.colors) {
+          for (let i = 0; i < instance.colorCount; i++) requireFinite(instance.colors[i], 'instanceColor');
+        }
       }
       const count = instance ? instance.count : 1;
-      commands.push(drawBatchCommand(id, changed.version, count, instance ? 1 : 0, parts, instance ? instance.array : null));
+      commands.push(drawBatchCommand(
+        id, changed.version, count,
+        instance ? (instance.colors ? 3 : 1) : 0,
+        parts, instance ? instance.array : null, instance ? instance.colors : null
+      ));
       this._mapSet(this._state.batches, id, {
         signature, version: changed.version, object, parts, simpleInstanced,
         geometry: object.geometry, geometryVersion: this._state.geometries.get(geometry.id).version,
@@ -731,6 +843,10 @@ export class JsrWebGLRenderer {
         instanceVersion: instance ? object.instanceMatrix.version : 0,
         instanceAttributeCount: instance ? object.instanceMatrix.count : 0,
         instanceArray: instance ? instance.array : null,
+        instanceColor: instance ? (object.instanceColor || null) : null,
+        instanceColorVersion: instance && object.instanceColor ? object.instanceColor.version : 0,
+        instanceColorArray: instance && object.instanceColor ? object.instanceColor.array : null,
+        instanceColorCapacity: instance && object.instanceColor ? object.instanceColor.count : 0,
         instanceCount: instance ? instance.count : 0
       });
     }
@@ -805,11 +921,12 @@ export class JsrWebGLRenderer {
     else if (light.isDirectionalLight) type = 1;
     else if (light.isPointLight) type = 2;
     else if (light.isHemisphereLight) type = 3;
+    else if (light.isSpotLight) type = 4;
     else unsupported('light', light.type);
     const id = resourceId(light);
     light.getWorldPosition(_position);
     _direction.set(0, 0, 0);
-    if (light.isDirectionalLight) {
+    if (light.isDirectionalLight || light.isSpotLight) {
       light.target.updateMatrixWorld(true);
       _target.setFromMatrixPosition(light.target.matrixWorld);
       _direction.copy(_position).sub(_target).normalize();
@@ -819,16 +936,20 @@ export class JsrWebGLRenderer {
       _direction.copy(_position).normalize();
     }
     const groundColor = light.isHemisphereLight ? light.groundColor : null;
+    const spot = light.isSpotLight
+      ? { angle: light.angle, penumbra: light.penumbra, distance: light.distance, decay: light.decay }
+      : null;
     const signature = [type, light.color.r, light.color.g, light.color.b, light.intensity,
       _position.x, _position.y, _position.z, _direction.x, _direction.y, _direction.z,
       groundColor ? groundColor.r : 0, groundColor ? groundColor.g : 0,
-      groundColor ? groundColor.b : 0].join('|');
+      groundColor ? groundColor.b : 0,
+      spot ? spot.angle : 0, spot ? spot.penumbra : 0, spot ? spot.distance : 0, spot ? spot.decay : 0].join('|');
     const old = this._state.lights.get(id);
     if (!old || old.signature !== signature) {
       if (!Number.isFinite(light.intensity) || light.intensity < 0) throw new Error('three.invalid: light intensity');
       finiteArray([light.color.r, light.color.g, light.color.b, _position.x, _position.y, _position.z, _direction.x, _direction.y, _direction.z], 'light');
       if (groundColor) finiteArray([groundColor.r, groundColor.g, groundColor.b], 'light groundColor');
-      commands.push(lightCommand(id, type, light.color, light.intensity, _position, _direction, groundColor));
+      commands.push(lightCommand(id, type, light.color, light.intensity, _position, _direction, groundColor, spot));
       this._mapSet(this._state.lights, id, { signature, object: light });
     }
     return id;
@@ -941,8 +1062,9 @@ export class JsrWebGLRenderer {
     if (this.outputColorSpace !== SRGBColorSpace) unsupported('outputColorSpace', 'native R1 requires SRGBColorSpace');
     if (this.toneMapping !== NoToneMapping) unsupported('toneMapping', 'native R1 requires NoToneMapping');
     if (this.xr.enabled) unsupported('xr');
-    if (this.localClippingEnabled || this.clippingPlanes.length) unsupported('clippingPlanes');
     if (scene.environment || scene.overrideMaterial) unsupported('sceneFeature', 'environment/overrideMaterial are outside R1 v1');
+    if (!Array.isArray(this.clippingPlanes)) throw new Error('three.invalid: renderer.clippingPlanes must be an array');
+    if (this.clippingPlanes.length > 8) unsupported('clippingPlanes', 'R1 supports at most 8 clipping planes');
     if (!camera || (!camera.isPerspectiveCamera && !camera.isOrthographicCamera)) unsupported('camera', 'R1 supports perspective and orthographic cameras');
     if (scene.matrixWorldAutoUpdate === true) scene.updateMatrixWorld();
     if (camera.parent === null && camera.matrixWorldAutoUpdate === true) {
@@ -978,7 +1100,8 @@ export class JsrWebGLRenderer {
       drawVisibility.set(object, visibleHere);
       if (object.isLight) {
         if (object.visible) seenLights.add(this._ensureLight(object, commands));
-        if (!shadowLight && object.isDirectionalLight && object.visible && object.castShadow) {
+        if (!shadowLight && object.visible && object.castShadow &&
+            (object.isDirectionalLight || object.isSpotLight)) {
           shadowLight = object;
         }
         parents.set(object, parents.get(object.parent) || 0);
@@ -1047,7 +1170,10 @@ export class JsrWebGLRenderer {
     }
     if (!Number.isFinite(this.toneMappingExposure) || this.toneMappingExposure <= 0) throw new Error('three.invalid: exposure must be positive finite');
     finiteArray([background.r, background.g, background.b, background.a], 'background');
-    commands.push(frameCommand(resourceId(scene), cameraId, background, this.toneMappingExposure, fog, shadow, culledNodeIds, culledShadowNodeIds));
+    const shadowLightType = shadow === NO_SHADOW || !shadowLight
+      ? 0
+      : shadowLight.isSpotLight ? 2 : 1;
+    commands.push(frameCommand(resourceId(scene), cameraId, background, this.toneMappingExposure, fog, shadow, culledNodeIds, culledShadowNodeIds, shadowLightType));
     this._emit(commands);
     this._lastScene = scene;
     this._lastCamera = camera;

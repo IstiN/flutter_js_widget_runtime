@@ -143,6 +143,22 @@ function append(parent, child) {
   return child;
 }
 
+function appendMainCanvas(parent, child) {
+  if (child !== canvas) throw new Error(`${WIDGET_ID}: exactly one main canvas is supported`);
+  append(parent, child);
+  renderer = child.renderer || renderer;
+  if (!mounted) {
+    mounted = true;
+    // Controls overlays (lil-gui) may already have rendered a full stack; a
+    // bare canvas render here would wipe them. Prefer the overlay rerender.
+    const rerenderOverlays = JSR.three._guiRerender;
+    if (typeof rerenderOverlays === 'function' && rerenderOverlays()) return;
+    JSR.render({ type: 'three', canvasId: 'main' });
+  }
+  publishDiagnostics();
+  return child;
+}
+
 function localElement(tagName) {
   const element = eventTarget({
     __jsrThreeExampleLocal: true,
@@ -152,6 +168,9 @@ function localElement(tagName) {
     parentNode: null
   });
   element.appendChild = function(child) {
+    if (child && child.isJsrThreeCanvas && this.tagName === 'DIV') {
+      return appendMainCanvas(this, child);
+    }
     if (!child || !child.__jsrThreeExampleLocal) throw new Error(`${WIDGET_ID}: only local diagnostic children are supported`);
     return append(this, child);
   };
@@ -243,15 +262,7 @@ const container = localElement('div');
 container.id = 'container';
 container.appendChild = function(child) {
   if (child && child.isJsrThreeCanvas) {
-    if (child !== canvas) throw new Error(`${WIDGET_ID}: exactly one main canvas is supported`);
-    append(this, child);
-    renderer = child.renderer || renderer;
-    if (!mounted) {
-      mounted = true;
-      JSR.render({ type: 'three', canvasId: 'main' });
-    }
-    publishDiagnostics();
-    return child;
+    return appendMainCanvas(this, child);
   }
   if (!child || !child.__jsrThreeExampleLocal) {
     throw new Error(`${WIDGET_ID}: container accepts only the main canvas and local stats DOM`);
@@ -267,9 +278,15 @@ runtimeDocument.body = body;
 
 const info = localElement('div');
 info.id = 'info';
+// Inline shader sources the official HTML carried in id'd script blocks
+// (`<script id="vertexShader" type="x-shader/x-vertex">…</script>`).
+const INLINE_SCRIPTS = JSON.parse(__JSR_THREE_EXAMPLE_SCRIPTS_JSON__);
 runtimeDocument.getElementById = function(id) {
   if (id === 'container') return container;
   if (id === 'info') return info;
+  if (Object.prototype.hasOwnProperty.call(INLINE_SCRIPTS, id)) {
+    return { id: id, textContent: INLINE_SCRIPTS[id] };
+  }
   return null;
 };
 

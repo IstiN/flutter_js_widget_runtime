@@ -165,6 +165,20 @@ class JsrThreeDocument {
       get devicePixelRatio() { return runtime.pixelRatio; },
       get innerWidth() { return runtime.width; },
       get innerHeight() { return runtime.height; },
+      // Inert browser location: upstream modules read `location.search`
+      // (empty means official defaults) and some assign href/reload on
+      // navigation; without this shim those accesses throw on the runtime
+      // document's bare default view.
+      location: {
+        search: '',
+        hash: '',
+        href: 'jsr://three/',
+        origin: 'null',
+        pathname: '/',
+        assign() {},
+        replace() {},
+        reload() {}
+      },
       addEventListener: (type, fn, options) => this.addEventListener(type, fn, options),
       removeEventListener: (type, fn, options) => this.removeEventListener(type, fn, options),
       requestAnimationFrame: fn => runtime.requestAnimationFrame(fn),

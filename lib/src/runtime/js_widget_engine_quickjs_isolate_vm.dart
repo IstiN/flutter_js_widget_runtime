@@ -450,10 +450,13 @@ final class _QuickJsWorker {
     final runtime = QuickjsRuntime();
     _runtime = runtime;
     runtime.registerHostFunction('sendMessage', _sendMessage);
-    final nativeBytes = runtime.registerHostBytesFn(
-      '__jsrSendBytes',
-      _sendBytes,
-    );
+    // The NATIVE bytes lane stays DISABLED in the persistent worker: under
+    // sustained per-frame R1 traffic it races the concurrent marker and
+    // corrupts the worker isolate's heap (SIGBUS in MarkingVisitor via
+    // TransferableTypedData::New, macOS crash report EF53476B). The
+    // bootstrap detects a missing __JSR_RAW_BINARY__ and falls back to the
+    // b64 JSON lane — slower per frame, but safe.
+    const nativeBytes = false;
     runtime.setGlobal('__IID', raw['instanceId']);
     runtime.setGlobal('__JSR_RAW_BINARY__', nativeBytes);
     _mainPort.send({
@@ -487,16 +490,6 @@ ${raw['widget']}
       'payload': args[1],
     });
     return null;
-  }
-
-  void _sendBytes(String name, Uint8List data) {
-    final owned = Uint8List.fromList(data);
-    _mainPort.send({
-      'type': 'binary',
-      'generation': _generation,
-      'name': name,
-      'bytes': TransferableTypedData.fromList([owned]),
-    });
   }
 
   void _handleEvent(Map<dynamic, dynamic> raw) {

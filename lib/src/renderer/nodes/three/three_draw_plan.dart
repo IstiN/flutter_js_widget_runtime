@@ -27,6 +27,7 @@ final class ThreeDrawItem {
     this.batch,
     this.batchPartIndex = 0,
     this.culledFromMain = false,
+    this.autoInstanceDraws = const [],
   }) : _drawCount = drawCount;
 
   final JsThreeNodeUpsert node;
@@ -43,6 +44,10 @@ final class ThreeDrawItem {
   final JsThreeDrawBatchUpsert? batch;
   final int batchPartIndex;
   final bool culledFromMain;
+
+  /// Original draws replaced by this backend-local instance submission.
+  /// Empty for ordinary and explicitly instanced draws.
+  final List<ThreeDrawItem> autoInstanceDraws;
   final int? _drawCount;
 
   int get drawCount =>
@@ -54,7 +59,8 @@ final class ThreeDrawItem {
           : geometry.indexCount);
   bool get indexed =>
       wireframe ? geometry.wireIndexCount != 0 : geometry.indexCount != 0;
-  bool get instanced => batch?.instanced ?? false;
+  bool get autoInstanced => autoInstanceDraws.isNotEmpty;
+  bool get instanced => autoInstanced || (batch?.instanced ?? false);
   bool get transparent => material.transparent;
   bool get wireframe => material.wireframe;
 }
@@ -73,6 +79,7 @@ final class ThreeDrawPlanDiagnostics {
   var droppedDirectionalLightCount = 0;
   var droppedPointLightCount = 0;
   var droppedHemisphereLightCount = 0;
+  var droppedSpotLightCount = 0;
 
   List<String> get warnings => List.unmodifiable(_warnings);
 
@@ -90,6 +97,8 @@ final class ThreeDrawPlan {
     required this.directionalLights,
     required this.pointLights,
     required this.hemisphereLights,
+    required this.spotLights,
+    required this.clippings,
     required this.diagnostics,
   });
 
@@ -101,6 +110,8 @@ final class ThreeDrawPlan {
   final List<JsThreeLightUpsert> directionalLights;
   final List<JsThreeLightUpsert> pointLights;
   final List<JsThreeLightUpsert> hemisphereLights;
+  final List<JsThreeLightUpsert> spotLights;
+  final Map<int, JsThreeClippingUpsert> clippings;
   final ThreeDrawPlanDiagnostics diagnostics;
 
   Iterable<ThreeDrawItem> get draws sync* {
@@ -181,13 +192,127 @@ int _compareTransparentDraws(ThreeDrawItem a, ThreeDrawItem b) {
   return byNode != 0 ? byNode : a.batchPartIndex.compareTo(b.batchPartIndex);
 }
 
+List<ThreeDrawItem> _autoInstanceOpaqueDraws(
+  List<ThreeDrawItem> draws,
+  Set<int> culledShadowNodeIds,
+) {
+  final result = <ThreeDrawItem>[];
+  var run = <ThreeDrawItem>[];
+  void flush() {
+    if (run.length == 1) {
+      result.add(run.single);
+    } else if (run.isNotEmpty) {
+      result.add(_autoInstanceDraw(run));
+    }
+    run = <ThreeDrawItem>[];
+  }
+
+  for (final draw in draws) {
+    if (_eligibleAutoInstanceDraw(draw) &&
+        (run.isEmpty ||
+            _sameAutoInstanceState(run.first, draw, culledShadowNodeIds))) {
+      run.add(draw);
+    } else {
+      flush();
+      if (_eligibleAutoInstanceDraw(draw)) {
+        run.add(draw);
+      } else {
+        result.add(draw);
+      }
+    }
+  }
+  flush();
+  return result;
+}
+
+bool _eligibleAutoInstanceDraw(ThreeDrawItem draw) =>
+    draw.batch == null &&
+    draw.primitive == ThreeDrawPrimitive.triangles &&
+    !draw.transparent &&
+    !draw.wireframe &&
+    switch (draw.material.kind) {
+      JsThreeMaterialKind.meshBasic ||
+      JsThreeMaterialKind.meshLambert ||
+      JsThreeMaterialKind.meshStandard ||
+      JsThreeMaterialKind.meshPhong => true,
+      _ => false,
+    };
+
+bool _sameAutoInstanceState(
+  ThreeDrawItem a,
+  ThreeDrawItem b,
+  Set<int> culledShadowNodeIds,
+) {
+  if (!identical(a.geometry, b.geometry) ||
+      a.culledFromMain != b.culledFromMain ||
+      a.node.castShadow != b.node.castShadow ||
+      a.node.receiveShadow != b.node.receiveShadow ||
+      culledShadowNodeIds.contains(a.node.nodeId) !=
+          culledShadowNodeIds.contains(b.node.nodeId)) {
+    return false;
+  }
+  return _sameAutoInstanceMaterialSurface(a.material, b.material) &&
+      _sameAutoInstanceMaterialLighting(a.material, b.material);
+}
+
+/// Opaque-surface fields that force a separate auto-instance run.
+bool _sameAutoInstanceMaterialSurface(
+  JsThreeMaterialUpsert x,
+  JsThreeMaterialUpsert y,
+) {
+  return x.kind == y.kind &&
+      x.mapTextureId == y.mapTextureId &&
+      x.flags == y.flags &&
+      x.side == y.side &&
+      x.roughness == y.roughness &&
+      x.metalness == y.metalness &&
+      x.alphaTest == y.alphaTest &&
+      x.pointSize == y.pointSize;
+}
+
+/// Lighting fields that force a separate auto-instance run.
+bool _sameAutoInstanceMaterialLighting(
+  JsThreeMaterialUpsert x,
+  JsThreeMaterialUpsert y,
+) {
+  return x.specularR == y.specularR &&
+      x.specularG == y.specularG &&
+      x.specularB == y.specularB &&
+      x.shininess == y.shininess &&
+      x.emissiveR == y.emissiveR &&
+      x.emissiveG == y.emissiveG &&
+      x.emissiveB == y.emissiveB &&
+      x.emissiveIntensity == y.emissiveIntensity;
+}
+
+ThreeDrawItem _autoInstanceDraw(List<ThreeDrawItem> draws) {
+  final first = draws.first;
+  return ThreeDrawItem(
+    node: first.node,
+    geometry: first.geometry,
+    material: first.material,
+    primitive: first.primitive,
+    viewDepth: first.viewDepth,
+    drawCount: first.drawCount,
+    indexOffset: first.indexOffset,
+    instanceCount: draws.length,
+    culledFromMain: first.culledFromMain,
+    autoInstanceDraws: List.unmodifiable(draws),
+  );
+}
+
 /// Deterministic scene traversal, validation and transparent back-to-front sort.
 final class ThreeDrawPlanner {
-  const ThreeDrawPlanner();
+  const ThreeDrawPlanner({this.autoInstance = false});
+
+  /// Enables conservative opaque mesh grouping for the native GPU backend.
+  /// Other planners retain the one-item-per-submission representation.
+  final bool autoInstance;
 
   static const int maxDirectionalLights = 4;
   static const int maxPointLights = 8;
   static const int maxHemisphereLights = 4;
+  static const int maxSpotLights = 4;
 
   ThreeDrawPlan plan(
     JsThreeSurfaceState state, {
@@ -242,17 +367,22 @@ final class ThreeDrawPlanner {
 
     opaque.sort(_compareOpaqueDraws);
     transparent.sort(_compareTransparentDraws);
+    final submissions = autoInstance
+        ? _autoInstanceOpaqueDraws(opaque, selectedFrame.culledShadowNodeIds)
+        : opaque;
 
     final lights = _selectLights(state, diagnostics);
     return ThreeDrawPlan._(
       frame: selectedFrame,
       camera: camera,
-      opaque: List.unmodifiable(opaque),
+      opaque: List.unmodifiable(submissions),
       transparent: List.unmodifiable(transparent),
       ambient: lights.ambient,
       directionalLights: List.unmodifiable(lights.directional),
       pointLights: List.unmodifiable(lights.points),
       hemisphereLights: List.unmodifiable(lights.hemisphere),
+      spotLights: List.unmodifiable(lights.spots),
+      clippings: Map.unmodifiable(state.clippings),
       diagnostics: diagnostics,
     );
   }
@@ -262,6 +392,7 @@ final class ThreeDrawPlanner {
     List<JsThreeLightUpsert> directional,
     List<JsThreeLightUpsert> points,
     List<JsThreeLightUpsert> hemisphere,
+    List<JsThreeLightUpsert> spots,
   })
   _selectLights(
     JsThreeSurfaceState state,
@@ -275,6 +406,7 @@ final class ThreeDrawPlanner {
     final directional = <JsThreeLightUpsert>[];
     final points = <JsThreeLightUpsert>[];
     final hemisphere = <JsThreeLightUpsert>[];
+    final spots = <JsThreeLightUpsert>[];
     for (final light in lights) {
       switch (light.type) {
         case JsThreeLightType.ambient:
@@ -299,31 +431,61 @@ final class ThreeDrawPlanner {
           } else {
             diagnostics.droppedHemisphereLightCount++;
           }
+        case JsThreeLightType.spot:
+          if (spots.length < maxSpotLights) {
+            spots.add(light);
+          } else {
+            diagnostics.droppedSpotLightCount++;
+          }
       }
     }
-    if (diagnostics.droppedDirectionalLightCount != 0) {
-      diagnostics.warn(
-        'directional light cap $maxDirectionalLights exceeded; '
-        'dropped ${diagnostics.droppedDirectionalLightCount} highest ids',
-      );
-    }
-    if (diagnostics.droppedPointLightCount != 0) {
-      diagnostics.warn(
-        'point light cap $maxPointLights exceeded; '
-        'dropped ${diagnostics.droppedPointLightCount} highest ids',
-      );
-    }
-    if (diagnostics.droppedHemisphereLightCount != 0) {
-      diagnostics.warn(
-        'hemisphere light cap $maxHemisphereLights exceeded; '
-        'dropped ${diagnostics.droppedHemisphereLightCount} highest ids',
-      );
-    }
+    _warnDroppedLightCaps(diagnostics);
     return (
       ambient: (r: ambientR, g: ambientG, b: ambientB),
       directional: directional,
       points: points,
       hemisphere: hemisphere,
+      spots: spots,
+    );
+  }
+
+  void _warnDroppedLightCaps(ThreeDrawPlanDiagnostics diagnostics) {
+    _warnLightCap(
+      diagnostics,
+      diagnostics.droppedDirectionalLightCount,
+      maxDirectionalLights,
+      'directional',
+    );
+    _warnLightCap(
+      diagnostics,
+      diagnostics.droppedPointLightCount,
+      maxPointLights,
+      'point',
+    );
+    _warnLightCap(
+      diagnostics,
+      diagnostics.droppedHemisphereLightCount,
+      maxHemisphereLights,
+      'hemisphere',
+    );
+    _warnLightCap(
+      diagnostics,
+      diagnostics.droppedSpotLightCount,
+      maxSpotLights,
+      'spot',
+    );
+  }
+
+  void _warnLightCap(
+    ThreeDrawPlanDiagnostics diagnostics,
+    int dropped,
+    int cap,
+    String label,
+  ) {
+    if (dropped == 0) return;
+    diagnostics.warn(
+      '$label light cap $cap exceeded; '
+      'dropped $dropped highest ids',
     );
   }
 
@@ -339,6 +501,8 @@ final class ThreeDrawPlanner {
     directionalLights: const [],
     pointLights: const [],
     hemisphereLights: const [],
+    spotLights: const [],
+    clippings: const {},
     diagnostics: diagnostics,
   );
 
@@ -528,8 +692,6 @@ final class ThreeDrawPlanner {
         : geometry.indexCount;
     final boundsError = _batchPartBoundsError(total, part);
     if (boundsError != null) return boundsError;
-    final coverageError = _batchPartCoverageError(geometry, part);
-    if (coverageError != null) return coverageError;
     return _batchPartAlignmentError(geometry.primitive, part);
   }
 
@@ -538,17 +700,6 @@ final class ThreeDrawPlanner {
         part.offset > total ||
         part.count > total - part.offset) {
       return 'offset/count exceeds the geometry draw range';
-    }
-    return null;
-  }
-
-  String? _batchPartCoverageError(
-    JsThreeGeometryUpsert geometry,
-    JsThreeDrawBatchPart part,
-  ) {
-    if (geometry.indexCount == 0 &&
-        (part.offset != 0 || part.count != geometry.vertexCount)) {
-      return 'non-indexed batch parts must cover the whole geometry';
     }
     return null;
   }
@@ -711,7 +862,8 @@ final class ThreeDrawPlanner {
           material == JsThreeMaterialKind.meshLambert ||
           material == JsThreeMaterialKind.meshStandard ||
           material == JsThreeMaterialKind.meshPhong ||
-          material == JsThreeMaterialKind.meshNormal,
+          material == JsThreeMaterialKind.meshNormal ||
+          material == JsThreeMaterialKind.shadow,
     JsThreeObjectKind.line => material == JsThreeMaterialKind.lineBasic,
     JsThreeObjectKind.points => material == JsThreeMaterialKind.pointsBasic,
   };

@@ -3,6 +3,7 @@
 #define MAX_DIRECTIONAL_LIGHTS 4
 #define MAX_POINT_LIGHTS 8
 #define MAX_HEMISPHERE_LIGHTS 4
+#define MAX_SPOT_LIGHTS 4
 #define PI 3.14159265358979323846
 #define EPSILON 0.0001
 
@@ -13,6 +14,7 @@ layout(location = 7) in vec3 viewPosition;
 layout(location = 8) in vec2 materialState;
 in vec2 textureUv;
 in vec4 vertexColor;
+layout(location = 9) in vec4 instanceDiffuse;
 in float viewDepth;
 layout(location = 5) in vec4 shadowPosition;
 
@@ -38,7 +40,17 @@ uniform Lights {
   vec4 hemisphereDirectionIntensity[MAX_HEMISPHERE_LIGHTS];
   vec4 hemisphereSkyColor[MAX_HEMISPHERE_LIGHTS];
   vec4 hemisphereGroundColor[MAX_HEMISPHERE_LIGHTS];
+  vec4 spotColorIntensity[MAX_SPOT_LIGHTS];
+  vec4 spotPositionCosOuter[MAX_SPOT_LIGHTS];
+  vec4 spotDirectionCosInner[MAX_SPOT_LIGHTS];
+  vec4 spotDecayDistance[MAX_SPOT_LIGHTS];
 } lights;
+
+uniform ClippingInfo {
+  vec4 clipPlanes[8];
+  // x: plane count, y: intersection flag, z: clip shadows flag.
+  vec4 clipCountFlags;
+} clipping_info;
 
 uniform MaterialInfo {
   vec4 colorOpacity;
@@ -124,6 +136,9 @@ float directionalShadow() {
       material_info.vertexColorsFlatShadingHasMapReserved.w < 0.5) {
     return 1.0;
   }
+  if (shadowPosition.w <= 0.0) {
+    return 1.0;
+  }
   vec3 coord = shadowPosition.xyz / shadowPosition.w;
   if (coord.x < 0.0 || coord.x > 1.0 || coord.y < 0.0 || coord.y > 1.0 ||
       coord.z < 0.0 || coord.z > 1.0) {
@@ -143,7 +158,36 @@ float directionalShadow() {
   return visibility / 9.0;
 }
 
+void applyClipping() {
+  int clipCount = int(clipping_info.clipCountFlags.x + 0.5);
+  if (clipCount <= 0) return;
+  bool intersection = clipping_info.clipCountFlags.y > 0.5;
+  int clippedCount = 0;
+  for (int i = 0; i < 8; ++i) {
+    if (i < clipCount) {
+      bool clipped = dot(clipping_info.clipPlanes[i].xyz, worldPosition) <
+                     clipping_info.clipPlanes[i].w;
+      if (clipped && !intersection) discard;
+      if (clipped) clippedCount++;
+    }
+  }
+  if (intersection && clippedCount == clipCount) discard;
+}
+
+// THREE r186 physical spot falloff: inverse square, windowed by the cutoff
+// distance when one is set.
+float spotDistanceFalloff(float lightDistance, float cutoffDistance) {
+  float falloff = 1.0 / max(lightDistance * lightDistance, 0.01);
+  if (cutoffDistance > 0.0) {
+    float ratio = clamp(lightDistance / cutoffDistance, 0.0, 1.0);
+    float window = 1.0 - ratio * ratio * ratio * ratio;
+    falloff *= window * window;
+  }
+  return falloff;
+}
+
 void main() {
+  applyClipping();
   int kind = int(material_info.roughnessMetalnessAlphaTestKind.w + 0.5);
   if (kind == 6) {
     vec3 n;
@@ -161,7 +205,7 @@ void main() {
     return;
   }
 
-  vec4 albedo = material_info.colorOpacity;
+  vec4 albedo = material_info.colorOpacity * instanceDiffuse;
   if (material_info.vertexColorsFlatShadingHasMapReserved.x > 0.5) {
     albedo *= vertexColor;
   }
@@ -198,7 +242,17 @@ void main() {
 
     int directionalCount = int(frame_info.lightCounts.x + 0.5);
     int pointCount = int(frame_info.lightCounts.y + 0.5);
+    int spotCount = int(frame_info.lightCounts.w + 0.5);
     float shadow = directionalShadow();
+    float shadowFactor = frame_info.fogFarModeReserved.z > 0.5 ? 1.0 : shadow;
+    float spotShadowFactor = frame_info.fogFarModeReserved.z > 0.5 ? shadow : 1.0;
+    if (kind == 7) {
+      // ShadowMaterial: invisible where lit, opacity-colored where shadowed
+      // (upstream: vec4(color, opacity * (1 - getShadowMask()))).
+      float mask = min(shadowFactor, spotShadowFactor);
+      outColor = vec4(albedo.rgb, albedo.a * (1.0 - mask));
+      return;
+    }
     if (kind == 1 || kind == 5) {
       for (int i = 0; i < MAX_DIRECTIONAL_LIGHTS; ++i) {
         if (i < directionalCount) {
@@ -212,7 +266,7 @@ void main() {
                 n, v, l, material_info.specularShininess.rgb,
                 material_info.specularShininess.w);
           }
-          color += direct * radiance * shadow * nDotL;
+          color += direct * radiance * shadowFactor * nDotL;
         }
       }
       for (int i = 0; i < MAX_POINT_LIGHTS; ++i) {
@@ -232,6 +286,28 @@ void main() {
           color += direct * radiance * nDotL;
         }
       }
+      for (int i = 0; i < MAX_SPOT_LIGHTS; ++i) {
+        if (i < spotCount) {
+          vec3 delta = lights.spotPositionCosOuter[i].xyz - worldPosition;
+          float lightDistance = length(delta);
+          vec3 l = delta / max(lightDistance, EPSILON);
+          float angleCos = dot(l, lights.spotDirectionCosInner[i].xyz);
+          float cone = smoothstep(lights.spotPositionCosOuter[i].w,
+                                  lights.spotDirectionCosInner[i].w, angleCos);
+          vec3 radiance = lights.spotColorIntensity[i].rgb *
+                          lights.spotColorIntensity[i].w * cone *
+                          spotDistanceFalloff(lightDistance,
+                                              lights.spotDecayDistance[i].y);
+          float nDotL = max(dot(n, l), 0.0);
+          vec3 direct = baseColor / PI;
+          if (kind == 5) {
+            direct += blinnPhongSpecular(
+                n, v, l, material_info.specularShininess.rgb,
+                material_info.specularShininess.w);
+          }
+          color += direct * radiance * spotShadowFactor * nDotL;
+        }
+      }
     } else {
       float roughness = clamp(
           material_info.roughnessMetalnessAlphaTestKind.x, 0.045, 1.0);
@@ -247,7 +323,7 @@ void main() {
           vec3 radiance = lights.directionalColor[i].rgb *
                           lights.directionalDirectionIntensity[i].w;
           color += standardLight(
-              n, v, l, radiance, baseColor, f0, roughness, metalness) * shadow;
+              n, v, l, radiance, baseColor, f0, roughness, metalness) * shadowFactor;
         }
       }
       for (int i = 0; i < MAX_POINT_LIGHTS; ++i) {
@@ -259,6 +335,22 @@ void main() {
                           lights.pointPositionIntensity[i].w / distanceSquared;
           color += standardLight(
               n, v, l, radiance, baseColor, f0, roughness, metalness);
+        }
+      }
+      for (int i = 0; i < MAX_SPOT_LIGHTS; ++i) {
+        if (i < spotCount) {
+          vec3 delta = lights.spotPositionCosOuter[i].xyz - worldPosition;
+          float lightDistance = length(delta);
+          vec3 l = delta / max(lightDistance, EPSILON);
+          float angleCos = dot(l, lights.spotDirectionCosInner[i].xyz);
+          float cone = smoothstep(lights.spotPositionCosOuter[i].w,
+                                  lights.spotDirectionCosInner[i].w, angleCos);
+          vec3 radiance = lights.spotColorIntensity[i].rgb *
+                          lights.spotColorIntensity[i].w * cone *
+                          spotDistanceFalloff(lightDistance,
+                                              lights.spotDecayDistance[i].y);
+          color += standardLight(
+              n, v, l, radiance, baseColor, f0, roughness, metalness) * spotShadowFactor;
         }
       }
     }

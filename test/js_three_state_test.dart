@@ -32,7 +32,7 @@ Uint8List _envelope(
   List<(int, Uint8List)> commands, {
   String engine = 'engine',
   String surface = 'surface',
-  int version = 1,
+  int version = 3,
 }) {
   final payload = _r1(commands, version: version);
   final e = utf8.encode(engine);
@@ -90,8 +90,10 @@ Uint8List _material(
   double emissiveG = 0,
   double emissiveB = 0,
   double emissiveIntensity = 1,
+  int clipId = 0,
+  int clipFlags = 0,
 }) {
-  final out = Uint8List(56 + (emissive ? 16 : 0));
+  final out = Uint8List(64 + (emissive ? 16 : 0));
   _u32(out, 0, id);
   _u32(out, 4, version);
   _u32(out, 8, kind.wireValue);
@@ -104,11 +106,13 @@ Uint8List _material(
   _f32(out, 44, 0.5);
   _f32(out, 48, 0);
   _f32(out, 52, 1);
+  _u32(out, 56, clipId);
+  _u32(out, 60, clipFlags);
   if (emissive) {
-    _f32(out, 56, emissiveR);
-    _f32(out, 60, emissiveG);
-    _f32(out, 64, emissiveB);
-    _f32(out, 68, emissiveIntensity);
+    _f32(out, 64, emissiveR);
+    _f32(out, 68, emissiveG);
+    _f32(out, 72, emissiveB);
+    _f32(out, 76, emissiveIntensity);
   }
   return out;
 }
@@ -193,7 +197,7 @@ Uint8List _light(
 }
 
 Uint8List _frame(int scene, int camera, {double exposure = 1}) {
-  final out = Uint8List(136);
+  final out = Uint8List(140);
   _u32(out, 0, scene);
   _u32(out, 4, camera);
   _f32(out, 8, 0.1);
@@ -202,6 +206,7 @@ Uint8List _frame(int scene, int camera, {double exposure = 1}) {
   _f32(out, 20, 1);
   _f32(out, 24, exposure);
   _f32(out, 68, 1);
+  _u32(out, 136, 0);
   return out;
 }
 

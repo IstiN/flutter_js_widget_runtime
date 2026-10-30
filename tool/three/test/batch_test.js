@@ -54,7 +54,7 @@ function decode(packet) {
   const surfaceLength = bytes.readUInt16LE(18);
   const payload = bytes.subarray(headerBytes);
   assert.equal(payload.subarray(0, 4).toString(), 'JSR1');
-  assert.equal(payload.readUInt16LE(4), 2);
+  assert.equal(payload.readUInt16LE(4), 3);
   const commands = [];
   let offset = 12;
   for (let i = 0; i < payload.readUInt32LE(8); i++) {
@@ -151,13 +151,24 @@ test('DRAW_BATCH and REMOVE_BATCH encode exact little-endian bodies and enforce 
   const grouped = drawBatchCommand(3, 5, 1, 0, parts);
   assert.equal(grouped.body.length, 36);
   assert.equal(u32(grouped.body, 12), 0);
+  const colored = drawBatchCommand(
+    3, 6, 2, 3, parts, matrices, new Float32Array([0.1, 0.2, 0.3, 0.4, 0.5, 0.6])
+  );
+  assert.equal(colored.body.length, 20 + 16 + 2 * 64 + 2 * 3 * 4);
+  assert.equal(u32(colored.body, 12), 3, 'flags bit 1 marks instance colors');
+  near(f32(colored.body, 36 + 2 * 64), 0.1);
+  near(f32(colored.body, 36 + 2 * 64 + 8), 0.3);
+  near(f32(colored.body, 36 + 2 * 64 + 12), 0.4);
   const removed = removeBatchCommand(3);
   assert.equal(removed.opcode, 12);
   assert.equal(removed.body.length, 4);
   assert.equal(u32(removed.body, 0), 3);
   invalid(() => drawBatchCommand(3, 1, 0, 0, parts), 'instanceCount');
   invalid(() => drawBatchCommand(3, 1, 2, 1, parts, new Float32Array(31)), 'payload');
-  invalid(() => drawBatchCommand(3, 1, 1, 2, parts), 'flags');
+  invalid(() => drawBatchCommand(3, 1, 1, 2, parts), 'instanced batches');
+  invalid(() => drawBatchCommand(3, 1, 2, 3, parts, matrices, null), 'color payload');
+  invalid(() => drawBatchCommand(3, 1, 2, 3, parts, matrices, new Float32Array([1, 2, 3, 4, 5, NaN])), 'finite');
+  invalid(() => drawBatchCommand(3, 1, 2, 3, parts, matrices, new Float32Array([1, 2])), 'color payload');
   invalid(() => drawBatchCommand(3, 1, 0xffffffff, 1, [], { length: 0xffffffff * 16 }), '64 MiB');
 });
 
@@ -340,29 +351,32 @@ test('multi-material BoxGeometry instancing produces six draws without expanding
   assert.equal(renderer.info.render.triangles, 36);
 });
 
-test('non-indexed multi-material support is limited to one whole-geometry part and part count is bounded', () => {
+test('non-indexed multi-material groups preserve exact vertex ranges and stay bounded', () => {
   const host = createHost();
   const T = host.THREE;
   const { renderer, scene, camera } = rendererHost(host);
-  const geometry = triangleGeometry(T);
+  const geometry = pairGeometry(T);
+  geometry.setIndex(null);
   geometry.addGroup(0, 3, 0);
+  geometry.addGroup(3, 3, 1);
   const mesh = new T.Mesh(geometry, [new T.MeshBasicMaterial(), new T.MeshBasicMaterial()]);
   scene.add(mesh);
   renderer.render(scene, camera);
   let packet = host.packets()[0];
   const batch = only(packet, 11)[0].body;
-  assert.equal(u32(batch, 16), 1);
+  assert.equal(u32(batch, 16), 2);
   assert.equal(u32(batch, 28), 0);
   assert.equal(u32(batch, 32), 3);
-  assert.equal(renderer.info.render.calls, 1);
-  assert.equal(renderer.info.render.triangles, 1);
-  geometry.groups[0].start = 3;
-  geometry.groups[0].count = 0;
-  unsupported(() => renderer.render(scene, camera), 'nonIndexedGroups');
-  geometry.groups[0].start = 0;
+  assert.equal(u32(batch, 44), 3);
+  assert.equal(u32(batch, 48), 3);
+  assert.equal(renderer.info.render.calls, 2);
+  assert.equal(renderer.info.render.triangles, 2);
+  geometry.groups[1].start = 2;
+  invalid(() => renderer.render(scene, camera), 'group start is not aligned');
+  geometry.groups[1].start = 3;
+  geometry.groups[0].count = 2;
+  invalid(() => renderer.render(scene, camera), 'group count is not aligned');
   geometry.groups[0].count = 3;
-  geometry.addGroup(0, 0, 1);
-  unsupported(() => renderer.render(scene, camera), 'nonIndexedGroups');
   geometry.clearGroups();
   unsupported(() => renderer.render(scene, camera), 'multiMaterialGroups');
   geometry.groups = Array.from({ length: 1025 }, () => ({ start: 0, count: 0, materialIndex: 0 }));
@@ -370,7 +384,7 @@ test('non-indexed multi-material support is limited to one whole-geometry part a
   assert.equal(host.rawPackets.length, 1);
 });
 
-test('invalid matrices, counts, instanceColor and transparent instancing reject without poisoning batch versions', () => {
+test('invalid matrices, counts, malformed instanceColor and transparent instancing reject without poisoning batch versions', () => {
   const host = createHost();
   const T = host.THREE;
   const { renderer, scene, camera } = rendererHost(host);
@@ -388,8 +402,27 @@ test('invalid matrices, counts, instanceColor and transparent instancing reject 
   renderer.render(scene, camera);
   assert.equal(u32(only(host.packets()[1], 11)[0].body, 4), 2, 'failed render must roll back the next batch version');
 
-  mesh.instanceColor = new T.InstancedBufferAttribute(new Float32Array(6), 3);
-  unsupported(() => renderer.render(scene, camera), 'instanceColor');
+  mesh.instanceColor = new T.InstancedBufferAttribute(new Float32Array(4), 2);
+  invalid(() => renderer.render(scene, camera), 'instanceColor must be a 3-component');
+  mesh.instanceColor = new T.InstancedBufferAttribute(new Float32Array([0.1, 0.2, 0.3, 0.4, 0.5, 0.6]), 3);
+  renderer.render(scene, camera);
+  const colored = only(host.packets()[2], 11)[0];
+  assert.equal(u32(colored.body, 12), 3, 'instance colors set the batch color flag');
+  assert.equal(colored.body.length, 20 + 16 + 2 * 64 + 2 * 3 * 4, 'color payload extends the body');
+  near(colored.body.readFloatLE(20 + 16 + 2 * 64), 0.1);
+  near(colored.body.readFloatLE(20 + 16 + 2 * 64 + 12), 0.4);
+  mesh.instanceColor.needsUpdate = true;
+  mesh.instanceColor.array[0] = 0.9;
+  renderer.render(scene, camera);
+  near(only(host.packets()[3], 11)[0].body.readFloatLE(20 + 16 + 2 * 64), 0.9,
+    'instanceColor edits re-emit the color payload');
+  mesh.instanceColor.array[0] = NaN;
+  mesh.instanceColor.needsUpdate = true;
+  invalid(() => renderer.render(scene, camera), 'instanceColor');
+  mesh.instanceColor.array[0] = 0.1;
+  mesh.instanceColor.needsUpdate = true;
+  renderer.render(scene, camera);
+  assert.equal(host.rawPackets.length, 5);
   mesh.instanceColor = null;
   mesh.morphTexture = {};
   unsupported(() => renderer.render(scene, camera), 'morphTargets');
@@ -408,9 +441,14 @@ test('invalid matrices, counts, instanceColor and transparent instancing reject 
     invalid(() => renderer.render(scene, camera), count === 3 ? 'capacity' : 'count');
   }
   mesh.count = 2;
-  assert.equal(host.rawPackets.length, 2);
+  assert.equal(host.rawPackets.length, 5);
   renderer.render(scene, camera);
-  assert.deepEqual(opcodes(host.packets()[2]), [8]);
+  assert.deepEqual(
+    opcodes(host.packets()[5]),
+    [11, 8],
+    'clearing instanceColor re-emits the batch without the color flag',
+  );
+  assert.equal(u32(only(host.packets()[5], 11)[0].body, 12), 1);
 });
 
 test('node disposal removes and recreates batches with rollback-safe per-surface state', () => {
@@ -499,19 +537,19 @@ test('manual shadow revisions are explicit and ignore ordinary scene uploads', (
   renderer.shadowMap.needsUpdate = true;
   renderer.render(scene, camera);
   let frames = host.packets().flatMap(packet => only(packet, 8));
-  assert.equal(frames[0].body.length, 148);
-  assert.equal(u32(frames[0].body, 144), 1);
+  assert.equal(frames[0].body.length, 152);
+  assert.equal(u32(frames[0].body, 148), 1);
   renderer.render(scene, camera);
   frames = host.packets().flatMap(packet => only(packet, 8));
-  assert.equal(u32(frames[1].body, 144), 1);
+  assert.equal(u32(frames[1].body, 148), 1);
   renderer.shadowMap.needsUpdate = true;
   renderer.render(scene, camera);
   frames = host.packets().flatMap(packet => only(packet, 8));
-  assert.equal(u32(frames[2].body, 144), 2);
+  assert.equal(u32(frames[2].body, 148), 2);
   renderer.shadowMap.autoUpdate = true;
   renderer.render(scene, camera);
   frames = host.packets().flatMap(packet => only(packet, 8));
-  assert.equal(frames[3].body.length, 136, 'default shadow mode keeps the legacy frame layout');
+  assert.equal(frames[3].body.length, 140, 'default shadow mode keeps the optional-id layout');
 });
 
 function rendererHost(host) {

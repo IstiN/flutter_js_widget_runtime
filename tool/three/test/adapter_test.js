@@ -35,7 +35,7 @@ function decode(packet) {
   const surfaceId = decoder.decode(bytes.subarray(32 + engineLength, headerBytes));
   const payload = bytes.subarray(headerBytes);
   assert.equal(payload.subarray(0, 4).toString(), 'JSR1');
-  assert.equal(payload.readUInt16LE(4), 2);
+  assert.equal(payload.readUInt16LE(4), 3);
   assert.equal(payload.readUInt16LE(6), 0);
   const count = payload.readUInt32LE(8);
   const commands = [];
@@ -256,7 +256,7 @@ test('canonical mount, T1/R1 bytes, resize and dirty/no-reupload diffing', () =>
   assert.equal(packets[0].sequence, 1);
   assert.deepEqual(opcodes(packets[0]), [4, 1, 3, 4, 6, 8]);
   const frame = only(packets[0], 8)[0].body;
-  assert.equal(frame.length, 136);
+  assert.equal(frame.length, 140);
   assert.equal(u32(frame, 0), id(scene));
   assert.equal(u32(frame, 4), id(camera));
   near(f32(frame, 24), 1);
@@ -314,9 +314,9 @@ test('main-camera frustum culling is explicit and respects opt-out', () => {
   renderer.render(scene, camera);
   let packet = host.packets()[0];
   let frame = only(packet, 8)[0].body;
-  assert.equal(frame.length, 144);
-  assert.equal(u32(frame, 136), 1);
-  assert.equal(u32(frame, 140), id(mesh));
+  assert.equal(frame.length, 148);
+  assert.equal(u32(frame, 140), 1);
+  assert.equal(u32(frame, 144), id(mesh));
   assert.equal(renderer.info.render.calls, 0);
   assert.equal(renderer.info.render.triangles, 0);
 
@@ -324,7 +324,7 @@ test('main-camera frustum culling is explicit and respects opt-out', () => {
   renderer.render(scene, camera);
   packet = host.packets()[1];
   frame = only(packet, 8)[0].body;
-  assert.equal(frame.length, 136);
+  assert.equal(frame.length, 140);
   assert.equal(renderer.info.render.calls, 1);
 });
 
@@ -342,16 +342,16 @@ test('shadow-camera culling is independent from main-camera culling', () => {
   mesh.position.x = 100;
   renderer.render(scene, camera);
   let frame = only(host.packets()[0], 8)[0].body;
-  assert.equal(frame.length, 152);
-  assert.equal(u32(frame, 136), 1);
-  assert.equal(u32(frame, 140), id(mesh));
-  assert.equal(u32(frame, 144), 1);
-  assert.equal(u32(frame, 148), id(mesh));
+  assert.equal(frame.length, 156);
+  assert.equal(u32(frame, 140), 1);
+  assert.equal(u32(frame, 144), id(mesh));
+  assert.equal(u32(frame, 148), 1);
+  assert.equal(u32(frame, 152), id(mesh));
 
   mesh.position.x = 0;
   renderer.render(scene, camera);
   frame = only(host.packets()[1], 8)[0].body;
-  assert.equal(frame.length, 136);
+  assert.equal(frame.length, 140);
 });
 
 test('empty instanced meshes skip draw uploads and retain correct node lifetime', () => {
@@ -478,21 +478,21 @@ test('materials, cameras and ambient/directional/point lights have exact bodies 
   let packet = host.packets()[0];
   const materials = only(packet, 3).map(command => command.body);
   assert.deepEqual(materials.map(body => u32(body, 8)), [0, 1, 2, 5]);
-  assert.equal(materials[0].length, 56);
-  assert.equal(materials[1].length, 72);
-  assert.equal(materials[2].length, 72);
+  assert.equal(materials[0].length, 64);
+  assert.equal(materials[1].length, 80);
+  assert.equal(materials[2].length, 80);
   assert.equal(u32(materials[0], 20), 2);
   near(f32(materials[0], 36), 0.5);
   near(f32(materials[0], 48), 0.2);
   near(f32(materials[2], 40), 0.25);
   near(f32(materials[2], 44), 0.75);
   assert.equal(u32(materials[1], 16) & 2, 2);
-  assert.equal(materials[3].length, 88);
+  assert.equal(materials[3].length, 96);
   assert.equal(u32(materials[3], 16) & 3, 3);
-  near(f32(materials[3], 56), phong.specular.r);
-  near(f32(materials[3], 60), phong.specular.g);
-  near(f32(materials[3], 64), phong.specular.b);
-  near(f32(materials[3], 68), 64);
+  near(f32(materials[3], 64), phong.specular.r);
+  near(f32(materials[3], 68), phong.specular.g);
+  near(f32(materials[3], 72), phong.specular.b);
+  near(f32(materials[3], 76), 64);
   assert.notEqual(u32(materials[3], 8), u32(materials[1], 8), 'Phong must not alias Lambert');
   const lights = only(packet, 7).map(command => command.body);
   assert.deepEqual(lights.map(body => u32(body, 4)), [0, 1, 2]);
@@ -524,10 +524,10 @@ test('materials, cameras and ambient/directional/point lights have exact bodies 
   assert.deepEqual(opcodes(packet), [3, 8]);
   const changedPhong = only(packet, 3)[0].body;
   assert.equal(u32(changedPhong, 4), 2);
-  near(f32(changedPhong, 56), 0.25);
-  near(f32(changedPhong, 60), 0.5);
-  near(f32(changedPhong, 64), 0.75);
-  near(f32(changedPhong, 68), 12);
+  near(f32(changedPhong, 64), 0.25);
+  near(f32(changedPhong, 68), 0.5);
+  near(f32(changedPhong, 72), 0.75);
+  near(f32(changedPhong, 76), 12);
 });
 
 test('HemisphereLight has an exact additive payload, world direction and dirty/error updates', () => {
@@ -627,13 +627,13 @@ test('Normal and lit emissive materials have exact payloads, dirty updates and t
   assert.equal(u32(normalBody, 8), 6);
   assert.notEqual(u32(normalBody, 8), 0);
   assert.notEqual(u32(normalBody, 8), 5);
-  assert.equal(normalBody.length, 56);
+  assert.equal(normalBody.length, 64);
   assert.equal(u32(normalBody, 20), 2);
   assert.equal(u32(normalBody, 16) & 6, 6);
   near(f32(normalBody, 36), 0.375);
   for (const material of lit) {
     const body = byId.get(id(material));
-    const offset = material.isMeshPhongMaterial ? 72 : 56;
+    const offset = material.isMeshPhongMaterial ? 80 : 64;
     assert.equal(body.length, offset + 16);
     near(f32(body, offset), material.emissive.r);
     near(f32(body, offset + 4), material.emissive.g);
@@ -656,10 +656,10 @@ test('Normal and lit emissive materials have exact payloads, dirty updates and t
   assert.equal(changed.length, 4, 'Normal and every emissive edit must upload');
   assert.ok(changed.every(body => u32(body, 4) === 2));
   const changedLambert = changed.find(body => u32(body, 0) === id(lit[0]));
-  near(f32(changedLambert, 56), 0.125);
-  near(f32(changedLambert, 60), 0.25);
-  near(f32(changedLambert, 64), 0.5);
-  near(f32(changedLambert, 68), 5);
+  near(f32(changedLambert, 64), 0.125);
+  near(f32(changedLambert, 68), 0.25);
+  near(f32(changedLambert, 72), 0.5);
+  near(f32(changedLambert, 76), 5);
 
   const sent = host.rawPackets.length;
   lit[0].emissiveIntensity = -1;
@@ -738,7 +738,7 @@ test('Line, LineSegments and Points preserve primitive semantics and material ki
   const pointsGeometry = new T.BufferGeometry().setFromPoints([new T.Vector3(0, 2, 0), new T.Vector3(1, 2, 0)]);
   const line = new T.Line(lineGeometry, new T.LineBasicMaterial());
   const segments = new T.LineSegments(segmentsGeometry, new T.LineBasicMaterial());
-  const points = new T.Points(pointsGeometry, new T.PointsMaterial({ size: 3 }));
+  const points = new T.Points(pointsGeometry, new T.PointsMaterial({ size: 3, sizeAttenuation: false }));
   scene.add(line, segments, points);
   renderer.render(scene, new T.PerspectiveCamera());
   const packet = host.packets()[0];
@@ -750,6 +750,39 @@ test('Line, LineSegments and Points preserve primitive semantics and material ki
   const materials = only(packet, 3).map(command => command.body);
   assert.deepEqual(materials.map(body => u32(body, 8)), [3, 3, 4]);
   near(f32(materials[2], 52), 3);
+  assert.equal(u32(materials[2], 16) & 64, 64);
+});
+
+test('one upstream geometry supports independent Line and LineSegments resources', () => {
+  const host = createHost();
+  const T = host.THREE;
+  const renderer = new T.WebGLRenderer({ canvas: host.jsr.three.createCanvas('main') });
+  const scene = new T.Scene();
+  const geometry = new T.BufferGeometry().setFromPoints([
+    new T.Vector3(0, 0, 0), new T.Vector3(1, 0, 0),
+    new T.Vector3(2, 0, 0), new T.Vector3(3, 0, 0)
+  ]);
+  const line = new T.Line(geometry, new T.LineBasicMaterial());
+  const segments = new T.LineSegments(geometry, new T.LineBasicMaterial());
+  scene.add(line, segments);
+  renderer.render(scene, new T.PerspectiveCamera());
+  const geometries = only(host.packets()[0], 1).map(command => command.body);
+  assert.equal(geometries.length, 2);
+  const byNode = new Map(only(host.packets()[0], 4).map(command => [u32(command.body, 0), u32(command.body, 8)]));
+  const lineGeometryId = byNode.get(id(line));
+  const segmentsGeometryId = byNode.get(id(segments));
+  assert.notEqual(lineGeometryId, segmentsGeometryId);
+  const byId = new Map(geometries.map(body => [u32(body, 0), body]));
+  assert.equal(u32(byId.get(lineGeometryId), 16) > 0, true);
+  assert.equal(u32(byId.get(segmentsGeometryId), 16), 0);
+  scene.remove(line, segments);
+  geometry.dispose();
+  renderer.render(scene, new T.PerspectiveCamera());
+  const disposed = only(host.packets()[1], 9)
+    .map(command => command.body)
+    .filter(body => u32(body, 4) === 1)
+    .map(body => u32(body, 0));
+  assert.deepEqual(disposed.sort(), [lineGeometryId, segmentsGeometryId].sort());
 });
 
 test('upstream animation and raycasting mutate JS objects without scene JSON', () => {
@@ -973,6 +1006,9 @@ test('host key/pointer/blur/visibility events release held input through real ev
   host.jsr.three._hostEvent('viewport', { width: 800, height: 450 });
   assert.equal(canvas.ownerDocument.defaultView.innerWidth, 800);
   assert.equal(canvas.ownerDocument.defaultView.innerHeight, 450);
+  assert.equal(canvas.ownerDocument.defaultView.location.search, '');
+  assert.equal(canvas.ownerDocument.defaultView.location.href, 'jsr://three/');
+  assert.doesNotThrow(() => canvas.ownerDocument.defaultView.location.reload());
 });
 
 test('web renderer composes r186 own render and presents the default framebuffer', () => {

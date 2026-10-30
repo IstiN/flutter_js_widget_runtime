@@ -128,6 +128,7 @@ final class JsThreeSurfaceState {
   final Map<int, JsThreeDrawBatchUpsert> _batches = {};
   final Map<int, JsThreeCameraUpsert> _cameras = {};
   final Map<int, JsThreeLightUpsert> _lights = {};
+  final Map<int, JsThreeClippingUpsert> _clippings = {};
   final List<JsThreeSubmitFrame> _pendingFrames = [];
 
   String get engineId => key.engineId;
@@ -148,6 +149,8 @@ final class JsThreeSurfaceState {
   Map<int, JsThreeDrawBatchUpsert> get batches => UnmodifiableMapView(_batches);
   Map<int, JsThreeCameraUpsert> get cameras => UnmodifiableMapView(_cameras);
   Map<int, JsThreeLightUpsert> get lights => UnmodifiableMapView(_lights);
+  Map<int, JsThreeClippingUpsert> get clippings =>
+      UnmodifiableMapView(_clippings);
 
   JsThreeSubmitFrame? get currentFrame => _currentFrame;
   JsThreeSubmitFrame? _currentFrame;
@@ -305,9 +308,20 @@ extension _JsThreeSurfaceStateOperations on JsThreeSurfaceState {
         _recordUpload(_upsertMaterial(value), value, batch);
       case final JsThreeDrawBatchUpsert value:
         _recordUpload(_upsertBatch(value), value, batch);
+      case final JsThreeClippingUpsert value:
+        _recordUpload(_upsertClipping(value), value, batch);
       default:
         return false;
     }
+    return true;
+  }
+
+  bool _upsertClipping(JsThreeClippingUpsert value) {
+    final previous = _clippings[value.clipId];
+    if (previous != null && previous.version == value.version) {
+      return false;
+    }
+    _clippings[value.clipId] = value;
     return true;
   }
 

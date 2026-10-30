@@ -1,3 +1,48 @@
+## 0.4.193
+
+- Add spot lights, perspective spot shadows and plane clipping to native R1
+  (version 3). `SpotLight` (angle/penumbra/distance/decay) rides the light
+  command as type 4, the shadow pass now divides xy by `shadowPosition.w` so
+  perspective spot shadow cameras work, and the frame names its single shadow
+  owner so shading scopes the map correctly. Materials carry `clipId`/flags;
+  a new CLIPPING opcode uploads normalized world-space plane sets (one
+  in-place set per material — GUI plane drags bump the version instead of
+  accumulating sets), the fragment shaders discard union/intersection per
+  three's clipping semantics, and `clipShadows` clips the shadow pass.
+  Lights UBO grows to 832 bytes with four spot vec4 arrays.
+- Integrate the official `webgl_clipping` module (twenty-one now): spot
+  shadow + local/global clipping planes with live lil-gui controls.
+- Expand the bounded native lil-gui facade with one-level folders (bounded
+  quota, programmatic open/close, no tap-to-collapse), controller callbacks
+  bubble folder → root, and the shared controller quota counts folder
+  controllers.
+
+## 0.4.192
+
+- Add per-instance colors to native R1 instanced draws: `mesh.setColorAt`
+  uploads a 3-float RGB payload per instance (DRAW_BATCH flag bit 2, decoded
+  additively by the strict Dart decoder, written into the GPU instance vertex
+  buffer with alpha 1). The official `webgl_instancing_raycast` module now
+  runs with its recolor-on-hit behavior; malformed `instanceColor`
+  attributes still fail fast without poisoning batch versions.
+- Fix native R1 clip-depth conversion from WebGL `[-w, w]` to Flutter GPU
+  `[0, w]` for orthographic and perspective cameras. Orthographic meshes in
+  the negative-NDC-Z half are no longer clipped; an ordinary/auto-instanced
+  parity golden covers the regression.
+- Correct native R1 point-size attenuation for the official Raycasting Points
+  sample, including DPR-independent perspective sizing.
+- Expand the native official-example browser to twenty R1 modules with
+  Interactive Lines, Extrude Shapes, Instancing Raycast and Interactive
+  BufferGeometry. Support shared upstream geometries
+  used by both `Line` and `LineSegments`, nested local diagnostic containers,
+  and exact non-indexed multi-material vertex ranges in main and shadow draws.
+- Expand the bounded native lil-gui facade with bounded number sliders
+  (`gui.add(object, prop, min, max)`) and fix late canvas mounts from wiping
+  already-rendered control overlays.
+- Add conservative native auto-instancing for compatible opaque mesh draws,
+  preserving per-instance world matrices and diffuse colors while excluding
+  transparent, wireframe and incompatible render state.
+
 ## 0.4.191
 
 - Add opt-in nonblocking native QuickJS through

@@ -139,7 +139,8 @@ Renderer effects ported from YoClip: radial gradients, box shadows, blur nodes, 
   Track the cumulative HostBuffer uniform offset and insert a filler whenever
   an aligned payload would straddle the allocator's block boundary; minimum
   alignment alone is insufficient at the final partial block. R1 optionally
-  appends main-camera culled node ids after the 136-byte FRAME header; shadow
+  appends main-camera culled node ids after the 140-byte FRAME header (v3:
+  136 fixed bytes + a u32 naming the shadow-light owner 0/1/2); shadow
   passes keep all casters and reuse their map until content/shadow parameters
   change. The macOS stress target additionally demonstrates a host-specific
   raw relative-mouse channel (`jsr.three.pointer`) with cursor disassociation,
