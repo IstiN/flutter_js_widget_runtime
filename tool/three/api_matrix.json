@@ -3,11 +3,11 @@
   "generatedAt": "2026-10-30",
   "totals": {
     "examples": 607,
-    "supported": 68,
-    "blocked": 443,
-    "webLane": 77,
+    "supported": 72,
+    "blocked": 438,
+    "webLane": 78,
     "unknownApi": 19,
-    "prepared": 58
+    "prepared": 60
   },
   "rows": [
     {
@@ -368,6 +368,7 @@
       ],
       "blockers": [],
       "unknown": [
+        "TOUCH",
         "addon:controls/DragControls.js (unverified: plausible on the input lane — needs a probe)"
       ]
     },
@@ -1317,7 +1318,7 @@
     {
       "id": "svg_sandbox",
       "prepared": false,
-      "verdict": "blocked",
+      "verdict": "unknown-api",
       "uses": [
         "ColorManagement",
         "PerspectiveCamera",
@@ -1343,10 +1344,7 @@
         "addon:controls/OrbitControls.js",
         "addon:renderers/SVGRenderer.js"
       ],
-      "blockers": [
-        "SpriteMaterial (requires Sprite support in the R1 draw plan)",
-        "Sprite (R1 rejects isSprite objects (objectType))"
-      ],
+      "blockers": [],
       "unknown": [
         "FileLoader",
         "addon:renderers/SVGRenderer.js"
@@ -2610,6 +2608,7 @@
         "addon:effects/StereoEffect.js"
       ],
       "blockers": [
+        "CubeRefractionMapping (web-lane: refracted cube sampling — upstream renderer on the web build) [web-lane]",
         "addon:effects/StereoEffect.js (stereo rendering outside R1)"
       ],
       "unknown": []
@@ -2617,7 +2616,7 @@
     {
       "id": "webgl_framebuffer_texture",
       "prepared": false,
-      "verdict": "blocked",
+      "verdict": "web-lane",
       "uses": [
         "Vector2",
         "Color",
@@ -2637,9 +2636,7 @@
         "addon:controls/OrbitControls.js"
       ],
       "blockers": [
-        "FramebufferTexture (web-lane: framebuffer readback — upstream renderer on the web build) [web-lane]",
-        "SpriteMaterial (requires Sprite support in the R1 draw plan)",
-        "Sprite (R1 rejects isSprite objects (objectType))"
+        "FramebufferTexture (web-lane: framebuffer readback — upstream renderer on the web build) [web-lane]"
       ],
       "unknown": []
     },
@@ -2727,7 +2724,7 @@
     {
       "id": "webgl_geometry_colors_lookuptable",
       "prepared": false,
-      "verdict": "blocked",
+      "verdict": "unknown-api",
       "uses": [
         "Scene",
         "Color",
@@ -2748,10 +2745,7 @@
         "addon:controls/OrbitControls.js",
         "addon:math/Lut.js"
       ],
-      "blockers": [
-        "Sprite (R1 rejects isSprite objects (objectType))",
-        "SpriteMaterial (requires Sprite support in the R1 draw plan)"
-      ],
+      "blockers": [],
       "unknown": [
         "addon:math/Lut.js"
       ]
@@ -5112,7 +5106,7 @@
     {
       "id": "webgl_loader_texture_exr",
       "prepared": false,
-      "verdict": "unknown-api",
+      "verdict": "supported",
       "uses": [
         "WebGLRenderer",
         "ReinhardToneMapping",
@@ -5125,9 +5119,7 @@
         "addon:loaders/EXRLoader.js"
       ],
       "blockers": [],
-      "unknown": [
-        "addon:loaders/EXRLoader.js (unverified: pure-JS RGBE/zip decode (fflate) — needs a probe)"
-      ]
+      "unknown": []
     },
     {
       "id": "webgl_loader_texture_hdr",
@@ -5467,6 +5459,7 @@
         "addon:shaders/ToonShader.js"
       ],
       "blockers": [
+        "CubeRefractionMapping (web-lane: refracted cube sampling — upstream renderer on the web build) [web-lane]",
         "ShaderMaterial (web-lane: GLSL passes — upstream renderer on the web build) [web-lane]",
         "addon:shaders/ToonShader.js (web-lane: GLSL shader source — upstream renderer on the web build) [web-lane]"
       ],
@@ -5715,6 +5708,7 @@
         "addon:loaders/OBJLoader.js"
       ],
       "blockers": [
+        "CubeRefractionMapping (web-lane: refracted cube sampling — upstream renderer on the web build) [web-lane]",
         "MixOperation (legacy combine operations outside R1)"
       ],
       "unknown": []
@@ -5772,7 +5766,7 @@
     {
       "id": "webgl_materials_cubemap_refraction",
       "prepared": true,
-      "verdict": "supported",
+      "verdict": "web-lane",
       "uses": [
         "PerspectiveCamera",
         "CubeTextureLoader",
@@ -5785,8 +5779,11 @@
         "addon:libs/stats.module.js",
         "addon:loaders/PLYLoader.js"
       ],
-      "blockers": [],
-      "unknown": []
+      "blockers": [
+        "CubeRefractionMapping (web-lane: refracted cube sampling — upstream renderer on the web build) [web-lane]"
+      ],
+      "unknown": [],
+      "override": "cube faces arrive as OffscreenCanvas-decoded jpgs — assets stay unregistered on native (documented facade gap); runs on the web build"
     },
     {
       "id": "webgl_materials_cubemap_render_to_mipmaps",
@@ -5870,7 +5867,8 @@
         "addon:controls/OrbitControls.js"
       ],
       "blockers": [
-        "EquirectangularRefractionMapping (envMap reflection sampling only; refraction not modeled)"
+        "EquirectangularRefractionMapping (envMap reflection sampling only; refraction not modeled)",
+        "CubeRefractionMapping (web-lane: refracted cube sampling — upstream renderer on the web build) [web-lane]"
       ],
       "unknown": []
     },
@@ -5902,8 +5900,7 @@
         "PMREMGenerator (web-lane: prefiltered env passes — upstream renderer on the web build) [web-lane]"
       ],
       "unknown": [
-        "DefaultLoadingManager",
-        "addon:loaders/EXRLoader.js (unverified: pure-JS RGBE/zip decode (fflate) — needs a probe)"
+        "DefaultLoadingManager"
       ]
     },
     {
@@ -6005,8 +6002,8 @@
     },
     {
       "id": "webgl_materials_matcap",
-      "prepared": false,
-      "verdict": "unknown-api",
+      "prepared": true,
+      "verdict": "supported",
       "uses": [
         "WebGLRenderer",
         "ACESFilmicToneMapping",
@@ -6024,9 +6021,7 @@
         "addon:loaders/EXRLoader.js"
       ],
       "blockers": [],
-      "unknown": [
-        "addon:loaders/EXRLoader.js (unverified: pure-JS RGBE/zip decode (fflate) — needs a probe)"
-      ]
+      "unknown": []
     },
     {
       "id": "webgl_materials_modified",
@@ -6393,8 +6388,8 @@
     },
     {
       "id": "webgl_materials_toon",
-      "prepared": false,
-      "verdict": "web-lane",
+      "prepared": true,
+      "verdict": "supported",
       "uses": [
         "PerspectiveCamera",
         "Scene",
@@ -6415,12 +6410,8 @@
         "addon:loaders/FontLoader.js",
         "addon:geometries/TextGeometry.js"
       ],
-      "blockers": [
-        "addon:effects/OutlineEffect.js (web-lane: render-target effect — upstream renderer on the web build) [web-lane]"
-      ],
-      "unknown": [
-        "MeshToonMaterial"
-      ]
+      "blockers": [],
+      "unknown": []
     },
     {
       "id": "webgl_materials_video",
@@ -8263,7 +8254,7 @@
     {
       "id": "webgl_raycaster_sprite",
       "prepared": true,
-      "verdict": "blocked",
+      "verdict": "supported",
       "uses": [
         "Raycaster",
         "Vector2",
@@ -8277,10 +8268,7 @@
         "Object3D",
         "addon:controls/OrbitControls.js"
       ],
-      "blockers": [
-        "Sprite (R1 rejects isSprite objects (objectType))",
-        "SpriteMaterial (requires Sprite support in the R1 draw plan)"
-      ],
+      "blockers": [],
       "unknown": []
     },
     {
@@ -8973,7 +8961,7 @@
     {
       "id": "webgl_sprites",
       "prepared": true,
-      "verdict": "blocked",
+      "verdict": "supported",
       "uses": [
         "PerspectiveCamera",
         "OrthographicCamera",
@@ -8986,10 +8974,7 @@
         "Sprite",
         "WebGLRenderer"
       ],
-      "blockers": [
-        "SpriteMaterial (requires Sprite support in the R1 draw plan)",
-        "Sprite (R1 rejects isSprite objects (objectType))"
-      ],
+      "blockers": [],
       "unknown": []
     },
     {
@@ -10224,12 +10209,12 @@
         "bare:three/tsl"
       ],
       "blockers": [
-        "Sprite (R1 rejects isSprite objects (objectType))",
         "WebGPURenderer (WebGPU outside R1)",
         "bare:three/tsl (WebGPU/TSL build lane)"
       ],
       "unknown": [
         "SpriteNodeMaterial",
+        "TOUCH",
         "addon:inspector/Inspector.js"
       ]
     },
@@ -10265,6 +10250,7 @@
         "bare:three/tsl (WebGPU/TSL build lane)"
       ],
       "unknown": [
+        "TOUCH",
         "IndirectStorageBufferAttribute",
         "MeshStandardNodeMaterial",
         "addon:inspector/Inspector.js",
@@ -11333,7 +11319,6 @@
         "bare:three/tsl"
       ],
       "blockers": [
-        "Sprite (R1 rejects isSprite objects (objectType))",
         "WebGPURenderer (WebGPU outside R1)",
         "bare:three/tsl (WebGPU/TSL build lane)"
       ],
@@ -11361,7 +11346,6 @@
         "bare:three/tsl"
       ],
       "blockers": [
-        "Sprite (R1 rejects isSprite objects (objectType))",
         "WebGPURenderer (WebGPU outside R1)",
         "bare:three/tsl (WebGPU/TSL build lane)"
       ],
@@ -12488,6 +12472,7 @@
         "addon:inspector/Inspector.js"
       ],
       "blockers": [
+        "CubeRefractionMapping (web-lane: refracted cube sampling — upstream renderer on the web build) [web-lane]",
         "WebGPURenderer (WebGPU outside R1)"
       ],
       "unknown": [
@@ -12567,7 +12552,8 @@
       ],
       "blockers": [
         "WebGPURenderer (WebGPU outside R1)",
-        "EquirectangularRefractionMapping (envMap reflection sampling only; refraction not modeled)"
+        "EquirectangularRefractionMapping (envMap reflection sampling only; refraction not modeled)",
+        "CubeRefractionMapping (web-lane: refracted cube sampling — upstream renderer on the web build) [web-lane]"
       ],
       "unknown": [
         "addon:inspector/Inspector.js"
@@ -12715,8 +12701,7 @@
       ],
       "unknown": [
         "MeshMatcapNodeMaterial",
-        "addon:inspector/Inspector.js",
-        "addon:loaders/EXRLoader.js (unverified: pure-JS RGBE/zip decode (fflate) — needs a probe)"
+        "addon:inspector/Inspector.js"
       ]
     },
     {
@@ -13562,7 +13547,6 @@
         "bare:three/tsl"
       ],
       "blockers": [
-        "Sprite (R1 rejects isSprite objects (objectType))",
         "WebGPURenderer (WebGPU outside R1)",
         "bare:three/tsl (WebGPU/TSL build lane)"
       ],
@@ -13882,7 +13866,6 @@
       "blockers": [
         "WebGPURenderer (WebGPU outside R1)",
         "AdditiveBlending (NormalBlending only)",
-        "Sprite (R1 rejects isSprite objects (objectType))",
         "RenderPipeline (WebGPU pipeline nodes)",
         "bare:three/tsl (WebGPU/TSL build lane)"
       ],
@@ -15748,7 +15731,6 @@
         "bare:three/tsl"
       ],
       "blockers": [
-        "Sprite (R1 rejects isSprite objects (objectType))",
         "WebGPURenderer (WebGPU outside R1)",
         "bare:three/tsl (WebGPU/TSL build lane)"
       ],
@@ -15804,7 +15786,6 @@
         "bare:three/tsl"
       ],
       "blockers": [
-        "Sprite (R1 rejects isSprite objects (objectType))",
         "WebGPURenderer (WebGPU outside R1)",
         "bare:three/tsl (WebGPU/TSL build lane)"
       ],
@@ -16459,7 +16440,6 @@
         "bare:three/tsl"
       ],
       "blockers": [
-        "Sprite (R1 rejects isSprite objects (objectType))",
         "WebGPURenderer (WebGPU outside R1)",
         "bare:three/tsl (WebGPU/TSL build lane)"
       ],

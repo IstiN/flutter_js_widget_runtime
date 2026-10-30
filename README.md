@@ -232,15 +232,16 @@ tests (`tool/three/test/`), so every capability change fails CI until the
 snapshot is consciously refreshed.
 
 - **Example matrix** (`tool/three/api_matrix.json`, 607 official examples):
-  `supported` 68, `prepared` 58, `web-lane` 58, `blocked` 462,
+  `supported` 72, `prepared` 60, `web-lane` 78, `blocked` 438,
   `unknown-api` 19 (down from 79 — every remaining row cites an explicitly
   `unverified` decode/input lane with the probe it needs, never a silently
   promoted one).
 - **Engine coverage** (`tool/three/engine_coverage.json`, all 454 exports of
-  `three.core.js ∪ three.module.js`): r1Ok 154, r1Bounded 16, r1No 68,
-  upstreamCpu 41, constants 170, nativeAbsent 5, **unclassified 0**
-  (was 15). render-honored 170/454 = **37.4%**, QuickJS-usable 381/454 =
-  **83.9%**; the web lane (real upstream renderer on a Worker
+  `three.core.js ∪ three.module.js`): r1Ok 157, r1Bounded 16, r1No 65
+  (17 of them deliberate web-lane, see below), upstreamCpu 41,
+  constants 170, nativeAbsent 5, **unclassified 0**
+  (was 15). render-honored 173/454 = **38.1%**, QuickJS-usable 384/454 =
+  **84.6%**; the web lane (real upstream renderer on a Worker
   OffscreenCanvas) serves 100% of the API.
 
 **Deliberate web-lane verdicts.** The native R1 lane will not implement
@@ -257,13 +258,15 @@ only blockers are web-lane get verdict `web-lane`, not plain `blocked`):
 | env prefilter | `PMREMGenerator`, `LightProbeGenerator`, LightProbeGridWebGL | prefiltered-IBL render passes |
 | cube capture | `CubeCamera` | renders the scene into a cube render target |
 | VSM shadows | `VSMShadowMap` | separable blur passes into render targets |
-| mirror/refract objects | `Reflector`, `Refractor`, Anaglyph/ParallaxBarrier/Outline effects | render-target re-injection |
+| mirror/refract objects | `Reflector`, `Refractor`, Anaglyph/ParallaxBarrier effects | render-target re-injection (Outline effects stock-boot via the R1 v5 ton kind; the exact GLSL displacement outline stays web-lane) |
 | fat lines | `Line2` family (`LineMaterial` GLSL) | instanced GLSL dashes/resolution |
 | cascaded shadows | `csm/CSM.js` | cascaded shadow render targets |
 
-Two prepared modules are deliberately kept as documented web-lane gap
-demos (`webgl_lights_hemisphere`, `webgl_interactive_points`: their
-ShaderMaterial parts stay upstream; regression tests pin the exact
+Three prepared modules are deliberately kept as documented web-lane gap
+demos (`webgl_lights_hemisphere` and `webgl_interactive_points`: their
+ShaderMaterial parts stay upstream; `webgl_materials_cubemap_refraction`:
+the cube faces arrive as OffscreenCanvas-decoded jpgs that stay
+unregistered assets on native — regression tests pin the exact
 `three.unsupported` card), and the Web (1B) lane serves all of the above
 unmodified.
 
@@ -401,10 +404,21 @@ to the native sampler maximum of 1), and material texture slots beyond
 Graduated to the app sidebar + expanded suite: `webgl_geometry_shapes`,
 `webgl_materials_texture_rotation`, `webgl_points_billboards`,
 `webgl_shadowmap_pointlight`.
-Wave-2 gap modules, each pinned by a dedicated regression test:
-`webgl_sprites` and `webgl_raycaster_sprite` (Sprite objectType; the
-raycaster's pointer→material flip otherwise works end-to-end on the
-`three.input` lane), `webgl_materials_texture_filters` (`Texture.clone()`
+Wave-3 batch 1-2 (R1 protocol v5) shipped four more capability families
+natively: sprite billboards (`Sprite`/`SpriteMaterial` kind, rotation, fog,
+tone mapping — `webgl_sprites` and `webgl_raycaster_sprite` run stock with
+dedicated regression tests replacing their wave-2 gap pins), point-light
+shadows (dual-paraboloid map per light, `webgl_shadowmap_pointlight`),
+ton/matcap materials (`MeshToonMaterial` + gradientMap steps,
+`MeshMatcapMaterial` + matcap texture slot — the EXR decode lane is pure
+JS and feeds R1 data textures; `webgl_materials_matcap` and
+`webgl_materials_toon` run stock, with the toon OutlineEffect degraded to
+the bounded lane), and data + cube textures (`DataTexture` uploads,
+`CubeTexture` bounded to `CubeReflectionMapping`; `CubeRefractionMapping`
+stays a documented web-lane entry).
+Wave-2 gap modules, each pinned by a dedicated regression test (the
+sprite pair graduated with R1 v5 — their tests now pin the working sprite
+lane instead of the gap): `webgl_materials_texture_filters` (`Texture.clone()`
 canvas2d source — the wave-3 UV-transform lane removed the floor-repeat
 blocker), `webgl_materials_texture_anisotropy` (`#val_left` DOM overlay
 write + the wave-2 GIF lane; `capabilities.getMaxAnisotropy()` is real
@@ -432,7 +446,7 @@ GUI controls and general DOM/CSS remain explicit failures. None is
 approximated or rewritten. Native runs require
 a Flutter GPU/Impeller platform; the Web path requires Worker
 OffscreenCanvas + WebGL2 (verify on real Chrome/Edge). The sample browser
-sidebar switches all thirty-seven integrated modules without restarting; its
+sidebar switches all forty-one integrated modules without restarting; its
 overlay reports presented-frame
 FPS, decode/frame time, calls, triangles and uploads.
 

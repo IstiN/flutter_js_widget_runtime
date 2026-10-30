@@ -846,9 +846,14 @@ export class JsrWebGLRenderer {
   }
 
   _instanceData(object, materials) {
-    for (const material of materials) {
-      if (material.transparent) unsupported('transparentInstancedMesh', 'R1 instanced draws must be opaque');
-    }
+    // Transparent instanced meshes are accepted since the wave-3 instancing
+    // batch: one blended draw per material part, ordered inside the
+    // transparent bucket at the node/material level by the draw planner.
+    // Exact per-instance back-to-front sorting inside one draw is NOT
+    // implemented (the GPU rasterizes all instances of a part in one
+    // call); scenes that need it must split instances across meshes, like
+    // the dual-paraboloid point-shadow approximation is documented as
+    // bounded rather than exact.
     if (object.morphTexture) unsupported('morphTargets', 'instanced morph textures');
     const count = object.count;
     if (!Number.isInteger(count) || count < 0 || count > MAX_INSTANCES) throw new Error(`three.invalid: InstancedMesh.count must be within 0..${MAX_INSTANCES}`);

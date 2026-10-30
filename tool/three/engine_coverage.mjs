@@ -100,6 +100,7 @@ const EXPLICIT = new Map([
   ['ShapeGeometry', { status: 'ok', note: 'generateShapes triangulated in JS' }],
   ['PolyhedronGeometry', { status: 'ok', note: 'CPU-generated geometry' }],
   ['FogExp2', { status: 'ok', note: 'R1 v4 frame fog mode + density (exp2 in three_r1.frag)' }],
+  ['MeshMatcapMaterial', { status: 'ok', note: 'R1 v5 matcap kind + matcap texture slot (EXR decode lane)' }],
   // Deliberate web-lane: GLSL passes / offscreen render targets — the
   // native R1 lane renders only to the surface; the upstream renderer on
   // the web build (Worker OffscreenCanvas) is the lane for these. Kept as
@@ -114,8 +115,6 @@ const EXPLICIT = new Map([
   ['UniformsGroup', { status: 'no', note: 'WebGPU uniform buffer group — WebGPU lane' }],
   ['UniformsUtils', { status: 'ok', note: 'upstream JS utility runs in QuickJS (GLSL consumers are web-lane)' }],
   ['TextureUtils', { status: 'upstream', note: 'contain/cover adjust repeat/offset — render-honored through R1 v4 UV transforms' }],
-  ['MeshMatcapMaterial', { status: 'no', note: 'material kind outside R1 kinds' }],
-  ['MeshToonMaterial', { status: 'no', note: 'material kind outside R1 kinds' }],
   ['StereoCamera', { status: 'no', note: 'stereo rendering outside R1' }],
   ['GLBufferAttribute', { status: 'no', note: 'GPU-resident buffer; R1 owns buffers' }],
   ...[
@@ -126,8 +125,10 @@ const EXPLICIT = new Map([
   ...[
     'FileLoader', 'ImageLoader', 'ImageBitmapLoader', 'ObjectLoader',
     'MaterialLoader', 'CompressedTextureLoader', 'DataTextureLoader',
-    'CompressedTexture', 'DataTexture', 'VideoTexture', 'CubeTexture',
+    'CompressedTexture', 'VideoTexture',
   ].map((n) => [n, { status: 'bounded', note: 'IO/decode lane bounded (asset lane, OffscreenCanvas guard)' }]),
+  ['DataTexture', { status: 'ok', note: 'R1 v5 data texture uploads (gradient maps, EXR decode lane)' }],
+  ['CubeTexture', { status: 'bounded', note: 'R1 v5 cube texture lane (CubeReflectionMapping only)' }],
   ['PositionalAudio', { status: 'no', note: 'WebAudio' }],
   ['AudioContext', { status: 'no', note: 'WebAudio' }],
   ['TimestampQuery', { status: 'no', note: 'GPU timing query' }],

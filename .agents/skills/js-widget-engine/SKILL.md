@@ -288,18 +288,22 @@ R1 v4 carries tone mapping + exposure + anisotropy end-to-end),
 (onBeforeCompile),  `webgl_materials_texture_canvas`
 (HTML-only `<canvas>` element outside the prepared document facade).
 `webgl_materials_texture_partialupdate` renders but pins the missing
-`copyTextureToTexture` API. Wave-2 gaps: `webgl_sprites` /
-`webgl_raycaster_sprite` (Sprite objectType; the sprite raycast pointer
-path itself works on `three.input`), `webgl_materials_texture_filters`
+`copyTextureToTexture` API. Wave-3 batch 1-2 (R1 v5) closed three of the
+wave-2 gaps: `webgl_sprites` / `webgl_raycaster_sprite` now run stock on
+the real sprite billboard kind, and `webgl_shadowmap_pointlight` renders
+point-light shadows through the dual-paraboloid map (per-light v5 tail);
+`webgl_materials_matcap` / `webgl_materials_toon` run stock on the new
+matcap/ton material kinds (EXR decode is pure JS feeding data textures;
+the toon OutlineEffect is bounded — exact GLSL outlines stay web-lane).
+Remaining wave-2 gaps: `webgl_materials_texture_filters`
 (`Texture.clone()` canvas2d source), `webgl_materials_texture_anisotropy`
 (DOM overlay + GIF lane; getMaxAnisotropy is real since wave-3),
-`webgl_shadowmap_pointlight` (renders stock with the wave-3 alphaMap slot;
-point-light shadows are silently dropped — R1 scans directional+spot
-only), `webgl_camera_logarithmicdepthbuffer` (facade lacks
+`webgl_camera_logarithmicdepthbuffer` (facade lacks
 `#renderer_border`; with a stub the flag is silently ignored and the
 second renderer trips the one-active-renderer guard),
 `webgl_materials_cubemap_refraction` (OffscreenCanvas img guard + envMap;
-Park3Med jpgs not registered), `webgl_raycaster_texture` (OffscreenCanvas
+Park3Med jpgs not registered — final matrix verdict: deliberate web-lane),
+`webgl_raycaster_texture` (OffscreenCanvas
 img decode + canvas2d clearRect/path ops unbounded), and
 `webgl_instancing_performance` (stock: lil-gui object-map options add +
 missing `console.time`; probe-shimmed it renders one instanced draw,
@@ -314,8 +318,9 @@ stay 0 — the snapshot test fails otherwise). GLSL passes, render targets,
 postprocessing, PMREM, VSM, fat lines and CubeCamera capture are DELIBERATE
 web-lane `no` entries (`webLane: true`, documented reason): the native lane
 presents one surface and will not implement them; the Web (1B) lane serves
-100% of the API. Entries marked `unverified` (pure-JS decode loaders,
-DragControls, SelectionBox) stay unknown-api with the probe they need —
+100% of the API. Entries marked `unverified` (pure-JS decode loaders —
+EXR graduated to bounded via the matcap stock boot — DragControls,
+SelectionBox) stay unknown-api with the probe they need —
 never promote one without a real module boot. Regenerate both snapshots
 (`--write`) and update the README tables in the same change.
 R1 clipping planes carry three.js Plane constants and the GPU

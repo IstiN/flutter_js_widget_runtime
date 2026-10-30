@@ -3,19 +3,19 @@
   "generatedAt": "2026-10-30",
   "totals": {
     "engineExports": 454,
-    "r1Ok": 154,
+    "r1Ok": 157,
     "r1Bounded": 16,
-    "r1No": 68,
+    "r1No": 65,
     "upstreamCpu": 41,
     "constants": 170,
     "nativeAbsent": 5,
     "unclassified": 0,
-    "webLane": 16,
-    "renderHonored": 170,
+    "webLane": 17,
+    "renderHonored": 173,
     "renderRelevantClassified": 238,
-    "quickjsUsable": 381,
-    "renderHonoredPct": 37.4,
-    "quickjsUsablePct": 83.9,
+    "quickjsUsable": 384,
+    "renderHonoredPct": 38.1,
+    "quickjsUsablePct": 84.6,
     "webLanePct": 100
   },
   "rows": [
@@ -430,15 +430,16 @@
     },
     {
       "symbol": "CubeRefractionMapping",
-      "lane": "r1",
-      "status": "ok",
-      "flutterAnalog": "R1 protocol opcode → ThreeDrawPlanner → flutter_gpu"
+      "lane": "web-only",
+      "status": "no",
+      "webLane": true,
+      "flutterAnalog": "web-lane: refracted cube sampling — upstream renderer on the web build"
     },
     {
       "symbol": "CubeTexture",
       "lane": "r1",
       "status": "bounded",
-      "flutterAnalog": "IO/decode lane bounded (asset lane, OffscreenCanvas guard)"
+      "flutterAnalog": "R1 v5 cube texture lane (CubeReflectionMapping only)"
     },
     {
       "symbol": "CubeTextureLoader",
@@ -1332,9 +1333,9 @@
     },
     {
       "symbol": "MeshMatcapMaterial",
-      "lane": "web-only",
-      "status": "no",
-      "flutterAnalog": "material kind outside R1 kinds"
+      "lane": "r1",
+      "status": "ok",
+      "flutterAnalog": "R1 v5 matcap kind + matcap texture slot (EXR decode lane)"
     },
     {
       "symbol": "MeshNormalMaterial",
@@ -1362,9 +1363,9 @@
     },
     {
       "symbol": "MeshToonMaterial",
-      "lane": "web-only",
-      "status": "no",
-      "flutterAnalog": "material kind outside R1 kinds"
+      "lane": "r1",
+      "status": "ok",
+      "flutterAnalog": "R1 v5 ton kind + gradientMap steps"
     },
     {
       "symbol": "MinEquation",
@@ -1647,7 +1648,7 @@
       "symbol": "PointLight",
       "lane": "r1",
       "status": "ok",
-      "flutterAnalog": "R1 protocol opcode → ThreeDrawPlanner → flutter_gpu"
+      "flutterAnalog": "point shadows via dual-paraboloid shadow map (R1 v5, bounded)"
     },
     {
       "symbol": "PointLightHelper",
@@ -2243,15 +2244,15 @@
     },
     {
       "symbol": "Sprite",
-      "lane": "web-only",
-      "status": "no",
-      "flutterAnalog": "R1 rejects isSprite objects (objectType)"
+      "lane": "r1",
+      "status": "ok",
+      "flutterAnalog": "R1 v5 sprite billboard kind"
     },
     {
       "symbol": "SpriteMaterial",
-      "lane": "web-only",
-      "status": "no",
-      "flutterAnalog": "requires Sprite support in the R1 draw plan"
+      "lane": "r1",
+      "status": "ok",
+      "flutterAnalog": "R1 v5 sprite material (rotation, fog, tone mapping)"
     },
     {
       "symbol": "SrcAlphaFactor",

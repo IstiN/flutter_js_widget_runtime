@@ -50,14 +50,16 @@ const API = {
   ShaderMaterial: { status: 'no', webLane: true, note: 'web-lane: GLSL passes — upstream renderer on the web build' },
   RawShaderMaterial: { status: 'no', webLane: true, note: 'web-lane: GLSL passes — upstream renderer on the web build' },
   MeshPhysicalMaterial: { status: 'no', note: 'physical extensions unsupported' },
+  MeshToonMaterial: { status: 'ok', note: 'R1 v5 ton kind + gradientMap steps' },
+  CubeTexture: { status: 'bounded', note: 'R1 v5 cube texture lane (CubeReflectionMapping only)' },
   MeshDepthMaterial: { status: 'no' },
   MeshDistanceMaterial: { status: 'no' },
-  SpriteMaterial: { status: 'no', note: 'no sprite batching in R1' },
+  SpriteMaterial: { status: 'ok', note: 'R1 v5 sprite material (rotation, fog, tone mapping)' },
 
   // Lights.
   AmbientLight: { status: 'ok' },
   DirectionalLight: { status: 'ok' },
-  PointLight: { status: 'ok' },
+  PointLight: { status: 'ok', note: 'point shadows via dual-paraboloid shadow map (R1 v5, bounded)' },
   HemisphereLight: { status: 'ok' },
   SpotLight: { status: 'ok', note: 'capped at 4 visible, PCF shadow' },
   RectAreaLight: { status: 'no' },
@@ -95,7 +97,7 @@ const API = {
   LineSegments: { status: 'ok' },
   Group: { status: 'ok' },
   InstancedMesh: { status: 'ok', note: 'DRAW_BATCH GPU instancing' },
-  Sprite: { status: 'no' },
+  Sprite: { status: 'ok', note: 'R1 v5 sprite billboard kind' },
   SkinnedMesh: { status: 'no', note: 'skinning unsupported in R1' },
   Bone: { status: 'no' },
   Skeleton: { status: 'no' },
@@ -145,7 +147,7 @@ const API = {
   CustomBlending: { status: 'no' },
   PCFShadowMap: { status: 'ok' }, BasicShadowMap: { status: 'ok' },
   NearestFilter: { status: 'ok' }, UVMapping: { status: 'ok' },
-  CubeRefractionMapping: { status: 'ok' }, ColorManagement: { status: 'ok' },
+  CubeRefractionMapping: { status: 'no', webLane: true, note: 'web-lane: refracted cube sampling — upstream renderer on the web build' }, ColorManagement: { status: 'ok' },
   BufferGeometryLoader: { status: 'ok' }, SkeletonHelper: { status: 'no', note: 'skinning' },
   QuaternionKeyframeTrack: { status: 'no', note: 'bounded animation' },
   ColorKeyframeTrack: { status: 'no' }, NumberKeyframeTrack: { status: 'no' },
@@ -187,8 +189,8 @@ const API = {
   DoubleSide: { status: 'ok' }, FrontSide: { status: 'ok' }, BackSide: { status: 'ok' },
   TextureLoader: { status: 'ok' }, Texture: { status: 'ok' },
   DataTexture: { status: 'ok' }, CompressedTexture: { status: 'no' },
-  Sprite: { status: 'no', note: 'R1 rejects isSprite objects (objectType)' },
-  SpriteMaterial: { status: 'no', note: 'requires Sprite support in the R1 draw plan' },
+  Sprite: { status: 'ok', note: 'R1 v5 sprite billboard kind' },
+  SpriteMaterial: { status: 'ok', note: 'R1 v5 sprite material (rotation, fog, tone mapping)' },
   Curve: { status: 'ok' }, CatmullRomCurve3: { status: 'ok' },
   SplineCurve: { status: 'ok' }, CubicBezierCurve: { status: 'ok' },
   QuadraticBezierCurve: { status: 'ok' }, LineCurve3: { status: 'ok' },
@@ -266,7 +268,6 @@ const API = {
   Cache: { status: 'ok', note: 'CPU loader cache (upstream JS)' },
   TextureUtils: { status: 'ok', note: 'contain/cover set repeat/offset — honored by R1 v4 UV transforms' },
   LightProbe: { status: 'ok', note: 'CPU SH light-probe data; lighting contribution stays CPU-side' },
-  TOUCH: { status: 'ok', note: 'constant map; input lane reads host pointer events' },
   NoBlending: { status: 'bounded', note: 'honored on opaque draws; the transparent pass always normal-blends' },
   LinearMipMapLinearFilter: { status: 'bounded', note: 'collapsed to nearest/linear min filter; mip filtering derived, not per-mip exact' },
   NearestMipmapNearestFilter: { status: 'bounded', note: 'collapsed to nearest/linear min filter; mip filtering derived, not per-mip exact' },
@@ -383,7 +384,7 @@ const ADDONS = {
   // Render-target / multi-pass effects — web-lane.
   'effects/AnaglyphEffect.js': { status: 'no', webLane: true, note: 'web-lane: render-target effect — upstream renderer on the web build' },
   'effects/ParallaxBarrierEffect.js': { status: 'no', webLane: true, note: 'web-lane: render-target effect — upstream renderer on the web build' },
-  'effects/OutlineEffect.js': { status: 'no', webLane: true, note: 'web-lane: render-target effect — upstream renderer on the web build' },
+  'effects/OutlineEffect.js': { status: 'bounded', note: 'stock-boots on R1 v5 (three-materials-toon); the GLSL displacement outline pass degrades — exact outlines stay web-lane' },
   'effects/StereoEffect.js': { status: 'no', note: 'stereo rendering outside R1' },
   'effects/AsciiEffect.js': { status: 'no', note: 'DOM text renderer — browser only' },
   // Fat lines render through LineMaterial (a ShaderMaterial) — web-lane.
@@ -445,7 +446,7 @@ const ADDONS = {
   // Known but deliberately unverified: decode/input lanes that plausibly
   // run in QuickJS but have no probe yet — kept out of 'supported'.
   'loaders/UltraHDRLoader.js': { status: 'unverified', note: 'gain-map HDR decode lane — needs a probe' },
-  'loaders/EXRLoader.js': { status: 'unverified', note: 'pure-JS RGBE/zip decode (fflate) — needs a probe' },
+  'loaders/EXRLoader.js': { status: 'bounded', note: 'pure-JS RGBE/zip decode (fflate) → DataTexture upload — proven by three-materials-matcap stock boot' },
   'loaders/TGALoader.js': { status: 'unverified', note: 'pure-JS decode — needs a probe' },
   'loaders/PVRLoader.js': { status: 'unverified', note: 'pure-JS decode — needs a probe' },
   'loaders/TIFFLoader.js': { status: 'unverified', note: 'pure-JS decode — needs a probe' },
@@ -496,6 +497,9 @@ const EXAMPLE_OVERRIDES = {
   webgl_multiple_elements_text: 'tiles one renderer across DOM canvases via setViewport — R1 no-ops viewport tiling',
   webgl_multiple_views: 'setViewport/setScissor view tiling — R1 no-ops viewport tiling',
   webgl_multiple_scenes_comparison: 'compares scenes on separate DOM canvases — single-surface facade',
+  // Prepared as a documented web-lane module: the cube faces arrive as
+  // OffscreenCanvas-decoded jpgs that stay unregistered on native.
+  webgl_materials_cubemap_refraction: { verdict: 'web-lane', note: 'cube faces arrive as OffscreenCanvas-decoded jpgs — assets stay unregistered on native (documented facade gap); runs on the web build' },
 };
 
 function classify(uses) {  const entry = (u) =>
@@ -550,9 +554,13 @@ for (const file of files) {
   const usesMorph = /morphAttributes|morphTargetsRelative|\.morphTargetInfluences/.test(code);
   let verdict = usesMorph ? 'blocked' : classify(uses);
   let override = null;
-  if (EXAMPLE_OVERRIDES[id]) {
+  const forced = EXAMPLE_OVERRIDES[id];
+  if (typeof forced === 'string') {
     verdict = 'blocked';
-    override = EXAMPLE_OVERRIDES[id];
+    override = forced;
+  } else if (forced) {
+    verdict = forced.verdict;
+    override = forced.note;
   }
   const entry = (u) =>
     u.name ? API[u.name] : (u.import ? ADDONS[u.import] : BARE_IMPORTS[u.bare]);

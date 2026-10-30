@@ -435,8 +435,14 @@ test('invalid matrices, counts, malformed instanceColor and transparent instanci
   mesh.instanceMatrix.isGLBufferAttribute = true;
   invalid(() => renderer.render(scene, camera), 'instanceMatrix');
   mesh.instanceMatrix.isGLBufferAttribute = false;
+  // Transparent instancing is accepted since the wave-3 instancing batch:
+  // one blended draw per part with node-level ordering in the planner's
+  // transparent bucket (no per-instance sort — documented bounded pass).
   mesh.material.transparent = true;
-  unsupported(() => renderer.render(scene, camera), 'transparentInstancedMesh');
+  renderer.render(scene, camera);
+  assert.equal(host.rawPackets.length, 6, 'transparent instanced renders emit a batch');
+  const transparentBatch = only(host.packets()[5], 11)[0];
+  assert.equal(u32(transparentBatch.body, 12), 1, 'transparent instancing keeps the instanced flag');
   mesh.material.transparent = false;
   for (const count of [-1, 1.5, 3, 1000001]) {
     mesh.count = count;

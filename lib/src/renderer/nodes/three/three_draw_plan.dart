@@ -708,14 +708,11 @@ final class ThreeDrawPlanner {
       diagnostics.warn('batch node ${node.nodeId} part $index: $rangeError');
       return null;
     }
-    if (batch.instanced && material.transparent) {
-      diagnostics.invalidBatchCount++;
-      diagnostics.warn(
-        'batch node ${node.nodeId} part $index: transparent InstancedMesh '
-        'draws are unsupported in R1',
-      );
-      return null;
-    }
+    // Transparent InstancedMesh parts are deliberately NOT rejected: they
+    // join the transparent bucket and blend in one draw per part, sorted
+    // among the other transparent draws at the node/material level.
+    // Per-instance sorting inside a part is documented as out of scope —
+    // see _compareTransparentDraws and the R1 instancing notes.
     return ThreeDrawItem(
       node: node,
       geometry: geometry,
