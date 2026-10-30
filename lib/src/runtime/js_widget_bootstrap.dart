@@ -48,10 +48,21 @@ function __joinArgs(a){
   return s;
 }
 
+var __timers = {};
 var console = {
   log:   function(){__send('__jsr_log', __joinArgs(arguments));},
   warn:  function(){__send('__jsr_log', '[W] '+__joinArgs(arguments));},
-  error: function(){__send('__jsr_log', '[E] '+__joinArgs(arguments));}
+  error: function(){__send('__jsr_log', '[E] '+__joinArgs(arguments));},
+  // info/debug share the log channel (no separate level exists on the
+  // host side); time/timeEnd are the official-module pairing used by
+  // webgl_instancing_scatter/performance build timings — a missing label
+  // degrades to an empty string instead of throwing.
+  info:  function(){__send('__jsr_log', __joinArgs(arguments));},
+  debug: function(){__send('__jsr_log', __joinArgs(arguments));},
+  time:  function(l){__timers[''+l]=Date.now();},
+  timeEnd: function(l){ var k=''+l, t0=__timers[k]; if(t0===undefined)return;
+                        delete __timers[k];
+                        __send('__jsr_log', k+': '+(Date.now()-t0)+'ms'); }
 };
 
 var setTimeout = function(fn,ms){ var id=__nid(); __iv_cbs[id]=function(){delete __iv_cbs[id];fn();}; __send('__jsr_set_interval','{"id":"'+id+'","ms":'+(ms||0)+',"once":true}'); return id; };

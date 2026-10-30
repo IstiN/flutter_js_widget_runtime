@@ -29,28 +29,27 @@ import 'support/widget_logic_helper.dart';
 ///
 /// Even with the dropdown patched, two further gaps block the scene —
 /// isolated by the part 2a probe:
-/// - root cause #2: the BufferGeometryLoader onLoad callback runs
-///   `console.time(method + ' (build)')` / `console.timeEnd(...)`, and
-///   the QuickJS bootstrap console shim only defines log/warn/error
-///   (lib/src/runtime/js_widget_bootstrap.dart:51-55). The TypeError is
-///   swallowed by the loader promise chain (the module passes no
-///   onError), so the build dies SILENTLY after the model parses.
+/// - root cause #2 (CLOSED by the wave-3 instancing batch): the shim now
+///   defines console.time/timeEnd/info/debug
+///   (lib/src/runtime/js_widget_bootstrap.dart), so the build timings
+///   run and the probe scene renders end to end (part 2a pins the
+///   closed lane). Historically the TypeError was swallowed by the
+///   loader promise chain and the build died SILENTLY.
 /// - root cause #3 (provisioning): `suzanne_buffergeometry.json`
 ///   (24675 bytes, 505 verts / 2901 Uint16 indices = 967 triangles) is
 ///   not embedded in the prepared widget (`JSON.parse("[]")` asset
 ///   list) and the test harness configures no host asset loader.
 ///
-/// Part 2b additionally polyfills the two probe-side blockers
-/// (registering the model bytes from the pinned r186 tree and defining
-/// the missing console.time/timeEnd — neither exists on the stock lane)
-/// and proves the R1 renderer itself handles the full official scene:
-/// ONE InstancedMesh draw with instanceCount == 1000, batch flags == 1
-/// (instance matrices only — NO per-instance colors, `setColorAt` is
-/// never called), opaque MeshNormalMaterial (no transparent instancing),
-/// live count/method switching via backend.callEvent, and the
-/// presented-frame rate over the pump window. If R1 ever accepts
-/// object-map options and ships console.time, drop the polyfills and
-/// promote part 2b to the healthy full-scene test.
+/// Part 2b additionally registers the model bytes from the pinned r186
+/// tree (the console polyfill is retained but redundant since the shim
+/// ships time/timeEnd) and proves the R1 renderer itself handles the
+/// full official scene: ONE InstancedMesh draw with instanceCount ==
+/// 1000, batch flags == 1 (instance matrices only — NO per-instance
+/// colors, `setColorAt` is never called), opaque MeshNormalMaterial (no
+/// transparent instancing), live count/method switching via
+/// backend.callEvent, and the presented-frame rate over the pump
+/// window. If R1 ever accepts object-map options, the STOCK widget
+/// boots and this probe retires.
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
@@ -145,17 +144,22 @@ void main() {
           (probe['onLoadFired'] as int? ?? 0) >= 1 &&
           (probe['renders'] as int? ?? 0) >= 3,
     );
-    expect(gapFindings['consoleTime'], 'undefined');
-    expect(gapFindings['consoleTimeEnd'], 'undefined');
+    expect(gapFindings['consoleTime'], 'function',
+        reason: 'the bootstrap console shim ships time/timeEnd since the '
+            'wave-3 instancing batch (the documented gap is CLOSED)');
+    expect(gapFindings['consoleTimeEnd'], 'function');
     // The registered suzanne asset resolved: the official onLoad callback
     // ran and parsed the full 505-vertex / 2901-index geometry.
     expect(gapFindings['onLoadFired'] as int, greaterThanOrEqualTo(1));
     expect(gapFindings['positionCount'], 505);
     expect(gapFindings['indexCount'], 2901);
-    // The build died after onLoad with NO renderer error (the TypeError
-    // was swallowed inside the loader chain) — the pinned silent gap.
+    // With console.time native the build no longer dies silently: the
+    // INSTANCED method meshes render every tick with no renderer error.
     expect(gapFindings['renders'] as int, greaterThanOrEqualTo(3));
     expect(gapFindings['renderErrors'], 0);
+    expect(gapFindings['loadError'], '',
+        reason: 'the former TypeError death lane is gone; the remaining '
+            'stock gap is only the object-map lil-gui add (part 1)');
     final gapGui = gapProbe.engine.exportedState!['gui'] as Map<String, dynamic>;
     expect(gapGui['controllers'], 2);
     // The surface must still be live: no async error card may have
@@ -170,29 +174,23 @@ void main() {
     // Give the R1 encode stream a few pumps to deliver the first frame
     // state before reading the surface.
     await gapProbe.pumpFrames(tester, 6);
-    // 2a verdict — the console shim gap lane: the official build() calls
-    // `console.time('build # '+i)`; the native console shim has no
-    // time/timeEnd, so the first build tick throws a bare
-    // "TypeError: not a function" INSIDE the loader callback, which the
-    // upstream loader chain swallows into its silent onError. The scene
-    // stays empty, the RAF loop keeps ticking, and an empty R1 scene
-    // submits no frame state.
-    expect(gapFindings['loadError'] as String, contains('TypeError'),
-        reason: 'the build death must surface through the probe onError '
-            'lane, not crash the widget');
+    // 2a verdict — the console shim lane, AFTER the wave-3 instancing
+    // batch closed it: the bootstrap shim now defines time/timeEnd, so
+    // the official build() timings run and the INSTANCED scene renders
+    // end to end. The empty-scene death lane is gone; only part 1's
+    // object-map lil-gui add keeps the STOCK widget from booting.
     expect(gapProbe.surface, isNotNull,
-        reason: 'the widget itself stays healthy: the throw is swallowed '
-            'inside the loader chain, so the canvas keeps presenting');
+        reason: 'the widget stays healthy: the load chain completes and '
+            'the canvas keeps presenting');
     expect(gapProbe.state, isNotNull,
-        reason: 'the empty scene still submits background R1 frames');
+        reason: 'the built scene submits real R1 frames');
     final gapState = gapProbe.state!;
     final gapPlan = const ThreeDrawPlanner().plan(gapState);
-    // The swallowed build death left the official scene EMPTY: no
-    // geometry, no materials, no draws — the renderer loop presents only
-    // the white background.
-    expect(gapPlan.draws, isEmpty);
-    expect(gapState.geometryUploadCount, 0);
-    expect(gapState.materials, isEmpty);
+    // The INSTANCED method built its meshes: one instanced draw with the
+    // default api.count instances and a geometry upload to match.
+    expect(gapPlan.draws, isNotEmpty);
+    expect(gapPlan.draws.every((draw) => draw.instanced), isTrue);
+    expect(gapState.geometryUploadCount, greaterThanOrEqualTo(1));
     await gapProbe.dispose(tester);
 
     // ---- Part 2b — same probe + console.time/timeEnd polyfill: the full

@@ -66,6 +66,10 @@ const _examples = <(String, String, bool)>[
   // texture lane needs the fetch→resolveAsset shim lane covered by its
   // dedicated test), so no texture gate here.
   ('three-geometry-cube', 'webgl_geometry_cube', false),
+  // Wave-3 instancing batch: per-instance colors on the blossoms (the
+  // dedicated test also pins the decoded palette payload and the live
+  // count slider).
+  ('three-instancing-scatter', 'webgl_instancing_scatter', false),
 ];
 
 void main() {

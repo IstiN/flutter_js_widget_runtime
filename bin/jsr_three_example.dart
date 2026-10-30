@@ -20,6 +20,7 @@ const _examples = <String>{
   'webgl_geometry_terrain_raycast',
   'webgl_math_orientation_transform',
   'webgl_instancing_raycast',
+  'webgl_instancing_scatter',
   'webgl_interactive_buffergeometry',
   'webgl_clipping',
   'webgl_clipping_intersection',

@@ -252,6 +252,12 @@ enum ThreeExampleSelection {
     label: 'Geometry Cube',
     widgetId: 'three-geometry-cube',
     assetPath: 'widgets/three-geometry-cube/widget.js',
+  ),
+  instancingScatter(
+    exampleId: 'webgl_instancing_scatter',
+    label: 'Instancing Scatter',
+    widgetId: 'three-instancing-scatter',
+    assetPath: 'widgets/three-instancing-scatter/widget.js',
   );
 
   const ThreeExampleSelection({
@@ -289,6 +295,7 @@ enum ThreeExampleSelection {
     interactiveLines,
     interactiveBufferGeometry,
     instancingRaycast,
+    instancingScatter,
     extrudeShapes,
     ..._launchOrder,
   ];

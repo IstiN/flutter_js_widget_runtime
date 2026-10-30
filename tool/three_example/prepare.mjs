@@ -929,6 +929,24 @@ webgl_geometry_shapes: {
     },
     assets: []
   },
+  webgl_instancing_scatter: {
+    id: 'three-instancing-scatter',
+    directory: 'three-instancing-scatter',
+    name: 'Instancing Scatter — three.js r186',
+    description: 'Unmodified official webgl_instancing_scatter module on the JSR THREE R1/WebGL2 runtime.',
+    icon: '🌸',
+    expected: {
+      html: '9cf99f7c5a7bc480daffbc80ddfaa86dea3db0b48c25f4761a639f1b4e863cf1',
+      module: 'd2323dfb47a39a911563bddf159279c9b1318fe27e11691187c8246797ac3e82'
+    },
+    assets: [{
+      url: 'models/gltf/Flower/Flower.glb',
+      output: 'Flower.glb',
+      mime: 'model/gltf-binary',
+      sha256: 'ae6dccf9c7af26ccbd5fdddac9e7209239e67663f4bba6a5aa0339abd19fc163',
+      diagnostic: 'flower'
+    }]
+  },
   webgl_shadowmap_pointlight: {
     id: 'three-shadowmap-pointlight',
     directory: 'three-shadowmap-pointlight',

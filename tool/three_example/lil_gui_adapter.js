@@ -85,6 +85,15 @@ function controllerRow(controller) {
       onChanged: controller._disabled ? null : controller.action
     };
   }
+  if (controller.kind === 'string') {
+    // Bounded string display: read-only snapshot of the current value
+    // (upstream renders an editable text input; the facade snapshots
+    // until `.options()` swaps in a dropdown).
+    return {
+      type: 'text',
+      data: controller._name + ': ' + String(controller.getValue()).slice(0, 128)
+    };
+  }
   unsupported(`render(${controller.kind})`);
 }
 
@@ -252,7 +261,20 @@ export class Controller {
   // official modules (e.g. webgl_clipping_advanced 'Visualize'.listen())
   // booting without changing value semantics.
   listen() { return this; }
-  options(allowed) { return this.container.add(this.object, this.property, allowed); }
+  // Upstream `.options([...])` REPLACES the controller in place (a text
+  // input becomes a dropdown). The OptionsController constructor appends
+  // itself; drop the intermediate controller so counts and the action
+  // map stay exact — webgl_instancing_scatter's distribution dropdown
+  // goes through this path.
+  options(allowed) {
+    const replacement = new OptionsController(this.container, this.object, this.property, allowed);
+    const list = this.container.controllers;
+    const index = list.indexOf(this);
+    if (index >= 0) list.splice(index, 1);
+    controllers.delete(this.action);
+    reportRoots();
+    return replacement;
+  }
   min() { unsupported('min'); }
   max() { unsupported('max'); }
   decimals() { unsupported('decimals'); }
@@ -265,6 +287,22 @@ export class BooleanController extends Controller {
   }
   setValue(value) {
     if (typeof value !== 'boolean') throw new Error('three.invalid: lil-gui boolean value required');
+    return super.setValue(value);
+  }
+}
+
+// lil-gui string properties: upstream renders a text input; the bounded
+// facade snapshots the string. The official conversion pattern
+// `gui.add(o, 'mode').options([...])` swaps this controller for an
+// OptionsController in place (see Controller.options below), which is
+// how webgl_instancing_scatter builds its distribution dropdown.
+export class StringController extends Controller {
+  constructor(container, object, property) {
+    if (typeof object[property] !== 'string') unsupported(`add(${typeof object[property]})`);
+    super(container, object, property, 'string');
+  }
+  setValue(value) {
+    if (typeof value !== 'string') throw new Error('three.invalid: lil-gui string value required');
     return super.setValue(value);
   }
 }
@@ -423,6 +461,10 @@ class NativeFolder {
       // Bare numeric add: late-bound slider/text controller (`.min().max()`
       // chain supplies bounds); booleans keep the checkbox path below.
       controller = new NumberController(this, object, property, undefined, undefined);
+    } else if (!options.length && typeof object[property] === 'string') {
+      // Upstream renders a text input; the facade snapshots the string
+      // until `.options([...])` swaps in the dropdown.
+      controller = new StringController(this, object, property);
     } else if (!options.length) {
       controller = new BooleanController(this, object, property);
     } else if (options.length === 1 && Array.isArray(options[0])) {
@@ -510,6 +552,10 @@ class NativeGUI {
       // Bare numeric add: late-bound slider/text controller (`.min().max()`
       // chain supplies bounds); booleans keep the checkbox path below.
       controller = new NumberController(this, object, property, undefined, undefined);
+    } else if (!options.length && typeof object[property] === 'string') {
+      // Upstream renders a text input; the facade snapshots the string
+      // until `.options([...])` swaps in the dropdown.
+      controller = new StringController(this, object, property);
     } else if (!options.length) {
       controller = new BooleanController(this, object, property);
     } else if (options.length === 1 && Array.isArray(options[0])) {
