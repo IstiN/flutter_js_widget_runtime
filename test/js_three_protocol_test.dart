@@ -503,10 +503,6 @@ Uint8List _frameV5Point({
   final out = Uint8List(v4.length + 24);
   out.setAll(0, v4.sublist(0, 60));
   out.setAll(84, v4.sublist(60));
-  // A point shadow light needs nonzero shadow map dimensions (v5 offsets:
-  // width 84, height 88 after the inserted tail).
-  setU32(out, 84, 512);
-  setU32(out, 88, 512);
   setU32(out, 60, flag);
   setU32(out, 64, reserved);
   setF32(out, 68, x);
@@ -514,6 +510,11 @@ Uint8List _frameV5Point({
   setF32(out, 76, z);
   setF32(out, 80, far);
   out.setAll(84, v4.sublist(60));
+  // A point shadow light needs nonzero shadow map dimensions (v5 offsets:
+  // width 84, height 88 after the inserted tail) — set them AFTER the
+  // v4 tail copy, which would otherwise overwrite them with zeros.
+  setU32(out, 84, 512);
+  setU32(out, 88, 512);
   setU32(out, v4.length + 20, lightType ?? (flag == 1 ? 3 : 0));
   return out;
 }
@@ -1261,6 +1262,63 @@ void main() {
       expect(batch.instanceColors[index], closeTo(expected[index], 1e-6));
     }
     expect(() => batch.instanceColors[0] = 0, throwsUnsupportedError);
+  });
+
+  // Back-compat pin: the color flag is a DRAW_BATCH body field, not a
+  // versioned tail — every stream version v3..v5 decodes the same payload,
+  // and older-looking streams without the flag stay color-neutral (the
+  // material color wins, byte-identical goldens depend on it).
+  test('instance colors decode identically on v3/v4/v5 and stay neutral without the flag', () {
+    List<double> colorsAt(int version) {
+      final commands = _decoder
+          .decodeR1(
+            _r1(
+              [
+                (
+                  11,
+                  _drawBatch(
+                    instanceCount: 2,
+                    flags: 3,
+                    matrices: List<double>.filled(32, 0.5),
+                    colors: const [0.75, 0.5, 0.25, 0.125, 0.1, 0.2],
+                  ),
+                ),
+              ],
+              version: version,
+            ),
+          )
+          .commands;
+      final batch = commands.single as JsThreeDrawBatchUpsert;
+      return batch.instanceColors.toList();
+    }
+
+    const expected = [0.75, 0.5, 0.25, 0.125, 0.1, 0.2];
+    for (final version in [3, 4, 5]) {
+      final colors = colorsAt(version);
+      for (var index = 0; index < expected.length; index++) {
+        expect(colors[index], closeTo(expected[index], 1e-6), reason: 'v$version');
+      }
+    }
+
+    for (final version in [3, 4, 5]) {
+      final neutral = _decoder
+          .decodeR1(
+            _r1(
+              [
+                (
+                  11,
+                  _drawBatch(instanceCount: 2, flags: 1),
+                ),
+              ],
+              version: version,
+            ),
+          )
+          .commands
+          .single as JsThreeDrawBatchUpsert;
+      expect(neutral.instanced, isTrue, reason: 'v$version');
+      expect(neutral.hasInstanceColors, isFalse, reason: 'v$version');
+      expect(neutral.instanceColors, isEmpty, reason: 'v$version');
+    }
   });
 
   test('DRAW_BATCH and REMOVE_BATCH reject malformed bounded bodies', () {

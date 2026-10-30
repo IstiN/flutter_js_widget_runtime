@@ -240,6 +240,41 @@ void main() {
       expect(emptyPlan.diagnostics.warnings, isEmpty);
     });
 
+    // Per-instance colors ride the DRAW_BATCH color flag (wire bit 1): the
+    // planner must surface hasInstanceColors and the decoded payload on
+    // every part draw of the batch, and stay neutral (material color) when
+    // the flag is absent — the two states the GPU golden family pins.
+    test('carries instance colors through every batch part draw', () {
+      final colored = _Fixture.basic()
+        ..geometry(
+          1,
+          positions: List<double>.generate(18, (index) => index.toDouble()),
+        )
+        ..material(2)
+        ..batch(
+          5,
+          instanced: true,
+          instanceCount: 2,
+          parts: const [(1, 2, 0, 3), (1, 2, 3, 3)],
+          colors: const [1, 0, 0, 0, 0, 1],
+        );
+      final plan = const ThreeDrawPlanner().plan(colored.state());
+      expect(plan.draws, hasLength(2));
+      for (final draw in plan.draws) {
+        expect(draw.batch!.hasInstanceColors, isTrue);
+        expect(draw.batch!.instanceColors, const [1, 0, 0, 0, 0, 1]);
+      }
+
+      final plain = _Fixture.basic()
+        ..geometry(1)
+        ..material(2)
+        ..batch(6, instanced: true, instanceCount: 2);
+      final plainPlan = const ThreeDrawPlanner().plan(plain.state());
+      final plainBatch = plainPlan.draws.single.batch!;
+      expect(plainBatch.hasInstanceColors, isFalse);
+      expect(plainBatch.instanceColors, isEmpty);
+    });
+
     test('rejects malformed batch shapes with scoped diagnostics', () {
       // Bare-mesh node carrying direct resources: rejected by the batch
       // shape validation (invalidBatchCount warning, no draws).
@@ -436,7 +471,7 @@ void main() {
     });
 
     test(
-      'rejects invalid batch ranges and incompatible or transparent parts',
+      'rejects invalid batch ranges and incompatible parts',
       () {
         final invalidRanges = _Fixture.basic()
           ..geometry(1, indices: const [0, 1, 2, 2, 1, 0, 0, 2, 1])
@@ -475,27 +510,105 @@ void main() {
           isTrue,
         );
         expect(nonIndexedPlan.diagnostics.invalidBatchCount, 0);
-
-        final transparent = _Fixture.basic()
-          ..geometry(1)
-          ..material(2, transparent: true)
-          ..batch(
-            5,
-            instanced: true,
-            instanceCount: 2,
-            parts: const [(1, 2, 0, 3)],
-          );
-        final transparentPlan = const ThreeDrawPlanner().plan(
-          transparent.state(),
-        );
-        expect(transparentPlan.draws, isEmpty);
-        expect(transparentPlan.diagnostics.invalidBatchCount, 1);
-        expect(
-          transparentPlan.diagnostics.warnings.join('\n'),
-          contains('transparent InstancedMesh'),
-        );
       },
     );
+
+    // Honest merge verdict for per-instance colors: AUTO-instanced runs
+    // merge across differing material colors because _threeAutoInstanceData
+    // bakes each source material's color+opacity into its per-instance
+    // attribute (the fragment shader multiplies material_info.colorOpacity,
+    // which is forced white for auto runs) — so the merged draw renders the
+    // same pixels as separate draws. Explicit InstancedMesh batches carry
+    // their own instanceColor buffers and are never merged with anything
+    // (pinned by the 'explicit instances' eligibility case above).
+    test('auto-instancing merges differing material colors in one draw', () {
+      final fixture = _Fixture.basic()
+        ..geometry(1)
+        ..material(2, kind: JsThreeMaterialKind.meshPhong)
+        ..material(
+          3,
+          kind: JsThreeMaterialKind.meshPhong,
+          color: const [0.25, 0.5, 0.75],
+          opacity: 0.5,
+        )
+        ..node(2, parentId: 1, materialId: 2)
+        ..node(3, parentId: 1, materialId: 3);
+
+      final plan = const ThreeDrawPlanner(autoInstance: true).plan(
+        fixture.state(),
+      );
+
+      expect(plan.draws, hasLength(1));
+      final draw = plan.draws.single;
+      expect(draw.autoInstanced, isTrue);
+      expect(draw.instanceCount, 2);
+      // The baked per-instance colors must keep each source material's
+      // exact color+opacity (debugThreeAutoInstanceData pins the bytes).
+      final packed = debugThreeAutoInstanceData(draw);
+      final white = <double>[1, 1, 1, 1];
+      final colored = const [0.25, 0.5, 0.75, 0.5];
+      for (var component = 0; component < 4; component++) {
+        expect(
+          packed.getFloat32(64 + component * 4, Endian.little),
+          white[component],
+        );
+        expect(
+          packed.getFloat32(80 + 64 + component * 4, Endian.little),
+          closeTo(colored[component], 1e-6),
+        );
+      }
+    });
+
+    // Transparent instancing is a deliberate bounded pass since the wave-3
+    // instancing batch: each transparent InstancedMesh part blends in ONE
+    // draw (GPU instancing) and sorts among the transparent bucket by the
+    // batch node's view depth — the same material-level back-to-front order
+    // non-instanced transparent draws use. Per-instance sorting inside one
+    // instanced draw is out of scope; splitting instances across meshes is
+    // the documented workaround, like the dual-paraboloid point shadows.
+    test('transparent instanced batches blend in the transparent bucket', () {
+      final fixture = _Fixture.basic()
+        ..geometry(1)
+        ..material(2)
+        ..material(3, transparent: true)
+        ..material(4, transparent: true)
+        ..batch(
+          5,
+          instanced: true,
+          instanceCount: 2,
+          parts: const [(1, 2, 0, 3)],
+        )
+        ..batch(
+          6,
+          instanced: true,
+          instanceCount: 3,
+          z: -0.25,
+          parts: const [(1, 3, 0, 3)],
+        )
+        ..batch(
+          7,
+          instanced: true,
+          instanceCount: 4,
+          z: -2,
+          parts: const [(1, 4, 0, 3)],
+        )
+        ..node(8, parentId: 1, materialId: 3, z: -0.5);
+      final plan = const ThreeDrawPlanner().plan(fixture.state());
+      expect(plan.diagnostics.invalidBatchCount, 0);
+      expect(plan.diagnostics.warnings.join('\n'), '');
+      // Far-to-near back-to-front order across instanced and ordinary
+      // transparent draws alike: node 7 (z -2), node 8 (z -0.5), node 6.
+      expect(plan.transparent.map((draw) => draw.node.nodeId), [7, 8, 6]);
+      final instancedParts = plan.transparent
+          .where((draw) => draw.instanced)
+          .toList();
+      expect(instancedParts.map((draw) => draw.instanceCount), [4, 3]);
+      expect(instancedParts.every((draw) => draw.batch != null), isTrue);
+      // The opaque instanced batch stays an ordinary opaque submission.
+      expect(plan.opaque, hasLength(1));
+      expect(plan.opaque.single.instanced, isTrue);
+      expect(plan.opaque.single.instanceCount, 2);
+    });
 
     test('caps each light family independently and deterministically', () {
       final fixture = _Fixture.basic();
@@ -1141,6 +1254,8 @@ final class _Fixture {
     int geometryId = 0,
     List<(int, int, int, int)> parts = const [(1, 1, 0, 3)],
     List<double>? matrices,
+    List<double>? colors,
+    double z = 0,
   }) {
     commands.add(
       _command(
@@ -1150,6 +1265,7 @@ final class _Fixture {
           parentId: parentId,
           geometryId: geometryId,
           objectKind: JsThreeObjectKind.mesh,
+          matrixWorld: _translation(0, 0, z),
         ),
       ),
     );
@@ -1163,6 +1279,7 @@ final class _Fixture {
           instanced: instanced,
           parts: parts,
           matrices: matrices,
+          colors: colors,
         ),
       ),
     );
@@ -1396,6 +1513,7 @@ Uint8List _drawBatch(
   required bool instanced,
   required List<(int, int, int, int)> parts,
   required List<double>? matrices,
+  List<double>? colors,
 }) {
   final matrixValues =
       matrices ??
@@ -1405,11 +1523,13 @@ Uint8List _drawBatch(
                 ..._identity(),
             ]
           : const <double>[]);
+  // Wire convention: flags bit 0 = instancing, bit 1 = per-instance colors.
+  final flags = (instanced ? 1 : 0) | (colors != null ? 2 : 0);
   final builder = _BodyBuilder()
     ..u32(nodeId)
     ..u32(version)
     ..u32(instanceCount)
-    ..u32(instanced ? 1 : 0)
+    ..u32(flags)
     ..u32(parts.length);
   for (final (geometryId, materialId, offset, count) in parts) {
     builder
@@ -1419,6 +1539,7 @@ Uint8List _drawBatch(
       ..u32(count);
   }
   builder.floats(matrixValues);
+  builder.floats(colors ?? const <double>[]);
   return builder.bytes;
 }
 
