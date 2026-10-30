@@ -211,12 +211,16 @@ class QuickjsIsolateWidgetEngineBackend
   /// Stops the worker isolate: graceful shutdown handshake first (the ack
   /// can only arrive once the worker's CURRENT command finished — typically
   /// the synchronous JS_Eval of a freshly booted widget bundle, which can
-  /// legitimately take a second or two), then kill(immediate) purely as the
-  /// stuck-eval backstop (infinite JS loop). Killing earlier rips the
-  /// isolate apart with qjs_dispatch/DLRT_GetFfiCallbackMetadata on the C
-  /// stack, corrupting the shared FFI callback registry; the NEXT engine
-  /// then trips dart::FfiCallbackThreadChecks and SIGABRTs the whole app
-  /// (rapid sidebar clicking crash).
+  /// take many seconds when several modules boot concurrently), then
+  /// kill(immediate) purely as the stuck-eval backstop (infinite JS loop).
+  /// Killing earlier rips the isolate apart with qjs_dispatch /
+  /// DLRT_GetFfiCallbackMetadata on the C stack, corrupting the shared FFI
+  /// callback registry; the concurrent GC marker then walks a torn native
+  /// transition frame and SIGSEGVs (marker.cc), or the next engine trips
+  /// dart::FfiCallbackThreadChecks and SIGABRTs (rapid sidebar clicking
+  /// crashes). The window is deliberately generous: a leaked worker on a
+  /// stuck eval is recoverable (process exit), a corrupted registry is not.
+  /// Root fix is an interrupt handler in quickjs_runtime (see memory).
   Future<void> _shutdownWorker() async {
     final isolate = _isolate;
     final commands = _commands;
@@ -225,7 +229,7 @@ class QuickjsIsolateWidgetEngineBackend
       _shutdown = shutdown;
       commands.send(const {'type': 'shutdown'});
       await shutdown.future.timeout(
-        const Duration(seconds: 2),
+        const Duration(seconds: 10),
         onTimeout: () {},
       );
     }

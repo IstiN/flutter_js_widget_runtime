@@ -29,6 +29,17 @@ class JsWidgetRuntimeWidget extends StatefulWidget {
 }
 
 class _JsWidgetRuntimeWidgetState extends State<JsWidgetRuntimeWidget> {
+  /// Serializes engine lifecycles ACROSS widget instances. dispose() is
+  /// fire-and-forget from the framework, so a ValueKey remount (module
+  /// switch) starts the NEXT engine while the previous isolate QuickJS
+  /// worker may still be mid-JS_Eval of its bundle — two concurrent evals
+  /// starve each other, stretch past the shutdown ack window and force
+  /// the kill(immediate) backstop mid-eval, corrupting the FFI callback
+  /// registry (marker.cc SIGSEGV / FfiCallbackThreadChecks SIGABRT).
+  /// Chaining every engine dispose and boot through one static future
+  /// guarantees at most ONE live engine lifecycle at a time.
+  static Future<void> _lifecycleGate = Future<void>.value();
+
   JsWidgetEngine? _engine;
   int _generation = 0;
   Map<String, dynamic>? _uiTree;
@@ -52,12 +63,20 @@ class _JsWidgetRuntimeWidgetState extends State<JsWidgetRuntimeWidget> {
   @override
   void dispose() {
     _generation++;
-    _engine?.dispose();
+    final engine = _engine;
+    _engine = null;
+    if (engine != null) {
+      _lifecycleGate = _lifecycleGate
+          .then((_) => engine.dispose())
+          .catchError((Object _) {});
+    }
     super.dispose();
   }
 
   Future<void> _start() async {
     final generation = ++_generation;
+    await _lifecycleGate;
+    if (generation != _generation) return;
     final engine = JsWidgetEngine(
       config: widget.config.copyWith(
         onRender: (tree) {
@@ -70,7 +89,15 @@ class _JsWidgetRuntimeWidgetState extends State<JsWidgetRuntimeWidget> {
         },
       ),
     );
-    await _engine?.dispose();
+    final previous = _engine;
+    _engine = null;
+    if (previous != null) {
+      final chained = _lifecycleGate
+          .then((_) => previous.dispose())
+          .catchError((Object _) {});
+      _lifecycleGate = chained;
+      await chained;
+    }
     if (generation != _generation) {
       await engine.dispose();
       return;
