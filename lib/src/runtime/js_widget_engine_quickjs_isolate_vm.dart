@@ -190,8 +190,18 @@ class QuickjsIsolateWidgetEngineBackend
       final shutdown = Completer<void>();
       _shutdown = shutdown;
       commands.send(const {'type': 'shutdown'});
+      // The worker processes commands sequentially, so the shutdown ack can
+      // only arrive once the CURRENT command finished — typically the
+      // synchronous JS_Eval of a freshly booted widget bundle, which can
+      // legitimately take a second or two. Killing the isolate any earlier
+      // rips it apart with qjs_dispatch/DLRT_GetFfiCallbackMetadata on the
+      // C stack, corrupting the shared FFI callback registry; the NEXT
+      // engine then trips dart::FfiCallbackThreadChecks and SIGABRTs the
+      // whole app (rapid sidebar clicking crash). Keep the graceful window
+      // long enough for real evals and reserve kill(immediate) for a
+      // genuinely stuck worker (infinite JS loop).
       await shutdown.future.timeout(
-        const Duration(milliseconds: 200),
+        const Duration(seconds: 2),
         onTimeout: () {},
       );
     }
