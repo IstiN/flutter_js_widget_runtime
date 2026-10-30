@@ -67,6 +67,14 @@ function controllerRow(controller) {
       onChanged: controller._disabled ? null : controller.action
     };
   }
+  if (controller.kind === 'color') {
+    return {
+      type: 'textField',
+      hint: controller._name,
+      value: colorDisplay(controller.getValue()),
+      onChange: controller._disabled ? null : controller.action
+    };
+  }
   if (controller.kind === 'function') {
     return {
       type: 'button',
@@ -179,6 +187,8 @@ function installEvents(JSR) {
             throw new Error('three.invalid: lil-gui number events require a finite number value');
           }
           payload = { value: numeric };
+        } else if (controller.kind === 'color') {
+          payload = { value: parseColorEvent(controller, payload ? payload.value : undefined) };
         } else if (controller.kind === 'options') {
           // The host dropdown delivers a stringified value; restore the
           // typed member before validating membership in setValue.
@@ -290,6 +300,42 @@ export class BooleanController extends Controller {
     return super.setValue(value);
   }
 }
+
+// lil-gui color properties (addColor): the official matcap module drives
+// material.color through a numeric 0xrrggbb property. The bounded facade
+// renders a hex text input (same shape as the bare numeric controller) and
+// restores the property's original type (number or '#rrggbb' string) on the
+// event path. Arrays/objects stay outside the bounded profile.
+export class ColorController extends Controller {
+  constructor(container, object, property) {
+    const value = object[property];
+    const valid = (typeof value === 'number' && Number.isInteger(value) && value >= 0 && value <= 0xffffff) ||
+      (typeof value === 'string' && /^#(?:[0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/.test(value));
+    if (!valid) unsupported(`addColor(${typeof value})`);
+    super(container, object, property, 'color');
+  }
+  setValue(value) {
+    const valid = (typeof value === 'number' && Number.isInteger(value) && value >= 0 && value <= 0xffffff) ||
+      (typeof value === 'string' && /^#(?:[0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/.test(value));
+    if (!valid) throw new Error('three.invalid: lil-gui color value must be 0xrrggbb or a #hex string');
+    return super.setValue(value);
+  }
+}
+
+function colorDisplay(value) {
+  return typeof value === 'number' ? `#${value.toString(16).padStart(6, '0')}` : value;
+}
+
+function parseColorEvent(controller, raw) {
+  if (typeof raw !== 'string') throw new Error('three.invalid: lil-gui color events require a hex string');
+  const match = /^#?([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/.exec(raw.trim());
+  if (!match) throw new Error('three.invalid: lil-gui color events require #rgb or #rrggbb');
+  let hex = match[1];
+  if (hex.length === 3) hex = hex.split('').map(c => c + c).join('');
+  hex = hex.toLowerCase();
+  return typeof controller.getValue() === 'number' ? Number.parseInt(hex, 16) : `#${hex}`;
+}
+
 
 // lil-gui string properties: upstream renders a text input; the bounded
 // facade snapshots the string. The official conversion pattern
@@ -503,7 +549,11 @@ class NativeFolder {
   foldersRecursive() { return []; }
   save() { unsupported('save'); }
   load() { unsupported('load'); }
-  addColor() { unsupported('addColor'); }
+  addColor(object, property) {
+    const controller = new ColorController(this, object, property);
+    reportRoots();
+    return controller;
+  }
   addFolder() { unsupported('addFolder.nested'); }
   openAnimated() { unsupported('openAnimated'); }
   destroy() {
@@ -517,6 +567,16 @@ class NativeFolder {
 class NativeGUI {
   constructor(options = {}) {
     if (!options || typeof options !== 'object' || Array.isArray(options)) unsupported('constructor options');
+    // Official modules style the GUI root DOM node directly (matcap sets
+    // domElement.style.webkitUserSelect). The native facade renders host
+    // rows, so expose a bounded no-op DOM sink instead of failing.
+    this.domElement = {
+      style: {},
+      classList: { add() {}, remove() {}, toggle() {} },
+      setAttribute() {},
+      appendChild() {},
+      remove() {}
+    };
     // `width` is a pure layout hint (official modules pass e.g. {width: 285});
     // the native panel lays out host-side, so accept and clamp it. Anything
     // else stays outside the bounded facade.
@@ -602,7 +662,11 @@ class NativeGUI {
   foldersRecursive() { return this.folders.slice(); }
   save() { unsupported('save'); }
   load() { unsupported('load'); }
-  addColor() { unsupported('addColor'); }
+  addColor(object, property) {
+    const controller = new ColorController(this, object, property);
+    reportRoots();
+    return controller;
+  }
   addFolder(title) {
     if (typeof title !== 'string' || !title || title.length > 128) {
       throw new Error('three.invalid: lil-gui folder title is required');

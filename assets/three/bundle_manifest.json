@@ -26,10 +26,10 @@
       "sourceTree": "46f76c91c965a0ac416a8e89f104af288ad177d2ad344204851f0febc502c995",
       "tool/three/src/errors.js": "a816e842488f759d202f284ff64e1f237c6d4474cdfcdcf1cf707e4a5506c887",
       "tool/three/src/native_canvas2d.js": "c8a7cda446ee4cc47c81fd87fa829cd94e67faa5c53de12e3be8cf7a95ba810c",
-      "tool/three/src/native_entry.js": "d71a218de612a39cf195fb1dab1989a8ea60bd9c89905b533355f2006d60a608",
-      "tool/three/src/native_loaders.js": "07b706f54b23d7de96be6bc80bc46dacb8c2a270b3fc5878322c5430c1bee85c",
+      "tool/three/src/native_entry.js": "5fb8a476137d36328693c1d75c0754075b673f0f18acdfeafe12c6b4426cf57f",
+      "tool/three/src/native_loaders.js": "d12ef99a8d7388a1468c9a6202d2f71d84c44d56bc3880524ff4d89cf7d80da9",
       "tool/three/src/native_raycast_bvh.js": "9aada0445e0fb5d1cba38ea8e801588d8b496cce8531f57ab9c60e61d7049384",
-      "tool/three/src/native_renderer.js": "9f5130aedef7ab490ada540aeb8d5f21b64ebe38c5a4db95a063f0bb0fc22f8c",
+      "tool/three/src/native_renderer.js": "f7d3082dae533487e2b2e9d6b552aea1d1b8508830a3daa7104131a89a7bb092",
       "tool/three/src/native_three_shim.js": "e22a117b5d6e47db333aded60ed1b545a3b9c96b6d07b86b00867b84224dd93e",
       "tool/three/src/r1.js": "3a1b0561ab6a6c681c0fb2762b8a537b4b4ce86b4d1011587636d241e5e4ca4b",
       "tool/three/src/runtime.js": "d24945f85f833816d1dd362fd28ed015fd49c1bc2f6479260dfad4be432f142c",
@@ -44,16 +44,16 @@
   },
   "outputs": {
     "jsr_three_native.js": {
-      "bytes": 720895,
-      "sha256": "d190089dd0d0c41d05a2a72a39faabfd4e75f2e237c54af0852ab0ed8bd6be37"
+      "bytes": 721669,
+      "sha256": "083b264f119ef9c354076ddf7bdbb4a815cddd101cbd62eaf3adc3cecb5c1fef"
     },
     "jsr_three_web.js": {
       "bytes": 834390,
       "sha256": "e4e059b5c360606fb4ed721f2d686821b0b840119a3939535160b279c5deea6b"
     },
     "three.native.js": {
-      "bytes": 720895,
-      "sha256": "d190089dd0d0c41d05a2a72a39faabfd4e75f2e237c54af0852ab0ed8bd6be37"
+      "bytes": 721669,
+      "sha256": "083b264f119ef9c354076ddf7bdbb4a815cddd101cbd62eaf3adc3cecb5c1fef"
     },
     "three.web.js": {
       "bytes": 834390,

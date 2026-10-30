@@ -3,7 +3,7 @@ import {
   CustomToneMapping, DoubleSide, EquirectangularReflectionMapping, FrontSide, Frustum, LinearFilter,
   LinearToneMapping, Matrix4, MeshBasicMaterial, MeshLambertMaterial, MeshStandardMaterial,
   MirroredRepeatWrapping, NeutralToneMapping, NearestFilter, NearestMipmapNearestFilter,
-  NearestMipmapLinearFilter, NoToneMapping, NormalBlending, PointsMaterial, RedFormat,
+  NearestMipmapLinearFilter, NoToneMapping, NormalBlending, PointsMaterial, HalfFloatType, RedFormat,
   ReinhardToneMapping, RGBAFormat, RepeatWrapping, SRGBColorSpace, UVMapping, UnsignedByteType,
   Vector3
 } from 'three';
@@ -57,6 +57,11 @@ function cachedMatrixEquals(cached, matrix) {
   return true;
 }
 
+
+function attributeVersionKey(attribute) {
+  if (!attribute) return -1;
+  return (attribute.version || 0) + (attribute.data ? attribute.data.version * 65536 : 0);
+}
 function attributeSignature(attribute) {
   if (!attribute) return '-';
   return [attribute.id, attribute.version, attribute.itemSize, attribute.normalized ? 1 : 0,
@@ -223,7 +228,7 @@ function materialKind(material) {
   // color, opacity, fog and alphaTest semantics are basic's); MeshTonMaterial
   // is a gradient-ramped Lambert; MeshMatcapMaterial is an unlit matcap lookup.
   if (material.isSpriteMaterial) return 0;
-  if (material.isMeshTonMaterial) return 8;
+  if (material.isMeshToonMaterial) return 8;
   if (material.isMeshMatcapMaterial) return 9;
   unsupported('material', material.type || 'unknown material');
 }
@@ -231,12 +236,12 @@ function materialKind(material) {
 function supportsEmissive(material) {
   return material.isMeshLambertMaterial || material.isMeshPhongMaterial ||
     (material.isMeshStandardMaterial && !material.isMeshPhysicalMaterial) ||
-    material.isMeshTonMaterial;
+    material.isMeshToonMaterial;
 }
 
 function validateMaterial(material) {
   if (material.isShaderMaterial || material.isRawShaderMaterial) unsupported('ShaderMaterial', 'arbitrary shaders require 1B');
-  if (material.wireframe && !(material.isMeshBasicMaterial || material.isMeshLambertMaterial || material.isMeshPhongMaterial || material.isMeshNormalMaterial || (material.isMeshStandardMaterial && !material.isMeshPhysicalMaterial) || material.isMeshTonMaterial || material.isMeshMatcapMaterial)) unsupported('wireframe', 'R1 wireframe requires a mesh material');
+  if (material.wireframe && !(material.isMeshBasicMaterial || material.isMeshLambertMaterial || material.isMeshPhongMaterial || material.isMeshNormalMaterial || (material.isMeshStandardMaterial && !material.isMeshPhysicalMaterial) || material.isMeshToonMaterial || material.isMeshMatcapMaterial)) unsupported('wireframe', 'R1 wireframe requires a mesh material');
   if (material.wireframe && (material.wireframeLinewidth !== 1 || material.wireframeLinecap !== 'round' || material.wireframeLinejoin !== 'round')) unsupported('wireframeStyle', 'R1 supports one-pixel round wireframe lines');
   if (material.blending !== NormalBlending) unsupported('materialBlending');
   if (material.alphaHash || material.premultipliedAlpha || material.colorWrite === false || material.stencilWrite || material.polygonOffset) unsupported('materialState', 'alphaHash/premultipliedAlpha/colorWrite/stencil/polygonOffset');
@@ -250,7 +255,7 @@ function validateMaterial(material) {
     unsupported('materialTexture', `${material.type}.envMap`);
   }
   if (material.matcap && !material.isMeshMatcapMaterial) unsupported('materialTexture', `${material.type}.matcap`);
-  if (material.gradientMap && !material.isMeshTonMaterial) unsupported('materialTexture', `${material.type}.gradientMap`);
+  if (material.gradientMap && !material.isMeshToonMaterial) unsupported('materialTexture', `${material.type}.gradientMap`);
   if (!supportsEmissive(material) && material.emissive &&
       (material.emissive.r !== 0 || material.emissive.g !== 0 || material.emissive.b !== 0)) {
     unsupported('emissiveMaterial', `${material.type} has no upstream emissive support`);
@@ -608,7 +613,27 @@ export class JsrWebGLRenderer {
     }
     if (encoding === 0) {
       if (texture.format !== RGBAFormat && texture.format !== RedFormat) unsupported('textureFormat', 'R1 raw textures require RGBA8 or R8/UnsignedByteType');
-      if (texture.type !== UnsignedByteType) unsupported('textureFormat', 'R1 raw textures require RGBA8 or R8/UnsignedByteType');
+            if (texture.type === HalfFloatType) {
+        if (texture.format !== RGBAFormat || !(data instanceof Uint16Array) || width * height * 4 !== data.length) {
+          throw new Error('three.invalid: half-float raw textures must be RGBA Uint16 data with matching dimensions');
+        }
+        const expanded = new Uint8Array(width * height * 4);
+        for (let i = 0; i < data.length; i++) {
+          const bits = data[i];
+          const exponent = (bits >> 10) & 0x1f;
+          const mantissa = bits & 0x3ff;
+          let value;
+          if (exponent === 0) value = mantissa / 16777216;
+          else if (exponent === 31) value = mantissa || (bits & 0x8000) ? 0 : 1;
+          else {
+            value = (1 + mantissa / 1024) * Math.pow(2, exponent - 15);
+            if (bits & 0x8000) value = -value;
+          }
+          const scaled = value <= 0 ? 0 : value >= 1 ? 255 : value * 255 + 0.5;
+          expanded[i] = scaled;
+        }
+        bytes = expanded;
+      } else if (texture.type !== UnsignedByteType) unsupported('textureFormat', 'R1 raw textures require RGBA8 or R8/UnsignedByteType');
       if (!width || !height) throw new Error('three.invalid: raw texture dimensions must be nonzero');
       if (texture.format === RedFormat) {
         if (width * height !== bytes.length) throw new Error('three.invalid: R8 raw texture dimensions/data length');
@@ -686,7 +711,7 @@ export class JsrWebGLRenderer {
     const alphaMapId = this._ensureTexture(material.alphaMap || null, commands);
     const envMapId = this._ensureTexture(material.envMap || null, commands, 'envMap');
     const matcapId = material.isMeshMatcapMaterial ? this._ensureTexture(material.matcap || null, commands, 'matcap') : (material.matcap ? unsupported('materialTexture', `${material.type}.matcap`) : 0);
-    const gradientMapId = material.isMeshTonMaterial ? this._ensureTexture(material.gradientMap || null, commands, 'gradientMap') : (material.gradientMap ? unsupported('materialTexture', `${material.type}.gradientMap`) : 0);
+    const gradientMapId = material.isMeshToonMaterial ? this._ensureTexture(material.gradientMap || null, commands, 'gradientMap') : (material.gradientMap ? unsupported('materialTexture', `${material.type}.gradientMap`) : 0);
     const spriteRotation = material.isSpriteMaterial ? material.rotation : 0;
     if (spriteRotation && !Number.isFinite(spriteRotation)) throw new Error('three.invalid: material sprite rotation must be finite');
     const mapUvMatrix = uvTransformElements(material.map || null);
@@ -797,7 +822,7 @@ export class JsrWebGLRenderer {
       const names = ATTR_NAMES;
       for (let i = 0; i < names.length; i++) {
         const attribute = geometry.attributes[names[i]];
-        const version = attribute ? attribute.version + (attribute.data ? attribute.data.version * 65536 : 0) : -1;
+        const version = attributeVersionKey(attribute);
         if (version !== cache.versions[i]) {
           if (attribute && attributeContentHash(attribute.array) === cache.hashes[i]) {
             cache.versions[i] = version;
@@ -827,7 +852,7 @@ export class JsrWebGLRenderer {
     for (let i = 0; i < ATTR_NAMES.length; i++) {
       const attribute = geometry.attributes[ATTR_NAMES[i]];
       if (attribute) {
-        versions[i] = attribute.version + (attribute.data ? attribute.data.version * 65536 : 0);
+        versions[i] = attributeVersionKey(attribute);
         hashes[i] = attributeContentHash(attribute.array);
       }
     }

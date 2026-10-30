@@ -504,8 +504,8 @@
   },
   "inputs": {
     "assets/three/three.native.js": {
-      "bytes": 719818,
-      "sha256": "1c13425ab5b76eb3d03c42f55db0a56a4cec0094d873277d43bf2dbfcaa27ebe"
+      "bytes": 721669,
+      "sha256": "083b264f119ef9c354076ddf7bdbb4a815cddd101cbd62eaf3adc3cecb5c1fef"
     },
     "assets/three/three.web.js": {
       "bytes": 834390,
@@ -515,13 +515,13 @@
       "bytes": 1081,
       "sha256": "8b378ebe60e2fe500158cb0ac71cb5e8b7d92953c2abcc63a0eb90499653b5bc"
     },
+    "source/examples/fonts/gentilis_regular.typeface.json": {
+      "bytes": 627529,
+      "sha256": "7ed95f2faa30f59dbe7cfb145b97c42a6ba1188cd2eec01ca61485e8c83ee9de"
+    },
     "source/examples/jsm/controls/OrbitControls.js": {
       "bytes": 40755,
       "sha256": "3d79d07ecb686b4e5d93232eedab255331c1beef711e13164eaa1f68655a5f2b"
-    },
-    "source/examples/jsm/effects/OutlineEffect.js": {
-      "bytes": 12661,
-      "sha256": "de63c6fb974db81c9e919f8fba8005158ab4b0d17ef18e15a7c0544bb81ccb98"
     },
     "source/examples/jsm/geometries/TextGeometry.js": {
       "bytes": 3312,
@@ -540,8 +540,8 @@
       "sha256": "29492424209a17a723b3b0c8e9c83995697a4c466840d1b33ba6f6ff2b7542a4"
     },
     "tool/three/src/native_entry.js": {
-      "bytes": 801,
-      "sha256": "d71a218de612a39cf195fb1dab1989a8ea60bd9c89905b533355f2006d60a608"
+      "bytes": 882,
+      "sha256": "5fb8a476137d36328693c1d75c0754075b673f0f18acdfeafe12c6b4426cf57f"
     },
     "tool/three_example/example_adapter.js": {
       "bytes": 11409,
@@ -552,12 +552,12 @@
       "sha256": "4bdf9cbdaecdc528c6dbcacb69e539cf3dc2ade9c689f0086c3aff7a5608d15b"
     },
     "tool/three_example/lil_gui_adapter.js": {
-      "bytes": 22351,
-      "sha256": "f0ca05e8810541dcab24d41b3bd8a97416d639d3150c5ce3a305eb90e8de64ad"
+      "bytes": 24549,
+      "sha256": "236209cdd317a1c32da332832207ab3a56c56d6f6b511db92c48ee3e13999dfb"
     },
     "tool/three_example/prepare.mjs": {
-      "bytes": 65723,
-      "sha256": "1f9440f1b7b9ee767cb45144ca1d6ddbbf0d3722074a8b93bda07ee13c18331d"
+      "bytes": 69965,
+      "sha256": "809611fe35d5cd428bb3bdce63059c23300ce63381dd52db08371956d396f608"
     },
     "tool/three_example/stats_adapter.js": {
       "bytes": 2107,
@@ -568,6 +568,10 @@
     "THREE_LICENSE": {
       "bytes": 1081,
       "sha256": "8b378ebe60e2fe500158cb0ac71cb5e8b7d92953c2abcc63a0eb90499653b5bc"
+    },
+    "gentilis_regular.typeface.json": {
+      "bytes": 627529,
+      "sha256": "7ed95f2faa30f59dbe7cfb145b97c42a6ba1188cd2eec01ca61485e8c83ee9de"
     },
     "manifest.json": {
       "bytes": 339,
@@ -582,8 +586,8 @@
       "sha256": "9b0536f345ae2c333086f4d45bfc7c65ba67363ed1bba5c0838539b8fd51672f"
     },
     "widget.js": {
-      "bytes": 50851,
-      "sha256": "e07521dbc371bcce682dc1fd3ab7bc1d6d3d0164d11ecfde548eb76f5ac29e43"
+      "bytes": 882883,
+      "sha256": "145c657d963c7dc7f7e3f74477e9395321f22f6b0be7982572e60231505968ef"
     }
   }
 }

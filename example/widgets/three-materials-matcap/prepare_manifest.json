@@ -498,14 +498,14 @@
       "warnOnce"
     ],
     "source": {
-      "bytes": 40387,
-      "sha256": "e7144b4b5ccbf7af16088691b596c7e9b787b0a64c109387f468ad2bc20d741a"
+      "bytes": 40968,
+      "sha256": "abe6eca366e11541e5b5ae1f228f4a76c10c4946b07b828902e649787ad99d58"
     }
   },
   "inputs": {
     "assets/three/three.native.js": {
-      "bytes": 719818,
-      "sha256": "1c13425ab5b76eb3d03c42f55db0a56a4cec0094d873277d43bf2dbfcaa27ebe"
+      "bytes": 721669,
+      "sha256": "083b264f119ef9c354076ddf7bdbb4a815cddd101cbd62eaf3adc3cecb5c1fef"
     },
     "assets/three/three.web.js": {
       "bytes": 834390,
@@ -543,6 +543,18 @@
       "bytes": 11535,
       "sha256": "b1632a703206c3d830de9fcbe515696770d04b71a15ee6b50afa6d2c3298c86f"
     },
+    "source/examples/models/gltf/LeePerrySmith/Infinite-Level_02_Tangent_SmoothUV.jpg": {
+      "bytes": 146793,
+      "sha256": "36925e51ad9b324b94e8faf4692da1b4132809f2762bb8d5bd549ffd215d4ca6"
+    },
+    "source/examples/models/gltf/LeePerrySmith/LeePerrySmith.glb": {
+      "bytes": 404976,
+      "sha256": "402b8a8ac9f03232e6d64b5962929703a069daf99d3c49ac8eb0e48bedc9c576"
+    },
+    "source/examples/textures/matcaps/040full.exr": {
+      "bytes": 1068918,
+      "sha256": "14deb8c88d02cd44d3694c9b63a5a56fb481364298900441a2be42f9eb70a9d3"
+    },
     "source/examples/webgl_materials_matcap.html": {
       "bytes": 5578,
       "sha256": "71c8fe686c1e8727c530bea8c493230c13ab5d6b62d16675f931ea1d56ce6a3b"
@@ -552,8 +564,8 @@
       "sha256": "29492424209a17a723b3b0c8e9c83995697a4c466840d1b33ba6f6ff2b7542a4"
     },
     "tool/three/src/native_entry.js": {
-      "bytes": 801,
-      "sha256": "d71a218de612a39cf195fb1dab1989a8ea60bd9c89905b533355f2006d60a608"
+      "bytes": 882,
+      "sha256": "5fb8a476137d36328693c1d75c0754075b673f0f18acdfeafe12c6b4426cf57f"
     },
     "tool/three_example/example_adapter.js": {
       "bytes": 11409,
@@ -564,12 +576,12 @@
       "sha256": "4bdf9cbdaecdc528c6dbcacb69e539cf3dc2ade9c689f0086c3aff7a5608d15b"
     },
     "tool/three_example/lil_gui_adapter.js": {
-      "bytes": 22351,
-      "sha256": "f0ca05e8810541dcab24d41b3bd8a97416d639d3150c5ce3a305eb90e8de64ad"
+      "bytes": 27347,
+      "sha256": "a1dec91be280fcde0489a8afc48cbfb816e7223e9b480629920031b21d595a79"
     },
     "tool/three_example/prepare.mjs": {
-      "bytes": 65723,
-      "sha256": "1f9440f1b7b9ee767cb45144ca1d6ddbbf0d3722074a8b93bda07ee13c18331d"
+      "bytes": 70440,
+      "sha256": "a078303e7498572c3392b5eb228611bbddc97901bc31aecd8b2697dc50a47a59"
     },
     "tool/three_example/stats_adapter.js": {
       "bytes": 2107,
@@ -577,6 +589,18 @@
     }
   },
   "outputs": {
+    "040full.exr": {
+      "bytes": 1068918,
+      "sha256": "14deb8c88d02cd44d3694c9b63a5a56fb481364298900441a2be42f9eb70a9d3"
+    },
+    "Infinite-Level_02_Tangent_SmoothUV.jpg": {
+      "bytes": 146793,
+      "sha256": "36925e51ad9b324b94e8faf4692da1b4132809f2762bb8d5bd549ffd215d4ca6"
+    },
+    "LeePerrySmith.glb": {
+      "bytes": 404976,
+      "sha256": "402b8a8ac9f03232e6d64b5962929703a069daf99d3c49ac8eb0e48bedc9c576"
+    },
     "THREE_LICENSE": {
       "bytes": 1081,
       "sha256": "8b378ebe60e2fe500158cb0ac71cb5e8b7d92953c2abcc63a0eb90499653b5bc"
@@ -594,8 +618,8 @@
       "sha256": "71c8fe686c1e8727c530bea8c493230c13ab5d6b62d16675f931ea1d56ce6a3b"
     },
     "widget.js": {
-      "bytes": 162258,
-      "sha256": "c97b5ed76dbd4fc5d5705a82ed8c51985c7463b19480aeb45f95e05c9bbef57d"
+      "bytes": 2325687,
+      "sha256": "406c83dbf15d7ce93478c266cbed61ccce634653034f880b6bef71d7713a897c"
     }
   }
 }

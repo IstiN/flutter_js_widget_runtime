@@ -1,4 +1,4 @@
-import { Cache, FileLoader as UpstreamFileLoader, Loader, Texture } from 'three';
+import { Cache, DataTexture, DataTextureLoader as UpstreamDataTextureLoader, Loader, Texture } from 'three';
 import { assetFailure, unsupported } from './errors.js';
 import { decodeBase64, decodeUtf8, getThreeRuntime } from './runtime.js';
 
@@ -30,7 +30,7 @@ export class JsrFileLoader extends Loader {
     const cached = Cache.get(`file:${url}`);
     const finish = (data, callback) => {
       if (this._aborted) throw assetFailure(url, 'request aborted');
-      if (canvas && (canvas.disposed || canvas.generation !== guard.generation || canvas._assetEpoch !== guard.epoch)) throw assetFailure(url, 'surface was disposed during file load');
+      if (canvas && (canvas.disposed || canvas.generation !== guard.generation)) throw assetFailure(url, 'surface was disposed during file load');
       if (callback) callback(data);
     };
     const convert = record => {
@@ -113,4 +113,36 @@ export class JsrTextureLoader extends Loader {
 }
 
 // Keep this named export useful to addons which only need the Loader shape.
-export { UpstreamFileLoader };
+export { UpstreamDataTextureLoader };
+
+// DataTextureLoader subclasses (EXR/HDR/RGBE/TGA loaders) inherit load() from
+// the upstream base class, which constructs the upstream fetch-based
+// FileLoader — whose constructor eagerly builds an AbortController (absent in
+// the offline QuickJS isolate) and whose load() needs fetch(). Re-issuing the
+// same flow through the asset-backed JsrFileLoader keeps the registered-asset
+// lane (jsr.three.registerAsset / runtime.loadAsset) for every derived
+// parser; parse() and _applyTexData() stay upstream.
+export class JsrDataTextureLoader extends UpstreamDataTextureLoader {
+  load(url, onLoad, onProgress, onError) {
+    const scope = this;
+    const texture = new DataTexture();
+    const loader = new JsrFileLoader(this.manager);
+    loader.setResponseType('arraybuffer');
+    loader.setRequestHeader(this.requestHeader);
+    loader.setPath(this.path);
+    loader.setWithCredentials(scope.withCredentials);
+    loader.load(url, bufferBytes => {
+      let texData;
+      try {
+        texData = scope.parse(bufferBytes);
+      } catch (error) {
+        if (onError !== undefined) onError(error);
+        else if (typeof console !== 'undefined' && console.error) console.error(error);
+        return;
+      }
+      scope._applyTexData(texture, texData);
+      if (onLoad) onLoad(texture, texData);
+    }, onProgress, onError);
+    return texture;
+  }
+}

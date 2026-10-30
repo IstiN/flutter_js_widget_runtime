@@ -620,7 +620,50 @@ webgl_loader_ply: {
       html: '71c8fe686c1e8727c530bea8c493230c13ab5d6b62d16675f931ea1d56ce6a3b',
       module: '0abc2fcda73cb87c7101698653b2419a2e6809ce33b93497db53de8f256d5aa5'
     },
-    assets: []
+    assets: [
+          {
+                "url": "textures/matcaps/040full.exr",
+                "mime": "application/octet-stream",
+                "output": "040full.exr",
+      "sha256": "14deb8c88d02cd44d3694c9b63a5a56fb481364298900441a2be42f9eb70a9d3"
+          },
+          {
+                "url": "models/gltf/LeePerrySmith/Infinite-Level_02_Tangent_SmoothUV.jpg",
+                "mime": "image/jpeg",
+                'output': 'Infinite-Level_02_Tangent_SmoothUV.jpg',
+      "sha256": "36925e51ad9b324b94e8faf4692da1b4132809f2762bb8d5bd549ffd215d4ca6"
+          },
+          {
+                "url": "models/gltf/LeePerrySmith/LeePerrySmith.glb",
+                "mime": "model/gltf-binary",
+                'output': 'LeePerrySmith.glb',
+      "sha256": "402b8a8ac9f03232e6d64b5962929703a069daf99d3c49ac8eb0e48bedc9c576"
+          }
+    ],
+    // R1's matcap path is an unlit lookup without tangent-space normal
+    // mapping; peel the slot (single warning) instead of rejecting the whole
+    // material. Upstream official_module.js bytes stay untouched. The wrap
+    // rides the facade binding because THREE's exports are getter-only.
+    facadeWraps: {
+      MeshMatcapMaterial: `Base => {
+        let warned = false;
+        return class extends Base {
+          constructor(params) {
+            if (params && params.normalMap) {
+              const peeled = Object.assign({}, params);
+              delete peeled.normalMap;
+              if (!warned) {
+                warned = true;
+                console.warn('three-materials-matcap: R1 drops MeshMatcapMaterial.normalMap (unsupported); matcap shading kept.');
+              }
+              super(peeled);
+            } else {
+              super(params);
+            }
+          }
+        };
+      }`
+    }
   },
   webgl_materials_toon: {
     id: 'three-materials-toon',
@@ -632,7 +675,25 @@ webgl_loader_ply: {
       html: '9b0536f345ae2c333086f4d45bfc7c65ba67363ed1bba5c0838539b8fd51672f',
       module: 'ed42f109b1bfa322b70da6c2261a18d72f4f108d457e6baae2f1edfe1ae07020'
     },
-    assets: []
+    assets: [
+          {
+                "url": "fonts/gentilis_regular.typeface.json",
+                "mime": "application/json",
+                'output': 'gentilis_regular.typeface.json',
+      "sha256": "7ed95f2faa30f59dbe7cfb145b97c42a6ba1188cd2eec01ca61485e8c83ee9de"
+          }
+    ],
+    // OutlineEffect needs arbitrary ShaderMaterial (outside R1): delegate to
+    // the underlying renderer so the toon scene renders without the outline
+    // pass instead of erroring every frame. Upstream bytes stay untouched.
+    addonShims: {
+      'three/addons/effects/OutlineEffect.js': `export class OutlineEffect {
+  constructor(renderer) { this.renderer = renderer; this.enabled = true; this.autoClear = true; }
+  render(scene, camera) { this.renderer.render(scene, camera); }
+  setSize(width, height) { this.renderer.setSize(width, height); }
+}
+`
+    }
   },
   webgl_materials_bumpmap: {
     id: 'three-materials-bumpmap',
@@ -1267,12 +1328,23 @@ function addonPath(jsmRoot, specifier) {
   return resolved;
 }
 
-function localOnlyPlugin({ source, facadeSource = null, officialBytes = null, final = false }) {
+function localOnlyPlugin({ source, facadeSource = null, officialBytes = null, final = false, compatSource = null, addonShims = null }) {
   const jsmRoot = path.join(source, 'examples/jsm');
   const allowedRoots = final ? [HERE, jsmRoot] : [path.join(CORE, 'src'), source];
+  const shimNames = addonShims ? Object.keys(addonShims) : [];
   return {
     name: final ? 'jsr-three-example-local-only' : 'jsr-three-export-discovery',
     setup(build) {
+      build.onResolve({ filter: /^\.\/example_compat\.js$/ }, () => (
+        compatSource !== null
+          ? { path: 'example_compat.js', namespace: 'jsr-example-compat' }
+          : { errors: [{ text: 'No compat module defined for this example' }] }
+      ));
+      build.onLoad({ filter: /^example_compat\.js$/, namespace: 'jsr-example-compat' }, () => ({
+        contents: compatSource,
+        loader: 'js',
+        resolveDir: HERE
+      }));
       build.onResolve({ filter: /^three$/ }, () => {
         if (facadeSource !== null) return { path: 'three', namespace: 'jsr-three-facade' };
         return { path: path.join(source, 'src/Three.js') };
@@ -1287,8 +1359,16 @@ function localOnlyPlugin({ source, facadeSource = null, officialBytes = null, fi
         }
         return { path: path.join(HERE, 'lil_gui_adapter.js') };
       });
-      build.onResolve({ filter: /^three\/addons\// }, args => ({
-        path: addonPath(jsmRoot, args.path)
+      build.onResolve({ filter: /^three\/addons\// }, args => {
+        if (final && shimNames.includes(args.path)) {
+          return { path: args.path, namespace: 'jsr-addon-shim' };
+        }
+        return { path: addonPath(jsmRoot, args.path) };
+      });
+      build.onLoad({ filter: /.*/, namespace: 'jsr-addon-shim' }, args => ({
+        contents: addonShims[args.path],
+        loader: 'js',
+        resolveDir: HERE
       }));
       build.onResolve({ filter: /^\.\/official_module\.js$/ }, args => {
         if (final && args.importer) return { path: 'official_module.js', namespace: 'jsr-official' };
@@ -1349,14 +1429,19 @@ async function discoverExports(source) {
   return names;
 }
 
-function facadeModule(names, widgetId) {
+function facadeModule(names, widgetId, facadeWraps = null) {
   const lines = [
     'const __three = globalThis.THREE;',
     `if (!__three) throw new Error(${JSON.stringify(`${widgetId}: globalThis.THREE is not initialized`)});`
   ];
   const bindings = names.map((name, index) => {
     const local = `__threeExport${index}`;
-    lines.push(`const ${local} = __three[${JSON.stringify(name)}];`);
+    // THREE's exports object is getter-only (silent no-op on assignment), so
+    // per-example material adaptations must wrap the facade binding itself.
+    const wrap = facadeWraps && facadeWraps[name];
+    lines.push(wrap
+      ? `const ${local} = (${wrap})(__three[${JSON.stringify(name)}]);`
+      : `const ${local} = __three[${JSON.stringify(name)}];`);
     return `${local} as ${name}`;
   });
   lines.push(`export { ${bindings.join(', ')} };`, '');
@@ -1473,7 +1558,7 @@ async function main() {
     throw new Error(`Extracted official ${options.example} module differs from the pinned r186 bytes`);
   }
   const exportNames = await discoverExports(source);
-  const facadeSource = facadeModule(exportNames, definition.id);
+  const facadeSource = facadeModule(exportNames, definition.id, definition.facadeWraps || null);
   const adapterAssets = assets.map(asset => ({
     url: asset.url,
     data: asset.bytes.toString('base64'),
@@ -1487,7 +1572,9 @@ async function main() {
   const result = await esbuild.build({
     absWorkingDir: ROOT,
     stdin: {
-      contents: "import './example_adapter.js';\nimport './official_module.js';\n",
+      contents: "import './example_adapter.js';\n" +
+        (definition.compat ? "import './example_compat.js';\n" : '') +
+        "import './official_module.js';\n",
       resolveDir: HERE,
       sourcefile: entryName,
       loader: 'js'
@@ -1508,7 +1595,9 @@ async function main() {
       source,
       facadeSource,
       officialBytes: extracted.moduleBytes,
-      final: true
+      final: true,
+      compatSource: definition.compat || null,
+      addonShims: definition.addonShims || null
     })],
     define: {
       __JSR_THREE_EXAMPLE_ID__: JSON.stringify(options.example),
