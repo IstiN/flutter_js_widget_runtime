@@ -258,6 +258,30 @@ enum ThreeExampleSelection {
     label: 'Instancing Scatter',
     widgetId: 'three-instancing-scatter',
     assetPath: 'widgets/three-instancing-scatter/widget.js',
+  ),
+  sprites(
+    exampleId: 'webgl_sprites',
+    label: 'Sprites',
+    widgetId: 'three-sprites',
+    assetPath: 'widgets/three-sprites/widget.js',
+  ),
+  raycasterSprite(
+    exampleId: 'webgl_raycaster_sprite',
+    label: 'Raycaster Sprite',
+    widgetId: 'three-raycaster-sprite',
+    assetPath: 'widgets/three-raycaster-sprite/widget.js',
+  ),
+  materialsMatcap(
+    exampleId: 'webgl_materials_matcap',
+    label: 'Matcap Material',
+    widgetId: 'three-materials-matcap',
+    assetPath: 'widgets/three-materials-matcap/widget.js',
+  ),
+  materialsToon(
+    exampleId: 'webgl_materials_toon',
+    label: 'Toon Material (gradient map)',
+    widgetId: 'three-materials-toon',
+    assetPath: 'widgets/three-materials-toon/widget.js',
   );
 
   const ThreeExampleSelection({
@@ -296,6 +320,10 @@ enum ThreeExampleSelection {
     interactiveBufferGeometry,
     instancingRaycast,
     instancingScatter,
+    sprites,
+    raycasterSprite,
+    materialsMatcap,
+    materialsToon,
     extrudeShapes,
     ..._launchOrder,
   ];

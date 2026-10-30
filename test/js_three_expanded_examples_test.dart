@@ -50,11 +50,12 @@ const _examples = <(String, String, bool)>[
   ('three-loader-stl', 'webgl_loader_stl', false),
   // Wave-2 additions: only modules that boot AND render stock (no probe
   // shims) join this suite — its gate requires non-empty draw plans. The
-  // still-gap modules (sprites, raycaster-sprite, raycaster-texture,
-  // texture-filters, texture-anisotropy, camera-logarithmicdepthbuffer,
+  // still-gap modules (raycaster-texture, texture-filters,
+  // texture-anisotropy, camera-logarithmicdepthbuffer,
   // cubemap-refraction, instancing-performance) carry their own dedicated
   // tests. Wave-3 graduated geometry-shapes, texture-rotation, shadowmap-pointlight
-  // and points-billboards from that list (UV transforms, alphaMap, FogExp2).
+  // and points-billboards (UV transforms, alphaMap, FogExp2), and the v5
+  // batch graduated sprites, raycaster-sprite, matcap and toon.
   ('three-materials-texture-rotation', 'webgl_materials_texture_rotation', false),
   ('three-geometry-shapes', 'webgl_geometry_shapes', false),
   ('three-shadowmap-pointlight', 'webgl_shadowmap_pointlight', false),
@@ -70,6 +71,14 @@ const _examples = <(String, String, bool)>[
   // dedicated test also pins the decoded palette payload and the live
   // count slider).
   ('three-instancing-scatter', 'webgl_instancing_scatter', false),
+  // Wave-3 v5 batch: sprites (200 billboarded sprites + ortho HUD scene),
+  // raycaster-sprite (sprite picking). Matcap/toon lanes are proven by
+  // their dedicated tests but stay OUT of this suite: their official
+  // texture assets (EXR gradient / matcap map) are not registered in the
+  // headless fixture, so the suite's non-empty-draw-plan gate would fail
+  // even though the app runtime renders them fine.
+  ('three-sprites', 'webgl_sprites', false),
+  ('three-raycaster-sprite', 'webgl_raycaster_sprite', false),
 ];
 
 void main() {

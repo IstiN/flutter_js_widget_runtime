@@ -123,8 +123,11 @@ Renderer effects ported from YoClip: radial gradients, box shadows, blur nodes, 
   Flutter GPU; the strict Dart decoder also accepts legacy R1-v1 streams. `THREE.WebGLRenderer` is an R1 alias (`rawWebGL: false`;
   `getContext`/ShaderMaterial/WebGPU → `three.unsupported`). Real
   `InstancedMesh` matrices use `DRAW_BATCH` and GPU instancing; triangle
-  diagnostics include `instanceCount`. Transparent instancing and
-  per-instance colors are outside the initial profile. Web uses the
+  diagnostics include `instanceCount`. Per-instance colors multiply the
+  material color through the same DRAW_BATCH lane; transparent
+  InstancedMesh renders as one blended draw per material part with
+  node-level back-to-front ordering (per-instance sort is bounded by
+  design). Web uses the
   real upstream renderer and WebGL2 on a Worker OffscreenCanvas, then sends
   bounded ImageBitmap frames over a structured-clone lane (never JSON/GL
   proxies). Asset failures are `three.assetFailure`.
