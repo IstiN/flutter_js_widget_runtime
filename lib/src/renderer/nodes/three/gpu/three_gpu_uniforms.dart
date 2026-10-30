@@ -128,9 +128,11 @@ ByteData _threeVertexUniform(
   bool shadowPass = false,
   int pointShadowFace = 0,
 }) {
-  // Impeller adds 32 bytes of trailing padding after the used 304 bytes
-  // (R1 v5 spriteParams tail included).
-  final data = ByteData(336);
+  // ABI: 19 used vec4s (304 bytes) padded to the 320-byte VertexInfo the
+  // ThreeR1Vertex spirv reflects (std140 rounds the struct to 5 mat4/vec4
+  // multiples). The v5 lane shipped 336 bytes here, which the shadow-pass
+  // ABI check rejects — 320 matches every pipeline's reflection.
+  final data = ByteData(320);
   final frame = plan.frame!;
   _writeFloats(
     data,
