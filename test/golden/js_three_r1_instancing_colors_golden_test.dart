@@ -3,7 +3,6 @@ library;
 
 import 'dart:io';
 
-import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:js_widget_runtime/src/renderer/nodes/three/three_draw_plan.dart';
 
@@ -43,15 +42,8 @@ void main() {
   testWidgets(
       'R1 per-instance colors and transparent instancing match the GPU golden',
       (tester) async {
-    final threeSource = await tester.runAsync(
-      () => rootBundle.loadString('assets/three/three.native.js'),
-    );
-    const engineId = 'three-r1-instancing-colors-golden';
-    final run = await bootThreeGpuGolden(
-      tester,
-      engineId,
-      threeSource,
-    );
+    final run =
+        await bootBundledThreeGpuGolden(tester, 'three-r1-instancing-colors-golden');
     await run.engine.run(r'''
       const canvas = jsr.three.createCanvas('main');
       const renderer = new THREE.WebGLRenderer({canvas: canvas});
@@ -121,12 +113,9 @@ void main() {
       renderer.render(scene, camera);
       renderer.render(scene, camera);
     ''');
-    final surface = await attachThreeGpuGolden(tester, run);
-
-    final png = await captureThreeGpuGolden(tester, surface, (_) => true);
-    expect(png, isNotNull, reason: 'diagnostics=${surface.diagnostics}');
-    expect(surface.lastError, isNull);
-    expect(surface.diagnostics['failedPresentations'], 0);
+    final golden = await presentThreeGpuGolden(tester, run, (_) => true);
+    final surface = golden.surface;
+    final png = golden.png;
     // Four draws: colored instanced, plain instanced, backing, veil.
     expect(surface.diagnostics['calls'], 4);
     expect(surface.diagnostics['triangles'], 10);
@@ -151,7 +140,7 @@ void main() {
 
     // Pixel probes: 45 deg fov at distance 4.2 -> 128 px per 1.7397 world
     // units = 73.58 px/unit. Centers of the four quads, far from edges.
-    final probe = await decodeThreeGpuGolden(tester, png!);
+    final probe = await decodeThreeGpuGolden(tester, png);
     expect(probe.lengthInBytes, 256 * 256 * 4);
     int r(int x, int y) => probe.getUint8((y * 256 + x) * 4);
     int g(int x, int y) => probe.getUint8((y * 256 + x) * 4 + 1);

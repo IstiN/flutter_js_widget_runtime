@@ -1,17 +1,17 @@
-import 'dart:convert';
 import 'dart:math' as math;
 import 'dart:typed_data';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:js_widget_runtime/src/renderer/nodes/three/flutter_gpu_three_backend.dart';
 import 'package:js_widget_runtime/src/renderer/nodes/three/js_three_protocol.dart';
-import 'package:js_widget_runtime/src/renderer/nodes/three/js_three_state.dart';
 import 'package:js_widget_runtime/src/renderer/nodes/three/three_draw_plan.dart';
+
+import 'support/three_draw_plan_bytes.dart';
 
 void main() {
   group('ThreeDrawPlanner', () {
     test('sorts opaque by material and transparent far to near', () {
-      final fixture = _Fixture.basic()
+      final fixture = ThreeDrawPlanFixture.basic()
         ..material(2, transparent: true)
         ..material(3)
         ..geometry(1)
@@ -31,11 +31,11 @@ void main() {
     });
 
     test('main culling preserves the full shadow draw set', () {
-      final fixture = _Fixture.basic()
+      final fixture = ThreeDrawPlanFixture.basic()
         ..geometry(1)
         ..node(2, parentId: 1);
       fixture.commands.add(
-        _command(8, _frame(sceneId: 1, cameraId: 1, culledNodeIds: const [2])),
+        r1Command(8, r1Frame(sceneId: 1, cameraId: 1, culledNodeIds: const [2])),
       );
 
       final plan = const ThreeDrawPlanner().plan(fixture.state());
@@ -51,7 +51,7 @@ void main() {
     test(
       'visibility prunes descendants and missing resources are diagnosed',
       () {
-        final fixture = _Fixture.basic()
+        final fixture = ThreeDrawPlanFixture.basic()
           ..geometry(1)
           ..node(20, parentId: 1, visible: false)
           ..node(21, parentId: 20)
@@ -67,7 +67,7 @@ void main() {
     );
 
     test('validates object primitive and material combinations', () {
-      final fixture = _Fixture.basic()
+      final fixture = ThreeDrawPlanFixture.basic()
         ..geometry(1, primitive: JsThreePrimitive.points, positions: [0, 0, 0])
         ..material(2, kind: JsThreeMaterialKind.pointsBasic)
         ..node(
@@ -86,7 +86,7 @@ void main() {
     });
 
     test('plans real Phong and selects wire indices for mesh wireframe', () {
-      final fixture = _Fixture.basic()
+      final fixture = ThreeDrawPlanFixture.basic()
         ..geometry(1, wireIndices: const [0, 1, 1, 2, 2, 0])
         ..material(2, kind: JsThreeMaterialKind.meshPhong)
         ..material(3, wireframe: true)
@@ -108,7 +108,7 @@ void main() {
       expect(wire.drawCount, 6);
       expect(plan.triangleCount, 1);
 
-      final missing = _Fixture.basic()
+      final missing = ThreeDrawPlanFixture.basic()
         ..geometry(1)
         ..material(2, wireframe: true)
         ..node(2, parentId: 1, materialId: 2);
@@ -119,7 +119,7 @@ void main() {
     });
 
     test('plans Normal independently and forwards side and emissive state', () {
-      final fixture = _Fixture.basic()
+      final fixture = ThreeDrawPlanFixture.basic()
         ..geometry(1)
         ..material(
           2,
@@ -160,7 +160,7 @@ void main() {
     });
 
     test('supports independent lines and explicitly selected line strips', () {
-      final fixture = _Fixture.basic()
+      final fixture = ThreeDrawPlanFixture.basic()
         ..geometry(
           1,
           primitive: JsThreePrimitive.lines,
@@ -182,7 +182,7 @@ void main() {
     });
 
     test('expands indexed multi-material batches deterministically', () {
-      final fixture = _Fixture.basic()
+      final fixture = ThreeDrawPlanFixture.basic()
         ..geometry(1, indices: const [0, 1, 2, 2, 1, 0, 0, 2, 1])
         ..material(2)
         ..material(3)
@@ -207,7 +207,7 @@ void main() {
     });
 
     test('plans real instance matrices and skips zero-instance batches', () {
-      final fixture = _Fixture.basic()
+      final fixture = ThreeDrawPlanFixture.basic()
         ..geometry(1)
         ..batch(5, instanced: true, instanceCount: 2);
       final state = fixture.state();
@@ -226,7 +226,7 @@ void main() {
       expect(draw.batch!.instanceMatrices[0], 1);
       expect(draw.batch!.instanceMatrices[16], 1);
 
-      final empty = _Fixture.basic()
+      final empty = ThreeDrawPlanFixture.basic()
         ..batch(
           6,
           instanced: true,
@@ -245,7 +245,7 @@ void main() {
     // every part draw of the batch, and stay neutral (material color) when
     // the flag is absent — the two states the GPU golden family pins.
     test('carries instance colors through every batch part draw', () {
-      final colored = _Fixture.basic()
+      final colored = ThreeDrawPlanFixture.basic()
         ..geometry(
           1,
           positions: List<double>.generate(18, (index) => index.toDouble()),
@@ -265,7 +265,7 @@ void main() {
         expect(draw.batch!.instanceColors, const [1, 0, 0, 0, 0, 1]);
       }
 
-      final plain = _Fixture.basic()
+      final plain = ThreeDrawPlanFixture.basic()
         ..geometry(1)
         ..material(2)
         ..batch(6, instanced: true, instanceCount: 2);
@@ -278,7 +278,7 @@ void main() {
     test('rejects malformed batch shapes with scoped diagnostics', () {
       // Bare-mesh node carrying direct resources: rejected by the batch
       // shape validation (invalidBatchCount warning, no draws).
-      final resourced = _Fixture.basic()
+      final resourced = ThreeDrawPlanFixture.basic()
         ..geometry(1)
         ..batch(5, geometryId: 9);
       final resourcedPlan = const ThreeDrawPlanner().plan(resourced.state());
@@ -289,7 +289,7 @@ void main() {
     });
 
     test('auto-instances the 200-mesh Orthographic shape into one draw', () {
-      final fixture = _Fixture.basic()..geometry(1);
+      final fixture = ThreeDrawPlanFixture.basic()..geometry(1);
       for (var index = 0; index < 200; index++) {
         final id = index + 2;
         fixture
@@ -365,7 +365,7 @@ void main() {
         List<int> culledNodeIds = const [],
         List<int> culledShadowNodeIds = const [],
       }) {
-        final fixture = _Fixture.basic()
+        final fixture = ThreeDrawPlanFixture.basic()
           ..geometry(
             1,
             wireIndices: secondWireframe ? const [0, 1, 1, 2, 2, 0] : null,
@@ -408,9 +408,9 @@ void main() {
               castShadow: secondCastShadow,
             );
         }
-        fixture.commands[2] = _command(
+        fixture.commands[2] = r1Command(
           8,
-          _frame(
+          r1Frame(
             sceneId: 1,
             cameraId: 1,
             culledNodeIds: culledNodeIds,
@@ -443,7 +443,7 @@ void main() {
         );
       }
 
-      final points = _Fixture.basic()
+      final points = ThreeDrawPlanFixture.basic()
         ..geometry(
           1,
           primitive: JsThreePrimitive.points,
@@ -473,7 +473,7 @@ void main() {
     test(
       'rejects invalid batch ranges and incompatible parts',
       () {
-        final invalidRanges = _Fixture.basic()
+        final invalidRanges = ThreeDrawPlanFixture.basic()
           ..geometry(1, indices: const [0, 1, 2, 2, 1, 0, 0, 2, 1])
           ..material(2, kind: JsThreeMaterialKind.lineBasic)
           ..batch(
@@ -494,7 +494,7 @@ void main() {
         expect(invalidPlan.diagnostics.missingResourceCount, 1);
         expect(invalidPlan.diagnostics.incompatibleMaterialCount, 1);
 
-        final nonIndexed = _Fixture.basic()
+        final nonIndexed = ThreeDrawPlanFixture.basic()
           ..geometry(
             1,
             positions: List<double>.generate(18, (index) => index.toDouble()),
@@ -522,7 +522,7 @@ void main() {
     // their own instanceColor buffers and are never merged with anything
     // (pinned by the 'explicit instances' eligibility case above).
     test('auto-instancing merges differing material colors in one draw', () {
-      final fixture = _Fixture.basic()
+      final fixture = ThreeDrawPlanFixture.basic()
         ..geometry(1)
         ..material(2, kind: JsThreeMaterialKind.meshPhong)
         ..material(
@@ -567,7 +567,7 @@ void main() {
     // instanced draw is out of scope; splitting instances across meshes is
     // the documented workaround, like the dual-paraboloid point shadows.
     test('transparent instanced batches blend in the transparent bucket', () {
-      final fixture = _Fixture.basic()
+      final fixture = ThreeDrawPlanFixture.basic()
         ..geometry(1)
         ..material(2)
         ..material(3, transparent: true)
@@ -611,7 +611,7 @@ void main() {
     });
 
     test('caps each light family independently and deterministically', () {
-      final fixture = _Fixture.basic();
+      final fixture = ThreeDrawPlanFixture.basic();
       for (var id = 1; id <= 6; id++) {
         fixture.light(
           id,
@@ -662,7 +662,7 @@ void main() {
     test(
       'keeps HemisphereLight distinct and packs exact GPU light uniforms',
       () {
-        final fixture = _Fixture.basic()
+        final fixture = ThreeDrawPlanFixture.basic()
           ..light(
             1,
             JsThreeLightType.ambient,
@@ -726,12 +726,12 @@ void main() {
     test(
       'uses selected pending frame camera and exposes camera/background',
       () {
-        final fixture = _Fixture.basic()
+        final fixture = ThreeDrawPlanFixture.basic()
           ..camera(2)
           ..node(2, parentId: 1)
           ..geometry(1);
         fixture.commands.add(
-          _command(8, _frame(sceneId: 1, cameraId: 2, exposure: 2)),
+          r1Command(8, r1Frame(sceneId: 1, cameraId: 2, exposure: 2)),
         );
         final state = fixture.state();
 
@@ -749,12 +749,12 @@ void main() {
     );
 
     test('missing frame and camera produce a non-renderable plan', () {
-      final noFrame = _Fixture.withCommands([_command(6, _camera(1))]).state();
+      final noFrame = ThreeDrawPlanFixture.withCommands([r1Command(6, r1Camera(1))]).state();
       expect(const ThreeDrawPlanner().plan(noFrame).canRender, isFalse);
 
-      final noCamera = _Fixture.withCommands([
-        _command(4, _node(1, objectKind: JsThreeObjectKind.group)),
-        _command(8, _frame(sceneId: 1, cameraId: 9)),
+      final noCamera = ThreeDrawPlanFixture.withCommands([
+        r1Command(4, r1Node(1, objectKind: JsThreeObjectKind.group)),
+        r1Command(8, r1Frame(sceneId: 1, cameraId: 9)),
       ]).state();
       final plan = const ThreeDrawPlanner().plan(noCamera);
       expect(plan.canRender, isFalse);
@@ -762,7 +762,7 @@ void main() {
     });
 
     test('uses node id to break material and view-depth ties', () {
-      final fixture = _Fixture.basic()
+      final fixture = ThreeDrawPlanFixture.basic()
         ..material(2, transparent: true)
         ..material(3)
         ..geometry(1)
@@ -781,11 +781,11 @@ void main() {
     });
 
     test('diagnoses hierarchy cycles without looping or drawing', () {
-      final state = _Fixture.withCommands([
-        _command(4, _node(1, parentId: 2, objectKind: JsThreeObjectKind.group)),
-        _command(4, _node(2, parentId: 1, objectKind: JsThreeObjectKind.group)),
-        _command(6, _camera(1)),
-        _command(8, _frame(sceneId: 1, cameraId: 1)),
+      final state = ThreeDrawPlanFixture.withCommands([
+        r1Command(4, r1Node(1, parentId: 2, objectKind: JsThreeObjectKind.group)),
+        r1Command(4, r1Node(2, parentId: 1, objectKind: JsThreeObjectKind.group)),
+        r1Command(6, r1Camera(1)),
+        r1Command(8, r1Frame(sceneId: 1, cameraId: 1)),
       ]).state();
 
       final plan = const ThreeDrawPlanner().plan(state);
@@ -796,15 +796,15 @@ void main() {
     });
 
     test('diagnoses invalid groups and zero or missing draw resources', () {
-      final fixture = _Fixture.basic()
+      final fixture = ThreeDrawPlanFixture.basic()
         ..geometry(1)
         ..node(2, parentId: 1, geometryId: 0)
         ..node(3, parentId: 1, materialId: 0)
         ..node(4, parentId: 1, geometryId: 999);
       fixture.commands.add(
-        _command(
+        r1Command(
           4,
-          _node(
+          r1Node(
             5,
             parentId: 1,
             geometryId: 1,
@@ -826,7 +826,7 @@ void main() {
     });
 
     test('warns once for a missing material map and keeps valid draws', () {
-      final fixture = _Fixture.basic()
+      final fixture = ThreeDrawPlanFixture.basic()
         ..material(1, version: 2, mapTextureId: 99)
         ..geometry(1)
         ..node(2, parentId: 1)
@@ -843,8 +843,8 @@ void main() {
     });
 
     test('diagnoses disposed surfaces and missing scene roots', () {
-      final disposed = _Fixture.withCommands([
-        _command(10, Uint8List(0)),
+      final disposed = ThreeDrawPlanFixture.withCommands([
+        r1Command(10, Uint8List(0)),
       ]).state();
       final disposedPlan = const ThreeDrawPlanner().plan(disposed);
       expect(disposedPlan.canRender, isFalse);
@@ -853,9 +853,9 @@ void main() {
         contains('disposed'),
       );
 
-      final missingScene = _Fixture.withCommands([
-        _command(6, _camera(1)),
-        _command(8, _frame(sceneId: 99, cameraId: 1)),
+      final missingScene = ThreeDrawPlanFixture.withCommands([
+        r1Command(6, r1Camera(1)),
+        r1Command(8, r1Frame(sceneId: 99, cameraId: 1)),
       ]).state();
       final plan = const ThreeDrawPlanner().plan(missingScene);
       expect(plan.canRender, isTrue);
@@ -867,7 +867,7 @@ void main() {
 
   group('interleaveThreeGeometry', () {
     test('packs defaults and copies checked indices', () {
-      final fixture = _Fixture.basic()
+      final fixture = ThreeDrawPlanFixture.basic()
         ..geometry(
           1,
           indices: [2, 1, 0],
@@ -900,7 +900,7 @@ void main() {
     });
 
     test('packs normal uv RGB and RGBA without reading outside strides', () {
-      final fixture = _Fixture.basic()
+      final fixture = ThreeDrawPlanFixture.basic()
         ..geometry(
           1,
           positions: [1, 2, 3, 4, 5, 6, 7, 8, 9],
@@ -935,10 +935,10 @@ void main() {
     });
 
     test('GPU shadow uniforms preserve the reflected ABI and node flags', () {
-      final fixture = _Fixture.basic();
-      fixture.commands[2] = _command(
+      final fixture = ThreeDrawPlanFixture.basic();
+      fixture.commands[2] = r1Command(
         8,
-        _frame(sceneId: 1, cameraId: 1, shadowMapSize: 2048),
+        r1Frame(sceneId: 1, cameraId: 1, shadowMapSize: 2048),
       );
       fixture
         ..geometry(1)
@@ -947,9 +947,10 @@ void main() {
       final draw = plan.opaque.single;
 
       final vertex = debugThreeVertexUniform(draw, plan, 2);
-      // Impeller reflects 304 used bytes + 32 trailing padding (R1 v5
-      // spriteParams tail at 288).
-      expect(vertex.lengthInBytes, 336);
+      // ABI: 19 used vec4s (304 bytes) padded to the 320-byte VertexInfo
+      // the ThreeR1Vertex spirv reflects (R1 v5 spriteParams tail at 288;
+      // the shadow-pass ABI check rejects anything larger).
+      expect(vertex.lengthInBytes, 320);
       expect(vertex.getFloat32(196, Endian.little), 0);
       expect(vertex.getFloat32(208, Endian.little), 1);
       expect(vertex.getFloat32(272, Endian.little), closeTo(0.02, 1e-6));
@@ -987,10 +988,10 @@ void main() {
     });
 
     test('GPU point uniforms preserve size attenuation and viewport scale', () {
-      final fixture = _Fixture.basic();
-      fixture.commands[3] = _command(
+      final fixture = ThreeDrawPlanFixture.basic();
+      fixture.commands[3] = r1Command(
         3,
-        _material(1, sizeAttenuation: false, pointSize: 0.05),
+        r1Material(1, sizeAttenuation: false, pointSize: 0.05),
       );
       fixture
         ..geometry(1)
@@ -1010,23 +1011,23 @@ void main() {
     });
 
     test('v3 spot lights and clipping sets pack exact GPU uniforms', () {
-      final fixture = _Fixture.withCommands([
-        _command(4, _node(1, objectKind: JsThreeObjectKind.group)),
-        _command(6, _camera(1)),
-        _command(
+      final fixture = ThreeDrawPlanFixture.withCommands([
+        r1Command(4, r1Node(1, objectKind: JsThreeObjectKind.group)),
+        r1Command(6, r1Camera(1)),
+        r1Command(
           8,
-          _frame(
+          r1Frame(
             sceneId: 1,
             cameraId: 1,
             shadowMapSize: 1024,
             shadowLightType: 2,
           ),
         ),
-        _command(3, _material(1, clipId: 5, clipFlags: 2)),
-        _command(13, _clipping(5)),
-        _command(
+        r1Command(3, r1Material(1, clipId: 5, clipFlags: 2)),
+        r1Command(13, r1Clipping(5)),
+        r1Command(
           7,
-          _light(
+          r1Light(
             2,
             JsThreeLightType.spot,
             intensity: 60,
@@ -1097,7 +1098,7 @@ void main() {
       expect(clipping.getFloat32(132, Endian.little), 0);
       expect(clipping.getFloat32(136, Endian.little), 1);
 
-      final unclipped = _Fixture.basic();
+      final unclipped = ThreeDrawPlanFixture.basic();
       unclipped
         ..geometry(1)
         ..node(2, parentId: 1);
@@ -1110,12 +1111,12 @@ void main() {
     });
 
     test('spot light caps exceed four with a warning', () {
-      final fixture = _Fixture.basic()..r1Version = 3;
-      fixture.commands[2] = _command(
+      final fixture = ThreeDrawPlanFixture.basic()..r1Version = 3;
+      fixture.commands[2] = r1Command(
         8,
-        _frame(sceneId: 1, cameraId: 1, shadowLightType: 0),
+        r1Frame(sceneId: 1, cameraId: 1, shadowLightType: 0),
       );
-      fixture.commands[3] = _command(3, _material(1, clipId: 0));
+      fixture.commands[3] = r1Command(3, r1Material(1, clipId: 0));
       for (var id = 20; id <= 25; id++) {
         fixture.light(id, JsThreeLightType.spot);
       }
@@ -1129,582 +1130,4 @@ void main() {
       expect(plan.diagnostics.droppedSpotLightCount, 2);
     });
   });
-}
-
-final class _Fixture {
-  _Fixture(this.commands);
-
-  factory _Fixture.basic() => _Fixture([
-    _command(4, _node(1, objectKind: JsThreeObjectKind.group)),
-    _command(6, _camera(1)),
-    _command(8, _frame(sceneId: 1, cameraId: 1)),
-    _command(3, _material(1)),
-  ]);
-
-  factory _Fixture.withCommands(List<Uint8List> commands, {int sequence = 1}) =>
-      _Fixture(commands)..sequence = sequence;
-
-  final List<Uint8List> commands;
-  int sequence = 1;
-  int r1Version = 2;
-
-  void geometry(
-    int id, {
-    int version = 1,
-    JsThreePrimitive primitive = JsThreePrimitive.triangles,
-    List<double> positions = const [0, 0, 0, 1, 0, 0, 0, 1, 0],
-    List<double>? normals,
-    List<double>? uvs,
-    List<double>? colors,
-    List<int> indices = const [],
-    List<int>? wireIndices,
-  }) {
-    commands.add(
-      _command(
-        1,
-        _geometry(
-          id,
-          version: version,
-          primitive: primitive,
-          positions: positions,
-          normals: normals,
-          uvs: uvs,
-          colors: colors,
-          indices: indices,
-          wireIndices: wireIndices,
-        ),
-      ),
-    );
-  }
-
-  void material(
-    int id, {
-    int version = 1,
-    JsThreeMaterialKind kind = JsThreeMaterialKind.meshBasic,
-    bool transparent = false,
-    bool wireframe = false,
-    bool vertexColors = false,
-    bool flatShading = false,
-    JsThreeSide side = JsThreeSide.front,
-    int mapTextureId = 0,
-    bool emissive = false,
-    List<double> color = const [1, 1, 1],
-    double opacity = 1,
-    bool depthTest = true,
-    bool depthWrite = true,
-  }) {
-    commands.add(
-      _command(
-        3,
-        _material(
-          id,
-          version: version,
-          kind: kind,
-          transparent: transparent,
-          wireframe: wireframe,
-          vertexColors: vertexColors,
-          flatShading: flatShading,
-          side: side,
-          mapTextureId: mapTextureId,
-          emissive: emissive,
-          color: color,
-          opacity: opacity,
-          depthTest: depthTest,
-          depthWrite: depthWrite,
-        ),
-      ),
-    );
-  }
-
-  void node(
-    int id, {
-    int parentId = 0,
-    int geometryId = 1,
-    int materialId = 1,
-    JsThreeObjectKind objectKind = JsThreeObjectKind.mesh,
-    bool visible = true,
-    double z = 0,
-    bool castShadow = false,
-    bool receiveShadow = false,
-  }) {
-    commands.add(
-      _command(
-        4,
-        _node(
-          id,
-          parentId: parentId,
-          geometryId: objectKind == JsThreeObjectKind.group ? 0 : geometryId,
-          materialId: objectKind == JsThreeObjectKind.group ? 0 : materialId,
-          objectKind: objectKind,
-          visible: visible,
-          matrixWorld: _translation(0, 0, z),
-          castShadow: castShadow,
-          receiveShadow: receiveShadow,
-        ),
-      ),
-    );
-  }
-
-  void batch(
-    int id, {
-    int parentId = 1,
-    int version = 1,
-    int instanceCount = 1,
-    bool instanced = false,
-    int geometryId = 0,
-    List<(int, int, int, int)> parts = const [(1, 1, 0, 3)],
-    List<double>? matrices,
-    List<double>? colors,
-    double z = 0,
-  }) {
-    commands.add(
-      _command(
-        4,
-        _node(
-          id,
-          parentId: parentId,
-          geometryId: geometryId,
-          objectKind: JsThreeObjectKind.mesh,
-          matrixWorld: _translation(0, 0, z),
-        ),
-      ),
-    );
-    commands.add(
-      _command(
-        11,
-        _drawBatch(
-          id,
-          version: version,
-          instanceCount: instanceCount,
-          instanced: instanced,
-          parts: parts,
-          matrices: matrices,
-          colors: colors,
-        ),
-      ),
-    );
-  }
-
-  void camera(int id) => commands.add(_command(6, _camera(id)));
-
-  void light(
-    int id,
-    JsThreeLightType type, {
-    double intensity = 1,
-    double red = 1,
-    double green = 1,
-    double blue = 1,
-    double groundRed = 0,
-    double groundGreen = 0,
-    double groundBlue = 0,
-    List<double>? direction,
-    double spotAngle = 0.6283,
-    double spotPenumbra = 0.2,
-    double spotDistance = 12,
-    double spotDecay = 2,
-  }) {
-    commands.add(
-      _command(
-        7,
-        _light(
-          id,
-          type,
-          intensity: intensity,
-          red: red,
-          green: green,
-          blue: blue,
-          groundRed: groundRed,
-          groundGreen: groundGreen,
-          groundBlue: groundBlue,
-          direction: direction,
-          spotAngle: spotAngle,
-          spotPenumbra: spotPenumbra,
-          spotDistance: spotDistance,
-          spotDecay: spotDecay,
-        ),
-      ),
-    );
-  }
-
-  JsThreeSurfaceState state() {
-    final engine = utf8.encode('engine');
-    final surface = utf8.encode('surface');
-    final payload = _r1(commands, version: r1Version);
-    final headerBytes = 32 + engine.length + surface.length;
-    final result = Uint8List(headerBytes + payload.length);
-    final data = ByteData.sublistView(result);
-    result.setRange(0, 4, ascii.encode('JSR3'));
-    data.setUint8(4, 1);
-    data.setUint8(5, 1);
-    data.setUint16(6, headerBytes, Endian.little);
-    data.setUint32(8, sequence, Endian.little);
-    data.setUint32(12, payload.length, Endian.little);
-    data.setUint16(16, engine.length, Endian.little);
-    data.setUint16(18, surface.length, Endian.little);
-    data.setUint32(24, result.length, Endian.little);
-    result.setRange(32, 32 + engine.length, engine);
-    result.setRange(32 + engine.length, headerBytes, surface);
-    result.setRange(headerBytes, result.length, payload);
-    return JsThreeStateStore().apply(result).surface;
-  }
-}
-
-Uint8List _r1(List<Uint8List> commands, {int version = 2}) {
-  final builder = BytesBuilder(copy: false)
-    ..add(ascii.encode('JSR1'))
-    ..add(_u16(version))
-    ..add(_u16(0))
-    ..add(_u32(commands.length));
-  for (final command in commands) {
-    builder.add(command);
-  }
-  return builder.takeBytes();
-}
-
-Uint8List _command(int opcode, Uint8List body) =>
-    (BytesBuilder(copy: false)
-          ..add(Uint8List.fromList([opcode, 0]))
-          ..add(_u16(0))
-          ..add(_u32(body.length))
-          ..add(body))
-        .takeBytes();
-
-Uint8List _geometry(
-  int id, {
-  required int version,
-  required JsThreePrimitive primitive,
-  required List<double> positions,
-  required List<double>? normals,
-  required List<double>? uvs,
-  required List<double>? colors,
-  required List<int> indices,
-  List<int>? wireIndices,
-}) {
-  final vertexCount = positions.length ~/ 3;
-  final mask =
-      1 |
-      (normals == null ? 0 : 2) |
-      (uvs == null ? 0 : 4) |
-      (colors == null ? 0 : 8);
-  final builder = _BodyBuilder()
-    ..u32(id)
-    ..u32(version)
-    ..u32(mask)
-    ..u32(vertexCount)
-    ..u32(indices.length)
-    ..u32(primitive.wireValue)
-    ..u32(0)
-    ..floats(positions, byteLengthPrefix: true);
-  if (normals != null) builder.floats(normals, byteLengthPrefix: true);
-  if (uvs != null) builder.floats(uvs, byteLengthPrefix: true);
-  if (colors != null) builder.floats(colors, byteLengthPrefix: true);
-  for (final index in indices) {
-    builder.u32(index);
-  }
-  if (wireIndices != null) {
-    builder.u32(wireIndices.length);
-    for (final index in wireIndices) {
-      builder.u32(index);
-    }
-  }
-  return builder.bytes;
-}
-
-Uint8List _material(
-  int id, {
-  int version = 1,
-  JsThreeMaterialKind kind = JsThreeMaterialKind.meshBasic,
-  bool transparent = false,
-  bool wireframe = false,
-  bool vertexColors = false,
-  bool flatShading = false,
-  bool sizeAttenuation = true,
-  double pointSize = 1,
-  JsThreeSide side = JsThreeSide.front,
-  int mapTextureId = 0,
-  bool emissive = false,
-  List<double> color = const [1, 1, 1],
-  double opacity = 1,
-  bool depthTest = true,
-  bool depthWrite = true,
-  int? clipId,
-  int clipFlags = 0,
-}) {
-  final phong = kind == JsThreeMaterialKind.meshPhong;
-  final v3 = clipId != null;
-  final clipBytes = v3 ? 8 : 0;
-  final base = (phong ? 72 : 56) + clipBytes;
-  final data = ByteData(base + (emissive ? 16 : 0));
-  data.setUint32(0, id, Endian.little);
-  data.setUint32(4, version, Endian.little);
-  data.setUint32(8, kind.wireValue, Endian.little);
-  data.setUint32(12, mapTextureId, Endian.little);
-  data.setUint32(
-    16,
-    (transparent ? 4 : 0) |
-        (depthTest ? 8 : 0) |
-        (depthWrite ? 16 : 0) |
-        (vertexColors ? 1 : 0) |
-        (flatShading ? 2 : 0) |
-        (wireframe ? 32 : 0) |
-        (sizeAttenuation ? 0 : 64),
-    Endian.little,
-  );
-  data.setUint32(20, side.wireValue, Endian.little);
-  data.setFloat32(24, color[0], Endian.little);
-  data.setFloat32(28, color[1], Endian.little);
-  data.setFloat32(32, color[2], Endian.little);
-  data.setFloat32(36, opacity, Endian.little);
-  data.setFloat32(40, 0.5, Endian.little);
-  data.setFloat32(44, 0, Endian.little);
-  data.setFloat32(48, 0, Endian.little);
-  data.setFloat32(52, pointSize, Endian.little);
-  if (v3) {
-    data.setUint32(56, clipId!, Endian.little);
-    data.setUint32(60, clipFlags, Endian.little);
-  }
-  if (phong) {
-    data.setFloat32(56 + clipBytes, 0.125, Endian.little);
-    data.setFloat32(60 + clipBytes, 0.25, Endian.little);
-    data.setFloat32(64 + clipBytes, 0.5, Endian.little);
-    data.setFloat32(68 + clipBytes, 64, Endian.little);
-  }
-  if (emissive) {
-    final offset = base;
-    data.setFloat32(offset, 0.125, Endian.little);
-    data.setFloat32(offset + 4, 0.25, Endian.little);
-    data.setFloat32(offset + 8, 0.5, Endian.little);
-    data.setFloat32(offset + 12, 3, Endian.little);
-  }
-  return Uint8List.view(data.buffer);
-}
-
-Uint8List _node(
-  int id, {
-  int parentId = 0,
-  int geometryId = 0,
-  int materialId = 0,
-  JsThreeObjectKind objectKind = JsThreeObjectKind.group,
-  bool visible = true,
-  List<double>? matrixWorld,
-  bool castShadow = false,
-  bool receiveShadow = false,
-}) {
-  final data = ByteData(92);
-  data.setUint32(0, id, Endian.little);
-  data.setUint32(4, parentId, Endian.little);
-  data.setUint32(8, geometryId, Endian.little);
-  data.setUint32(12, materialId, Endian.little);
-  data.setUint32(16, visible ? 1 : 0, Endian.little);
-  data.setUint32(20, objectKind.wireValue, Endian.little);
-  _writeFloats(data, 24, matrixWorld ?? _identity());
-  data.setUint32(
-    88,
-    (castShadow ? 1 : 0) | (receiveShadow ? 2 : 0),
-    Endian.little,
-  );
-  return Uint8List.view(data.buffer);
-}
-
-Uint8List _drawBatch(
-  int nodeId, {
-  required int version,
-  required int instanceCount,
-  required bool instanced,
-  required List<(int, int, int, int)> parts,
-  required List<double>? matrices,
-  List<double>? colors,
-}) {
-  final matrixValues =
-      matrices ??
-      (instanced
-          ? [
-              for (var instance = 0; instance < instanceCount; instance++)
-                ..._identity(),
-            ]
-          : const <double>[]);
-  // Wire convention: flags bit 0 = instancing, bit 1 = per-instance colors.
-  final flags = (instanced ? 1 : 0) | (colors != null ? 2 : 0);
-  final builder = _BodyBuilder()
-    ..u32(nodeId)
-    ..u32(version)
-    ..u32(instanceCount)
-    ..u32(flags)
-    ..u32(parts.length);
-  for (final (geometryId, materialId, offset, count) in parts) {
-    builder
-      ..u32(geometryId)
-      ..u32(materialId)
-      ..u32(offset)
-      ..u32(count);
-  }
-  builder.floats(matrixValues);
-  builder.floats(colors ?? const <double>[]);
-  return builder.bytes;
-}
-
-Uint8List _camera(int id) {
-  final data = ByteData(200);
-  data.setUint32(0, id, Endian.little);
-  data.setUint32(4, JsThreeCameraType.perspective.wireValue, Endian.little);
-  _writeFloats(data, 8, _identity());
-  _writeFloats(data, 72, _identity());
-  _writeFloats(data, 136, _identity());
-  return Uint8List.view(data.buffer);
-}
-
-Uint8List _light(
-  int id,
-  JsThreeLightType type, {
-  double intensity = 1,
-  double red = 1,
-  double green = 1,
-  double blue = 1,
-  double groundRed = 0,
-  double groundGreen = 0,
-  double groundBlue = 0,
-  List<double>? direction,
-  double spotAngle = 0.6283,
-  double spotPenumbra = 0.2,
-  double spotDistance = 12,
-  double spotDecay = 2,
-}) {
-  final hemisphere = type == JsThreeLightType.hemisphere;
-  final spot = type == JsThreeLightType.spot;
-  final data = ByteData(hemisphere || spot ? 64 : 48);
-  data.setUint32(0, id, Endian.little);
-  data.setUint32(4, type.wireValue, Endian.little);
-  data.setFloat32(8, red, Endian.little);
-  data.setFloat32(12, green, Endian.little);
-  data.setFloat32(16, blue, Endian.little);
-  data.setFloat32(20, intensity, Endian.little);
-  data.setFloat32(24, 0, Endian.little);
-  data.setFloat32(28, 1, Endian.little);
-  data.setFloat32(32, -1, Endian.little);
-  final worldDirection = direction ?? const [0.0, -1.0, -0.5];
-  for (var index = 0; index < 3; index++) {
-    data.setFloat32(36 + index * 4, worldDirection[index], Endian.little);
-  }
-  if (hemisphere) {
-    data.setFloat32(48, groundRed, Endian.little);
-    data.setFloat32(52, groundGreen, Endian.little);
-    data.setFloat32(56, groundBlue, Endian.little);
-  }
-  if (spot) {
-    data.setFloat32(48, spotAngle, Endian.little);
-    data.setFloat32(52, spotPenumbra, Endian.little);
-    data.setFloat32(56, spotDistance, Endian.little);
-    data.setFloat32(60, spotDecay, Endian.little);
-  }
-  return Uint8List.view(data.buffer);
-}
-
-Uint8List _clipping(int id, {int version = 1}) {
-  final planes = <double>[0, -1, 0, 0.8, -1, 0, 0, 0.1];
-  final data = ByteData(12 + planes.length * 4);
-  data.setUint32(0, id, Endian.little);
-  data.setUint32(4, version, Endian.little);
-  data.setUint32(8, planes.length ~/ 4, Endian.little);
-  for (var index = 0; index < planes.length; index++) {
-    data.setFloat32(12 + index * 4, planes[index], Endian.little);
-  }
-  return Uint8List.view(data.buffer);
-}
-
-Uint8List _frame({
-  required int sceneId,
-  required int cameraId,
-  double exposure = 1,
-  int shadowMapSize = 0,
-  List<int> culledNodeIds = const [],
-  List<int> culledShadowNodeIds = const [],
-  int? shadowLightType,
-}) {
-  final hasCulling = culledNodeIds.isNotEmpty || culledShadowNodeIds.isNotEmpty;
-  final v3 = shadowLightType != null;
-  final base = v3 ? 140 : 136;
-  final data = ByteData(
-    base +
-        (hasCulling ? 4 + culledNodeIds.length * 4 : 0) +
-        (culledShadowNodeIds.isEmpty ? 0 : 4 + culledShadowNodeIds.length * 4),
-  );
-  data.setUint32(0, sceneId, Endian.little);
-  data.setUint32(4, cameraId, Endian.little);
-  data.setFloat32(8, 0.1, Endian.little);
-  data.setFloat32(12, 0.2, Endian.little);
-  data.setFloat32(16, 0.3, Endian.little);
-  data.setFloat32(20, 1, Endian.little);
-  data.setFloat32(24, exposure, Endian.little);
-  data.setUint32(52, shadowMapSize, Endian.little);
-  data.setUint32(56, shadowMapSize, Endian.little);
-  data.setFloat32(60, -0.0001, Endian.little);
-  data.setFloat32(64, 0.02, Endian.little);
-  data.setFloat32(68, 1, Endian.little);
-  for (final index in [0, 5, 10, 15]) {
-    data.setFloat32(72 + index * 4, 1, Endian.little);
-  }
-  if (v3) data.setUint32(136, shadowLightType!, Endian.little);
-  var offset = base;
-  if (hasCulling) {
-    data.setUint32(offset, culledNodeIds.length, Endian.little);
-    offset += 4;
-    for (final id in culledNodeIds) {
-      data.setUint32(offset, id, Endian.little);
-      offset += 4;
-    }
-  }
-  if (culledShadowNodeIds.isNotEmpty) {
-    data.setUint32(offset, culledShadowNodeIds.length, Endian.little);
-    offset += 4;
-    for (final id in culledShadowNodeIds) {
-      data.setUint32(offset, id, Endian.little);
-      offset += 4;
-    }
-  }
-  return Uint8List.view(data.buffer);
-}
-
-List<double> _identity() => [
-  1, 0, 0, 0, //
-  0, 1, 0, 0,
-  0, 0, 1, 0,
-  0, 0, 0, 1,
-];
-
-List<double> _translation(double x, double y, double z) => [
-  1, 0, 0, 0, //
-  0, 1, 0, 0,
-  0, 0, 1, 0,
-  x, y, z, 1,
-];
-
-void _writeFloats(ByteData data, int offset, List<double> values) {
-  for (var index = 0; index < values.length; index++) {
-    data.setFloat32(offset + index * 4, values[index], Endian.little);
-  }
-}
-
-Uint8List _u16(int value) {
-  final data = ByteData(2)..setUint16(0, value, Endian.little);
-  return Uint8List.view(data.buffer);
-}
-
-Uint8List _u32(int value) {
-  final data = ByteData(4)..setUint32(0, value, Endian.little);
-  return Uint8List.view(data.buffer);
-}
-
-final class _BodyBuilder {
-  final BytesBuilder _builder = BytesBuilder(copy: false);
-
-  void u32(int value) => _builder.add(_u32(value));
-
-  void floats(List<double> values, {bool byteLengthPrefix = false}) {
-    final data = ByteData(values.length * 4);
-    _writeFloats(data, 0, values);
-    if (byteLengthPrefix) u32(data.lengthInBytes);
-    _builder.add(Uint8List.view(data.buffer));
-  }
-
-  Uint8List get bytes => _builder.takeBytes();
 }

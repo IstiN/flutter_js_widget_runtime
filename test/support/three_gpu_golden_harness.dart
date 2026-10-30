@@ -47,6 +47,38 @@ Future<ThreeGpuGoldenRun> bootThreeGpuGolden(
   return ThreeGpuGoldenRun(engineId, engine, host);
 }
 
+/// Loads the bundled native three.js source for [bootThreeGpuGolden].
+Future<String?> loadBundledThreeGoldenSource(WidgetTester tester) =>
+    tester.runAsync(
+      () => rootBundle.loadString('assets/three/three.native.js'),
+    );
+
+/// Boots the golden harness from the bundled asset in one call.
+Future<ThreeGpuGoldenRun> bootBundledThreeGpuGolden(
+  WidgetTester tester,
+  String engineId,
+) async {
+  final source = await loadBundledThreeGoldenSource(tester);
+  return bootThreeGpuGolden(tester, engineId, source);
+}
+
+/// Attaches the surface, captures the PNG and pins the presentation
+/// invariants every golden shares (capture succeeded, no surface error,
+/// zero failed presentations). Returns both for caller-specific probes.
+Future<({FlutterGpuThreeSurface surface, Uint8List png})>
+    presentThreeGpuGolden(
+  WidgetTester tester,
+  ThreeGpuGoldenRun run,
+  bool Function(Map<String, num> diagnostics) ready,
+) async {
+  final surface = await attachThreeGpuGolden(tester, run);
+  final png = await captureThreeGpuGolden(tester, surface, ready);
+  expect(png, isNotNull, reason: 'diagnostics=${surface.diagnostics}');
+  expect(surface.lastError, isNull);
+  expect(surface.diagnostics['failedPresentations'], 0);
+  return (surface: surface, png: png!);
+}
+
 /// Finds the `main#1` surface created by the widget JS, attaches it as a
 /// 256x256 widget at DPR 1 and returns it.
 Future<FlutterGpuThreeSurface> attachThreeGpuGolden(

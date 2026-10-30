@@ -268,7 +268,9 @@ ids include `webgl_geometry_minecraft`, `webgl_lines_colors`,
 `webgl_materials_texture_partialupdate`, plus
 wave-2: `webgl_loader_xyz`, `webgl_geometry_text_shapes`,
 `webgl_geometry_convex`, `webgl_geometry_cube`,
-`webgl_instancing_performance`, `webgl_geometry_shapes`, `webgl_sprites`,
+`webgl_instancing_performance`, `webgl_instancing_scatter` (2000
+per-instance-colored blossoms, boots stock),
+`webgl_geometry_shapes`, `webgl_sprites`,
 `webgl_raycaster_sprite`, `webgl_materials_texture_filters`,
 `webgl_materials_texture_anisotropy`, `webgl_shadowmap_pointlight`,
 `webgl_camera_logarithmicdepthbuffer`, `webgl_materials_cubemap_refraction`
@@ -305,10 +307,12 @@ second renderer trips the one-active-renderer guard),
 Park3Med jpgs not registered — final matrix verdict: deliberate web-lane),
 `webgl_raycaster_texture` (OffscreenCanvas
 img decode + canvas2d clearRect/path ops unbounded), and
-`webgl_instancing_performance` (stock: lil-gui object-map options add +
-missing `console.time`; probe-shimmed it renders one instanced draw,
+`webgl_instancing_performance` (stock: lil-gui object-map options add;
+probe-shimmed it renders one instanced draw,
 live-switches 1000↔10000 via dropdown, NAIVE fans out per-instance
-draws).
+draws); `webgl_instancing_scatter` boots stock with instanceColor
+blossoms (wave-3 batch 3) while `webgl_instancing_dynamic` stays
+web-lane-blocked on PMREMGenerator, not on instancing.
 Capability bookkeeping is committed, not tribal knowledge:
 `tool/three/api_matrix.{mjs,json}` classifies all 607 official examples
 (supported / prepared / web-lane / blocked / unknown-api) and

@@ -7,7 +7,7 @@
     "blocked": 438,
     "webLane": 78,
     "unknownApi": 19,
-    "prepared": 60
+    "prepared": 61
   },
   "rows": [
     {
@@ -3419,7 +3419,7 @@
     },
     {
       "id": "webgl_instancing_scatter",
-      "prepared": false,
+      "prepared": true,
       "verdict": "supported",
       "uses": [
         "Object3D",

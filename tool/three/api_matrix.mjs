@@ -182,7 +182,7 @@ const API = {
   MeshNormalMaterial: { status: 'ok' }, MeshMatcapMaterial: { status: 'ok' },
   PointsMaterial: { status: 'ok' }, LineBasicMaterial: { status: 'ok' },
   ShadowMaterial: { status: 'ok' },
-  InstancedMesh: { status: 'bounded', note: 'opaque DRAW_BATCH instancing' },
+  InstancedMesh: { status: 'ok', note: 'DRAW_BATCH GPU instancing; per-instance colors (setColorAt) and transparent blended draws (one per part, node-level order — upstream never sorts instances either)' },
   SRGBColorSpace: { status: 'ok' }, LinearSRGBColorSpace: { status: 'ok' },
   RepeatWrapping: { status: 'ok' }, ClampToEdgeWrapping: { status: 'ok' },
   MirroredRepeatWrapping: { status: 'ok' },

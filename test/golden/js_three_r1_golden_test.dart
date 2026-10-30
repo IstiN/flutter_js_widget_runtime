@@ -3,7 +3,6 @@ library;
 
 import 'dart:io';
 
-import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:js_widget_runtime/src/renderer/nodes/three/three_draw_plan.dart';
 
@@ -29,15 +28,7 @@ void main() {
   testWidgets('R1 instancing, culling and shadows match the GPU golden', (
     tester,
   ) async {
-    final threeSource = await tester.runAsync(
-      () => rootBundle.loadString('assets/three/three.native.js'),
-    );
-    const engineId = 'three-r1-golden';
-    final run = await bootThreeGpuGolden(
-      tester,
-      engineId,
-      threeSource,
-    );
+    final run = await bootBundledThreeGpuGolden(tester, 'three-r1-golden');
     await run.engine.run(r'''
       const canvas = jsr.three.createCanvas('main');
       const renderer = new THREE.WebGLRenderer({canvas: canvas});
@@ -112,18 +103,15 @@ void main() {
       renderer.render(scene, camera);
       renderer.render(scene, camera);
     ''');
-    final surface = await attachThreeGpuGolden(tester, run);
-
-    final png = await captureThreeGpuGolden(
+    final golden = await presentThreeGpuGolden(
       tester,
-      surface,
+      run,
       (diagnostics) =>
           (diagnostics['shadowCacheHits'] ?? 0) >= 1 &&
           (diagnostics['batchCacheHits'] ?? 0) >= 1,
     );
-    expect(png, isNotNull, reason: 'diagnostics=${surface.diagnostics}');
-    expect(surface.lastError, isNull);
-    expect(surface.diagnostics['failedPresentations'], 0);
+    final surface = golden.surface;
+    final png = golden.png;
     expect(surface.diagnostics['calls'], 3);
     expect(surface.diagnostics['triangles'], 50);
     expect(surface.diagnostics['lastCulledShadowNodes'], greaterThan(0));
@@ -142,15 +130,8 @@ void main() {
   testWidgets('R1 spot shadow and clipping match the GPU golden', (
     tester,
   ) async {
-    final threeSource = await tester.runAsync(
-      () => rootBundle.loadString('assets/three/three.native.js'),
-    );
-    const engineId = 'three-r1-clipping-golden';
-    final run = await bootThreeGpuGolden(
-      tester,
-      engineId,
-      threeSource,
-    );
+    final run =
+        await bootBundledThreeGpuGolden(tester, 'three-r1-clipping-golden');
     await run.engine.run(r'''
       const canvas = jsr.three.createCanvas('main');
       const renderer = new THREE.WebGLRenderer({canvas: canvas});
@@ -193,14 +174,9 @@ void main() {
       renderer.render(scene, camera);
       renderer.render(scene, camera);
     ''');
-    final surface = await attachThreeGpuGolden(tester, run);
-
-    final png = await captureThreeGpuGolden(
-      tester,
-      surface, (_) => true);
-    expect(png, isNotNull, reason: 'diagnostics=${surface.diagnostics}');
-    expect(surface.lastError, isNull);
-    expect(surface.diagnostics['failedPresentations'], 0);
+    final golden = await presentThreeGpuGolden(tester, run, (_) => true);
+    final surface = golden.surface;
+    final png = golden.png;
     expect(surface.diagnostics['calls'], greaterThanOrEqualTo(1));
     expect(surface.diagnostics['triangles'], 6144);
     expect(surface.diagnostics['renderedShadowDraws'], 1);
@@ -228,7 +204,7 @@ void main() {
     // the knot is VISIBLE below the cut (rows > 102) and discarded above it.
     // The pre-fix binding wrote the raw constant and inverted the visible
     // half-space, leaving only a sliver below world y ≈ -0.35 (rows ~146+).
-    final probe = await decodeThreeGpuGolden(tester, png!);
+    final probe = await decodeThreeGpuGolden(tester, png);
     expect(probe.lengthInBytes, 256 * 256 * 4);
     const background = 0x382218; // 0x182238 in little-endian RGBA bytes.
     int litCount(int y) {

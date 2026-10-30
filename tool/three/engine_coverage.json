@@ -3,8 +3,8 @@
   "generatedAt": "2026-10-30",
   "totals": {
     "engineExports": 454,
-    "r1Ok": 157,
-    "r1Bounded": 16,
+    "r1Ok": 158,
+    "r1Bounded": 15,
     "r1No": 65,
     "upstreamCpu": 41,
     "constants": 170,
@@ -938,8 +938,8 @@
     {
       "symbol": "InstancedMesh",
       "lane": "r1",
-      "status": "bounded",
-      "flutterAnalog": "opaque DRAW_BATCH instancing"
+      "status": "ok",
+      "flutterAnalog": "DRAW_BATCH GPU instancing; per-instance colors (setColorAt) and transparent blended draws (one per part, node-level order — upstream never sorts instances either)"
     },
     {
       "symbol": "Int16BufferAttribute",

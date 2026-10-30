@@ -198,9 +198,11 @@ jsr.render({type: 'three', canvasId: 'main', width: 640, height: 360});
   multi-material parts. Per-instance colors via `setColorAt`/`instanceColor`
   multiply the material color in the shader (RGB instance attribute;
   instances without colors keep the plain material color, byte-identical to
-  non-instanced draws). Opaque instanced draws only: transparent instancing
-  is a documented gap (material-level depth write is not per-instance
-  sortable without per-instance draw fan-out). Diagnostics count triangles
+  non-instanced draws). Transparent instanced meshes blend in ONE draw per
+  material part, sorted among the transparent bucket at the node level —
+  the same approximation upstream WebGLRenderer uses (it never sorts
+  instances either); scenes needing exact per-instance order split
+  instances across meshes. Diagnostics count triangles
   across all instances, not just the base geometry.
 - Large indexed single-material meshes use a cached BVH for native raycasts;
   upstream THREE still performs the final triangle/UV/normal/material tests.
@@ -431,10 +433,12 @@ the six Park3Med jpgs are not registered assets), `webgl_raycaster_texture`
 (OffscreenCanvas img decode + canvas2d `clearRect`/path ops outside the
 bounded profile — the paint loop is never reached stock),
 `webgl_instancing_performance` (stock init dies on a lil-gui object-map
-options add and missing `console.time`; with probe shims the module renders
+options add — the console.time lane is native since wave-3; with probe
+shims the module renders
 one InstancedMesh draw whose `instanceCount` live-switches 1000→10000 via
 the GUI dropdown, NAIVE mode fans out to per-instance draws, at ~40 fps
-test-pump pacing). Silent-ignore audits: `webgl_camera_logarithmicdepthbuffer`'s
+test-pump pacing; `webgl_instancing_scatter` boots stock with 2000
+per-instance-colored blossoms). Silent-ignore audits: `webgl_camera_logarithmicdepthbuffer`'s
 `logarithmicDepthBuffer` flag and `webgl_clipping`'s `alphaToCoverage`
 checkbox have no R1/flutter_gpu counterpart (alpha-to-coverage pipeline
 state is not exposed by flutter_gpu) — the controls live but render no
