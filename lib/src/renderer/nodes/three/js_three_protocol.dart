@@ -127,6 +127,28 @@ const List<double> _threeIdentityUvMatrixRows = <double>[
 final Float32List _threeIdentityUvMatrix =
     Float32List.fromList(_threeIdentityUvMatrixRows).asUnmodifiableView();
 
+/// Wireframe only applies to mesh material kinds (R1 v5 adds ton/matcap to
+/// the allowed set alongside the v3 mesh kinds).
+void _validateMaterialWireframeFlag(
+  _Reader body,
+  int flags,
+  JsThreeMaterialKind kind,
+) {
+  if (flags & 0x20 == 0) return;
+  const meshKinds = {
+    JsThreeMaterialKind.meshBasic,
+    JsThreeMaterialKind.meshLambert,
+    JsThreeMaterialKind.meshStandard,
+    JsThreeMaterialKind.meshPhong,
+    JsThreeMaterialKind.meshNormal,
+    JsThreeMaterialKind.meshTon,
+    JsThreeMaterialKind.meshMatcap,
+  };
+  if (!meshKinds.contains(kind)) {
+    body.fail('wireframe requires a mesh material');
+  }
+}
+
 enum JsThreeResourceKind {
   geometry(1),
   texture(2),
@@ -949,8 +971,7 @@ final class JsThreeProtocolDecoder {
     );
   }
 
-  JsThreeMaterialUpsert _material(_Reader body, int streamVersion) {
-    final id = body.nonzeroId('material id');
+  JsThreeMaterialUpsert _material(_Reader body, int streamVersion) {    final id = body.nonzeroId('material id');
     final version = body.nonzeroVersion();
     final kind = body.enumValue(
       JsThreeMaterialKind.values,
@@ -960,16 +981,7 @@ final class JsThreeProtocolDecoder {
     final mapTextureId = body.u32('map texture id');
     final flags = body.u32('material flags');
     if (flags & ~0x7f != 0) body.fail('unknown material flag');
-    if (flags & 0x20 != 0 &&
-        kind != JsThreeMaterialKind.meshBasic &&
-        kind != JsThreeMaterialKind.meshLambert &&
-        kind != JsThreeMaterialKind.meshStandard &&
-        kind != JsThreeMaterialKind.meshPhong &&
-        kind != JsThreeMaterialKind.meshNormal &&
-        kind != JsThreeMaterialKind.meshTon &&
-        kind != JsThreeMaterialKind.meshMatcap) {
-      body.fail('wireframe requires a mesh material');
-    }
+    _validateMaterialWireframeFlag(body, flags, kind);
     final side = body.enumValue(
       JsThreeSide.values,
       body.u32('material side'),
@@ -1372,24 +1384,17 @@ final class JsThreeProtocolDecoder {
     final shadowRadius = body.finiteFloat('shadow radius');
     final shadowMatrix = body.float32List(16, 'shadow matrix');
     final shadowLightType = _shadowLightType(body, version);
-    if ((shadowWidth == 0) != (shadowHeight == 0) ||
-        shadowWidth > 8192 ||
-        shadowHeight > 8192) {
-      body.fail('shadow map dimensions must be zero or within 1..8192');
-    }
+    _validateShadowMapDimensions(body, shadowWidth, shadowHeight);
     if (shadowRadius <= 0) body.fail('shadow radius must be positive');
     if (shadowLightType != JsThreeShadowLightType.none.wireValue &&
         shadowWidth == 0) {
       body.fail('shadow light type requires a shadow map');
     }
-    if (pointShadow.hasPointShadow != 0 &&
-        shadowLightType != JsThreeShadowLightType.point.wireValue) {
-      body.fail('point shadow fields require a point shadow light');
-    }
-    if (pointShadow.hasPointShadow == 0 &&
-        shadowLightType == JsThreeShadowLightType.point.wireValue) {
-      body.fail('point shadow light requires the point shadow fields');
-    }
+    _validatePointShadowLight(
+      body,
+      pointShadow.hasPointShadow,
+      shadowLightType,
+    );
     final culledNodeIds = _optionalCulledIds(body, 'culled');
     final culledShadowNodeIds = _optionalCulledIds(body, 'culled shadow');
     final shadowContentRevision = body.remaining == 0
@@ -1443,6 +1448,33 @@ final class JsThreeProtocolDecoder {
     lightZ: 0,
     far: 0,
   );
+
+  static void _validateShadowMapDimensions(
+    _Reader body,
+    int shadowWidth,
+    int shadowHeight,
+  ) {
+    if ((shadowWidth == 0) != (shadowHeight == 0) ||
+        shadowWidth > 8192 ||
+        shadowHeight > 8192) {
+      body.fail('shadow map dimensions must be zero or within 1..8192');
+    }
+  }
+
+  static void _validatePointShadowLight(
+    _Reader body,
+    int hasPointShadow,
+    int shadowLightType,
+  ) {
+    if (hasPointShadow != 0 &&
+        shadowLightType != JsThreeShadowLightType.point.wireValue) {
+      body.fail('point shadow fields require a point shadow light');
+    }
+    if (hasPointShadow == 0 &&
+        shadowLightType == JsThreeShadowLightType.point.wireValue) {
+      body.fail('point shadow light requires the point shadow fields');
+    }
+  }
 
   /// Decodes the R1 v5 frame tail naming the shadow-casting point light:
   /// flag + reserved u32, light world position and the depth-normalizing

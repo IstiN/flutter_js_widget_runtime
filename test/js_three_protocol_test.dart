@@ -486,6 +486,38 @@ Uint8List _frameVariant(Uint8List body, int offset, num value) {
   return out;
 }
 
+/// R1 v5 frame body: the v4 layout with the point-shadow tail (flag +
+/// reserved u32, light position and far plane) inserted right after the
+/// v4 tone/fog tail — the projected-shadow fields then shift by 24 bytes;
+/// matches frameCommand in tool/three/src/r1.js.
+Uint8List _frameV5Point({
+  int flag = 1,
+  int reserved = 0,
+  double x = 1.5,
+  double y = -2,
+  double z = 3.25,
+  double far = 500,
+  int? lightType,
+}) {
+  final v4 = _frameV4();
+  final out = Uint8List(v4.length + 24);
+  out.setAll(0, v4.sublist(0, 60));
+  out.setAll(84, v4.sublist(60));
+  // A point shadow light needs nonzero shadow map dimensions (v5 offsets:
+  // width 84, height 88 after the inserted tail).
+  setU32(out, 84, 512);
+  setU32(out, 88, 512);
+  setU32(out, 60, flag);
+  setU32(out, 64, reserved);
+  setF32(out, 68, x);
+  setF32(out, 72, y);
+  setF32(out, 76, z);
+  setF32(out, 80, far);
+  out.setAll(84, v4.sublist(60));
+  setU32(out, v4.length + 20, lightType ?? (flag == 1 ? 3 : 0));
+  return out;
+}
+
 void _bad(void Function() action) {
   expect(action, throwsA(isA<JsThreeProtocolException>()));
 }
@@ -547,6 +579,87 @@ void main() {
     _bad(
       () => _decoder.decodeR1(
         _r1([(8, _frameVariant(_frameV4(), 52, 99))], version: 4),
+      ),
+    );
+  });
+
+  test('decodes the R1 v5 point-shadow frame tail', () {
+    final decoded = _decoder.decodeR1(
+      _r1([(8, _frameV5Point())], version: 5),
+    );
+    final frame = decoded.commands.whereType<JsThreeSubmitFrame>().single;
+    expect(frame.hasPointShadow, 1);
+    expect(frame.pointShadowLightX, 1.5);
+    expect(frame.pointShadowLightY, -2);
+    expect(frame.pointShadowLightZ, 3.25);
+    expect(frame.pointShadowFar, 500);
+    expect(frame.shadowLightType, JsThreeShadowLightType.point.wireValue);
+    expect(frame.hasShadow, isTrue);
+    // The v4 tone/fog tail still decodes in front of it.
+    expect(frame.toneMapping, JsThreeToneMapping.acesFilmic);
+    expect(frame.fogMode, JsThreeFogMode.exp2);
+  });
+
+  test('v4 streams decode with v5-default (inactive) point-shadow fields',
+      () {
+    final decoded = _decoder.decodeR1(
+      _r1([(8, _frameV4())], version: 4),
+    );
+    final frame = decoded.commands.whereType<JsThreeSubmitFrame>().single;
+    expect(frame.hasPointShadow, 0);
+    expect(frame.pointShadowLightX, 0);
+    expect(frame.pointShadowFar, 0);
+  });
+
+  test('inactive v5 point-shadow tail requires zeroed fields', () {
+    // flag 0 with a light position set.
+    _bad(
+      () => _decoder.decodeR1(
+        _r1([(8, _frameV5Point(flag: 0, x: 1, lightType: 0))], version: 5),
+      ),
+    );
+  });
+
+  test('validates the R1 v5 point-shadow tail ranges', () {
+    // flag must be 0 or 1.
+    _bad(
+      () => _decoder.decodeR1(
+        _r1([(8, _frameV5Point(flag: 2))], version: 5),
+      ),
+    );
+    // reserved field must stay zero.
+    _bad(
+      () => _decoder.decodeR1(
+        _r1([(8, _frameV5Point(reserved: 1))], version: 5),
+      ),
+    );
+    // active shadow needs a positive far plane.
+    _bad(
+      () => _decoder.decodeR1(
+        _r1([(8, _frameV5Point(far: 0))], version: 5),
+      ),
+    );
+    // the point-shadow fields require a point shadow light type.
+    _bad(
+      () => _decoder.decodeR1(
+        _r1([(8, _frameV5Point(lightType: 0))], version: 5),
+      ),
+    );
+    // a point shadow light requires the point-shadow fields.
+    _bad(
+      () => _decoder.decodeR1(
+        _r1(
+          [
+            (
+              8,
+              _frameV5Point(
+                flag: 0,
+                lightType: JsThreeShadowLightType.point.wireValue,
+              ),
+            ),
+          ],
+          version: 5,
+        ),
       ),
     );
   });

@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 
 import 'package:js_widget_runtime/js_widget_runtime.dart';
@@ -40,6 +42,10 @@ class _JsWidgetRuntimeWidgetState extends State<JsWidgetRuntimeWidget> {
   /// guarantees at most ONE live engine lifecycle at a time.
   static Future<void> _lifecycleGate = Future<void>.value();
 
+  /// Completion mirror for [_lifecycleGate] (Future has no isCompleted):
+  /// completed whenever the gate chain has settled.
+  static Completer<void> _lifecycleGateDone = Completer<void>()..complete();
+
   JsWidgetEngine? _engine;
   int _generation = 0;
   Map<String, dynamic>? _uiTree;
@@ -69,13 +75,19 @@ class _JsWidgetRuntimeWidgetState extends State<JsWidgetRuntimeWidget> {
       _lifecycleGate = _lifecycleGate
           .then((_) => engine.dispose())
           .catchError((Object _) {});
+      _lifecycleGateDone = Completer<void>();
+      _lifecycleGate.whenComplete(() => _lifecycleGateDone.complete());
     }
     super.dispose();
   }
 
   Future<void> _start() async {
     final generation = ++_generation;
-    await _lifecycleGate;
+    // Skip the await when the gate is already complete: an extra microtask
+    // hop before the engine exists changes first-pump timing for hosts and
+    // tests (keyboard focus claim, blur dispatch). Serialization only
+    // matters when a previous lifecycle is ACTUALLY in flight.
+    if (!_lifecycleGateDone.isCompleted) await _lifecycleGate;
     if (generation != _generation) return;
     final engine = JsWidgetEngine(
       config: widget.config.copyWith(
@@ -96,6 +108,8 @@ class _JsWidgetRuntimeWidgetState extends State<JsWidgetRuntimeWidget> {
           .then((_) => previous.dispose())
           .catchError((Object _) {});
       _lifecycleGate = chained;
+      _lifecycleGateDone = Completer<void>();
+      chained.whenComplete(() => _lifecycleGateDone.complete());
       await chained;
     }
     if (generation != _generation) {
