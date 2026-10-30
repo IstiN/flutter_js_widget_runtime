@@ -1,0 +1,2746 @@
+{
+  "source": "three r186 pinned (three.core.js ∪ three.module.js exports)",
+  "generatedAt": "2026-10-30",
+  "totals": {
+    "engineExports": 454,
+    "r1Ok": 144,
+    "r1Bounded": 13,
+    "r1No": 54,
+    "upstreamCpu": 41,
+    "constants": 183,
+    "nativeAbsent": 4,
+    "unclassified": 15,
+    "renderHonored": 157,
+    "renderRelevantClassified": 211,
+    "quickjsUsable": 381,
+    "renderHonoredPct": 34.6,
+    "quickjsUsablePct": 83.9,
+    "webLanePct": 100
+  },
+  "rows": [
+    {
+      "symbol": "ACESFilmicToneMapping",
+      "lane": "web-only",
+      "status": "no",
+      "flutterAnalog": "R1 requires NoToneMapping"
+    },
+    {
+      "symbol": "AddEquation",
+      "lane": "web-only",
+      "status": "no",
+      "flutterAnalog": "no native analog — 1B web renderer only"
+    },
+    {
+      "symbol": "AddOperation",
+      "lane": "constant",
+      "status": "constant",
+      "flutterAnalog": "enum value accepted; only the R1-honored subset changes pixels"
+    },
+    {
+      "symbol": "AdditiveAnimationBlendMode",
+      "lane": "constant",
+      "status": "constant",
+      "flutterAnalog": "enum value accepted; only the R1-honored subset changes pixels"
+    },
+    {
+      "symbol": "AdditiveBlending",
+      "lane": "web-only",
+      "status": "no",
+      "flutterAnalog": "NormalBlending only"
+    },
+    {
+      "symbol": "AgXToneMapping",
+      "lane": "constant",
+      "status": "constant",
+      "flutterAnalog": "enum value accepted; only the R1-honored subset changes pixels"
+    },
+    {
+      "symbol": "AlphaFormat",
+      "lane": "constant",
+      "status": "constant",
+      "flutterAnalog": "enum value accepted; only the R1-honored subset changes pixels"
+    },
+    {
+      "symbol": "AlwaysCompare",
+      "lane": "constant",
+      "status": "constant",
+      "flutterAnalog": "enum value accepted; only the R1-honored subset changes pixels"
+    },
+    {
+      "symbol": "AlwaysDepth",
+      "lane": "constant",
+      "status": "constant",
+      "flutterAnalog": "enum value accepted; only the R1-honored subset changes pixels"
+    },
+    {
+      "symbol": "AlwaysStencilFunc",
+      "lane": "constant",
+      "status": "constant",
+      "flutterAnalog": "enum value accepted; only the R1-honored subset changes pixels"
+    },
+    {
+      "symbol": "AmbientLight",
+      "lane": "r1",
+      "status": "ok",
+      "flutterAnalog": "R1 protocol opcode → ThreeDrawPlanner → flutter_gpu"
+    },
+    {
+      "symbol": "AnimationAction",
+      "lane": "r1",
+      "status": "bounded",
+      "flutterAnalog": "R1 bounded subset (see api_matrix note)"
+    },
+    {
+      "symbol": "AnimationClip",
+      "lane": "r1",
+      "status": "bounded",
+      "flutterAnalog": "morph weights only"
+    },
+    {
+      "symbol": "AnimationLoader",
+      "lane": "upstream-cpu",
+      "status": "upstream",
+      "flutterAnalog": "upstream JS runs in QuickJS (CPU-only; no render surface)"
+    },
+    {
+      "symbol": "AnimationMixer",
+      "lane": "r1",
+      "status": "bounded",
+      "flutterAnalog": "GLTF clip weights (morph)"
+    },
+    {
+      "symbol": "AnimationObjectGroup",
+      "lane": "upstream-cpu",
+      "status": "upstream",
+      "flutterAnalog": "upstream JS runs in QuickJS (CPU-only; no render surface)"
+    },
+    {
+      "symbol": "AnimationUtils",
+      "lane": "upstream-cpu",
+      "status": "upstream",
+      "flutterAnalog": "upstream JS runs in QuickJS (CPU-only; no render surface)"
+    },
+    {
+      "symbol": "ArcCurve",
+      "lane": "upstream-cpu",
+      "status": "upstream",
+      "flutterAnalog": "upstream JS runs in QuickJS (CPU-only; no render surface)"
+    },
+    {
+      "symbol": "ArrayCamera",
+      "lane": "unclassified",
+      "status": "unclassified",
+      "flutterAnalog": "present as upstream JS; render/IO behavior unverified"
+    },
+    {
+      "symbol": "ArrowHelper",
+      "lane": "r1",
+      "status": "ok",
+      "flutterAnalog": "rendered as line draws (helpers module)"
+    },
+    {
+      "symbol": "AttachedBindMode",
+      "lane": "constant",
+      "status": "constant",
+      "flutterAnalog": "enum value accepted; only the R1-honored subset changes pixels"
+    },
+    {
+      "symbol": "Audio",
+      "lane": "native-absent",
+      "status": "no-native",
+      "flutterAnalog": "browser-only capability (audio/XR) — no QuickJS/host lane"
+    },
+    {
+      "symbol": "AudioAnalyser",
+      "lane": "native-absent",
+      "status": "no-native",
+      "flutterAnalog": "browser-only capability (audio/XR) — no QuickJS/host lane"
+    },
+    {
+      "symbol": "AudioContext",
+      "lane": "web-only",
+      "status": "no",
+      "flutterAnalog": "WebAudio"
+    },
+    {
+      "symbol": "AudioListener",
+      "lane": "native-absent",
+      "status": "no-native",
+      "flutterAnalog": "browser-only capability (audio/XR) — no QuickJS/host lane"
+    },
+    {
+      "symbol": "AudioLoader",
+      "lane": "native-absent",
+      "status": "no-native",
+      "flutterAnalog": "browser-only capability (audio/XR) — no QuickJS/host lane"
+    },
+    {
+      "symbol": "AxesHelper",
+      "lane": "r1",
+      "status": "ok",
+      "flutterAnalog": "R1 protocol opcode → ThreeDrawPlanner → flutter_gpu"
+    },
+    {
+      "symbol": "BackSide",
+      "lane": "constant",
+      "status": "constant",
+      "flutterAnalog": "enum value accepted; only the R1-honored subset changes pixels"
+    },
+    {
+      "symbol": "BasicDepthPacking",
+      "lane": "constant",
+      "status": "constant",
+      "flutterAnalog": "enum value accepted; only the R1-honored subset changes pixels"
+    },
+    {
+      "symbol": "BasicShadowMap",
+      "lane": "constant",
+      "status": "constant",
+      "flutterAnalog": "enum value accepted; only the R1-honored subset changes pixels"
+    },
+    {
+      "symbol": "BatchedMesh",
+      "lane": "web-only",
+      "status": "no",
+      "flutterAnalog": "no native analog — 1B web renderer only"
+    },
+    {
+      "symbol": "BezierInterpolant",
+      "lane": "r1",
+      "status": "ok",
+      "flutterAnalog": "CPU animation interpolant (upstream JS)"
+    },
+    {
+      "symbol": "Bone",
+      "lane": "web-only",
+      "status": "no",
+      "flutterAnalog": "no native analog — 1B web renderer only"
+    },
+    {
+      "symbol": "BooleanKeyframeTrack",
+      "lane": "upstream-cpu",
+      "status": "upstream",
+      "flutterAnalog": "upstream JS runs in QuickJS (CPU-only; no render surface)"
+    },
+    {
+      "symbol": "Box2",
+      "lane": "upstream-cpu",
+      "status": "upstream",
+      "flutterAnalog": "upstream JS runs in QuickJS (CPU-only; no render surface)"
+    },
+    {
+      "symbol": "Box3",
+      "lane": "upstream-cpu",
+      "status": "upstream",
+      "flutterAnalog": "upstream JS runs in QuickJS (CPU-only; no render surface)"
+    },
+    {
+      "symbol": "Box3Helper",
+      "lane": "r1",
+      "status": "ok",
+      "flutterAnalog": "R1 protocol opcode → ThreeDrawPlanner → flutter_gpu"
+    },
+    {
+      "symbol": "BoxGeometry",
+      "lane": "r1",
+      "status": "ok",
+      "flutterAnalog": "R1 protocol opcode → ThreeDrawPlanner → flutter_gpu"
+    },
+    {
+      "symbol": "BoxHelper",
+      "lane": "r1",
+      "status": "ok",
+      "flutterAnalog": "R1 protocol opcode → ThreeDrawPlanner → flutter_gpu"
+    },
+    {
+      "symbol": "BufferAttribute",
+      "lane": "r1",
+      "status": "ok",
+      "flutterAnalog": "R1 protocol opcode → ThreeDrawPlanner → flutter_gpu"
+    },
+    {
+      "symbol": "BufferGeometry",
+      "lane": "r1",
+      "status": "ok",
+      "flutterAnalog": "R1 protocol opcode → ThreeDrawPlanner → flutter_gpu"
+    },
+    {
+      "symbol": "BufferGeometryLoader",
+      "lane": "r1",
+      "status": "ok",
+      "flutterAnalog": "R1 protocol opcode → ThreeDrawPlanner → flutter_gpu"
+    },
+    {
+      "symbol": "ByteType",
+      "lane": "constant",
+      "status": "constant",
+      "flutterAnalog": "enum value accepted; only the R1-honored subset changes pixels"
+    },
+    {
+      "symbol": "Cache",
+      "lane": "upstream-cpu",
+      "status": "upstream",
+      "flutterAnalog": "upstream JS runs in QuickJS (CPU-only; no render surface)"
+    },
+    {
+      "symbol": "Camera",
+      "lane": "r1",
+      "status": "ok",
+      "flutterAnalog": "upstream base class; R1 encodes derived kinds"
+    },
+    {
+      "symbol": "CameraHelper",
+      "lane": "r1",
+      "status": "ok",
+      "flutterAnalog": "R1 protocol opcode → ThreeDrawPlanner → flutter_gpu"
+    },
+    {
+      "symbol": "CanvasTexture",
+      "lane": "r1",
+      "status": "bounded",
+      "flutterAnalog": "radial gradients + fillRect only"
+    },
+    {
+      "symbol": "CapsuleGeometry",
+      "lane": "r1",
+      "status": "ok",
+      "flutterAnalog": "R1 protocol opcode → ThreeDrawPlanner → flutter_gpu"
+    },
+    {
+      "symbol": "CatmullRomCurve3",
+      "lane": "r1",
+      "status": "ok",
+      "flutterAnalog": "R1 protocol opcode → ThreeDrawPlanner → flutter_gpu"
+    },
+    {
+      "symbol": "CineonToneMapping",
+      "lane": "constant",
+      "status": "constant",
+      "flutterAnalog": "enum value accepted; only the R1-honored subset changes pixels"
+    },
+    {
+      "symbol": "CircleGeometry",
+      "lane": "r1",
+      "status": "ok",
+      "flutterAnalog": "R1 protocol opcode → ThreeDrawPlanner → flutter_gpu"
+    },
+    {
+      "symbol": "ClampToEdgeWrapping",
+      "lane": "constant",
+      "status": "constant",
+      "flutterAnalog": "enum value accepted; only the R1-honored subset changes pixels"
+    },
+    {
+      "symbol": "Clock",
+      "lane": "r1",
+      "status": "ok",
+      "flutterAnalog": "R1 protocol opcode → ThreeDrawPlanner → flutter_gpu"
+    },
+    {
+      "symbol": "Color",
+      "lane": "r1",
+      "status": "ok",
+      "flutterAnalog": "R1 protocol opcode → ThreeDrawPlanner → flutter_gpu"
+    },
+    {
+      "symbol": "ColorKeyframeTrack",
+      "lane": "web-only",
+      "status": "no",
+      "flutterAnalog": "no native analog — 1B web renderer only"
+    },
+    {
+      "symbol": "ColorManagement",
+      "lane": "r1",
+      "status": "ok",
+      "flutterAnalog": "upstream JS utility runs in QuickJS"
+    },
+    {
+      "symbol": "Compatibility",
+      "lane": "r1",
+      "status": "ok",
+      "flutterAnalog": "upstream JS utility runs in QuickJS"
+    },
+    {
+      "symbol": "CompressedArrayTexture",
+      "lane": "web-only",
+      "status": "no",
+      "flutterAnalog": "texture class outside the R1 texture lanes"
+    },
+    {
+      "symbol": "CompressedCubeTexture",
+      "lane": "web-only",
+      "status": "no",
+      "flutterAnalog": "texture class outside the R1 texture lanes"
+    },
+    {
+      "symbol": "CompressedTexture",
+      "lane": "web-only",
+      "status": "no",
+      "flutterAnalog": "no native analog — 1B web renderer only"
+    },
+    {
+      "symbol": "CompressedTextureLoader",
+      "lane": "r1",
+      "status": "bounded",
+      "flutterAnalog": "IO/decode lane bounded (asset lane, OffscreenCanvas guard)"
+    },
+    {
+      "symbol": "ConeGeometry",
+      "lane": "r1",
+      "status": "ok",
+      "flutterAnalog": "R1 protocol opcode → ThreeDrawPlanner → flutter_gpu"
+    },
+    {
+      "symbol": "ConstantAlphaFactor",
+      "lane": "constant",
+      "status": "constant",
+      "flutterAnalog": "enum value accepted; only the R1-honored subset changes pixels"
+    },
+    {
+      "symbol": "ConstantColorFactor",
+      "lane": "constant",
+      "status": "constant",
+      "flutterAnalog": "enum value accepted; only the R1-honored subset changes pixels"
+    },
+    {
+      "symbol": "Controls",
+      "lane": "r1",
+      "status": "ok",
+      "flutterAnalog": "upstream base class; OrbitControls runs on the input lane"
+    },
+    {
+      "symbol": "CubeCamera",
+      "lane": "web-only",
+      "status": "no",
+      "flutterAnalog": "no native analog — 1B web renderer only"
+    },
+    {
+      "symbol": "CubeDepthTexture",
+      "lane": "web-only",
+      "status": "no",
+      "flutterAnalog": "texture class outside the R1 texture lanes"
+    },
+    {
+      "symbol": "CubeReflectionMapping",
+      "lane": "r1",
+      "status": "ok",
+      "flutterAnalog": "R1 protocol opcode → ThreeDrawPlanner → flutter_gpu"
+    },
+    {
+      "symbol": "CubeRefractionMapping",
+      "lane": "r1",
+      "status": "ok",
+      "flutterAnalog": "R1 protocol opcode → ThreeDrawPlanner → flutter_gpu"
+    },
+    {
+      "symbol": "CubeTexture",
+      "lane": "r1",
+      "status": "bounded",
+      "flutterAnalog": "IO/decode lane bounded (asset lane, OffscreenCanvas guard)"
+    },
+    {
+      "symbol": "CubeTextureLoader",
+      "lane": "r1",
+      "status": "ok",
+      "flutterAnalog": "prepared cube assets"
+    },
+    {
+      "symbol": "CubeUVReflectionMapping",
+      "lane": "constant",
+      "status": "constant",
+      "flutterAnalog": "enum value accepted; only the R1-honored subset changes pixels"
+    },
+    {
+      "symbol": "CubicBezierCurve",
+      "lane": "upstream-cpu",
+      "status": "upstream",
+      "flutterAnalog": "upstream JS runs in QuickJS (CPU-only; no render surface)"
+    },
+    {
+      "symbol": "CubicBezierCurve3",
+      "lane": "upstream-cpu",
+      "status": "upstream",
+      "flutterAnalog": "upstream JS runs in QuickJS (CPU-only; no render surface)"
+    },
+    {
+      "symbol": "CubicInterpolant",
+      "lane": "upstream-cpu",
+      "status": "upstream",
+      "flutterAnalog": "upstream JS runs in QuickJS (CPU-only; no render surface)"
+    },
+    {
+      "symbol": "CullFaceBack",
+      "lane": "constant",
+      "status": "constant",
+      "flutterAnalog": "enum value accepted; only the R1-honored subset changes pixels"
+    },
+    {
+      "symbol": "CullFaceFront",
+      "lane": "constant",
+      "status": "constant",
+      "flutterAnalog": "enum value accepted; only the R1-honored subset changes pixels"
+    },
+    {
+      "symbol": "CullFaceFrontBack",
+      "lane": "constant",
+      "status": "constant",
+      "flutterAnalog": "enum value accepted; only the R1-honored subset changes pixels"
+    },
+    {
+      "symbol": "CullFaceNone",
+      "lane": "constant",
+      "status": "constant",
+      "flutterAnalog": "enum value accepted; only the R1-honored subset changes pixels"
+    },
+    {
+      "symbol": "Curve",
+      "lane": "r1",
+      "status": "ok",
+      "flutterAnalog": "R1 protocol opcode → ThreeDrawPlanner → flutter_gpu"
+    },
+    {
+      "symbol": "CurvePath",
+      "lane": "upstream-cpu",
+      "status": "upstream",
+      "flutterAnalog": "upstream JS runs in QuickJS (CPU-only; no render surface)"
+    },
+    {
+      "symbol": "CustomBlending",
+      "lane": "web-only",
+      "status": "no",
+      "flutterAnalog": "no native analog — 1B web renderer only"
+    },
+    {
+      "symbol": "CustomToneMapping",
+      "lane": "constant",
+      "status": "constant",
+      "flutterAnalog": "enum value accepted; only the R1-honored subset changes pixels"
+    },
+    {
+      "symbol": "CylinderGeometry",
+      "lane": "r1",
+      "status": "ok",
+      "flutterAnalog": "R1 protocol opcode → ThreeDrawPlanner → flutter_gpu"
+    },
+    {
+      "symbol": "Cylindrical",
+      "lane": "upstream-cpu",
+      "status": "upstream",
+      "flutterAnalog": "upstream JS runs in QuickJS (CPU-only; no render surface)"
+    },
+    {
+      "symbol": "Data3DTexture",
+      "lane": "web-only",
+      "status": "no",
+      "flutterAnalog": "no native analog — 1B web renderer only"
+    },
+    {
+      "symbol": "DataArrayTexture",
+      "lane": "web-only",
+      "status": "no",
+      "flutterAnalog": "texture class outside the R1 texture lanes"
+    },
+    {
+      "symbol": "DataTexture",
+      "lane": "r1",
+      "status": "ok",
+      "flutterAnalog": "R1 protocol opcode → ThreeDrawPlanner → flutter_gpu"
+    },
+    {
+      "symbol": "DataTextureLoader",
+      "lane": "r1",
+      "status": "bounded",
+      "flutterAnalog": "IO/decode lane bounded (asset lane, OffscreenCanvas guard)"
+    },
+    {
+      "symbol": "DataUtils",
+      "lane": "upstream-cpu",
+      "status": "upstream",
+      "flutterAnalog": "upstream JS runs in QuickJS (CPU-only; no render surface)"
+    },
+    {
+      "symbol": "DecrementStencilOp",
+      "lane": "constant",
+      "status": "constant",
+      "flutterAnalog": "enum value accepted; only the R1-honored subset changes pixels"
+    },
+    {
+      "symbol": "DecrementWrapStencilOp",
+      "lane": "constant",
+      "status": "constant",
+      "flutterAnalog": "enum value accepted; only the R1-honored subset changes pixels"
+    },
+    {
+      "symbol": "DefaultLoadingManager",
+      "lane": "upstream-cpu",
+      "status": "upstream",
+      "flutterAnalog": "upstream JS runs in QuickJS (CPU-only; no render surface)"
+    },
+    {
+      "symbol": "DepthFormat",
+      "lane": "constant",
+      "status": "constant",
+      "flutterAnalog": "enum value accepted; only the R1-honored subset changes pixels"
+    },
+    {
+      "symbol": "DepthStencilFormat",
+      "lane": "constant",
+      "status": "constant",
+      "flutterAnalog": "enum value accepted; only the R1-honored subset changes pixels"
+    },
+    {
+      "symbol": "DepthTexture",
+      "lane": "web-only",
+      "status": "no",
+      "flutterAnalog": "texture class outside the R1 texture lanes"
+    },
+    {
+      "symbol": "DetachedBindMode",
+      "lane": "constant",
+      "status": "constant",
+      "flutterAnalog": "enum value accepted; only the R1-honored subset changes pixels"
+    },
+    {
+      "symbol": "DirectionalLight",
+      "lane": "r1",
+      "status": "ok",
+      "flutterAnalog": "R1 protocol opcode → ThreeDrawPlanner → flutter_gpu"
+    },
+    {
+      "symbol": "DirectionalLightHelper",
+      "lane": "r1",
+      "status": "ok",
+      "flutterAnalog": "R1 protocol opcode → ThreeDrawPlanner → flutter_gpu"
+    },
+    {
+      "symbol": "DiscreteInterpolant",
+      "lane": "upstream-cpu",
+      "status": "upstream",
+      "flutterAnalog": "upstream JS runs in QuickJS (CPU-only; no render surface)"
+    },
+    {
+      "symbol": "DodecahedronGeometry",
+      "lane": "r1",
+      "status": "ok",
+      "flutterAnalog": "R1 protocol opcode → ThreeDrawPlanner → flutter_gpu"
+    },
+    {
+      "symbol": "DoubleSide",
+      "lane": "r1",
+      "status": "ok",
+      "flutterAnalog": "R1 protocol opcode → ThreeDrawPlanner → flutter_gpu"
+    },
+    {
+      "symbol": "DstAlphaFactor",
+      "lane": "constant",
+      "status": "constant",
+      "flutterAnalog": "enum value accepted; only the R1-honored subset changes pixels"
+    },
+    {
+      "symbol": "DstColorFactor",
+      "lane": "constant",
+      "status": "constant",
+      "flutterAnalog": "enum value accepted; only the R1-honored subset changes pixels"
+    },
+    {
+      "symbol": "DynamicCopyUsage",
+      "lane": "constant",
+      "status": "constant",
+      "flutterAnalog": "enum value accepted; only the R1-honored subset changes pixels"
+    },
+    {
+      "symbol": "DynamicDrawUsage",
+      "lane": "r1",
+      "status": "ok",
+      "flutterAnalog": "R1 protocol opcode → ThreeDrawPlanner → flutter_gpu"
+    },
+    {
+      "symbol": "DynamicReadUsage",
+      "lane": "constant",
+      "status": "constant",
+      "flutterAnalog": "enum value accepted; only the R1-honored subset changes pixels"
+    },
+    {
+      "symbol": "EdgesGeometry",
+      "lane": "r1",
+      "status": "ok",
+      "flutterAnalog": "R1 protocol opcode → ThreeDrawPlanner → flutter_gpu"
+    },
+    {
+      "symbol": "EllipseCurve",
+      "lane": "upstream-cpu",
+      "status": "upstream",
+      "flutterAnalog": "upstream JS runs in QuickJS (CPU-only; no render surface)"
+    },
+    {
+      "symbol": "EqualCompare",
+      "lane": "constant",
+      "status": "constant",
+      "flutterAnalog": "enum value accepted; only the R1-honored subset changes pixels"
+    },
+    {
+      "symbol": "EqualDepth",
+      "lane": "constant",
+      "status": "constant",
+      "flutterAnalog": "enum value accepted; only the R1-honored subset changes pixels"
+    },
+    {
+      "symbol": "EqualStencilFunc",
+      "lane": "constant",
+      "status": "constant",
+      "flutterAnalog": "enum value accepted; only the R1-honored subset changes pixels"
+    },
+    {
+      "symbol": "EquirectangularReflectionMapping",
+      "lane": "r1",
+      "status": "ok",
+      "flutterAnalog": "R1 protocol opcode → ThreeDrawPlanner → flutter_gpu"
+    },
+    {
+      "symbol": "EquirectangularRefractionMapping",
+      "lane": "constant",
+      "status": "constant",
+      "flutterAnalog": "enum value accepted; only the R1-honored subset changes pixels"
+    },
+    {
+      "symbol": "Euler",
+      "lane": "upstream-cpu",
+      "status": "upstream",
+      "flutterAnalog": "upstream JS runs in QuickJS (CPU-only; no render surface)"
+    },
+    {
+      "symbol": "EventDispatcher",
+      "lane": "upstream-cpu",
+      "status": "upstream",
+      "flutterAnalog": "upstream JS runs in QuickJS (CPU-only; no render surface)"
+    },
+    {
+      "symbol": "ExternalTexture",
+      "lane": "web-only",
+      "status": "no",
+      "flutterAnalog": "texture class outside the R1 texture lanes"
+    },
+    {
+      "symbol": "ExtrudeGeometry",
+      "lane": "r1",
+      "status": "ok",
+      "flutterAnalog": "R1 protocol opcode → ThreeDrawPlanner → flutter_gpu"
+    },
+    {
+      "symbol": "FileLoader",
+      "lane": "r1",
+      "status": "bounded",
+      "flutterAnalog": "IO/decode lane bounded (asset lane, OffscreenCanvas guard)"
+    },
+    {
+      "symbol": "Float16BufferAttribute",
+      "lane": "r1",
+      "status": "ok",
+      "flutterAnalog": "CPU buffer → R1 geometry upload (opcode 2)"
+    },
+    {
+      "symbol": "Float32BufferAttribute",
+      "lane": "r1",
+      "status": "ok",
+      "flutterAnalog": "R1 protocol opcode → ThreeDrawPlanner → flutter_gpu"
+    },
+    {
+      "symbol": "FloatType",
+      "lane": "r1",
+      "status": "ok",
+      "flutterAnalog": "R1 protocol opcode → ThreeDrawPlanner → flutter_gpu"
+    },
+    {
+      "symbol": "Fog",
+      "lane": "r1",
+      "status": "ok",
+      "flutterAnalog": "R1 protocol opcode → ThreeDrawPlanner → flutter_gpu"
+    },
+    {
+      "symbol": "FogExp2",
+      "lane": "web-only",
+      "status": "no",
+      "flutterAnalog": "R1 supports linear Fog only (points_billboards gap)"
+    },
+    {
+      "symbol": "FramebufferTexture",
+      "lane": "web-only",
+      "status": "no",
+      "flutterAnalog": "texture class outside the R1 texture lanes"
+    },
+    {
+      "symbol": "FrontSide",
+      "lane": "constant",
+      "status": "constant",
+      "flutterAnalog": "enum value accepted; only the R1-honored subset changes pixels"
+    },
+    {
+      "symbol": "Frustum",
+      "lane": "r1",
+      "status": "ok",
+      "flutterAnalog": "R1 protocol opcode → ThreeDrawPlanner → flutter_gpu"
+    },
+    {
+      "symbol": "FrustumArray",
+      "lane": "unclassified",
+      "status": "unclassified",
+      "flutterAnalog": "present as upstream JS; render/IO behavior unverified"
+    },
+    {
+      "symbol": "GLBufferAttribute",
+      "lane": "web-only",
+      "status": "no",
+      "flutterAnalog": "GPU-resident buffer; R1 owns buffers"
+    },
+    {
+      "symbol": "GLSL1",
+      "lane": "constant",
+      "status": "constant",
+      "flutterAnalog": "enum value accepted; only the R1-honored subset changes pixels"
+    },
+    {
+      "symbol": "GLSL3",
+      "lane": "web-only",
+      "status": "no",
+      "flutterAnalog": "no native analog — 1B web renderer only"
+    },
+    {
+      "symbol": "GreaterCompare",
+      "lane": "constant",
+      "status": "constant",
+      "flutterAnalog": "enum value accepted; only the R1-honored subset changes pixels"
+    },
+    {
+      "symbol": "GreaterDepth",
+      "lane": "constant",
+      "status": "constant",
+      "flutterAnalog": "enum value accepted; only the R1-honored subset changes pixels"
+    },
+    {
+      "symbol": "GreaterEqualCompare",
+      "lane": "constant",
+      "status": "constant",
+      "flutterAnalog": "enum value accepted; only the R1-honored subset changes pixels"
+    },
+    {
+      "symbol": "GreaterEqualDepth",
+      "lane": "constant",
+      "status": "constant",
+      "flutterAnalog": "enum value accepted; only the R1-honored subset changes pixels"
+    },
+    {
+      "symbol": "GreaterEqualStencilFunc",
+      "lane": "constant",
+      "status": "constant",
+      "flutterAnalog": "enum value accepted; only the R1-honored subset changes pixels"
+    },
+    {
+      "symbol": "GreaterStencilFunc",
+      "lane": "constant",
+      "status": "constant",
+      "flutterAnalog": "enum value accepted; only the R1-honored subset changes pixels"
+    },
+    {
+      "symbol": "GridHelper",
+      "lane": "r1",
+      "status": "ok",
+      "flutterAnalog": "R1 protocol opcode → ThreeDrawPlanner → flutter_gpu"
+    },
+    {
+      "symbol": "Group",
+      "lane": "r1",
+      "status": "ok",
+      "flutterAnalog": "R1 protocol opcode → ThreeDrawPlanner → flutter_gpu"
+    },
+    {
+      "symbol": "HTMLTexture",
+      "lane": "web-only",
+      "status": "no",
+      "flutterAnalog": "texture class outside the R1 texture lanes"
+    },
+    {
+      "symbol": "HalfFloatType",
+      "lane": "r1",
+      "status": "ok",
+      "flutterAnalog": "R1 protocol opcode → ThreeDrawPlanner → flutter_gpu"
+    },
+    {
+      "symbol": "HemisphereLight",
+      "lane": "r1",
+      "status": "ok",
+      "flutterAnalog": "R1 protocol opcode → ThreeDrawPlanner → flutter_gpu"
+    },
+    {
+      "symbol": "HemisphereLightHelper",
+      "lane": "r1",
+      "status": "ok",
+      "flutterAnalog": "rendered as line draws (helpers module)"
+    },
+    {
+      "symbol": "IcosahedronGeometry",
+      "lane": "r1",
+      "status": "ok",
+      "flutterAnalog": "R1 protocol opcode → ThreeDrawPlanner → flutter_gpu"
+    },
+    {
+      "symbol": "ImageBitmapLoader",
+      "lane": "r1",
+      "status": "bounded",
+      "flutterAnalog": "IO/decode lane bounded (asset lane, OffscreenCanvas guard)"
+    },
+    {
+      "symbol": "ImageLoader",
+      "lane": "r1",
+      "status": "bounded",
+      "flutterAnalog": "IO/decode lane bounded (asset lane, OffscreenCanvas guard)"
+    },
+    {
+      "symbol": "ImageUtils",
+      "lane": "r1",
+      "status": "ok",
+      "flutterAnalog": "upstream JS utility runs in QuickJS"
+    },
+    {
+      "symbol": "IncrementStencilOp",
+      "lane": "constant",
+      "status": "constant",
+      "flutterAnalog": "enum value accepted; only the R1-honored subset changes pixels"
+    },
+    {
+      "symbol": "IncrementWrapStencilOp",
+      "lane": "constant",
+      "status": "constant",
+      "flutterAnalog": "enum value accepted; only the R1-honored subset changes pixels"
+    },
+    {
+      "symbol": "InstancedBufferAttribute",
+      "lane": "r1",
+      "status": "ok",
+      "flutterAnalog": "R1 protocol opcode → ThreeDrawPlanner → flutter_gpu"
+    },
+    {
+      "symbol": "InstancedBufferGeometry",
+      "lane": "r1",
+      "status": "ok",
+      "flutterAnalog": "R1 protocol opcode → ThreeDrawPlanner → flutter_gpu"
+    },
+    {
+      "symbol": "InstancedInterleavedBuffer",
+      "lane": "r1",
+      "status": "ok",
+      "flutterAnalog": "CPU buffer → R1 geometry upload (opcode 2)"
+    },
+    {
+      "symbol": "InstancedMesh",
+      "lane": "r1",
+      "status": "bounded",
+      "flutterAnalog": "opaque DRAW_BATCH instancing"
+    },
+    {
+      "symbol": "Int16BufferAttribute",
+      "lane": "r1",
+      "status": "ok",
+      "flutterAnalog": "CPU buffer → R1 geometry upload (opcode 2)"
+    },
+    {
+      "symbol": "Int32BufferAttribute",
+      "lane": "r1",
+      "status": "ok",
+      "flutterAnalog": "CPU buffer → R1 geometry upload (opcode 2)"
+    },
+    {
+      "symbol": "Int8BufferAttribute",
+      "lane": "r1",
+      "status": "ok",
+      "flutterAnalog": "CPU buffer → R1 geometry upload (opcode 2)"
+    },
+    {
+      "symbol": "IntType",
+      "lane": "constant",
+      "status": "constant",
+      "flutterAnalog": "enum value accepted; only the R1-honored subset changes pixels"
+    },
+    {
+      "symbol": "InterleavedBuffer",
+      "lane": "r1",
+      "status": "ok",
+      "flutterAnalog": "CPU buffer → R1 geometry upload (opcode 2)"
+    },
+    {
+      "symbol": "InterleavedBufferAttribute",
+      "lane": "r1",
+      "status": "ok",
+      "flutterAnalog": "CPU buffer → R1 geometry upload (opcode 2)"
+    },
+    {
+      "symbol": "Interpolant",
+      "lane": "upstream-cpu",
+      "status": "upstream",
+      "flutterAnalog": "upstream JS runs in QuickJS (CPU-only; no render surface)"
+    },
+    {
+      "symbol": "InterpolateBezier",
+      "lane": "constant",
+      "status": "constant",
+      "flutterAnalog": "enum value accepted; only the R1-honored subset changes pixels"
+    },
+    {
+      "symbol": "InterpolateDiscrete",
+      "lane": "constant",
+      "status": "constant",
+      "flutterAnalog": "enum value accepted; only the R1-honored subset changes pixels"
+    },
+    {
+      "symbol": "InterpolateLinear",
+      "lane": "web-only",
+      "status": "no",
+      "flutterAnalog": "no native analog — 1B web renderer only"
+    },
+    {
+      "symbol": "InterpolateSmooth",
+      "lane": "constant",
+      "status": "constant",
+      "flutterAnalog": "enum value accepted; only the R1-honored subset changes pixels"
+    },
+    {
+      "symbol": "InterpolationSamplingMode",
+      "lane": "constant",
+      "status": "constant",
+      "flutterAnalog": "enum value accepted; only the R1-honored subset changes pixels"
+    },
+    {
+      "symbol": "InterpolationSamplingType",
+      "lane": "constant",
+      "status": "constant",
+      "flutterAnalog": "enum value accepted; only the R1-honored subset changes pixels"
+    },
+    {
+      "symbol": "InvertStencilOp",
+      "lane": "constant",
+      "status": "constant",
+      "flutterAnalog": "enum value accepted; only the R1-honored subset changes pixels"
+    },
+    {
+      "symbol": "KeepStencilOp",
+      "lane": "constant",
+      "status": "constant",
+      "flutterAnalog": "enum value accepted; only the R1-honored subset changes pixels"
+    },
+    {
+      "symbol": "KeyframeTrack",
+      "lane": "web-only",
+      "status": "no",
+      "flutterAnalog": "no native analog — 1B web renderer only"
+    },
+    {
+      "symbol": "LOD",
+      "lane": "r1",
+      "status": "ok",
+      "flutterAnalog": "R1 protocol opcode → ThreeDrawPlanner → flutter_gpu"
+    },
+    {
+      "symbol": "LatheGeometry",
+      "lane": "r1",
+      "status": "ok",
+      "flutterAnalog": "R1 protocol opcode → ThreeDrawPlanner → flutter_gpu"
+    },
+    {
+      "symbol": "Layers",
+      "lane": "upstream-cpu",
+      "status": "upstream",
+      "flutterAnalog": "upstream JS runs in QuickJS (CPU-only; no render surface)"
+    },
+    {
+      "symbol": "LessCompare",
+      "lane": "constant",
+      "status": "constant",
+      "flutterAnalog": "enum value accepted; only the R1-honored subset changes pixels"
+    },
+    {
+      "symbol": "LessDepth",
+      "lane": "constant",
+      "status": "constant",
+      "flutterAnalog": "enum value accepted; only the R1-honored subset changes pixels"
+    },
+    {
+      "symbol": "LessEqualCompare",
+      "lane": "constant",
+      "status": "constant",
+      "flutterAnalog": "enum value accepted; only the R1-honored subset changes pixels"
+    },
+    {
+      "symbol": "LessEqualDepth",
+      "lane": "constant",
+      "status": "constant",
+      "flutterAnalog": "enum value accepted; only the R1-honored subset changes pixels"
+    },
+    {
+      "symbol": "LessEqualStencilFunc",
+      "lane": "constant",
+      "status": "constant",
+      "flutterAnalog": "enum value accepted; only the R1-honored subset changes pixels"
+    },
+    {
+      "symbol": "LessStencilFunc",
+      "lane": "constant",
+      "status": "constant",
+      "flutterAnalog": "enum value accepted; only the R1-honored subset changes pixels"
+    },
+    {
+      "symbol": "Light",
+      "lane": "r1",
+      "status": "ok",
+      "flutterAnalog": "upstream base class; R1 encodes derived kinds"
+    },
+    {
+      "symbol": "LightProbe",
+      "lane": "r1",
+      "status": "ok",
+      "flutterAnalog": "CPU light-probe data (upstream JS)"
+    },
+    {
+      "symbol": "LightShadow",
+      "lane": "r1",
+      "status": "ok",
+      "flutterAnalog": "upstream base class; R1 encodes derived kinds"
+    },
+    {
+      "symbol": "Line",
+      "lane": "r1",
+      "status": "ok",
+      "flutterAnalog": "R1 protocol opcode → ThreeDrawPlanner → flutter_gpu"
+    },
+    {
+      "symbol": "Line3",
+      "lane": "upstream-cpu",
+      "status": "upstream",
+      "flutterAnalog": "upstream JS runs in QuickJS (CPU-only; no render surface)"
+    },
+    {
+      "symbol": "LineBasicMaterial",
+      "lane": "r1",
+      "status": "ok",
+      "flutterAnalog": "R1 protocol opcode → ThreeDrawPlanner → flutter_gpu"
+    },
+    {
+      "symbol": "LineCurve",
+      "lane": "upstream-cpu",
+      "status": "upstream",
+      "flutterAnalog": "upstream JS runs in QuickJS (CPU-only; no render surface)"
+    },
+    {
+      "symbol": "LineCurve3",
+      "lane": "upstream-cpu",
+      "status": "upstream",
+      "flutterAnalog": "upstream JS runs in QuickJS (CPU-only; no render surface)"
+    },
+    {
+      "symbol": "LineDashedMaterial",
+      "lane": "web-only",
+      "status": "no",
+      "flutterAnalog": "R1 line kind excludes dashed"
+    },
+    {
+      "symbol": "LineLoop",
+      "lane": "r1",
+      "status": "ok",
+      "flutterAnalog": "R1 protocol opcode → ThreeDrawPlanner → flutter_gpu"
+    },
+    {
+      "symbol": "LineSegments",
+      "lane": "r1",
+      "status": "ok",
+      "flutterAnalog": "R1 protocol opcode → ThreeDrawPlanner → flutter_gpu"
+    },
+    {
+      "symbol": "LinearFilter",
+      "lane": "r1",
+      "status": "ok",
+      "flutterAnalog": "R1 protocol opcode → ThreeDrawPlanner → flutter_gpu"
+    },
+    {
+      "symbol": "LinearInterpolant",
+      "lane": "upstream-cpu",
+      "status": "upstream",
+      "flutterAnalog": "upstream JS runs in QuickJS (CPU-only; no render surface)"
+    },
+    {
+      "symbol": "LinearMipMapLinearFilter",
+      "lane": "constant",
+      "status": "constant",
+      "flutterAnalog": "enum value accepted; only the R1-honored subset changes pixels"
+    },
+    {
+      "symbol": "LinearMipMapNearestFilter",
+      "lane": "constant",
+      "status": "constant",
+      "flutterAnalog": "enum value accepted; only the R1-honored subset changes pixels"
+    },
+    {
+      "symbol": "LinearMipmapLinearFilter",
+      "lane": "constant",
+      "status": "constant",
+      "flutterAnalog": "enum value accepted; only the R1-honored subset changes pixels"
+    },
+    {
+      "symbol": "LinearMipmapNearestFilter",
+      "lane": "constant",
+      "status": "constant",
+      "flutterAnalog": "enum value accepted; only the R1-honored subset changes pixels"
+    },
+    {
+      "symbol": "LinearSRGBColorSpace",
+      "lane": "constant",
+      "status": "constant",
+      "flutterAnalog": "enum value accepted; only the R1-honored subset changes pixels"
+    },
+    {
+      "symbol": "LinearToneMapping",
+      "lane": "web-only",
+      "status": "no",
+      "flutterAnalog": "R1 requires NoToneMapping"
+    },
+    {
+      "symbol": "LinearTransfer",
+      "lane": "constant",
+      "status": "constant",
+      "flutterAnalog": "enum value accepted; only the R1-honored subset changes pixels"
+    },
+    {
+      "symbol": "Loader",
+      "lane": "upstream-cpu",
+      "status": "upstream",
+      "flutterAnalog": "upstream JS runs in QuickJS (CPU-only; no render surface)"
+    },
+    {
+      "symbol": "LoaderUtils",
+      "lane": "upstream-cpu",
+      "status": "upstream",
+      "flutterAnalog": "upstream JS runs in QuickJS (CPU-only; no render surface)"
+    },
+    {
+      "symbol": "LoadingManager",
+      "lane": "r1",
+      "status": "ok",
+      "flutterAnalog": "R1 protocol opcode → ThreeDrawPlanner → flutter_gpu"
+    },
+    {
+      "symbol": "LoopOnce",
+      "lane": "constant",
+      "status": "constant",
+      "flutterAnalog": "enum value accepted; only the R1-honored subset changes pixels"
+    },
+    {
+      "symbol": "LoopPingPong",
+      "lane": "constant",
+      "status": "constant",
+      "flutterAnalog": "enum value accepted; only the R1-honored subset changes pixels"
+    },
+    {
+      "symbol": "LoopRepeat",
+      "lane": "constant",
+      "status": "constant",
+      "flutterAnalog": "enum value accepted; only the R1-honored subset changes pixels"
+    },
+    {
+      "symbol": "MOUSE",
+      "lane": "constant",
+      "status": "constant",
+      "flutterAnalog": "enum value accepted; only the R1-honored subset changes pixels"
+    },
+    {
+      "symbol": "Material",
+      "lane": "r1",
+      "status": "ok",
+      "flutterAnalog": "upstream base class; R1 encodes derived kinds"
+    },
+    {
+      "symbol": "MaterialBlending",
+      "lane": "constant",
+      "status": "constant",
+      "flutterAnalog": "enum value accepted; only the R1-honored subset changes pixels"
+    },
+    {
+      "symbol": "MaterialLoader",
+      "lane": "r1",
+      "status": "bounded",
+      "flutterAnalog": "IO/decode lane bounded (asset lane, OffscreenCanvas guard)"
+    },
+    {
+      "symbol": "MathUtils",
+      "lane": "r1",
+      "status": "ok",
+      "flutterAnalog": "R1 protocol opcode → ThreeDrawPlanner → flutter_gpu"
+    },
+    {
+      "symbol": "Matrix2",
+      "lane": "upstream-cpu",
+      "status": "upstream",
+      "flutterAnalog": "upstream JS runs in QuickJS (CPU-only; no render surface)"
+    },
+    {
+      "symbol": "Matrix3",
+      "lane": "r1",
+      "status": "ok",
+      "flutterAnalog": "R1 protocol opcode → ThreeDrawPlanner → flutter_gpu"
+    },
+    {
+      "symbol": "Matrix4",
+      "lane": "upstream-cpu",
+      "status": "upstream",
+      "flutterAnalog": "upstream JS runs in QuickJS (CPU-only; no render surface)"
+    },
+    {
+      "symbol": "MaxEquation",
+      "lane": "constant",
+      "status": "constant",
+      "flutterAnalog": "enum value accepted; only the R1-honored subset changes pixels"
+    },
+    {
+      "symbol": "Mesh",
+      "lane": "r1",
+      "status": "ok",
+      "flutterAnalog": "R1 protocol opcode → ThreeDrawPlanner → flutter_gpu"
+    },
+    {
+      "symbol": "MeshBasicMaterial",
+      "lane": "r1",
+      "status": "ok",
+      "flutterAnalog": "R1 protocol opcode → ThreeDrawPlanner → flutter_gpu"
+    },
+    {
+      "symbol": "MeshDepthMaterial",
+      "lane": "web-only",
+      "status": "no",
+      "flutterAnalog": "no native analog — 1B web renderer only"
+    },
+    {
+      "symbol": "MeshDistanceMaterial",
+      "lane": "web-only",
+      "status": "no",
+      "flutterAnalog": "no native analog — 1B web renderer only"
+    },
+    {
+      "symbol": "MeshLambertMaterial",
+      "lane": "r1",
+      "status": "ok",
+      "flutterAnalog": "R1 protocol opcode → ThreeDrawPlanner → flutter_gpu"
+    },
+    {
+      "symbol": "MeshMatcapMaterial",
+      "lane": "web-only",
+      "status": "no",
+      "flutterAnalog": "material kind outside R1 kinds"
+    },
+    {
+      "symbol": "MeshNormalMaterial",
+      "lane": "r1",
+      "status": "ok",
+      "flutterAnalog": "R1 protocol opcode → ThreeDrawPlanner → flutter_gpu"
+    },
+    {
+      "symbol": "MeshPhongMaterial",
+      "lane": "r1",
+      "status": "ok",
+      "flutterAnalog": "R1 protocol opcode → ThreeDrawPlanner → flutter_gpu"
+    },
+    {
+      "symbol": "MeshPhysicalMaterial",
+      "lane": "web-only",
+      "status": "no",
+      "flutterAnalog": "physical extensions unsupported"
+    },
+    {
+      "symbol": "MeshStandardMaterial",
+      "lane": "r1",
+      "status": "ok",
+      "flutterAnalog": "R1 protocol opcode → ThreeDrawPlanner → flutter_gpu"
+    },
+    {
+      "symbol": "MeshToonMaterial",
+      "lane": "web-only",
+      "status": "no",
+      "flutterAnalog": "material kind outside R1 kinds"
+    },
+    {
+      "symbol": "MinEquation",
+      "lane": "constant",
+      "status": "constant",
+      "flutterAnalog": "enum value accepted; only the R1-honored subset changes pixels"
+    },
+    {
+      "symbol": "MirroredRepeatWrapping",
+      "lane": "r1",
+      "status": "ok",
+      "flutterAnalog": "R1 protocol opcode → ThreeDrawPlanner → flutter_gpu"
+    },
+    {
+      "symbol": "MixOperation",
+      "lane": "constant",
+      "status": "constant",
+      "flutterAnalog": "enum value accepted; only the R1-honored subset changes pixels"
+    },
+    {
+      "symbol": "MultiplyBlending",
+      "lane": "web-only",
+      "status": "no",
+      "flutterAnalog": "no native analog — 1B web renderer only"
+    },
+    {
+      "symbol": "MultiplyOperation",
+      "lane": "constant",
+      "status": "constant",
+      "flutterAnalog": "enum value accepted; only the R1-honored subset changes pixels"
+    },
+    {
+      "symbol": "NearestFilter",
+      "lane": "r1",
+      "status": "ok",
+      "flutterAnalog": "R1 protocol opcode → ThreeDrawPlanner → flutter_gpu"
+    },
+    {
+      "symbol": "NearestMipMapLinearFilter",
+      "lane": "constant",
+      "status": "constant",
+      "flutterAnalog": "enum value accepted; only the R1-honored subset changes pixels"
+    },
+    {
+      "symbol": "NearestMipMapNearestFilter",
+      "lane": "constant",
+      "status": "constant",
+      "flutterAnalog": "enum value accepted; only the R1-honored subset changes pixels"
+    },
+    {
+      "symbol": "NearestMipmapLinearFilter",
+      "lane": "constant",
+      "status": "constant",
+      "flutterAnalog": "enum value accepted; only the R1-honored subset changes pixels"
+    },
+    {
+      "symbol": "NearestMipmapNearestFilter",
+      "lane": "constant",
+      "status": "constant",
+      "flutterAnalog": "enum value accepted; only the R1-honored subset changes pixels"
+    },
+    {
+      "symbol": "NeutralToneMapping",
+      "lane": "web-only",
+      "status": "no",
+      "flutterAnalog": "R1 requires NoToneMapping"
+    },
+    {
+      "symbol": "NeverCompare",
+      "lane": "constant",
+      "status": "constant",
+      "flutterAnalog": "enum value accepted; only the R1-honored subset changes pixels"
+    },
+    {
+      "symbol": "NeverDepth",
+      "lane": "constant",
+      "status": "constant",
+      "flutterAnalog": "enum value accepted; only the R1-honored subset changes pixels"
+    },
+    {
+      "symbol": "NeverStencilFunc",
+      "lane": "constant",
+      "status": "constant",
+      "flutterAnalog": "enum value accepted; only the R1-honored subset changes pixels"
+    },
+    {
+      "symbol": "NoBlending",
+      "lane": "constant",
+      "status": "constant",
+      "flutterAnalog": "enum value accepted; only the R1-honored subset changes pixels"
+    },
+    {
+      "symbol": "NoColorSpace",
+      "lane": "constant",
+      "status": "constant",
+      "flutterAnalog": "enum value accepted; only the R1-honored subset changes pixels"
+    },
+    {
+      "symbol": "NoNormalPacking",
+      "lane": "constant",
+      "status": "constant",
+      "flutterAnalog": "enum value accepted; only the R1-honored subset changes pixels"
+    },
+    {
+      "symbol": "NoToneMapping",
+      "lane": "r1",
+      "status": "ok",
+      "flutterAnalog": "R1 protocol opcode → ThreeDrawPlanner → flutter_gpu"
+    },
+    {
+      "symbol": "NormalAnimationBlendMode",
+      "lane": "constant",
+      "status": "constant",
+      "flutterAnalog": "enum value accepted; only the R1-honored subset changes pixels"
+    },
+    {
+      "symbol": "NormalBlending",
+      "lane": "constant",
+      "status": "constant",
+      "flutterAnalog": "enum value accepted; only the R1-honored subset changes pixels"
+    },
+    {
+      "symbol": "NormalGAPacking",
+      "lane": "constant",
+      "status": "constant",
+      "flutterAnalog": "enum value accepted; only the R1-honored subset changes pixels"
+    },
+    {
+      "symbol": "NormalRGPacking",
+      "lane": "constant",
+      "status": "constant",
+      "flutterAnalog": "enum value accepted; only the R1-honored subset changes pixels"
+    },
+    {
+      "symbol": "NotEqualCompare",
+      "lane": "constant",
+      "status": "constant",
+      "flutterAnalog": "enum value accepted; only the R1-honored subset changes pixels"
+    },
+    {
+      "symbol": "NotEqualDepth",
+      "lane": "constant",
+      "status": "constant",
+      "flutterAnalog": "enum value accepted; only the R1-honored subset changes pixels"
+    },
+    {
+      "symbol": "NotEqualStencilFunc",
+      "lane": "constant",
+      "status": "constant",
+      "flutterAnalog": "enum value accepted; only the R1-honored subset changes pixels"
+    },
+    {
+      "symbol": "NumberKeyframeTrack",
+      "lane": "upstream-cpu",
+      "status": "upstream",
+      "flutterAnalog": "upstream JS runs in QuickJS (CPU-only; no render surface)"
+    },
+    {
+      "symbol": "Object3D",
+      "lane": "r1",
+      "status": "ok",
+      "flutterAnalog": "R1 protocol opcode → ThreeDrawPlanner → flutter_gpu"
+    },
+    {
+      "symbol": "ObjectLoader",
+      "lane": "r1",
+      "status": "bounded",
+      "flutterAnalog": "IO/decode lane bounded (asset lane, OffscreenCanvas guard)"
+    },
+    {
+      "symbol": "ObjectSpaceNormalMap",
+      "lane": "constant",
+      "status": "constant",
+      "flutterAnalog": "enum value accepted; only the R1-honored subset changes pixels"
+    },
+    {
+      "symbol": "OctahedronGeometry",
+      "lane": "r1",
+      "status": "ok",
+      "flutterAnalog": "R1 protocol opcode → ThreeDrawPlanner → flutter_gpu"
+    },
+    {
+      "symbol": "OneFactor",
+      "lane": "constant",
+      "status": "constant",
+      "flutterAnalog": "enum value accepted; only the R1-honored subset changes pixels"
+    },
+    {
+      "symbol": "OneMinusConstantAlphaFactor",
+      "lane": "constant",
+      "status": "constant",
+      "flutterAnalog": "enum value accepted; only the R1-honored subset changes pixels"
+    },
+    {
+      "symbol": "OneMinusConstantColorFactor",
+      "lane": "constant",
+      "status": "constant",
+      "flutterAnalog": "enum value accepted; only the R1-honored subset changes pixels"
+    },
+    {
+      "symbol": "OneMinusDstAlphaFactor",
+      "lane": "constant",
+      "status": "constant",
+      "flutterAnalog": "enum value accepted; only the R1-honored subset changes pixels"
+    },
+    {
+      "symbol": "OneMinusDstColorFactor",
+      "lane": "constant",
+      "status": "constant",
+      "flutterAnalog": "enum value accepted; only the R1-honored subset changes pixels"
+    },
+    {
+      "symbol": "OneMinusSrcAlphaFactor",
+      "lane": "constant",
+      "status": "constant",
+      "flutterAnalog": "enum value accepted; only the R1-honored subset changes pixels"
+    },
+    {
+      "symbol": "OneMinusSrcColorFactor",
+      "lane": "constant",
+      "status": "constant",
+      "flutterAnalog": "enum value accepted; only the R1-honored subset changes pixels"
+    },
+    {
+      "symbol": "OrthographicCamera",
+      "lane": "r1",
+      "status": "ok",
+      "flutterAnalog": "R1 protocol opcode → ThreeDrawPlanner → flutter_gpu"
+    },
+    {
+      "symbol": "PCFShadowMap",
+      "lane": "r1",
+      "status": "ok",
+      "flutterAnalog": "R1 protocol opcode → ThreeDrawPlanner → flutter_gpu"
+    },
+    {
+      "symbol": "PCFSoftShadowMap",
+      "lane": "r1",
+      "status": "ok",
+      "flutterAnalog": "R1 protocol opcode → ThreeDrawPlanner → flutter_gpu"
+    },
+    {
+      "symbol": "PMREMGenerator",
+      "lane": "web-only",
+      "status": "no",
+      "flutterAnalog": "no env prefilter in R1"
+    },
+    {
+      "symbol": "Path",
+      "lane": "upstream-cpu",
+      "status": "upstream",
+      "flutterAnalog": "upstream JS runs in QuickJS (CPU-only; no render surface)"
+    },
+    {
+      "symbol": "PerspectiveCamera",
+      "lane": "r1",
+      "status": "ok",
+      "flutterAnalog": "R1 protocol opcode → ThreeDrawPlanner → flutter_gpu"
+    },
+    {
+      "symbol": "Plane",
+      "lane": "r1",
+      "status": "ok",
+      "flutterAnalog": "clipping planes"
+    },
+    {
+      "symbol": "PlaneGeometry",
+      "lane": "r1",
+      "status": "ok",
+      "flutterAnalog": "R1 protocol opcode → ThreeDrawPlanner → flutter_gpu"
+    },
+    {
+      "symbol": "PlaneHelper",
+      "lane": "r1",
+      "status": "ok",
+      "flutterAnalog": "rendered as line draws (helpers module)"
+    },
+    {
+      "symbol": "PointLight",
+      "lane": "r1",
+      "status": "ok",
+      "flutterAnalog": "R1 protocol opcode → ThreeDrawPlanner → flutter_gpu"
+    },
+    {
+      "symbol": "PointLightHelper",
+      "lane": "r1",
+      "status": "ok",
+      "flutterAnalog": "R1 protocol opcode → ThreeDrawPlanner → flutter_gpu"
+    },
+    {
+      "symbol": "Points",
+      "lane": "r1",
+      "status": "ok",
+      "flutterAnalog": "R1 protocol opcode → ThreeDrawPlanner → flutter_gpu"
+    },
+    {
+      "symbol": "PointsMaterial",
+      "lane": "r1",
+      "status": "ok",
+      "flutterAnalog": "R1 protocol opcode → ThreeDrawPlanner → flutter_gpu"
+    },
+    {
+      "symbol": "PolarGridHelper",
+      "lane": "r1",
+      "status": "ok",
+      "flutterAnalog": "R1 protocol opcode → ThreeDrawPlanner → flutter_gpu"
+    },
+    {
+      "symbol": "PolyhedronGeometry",
+      "lane": "r1",
+      "status": "ok",
+      "flutterAnalog": "CPU-generated geometry"
+    },
+    {
+      "symbol": "PositionalAudio",
+      "lane": "web-only",
+      "status": "no",
+      "flutterAnalog": "WebAudio"
+    },
+    {
+      "symbol": "PropertyBinding",
+      "lane": "upstream-cpu",
+      "status": "upstream",
+      "flutterAnalog": "upstream JS runs in QuickJS (CPU-only; no render surface)"
+    },
+    {
+      "symbol": "PropertyMixer",
+      "lane": "upstream-cpu",
+      "status": "upstream",
+      "flutterAnalog": "upstream JS runs in QuickJS (CPU-only; no render surface)"
+    },
+    {
+      "symbol": "QuadraticBezierCurve",
+      "lane": "r1",
+      "status": "ok",
+      "flutterAnalog": "R1 protocol opcode → ThreeDrawPlanner → flutter_gpu"
+    },
+    {
+      "symbol": "QuadraticBezierCurve3",
+      "lane": "upstream-cpu",
+      "status": "upstream",
+      "flutterAnalog": "upstream JS runs in QuickJS (CPU-only; no render surface)"
+    },
+    {
+      "symbol": "Quaternion",
+      "lane": "r1",
+      "status": "ok",
+      "flutterAnalog": "R1 protocol opcode → ThreeDrawPlanner → flutter_gpu"
+    },
+    {
+      "symbol": "QuaternionKeyframeTrack",
+      "lane": "web-only",
+      "status": "no",
+      "flutterAnalog": "bounded animation"
+    },
+    {
+      "symbol": "QuaternionLinearInterpolant",
+      "lane": "upstream-cpu",
+      "status": "upstream",
+      "flutterAnalog": "upstream JS runs in QuickJS (CPU-only; no render surface)"
+    },
+    {
+      "symbol": "R11_EAC_Format",
+      "lane": "constant",
+      "status": "constant",
+      "flutterAnalog": "enum value accepted; only the R1-honored subset changes pixels"
+    },
+    {
+      "symbol": "RAD2DEG",
+      "lane": "constant",
+      "status": "constant",
+      "flutterAnalog": "enum value accepted; only the R1-honored subset changes pixels"
+    },
+    {
+      "symbol": "RED_GREEN_RGTC2_Format",
+      "lane": "constant",
+      "status": "constant",
+      "flutterAnalog": "enum value accepted; only the R1-honored subset changes pixels"
+    },
+    {
+      "symbol": "RED_RGTC1_Format",
+      "lane": "constant",
+      "status": "constant",
+      "flutterAnalog": "enum value accepted; only the R1-honored subset changes pixels"
+    },
+    {
+      "symbol": "REVISION",
+      "lane": "constant",
+      "status": "constant",
+      "flutterAnalog": "enum value accepted; only the R1-honored subset changes pixels"
+    },
+    {
+      "symbol": "RG11_EAC_Format",
+      "lane": "constant",
+      "status": "constant",
+      "flutterAnalog": "enum value accepted; only the R1-honored subset changes pixels"
+    },
+    {
+      "symbol": "RGBADepthPacking",
+      "lane": "constant",
+      "status": "constant",
+      "flutterAnalog": "enum value accepted; only the R1-honored subset changes pixels"
+    },
+    {
+      "symbol": "RGBAFormat",
+      "lane": "r1",
+      "status": "ok",
+      "flutterAnalog": "R1 protocol opcode → ThreeDrawPlanner → flutter_gpu"
+    },
+    {
+      "symbol": "RGBAIntegerFormat",
+      "lane": "constant",
+      "status": "constant",
+      "flutterAnalog": "enum value accepted; only the R1-honored subset changes pixels"
+    },
+    {
+      "symbol": "RGBA_ASTC_10x10_Format",
+      "lane": "constant",
+      "status": "constant",
+      "flutterAnalog": "enum value accepted; only the R1-honored subset changes pixels"
+    },
+    {
+      "symbol": "RGBA_ASTC_10x5_Format",
+      "lane": "constant",
+      "status": "constant",
+      "flutterAnalog": "enum value accepted; only the R1-honored subset changes pixels"
+    },
+    {
+      "symbol": "RGBA_ASTC_10x6_Format",
+      "lane": "constant",
+      "status": "constant",
+      "flutterAnalog": "enum value accepted; only the R1-honored subset changes pixels"
+    },
+    {
+      "symbol": "RGBA_ASTC_10x8_Format",
+      "lane": "constant",
+      "status": "constant",
+      "flutterAnalog": "enum value accepted; only the R1-honored subset changes pixels"
+    },
+    {
+      "symbol": "RGBA_ASTC_12x10_Format",
+      "lane": "constant",
+      "status": "constant",
+      "flutterAnalog": "enum value accepted; only the R1-honored subset changes pixels"
+    },
+    {
+      "symbol": "RGBA_ASTC_12x12_Format",
+      "lane": "constant",
+      "status": "constant",
+      "flutterAnalog": "enum value accepted; only the R1-honored subset changes pixels"
+    },
+    {
+      "symbol": "RGBA_ASTC_4x4_Format",
+      "lane": "constant",
+      "status": "constant",
+      "flutterAnalog": "enum value accepted; only the R1-honored subset changes pixels"
+    },
+    {
+      "symbol": "RGBA_ASTC_5x4_Format",
+      "lane": "constant",
+      "status": "constant",
+      "flutterAnalog": "enum value accepted; only the R1-honored subset changes pixels"
+    },
+    {
+      "symbol": "RGBA_ASTC_5x5_Format",
+      "lane": "constant",
+      "status": "constant",
+      "flutterAnalog": "enum value accepted; only the R1-honored subset changes pixels"
+    },
+    {
+      "symbol": "RGBA_ASTC_6x5_Format",
+      "lane": "constant",
+      "status": "constant",
+      "flutterAnalog": "enum value accepted; only the R1-honored subset changes pixels"
+    },
+    {
+      "symbol": "RGBA_ASTC_6x6_Format",
+      "lane": "constant",
+      "status": "constant",
+      "flutterAnalog": "enum value accepted; only the R1-honored subset changes pixels"
+    },
+    {
+      "symbol": "RGBA_ASTC_8x5_Format",
+      "lane": "constant",
+      "status": "constant",
+      "flutterAnalog": "enum value accepted; only the R1-honored subset changes pixels"
+    },
+    {
+      "symbol": "RGBA_ASTC_8x6_Format",
+      "lane": "constant",
+      "status": "constant",
+      "flutterAnalog": "enum value accepted; only the R1-honored subset changes pixels"
+    },
+    {
+      "symbol": "RGBA_ASTC_8x8_Format",
+      "lane": "constant",
+      "status": "constant",
+      "flutterAnalog": "enum value accepted; only the R1-honored subset changes pixels"
+    },
+    {
+      "symbol": "RGBA_BPTC_Format",
+      "lane": "constant",
+      "status": "constant",
+      "flutterAnalog": "enum value accepted; only the R1-honored subset changes pixels"
+    },
+    {
+      "symbol": "RGBA_ETC2_EAC_Format",
+      "lane": "constant",
+      "status": "constant",
+      "flutterAnalog": "enum value accepted; only the R1-honored subset changes pixels"
+    },
+    {
+      "symbol": "RGBA_PVRTC_2BPPV1_Format",
+      "lane": "constant",
+      "status": "constant",
+      "flutterAnalog": "enum value accepted; only the R1-honored subset changes pixels"
+    },
+    {
+      "symbol": "RGBA_PVRTC_4BPPV1_Format",
+      "lane": "constant",
+      "status": "constant",
+      "flutterAnalog": "enum value accepted; only the R1-honored subset changes pixels"
+    },
+    {
+      "symbol": "RGBA_S3TC_DXT1_Format",
+      "lane": "constant",
+      "status": "constant",
+      "flutterAnalog": "enum value accepted; only the R1-honored subset changes pixels"
+    },
+    {
+      "symbol": "RGBA_S3TC_DXT3_Format",
+      "lane": "constant",
+      "status": "constant",
+      "flutterAnalog": "enum value accepted; only the R1-honored subset changes pixels"
+    },
+    {
+      "symbol": "RGBA_S3TC_DXT5_Format",
+      "lane": "constant",
+      "status": "constant",
+      "flutterAnalog": "enum value accepted; only the R1-honored subset changes pixels"
+    },
+    {
+      "symbol": "RGBDepthPacking",
+      "lane": "constant",
+      "status": "constant",
+      "flutterAnalog": "enum value accepted; only the R1-honored subset changes pixels"
+    },
+    {
+      "symbol": "RGBFormat",
+      "lane": "constant",
+      "status": "constant",
+      "flutterAnalog": "enum value accepted; only the R1-honored subset changes pixels"
+    },
+    {
+      "symbol": "RGBIntegerFormat",
+      "lane": "constant",
+      "status": "constant",
+      "flutterAnalog": "enum value accepted; only the R1-honored subset changes pixels"
+    },
+    {
+      "symbol": "RGB_BPTC_SIGNED_Format",
+      "lane": "constant",
+      "status": "constant",
+      "flutterAnalog": "enum value accepted; only the R1-honored subset changes pixels"
+    },
+    {
+      "symbol": "RGB_BPTC_UNSIGNED_Format",
+      "lane": "constant",
+      "status": "constant",
+      "flutterAnalog": "enum value accepted; only the R1-honored subset changes pixels"
+    },
+    {
+      "symbol": "RGB_ETC1_Format",
+      "lane": "constant",
+      "status": "constant",
+      "flutterAnalog": "enum value accepted; only the R1-honored subset changes pixels"
+    },
+    {
+      "symbol": "RGB_ETC2_Format",
+      "lane": "constant",
+      "status": "constant",
+      "flutterAnalog": "enum value accepted; only the R1-honored subset changes pixels"
+    },
+    {
+      "symbol": "RGB_PVRTC_2BPPV1_Format",
+      "lane": "constant",
+      "status": "constant",
+      "flutterAnalog": "enum value accepted; only the R1-honored subset changes pixels"
+    },
+    {
+      "symbol": "RGB_PVRTC_4BPPV1_Format",
+      "lane": "constant",
+      "status": "constant",
+      "flutterAnalog": "enum value accepted; only the R1-honored subset changes pixels"
+    },
+    {
+      "symbol": "RGB_S3TC_DXT1_Format",
+      "lane": "constant",
+      "status": "constant",
+      "flutterAnalog": "enum value accepted; only the R1-honored subset changes pixels"
+    },
+    {
+      "symbol": "RGDepthPacking",
+      "lane": "constant",
+      "status": "constant",
+      "flutterAnalog": "enum value accepted; only the R1-honored subset changes pixels"
+    },
+    {
+      "symbol": "RGFormat",
+      "lane": "r1",
+      "status": "ok",
+      "flutterAnalog": "R1 protocol opcode → ThreeDrawPlanner → flutter_gpu"
+    },
+    {
+      "symbol": "RGIntegerFormat",
+      "lane": "constant",
+      "status": "constant",
+      "flutterAnalog": "enum value accepted; only the R1-honored subset changes pixels"
+    },
+    {
+      "symbol": "RawShaderMaterial",
+      "lane": "web-only",
+      "status": "no",
+      "flutterAnalog": "no native analog — 1B web renderer only"
+    },
+    {
+      "symbol": "Ray",
+      "lane": "upstream-cpu",
+      "status": "upstream",
+      "flutterAnalog": "upstream JS runs in QuickJS (CPU-only; no render surface)"
+    },
+    {
+      "symbol": "Raycaster",
+      "lane": "r1",
+      "status": "ok",
+      "flutterAnalog": "cached BVH on large indexed meshes"
+    },
+    {
+      "symbol": "RectAreaLight",
+      "lane": "web-only",
+      "status": "no",
+      "flutterAnalog": "no native analog — 1B web renderer only"
+    },
+    {
+      "symbol": "RedFormat",
+      "lane": "r1",
+      "status": "ok",
+      "flutterAnalog": "R1 protocol opcode → ThreeDrawPlanner → flutter_gpu"
+    },
+    {
+      "symbol": "RedIntegerFormat",
+      "lane": "constant",
+      "status": "constant",
+      "flutterAnalog": "enum value accepted; only the R1-honored subset changes pixels"
+    },
+    {
+      "symbol": "ReinhardToneMapping",
+      "lane": "web-only",
+      "status": "no",
+      "flutterAnalog": "R1 requires NoToneMapping"
+    },
+    {
+      "symbol": "RenderObjectRefreshType",
+      "lane": "constant",
+      "status": "constant",
+      "flutterAnalog": "enum value accepted; only the R1-honored subset changes pixels"
+    },
+    {
+      "symbol": "RenderTarget",
+      "lane": "web-only",
+      "status": "no",
+      "flutterAnalog": "texture class outside the R1 texture lanes"
+    },
+    {
+      "symbol": "RenderTarget3D",
+      "lane": "web-only",
+      "status": "no",
+      "flutterAnalog": "texture class outside the R1 texture lanes"
+    },
+    {
+      "symbol": "RepeatWrapping",
+      "lane": "r1",
+      "status": "ok",
+      "flutterAnalog": "R1 protocol opcode → ThreeDrawPlanner → flutter_gpu"
+    },
+    {
+      "symbol": "ReplaceStencilOp",
+      "lane": "constant",
+      "status": "constant",
+      "flutterAnalog": "enum value accepted; only the R1-honored subset changes pixels"
+    },
+    {
+      "symbol": "ReverseSubtractEquation",
+      "lane": "constant",
+      "status": "constant",
+      "flutterAnalog": "enum value accepted; only the R1-honored subset changes pixels"
+    },
+    {
+      "symbol": "ReversedDepthFuncs",
+      "lane": "unclassified",
+      "status": "unclassified",
+      "flutterAnalog": "present as upstream JS; render/IO behavior unverified"
+    },
+    {
+      "symbol": "RingGeometry",
+      "lane": "r1",
+      "status": "ok",
+      "flutterAnalog": "R1 protocol opcode → ThreeDrawPlanner → flutter_gpu"
+    },
+    {
+      "symbol": "SIGNED_R11_EAC_Format",
+      "lane": "constant",
+      "status": "constant",
+      "flutterAnalog": "enum value accepted; only the R1-honored subset changes pixels"
+    },
+    {
+      "symbol": "SIGNED_RED_GREEN_RGTC2_Format",
+      "lane": "constant",
+      "status": "constant",
+      "flutterAnalog": "enum value accepted; only the R1-honored subset changes pixels"
+    },
+    {
+      "symbol": "SIGNED_RED_RGTC1_Format",
+      "lane": "constant",
+      "status": "constant",
+      "flutterAnalog": "enum value accepted; only the R1-honored subset changes pixels"
+    },
+    {
+      "symbol": "SIGNED_RG11_EAC_Format",
+      "lane": "constant",
+      "status": "constant",
+      "flutterAnalog": "enum value accepted; only the R1-honored subset changes pixels"
+    },
+    {
+      "symbol": "SRGBColorSpace",
+      "lane": "r1",
+      "status": "ok",
+      "flutterAnalog": "R1 protocol opcode → ThreeDrawPlanner → flutter_gpu"
+    },
+    {
+      "symbol": "SRGBTransfer",
+      "lane": "constant",
+      "status": "constant",
+      "flutterAnalog": "enum value accepted; only the R1-honored subset changes pixels"
+    },
+    {
+      "symbol": "Scene",
+      "lane": "r1",
+      "status": "ok",
+      "flutterAnalog": "R1 protocol opcode → ThreeDrawPlanner → flutter_gpu"
+    },
+    {
+      "symbol": "ShaderChunk",
+      "lane": "unclassified",
+      "status": "unclassified",
+      "flutterAnalog": "present as upstream JS; render/IO behavior unverified"
+    },
+    {
+      "symbol": "ShaderLib",
+      "lane": "unclassified",
+      "status": "unclassified",
+      "flutterAnalog": "present as upstream JS; render/IO behavior unverified"
+    },
+    {
+      "symbol": "ShaderMaterial",
+      "lane": "web-only",
+      "status": "no",
+      "flutterAnalog": "1B only: arbitrary shaders"
+    },
+    {
+      "symbol": "ShadowMaterial",
+      "lane": "r1",
+      "status": "ok",
+      "flutterAnalog": "R1 protocol opcode → ThreeDrawPlanner → flutter_gpu"
+    },
+    {
+      "symbol": "Shape",
+      "lane": "r1",
+      "status": "ok",
+      "flutterAnalog": "R1 protocol opcode → ThreeDrawPlanner → flutter_gpu"
+    },
+    {
+      "symbol": "ShapeGeometry",
+      "lane": "r1",
+      "status": "ok",
+      "flutterAnalog": "generateShapes triangulated in JS"
+    },
+    {
+      "symbol": "ShapePath",
+      "lane": "upstream-cpu",
+      "status": "upstream",
+      "flutterAnalog": "upstream JS runs in QuickJS (CPU-only; no render surface)"
+    },
+    {
+      "symbol": "ShapeUtils",
+      "lane": "upstream-cpu",
+      "status": "upstream",
+      "flutterAnalog": "upstream JS runs in QuickJS (CPU-only; no render surface)"
+    },
+    {
+      "symbol": "ShortType",
+      "lane": "constant",
+      "status": "constant",
+      "flutterAnalog": "enum value accepted; only the R1-honored subset changes pixels"
+    },
+    {
+      "symbol": "Skeleton",
+      "lane": "web-only",
+      "status": "no",
+      "flutterAnalog": "no native analog — 1B web renderer only"
+    },
+    {
+      "symbol": "SkeletonHelper",
+      "lane": "r1",
+      "status": "ok",
+      "flutterAnalog": "rendered as line draws (helpers module)"
+    },
+    {
+      "symbol": "SkinnedMesh",
+      "lane": "web-only",
+      "status": "no",
+      "flutterAnalog": "skinning unsupported in R1"
+    },
+    {
+      "symbol": "Source",
+      "lane": "r1",
+      "status": "ok",
+      "flutterAnalog": "upstream JS utility runs in QuickJS"
+    },
+    {
+      "symbol": "Sphere",
+      "lane": "r1",
+      "status": "ok",
+      "flutterAnalog": "R1 protocol opcode → ThreeDrawPlanner → flutter_gpu"
+    },
+    {
+      "symbol": "SphereGeometry",
+      "lane": "r1",
+      "status": "ok",
+      "flutterAnalog": "R1 protocol opcode → ThreeDrawPlanner → flutter_gpu"
+    },
+    {
+      "symbol": "Spherical",
+      "lane": "upstream-cpu",
+      "status": "upstream",
+      "flutterAnalog": "upstream JS runs in QuickJS (CPU-only; no render surface)"
+    },
+    {
+      "symbol": "SphericalHarmonics3",
+      "lane": "r1",
+      "status": "ok",
+      "flutterAnalog": "CPU light-probe data (upstream JS)"
+    },
+    {
+      "symbol": "SplineCurve",
+      "lane": "r1",
+      "status": "ok",
+      "flutterAnalog": "R1 protocol opcode → ThreeDrawPlanner → flutter_gpu"
+    },
+    {
+      "symbol": "SpotLight",
+      "lane": "r1",
+      "status": "ok",
+      "flutterAnalog": "capped at 4 visible, PCF shadow"
+    },
+    {
+      "symbol": "SpotLightHelper",
+      "lane": "r1",
+      "status": "ok",
+      "flutterAnalog": "R1 protocol opcode → ThreeDrawPlanner → flutter_gpu"
+    },
+    {
+      "symbol": "Sprite",
+      "lane": "web-only",
+      "status": "no",
+      "flutterAnalog": "R1 rejects isSprite objects (objectType)"
+    },
+    {
+      "symbol": "SpriteMaterial",
+      "lane": "web-only",
+      "status": "no",
+      "flutterAnalog": "requires Sprite support in the R1 draw plan"
+    },
+    {
+      "symbol": "SrcAlphaFactor",
+      "lane": "constant",
+      "status": "constant",
+      "flutterAnalog": "enum value accepted; only the R1-honored subset changes pixels"
+    },
+    {
+      "symbol": "SrcAlphaSaturateFactor",
+      "lane": "constant",
+      "status": "constant",
+      "flutterAnalog": "enum value accepted; only the R1-honored subset changes pixels"
+    },
+    {
+      "symbol": "SrcColorFactor",
+      "lane": "constant",
+      "status": "constant",
+      "flutterAnalog": "enum value accepted; only the R1-honored subset changes pixels"
+    },
+    {
+      "symbol": "StaticCopyUsage",
+      "lane": "constant",
+      "status": "constant",
+      "flutterAnalog": "enum value accepted; only the R1-honored subset changes pixels"
+    },
+    {
+      "symbol": "StaticDrawUsage",
+      "lane": "constant",
+      "status": "constant",
+      "flutterAnalog": "enum value accepted; only the R1-honored subset changes pixels"
+    },
+    {
+      "symbol": "StaticReadUsage",
+      "lane": "constant",
+      "status": "constant",
+      "flutterAnalog": "enum value accepted; only the R1-honored subset changes pixels"
+    },
+    {
+      "symbol": "StereoCamera",
+      "lane": "web-only",
+      "status": "no",
+      "flutterAnalog": "stereo rendering outside R1"
+    },
+    {
+      "symbol": "StreamCopyUsage",
+      "lane": "constant",
+      "status": "constant",
+      "flutterAnalog": "enum value accepted; only the R1-honored subset changes pixels"
+    },
+    {
+      "symbol": "StreamDrawUsage",
+      "lane": "constant",
+      "status": "constant",
+      "flutterAnalog": "enum value accepted; only the R1-honored subset changes pixels"
+    },
+    {
+      "symbol": "StreamReadUsage",
+      "lane": "constant",
+      "status": "constant",
+      "flutterAnalog": "enum value accepted; only the R1-honored subset changes pixels"
+    },
+    {
+      "symbol": "StringKeyframeTrack",
+      "lane": "web-only",
+      "status": "no",
+      "flutterAnalog": "no native analog — 1B web renderer only"
+    },
+    {
+      "symbol": "SubtractEquation",
+      "lane": "constant",
+      "status": "constant",
+      "flutterAnalog": "enum value accepted; only the R1-honored subset changes pixels"
+    },
+    {
+      "symbol": "SubtractiveBlending",
+      "lane": "constant",
+      "status": "constant",
+      "flutterAnalog": "enum value accepted; only the R1-honored subset changes pixels"
+    },
+    {
+      "symbol": "TOUCH",
+      "lane": "constant",
+      "status": "constant",
+      "flutterAnalog": "enum value accepted; only the R1-honored subset changes pixels"
+    },
+    {
+      "symbol": "TangentSpaceNormalMap",
+      "lane": "constant",
+      "status": "constant",
+      "flutterAnalog": "enum value accepted; only the R1-honored subset changes pixels"
+    },
+    {
+      "symbol": "TetrahedronGeometry",
+      "lane": "r1",
+      "status": "ok",
+      "flutterAnalog": "R1 protocol opcode → ThreeDrawPlanner → flutter_gpu"
+    },
+    {
+      "symbol": "Texture",
+      "lane": "r1",
+      "status": "ok",
+      "flutterAnalog": "R1 protocol opcode → ThreeDrawPlanner → flutter_gpu"
+    },
+    {
+      "symbol": "TextureLoader",
+      "lane": "r1",
+      "status": "ok",
+      "flutterAnalog": "R1 protocol opcode → ThreeDrawPlanner → flutter_gpu"
+    },
+    {
+      "symbol": "TextureSource",
+      "lane": "web-only",
+      "status": "no",
+      "flutterAnalog": "texture class outside the R1 texture lanes"
+    },
+    {
+      "symbol": "TextureUtils",
+      "lane": "unclassified",
+      "status": "unclassified",
+      "flutterAnalog": "present as upstream JS; render/IO behavior unverified"
+    },
+    {
+      "symbol": "Timer",
+      "lane": "r1",
+      "status": "ok",
+      "flutterAnalog": "R1 protocol opcode → ThreeDrawPlanner → flutter_gpu"
+    },
+    {
+      "symbol": "TimestampQuery",
+      "lane": "web-only",
+      "status": "no",
+      "flutterAnalog": "GPU timing query"
+    },
+    {
+      "symbol": "TorusGeometry",
+      "lane": "r1",
+      "status": "ok",
+      "flutterAnalog": "R1 protocol opcode → ThreeDrawPlanner → flutter_gpu"
+    },
+    {
+      "symbol": "TorusKnotGeometry",
+      "lane": "r1",
+      "status": "ok",
+      "flutterAnalog": "R1 protocol opcode → ThreeDrawPlanner → flutter_gpu"
+    },
+    {
+      "symbol": "Triangle",
+      "lane": "upstream-cpu",
+      "status": "upstream",
+      "flutterAnalog": "upstream JS runs in QuickJS (CPU-only; no render surface)"
+    },
+    {
+      "symbol": "TriangleFanDrawMode",
+      "lane": "constant",
+      "status": "constant",
+      "flutterAnalog": "enum value accepted; only the R1-honored subset changes pixels"
+    },
+    {
+      "symbol": "TriangleStripDrawMode",
+      "lane": "constant",
+      "status": "constant",
+      "flutterAnalog": "enum value accepted; only the R1-honored subset changes pixels"
+    },
+    {
+      "symbol": "TrianglesDrawMode",
+      "lane": "constant",
+      "status": "constant",
+      "flutterAnalog": "enum value accepted; only the R1-honored subset changes pixels"
+    },
+    {
+      "symbol": "TubeGeometry",
+      "lane": "r1",
+      "status": "ok",
+      "flutterAnalog": "R1 protocol opcode → ThreeDrawPlanner → flutter_gpu"
+    },
+    {
+      "symbol": "UVMapping",
+      "lane": "constant",
+      "status": "constant",
+      "flutterAnalog": "enum value accepted; only the R1-honored subset changes pixels"
+    },
+    {
+      "symbol": "Uint16BufferAttribute",
+      "lane": "r1",
+      "status": "ok",
+      "flutterAnalog": "CPU buffer → R1 geometry upload (opcode 2)"
+    },
+    {
+      "symbol": "Uint32BufferAttribute",
+      "lane": "r1",
+      "status": "ok",
+      "flutterAnalog": "CPU buffer → R1 geometry upload (opcode 2)"
+    },
+    {
+      "symbol": "Uint8BufferAttribute",
+      "lane": "r1",
+      "status": "ok",
+      "flutterAnalog": "CPU buffer → R1 geometry upload (opcode 2)"
+    },
+    {
+      "symbol": "Uint8ClampedBufferAttribute",
+      "lane": "r1",
+      "status": "ok",
+      "flutterAnalog": "CPU buffer → R1 geometry upload (opcode 2)"
+    },
+    {
+      "symbol": "Uniform",
+      "lane": "unclassified",
+      "status": "unclassified",
+      "flutterAnalog": "present as upstream JS; render/IO behavior unverified"
+    },
+    {
+      "symbol": "UniformsGroup",
+      "lane": "unclassified",
+      "status": "unclassified",
+      "flutterAnalog": "present as upstream JS; render/IO behavior unverified"
+    },
+    {
+      "symbol": "UniformsLib",
+      "lane": "unclassified",
+      "status": "unclassified",
+      "flutterAnalog": "present as upstream JS; render/IO behavior unverified"
+    },
+    {
+      "symbol": "UniformsUtils",
+      "lane": "unclassified",
+      "status": "unclassified",
+      "flutterAnalog": "present as upstream JS; render/IO behavior unverified"
+    },
+    {
+      "symbol": "UnsignedByteType",
+      "lane": "r1",
+      "status": "ok",
+      "flutterAnalog": "R1 protocol opcode → ThreeDrawPlanner → flutter_gpu"
+    },
+    {
+      "symbol": "UnsignedInt101111Type",
+      "lane": "constant",
+      "status": "constant",
+      "flutterAnalog": "enum value accepted; only the R1-honored subset changes pixels"
+    },
+    {
+      "symbol": "UnsignedInt248Type",
+      "lane": "constant",
+      "status": "constant",
+      "flutterAnalog": "enum value accepted; only the R1-honored subset changes pixels"
+    },
+    {
+      "symbol": "UnsignedInt5999Type",
+      "lane": "constant",
+      "status": "constant",
+      "flutterAnalog": "enum value accepted; only the R1-honored subset changes pixels"
+    },
+    {
+      "symbol": "UnsignedIntType",
+      "lane": "constant",
+      "status": "constant",
+      "flutterAnalog": "enum value accepted; only the R1-honored subset changes pixels"
+    },
+    {
+      "symbol": "UnsignedShort4444Type",
+      "lane": "constant",
+      "status": "constant",
+      "flutterAnalog": "enum value accepted; only the R1-honored subset changes pixels"
+    },
+    {
+      "symbol": "UnsignedShort5551Type",
+      "lane": "constant",
+      "status": "constant",
+      "flutterAnalog": "enum value accepted; only the R1-honored subset changes pixels"
+    },
+    {
+      "symbol": "UnsignedShortType",
+      "lane": "constant",
+      "status": "constant",
+      "flutterAnalog": "enum value accepted; only the R1-honored subset changes pixels"
+    },
+    {
+      "symbol": "VSMShadowMap",
+      "lane": "constant",
+      "status": "constant",
+      "flutterAnalog": "enum value accepted; only the R1-honored subset changes pixels"
+    },
+    {
+      "symbol": "Vector2",
+      "lane": "r1",
+      "status": "ok",
+      "flutterAnalog": "R1 protocol opcode → ThreeDrawPlanner → flutter_gpu"
+    },
+    {
+      "symbol": "Vector3",
+      "lane": "upstream-cpu",
+      "status": "upstream",
+      "flutterAnalog": "upstream JS runs in QuickJS (CPU-only; no render surface)"
+    },
+    {
+      "symbol": "Vector4",
+      "lane": "r1",
+      "status": "ok",
+      "flutterAnalog": "R1 protocol opcode → ThreeDrawPlanner → flutter_gpu"
+    },
+    {
+      "symbol": "VectorKeyframeTrack",
+      "lane": "web-only",
+      "status": "no",
+      "flutterAnalog": "no native analog — 1B web renderer only"
+    },
+    {
+      "symbol": "VideoFrameTexture",
+      "lane": "unclassified",
+      "status": "unclassified",
+      "flutterAnalog": "present as upstream JS; render/IO behavior unverified"
+    },
+    {
+      "symbol": "VideoTexture",
+      "lane": "web-only",
+      "status": "no",
+      "flutterAnalog": "no native analog — 1B web renderer only"
+    },
+    {
+      "symbol": "WebGL3DRenderTarget",
+      "lane": "unclassified",
+      "status": "unclassified",
+      "flutterAnalog": "present as upstream JS; render/IO behavior unverified"
+    },
+    {
+      "symbol": "WebGLArrayRenderTarget",
+      "lane": "unclassified",
+      "status": "unclassified",
+      "flutterAnalog": "present as upstream JS; render/IO behavior unverified"
+    },
+    {
+      "symbol": "WebGLCoordinateSystem",
+      "lane": "constant",
+      "status": "constant",
+      "flutterAnalog": "enum value accepted; only the R1-honored subset changes pixels"
+    },
+    {
+      "symbol": "WebGLCubeRenderTarget",
+      "lane": "web-only",
+      "status": "no",
+      "flutterAnalog": "no native analog — 1B web renderer only"
+    },
+    {
+      "symbol": "WebGLRenderTarget",
+      "lane": "web-only",
+      "status": "no",
+      "flutterAnalog": "render targets 1B only"
+    },
+    {
+      "symbol": "WebGLRenderer",
+      "lane": "r1",
+      "status": "ok",
+      "flutterAnalog": "R1 alias"
+    },
+    {
+      "symbol": "WebGLUtils",
+      "lane": "unclassified",
+      "status": "unclassified",
+      "flutterAnalog": "present as upstream JS; render/IO behavior unverified"
+    },
+    {
+      "symbol": "WebGPUCoordinateSystem",
+      "lane": "constant",
+      "status": "constant",
+      "flutterAnalog": "enum value accepted; only the R1-honored subset changes pixels"
+    },
+    {
+      "symbol": "WebXRController",
+      "lane": "unclassified",
+      "status": "unclassified",
+      "flutterAnalog": "present as upstream JS; render/IO behavior unverified"
+    },
+    {
+      "symbol": "WireframeGeometry",
+      "lane": "r1",
+      "status": "ok",
+      "flutterAnalog": "R1 protocol opcode → ThreeDrawPlanner → flutter_gpu"
+    },
+    {
+      "symbol": "WrapAroundEnding",
+      "lane": "constant",
+      "status": "constant",
+      "flutterAnalog": "enum value accepted; only the R1-honored subset changes pixels"
+    },
+    {
+      "symbol": "ZeroCurvatureEnding",
+      "lane": "constant",
+      "status": "constant",
+      "flutterAnalog": "enum value accepted; only the R1-honored subset changes pixels"
+    },
+    {
+      "symbol": "ZeroFactor",
+      "lane": "constant",
+      "status": "constant",
+      "flutterAnalog": "enum value accepted; only the R1-honored subset changes pixels"
+    },
+    {
+      "symbol": "ZeroSlopeEnding",
+      "lane": "constant",
+      "status": "constant",
+      "flutterAnalog": "enum value accepted; only the R1-honored subset changes pixels"
+    },
+    {
+      "symbol": "ZeroStencilOp",
+      "lane": "constant",
+      "status": "constant",
+      "flutterAnalog": "enum value accepted; only the R1-honored subset changes pixels"
+    },
+    {
+      "symbol": "cloneUniforms",
+      "lane": "r1",
+      "status": "ok",
+      "flutterAnalog": "upstream JS utility runs in QuickJS"
+    },
+    {
+      "symbol": "createCanvasElement",
+      "lane": "r1",
+      "status": "ok",
+      "flutterAnalog": "upstream JS utility runs in QuickJS"
+    },
+    {
+      "symbol": "createElementNS",
+      "lane": "r1",
+      "status": "ok",
+      "flutterAnalog": "upstream JS utility runs in QuickJS"
+    },
+    {
+      "symbol": "error",
+      "lane": "r1",
+      "status": "ok",
+      "flutterAnalog": "upstream JS utility runs in QuickJS"
+    },
+    {
+      "symbol": "getByteLength",
+      "lane": "r1",
+      "status": "ok",
+      "flutterAnalog": "upstream JS utility runs in QuickJS"
+    },
+    {
+      "symbol": "getConsoleFunction",
+      "lane": "r1",
+      "status": "ok",
+      "flutterAnalog": "upstream JS utility runs in QuickJS"
+    },
+    {
+      "symbol": "getUnlitUniformColorSpace",
+      "lane": "constant",
+      "status": "constant",
+      "flutterAnalog": "enum value accepted; only the R1-honored subset changes pixels"
+    },
+    {
+      "symbol": "isTypedArray",
+      "lane": "r1",
+      "status": "ok",
+      "flutterAnalog": "upstream JS utility runs in QuickJS"
+    },
+    {
+      "symbol": "log",
+      "lane": "r1",
+      "status": "ok",
+      "flutterAnalog": "upstream JS utility runs in QuickJS"
+    },
+    {
+      "symbol": "mergeUniforms",
+      "lane": "r1",
+      "status": "ok",
+      "flutterAnalog": "upstream JS utility runs in QuickJS"
+    },
+    {
+      "symbol": "probeAsync",
+      "lane": "r1",
+      "status": "ok",
+      "flutterAnalog": "upstream JS utility runs in QuickJS"
+    },
+    {
+      "symbol": "setConsoleFunction",
+      "lane": "r1",
+      "status": "ok",
+      "flutterAnalog": "upstream JS utility runs in QuickJS"
+    },
+    {
+      "symbol": "warn",
+      "lane": "r1",
+      "status": "ok",
+      "flutterAnalog": "upstream JS utility runs in QuickJS"
+    },
+    {
+      "symbol": "warnOnce",
+      "lane": "r1",
+      "status": "ok",
+      "flutterAnalog": "upstream JS utility runs in QuickJS"
+    },
+    {
+      "symbol": "yieldToMain",
+      "lane": "r1",
+      "status": "ok",
+      "flutterAnalog": "upstream JS utility runs in QuickJS"
+    }
+  ]
+}
