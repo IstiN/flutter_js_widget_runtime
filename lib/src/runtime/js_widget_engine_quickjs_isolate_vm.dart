@@ -174,6 +174,15 @@ class QuickjsIsolateWidgetEngineBackend
   Future<void> dispose() async {
     _disposed = true;
     ++_generation;
+    // Sequence matters: the worker must be FULLY stopped (graceful ack, or
+    // kill as the stuck-eval backstop) before any bridge FFI callable is
+    // closed. Tearing the bridge down while the worker still runs leaves
+    // its qjs_dispatch trampolines pointing at closed NativeCallables —
+    // the exact family of corruption behind the documented SIGBUS
+    // bytes-lane incident (marker.cc crash), here surfacing as a SIGSEGV
+    // in the MAIN isolate's concurrent marker during rapid module
+    // switching. Only a dead worker makes closing the bridge safe.
+    await _shutdownWorker();
     _bridge.dispose();
     for (final pending in _pending.values) {
       if (!pending.isCompleted) pending.complete();
@@ -184,28 +193,7 @@ class QuickjsIsolateWidgetEngineBackend
       ready.completeError(StateError('QuickJS worker disposed during startup'));
     }
 
-    final isolate = _isolate;
-    final commands = _commands;
-    if (isolate != null && commands != null) {
-      final shutdown = Completer<void>();
-      _shutdown = shutdown;
-      commands.send(const {'type': 'shutdown'});
-      // The worker processes commands sequentially, so the shutdown ack can
-      // only arrive once the CURRENT command finished — typically the
-      // synchronous JS_Eval of a freshly booted widget bundle, which can
-      // legitimately take a second or two. Killing the isolate any earlier
-      // rips it apart with qjs_dispatch/DLRT_GetFfiCallbackMetadata on the
-      // C stack, corrupting the shared FFI callback registry; the NEXT
-      // engine then trips dart::FfiCallbackThreadChecks and SIGABRTs the
-      // whole app (rapid sidebar clicking crash). Keep the graceful window
-      // long enough for real evals and reserve kill(immediate) for a
-      // genuinely stuck worker (infinite JS loop).
-      await shutdown.future.timeout(
-        const Duration(seconds: 2),
-        onTimeout: () {},
-      );
-    }
-    isolate?.kill(priority: Isolate.immediate);
+    await _shutdownWorker();
     await _messageSubscription?.cancel();
     await _exitSubscription?.cancel();
     _messagePort?.close();
@@ -218,6 +206,30 @@ class QuickjsIsolateWidgetEngineBackend
     _exitSubscription = null;
     _commandReady = null;
     _shutdown = null;
+  }
+
+  /// Stops the worker isolate: graceful shutdown handshake first (the ack
+  /// can only arrive once the worker's CURRENT command finished — typically
+  /// the synchronous JS_Eval of a freshly booted widget bundle, which can
+  /// legitimately take a second or two), then kill(immediate) purely as the
+  /// stuck-eval backstop (infinite JS loop). Killing earlier rips the
+  /// isolate apart with qjs_dispatch/DLRT_GetFfiCallbackMetadata on the C
+  /// stack, corrupting the shared FFI callback registry; the NEXT engine
+  /// then trips dart::FfiCallbackThreadChecks and SIGABRTs the whole app
+  /// (rapid sidebar clicking crash).
+  Future<void> _shutdownWorker() async {
+    final isolate = _isolate;
+    final commands = _commands;
+    if (isolate != null && commands != null) {
+      final shutdown = Completer<void>();
+      _shutdown = shutdown;
+      commands.send(const {'type': 'shutdown'});
+      await shutdown.future.timeout(
+        const Duration(seconds: 2),
+        onTimeout: () {},
+      );
+    }
+    isolate?.kill(priority: Isolate.immediate);
   }
 
   Future<SendPort> _startWorker() async {
