@@ -228,11 +228,20 @@ class QuickjsIsolateWidgetEngineBackend
       final shutdown = Completer<void>();
       _shutdown = shutdown;
       commands.send(const {'type': 'shutdown'});
-      await shutdown.future.timeout(
-        const Duration(seconds: 10),
-        onTimeout: () {},
-      );
+      final acked = shutdown.future
+          .then((_) => true)
+          .timeout(const Duration(seconds: 10), onTimeout: () => false);
+      final ack = await acked;
+      if (ack == true) {
+        // The worker dequeued 'shutdown': it will run NO further evals, so
+        // the bridge can be disposed immediately. Its JS_FreeRuntime may
+        // still be unwinding on the worker thread — do NOT kill the
+        // isolate now (same mid-native-call hazard as killing mid-eval);
+        // it exits by itself once close() finishes.
+        return;
+      }
     }
+    // Stuck worker (infinite JS loop): last-resort teardown.
     isolate?.kill(priority: Isolate.immediate);
   }
 
@@ -408,8 +417,13 @@ Future<void> _quickJsWorkerMain(SendPort mainPort) async {
   await for (final raw in commands) {
     if (raw is! Map) continue;
     if (raw['type'] == 'shutdown') {
-      worker.close();
+      // Ack BEFORE closing: JS_FreeRuntime of a large widget heap (MBs of
+      // three bundle + scene) can take seconds, and the main isolate only
+      // needs to know the worker will run NO further evals — which is
+      // guaranteed the moment the shutdown command is dequeued. Closing
+      // still happens here (clean exit), just off the ack's critical path.
       mainPort.send(const {'type': 'shutdown'});
+      worker.close();
       return;
     }
     try {
