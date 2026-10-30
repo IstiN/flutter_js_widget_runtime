@@ -282,6 +282,36 @@ enum ThreeExampleSelection {
     label: 'Toon Material (gradient map)',
     widgetId: 'three-materials-toon',
     assetPath: 'widgets/three-materials-toon/widget.js',
+  ),
+  geometryTeapot(
+    exampleId: 'webgl_geometry_teapot',
+    label: 'Teapot (Lee Perry)',
+    widgetId: 'three-geometry-teapot',
+    assetPath: 'widgets/three-geometry-teapot/widget.js',
+  ),
+  lightsSpotlight(
+    exampleId: 'webgl_lights_spotlight',
+    label: 'Spotlight',
+    widgetId: 'three-lights-spotlight',
+    assetPath: 'widgets/three-lights-spotlight/widget.js',
+  ),
+  materialsPartialupdate(
+    exampleId: 'webgl_materials_texture_partialupdate',
+    label: 'Texture Partial Update',
+    widgetId: 'three-materials-partialupdate',
+    assetPath: 'widgets/three-materials-partialupdate/widget.js',
+  ),
+  materialsTextureAnisotropy(
+    exampleId: 'webgl_materials_texture_anisotropy',
+    label: 'Texture Anisotropy',
+    widgetId: 'three-materials-texture-anisotropy',
+    assetPath: 'widgets/three-materials-texture-anisotropy/widget.js',
+  ),
+  materialsTextureFilters(
+    exampleId: 'webgl_materials_texture_filters',
+    label: 'Texture Filters',
+    widgetId: 'three-materials-texture-filters',
+    assetPath: 'widgets/three-materials-texture-filters/widget.js',
   );
 
   const ThreeExampleSelection({

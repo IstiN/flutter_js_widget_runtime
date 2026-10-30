@@ -186,7 +186,43 @@ function localElement(tagName) {
 
 function localImage() {
   if (typeof ROOT.OffscreenCanvas !== 'function') {
-    throw new Error(`${WIDGET_ID}: local web textures require OffscreenCanvas`);
+    // Native JSR lane: no DOM Image exists, but the R1 texture path only
+    // needs an image-like object carrying typed bytes + dimensions +
+    // encoding (the same shape JsrTextureLoader installs on Texture.image).
+    // Serve registered/host assets through runtime.loadAsset so modules
+    // using ImageLoader / document.createElement('img') keep working.
+    const image = eventTarget({ complete: false, width: 0, height: 0, data: null });
+    let source = '';
+    Object.defineProperty(image, 'src', {
+      configurable: true,
+      get() { return source; },
+      set(value) {
+        source = String(value);
+        JSR.three.loadAsset(source).then(record => {
+          const bytes = record.bytes;
+          if (!bytes) throw new Error(`${WIDGET_ID}: asset ${source} has no bytes`);
+          image.data = bytes;
+          image.width = record.width || 0;
+          image.height = record.height || 0;
+          image.mime = record.mime || '';
+          if (bytes.length >= 8 && bytes[0] === 137 && bytes[1] === 80 && bytes[2] === 78 && bytes[3] === 71) {
+            image.encoding = 1; image.encoded = true;
+          } else if (bytes.length >= 2 && bytes[0] === 0xff && bytes[1] === 0xd8) {
+            image.encoding = 2; image.encoded = true;
+          } else if (/rgba|raw/.test(String(record.mime || '').toLowerCase())) {
+            image.encoding = 0; image.encoded = false;
+          } else {
+            throw new Error(`${WIDGET_ID}: unsupported image encoding for ${source}`);
+          }
+          image.complete = true;
+          image.dispatchEvent({ type: 'load' });
+        }).catch(error => {
+          image.complete = false;
+          image.dispatchEvent({ type: 'error', error });
+        });
+      }
+    });
+    return image;
   }
   // An OffscreenCanvas is a valid WebGL texture source. Registered bytes are
   // decoded locally and drawn into it; no Image/HTML network loader is used.
@@ -281,13 +317,22 @@ info.id = 'info';
 // Inline shader sources the official HTML carried in id'd script blocks
 // (`<script id="vertexShader" type="x-shader/x-vertex">…</script>`).
 const INLINE_SCRIPTS = JSON.parse(__JSR_THREE_EXAMPLE_SCRIPTS_JSON__);
+const localElementsById = new Map();
 runtimeDocument.getElementById = function(id) {
   if (id === 'container') return container;
   if (id === 'info') return info;
   if (Object.prototype.hasOwnProperty.call(INLINE_SCRIPTS, id)) {
     return { id: id, textContent: INLINE_SCRIPTS[id] };
   }
-  return null;
+  // Official HTML carries extra diagnostic nodes (labels/borders). Serve a
+  // bounded memoized local element so innerHTML/textContent/style writes
+  // behave like the browser instead of crashing on null.
+  if (!localElementsById.has(id)) {
+    const element = localElement(id);
+    element.innerHTML = '';
+    localElementsById.set(id, element);
+  }
+  return localElementsById.get(id);
 };
 
 // The host normalizes mouse and touch movement to document pointer events.

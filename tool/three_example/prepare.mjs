@@ -1110,6 +1110,7 @@ webgl_geometry_shapes: {
           {
                 "url": "textures/crate.gif",
                 "mime": "image/gif",
+                "convertToPng": true,
                 "output": "crate.gif",
                 "sha256": "a890f0a89eadc083cb39bfbe597c1395d7acf47a19f673b5643d4a9c174ea52f"
           }
@@ -1129,6 +1130,7 @@ webgl_geometry_shapes: {
           {
                 "url": "textures/crate.gif",
                 "mime": "image/gif",
+                "convertToPng": true,
                 "output": "crate.gif",
                 "sha256": "a890f0a89eadc083cb39bfbe597c1395d7acf47a19f673b5643d4a9c174ea52f"
           }
@@ -1499,9 +1501,22 @@ function jpegDimensions(bytes, url) {
 
 async function prepareAssets(source, definitions) {
   const assets = [];
-  for (const definition of definitions) {
-    const bytes = await readFile(path.join(source, 'examples', definition.url));
+  for (const pinned of definitions) {
+    let definition = pinned;
+    let bytes = await readFile(path.join(source, 'examples', definition.url));
     if (sha(bytes) !== definition.sha256) throw new Error(`${definition.url} differs from the pinned r186 bytes`);
+    if (definition.convertToPng) {
+      if (definition.mime !== 'image/gif') throw new Error(`${definition.url}: convertToPng expects a GIF asset`);
+      // R1 decodes PNG/JPEG only: transcode the pinned GIF at prepare time
+      // (macOS sips) so the registered bytes are PNG under the original URL.
+      const stamp = `${process.pid}-${assets.length}`;
+      const tmpGif = path.join(process.env.TMPDIR || '/tmp', `jsr-gif-${stamp}.gif`);
+      const tmpPng = path.join(process.env.TMPDIR || '/tmp', `jsr-gif-${stamp}.png`);
+      await writeFile(tmpGif, bytes);
+      execFileSync('sips', ['-s', 'format', 'png', tmpGif, '--out', tmpPng], { stdio: 'pipe' });
+      bytes = await readFile(tmpPng);
+      definition = { ...definition, mime: 'image/png' };
+    }
     let dimensions;
     if (definition.mime === 'image/png') dimensions = pngDimensions(bytes, definition.url);
     else if (definition.mime === 'image/jpeg') dimensions = jpegDimensions(bytes, definition.url);

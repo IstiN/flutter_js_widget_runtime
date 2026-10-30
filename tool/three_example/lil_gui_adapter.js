@@ -89,7 +89,7 @@ function controllerRow(controller) {
       type: 'dropdown',
       label: controller._name,
       value: String(controller.getValue()),
-      items: controller.allowed.map(v => String(v)),
+      items: controller.labels || controller.allowed.map(v => String(v)),
       onChanged: controller._disabled ? null : controller.action
     };
   }
@@ -193,7 +193,11 @@ function installEvents(JSR) {
           // The host dropdown delivers a stringified value; restore the
           // typed member before validating membership in setValue.
           const raw = payload ? payload.value : undefined;
-          const typed = controller.allowed.find(v => String(v) === String(raw));
+          let typed = controller.allowed.find(v => String(v) === String(raw));
+          if (typed === undefined && controller.labels) {
+            const labelIndex = controller.labels.indexOf(String(raw));
+            if (labelIndex >= 0) typed = controller.allowed[labelIndex];
+          }
           if (typed === undefined) {
             throw new Error('three.invalid: lil-gui options events require a listed value');
           }
@@ -359,17 +363,25 @@ export class StringController extends Controller {
 const MAX_OPTIONS = 32;
 
 export class OptionsController extends Controller {
-  constructor(container, object, property, allowed) {
+  constructor(container, object, property, allowed, labels = null) {
     if (!Array.isArray(allowed) || allowed.length === 0 || allowed.length > MAX_OPTIONS) {
       unsupported('add(options list empty or over quota)');
     }
-    for (const v of allowed) {
-      if (typeof v !== 'string' && (typeof v !== 'number' || !Number.isFinite(v))) {
-        unsupported(`add(options ${typeof v})`);
+    // Array lists stay scalar-bounded for typed event restore; upstream
+    // object maps may hold arbitrary values (null, textures, vectors) since
+    // the dropdown round-trips LABELS and compares values by reference.
+    if (!labels) {
+      for (const v of allowed) {
+        if (typeof v !== 'string' && (typeof v !== 'number' || !Number.isFinite(v))) {
+          unsupported(`add(options ${typeof v})`);
+        }
       }
     }
     super(container, object, property, 'options');
     this.allowed = allowed.slice();
+    // Upstream object-map form add(o, 'mode', {Label: value}): the dropdown
+    // shows labels while the property keeps the typed values.
+    this.labels = labels ? labels.slice() : null;
   }
   setValue(value) {
     const ok = this.allowed.some(v => v === value ||
@@ -515,6 +527,9 @@ class NativeFolder {
       controller = new BooleanController(this, object, property);
     } else if (options.length === 1 && Array.isArray(options[0])) {
       controller = new OptionsController(this, object, property, options[0]);
+    } else if (options.length === 1 && options[0] && typeof options[0] === 'object') {
+      const map = options[0];
+      controller = new OptionsController(this, object, property, Object.values(map), Object.keys(map));
     } else if (options.length === 2 || options.length === 3) {
       controller = new NumberController(this, object, property, options[0], options[1], options[2]);
     } else {
@@ -620,6 +635,9 @@ class NativeGUI {
       controller = new BooleanController(this, object, property);
     } else if (options.length === 1 && Array.isArray(options[0])) {
       controller = new OptionsController(this, object, property, options[0]);
+    } else if (options.length === 1 && options[0] && typeof options[0] === 'object') {
+      const map = options[0];
+      controller = new OptionsController(this, object, property, Object.values(map), Object.keys(map));
     } else if (options.length === 2 || options.length === 3) {
       controller = new NumberController(
         this, object, property, options[0], options[1], options[2]);

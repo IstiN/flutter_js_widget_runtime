@@ -66,7 +66,7 @@ const _examples = <(String, String, bool)>[
   // Stock boot of geometry-cube is the untextured white box (the gif
   // texture lane needs the fetch→resolveAsset shim lane covered by its
   // dedicated test), so no texture gate here.
-  ('three-geometry-cube', 'webgl_geometry_cube', false),
+  ('three-geometry-cube', 'webgl_geometry_cube', true),
   // Wave-3 instancing batch: per-instance colors on the blossoms (the
   // dedicated test also pins the decoded palette payload and the live
   // count slider).
@@ -78,6 +78,10 @@ const _examples = <(String, String, bool)>[
   // headless fixture, so the suite's non-empty-draw-plan gate would fail
   // even though the app runtime renders them fine.
   ('three-sprites', 'webgl_sprites', false),
+  ('three-lights-spotlight', 'webgl_lights_spotlight', false),
+  ('three-geometry-teapot', 'webgl_geometry_teapot', false),
+  ('three-materials-texture-anisotropy', 'webgl_materials_texture_anisotropy', true),
+  ('three-materials-partialupdate', 'webgl_materials_texture_partialupdate', true),
   ('three-raycaster-sprite', 'webgl_raycaster_sprite', false),
 ];
 

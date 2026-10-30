@@ -55,6 +55,23 @@ class SoftwarePixels {
     this.data = new Uint8ClampedArray(width * height * 4);
   }
 
+  clearRect(x, y, width, height) {
+    checkedRect(x, y, width, height);
+    const left = Math.max(0, Math.floor(Math.min(x, x + width)));
+    const right = Math.min(this.width, Math.ceil(Math.max(x, x + width)));
+    const top = Math.max(0, Math.floor(Math.min(y, y + height)));
+    const bottom = Math.min(this.height, Math.ceil(Math.max(y, y + height)));
+    for (let py = top; py < bottom; py++) {
+      for (let px = left; px < right; px++) {
+        const offset = (py * this.width + px) * 4;
+        this.data[offset] = 0;
+        this.data[offset + 1] = 0;
+        this.data[offset + 2] = 0;
+        this.data[offset + 3] = 0;
+      }
+    }
+  }
+
   fillRect(x, y, width, height, style) {
     checkedRect(x, y, width, height);
     const color = rgba(style);
@@ -226,6 +243,11 @@ export function createExampleCanvas2D(JSR, surfaceId, options) {
       if (!rgba(context.fillStyle)) throw new Error('three.unsupported: unsupported example canvas CSS color');
       context.fillRect(x, y, width, height);
       commands.push({ x, y, width, height, style: context.fillStyle });
+    },
+    clearRect(x, y, width, height) {
+      checkedRect(x, y, width, height);
+      ensureLocal().clearRect(x * scaleX, y * scaleY, width * scaleX, height * scaleY);
+      touch();
     },
     getImageData(x, y, width, height) { return ensureLocal().getImageData(x, y, width, height); },
     putImageData(image, x, y) { ensureLocal().putImageData(image, x, y); touch(); },
