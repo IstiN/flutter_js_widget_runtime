@@ -54,7 +54,14 @@ for (const m of apiMatrixSrc.matchAll(
   /\n\s*([A-Za-z_$][\w$]*):\s*\{\s*status:\s*'(ok|bounded|no)'([^}]*)\}/g
 )) {
   const note = m[3].match(/note:\s*'([^']*)'/);
-  apiMap[m[1]] = { status: m[2], note: note ? note[1] : '' };
+  apiMap[m[1]] = {
+    status: m[2],
+    note: note ? note[1] : '',
+    // Deliberate web-lane verdict: capability needs GLSL passes / offscreen
+    // render targets the native R1 lane will not implement; the upstream
+    // renderer covers it on the web build (Worker OffscreenCanvas).
+    webLane: /webLane:\s*true/.test(m[3]),
+  };
 }
 
 // --- 3. Upstream-nature heuristics for the unmapped tail --------------------
@@ -93,6 +100,20 @@ const EXPLICIT = new Map([
   ['ShapeGeometry', { status: 'ok', note: 'generateShapes triangulated in JS' }],
   ['PolyhedronGeometry', { status: 'ok', note: 'CPU-generated geometry' }],
   ['FogExp2', { status: 'ok', note: 'R1 v4 frame fog mode + density (exp2 in three_r1.frag)' }],
+  // Deliberate web-lane: GLSL passes / offscreen render targets — the
+  // native R1 lane renders only to the surface; the upstream renderer on
+  // the web build (Worker OffscreenCanvas) is the lane for these. Kept as
+  // render-not-honored WITH this documented reason, never unclassified.
+  ['ShaderChunk', { status: 'no', webLane: true, note: 'web-lane: GLSL chunk map — upstream renderer on the web build' }],
+  ['ShaderLib', { status: 'no', webLane: true, note: 'web-lane: GLSL program library — upstream renderer on the web build' }],
+  ['Uniform', { status: 'no', webLane: true, note: 'web-lane: GLSL uniform container — upstream renderer on the web build' }],
+  ['UniformsLib', { status: 'no', webLane: true, note: 'web-lane: GLSL uniform templates — upstream renderer on the web build' }],
+  ['WebGL3DRenderTarget', { status: 'no', webLane: true, note: 'web-lane: render targets — upstream renderer on the web build' }],
+  ['WebGLArrayRenderTarget', { status: 'no', webLane: true, note: 'web-lane: render targets — upstream renderer on the web build' }],
+  ['WebGLUtils', { status: 'no', webLane: true, note: 'web-lane: live WebGL context enum conversion — upstream renderer on the web build' }],
+  ['UniformsGroup', { status: 'no', note: 'WebGPU uniform buffer group — WebGPU lane' }],
+  ['UniformsUtils', { status: 'ok', note: 'upstream JS utility runs in QuickJS (GLSL consumers are web-lane)' }],
+  ['TextureUtils', { status: 'upstream', note: 'contain/cover adjust repeat/offset — render-honored through R1 v4 UV transforms' }],
   ['MeshMatcapMaterial', { status: 'no', note: 'material kind outside R1 kinds' }],
   ['MeshToonMaterial', { status: 'no', note: 'material kind outside R1 kinds' }],
   ['StereoCamera', { status: 'no', note: 'stereo rendering outside R1' }],
@@ -122,6 +143,8 @@ const CPU_OK = new Set([
   'QuadraticBezierCurve3', 'ArcCurve', 'EllipseCurve', 'CatmullRomCurve3',
   'CurvePath', 'Path', 'Shape', 'ShapePath', 'ShapeUtils', 'Triangle',
   'Line3', 'Cylinder', 'Decompose',
+  // multi-view culling math for ArrayCamera-style renderers
+  'FrustumArray',
   // animation CPU machinery
   'AnimationUtils', 'KeyframeTrack', 'BooleanKeyframeTrack',
   'ColorKeyframeTrack', 'NumberKeyframeTrack', 'QuaternionKeyframeTrack',
@@ -137,16 +160,32 @@ const CPU_OK = new Set([
 // Never available on native (browser-only capability classes).
 const NATIVE_ABSENT = new Set([
   'Audio', 'AudioAnalyser', 'AudioContext', 'AudioListener', 'AudioLoader',
-  'WebXRManager', 'XRControllerModelFactory',
+  'WebXRManager', 'XRControllerModelFactory', 'WebXRController',
+  'VideoFrameTexture',
+]);
+
+// api_matrix 'ok' entries that are pure CPU utilities or plain constant
+// maps (no render surface of their own). Engine coverage keeps them out of
+// render-honored so the headline stays honest; the api matrix lists them ok
+// because official examples only need them as CPU JS.
+const UTILITY_ONLY = new Map([
+  ['Cache', { status: 'upstream', note: 'CPU loader cache (upstream JS)' }],
+  ['TOUCH', { status: 'constant', note: 'input constant map; the lane reads host pointer events' }],
 ]);
 
 const rows = engineExports.map((name) => {
-  const mapped = apiMap[name] ?? EXPLICIT.get(name);
+  const mapped = UTILITY_ONLY.get(name) ?? apiMap[name] ?? EXPLICIT.get(name);
   if (mapped) {
+    const lane =
+      mapped.status === 'no' ? 'web-only'
+      : mapped.status === 'upstream' ? 'upstream-cpu'
+      : mapped.status === 'constant' ? 'constant'
+      : 'r1';
     return {
       symbol: name,
-      lane: mapped.status === 'no' ? 'web-only' : 'r1',
+      lane,
       status: mapped.status,
+      ...(mapped.webLane ? { webLane: true } : {}),
       flutterAnalog: mapped.note
         || (mapped.status === 'ok'
           ? 'R1 protocol opcode → ThreeDrawPlanner → flutter_gpu'
@@ -160,7 +199,7 @@ const rows = engineExports.map((name) => {
       symbol: name,
       lane: 'native-absent',
       status: 'no-native',
-      flutterAnalog: 'browser-only capability (audio/XR) — no QuickJS/host lane',
+      flutterAnalog: 'browser-only capability (audio/XR/WebCodecs) — no QuickJS/host lane',
     };
   }
   if (CPU_OK.has(name)) {
@@ -171,7 +210,7 @@ const rows = engineExports.map((name) => {
       flutterAnalog: 'upstream JS runs in QuickJS (CPU-only; no render surface)',
     };
   }
-  if (CONSTANT_LIKE.test(name) || /^(MOUSE|TOUCH|REVISION|RAD2DEG|DEG2RAD|GLSL|LEGACY|Interpolate|Loop|NoNormalPacking|NormalGA|NormalRG|ObjectSpace|TangentSpace|SRGBTransfer|LinearTransfer|CullFace|WrapAroundEnding|ZeroCurvatureEnding|ZeroSlopeEnding|.*CoordinateSystem$)/.test(name)) {
+  if (CONSTANT_LIKE.test(name) || /^(MOUSE|TOUCH|REVISION|RAD2DEG|DEG2RAD|GLSL|LEGACY|Interpolate|Loop|NoNormalPacking|NormalGA|NormalRG|ObjectSpace|TangentSpace|SRGBTransfer|LinearTransfer|CullFace|WrapAroundEnding|ZeroCurvatureEnding|ZeroSlopeEnding|.*CoordinateSystem$|ReversedDepthFuncs)/.test(name)) {
     return {
       symbol: name,
       lane: 'constant',
@@ -200,6 +239,9 @@ const totals = {
   nativeAbsent: tally((r) => r.status === 'no-native'),
   unclassified: tally((r) => r.status === 'unclassified'),
 };
+// Deliberate web-lane entries: the 'no' bucket split by documented intent —
+// GLSL passes / offscreen render targets the native lane will not implement.
+totals.webLane = tally((r) => r.webLane);
 // Honest headline numbers:
 //  - render-honored = R1 ok + bounded (of the render-relevant classified set)
 //  - quickjs-usable = everything that materializes and runs on native

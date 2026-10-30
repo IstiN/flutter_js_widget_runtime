@@ -22,9 +22,20 @@ const EXAMPLES = path.join(SOURCE, 'examples');
 // R1 facade support map. Keep in sync with tool/three/src/native_renderer.js
 // (materialKind/validateMaterial), runtime.js, native_loaders.js and the
 // prepared registry in bin/jsr_three_example.dart.
+//
+// Entry shape: { status: 'ok'|'bounded'|'no'|'unverified', note?, webLane? }.
+//   - 'ok'/'bounded'/'no': the native R1 facade verdict.
+//   - 'unverified': known API, deliberately NOT probed yet — keeps the
+//     example in 'unknown-api' instead of silently promoting it, and the
+//     note says what needs a probe.
+//   - webLane: true on a 'no' entry marks a DELIBERATE web-lane verdict:
+//     the capability needs GLSL passes / offscreen render targets the native
+//     R1 lane will not implement, and the real upstream renderer covers it
+//     on the web build (Worker OffscreenCanvas). Examples whose only
+//     blockers are web-lane get verdict 'web-lane' (not plain 'blocked').
 // ---------------------------------------------------------------------------
 
-/** @type {Record<string, {status: 'ok'|'bounded'|'no', note?: string}>} */
+/** @type {Record<string, {status: 'ok'|'bounded'|'no'|'unverified', note?: string, webLane?: boolean}>} */
 const API = {
   // Materials.
   MeshBasicMaterial: { status: 'ok' },
@@ -36,8 +47,8 @@ const API = {
   LineBasicMaterial: { status: 'ok' },
   LineDashedMaterial: { status: 'no', note: 'R1 line kind excludes dashed' },
   PointsMaterial: { status: 'ok' },
-  ShaderMaterial: { status: 'no', note: '1B only: arbitrary shaders' },
-  RawShaderMaterial: { status: 'no', note: '1B only: arbitrary shaders' },
+  ShaderMaterial: { status: 'no', webLane: true, note: 'web-lane: GLSL passes — upstream renderer on the web build' },
+  RawShaderMaterial: { status: 'no', webLane: true, note: 'web-lane: GLSL passes — upstream renderer on the web build' },
   MeshPhysicalMaterial: { status: 'no', note: 'physical extensions unsupported' },
   MeshDepthMaterial: { status: 'no' },
   MeshDistanceMaterial: { status: 'no' },
@@ -88,9 +99,10 @@ const API = {
   SkinnedMesh: { status: 'no', note: 'skinning unsupported in R1' },
   Bone: { status: 'no' },
   Skeleton: { status: 'no' },
-  WebGLRenderTarget: { status: 'no', note: 'R1 renders only the surface' },
-  WebGLCubeRenderTarget: { status: 'no' },
-  WebGLMultipleRenderTargets: { status: 'no' },
+  WebGLRenderTarget: { status: 'no', webLane: true, note: 'web-lane: render targets — upstream renderer on the web build' },
+  WebGLCubeRenderTarget: { status: 'no', webLane: true, note: 'web-lane: render targets — upstream renderer on the web build' },
+  WebGLMultipleRenderTargets: { status: 'no', webLane: true, note: 'web-lane: render targets — upstream renderer on the web build' },
+  FramebufferTexture: { status: 'no', webLane: true, note: 'web-lane: framebuffer readback — upstream renderer on the web build' },
 
   // Textures and loaders.
   CanvasTexture: { status: 'bounded', note: 'radial gradients + fillRect only' },
@@ -113,12 +125,13 @@ const API = {
   Quaternion: { status: 'ok' }, Euler: { status: 'ok' },
   Frustum: { status: 'ok' }, Box2: { status: 'ok' }, Box3: { status: 'ok' },
   Sphere: { status: 'ok' }, Ray: { status: 'ok' }, Triangle: { status: 'ok' },
+  Spherical: { status: 'ok' },
   CatmullRomCurve3: { status: 'ok' }, Curve: { status: 'ok' },
   SplineCurve: { status: 'ok' }, CubicBezierCurve: { status: 'ok' },
   CatmullRomCurve: { status: 'ok' },
   Object3D: { status: 'ok' }, Scene: { status: 'ok' },
   PerspectiveCamera: { status: 'ok' }, OrthographicCamera: { status: 'ok' },
-  CubeCamera: { status: 'no' },
+  CubeCamera: { status: 'no', webLane: true, note: 'web-lane: renders into a cube render target' },
   Fog: { status: 'ok' }, FogExp2: { status: 'ok' },
   Plane: { status: 'ok', note: 'clipping planes' },
   DoubleSide: { status: 'ok' }, FrontSide: { status: 'ok' }, BackSide: { status: 'ok' },
@@ -180,13 +193,11 @@ const API = {
   SplineCurve: { status: 'ok' }, CubicBezierCurve: { status: 'ok' },
   QuadraticBezierCurve: { status: 'ok' }, LineCurve3: { status: 'ok' },
   Shape: { status: 'ok' }, Path: { status: 'ok' },
-  WebGLRenderTarget: { status: 'no', note: 'render targets 1B only' },
   LOD: { status: 'ok' },
   MeshDepthMaterial: { status: 'no' }, MeshDistanceMaterial: { status: 'no' },
-  RawShaderMaterial: { status: 'no' },
   AddEquation: { status: 'no' },
   PCFSoftShadowMap: { status: 'ok' },
-  CubeCamera: { status: 'no' }, AudioListener: { status: 'no' }, Audio: { status: 'no' },
+  AudioListener: { status: 'no' }, Audio: { status: 'no' },
 
   // Renderer + tone mapping + core odds seen across the classic examples.
   WebGLRenderer: { status: 'ok', note: 'R1 alias' },
@@ -207,7 +218,7 @@ const API = {
   Float32BufferAttribute: { status: 'ok' },
   BufferAttribute: { status: 'ok' },
   InstancedBufferAttribute: { status: 'ok' },
-  PMREMGenerator: { status: 'no', note: 'no env prefilter in R1' },
+  PMREMGenerator: { status: 'no', webLane: true, note: 'web-lane: prefiltered env passes — upstream renderer on the web build' },
   GridHelper: { status: 'ok' },
   PolarGridHelper: { status: 'ok' },
   AxesHelper: { status: 'ok' },
@@ -231,18 +242,59 @@ const API = {
   RGBAFormat: { status: 'ok' },
   RGFormat: { status: 'ok' },
   DynamicDrawUsage: { status: 'ok' },
-  GLSL3: { status: 'no' },
+  GLSL3: { status: 'no', webLane: true, note: 'web-lane: GLSL3 shader variant' },
   Data3DTexture: { status: 'no' },
   RenderPipeline: { status: 'no', note: 'WebGPU pipeline nodes' },
   NodeMaterial: { status: 'no', note: 'WebGPU/TSL' },
-  CubeCamera: { status: 'no' },
   BatchedMesh: { status: 'no' },
   MORPHTARGETS_NORMAL: { status: 'no' },
+
+  // Wave-3 batch 4 finalization: engine APIs previously counted as
+  // unknown-api, classified against the pinned sources and the native
+  // facade. CPU classes that only feed R1 uploads are ok; GLSL/render
+  // target machinery is deliberate web-lane; the rest is an honest no.
+  InterleavedBuffer: { status: 'ok', note: 'decoded per-component via getComponent into the R1 upload' },
+  InterleavedBufferAttribute: { status: 'ok', note: 'decoded per-component via getComponent into the R1 upload' },
+  Int16BufferAttribute: { status: 'ok', note: 'typed buffer attribute → R1 upload' },
+  Uint8BufferAttribute: { status: 'ok', note: 'typed buffer attribute → R1 upload' },
+  GLBufferAttribute: { status: 'no', note: 'GPU-resident buffer; R1 owns buffer uploads' },
+  ArrayCamera: { status: 'no', note: 'multiview per-camera viewports outside R1; only the base perspective matrices would render' },
+  PlaneHelper: { status: 'ok', note: 'line/mesh helper children render through the helpers lane' },
+  ArrowHelper: { status: 'ok', note: 'line/mesh helper children render through the helpers lane' },
+  ImageLoader: { status: 'bounded', note: 'host asset decode lane (prepared assets)' },
+  ImageBitmapLoader: { status: 'bounded', note: 'host asset decode lane (OffscreenCanvas guard)' },
+  Cache: { status: 'ok', note: 'CPU loader cache (upstream JS)' },
+  TextureUtils: { status: 'ok', note: 'contain/cover set repeat/offset — honored by R1 v4 UV transforms' },
+  LightProbe: { status: 'ok', note: 'CPU SH light-probe data; lighting contribution stays CPU-side' },
+  TOUCH: { status: 'ok', note: 'constant map; input lane reads host pointer events' },
+  NoBlending: { status: 'bounded', note: 'honored on opaque draws; the transparent pass always normal-blends' },
+  LinearMipMapLinearFilter: { status: 'bounded', note: 'collapsed to nearest/linear min filter; mip filtering derived, not per-mip exact' },
+  NearestMipmapNearestFilter: { status: 'bounded', note: 'collapsed to nearest/linear min filter; mip filtering derived, not per-mip exact' },
+  VSMShadowMap: { status: 'no', webLane: true, note: 'web-lane: VSM blur passes — upstream renderer on the web build' },
+  ObjectSpaceNormalMap: { status: 'no', note: 'R1 frag has no normal-map sampling' },
+  EquirectangularRefractionMapping: { status: 'no', note: 'envMap reflection sampling only; refraction not modeled' },
+  MixOperation: { status: 'no', note: 'legacy combine operations outside R1' },
+  AlwaysStencilFunc: { status: 'no', note: 'stencil state outside R1' },
+  NotEqualStencilFunc: { status: 'no', note: 'stencil state outside R1' },
+  IncrementWrapStencilOp: { status: 'no', note: 'stencil state outside R1' },
+  DecrementWrapStencilOp: { status: 'no', note: 'stencil state outside R1' },
+  ReplaceStencilOp: { status: 'no', note: 'stencil state outside R1' },
+  ShaderChunk: { status: 'no', webLane: true, note: 'web-lane: GLSL chunk map — upstream renderer on the web build' },
+  MeshBasicNodeMaterial: { status: 'no', note: 'WebGPU/TSL node materials' },
+  MeshPhysicalNodeMaterial: { status: 'no', note: 'WebGPU/TSL node materials' },
+  MeshPhongNodeMaterial: { status: 'no', note: 'WebGPU/TSL node materials' },
 };
 
 // Bare npm imports (importmap "imports" keys beyond three) — none are bundled.
 const BARE_IMPORTS = {
   'three-subdivide': { status: 'no', note: 'npm package, not a three addon' },
+  'three/webgpu': { status: 'no', note: 'WebGPU/TSL build lane' },
+  'three/tsl': { status: 'no', note: 'WebGPU/TSL build lane' },
+  'three-mesh-bvh': { status: 'no', note: 'npm CDN package, not bundled' },
+  'three-bvh-csg': { status: 'no', note: 'npm CDN package, not bundled' },
+  'web-ifc': { status: 'no', note: 'npm CDN WASM package, not bundled' },
+  'postprocessing': { status: 'no', webLane: true, note: 'web-lane: npm postprocessing passes — upstream renderer on the web build' },
+  'goodrays': { status: 'no', webLane: true, note: 'web-lane: npm god-ray passes — upstream renderer on the web build' },
 };
 
 
@@ -264,9 +316,34 @@ const ADDONS = {
   'loaders/PLYLoader.js': { status: 'ok' },
   'math/ImprovedNoise.js': { status: 'ok' },
   'environments/RoomEnvironment.js': { status: 'no', note: 'needs PMREM' },
-  'postprocessing/EffectComposer.js': { status: 'no', note: 'render targets' },
-  'postprocessing/RenderPass.js': { status: 'no' },
-  'postprocessing/OutputPass.js': { status: 'no' },
+  'postprocessing/EffectComposer.js': { status: 'no', webLane: true, note: 'web-lane: GLSL postprocessing passes — upstream renderer on the web build' },
+  'postprocessing/RenderPass.js': { status: 'no', webLane: true, note: 'web-lane: GLSL postprocessing passes — upstream renderer on the web build' },
+  'postprocessing/OutputPass.js': { status: 'no', webLane: true, note: 'web-lane: GLSL postprocessing passes — upstream renderer on the web build' },
+  'postprocessing/ShaderPass.js': { status: 'no', webLane: true, note: 'web-lane: GLSL postprocessing passes — upstream renderer on the web build' },
+  'postprocessing/UnrealBloomPass.js': { status: 'no', webLane: true, note: 'web-lane: GLSL postprocessing passes — upstream renderer on the web build' },
+  'postprocessing/BloomPass.js': { status: 'no', webLane: true, note: 'web-lane: GLSL postprocessing passes — upstream renderer on the web build' },
+  'postprocessing/TexturePass.js': { status: 'no', webLane: true, note: 'web-lane: GLSL postprocessing passes — upstream renderer on the web build' },
+  'postprocessing/TAARenderPass.js': { status: 'no', webLane: true, note: 'web-lane: GLSL postprocessing passes — upstream renderer on the web build' },
+  'postprocessing/MaskPass.js': { status: 'no', webLane: true, note: 'web-lane: GLSL postprocessing passes — upstream renderer on the web build' },
+  'postprocessing/FXAAPass.js': { status: 'no', webLane: true, note: 'web-lane: GLSL postprocessing passes — upstream renderer on the web build' },
+  'postprocessing/FilmPass.js': { status: 'no', webLane: true, note: 'web-lane: GLSL postprocessing passes — upstream renderer on the web build' },
+  'postprocessing/ClearPass.js': { status: 'no', webLane: true, note: 'web-lane: GLSL postprocessing passes — upstream renderer on the web build' },
+  'postprocessing/SSRPass.js': { status: 'no', webLane: true, note: 'web-lane: GLSL postprocessing passes — upstream renderer on the web build' },
+  'postprocessing/SSAOPass.js': { status: 'no', webLane: true, note: 'web-lane: GLSL postprocessing passes — upstream renderer on the web build' },
+  'postprocessing/SSAARenderPass.js': { status: 'no', webLane: true, note: 'web-lane: GLSL postprocessing passes — upstream renderer on the web build' },
+  'postprocessing/SMAAPass.js': { status: 'no', webLane: true, note: 'web-lane: GLSL postprocessing passes — upstream renderer on the web build' },
+  'postprocessing/SAOPass.js': { status: 'no', webLane: true, note: 'web-lane: GLSL postprocessing passes — upstream renderer on the web build' },
+  'postprocessing/RenderTransitionPass.js': { status: 'no', webLane: true, note: 'web-lane: GLSL postprocessing passes — upstream renderer on the web build' },
+  'postprocessing/RenderPixelatedPass.js': { status: 'no', webLane: true, note: 'web-lane: GLSL postprocessing passes — upstream renderer on the web build' },
+  'postprocessing/OutlinePass.js': { status: 'no', webLane: true, note: 'web-lane: GLSL postprocessing passes — upstream renderer on the web build' },
+  'postprocessing/LUTPass.js': { status: 'no', webLane: true, note: 'web-lane: GLSL postprocessing passes — upstream renderer on the web build' },
+  'postprocessing/HalftonePass.js': { status: 'no', webLane: true, note: 'web-lane: GLSL postprocessing passes — upstream renderer on the web build' },
+  'postprocessing/GTAOPass.js': { status: 'no', webLane: true, note: 'web-lane: GLSL postprocessing passes — upstream renderer on the web build' },
+  'postprocessing/GlitchPass.js': { status: 'no', webLane: true, note: 'web-lane: GLSL postprocessing passes — upstream renderer on the web build' },
+  'postprocessing/DotScreenPass.js': { status: 'no', webLane: true, note: 'web-lane: GLSL postprocessing passes — upstream renderer on the web build' },
+  'postprocessing/CubeTexturePass.js': { status: 'no', webLane: true, note: 'web-lane: GLSL postprocessing passes — upstream renderer on the web build' },
+  'postprocessing/BokehPass.js': { status: 'no', webLane: true, note: 'web-lane: GLSL postprocessing passes — upstream renderer on the web build' },
+  'postprocessing/AfterimagePass.js': { status: 'no', webLane: true, note: 'web-lane: GLSL postprocessing passes — upstream renderer on the web build' },
   'loaders/HDRLoader.js': { status: 'no' },
   'loaders/KTX2Loader.js': { status: 'no' },
   'webxr/XRButton.js': { status: 'no' },
@@ -292,6 +369,95 @@ const ADDONS = {
   'lights/SunLight.js': { status: 'no', note: 'WebGPU' },
   'webxr/ARButton.js': { status: 'no' },
   'controls/TrackballControls.js': { status: 'no' },
+
+  // Wave-3 batch 4 finalization of the remaining addon imports.
+  // GLSL chunk sources consumed by ShaderMaterial/ShaderPass — web-lane.
+  ...Object.fromEntries([
+    'shaders/VerticalBlurShader.js', 'shaders/HorizontalBlurShader.js',
+    'shaders/BleachBypassShader.js', 'shaders/WaterRefractionShader.js',
+    'shaders/VolumeShader.js', 'shaders/VignetteShader.js',
+    'shaders/VelocityShader.js', 'shaders/ToonShader.js',
+    'shaders/SubsurfaceScatteringShader.js', 'shaders/SobelOperatorShader.js',
+    'shaders/CopyShader.js', 'shaders/LuminosityHighPassShader.js',
+  ].map((n) => [n, { status: 'no', webLane: true, note: 'web-lane: GLSL shader source — upstream renderer on the web build' }])),
+  // Render-target / multi-pass effects — web-lane.
+  'effects/AnaglyphEffect.js': { status: 'no', webLane: true, note: 'web-lane: render-target effect — upstream renderer on the web build' },
+  'effects/ParallaxBarrierEffect.js': { status: 'no', webLane: true, note: 'web-lane: render-target effect — upstream renderer on the web build' },
+  'effects/OutlineEffect.js': { status: 'no', webLane: true, note: 'web-lane: render-target effect — upstream renderer on the web build' },
+  'effects/StereoEffect.js': { status: 'no', note: 'stereo rendering outside R1' },
+  'effects/AsciiEffect.js': { status: 'no', note: 'DOM text renderer — browser only' },
+  // Fat lines render through LineMaterial (a ShaderMaterial) — web-lane.
+  'lines/LineMaterial.js': { status: 'no', webLane: true, note: 'web-lane: fat-line GLSL passes — upstream renderer on the web build' },
+  'lines/Line2.js': { status: 'no', webLane: true, note: 'web-lane: fat-line GLSL passes — upstream renderer on the web build' },
+  'lines/LineSegments2.js': { status: 'no', webLane: true, note: 'web-lane: fat-line GLSL passes — upstream renderer on the web build' },
+  'lines/LineSegmentsGeometry.js': { status: 'no', webLane: true, note: 'web-lane: fat-line GLSL passes — upstream renderer on the web build' },
+  'lines/LineGeometry.js': { status: 'no', webLane: true, note: 'web-lane: fat-line GLSL passes — upstream renderer on the web build' },
+  // Render-target based lights/helpers.
+  'lights/LightProbeGenerator.js': { status: 'no', webLane: true, note: 'web-lane: PMREM extraction passes — upstream renderer on the web build' },
+  'lighting/LightProbeGridWebGL.js': { status: 'no', webLane: true, note: 'web-lane: probe-grid render passes — upstream renderer on the web build' },
+  'helpers/LightProbeGridHelperWebGL.js': { status: 'no', webLane: true, note: 'web-lane: probe-grid render passes — upstream renderer on the web build' },
+  'objects/Reflector.js': { status: 'no', webLane: true, note: 'web-lane: render-target mirror — upstream renderer on the web build' },
+  'objects/Refractor.js': { status: 'no', webLane: true, note: 'web-lane: render-target refraction — upstream renderer on the web build' },
+  'csm/CSM.js': { status: 'no', webLane: true, note: 'web-lane: cascaded shadow render targets — upstream renderer on the web build' },
+  'utils/ShadowMapViewer.js': { status: 'no', webLane: true, note: 'web-lane: shadow-map render target display — upstream renderer on the web build' },
+  'tsl/WebGLNodesHandler.js': { status: 'no', note: 'WebGPU/TSL' },
+  // CPU math / geometry / helper modules that run unmodified in QuickJS and
+  // feed R1 geometry or line draws.
+  'math/Octree.js': { status: 'ok', note: 'CPU collision math' },
+  'math/Capsule.js': { status: 'ok', note: 'CPU collision math' },
+  'math/OBB.js': { status: 'ok', note: 'CPU collision math' },
+  'math/MeshSurfaceSampler.js': { status: 'ok', note: 'CPU surface sampling' },
+  'math/ColorSpaces.js': { status: 'ok', note: 'CPU color conversion' },
+  'helpers/OctreeHelper.js': { status: 'ok', note: 'line helper children' },
+  'helpers/LightProbeHelper.js': { status: 'ok', note: 'line helper children' },
+  'helpers/VertexNormalsHelper.js': { status: 'ok', note: 'line helper children' },
+  'helpers/VertexTangentsHelper.js': { status: 'ok', note: 'line helper children' },
+  'csm/CSMHelper.js': { status: 'ok', note: 'line helper children' },
+  'geometries/DecalGeometry.js': { status: 'ok', note: 'CPU projection into a BufferGeometry' },
+  'geometries/ParametricFunctions.js': { status: 'ok', note: 'CPU parametric math' },
+  'curves/NURBSCurve.js': { status: 'ok', note: 'CPU spline math' },
+  'curves/NURBSSurface.js': { status: 'ok', note: 'CPU spline math' },
+  'curves/NURBSVolume.js': { status: 'ok', note: 'CPU spline math' },
+  'misc/ConvexObjectBreaker.js': { status: 'ok', note: 'CPU mesh split (uses ConvexHull)' },
+  'modifiers/EdgeSplitModifier.js': { status: 'ok', note: 'CPU mesh edit' },
+  'modifiers/SimplifyModifier.js': { status: 'ok', note: 'CPU mesh decimation' },
+  'objects/ShadowMesh.js': { status: 'ok', note: 'CPU-positioned mesh' },
+  'textures/FlakesTexture.js': { status: 'ok', note: 'procedural DataTexture (CPU)' },
+  'exporters/STLExporter.js': { status: 'ok', note: 'CPU string export' },
+  'offscreen/jank.js': { status: 'ok', note: 'plain CPU harness module' },
+  'offscreen/scene.js': { status: 'no', note: 'browser Worker entry (self.onmessage harness)' },
+  // Honest no: browser-only capabilities.
+  'renderers/CSS3DRenderer.js': { status: 'no', note: 'browser DOM renderer' },
+  'renderers/CSS2DRenderer.js': { status: 'no', note: 'browser DOM renderer' },
+  'capabilities/WebGL.js': { status: 'no', note: 'browser capability probe' },
+  'controls/PointerLockControls.js': { status: 'no', note: 'Pointer Lock API — browser only' },
+  'interactive/SelectionHelper.js': { status: 'no', note: 'DOM overlay rectangle' },
+  'physics/AmmoPhysics.js': { status: 'no', note: 'WASM' },
+  'exporters/DRACOExporter.js': { status: 'no', note: 'WASM encoder' },
+  'loaders/KTXLoader.js': { status: 'no', note: 'basis/KTX2 WASM decode' },
+  'loaders/HDRCubeTextureLoader.js': { status: 'no', note: 'RGBE float lane (HDRLoader family)' },
+  'misc/MD2Character.js': { status: 'no', note: 'morph-frame animation outside R1' },
+  'utils/UVsDebug.js': { status: 'no', note: 'canvas lane covers fillRect/gradient only' },
+  'transpiler/Transpiler.js': { status: 'no', note: 'WebGPU/TSL toolchain' },
+  'transpiler/GLSLDecoder.js': { status: 'no', note: 'WebGPU/TSL toolchain' },
+  'transpiler/WGSLEncoder.js': { status: 'no', note: 'WebGPU/TSL toolchain' },
+  'transpiler/TSLEncoder.js': { status: 'no', note: 'WebGPU/TSL toolchain' },
+  // Known but deliberately unverified: decode/input lanes that plausibly
+  // run in QuickJS but have no probe yet — kept out of 'supported'.
+  'loaders/UltraHDRLoader.js': { status: 'unverified', note: 'gain-map HDR decode lane — needs a probe' },
+  'loaders/EXRLoader.js': { status: 'unverified', note: 'pure-JS RGBE/zip decode (fflate) — needs a probe' },
+  'loaders/TGALoader.js': { status: 'unverified', note: 'pure-JS decode — needs a probe' },
+  'loaders/PVRLoader.js': { status: 'unverified', note: 'pure-JS decode — needs a probe' },
+  'loaders/TIFFLoader.js': { status: 'unverified', note: 'pure-JS decode — needs a probe' },
+  'loaders/TTFLoader.js': { status: 'unverified', note: 'pure-JS font decode — needs a probe' },
+  'loaders/VOXLoader.js': { status: 'unverified', note: 'pure-JS voxel decode — needs a probe' },
+  'loaders/3DMLoader.js': { status: 'unverified', note: 'pure-JS zip decode — needs a probe' },
+  'loaders/AMFLoader.js': { status: 'unverified', note: 'pure-JS zip decode — needs a probe' },
+  'loaders/GCodeLoader.js': { status: 'unverified', note: 'pure-JS decode — needs a probe' },
+  'loaders/KMZLoader.js': { status: 'unverified', note: 'pure-JS zip decode — needs a probe' },
+  'loaders/PCDLoader.js': { status: 'unverified', note: 'pure-JS point-cloud decode — needs a probe' },
+  'controls/DragControls.js': { status: 'unverified', note: 'plausible on the input lane — needs a probe' },
+  'interactive/SelectionBox.js': { status: 'unverified', note: 'reads renderer.domElement geometry — needs a facade probe' },
 };
 
 // Prepared-widget registry (bin/jsr_three_example.dart _examples) — read
@@ -311,14 +477,45 @@ const importFrom = /import\s*(?:\{[^}]*\}|[\w$]+)\s*from\s*'three\/addons\/([^']
 const bareImport = /import\s*(?:\{[^}]*\}|[\w$]+)\s*from\s*'([^'.\/][^']*)'/g;
 const importmapSpec = /"imports"\s*:\s*\{[\s\S]*?\n\s*\}/;
 
-function classify(uses) {
-  const missing = uses.filter(u => !API[u.name] && !ADDONS[u.import] && !BARE_IMPORTS[u.bare]);
-  const blockers = uses.filter(u => {
-    const entry = u.name ? API[u.name] : (u.import ? ADDONS[u.import] : BARE_IMPORTS[u.bare]);
-    return entry && entry.status === 'no';
+// Per-example overrides where the static API scan cannot see the blocker:
+// the module text uses only supported APIs but the render architecture or
+// the loaded asset goes beyond the facade. Keyed by example id.
+const EXAMPLE_OVERRIDES = {
+  // ammo.js (WASM physics) arrives via a classic <script src> tag, invisible
+  // to the import scan; the module calls Ammo() directly.
+  ...Object.fromEntries([
+    'physics_ammo_break', 'physics_ammo_cloth', 'physics_ammo_rope',
+    'physics_ammo_terrain', 'physics_ammo_volume',
+  ].map((id) => [id, 'ammo.js WASM physics loaded via classic script tag — outside the native lane'])),
+  // The horse JSON carries morphAttributes; R1 rejects morphTargets at the
+  // protocol level and no code-level reference exists to detect statically.
+  webgl_morphtargets_horse: 'geometry JSON carries morphAttributes — R1 rejects morphTargets at the protocol level',
+  // Viewport-tiling / multi-canvas harnesses: setViewport/setScissor are
+  // documented no-ops on the R1 alias and DOM canvases do not exist natively.
+  webgl_multiple_elements: 'tiles one renderer across DOM canvases via setViewport — R1 no-ops viewport tiling',
+  webgl_multiple_elements_text: 'tiles one renderer across DOM canvases via setViewport — R1 no-ops viewport tiling',
+  webgl_multiple_views: 'setViewport/setScissor view tiling — R1 no-ops viewport tiling',
+  webgl_multiple_scenes_comparison: 'compares scenes on separate DOM canvases — single-surface facade',
+};
+
+function classify(uses) {  const entry = (u) =>
+    u.name ? API[u.name] : (u.import ? ADDONS[u.import] : BARE_IMPORTS[u.bare]);
+  // Missing = no map entry at all, or a deliberate 'unverified' entry
+  // (known API, unprobed lane — never silently promoted to supported).
+  const missing = uses.filter((u) => {
+    const e = entry(u);
+    return !e || e.status === 'unverified';
+  });
+  const blockers = uses.filter((u) => {
+    const e = entry(u);
+    return e && e.status === 'no';
   });
   if (missing.length === 0 && blockers.length === 0) return 'supported';
   if (blockers.length === 0) return 'unknown-api';
+  // Deliberate web-lane verdict: every known blocker needs GLSL passes or
+  // offscreen render targets the native R1 lane will not implement; the
+  // upstream renderer covers them on the web build.
+  if (blockers.every((u) => entry(u).webLane)) return 'web-lane';
   return 'blocked';
 }
 
@@ -343,7 +540,7 @@ for (const file of files) {
   const importmap = importmapSpec.exec(html);
   const mapped = importmap ? importmap[0] : '';
   for (const m of code.matchAll(bareImport)) {
-    if (m[1] === 'three' || mapped.includes(`"\${m[1]}"`)) {
+    if (m[1] === 'three' || mapped.includes(`"${m[1]}"`)) {
       const key = `b:${m[1]}`;
       if (!seen.has(key)) { seen.add(key); uses.push({ bare: m[1] }); }
     }
@@ -351,19 +548,34 @@ for (const file of files) {
   // R1 rejects morph attributes at the protocol level — surface it as a
   // blocker rather than letting these masquerade as 'supported'.
   const usesMorph = /morphAttributes|morphTargetsRelative|\.morphTargetInfluences/.test(code);
-  const verdict = usesMorph ? 'blocked' : classify(uses);
+  let verdict = usesMorph ? 'blocked' : classify(uses);
+  let override = null;
+  if (EXAMPLE_OVERRIDES[id]) {
+    verdict = 'blocked';
+    override = EXAMPLE_OVERRIDES[id];
+  }
+  const entry = (u) =>
+    u.name ? API[u.name] : (u.import ? ADDONS[u.import] : BARE_IMPORTS[u.bare]);
+  const label = (u) => u.name ?? (u.import ? `addon:${u.import}` : `bare:${u.bare}`);
   rows.push({
     id,
     prepared: registryIds.has(id),
     verdict,
-    uses: uses.map(u => u.name ?? `addon:${u.import}`),
+    uses: uses.map(label),
     blockers: uses
       .filter(u => {
-        const entry = u.name ? API[u.name] : ADDONS[u.import];
-        return entry && entry.status === 'no';
+        const e = entry(u);
+        return e && e.status === 'no';
       })
-      .map(u => `${u.name ?? u.import}${(u.name ? API[u.name] : ADDONS[u.import]).note ? ` (${(u.name ? API[u.name] : ADDONS[u.import]).note})` : ''}`),
-    unknown: uses.filter(u => !API[u.name ?? ''] && !ADDONS[u.import ?? '']).map(u => u.name ?? `addon:${u.import}`),
+      .map(u => `${label(u)}${entry(u).note ? ` (${entry(u).note})` : ''}${entry(u).webLane ? ' [web-lane]' : ''}`),
+    unknown: uses.filter(u => {
+      const e = entry(u);
+      return !e || e.status === 'unverified';
+    }).map(u => {
+      const e = entry(u);
+      return e ? `${label(u)} (unverified: ${e.note})` : label(u);
+    }),
+    ...(override ? { override } : {}),
   });
 }
 
@@ -374,6 +586,7 @@ const matrix = {
     examples: rows.length,
     supported: rows.filter(r => r.verdict === 'supported').length,
     blocked: rows.filter(r => r.verdict === 'blocked').length,
+    webLane: rows.filter(r => r.verdict === 'web-lane').length,
     unknownApi: rows.filter(r => r.verdict === 'unknown-api').length,
     prepared: rows.filter(r => r.prepared).length,
   },

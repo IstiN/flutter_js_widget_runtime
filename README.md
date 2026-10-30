@@ -195,9 +195,13 @@ jsr.render({type: 'three', canvasId: 'main', width: 640, height: 360});
   handles never cross the JSON bridge.
 - Native `THREE.InstancedMesh` uses R1 `DRAW_BATCH`: real instance matrices
   are uploaded once and drawn with GPU instancing, including indexed
-  multi-material parts. Transparent instancing and per-instance colors are
-  outside the initial R1 profile. Diagnostics count triangles across all
-  instances, not just the base geometry.
+  multi-material parts. Per-instance colors via `setColorAt`/`instanceColor`
+  multiply the material color in the shader (RGB instance attribute;
+  instances without colors keep the plain material color, byte-identical to
+  non-instanced draws). Opaque instanced draws only: transparent instancing
+  is a documented gap (material-level depth write is not per-instance
+  sortable without per-instance draw fan-out). Diagnostics count triangles
+  across all instances, not just the base geometry.
 - Large indexed single-material meshes use a cached BVH for native raycasts;
   upstream THREE still performs the final triangle/UV/normal/material tests.
   Attribute/array identity and versions invalidate the cache, while morph,
@@ -218,6 +222,50 @@ jsr.render({type: 'three', canvasId: 'main', width: 640, height: 360});
   `9b4a2ac29c63ccb43fd51c5661f2f873ac2c39b8` (tag object
   `48dd7be01263658aad497fd72e09d1e4c6213461`). Build manifests and the MIT
   notice ship under `assets/three/`.
+
+### API matrix and engine coverage (honest lanes)
+
+Two committed snapshots track what each lane really supports. Regenerate
+with `node tool/three/api_matrix.mjs --write` and
+`node tool/three/engine_coverage.mjs --write`; both are pinned by snapshot
+tests (`tool/three/test/`), so every capability change fails CI until the
+snapshot is consciously refreshed.
+
+- **Example matrix** (`tool/three/api_matrix.json`, 607 official examples):
+  `supported` 68, `prepared` 58, `web-lane` 58, `blocked` 462,
+  `unknown-api` 19 (down from 79 — every remaining row cites an explicitly
+  `unverified` decode/input lane with the probe it needs, never a silently
+  promoted one).
+- **Engine coverage** (`tool/three/engine_coverage.json`, all 454 exports of
+  `three.core.js ∪ three.module.js`): r1Ok 154, r1Bounded 16, r1No 68,
+  upstreamCpu 41, constants 170, nativeAbsent 5, **unclassified 0**
+  (was 15). render-honored 170/454 = **37.4%**, QuickJS-usable 381/454 =
+  **83.9%**; the web lane (real upstream renderer on a Worker
+  OffscreenCanvas) serves 100% of the API.
+
+**Deliberate web-lane verdicts.** The native R1 lane will not implement
+GLSL passes or offscreen render targets — it renders exactly one surface
+per canvas. Capabilities that fundamentally need them are finalized as
+`web-lane` entries (status `no` with a documented reason, examples whose
+only blockers are web-lane get verdict `web-lane`, not plain `blocked`):
+
+| family | entries | reason |
+|---|---|---|
+| arbitrary shaders | `ShaderMaterial`, `RawShaderMaterial`, `ShaderChunk`, `ShaderLib`, `Uniform`, `UniformsLib`, GLSL3 variant | GLSL passes — upstream renderer on the web build |
+| render targets | `WebGLRenderTarget`, `WebGLCubeRenderTarget`, `WebGL3DRenderTarget`, `WebGLArrayRenderTarget`, `FramebufferTexture` | offscreen render targets — R1 presents one surface |
+| postprocessing | all `postprocessing/*` passes (EffectComposer, RenderPass, OutputPass, ShaderPass, bloom/SSAO/SMAA/…, npm `postprocessing`/`goodrays`) | multi-pass GLSL over render targets |
+| env prefilter | `PMREMGenerator`, `LightProbeGenerator`, LightProbeGridWebGL | prefiltered-IBL render passes |
+| cube capture | `CubeCamera` | renders the scene into a cube render target |
+| VSM shadows | `VSMShadowMap` | separable blur passes into render targets |
+| mirror/refract objects | `Reflector`, `Refractor`, Anaglyph/ParallaxBarrier/Outline effects | render-target re-injection |
+| fat lines | `Line2` family (`LineMaterial` GLSL) | instanced GLSL dashes/resolution |
+| cascaded shadows | `csm/CSM.js` | cascaded shadow render targets |
+
+Two prepared modules are deliberately kept as documented web-lane gap
+demos (`webgl_lights_hemisphere`, `webgl_interactive_points`: their
+ShaderMaterial parts stay upstream; regression tests pin the exact
+`three.unsupported` card), and the Web (1B) lane serves all of the above
+unmodified.
 
 Rebuild and run an official example from the pinned local source:
 

@@ -157,8 +157,13 @@ identity lives in `ThreeUpstreamBundle`, `tool/three/source-pin.json` and
   PNG capture, disposal and async-init generation checks belong to the host.
   `InstancedMesh` emits `DRAW_BATCH` with real matrices and one GPU draw per
   material part; copy typed-array matrix payloads as bulk little-endian bytes,
-  not one JS `f32` write per element. Transparent instancing/per-instance
-  colors are not in the initial profile. `ThreeDrawPlan.triangleCount`
+  not one JS `f32` write per element. Per-instance colors
+  (`setColorAt`/`instanceColor`, RGB InstancedBufferAttribute) ride the same
+  batch and multiply `material.color` in `three_r1.frag`; absent colors keep
+  the plain material color so existing goldens stay byte-identical.
+  Transparent instanced meshes are rejected (`three.unsupported:
+  transparentInstancedMesh`) — do not approximate them without per-instance
+  sorting evidence. `ThreeDrawPlan.triangleCount`
   includes every instance.
   Linear `THREE.Fog` is serialized in `FRAME`. The first shadow-casting
   directional light uses a separate shadow command buffer, an R32 depth-color
@@ -299,7 +304,21 @@ img decode + canvas2d clearRect/path ops unbounded), and
 `webgl_instancing_performance` (stock: lil-gui object-map options add +
 missing `console.time`; probe-shimmed it renders one instanced draw,
 live-switches 1000↔10000 via dropdown, NAIVE fans out per-instance
-draws). R1 clipping planes carry three.js Plane constants and the GPU
+draws).
+Capability bookkeeping is committed, not tribal knowledge:
+`tool/three/api_matrix.{mjs,json}` classifies all 607 official examples
+(supported / prepared / web-lane / blocked / unknown-api) and
+`tool/three/engine_coverage.{mjs,json}` classifies all 454 engine exports
+(r1Ok/r1Bounded/r1No/upstreamCpu/constants/nativeAbsent, unclassified must
+stay 0 — the snapshot test fails otherwise). GLSL passes, render targets,
+postprocessing, PMREM, VSM, fat lines and CubeCamera capture are DELIBERATE
+web-lane `no` entries (`webLane: true`, documented reason): the native lane
+presents one surface and will not implement them; the Web (1B) lane serves
+100% of the API. Entries marked `unverified` (pure-JS decode loaders,
+DragControls, SelectionBox) stay unknown-api with the probe they need —
+never promote one without a real module boot. Regenerate both snapshots
+(`--write`) and update the README tables in the same change.
+R1 clipping planes carry three.js Plane constants and the GPU
 binding NEGATES the constant (`discard where dot(n,p) < -constant`) —
 pinned by the draw-plan uniform test and the spot-clipping golden. The lil-gui facade supports boolean/number/
 function/options controllers, chained `.step()/.min()/.max()`,

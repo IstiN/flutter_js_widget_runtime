@@ -30,9 +30,22 @@ assert.equal(
   matrix.totals.engineExports,
   'engine export count changed — did the three.js pin move?'
 );
+// Wave-3 finalization guards: no export may linger unclassified, and the
+// deliberate web-lane split (GLSL passes / render targets) must stay
+// visible in the totals.
+assert.equal(
+  committed.totals.unclassified,
+  0,
+  'unclassified exports must be zero — classify new exports in engine_coverage.mjs'
+);
+assert.ok(
+  committed.totals.webLane >= 1,
+  'webLane tally missing — deliberate web-lane entries disappeared'
+);
 console.log(
   `engine coverage ok: ${committed.totals.engineExports} exports, ` +
   `${committed.totals.renderHonored} render-honored ` +
   `(${committed.totals.renderHonoredPct}%), ` +
+  `${committed.totals.webLane} deliberate web-lane, ` +
   `quickjs-usable ${committed.totals.quickjsUsablePct}%`
 );
