@@ -619,13 +619,13 @@ ui.Image _finishThreeFrame(
 void _failThreePresentation(
   FlutterGpuThreeBackend backend,
   gpu.GpuImageSurfaceFrame surfaceFrame,
-  gpu.CommandBuffer command,
+  gpu.CommandBuffer? command,
   bool presented,
   Object error,
 ) {
   if (!presented) {
     surfaceFrame.discard();
-  } else {
+  } else if (command != null) {
     _failPresentedThreeFrame(backend, command);
   }
   backend._failedPresentationCount++;
@@ -1743,7 +1743,9 @@ final class FlutterGpuThreeBackend {
     final draws = encoder.recordShadow(command);
     _renderedShadowDrawCount += draws;
     _traceThreeShadow('shadow recorded sequence=$_lastSequence draws=$draws');
-    if (!_shadowFrameActive) return;
+    // Submit even an inactive/empty shadow pass: an encoded-but-never-
+    // submitted command buffer still occupies a Metal queue slot, and a
+    // per-frame leak of those slots deadlocks commandBuffer creation.
     _submitThreeShadow(this, command);
     _cacheShadow(frame, contentRevision);
   }
@@ -1792,7 +1794,7 @@ final class FlutterGpuThreeBackend {
   ) {
     final surface = _imageSurface!;
     final surfaceFrame = surface.acquireNextFrame();
-    var command = _context.createCommandBuffer();
+    gpu.CommandBuffer? command;
     var presented = false;
     try {
       var recordedDraws = 0;
@@ -1809,9 +1811,10 @@ final class FlutterGpuThreeBackend {
         command = result.command;
         recordedDraws = result.draws;
       }
-      surfaceFrame.present(command);
+      final lastCommand = command!;
+      surfaceFrame.present(lastCommand);
       presented = true;
-      _submitThreeFrame(this, command);
+      _submitThreeFrame(this, lastCommand);
       return _finishThreeFrame(this, surface, recordedDraws);
     } catch (error) {
       _failThreePresentation(this, surfaceFrame, command, presented, error);
