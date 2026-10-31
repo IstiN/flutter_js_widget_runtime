@@ -1,0 +1,13 @@
+{
+  "id": "three-shadow-contact",
+  "name": "contact shadows — three.js r186",
+  "description": "Unmodified official webgl_shadow_contact module on the JSR THREE R1/WebGL2 runtime.",
+  "version": "0.1.0",
+  "icon": "🧊",
+  "allowedCommands": [],
+  "network": false,
+  "widget": {
+    "entry": "widget.js",
+    "interactive": true
+  }
+}

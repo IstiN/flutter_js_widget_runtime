@@ -1,0 +1,13 @@
+{
+  "id": "three-buffergeometry-glbufferattribute",
+  "name": "buffergeometry - custom VBOs — three.js r186",
+  "description": "Unmodified official webgl_buffergeometry_glbufferattribute module on the JSR THREE R1/WebGL2 runtime.",
+  "version": "0.1.0",
+  "icon": "🧊",
+  "allowedCommands": [],
+  "network": false,
+  "widget": {
+    "entry": "widget.js",
+    "interactive": true
+  }
+}

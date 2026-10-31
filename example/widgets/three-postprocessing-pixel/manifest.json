@@ -1,0 +1,13 @@
+{
+  "id": "three-postprocessing-pixel",
+  "name": "post processing - pixelation — three.js r186",
+  "description": "Unmodified official webgl_postprocessing_pixel module on the JSR THREE R1/WebGL2 runtime.",
+  "version": "0.1.0",
+  "icon": "🧊",
+  "allowedCommands": [],
+  "network": false,
+  "widget": {
+    "entry": "widget.js",
+    "interactive": true
+  }
+}

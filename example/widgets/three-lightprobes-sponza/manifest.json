@@ -1,0 +1,13 @@
+{
+  "id": "three-lightprobes-sponza",
+  "name": "light probe volume (Sponza) — three.js r186",
+  "description": "Unmodified official webgl_lightprobes_sponza module on the JSR THREE R1/WebGL2 runtime.",
+  "version": "0.1.0",
+  "icon": "🧊",
+  "allowedCommands": [],
+  "network": false,
+  "widget": {
+    "entry": "widget.js",
+    "interactive": true
+  }
+}

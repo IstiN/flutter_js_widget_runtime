@@ -1,0 +1,13 @@
+{
+  "id": "three-postprocessing-3dlut",
+  "name": "3d luts — three.js r186",
+  "description": "Unmodified official webgl_postprocessing_3dlut module on the JSR THREE R1/WebGL2 runtime.",
+  "version": "0.1.0",
+  "icon": "🧊",
+  "allowedCommands": [],
+  "network": false,
+  "widget": {
+    "entry": "widget.js",
+    "interactive": true
+  }
+}

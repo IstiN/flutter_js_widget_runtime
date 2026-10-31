@@ -1,0 +1,13 @@
+{
+  "id": "three-animation-skinning-ik",
+  "name": "animation - skinning - ik — three.js r186",
+  "description": "Unmodified official webgl_animation_skinning_ik module on the JSR THREE R1/WebGL2 runtime.",
+  "version": "0.1.0",
+  "icon": "🧊",
+  "allowedCommands": [],
+  "network": false,
+  "widget": {
+    "entry": "widget.js",
+    "interactive": true
+  }
+}

@@ -1,0 +1,13 @@
+{
+  "id": "three-custom-attributes-lines",
+  "name": "custom attributes [lines] — three.js r186",
+  "description": "Unmodified official webgl_custom_attributes_lines module on the JSR THREE R1/WebGL2 runtime.",
+  "version": "0.1.0",
+  "icon": "🧊",
+  "allowedCommands": [],
+  "network": false,
+  "widget": {
+    "entry": "widget.js",
+    "interactive": true
+  }
+}

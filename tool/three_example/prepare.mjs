@@ -2655,6 +2655,2298 @@ webgl_geometry_shapes: {
       }`
     }
   },
+  webaudio_sandbox: {
+    id: 'three-webaudio-sandbox',
+    directory: 'three-webaudio-sandbox',
+    name: 'sandbox — three.js r186',
+    description: 'Unmodified official webaudio_sandbox module on the JSR THREE R1/WebGL2 runtime.',
+    icon: '🔊',
+    expected: {
+      html: 'a65c8a258b79ba064ce3784d29245b3af0e83c579bfd4a1ed0e82a6806efd6ee',
+      module: '4da8b0e7758e5a9510506bbf07257bf990e404b7ba933843d4639c3f03e0253c'
+    },
+    assets: []
+  },
+  webaudio_visualizer: {
+    id: 'three-webaudio-visualizer',
+    directory: 'three-webaudio-visualizer',
+    name: 'visualizer — three.js r186',
+    description: 'Unmodified official webaudio_visualizer module on the JSR THREE R1/WebGL2 runtime.',
+    icon: '🔊',
+    expected: {
+      html: '9517f7b9e4859a4eca2033f43e7f9c378f86e694666b53e3ed8e79793d537e51',
+      module: '20be32a9cb66078672a7816d86292c4211de1d5a87ac1628e8fe80994b596dca'
+    },
+    assets: []
+  },
+  webgl_animation_keyframes: {
+    id: 'three-animation-keyframes',
+    directory: 'three-animation-keyframes',
+    name: 'animation - keyframes — three.js r186',
+    description: 'Unmodified official webgl_animation_keyframes module on the JSR THREE R1/WebGL2 runtime.',
+    icon: '🧊',
+    expected: {
+      html: '68dd0cf9d8dd135628bfe70a4f06f7d637d6b29c806af9beec2be701decf7106',
+      module: '85b28721436f86d762ce31f51d6ad64a3f2b4baf2a4f2da679ea2f877e774134'
+    },
+    assets: []
+  },
+  webgl_animation_skinning_additive_blending: {
+    id: 'three-animation-skinning-additive-blending',
+    directory: 'three-animation-skinning-additive-blending',
+    name: 'additive animation - skinning — three.js r186',
+    description: 'Unmodified official webgl_animation_skinning_additive_blending module on the JSR THREE R1/WebGL2 runtime.',
+    icon: '🧊',
+    expected: {
+      html: '8059a8d4d4a238aa3a43e3489df2c6c0904da092d4dbc45c66de6b9ac3a905b9',
+      module: '5106f804ad37d95462024cf6af1a8cec6cfba1ef2570d7c9e93e931392563132'
+    },
+    assets: []
+  },
+  webgl_animation_skinning_ik: {
+    id: 'three-animation-skinning-ik',
+    directory: 'three-animation-skinning-ik',
+    name: 'animation - skinning - ik — three.js r186',
+    description: 'Unmodified official webgl_animation_skinning_ik module on the JSR THREE R1/WebGL2 runtime.',
+    icon: '🧊',
+    expected: {
+      html: '81fe03ae043999f28c4201250feab05387a8555afdc0d46706ffdf3e71708de0',
+      module: '19574be3bb978c4f746937300813c521730f5cb756848ec74ab54988e381eac7'
+    },
+    assets: []
+  },
+  webgl_animation_walk: {
+    id: 'three-animation-walk',
+    directory: 'three-animation-walk',
+    name: 'animation - walk — three.js r186',
+    description: 'Unmodified official webgl_animation_walk module on the JSR THREE R1/WebGL2 runtime.',
+    icon: '🧊',
+    expected: {
+      html: '4e490a8d3b5064a0f2caa9a0d51cf6ed25880bde077cb9460cfea472e45b511e',
+      module: '4f518577e78e6eae44aeeaec36287f224dff6653436eec1616375ace9e9f4a0f'
+    },
+    assets: []
+  },
+  webgl_batch_lod_bvh: {
+    id: 'three-batch-lod-bvh',
+    directory: 'three-batch-lod-bvh',
+    name: 'Batch LOD BVH — three.js r186',
+    description: 'Unmodified official webgl_batch_lod_bvh module on the JSR THREE R1/WebGL2 runtime.',
+    icon: '🧊',
+    expected: {
+      html: '4bdcb5a0f3075db8d9905fcf1de3b116b6945d1fcabf1982ea731027e7b74016',
+      module: '9c8b90bc8a3de418e52aeddce94979f04a4ffee95f91500ceeef04689c46974e'
+    },
+    assets: []
+  },
+  webgl_buffergeometry_attributes_integer: {
+    id: 'three-buffergeometry-attributes-integer',
+    directory: 'three-buffergeometry-attributes-integer',
+    name: 'Buffergeometry Attributes Integer — three.js r186',
+    description: 'Unmodified official webgl_buffergeometry_attributes_integer module on the JSR THREE R1/WebGL2 runtime.',
+    icon: '🧊',
+    expected: {
+      html: 'efc4c6de529bdcb3b8c0f98d2edcb4ce5a73cf835ecd549a3def1adc6b7b207b',
+      module: 'b8619f32224e4eb2aa4e02e6676d16da2e3735fc484f748c1adbb6777e9b39d9'
+    },
+    assets: []
+  },
+  webgl_buffergeometry_custom_attributes_particles: {
+    id: 'three-buffergeometry-custom-attributes-particles',
+    directory: 'three-buffergeometry-custom-attributes-particles',
+    name: 'buffer geometry custom attributes - particles — three.js r186',
+    description: 'Unmodified official webgl_buffergeometry_custom_attributes_particles module on the JSR THREE R1/WebGL2 runtime.',
+    icon: '🧊',
+    expected: {
+      html: '83097a9599d17b6609bb4ad10b25136ea4b6378a74174152f20448bf53496ecb',
+      module: 'f750b7828f14d05a5ee5ef6c1489e4dd9f0ec03d8c24a2f36c21c7768f93eaab'
+    },
+    assets: []
+  },
+  webgl_buffergeometry_glbufferattribute: {
+    id: 'three-buffergeometry-glbufferattribute',
+    directory: 'three-buffergeometry-glbufferattribute',
+    name: 'buffergeometry - custom VBOs — three.js r186',
+    description: 'Unmodified official webgl_buffergeometry_glbufferattribute module on the JSR THREE R1/WebGL2 runtime.',
+    icon: '🧊',
+    expected: {
+      html: 'd93b5975882c4b57f69a6096fda0a5cf9cc768bc78899ac2ca4d5f792bb0d0cf',
+      module: '04780167d40b16b578b409ea09d18312b2f68f505d72addc2d9bf736f5ebce48'
+    },
+    assets: []
+  },
+  webgl_buffergeometry_instancing: {
+    id: 'three-buffergeometry-instancing',
+    directory: 'three-buffergeometry-instancing',
+    name: 'instancing test (single triangle) — three.js r186',
+    description: 'Unmodified official webgl_buffergeometry_instancing module on the JSR THREE R1/WebGL2 runtime.',
+    icon: '🧊',
+    expected: {
+      html: 'e26c4b93f76503b7baffed2a61a9082dfd18b9996e5ca03b578687d250efc095',
+      module: 'c34bef33ecc5f1a53b728ebde3849e0a6b064fe10b1e34654201b231dc825479'
+    },
+    assets: []
+  },
+  webgl_buffergeometry_instancing_billboards: {
+    id: 'three-buffergeometry-instancing-billboards',
+    directory: 'three-buffergeometry-instancing-billboards',
+    name: 'instanced particles - billboards - colors — three.js r186',
+    description: 'Unmodified official webgl_buffergeometry_instancing_billboards module on the JSR THREE R1/WebGL2 runtime.',
+    icon: '🧊',
+    expected: {
+      html: 'e8db25806997271bf21769007435b59d870afeb410a98a64de7dbf9e71ec84b0',
+      module: 'f09361e8bf87e5fb1efd20e914ace560cdc301b835d3aade4e8f1c92fc5c94e9'
+    },
+    assets: []
+  },
+  webgl_buffergeometry_instancing_interleaved: {
+    id: 'three-buffergeometry-instancing-interleaved',
+    directory: 'three-buffergeometry-instancing-interleaved',
+    name: 'indexed instancing (single box), interleaved buffers — three.js r186',
+    description: 'Unmodified official webgl_buffergeometry_instancing_interleaved module on the JSR THREE R1/WebGL2 runtime.',
+    icon: '🧊',
+    expected: {
+      html: '5998700f98e8a22888c354f9119409bed8a13dcaebcecd6887a2d719f66e8047',
+      module: '2f87c044532dfc3f7c6c2bdd01a708dee49913b7a4f1a31274a720ddfe2a3bfa'
+    },
+    assets: []
+  },
+  webgl_buffergeometry_rawshader: {
+    id: 'three-buffergeometry-rawshader',
+    directory: 'three-buffergeometry-rawshader',
+    name: 'raw shader — three.js r186',
+    description: 'Unmodified official webgl_buffergeometry_rawshader module on the JSR THREE R1/WebGL2 runtime.',
+    icon: '🧊',
+    expected: {
+      html: '22dd64e21aac42d2d3056ee56dce2ed820c2cf54e06e1ab7719c9b1bbbfd1d2b',
+      module: 'a11f5718fbfca8e07ef97ce2f1d2012dbac22aa952e3d35b02aaf50897cdf3c9'
+    },
+    assets: []
+  },
+  webgl_clipculldistance: {
+    id: 'three-clipculldistance',
+    directory: 'three-clipculldistance',
+    name: 'Clipculldistance — three.js r186',
+    description: 'Unmodified official webgl_clipculldistance module on the JSR THREE R1/WebGL2 runtime.',
+    icon: '🧊',
+    expected: {
+      html: '0eca3d8ab861d313e275b46acc9671c634fbf815f216e1bb955761ba1bcf379f',
+      module: '825cee1715fa8f462bb8d97360465f2b01f53ea02a9c6642b779d6d36c77c57c'
+    },
+    assets: []
+  },
+  webgl_clipping_stencil: {
+    id: 'three-clipping-stencil',
+    directory: 'three-clipping-stencil',
+    name: 'clipping stencil — three.js r186',
+    description: 'Unmodified official webgl_clipping_stencil module on the JSR THREE R1/WebGL2 runtime.',
+    icon: '🧊',
+    expected: {
+      html: '8b1ce8143d99faf4ce3bec2ae6289afd4c3738b54cb458a314d9286b99357a59',
+      module: '877aeb96e4becc5f647bbe09d2cf446506129fbce5fdc17241ff6825251f639b'
+    },
+    assets: []
+  },
+  webgl_custom_attributes: {
+    id: 'three-custom-attributes',
+    directory: 'three-custom-attributes',
+    name: 'custom attributes — three.js r186',
+    description: 'Unmodified official webgl_custom_attributes module on the JSR THREE R1/WebGL2 runtime.',
+    icon: '🧊',
+    expected: {
+      html: 'ff29b98376651e2b6342f930e09c3c52ffc12cb4091158fe5cd436fa25ae2811',
+      module: 'f4401c81c0f63a37036350401bc0aeafa0aad52d87fb25ff1c9d3dc9617b0c39'
+    },
+    assets: []
+  },
+  webgl_custom_attributes_lines: {
+    id: 'three-custom-attributes-lines',
+    directory: 'three-custom-attributes-lines',
+    name: 'custom attributes [lines] — three.js r186',
+    description: 'Unmodified official webgl_custom_attributes_lines module on the JSR THREE R1/WebGL2 runtime.',
+    icon: '🧊',
+    expected: {
+      html: 'dd9ba3293b6f3e6689a35e762f74a2f0fcb28be45e4252bf9b2021c88c8b1fdb',
+      module: '257a44a4831441384fc58cadcc7d288b4bea1352944a479c2bb6506dd9a67036'
+    },
+    assets: []
+  },
+  webgl_custom_attributes_points: {
+    id: 'three-custom-attributes-points',
+    directory: 'three-custom-attributes-points',
+    name: 'custom attributes [particles] — three.js r186',
+    description: 'Unmodified official webgl_custom_attributes_points module on the JSR THREE R1/WebGL2 runtime.',
+    icon: '🧊',
+    expected: {
+      html: '5316fb3913d1c75d097c1be1808d0ad6cfe3a093da4bd4a7e511f20794245445',
+      module: '421a70a3d955daf5142cbca35c22227c5f223eeaca6e6c29a5940c1eecb28cd0'
+    },
+    assets: []
+  },
+  webgl_custom_attributes_points2: {
+    id: 'three-custom-attributes-points2',
+    directory: 'three-custom-attributes-points2',
+    name: 'custom attributes [particles][billboards] — three.js r186',
+    description: 'Unmodified official webgl_custom_attributes_points2 module on the JSR THREE R1/WebGL2 runtime.',
+    icon: '🧊',
+    expected: {
+      html: 'f8550792d1801617a32520bfbeb22d443dcca9ce8143c6b1e0e98c9199eaaf51',
+      module: '3a10aba832195e7ee4c0eb053d19774606216c1ef61ca1d51c79775515ae7671'
+    },
+    assets: []
+  },
+  webgl_custom_attributes_points3: {
+    id: 'three-custom-attributes-points3',
+    directory: 'three-custom-attributes-points3',
+    name: 'custom attributes [particles][billboards][alphatest] — three.js r186',
+    description: 'Unmodified official webgl_custom_attributes_points3 module on the JSR THREE R1/WebGL2 runtime.',
+    icon: '🧊',
+    expected: {
+      html: 'c77afb177de54ada7f0a58bb8c9c1198d96aaa114dbaac456e3fdc0210bebcfc',
+      module: 'a67ecbde520093412214cdfdaf02f6e8c8ee393db9bddaf241d20f4e0149ab32'
+    },
+    assets: []
+  },
+  webgl_depth_texture: {
+    id: 'three-depth-texture',
+    directory: 'three-depth-texture',
+    name: 'Depth Texture — three.js r186',
+    description: 'Unmodified official webgl_depth_texture module on the JSR THREE R1/WebGL2 runtime.',
+    icon: '🧊',
+    expected: {
+      html: '8ee23ac45ac3233941f6e3e6a8832770a966c6ac2db376fbc166f470f3dfe4e3',
+      module: '26a0b443827147c6cb2af9912f1e9f882f12d97d331cc56f7ef26fece9b92968'
+    },
+    assets: []
+  },
+  webgl_effects_ascii: {
+    id: 'three-effects-ascii',
+    directory: 'three-effects-ascii',
+    name: 'effects - ascii — three.js r186',
+    description: 'Unmodified official webgl_effects_ascii module on the JSR THREE R1/WebGL2 runtime.',
+    icon: '🧊',
+    expected: {
+      html: '09fbb0266e91f0e6a56938310ca5fa0d09f151198bd1a08f9d592870144113dc',
+      module: '95345a20fbf27f070f677c7632119a352494018fff20aeb8497b178fcadf3751'
+    },
+    assets: []
+  },
+  webgl_effects_parallaxbarrier: {
+    id: 'three-effects-parallaxbarrier',
+    directory: 'three-effects-parallaxbarrier',
+    name: 'effects - parallax barrier — three.js r186',
+    description: 'Unmodified official webgl_effects_parallaxbarrier module on the JSR THREE R1/WebGL2 runtime.',
+    icon: '🧊',
+    expected: {
+      html: 'dcc2b4064201d6e68e5e60fbeda8d127017955edd41683e6cc05b3f04da6114f',
+      module: 'ab414585c7af40aacc37895652d60a9920c0ae76f2bf9639fe966cddd66e1f9d'
+    },
+    assets: []
+  },
+  webgl_framebuffer_texture: {
+    id: 'three-framebuffer-texture',
+    directory: 'three-framebuffer-texture',
+    name: 'framebuffer - texture — three.js r186',
+    description: 'Unmodified official webgl_framebuffer_texture module on the JSR THREE R1/WebGL2 runtime.',
+    icon: '🧊',
+    expected: {
+      html: '4bf200bf1558513434abab3075a4fe09402e13bc66ad97d2d4febb5066ea91f2',
+      module: '9d6f9775a490d457d2ac562560246a5b23211ed2c44183ce2d1f19c509f63748'
+    },
+    assets: []
+  },
+  webgl_furnace_test: {
+    id: 'three-furnace-test',
+    directory: 'three-furnace-test',
+    name: 'Furnace Test — three.js r186',
+    description: 'Unmodified official webgl_furnace_test module on the JSR THREE R1/WebGL2 runtime.',
+    icon: '🧊',
+    expected: {
+      html: '18853433a206910fc80d3ff2af3cb156670eb5d1dbe39d64a990bf8857187de5',
+      module: '4b8e3daa94880bb39abc6224f9c781c12fce919d469c3d24bcc179bb64a9ef69'
+    },
+    assets: []
+  },
+  webgl_gpgpu_birds: {
+    id: 'three-gpgpu-birds',
+    directory: 'three-gpgpu-birds',
+    name: 'gpgpu - flocking — three.js r186',
+    description: 'Unmodified official webgl_gpgpu_birds module on the JSR THREE R1/WebGL2 runtime.',
+    icon: '🧊',
+    expected: {
+      html: 'd34ee0fbf6a43dea28f0bc0b1f5eb286013356b9d1648fd0492926e6c8779409',
+      module: '5f2fe4213d16e936ed957081c2ba449d942ef61bd9d652588167e71762028c9a'
+    },
+    assets: []
+  },
+  webgl_gpgpu_birds_gltf: {
+    id: 'three-gpgpu-birds-gltf',
+    directory: 'three-gpgpu-birds-gltf',
+    name: 'gpgpu - flocking — three.js r186',
+    description: 'Unmodified official webgl_gpgpu_birds_gltf module on the JSR THREE R1/WebGL2 runtime.',
+    icon: '🧊',
+    expected: {
+      html: 'f3196d89cb4b6e0cd4a237d94caa8d5462c4dba9673501cd8e5a1e3db60e8dbc',
+      module: '372a4c0a61ee4edf3fd4fda45fb584812ae698268a11ddba0d627e4adc5a8bb6'
+    },
+    assets: []
+  },
+  webgl_gpgpu_protoplanet: {
+    id: 'three-gpgpu-protoplanet',
+    directory: 'three-gpgpu-protoplanet',
+    name: 'gpgpu - protoplanet — three.js r186',
+    description: 'Unmodified official webgl_gpgpu_protoplanet module on the JSR THREE R1/WebGL2 runtime.',
+    icon: '🧊',
+    expected: {
+      html: 'd6fb9f50fa55f91f0827f8283519481f0a4d7ce675ac72e475275ae7bf1d959b',
+      module: 'ddb02a2ade9e87df6090c91ad9691c029f765980c1b2a95379d14d39399e523e'
+    },
+    assets: []
+  },
+  webgl_gpgpu_water: {
+    id: 'three-gpgpu-water',
+    directory: 'three-gpgpu-water',
+    name: 'gpgpu - water — three.js r186',
+    description: 'Unmodified official webgl_gpgpu_water module on the JSR THREE R1/WebGL2 runtime.',
+    icon: '🧊',
+    expected: {
+      html: '7116f677e30465bfc895b5da47fa247c3535585ba7a7a6bcfbf81fdabfe31c4e',
+      module: 'd43f0c91d94c378ee1b0f6c8cdcaf6314054439c7d6733386a800fda42c40ddf'
+    },
+    assets: []
+  },
+  webgl_instancing_morph: {
+    id: 'three-instancing-morph',
+    directory: 'three-instancing-morph',
+    name: 'instancing - Morph Target Animations — three.js r186',
+    description: 'Unmodified official webgl_instancing_morph module on the JSR THREE R1/WebGL2 runtime.',
+    icon: '🧊',
+    expected: {
+      html: 'd0dc5d19cbfcf0e85dc98f831cf0c14613bdb2f1a03b11fd3df84750a734ca7b',
+      module: '311a027c5150185e4fe6989b99d0371d5bab882147efcf50af3cd320f4999819'
+    },
+    assets: []
+  },
+  webgl_interactive_cubes_gpu: {
+    id: 'three-interactive-cubes-gpu',
+    directory: 'three-interactive-cubes-gpu',
+    name: 'interactive cubes (gpu) — three.js r186',
+    description: 'Unmodified official webgl_interactive_cubes_gpu module on the JSR THREE R1/WebGL2 runtime.',
+    icon: '🧊',
+    expected: {
+      html: '4600fff76bad6097f29b4d7bbdfd2e36dd7527a7ce8bf98062021b5a04d1084c',
+      module: 'b263b5ebee3bf7355c9eb73904be3eb5640bc3cd375f4c19551e3f45356ee8a2'
+    },
+    assets: []
+  },
+  webgl_lensflares: {
+    id: 'three-lensflares',
+    directory: 'three-lensflares',
+    name: 'lensflares — three.js r186',
+    description: 'Unmodified official webgl_lensflares module on the JSR THREE R1/WebGL2 runtime.',
+    icon: '🧊',
+    expected: {
+      html: '0c706d5d8aff1a98e2ab4d392c79cbbac5e452074c1ea8e737964e6c46231bf3',
+      module: '8abac9c25dc27660583514bb63bd7bfa8b3bbac2b3345027d237ee7fe5099021'
+    },
+    assets: []
+  },
+  webgl_lightprobe: {
+    id: 'three-lightprobe',
+    directory: 'three-lightprobe',
+    name: 'light probe — three.js r186',
+    description: 'Unmodified official webgl_lightprobe module on the JSR THREE R1/WebGL2 runtime.',
+    icon: '🧊',
+    expected: {
+      html: '8a60cc69a0484ce3d4530684ce18742c148fe3090d26314d3b9ac8c4b966d0a4',
+      module: '4ebbd9301db3285c18e6aae07ad128c65644d3b09e1dbada683a8d0a4c32b181'
+    },
+    assets: []
+  },
+  webgl_lightprobe_cubecamera: {
+    id: 'three-lightprobe-cubecamera',
+    directory: 'three-lightprobe-cubecamera',
+    name: 'light probe from cubeCamera — three.js r186',
+    description: 'Unmodified official webgl_lightprobe_cubecamera module on the JSR THREE R1/WebGL2 runtime.',
+    icon: '🧊',
+    expected: {
+      html: 'b2ad73847b7c05b0d14d6e010150b4a605fb2f929d79a47aa0fe2017b243b78f',
+      module: '05acd4e6b535799096ff8d331cffbee9945c62b54e4c3994b649326a6c5647ac'
+    },
+    assets: []
+  },
+  webgl_lightprobes: {
+    id: 'three-lightprobes',
+    directory: 'three-lightprobes',
+    name: 'light probe volume — three.js r186',
+    description: 'Unmodified official webgl_lightprobes module on the JSR THREE R1/WebGL2 runtime.',
+    icon: '🧊',
+    expected: {
+      html: 'f7b18ee2a5b73068484c8b565bbac59a39eee4bfe8328c8933bc0378b7929ba0',
+      module: 'bb399dea61b6d0c9812e24769b8fc305643da71c6b5b8ff6483cb6b896d123d4'
+    },
+    assets: []
+  },
+  webgl_lightprobes_complex: {
+    id: 'three-lightprobes-complex',
+    directory: 'three-lightprobes-complex',
+    name: 'light probe volume (multi-room) — three.js r186',
+    description: 'Unmodified official webgl_lightprobes_complex module on the JSR THREE R1/WebGL2 runtime.',
+    icon: '🧊',
+    expected: {
+      html: '3d31b46427fa675725d086ecbae084d41f716bfcd35bf833e66113b0effbe264',
+      module: '68800c7e625e5eaa89e29b6880186ecba35415fa750dc9afd341313782d92874'
+    },
+    assets: []
+  },
+  webgl_lightprobes_sponza: {
+    id: 'three-lightprobes-sponza',
+    directory: 'three-lightprobes-sponza',
+    name: 'light probe volume (Sponza) — three.js r186',
+    description: 'Unmodified official webgl_lightprobes_sponza module on the JSR THREE R1/WebGL2 runtime.',
+    icon: '🧊',
+    expected: {
+      html: '68c658e46b20d34f451d6e80b17491a8faa4d1c596e94022e9ae6ab9a1a04cf9',
+      module: '7096bbe4b58c139380283b9caa53f1301646da85f28dfd5e7a06dbd3fc4e8b61'
+    },
+    assets: []
+  },
+  webgl_lights_rectarealight: {
+    id: 'three-lights-rectarealight',
+    directory: 'three-lights-rectarealight',
+    name: 'lights - rect area light — three.js r186',
+    description: 'Unmodified official webgl_lights_rectarealight module on the JSR THREE R1/WebGL2 runtime.',
+    icon: '🧊',
+    expected: {
+      html: '0f376a50d0d98bdbf3567f1686736feb2e6f747084e59d0639aa27088eef0c39',
+      module: 'dcbc96ace20236b8041c0b310cc23de22631c680b7f76e4c695a2abcb1850bca'
+    },
+    assets: []
+  },
+  webgl_lights_sunlight: {
+    id: 'three-lights-sunlight',
+    directory: 'three-lights-sunlight',
+    name: 'lights - sunlight — three.js r186',
+    description: 'Unmodified official webgl_lights_sunlight module on the JSR THREE R1/WebGL2 runtime.',
+    icon: '🧊',
+    expected: {
+      html: '4aa2f47e0ee13d1ef010c857c46a30adb80f6f70b66d5141ac5fd822eafaa4db',
+      module: '00ae552dbb2c7cbb1e9d47aaccefa21f437f0fe32de8482a0a4ffd1c8ffe374e'
+    },
+    assets: []
+  },
+  webgl_lines_fat_raycasting: {
+    id: 'three-lines-fat-raycasting',
+    directory: 'three-lines-fat-raycasting',
+    name: 'lines - fat — three.js r186',
+    description: 'Unmodified official webgl_lines_fat_raycasting module on the JSR THREE R1/WebGL2 runtime.',
+    icon: '🧊',
+    expected: {
+      html: 'd2c6689b94e220e89f495f4cfedcaa3e167162f007b8257d95693adba1d94474',
+      module: 'd7ab3e9fcc63fa4bef22d693a51f791f6f5c9dde883421e139052de3f658b3cc'
+    },
+    assets: []
+  },
+  webgl_lines_fat_wireframe: {
+    id: 'three-lines-fat-wireframe',
+    directory: 'three-lines-fat-wireframe',
+    name: 'lines - fat - wireframe — three.js r186',
+    description: 'Unmodified official webgl_lines_fat_wireframe module on the JSR THREE R1/WebGL2 runtime.',
+    icon: '🧊',
+    expected: {
+      html: '37a8cf801ae11db21366d84e3ada0f49efa40904387be62955fdcf99586ea85a',
+      module: 'f2e7d34eaed21b65eb7849f2bf1f91e30b22a50c7213a0cec119793a90ddadf9'
+    },
+    assets: []
+  },
+  webgl_loader_3dm: {
+    id: 'three-loader-3dm',
+    directory: 'three-loader-3dm',
+    name: 'loaders - Rhino 3DM loader — three.js r186',
+    description: 'Unmodified official webgl_loader_3dm module on the JSR THREE R1/WebGL2 runtime.',
+    icon: '🧊',
+    expected: {
+      html: '37fde3f49f1f8efe06fcd045cb8ec18803ad19a4f6db4747fcca7b3f1029d677',
+      module: '3dc1a5727a379a841284abc0a8eeff7817a036ada3b6b315396e2c960982e1de'
+    },
+    assets: []
+  },
+  webgl_loader_3ds: {
+    id: 'three-loader-3ds',
+    directory: 'three-loader-3ds',
+    name: 'loaders - 3DS loader — three.js r186',
+    description: 'Unmodified official webgl_loader_3ds module on the JSR THREE R1/WebGL2 runtime.',
+    icon: '🧊',
+    expected: {
+      html: '856222fcdecd8bd11c5380e0e4d778988d6960380672148120708728777bc77a',
+      module: '1392ff28e2ff4a912f6c9145023599724bac75bebf56540f9f9da7d1873d4269'
+    },
+    assets: []
+  },
+  webgl_loader_3dtiles: {
+    id: 'three-loader-3dtiles',
+    directory: 'three-loader-3dtiles',
+    name: 'Loader 3D Tiles — three.js r186',
+    description: 'Unmodified official webgl_loader_3dtiles module on the JSR THREE R1/WebGL2 runtime.',
+    icon: '🧊',
+    expected: {
+      html: '0d03162026f333914f1d961203b35cf4eccbe6dfee19eab29aeef2f1a70243c8',
+      module: '236c799ba6b5fca0fbe851632f20fa3e3d7c7a74e5381a309c16d8ccd1aaaa44'
+    },
+    assets: []
+  },
+  webgl_loader_3mf: {
+    id: 'three-loader-3mf',
+    directory: 'three-loader-3mf',
+    name: '3MF — three.js r186',
+    description: 'Unmodified official webgl_loader_3mf module on the JSR THREE R1/WebGL2 runtime.',
+    icon: '🧊',
+    expected: {
+      html: '404fb62573b07e3eb01c9f8b4a00f6bf4d4051d9a83b905adc9bf0819c7492e4',
+      module: 'aca96938eb251d4d2ca88da45cad39ee7e3b11320ce006fe1a4911b54e79b7f1'
+    },
+    assets: []
+  },
+  webgl_loader_3mf_materials: {
+    id: 'three-loader-3mf-materials',
+    directory: 'three-loader-3mf-materials',
+    name: '3MF — three.js r186',
+    description: 'Unmodified official webgl_loader_3mf_materials module on the JSR THREE R1/WebGL2 runtime.',
+    icon: '🧊',
+    expected: {
+      html: 'acac936c0f0ff8820c4263ce2db6aeca8a8f8317aca1aac948b59cb60b7d5d5a',
+      module: 'c965fce51ad887da0165531b5dbb5bee2ba6d68e46650d16a4da8d3a365bd9b7'
+    },
+    assets: []
+  },
+  webgl_loader_amf: {
+    id: 'three-loader-amf',
+    directory: 'three-loader-amf',
+    name: 'AMF — three.js r186',
+    description: 'Unmodified official webgl_loader_amf module on the JSR THREE R1/WebGL2 runtime.',
+    icon: '🧊',
+    expected: {
+      html: '46cbdd7584fd70475b5c080b228f1aa679606b73c2392a43e2665d7cd63ef53e',
+      module: '3375334d856c407f28732896efbda843b90e5135328110cf3a6342e8341a0dfe'
+    },
+    assets: []
+  },
+  webgl_loader_bvh: {
+    id: 'three-loader-bvh',
+    directory: 'three-loader-bvh',
+    name: 'loaders - BVHLoader — three.js r186',
+    description: 'Unmodified official webgl_loader_bvh module on the JSR THREE R1/WebGL2 runtime.',
+    icon: '🧊',
+    expected: {
+      html: 'f62d0300f6d1660ae1e7e5efb1998d03c3c563f598ee593e84034fe88f08794c',
+      module: '972f3ebdec06dc61dd4e63ea24304105830549e83d82feec3e42a0973807e2ce'
+    },
+    assets: []
+  },
+  webgl_loader_collada: {
+    id: 'three-loader-collada',
+    directory: 'three-loader-collada',
+    name: 'collada — three.js r186',
+    description: 'Unmodified official webgl_loader_collada module on the JSR THREE R1/WebGL2 runtime.',
+    icon: '🧊',
+    expected: {
+      html: 'bbb4970bad5d35034e44dfaa529408be5462eaef71cc5732957abf41f399639e',
+      module: '97168a046a02998d9e680d9fc51f056b0e17e0dc27794e12553b657e3115a22f'
+    },
+    assets: []
+  },
+  webgl_loader_collada_kinematics: {
+    id: 'three-loader-collada-kinematics',
+    directory: 'three-loader-collada-kinematics',
+    name: 'collada - kinematics — three.js r186',
+    description: 'Unmodified official webgl_loader_collada_kinematics module on the JSR THREE R1/WebGL2 runtime.',
+    icon: '🧊',
+    expected: {
+      html: '4039717283dcf1e15d6dd38f407f2c651d583c23d0e021b19b8fa06667092a26',
+      module: '47825636c4797a252f79e958861d851936314325b99a11bc1034869b7fe32812'
+    },
+    assets: []
+  },
+  webgl_loader_collada_skinning: {
+    id: 'three-loader-collada-skinning',
+    directory: 'three-loader-collada-skinning',
+    name: 'collada - skinning — three.js r186',
+    description: 'Unmodified official webgl_loader_collada_skinning module on the JSR THREE R1/WebGL2 runtime.',
+    icon: '🧊',
+    expected: {
+      html: '8be3ad01914e8d2ce4eb81a630f31a61c8c9912af52eb68195240fd75703e368',
+      module: '5785fcc9370fac33b9b4e81de23ade1a277f9a56c117ade882771144efe15372'
+    },
+    assets: []
+  },
+  webgl_loader_draco: {
+    id: 'three-loader-draco',
+    directory: 'three-loader-draco',
+    name: 'loaders - Draco loader — three.js r186',
+    description: 'Unmodified official webgl_loader_draco module on the JSR THREE R1/WebGL2 runtime.',
+    icon: '🧊',
+    expected: {
+      html: '9f13086a8563d24339c701efdf84c4a33a6e1e490414a507819116a04e1c160a',
+      module: '2210ceb45a1ed060224752da9685c270af787dc51157a3d3b35f954d6ed648ab'
+    },
+    assets: []
+  },
+  webgl_loader_fbx: {
+    id: 'three-loader-fbx',
+    directory: 'three-loader-fbx',
+    name: 'FBX loader — three.js r186',
+    description: 'Unmodified official webgl_loader_fbx module on the JSR THREE R1/WebGL2 runtime.',
+    icon: '🧊',
+    expected: {
+      html: '9ad3920575e7a36a2a7797f9ed520d901eccca50de17ec016c3ab1070fe0b839',
+      module: 'fdf0048c372f466499603a4e5a9d1dc835080b20df3764c8d172f326100a005f'
+    },
+    assets: []
+  },
+  webgl_loader_fbx_nurbs: {
+    id: 'three-loader-fbx-nurbs',
+    directory: 'three-loader-fbx-nurbs',
+    name: 'FBX loader - Nurbs — three.js r186',
+    description: 'Unmodified official webgl_loader_fbx_nurbs module on the JSR THREE R1/WebGL2 runtime.',
+    icon: '🧊',
+    expected: {
+      html: '14e1f463464a16ef4552171c516da45edca62a4b9503aa4991390aa0d73c76df',
+      module: 'ee31f759454be8b6e9e18dad180a90ac1ba10c5a59f2c3427e9d613b9bb142b9'
+    },
+    assets: []
+  },
+  webgl_loader_gcode: {
+    id: 'three-loader-gcode',
+    directory: 'three-loader-gcode',
+    name: 'loaders - GCode loader — three.js r186',
+    description: 'Unmodified official webgl_loader_gcode module on the JSR THREE R1/WebGL2 runtime.',
+    icon: '🧊',
+    expected: {
+      html: '4dfd6074651e2a95658679539d869e4d92fd4c53d336ff431b201cee7f8fb642',
+      module: 'e2267ffbe56df1d6c11e2ab94ec7b90381f5f50db4f9aabf8f5fc7ee2d6edaad'
+    },
+    assets: []
+  },
+  webgl_loader_gltf: {
+    id: 'three-loader-gltf',
+    directory: 'three-loader-gltf',
+    name: 'GLTFloader — three.js r186',
+    description: 'Unmodified official webgl_loader_gltf module on the JSR THREE R1/WebGL2 runtime.',
+    icon: '🧊',
+    expected: {
+      html: '46564bbb6dc5abbfee13d3718c9853a11ba734087760d89174963e43bf0d5695',
+      module: 'ac1330273f078a23cd8d984375b8ba162506ad3ca913bbe2e041cffe92052013'
+    },
+    assets: []
+  },
+  webgl_loader_gltf_animation_pointer: {
+    id: 'three-loader-gltf-animation-pointer',
+    directory: 'three-loader-gltf-animation-pointer',
+    name: 'animation - keyframes — three.js r186',
+    description: 'Unmodified official webgl_loader_gltf_animation_pointer module on the JSR THREE R1/WebGL2 runtime.',
+    icon: '🧊',
+    expected: {
+      html: '43e8e73510ab4a689decf61fcdf8e4596336fdc6af6e2d5938ce0ca7d4e9b7e2',
+      module: 'b56aa30ca003d493c33bc7d21536c4e48cde2074b9bb8cc8ebcdcd94952f5f4c'
+    },
+    assets: []
+  },
+  webgl_loader_gltf_anisotropy: {
+    id: 'three-loader-gltf-anisotropy',
+    directory: 'three-loader-gltf-anisotropy',
+    name: 'GLTFloader + Anisotropy — three.js r186',
+    description: 'Unmodified official webgl_loader_gltf_anisotropy module on the JSR THREE R1/WebGL2 runtime.',
+    icon: '🧊',
+    expected: {
+      html: 'aeabd8b5985d438afc60f72f83f6495e47b744ce32f8160ac7724ce38b6361b8',
+      module: '7d8ecb38a834ac6101ccd205e70be2236cc738c859d6a326f4f7c4f5ab1d0551'
+    },
+    assets: []
+  },
+  webgl_loader_gltf_avif: {
+    id: 'three-loader-gltf-avif',
+    directory: 'three-loader-gltf-avif',
+    name: 'GLTFloader + EXT_texture_avif — three.js r186',
+    description: 'Unmodified official webgl_loader_gltf_avif module on the JSR THREE R1/WebGL2 runtime.',
+    icon: '🧊',
+    expected: {
+      html: 'f6b3e0d31c97a7e78333ea7255ca249f112f82e56704ab7680f98a772f6b3f61',
+      module: 'f283071fe8d4159a83da990b0076230985cdf63e562f4af28a45f6d9538cc7de'
+    },
+    assets: []
+  },
+  webgl_loader_gltf_compressed: {
+    id: 'three-loader-gltf-compressed',
+    directory: 'three-loader-gltf-compressed',
+    name: 'GLTFloader + compressed — three.js r186',
+    description: 'Unmodified official webgl_loader_gltf_compressed module on the JSR THREE R1/WebGL2 runtime.',
+    icon: '🧊',
+    expected: {
+      html: 'e1537edce61b1b41ba057a00150c41c2030f6bb0131a46db7c70ecfad2b03413',
+      module: '22ec9dbebafd54928146af0b87703233da4d0ce5bfc1e784be057297c3abcf36'
+    },
+    assets: []
+  },
+  webgl_loader_gltf_dispersion: {
+    id: 'three-loader-gltf-dispersion',
+    directory: 'three-loader-gltf-dispersion',
+    name: 'GLTFloader + Dispersion — three.js r186',
+    description: 'Unmodified official webgl_loader_gltf_dispersion module on the JSR THREE R1/WebGL2 runtime.',
+    icon: '🧊',
+    expected: {
+      html: '6822f939b081ebb4a99d49c74491a5e56f19704046fc0270dbbc7feee276726a',
+      module: '2daed2bbce66d791cc73ecf9fd65d59f015f47a9fe28873f3f2b529f96e337df'
+    },
+    assets: []
+  },
+  webgl_loader_gltf_instancing: {
+    id: 'three-loader-gltf-instancing',
+    directory: 'three-loader-gltf-instancing',
+    name: 'GLTFloader + Instancing — three.js r186',
+    description: 'Unmodified official webgl_loader_gltf_instancing module on the JSR THREE R1/WebGL2 runtime.',
+    icon: '🧊',
+    expected: {
+      html: 'd0a5ccd5df8fb32dc9a17f2aa6ac2c29ac0ddb6b1d472fae90ec66d7f9891296',
+      module: 'd3e63ccfc116efab51f5a8f2305bdbd6635425e99eae455e84fd98d8296b383f'
+    },
+    assets: []
+  },
+  webgl_loader_gltf_iridescence: {
+    id: 'three-loader-gltf-iridescence',
+    directory: 'three-loader-gltf-iridescence',
+    name: 'GLTFloader + Iridescence — three.js r186',
+    description: 'Unmodified official webgl_loader_gltf_iridescence module on the JSR THREE R1/WebGL2 runtime.',
+    icon: '🧊',
+    expected: {
+      html: '6f0d8183c62d8746870bd3d65532c75acc2e20c84930b7ac9d5ff67b5b7d72d6',
+      module: 'bf429234169eb56702419bfc9ae0c51a8fcace9393f72e0a6e279f77b818d588'
+    },
+    assets: []
+  },
+  webgl_loader_gltf_progressive_lod: {
+    id: 'three-loader-gltf-progressive-lod',
+    directory: 'three-loader-gltf-progressive-lod',
+    name: 'GLTF with progressive loading — three.js r186',
+    description: 'Unmodified official webgl_loader_gltf_progressive_lod module on the JSR THREE R1/WebGL2 runtime.',
+    icon: '🧊',
+    expected: {
+      html: 'ebe4720fef3c7d36ea834967d27586f7d0bd963a93e3da86c3b51688b8011edf',
+      module: 'a0e834bbaf145b3b21ddc08fae4c15d2a51a9fe85576cd352efd581a42c11b60'
+    },
+    assets: []
+  },
+  webgl_loader_gltf_sheen: {
+    id: 'three-loader-gltf-sheen',
+    directory: 'three-loader-gltf-sheen',
+    name: 'GLTFloader + Sheen — three.js r186',
+    description: 'Unmodified official webgl_loader_gltf_sheen module on the JSR THREE R1/WebGL2 runtime.',
+    icon: '🧊',
+    expected: {
+      html: 'b4b191f40cfe8b327da443119d95aa1ea43d5a9aa5a1b389be9e87cca9981ee5',
+      module: '31248009ced4e9b9c761bb6549fc76fd48284295de91976a118e1b0afcbc686d'
+    },
+    assets: []
+  },
+  webgl_loader_gltf_transmission: {
+    id: 'three-loader-gltf-transmission',
+    directory: 'three-loader-gltf-transmission',
+    name: 'GLTFloader + transmission — three.js r186',
+    description: 'Unmodified official webgl_loader_gltf_transmission module on the JSR THREE R1/WebGL2 runtime.',
+    icon: '🧊',
+    expected: {
+      html: '6a604abcba0a092dbdff61e19eb897aa58b869e19534e20f3e0b308fed6cb704',
+      module: '715287a7e3e61cca41d2109e365187d300f989ca6a7efcc9ed47fb6ab4afbd59'
+    },
+    assets: []
+  },
+  webgl_loader_gltf_variants: {
+    id: 'three-loader-gltf-variants',
+    directory: 'three-loader-gltf-variants',
+    name: 'GLTFloader + variants — three.js r186',
+    description: 'Unmodified official webgl_loader_gltf_variants module on the JSR THREE R1/WebGL2 runtime.',
+    icon: '🧊',
+    expected: {
+      html: 'a6d1e8fa8e31b5cc5e1dfe37bc4f248bb96e15199aed0d081d1d91581f0d445c',
+      module: '7d8ab3353eb9f428939a82666a02c3da105b0788f7793c7c8d1e8b1139a30769'
+    },
+    assets: []
+  },
+  webgl_loader_ifc: {
+    id: 'three-loader-ifc',
+    directory: 'three-loader-ifc',
+    name: 'IFCLoader — three.js r186',
+    description: 'Unmodified official webgl_loader_ifc module on the JSR THREE R1/WebGL2 runtime.',
+    icon: '🧊',
+    expected: {
+      html: '16bb9fbfac63210fb315a06d81edb95b105052aae5917e21232b9b5186012f56',
+      module: '91010b984ba8c5934a725b9b022b9e0741c04aadc043a5fd613a6d24b72a37aa'
+    },
+    assets: []
+  },
+  webgl_loader_imagebitmap: {
+    id: 'three-loader-imagebitmap',
+    directory: 'three-loader-imagebitmap',
+    name: 'loader - ImageBitmap — three.js r186',
+    description: 'Unmodified official webgl_loader_imagebitmap module on the JSR THREE R1/WebGL2 runtime.',
+    icon: '🧊',
+    expected: {
+      html: '3616505634c77365a36f6d7a4c6445357df244df8aa14daa13509a827ec33d24',
+      module: 'cb3546dfc28d1dfc4444cbc1b0ba683f9304256133daebc3a86efd6518221589'
+    },
+    assets: []
+  },
+  webgl_loader_kmz: {
+    id: 'three-loader-kmz',
+    directory: 'three-loader-kmz',
+    name: 'KMZLoader — three.js r186',
+    description: 'Unmodified official webgl_loader_kmz module on the JSR THREE R1/WebGL2 runtime.',
+    icon: '🧊',
+    expected: {
+      html: 'af1e01ea1dd3f22cccbdc09a572c5889338837ca7b0a043b2d98371f68d86ea2',
+      module: '191ed83bae51c15a8915bc677d8ed37bf630e4098c556c37e590b25408710da5'
+    },
+    assets: []
+  },
+  webgl_loader_ldraw: {
+    id: 'three-loader-ldraw',
+    directory: 'three-loader-ldraw',
+    name: 'LDrawLoader — three.js r186',
+    description: 'Unmodified official webgl_loader_ldraw module on the JSR THREE R1/WebGL2 runtime.',
+    icon: '🧊',
+    expected: {
+      html: 'ca8c1279fecd8707e599961882a65e4243aa22abcbecb511c3189fdfda679837',
+      module: '6e2312b5c918168418957bd9304fffecb2dfca572438f88e5975e4832b0e0afa'
+    },
+    assets: []
+  },
+  webgl_loader_md2: {
+    id: 'three-loader-md2',
+    directory: 'three-loader-md2',
+    name: 'morphtargets - MD2 — three.js r186',
+    description: 'Unmodified official webgl_loader_md2 module on the JSR THREE R1/WebGL2 runtime.',
+    icon: '🧊',
+    expected: {
+      html: '633e5d216df5ccfbbc00f12fab48842df9649685005c7d0e1ac886573871061b',
+      module: '6b3d809722cb7838f3b287f49d89e9b67f9f58dac2f58d3c70c988ac8cfc6b2b'
+    },
+    assets: []
+  },
+  webgl_loader_md2_control: {
+    id: 'three-loader-md2-control',
+    directory: 'three-loader-md2-control',
+    name: 'morphtargets - MD2 controls — three.js r186',
+    description: 'Unmodified official webgl_loader_md2_control module on the JSR THREE R1/WebGL2 runtime.',
+    icon: '🧊',
+    expected: {
+      html: 'e7af43b29f8e44893eff1ed92da36554e1b458e951ff6686251d3d9e464781da',
+      module: 'dbe9112206694aec5aa2a723934783f134ebdf5e282b0a3824e54c5a5e0fb4b1'
+    },
+    assets: []
+  },
+  webgl_loader_mdd: {
+    id: 'three-loader-mdd',
+    directory: 'three-loader-mdd',
+    name: 'Loader MDD — three.js r186',
+    description: 'Unmodified official webgl_loader_mdd module on the JSR THREE R1/WebGL2 runtime.',
+    icon: '🧊',
+    expected: {
+      html: '1f2ac7b4f32ea19d433762c8cadb1e3f85bc2303fefdfb75b55ef32556ebb0ad',
+      module: '6d445b814eaec02bd37c9fd725373025833c76f28daa8f35209a9ea15566063b'
+    },
+    assets: []
+  },
+  webgl_loader_nrrd: {
+    id: 'three-loader-nrrd',
+    directory: 'three-loader-nrrd',
+    name: 'loaders - NRRD loader — three.js r186',
+    description: 'Unmodified official webgl_loader_nrrd module on the JSR THREE R1/WebGL2 runtime.',
+    icon: '🧊',
+    expected: {
+      html: '8b7a3ce401dfb916364d0424f4cb4b555f23daba408a6b83765d1ae8911508fd',
+      module: '1b580ee34fe79c898420e9fa47a49fc30eb399180e4fb9f78af4efc879236ab4'
+    },
+    assets: []
+  },
+  webgl_loader_pdb: {
+    id: 'three-loader-pdb',
+    directory: 'three-loader-pdb',
+    name: 'molecules — three.js r186',
+    description: 'Unmodified official webgl_loader_pdb module on the JSR THREE R1/WebGL2 runtime.',
+    icon: '🧊',
+    expected: {
+      html: 'ed16fe831ea2d161e870f594e7d4113d01aad05f7fe9f3c653d40181910f5bb6',
+      module: '4a158ab6fe3f410c22c1b3678bf6e3e8d267e07b403a8cd7ca85257780f0e52e'
+    },
+    assets: []
+  },
+  webgl_loader_texture_dds: {
+    id: 'three-loader-texture-dds',
+    directory: 'three-loader-texture-dds',
+    name: 'materials - compressed textures — three.js r186',
+    description: 'Unmodified official webgl_loader_texture_dds module on the JSR THREE R1/WebGL2 runtime.',
+    icon: '🧊',
+    expected: {
+      html: '124c55dfa997841b4ed3b0b27cd1e2ce871fa4d4db1f703bbae764872411b672',
+      module: 'f818496949c2090c0e995662c7dfc916b3b85d826527f57e1c2fc24166867d46'
+    },
+    assets: []
+  },
+  webgl_loader_texture_exr: {
+    id: 'three-loader-texture-exr',
+    directory: 'three-loader-texture-exr',
+    name: 'materials - EXR texture loader — three.js r186',
+    description: 'Unmodified official webgl_loader_texture_exr module on the JSR THREE R1/WebGL2 runtime.',
+    icon: '🧊',
+    expected: {
+      html: 'e1c47f465b8a08d1536f151926101db5caaba80c3cabb8773a209033b31427fd',
+      module: 'cdcd6b6caa5f7100053ca7c95c07654b2dc55700f576e954165008f4f0542051'
+    },
+    assets: []
+  },
+  webgl_loader_texture_hdr: {
+    id: 'three-loader-texture-hdr',
+    directory: 'three-loader-texture-hdr',
+    name: 'materials - HDR texture loader — three.js r186',
+    description: 'Unmodified official webgl_loader_texture_hdr module on the JSR THREE R1/WebGL2 runtime.',
+    icon: '🧊',
+    expected: {
+      html: '6c1d4dafed6fa9ccdf4cf7d66b0d5e34242449ee6ec69a9f6009c7798d76895d',
+      module: 'fbac30e30798599ba786852f0d77485dc44e16e339e82c760a784a7a83f4fdff'
+    },
+    assets: []
+  },
+  webgl_loader_texture_ktx: {
+    id: 'three-loader-texture-ktx',
+    directory: 'three-loader-texture-ktx',
+    name: 'materials - compressed textures — three.js r186',
+    description: 'Unmodified official webgl_loader_texture_ktx module on the JSR THREE R1/WebGL2 runtime.',
+    icon: '🧊',
+    expected: {
+      html: 'f5bbdb355bb7b95823457dc5ae1afae3f6be5aa19f4eb3ec6c9ca31532ef84d9',
+      module: 'dea4d39ec3d78288b6c42318ffec253de32ed1c04ce337fe2801bc587eb39947'
+    },
+    assets: []
+  },
+  webgl_loader_texture_ktx2: {
+    id: 'three-loader-texture-ktx2',
+    directory: 'three-loader-texture-ktx2',
+    name: 'KTX2 texture loader — three.js r186',
+    description: 'Unmodified official webgl_loader_texture_ktx2 module on the JSR THREE R1/WebGL2 runtime.',
+    icon: '🧊',
+    expected: {
+      html: '023d48c7ea9585d40c3dca72e5b32980dcecaa7a2f94061c8ae6e397a2f26d84',
+      module: 'de2e97c4ad08cf2f77bb50a36ae158a6a2541d26b63f416c3555679d15336876'
+    },
+    assets: []
+  },
+  webgl_loader_texture_lottie: {
+    id: 'three-loader-texture-lottie',
+    directory: 'three-loader-texture-lottie',
+    name: 'lottie loader — three.js r186',
+    description: 'Unmodified official webgl_loader_texture_lottie module on the JSR THREE R1/WebGL2 runtime.',
+    icon: '🧊',
+    expected: {
+      html: '7f90e7315a5e0646e6da8fe4fd30006ed5737a6194d86f79a04428bf7a6962a8',
+      module: 'bb5901b59a83b6349789e84a56b702967b2c0e3981a5eba508e6bc9e9c576b36'
+    },
+    assets: []
+  },
+  webgl_loader_texture_pvrtc: {
+    id: 'three-loader-texture-pvrtc',
+    directory: 'three-loader-texture-pvrtc',
+    name: 'materials - compressed textures — three.js r186',
+    description: 'Unmodified official webgl_loader_texture_pvrtc module on the JSR THREE R1/WebGL2 runtime.',
+    icon: '🧊',
+    expected: {
+      html: '7b7005a70fd899a28c83173efdd53a26a41af4da759f2be15c96d48d895e8bfe',
+      module: '26a9bb477d8b4f941d42c44c5918cf1210e0ce104a5d082dc542e25ac0603f49'
+    },
+    assets: []
+  },
+  webgl_loader_texture_tiff: {
+    id: 'three-loader-texture-tiff',
+    directory: 'three-loader-texture-tiff',
+    name: 'materials - TIFF texture — three.js r186',
+    description: 'Unmodified official webgl_loader_texture_tiff module on the JSR THREE R1/WebGL2 runtime.',
+    icon: '🧊',
+    expected: {
+      html: '6279a81061acb1fc20cbc261208afc02e3185be81a519c291ec29bfbdbb462f9',
+      module: '4c8edad288f986d9a023cc700ab68c316d0f081b80a1b93e93fdff92e27831bb'
+    },
+    assets: []
+  },
+  webgl_loader_texture_ultrahdr: {
+    id: 'three-loader-texture-ultrahdr',
+    directory: 'three-loader-texture-ultrahdr',
+    name: 'materials - UltraHDR texture loader — three.js r186',
+    description: 'Unmodified official webgl_loader_texture_ultrahdr module on the JSR THREE R1/WebGL2 runtime.',
+    icon: '🧊',
+    expected: {
+      html: 'f6dccb386d35cd18f347b9af471022e2ac32d5c3bc373eeced650b5bfb67a872',
+      module: '9c292884c6082f4702792046adce6ab7d8cbcf7a5148215147325b859e8006ce'
+    },
+    assets: []
+  },
+  webgl_loader_ttf: {
+    id: 'three-loader-ttf',
+    directory: 'three-loader-ttf',
+    name: 'loader - ttf — three.js r186',
+    description: 'Unmodified official webgl_loader_ttf module on the JSR THREE R1/WebGL2 runtime.',
+    icon: '🧊',
+    expected: {
+      html: '862381a762da708c344e0d1919054f8d5e470ec30f9a32b82343fe30c4a04c8f',
+      module: '5a6b18fa2efc9d3935b901d813929df56e595074b2bd2ece2e3a2da22decf922'
+    },
+    assets: []
+  },
+  webgl_loader_usdz: {
+    id: 'three-loader-usdz',
+    directory: 'three-loader-usdz',
+    name: 'loaders - USDZLoader — three.js r186',
+    description: 'Unmodified official webgl_loader_usdz module on the JSR THREE R1/WebGL2 runtime.',
+    icon: '🧊',
+    expected: {
+      html: 'd45e9756fe5456e94acc6084db833a7ec7d2bf278bb254c1277f42e46cf1b046',
+      module: 'b2253e4e903723acaece947589747bfc2b8fbf963da5fa143bcd3104b8687bf2'
+    },
+    assets: []
+  },
+  webgl_loader_vox: {
+    id: 'three-loader-vox',
+    directory: 'three-loader-vox',
+    name: 'loaders - vox — three.js r186',
+    description: 'Unmodified official webgl_loader_vox module on the JSR THREE R1/WebGL2 runtime.',
+    icon: '🧊',
+    expected: {
+      html: '9cf4ce7a6f61c05812ff3e786b694ec70237aae1aae97ffd271a657593139dbf',
+      module: '77f57f8f3cc112df17e623041d8c03958d8104e8308aaa7bb5a609e5fec1e91b'
+    },
+    assets: []
+  },
+  webgl_loader_vrml: {
+    id: 'three-loader-vrml',
+    directory: 'three-loader-vrml',
+    name: 'loaders - VRML loader — three.js r186',
+    description: 'Unmodified official webgl_loader_vrml module on the JSR THREE R1/WebGL2 runtime.',
+    icon: '🧊',
+    expected: {
+      html: '2fcc9406cffb725ee89f140037b5d825449f4d1c516d469e7da065391085d065',
+      module: '347a5492a0d8947a8815b9b04f030129b5c575460f00575bc18636a3762dcafd'
+    },
+    assets: []
+  },
+  webgl_marchingcubes: {
+    id: 'three-marchingcubes',
+    directory: 'three-marchingcubes',
+    name: 'marching cubes — three.js r186',
+    description: 'Unmodified official webgl_marchingcubes module on the JSR THREE R1/WebGL2 runtime.',
+    icon: '🧊',
+    expected: {
+      html: 'c2aca655ee42782de978c974a2f8d8a6b07a6bbba3416e4b88283b552525359c',
+      module: '0d997e00627a867dcc61feebeb5cb9e0f355db3a73d20bc622afb0c3a50e44dc'
+    },
+    assets: []
+  },
+  webgl_materials_alphahash: {
+    id: 'three-materials-alphahash',
+    directory: 'three-materials-alphahash',
+    name: 'materials - alpha hash — three.js r186',
+    description: 'Unmodified official webgl_materials_alphahash module on the JSR THREE R1/WebGL2 runtime.',
+    icon: '🧊',
+    expected: {
+      html: 'ee15d839afe32e5909149c7761609568010fd5487172e79244c67faec461390f',
+      module: '3fc81fa6a86fe3d72c2d325430190c93c14362dc6031a52eb250436f4cc23823'
+    },
+    assets: []
+  },
+  webgl_materials_blending_custom: {
+    id: 'three-materials-blending-custom',
+    directory: 'three-materials-blending-custom',
+    name: 'materials - custom blending — three.js r186',
+    description: 'Unmodified official webgl_materials_blending_custom module on the JSR THREE R1/WebGL2 runtime.',
+    icon: '🧊',
+    expected: {
+      html: 'c4025f8196aba3b87023a44e8513b2d07bbfaa3009266a092057fa23951e7f86',
+      module: '1dcdb5079b11cb808a4c201d5e9984967c3e2a9914db75fbb237e48ae915128a'
+    },
+    assets: []
+  },
+  webgl_materials_car: {
+    id: 'three-materials-car',
+    directory: 'three-materials-car',
+    name: 'materials - car — three.js r186',
+    description: 'Unmodified official webgl_materials_car module on the JSR THREE R1/WebGL2 runtime.',
+    icon: '🧊',
+    expected: {
+      html: 'e362b6ebc8a5e6da4f05b2d4d6b09933b0c9ab88503b9690e0e598d5b2137ef8',
+      module: '34c65d30b07b7b01d97adf805b828ec7601251dc0e7236b7d3040d4863f49c24'
+    },
+    assets: []
+  },
+  webgl_materials_cubemap_dynamic: {
+    id: 'three-materials-cubemap-dynamic',
+    directory: 'three-materials-cubemap-dynamic',
+    name: 'materials - dynamic cube reflection — three.js r186',
+    description: 'Unmodified official webgl_materials_cubemap_dynamic module on the JSR THREE R1/WebGL2 runtime.',
+    icon: '🧊',
+    expected: {
+      html: '5cb03de22a45e53c571d9a9ac331113ae7ac33560028981de7f4ba7f89f05169',
+      module: '4f6d865d179963ee48ca2e7df3705f6f1ecb41b4f79e644bfb01e0e00484be6b'
+    },
+    assets: []
+  },
+  webgl_materials_cubemap_mipmaps: {
+    id: 'three-materials-cubemap-mipmaps',
+    directory: 'three-materials-cubemap-mipmaps',
+    name: 'materials - cubemap mipmaps — three.js r186',
+    description: 'Unmodified official webgl_materials_cubemap_mipmaps module on the JSR THREE R1/WebGL2 runtime.',
+    icon: '🧊',
+    expected: {
+      html: '81b8fbd05b839fe09d63ffa57c5437a8b2c41a12ce165f366d57b12bbf43d07b',
+      module: 'c389d5c2b0d8915429ead2667dc9da72a938178ca0d3601be04afb68a7d81683'
+    },
+    assets: []
+  },
+  webgl_materials_cubemap_render_to_mipmaps: {
+    id: 'three-materials-cubemap-render-to-mipmaps',
+    directory: 'three-materials-cubemap-render-to-mipmaps',
+    name: 'materials - cubemap mipmaps — three.js r186',
+    description: 'Unmodified official webgl_materials_cubemap_render_to_mipmaps module on the JSR THREE R1/WebGL2 runtime.',
+    icon: '🧊',
+    expected: {
+      html: 'be81d353ef03d8d4c7efe1adbac629fe7bbddfec95801a2eb829dd609b4fdabc',
+      module: '5d81ebfb68a58974efd263296a5f14719097745328ac78b86a0827062c3cbe29'
+    },
+    assets: []
+  },
+  webgl_materials_envmaps_exr: {
+    id: 'three-materials-envmaps-exr',
+    directory: 'three-materials-envmaps-exr',
+    name: 'Materials Envmaps EXR — three.js r186',
+    description: 'Unmodified official webgl_materials_envmaps_exr module on the JSR THREE R1/WebGL2 runtime.',
+    icon: '🧊',
+    expected: {
+      html: 'ddf161a1c589e9728b7ede5b656da28e2020840f65ba5edac89985c72f7669ff',
+      module: '8114d7691e37ce972d26e380a9115a9a8847c4b718752e305f28e54d020bf2e1'
+    },
+    assets: []
+  },
+  webgl_materials_envmaps_fasthdr: {
+    id: 'three-materials-envmaps-fasthdr',
+    directory: 'three-materials-envmaps-fasthdr',
+    name: 'Materials Envmaps Fasthdr — three.js r186',
+    description: 'Unmodified official webgl_materials_envmaps_fasthdr module on the JSR THREE R1/WebGL2 runtime.',
+    icon: '🧊',
+    expected: {
+      html: 'c4a15cd7ecfee7ef26ffa057cc73151ec2458a95c2e6b342fd8e5f5cbcec4622',
+      module: 'd3497f62f015a8dabf80bb6e779f150eda71144e88ce9ea606c671bf5896b915'
+    },
+    assets: []
+  },
+  webgl_materials_envmaps_groundprojected: {
+    id: 'three-materials-envmaps-groundprojected',
+    directory: 'three-materials-envmaps-groundprojected',
+    name: 'Materials Envmaps Groundprojected — three.js r186',
+    description: 'Unmodified official webgl_materials_envmaps_groundprojected module on the JSR THREE R1/WebGL2 runtime.',
+    icon: '🧊',
+    expected: {
+      html: '17998c545c4f3b5eef81f66da7ac5f98f0091e00e7a1733581eeceba947c08c7',
+      module: '4908129b3d8ad4f2d606234923b12be115d5caeb8bb8de77dc7a28126beb6b3f'
+    },
+    assets: []
+  },
+  webgl_materials_envmaps_hdr: {
+    id: 'three-materials-envmaps-hdr',
+    directory: 'three-materials-envmaps-hdr',
+    name: 'Materials Envmaps HDR — three.js r186',
+    description: 'Unmodified official webgl_materials_envmaps_hdr module on the JSR THREE R1/WebGL2 runtime.',
+    icon: '🧊',
+    expected: {
+      html: '72869b5fdc7ed08edd3bd638ea8be867dce9c43e4fc4683733db515947428580',
+      module: 'ef233a58c6b24f7f6ae5101eab7527359abd1c86b02abfdb3f90cd9643eb760c'
+    },
+    assets: []
+  },
+  webgl_materials_physical_transmission: {
+    id: 'three-materials-physical-transmission',
+    directory: 'three-materials-physical-transmission',
+    name: 'Materials Physical Transmission — three.js r186',
+    description: 'Unmodified official webgl_materials_physical_transmission module on the JSR THREE R1/WebGL2 runtime.',
+    icon: '🧊',
+    expected: {
+      html: '53574f462a5578c31e7add5506415f78ddd0deaa68a71cad4bc993319b198060',
+      module: '494f3562007e6da414a3a5683ba2f901d285838c186cfeb7288dd801d9142e6b'
+    },
+    assets: []
+  },
+  webgl_materials_physical_transmission_alpha: {
+    id: 'three-materials-physical-transmission-alpha',
+    directory: 'three-materials-physical-transmission-alpha',
+    name: 'Materials Physical Transmission Alpha — three.js r186',
+    description: 'Unmodified official webgl_materials_physical_transmission_alpha module on the JSR THREE R1/WebGL2 runtime.',
+    icon: '🧊',
+    expected: {
+      html: '0e2d88df8deaf5881d1c3667c7dc11d788f10093830ab98a91c12d6c02272804',
+      module: '951d83cb01d4ecd1846f5bbc618eed2ae57a88dc49c40c2b60631b045110e18b'
+    },
+    assets: []
+  },
+  webgl_materials_subsurface_scattering: {
+    id: 'three-materials-subsurface-scattering',
+    directory: 'three-materials-subsurface-scattering',
+    name: 'Fast subsurface scattering in Blinn-Phong shading demo — three.js r186',
+    description: 'Unmodified official webgl_materials_subsurface_scattering module on the JSR THREE R1/WebGL2 runtime.',
+    icon: '🧊',
+    expected: {
+      html: 'ebb175bc77ccc8b493c49f7c15ccaba5e70d39bbc5634c407d59e943b454e8e3',
+      module: '8ad16204df62a961c7e4f1a1e8701e1fbb4298f2b8fc636fa94851fc72da39a1'
+    },
+    assets: []
+  },
+  webgl_materials_texture_html: {
+    id: 'three-materials-texture-html',
+    directory: 'three-materials-texture-html',
+    name: 'materials - html texture — three.js r186',
+    description: 'Unmodified official webgl_materials_texture_html module on the JSR THREE R1/WebGL2 runtime.',
+    icon: '🧊',
+    expected: {
+      html: 'd6607aab8c1c61f080ac90cab7b198fe62e347262b715f4e738a076edf10abdc',
+      module: 'b0fd81f68d4dd45c11b29454a407d050943f60a76c6529c1f55d8609c7b9b302'
+    },
+    assets: []
+  },
+  webgl_materials_texture_manualmipmap: {
+    id: 'three-materials-texture-manualmipmap',
+    directory: 'three-materials-texture-manualmipmap',
+    name: 'materials - manual mipmaping — three.js r186',
+    description: 'Unmodified official webgl_materials_texture_manualmipmap module on the JSR THREE R1/WebGL2 runtime.',
+    icon: '🧊',
+    expected: {
+      html: '59e775b82821b759caad44ccc2bd9976a7fd8b13928ace93ae25a0099b93742d',
+      module: '4971a60ae286bdbffd748dc066bb759ce40e828e07115aff4a8b46a3ae048674'
+    },
+    assets: []
+  },
+  webgl_materials_video: {
+    id: 'three-materials-video',
+    directory: 'three-materials-video',
+    name: 'materials - video — three.js r186',
+    description: 'Unmodified official webgl_materials_video module on the JSR THREE R1/WebGL2 runtime.',
+    icon: '🧊',
+    expected: {
+      html: 'e013960d549060f0a9a5513cdf8b13a9182b71689881395b492145d9bab4d87c',
+      module: '87e97a8cb7bda7201e4519da38f9c8eb41fad68cd31f4fa28ec752899ab10aa6'
+    },
+    assets: []
+  },
+  webgl_materials_video_webcam: {
+    id: 'three-materials-video-webcam',
+    directory: 'three-materials-video-webcam',
+    name: 'materials - video - webcam — three.js r186',
+    description: 'Unmodified official webgl_materials_video_webcam module on the JSR THREE R1/WebGL2 runtime.',
+    icon: '🧊',
+    expected: {
+      html: '5e31f0edbe18c6bc30d521443eccff058af9e6a7fe655539ebef5213c75a069a',
+      module: '024a661b385e0d0ae89594c3eb6fe1152e580874f672280ff748b77dd2007bd9'
+    },
+    assets: []
+  },
+  webgl_mesh_batch: {
+    id: 'three-mesh-batch',
+    directory: 'three-mesh-batch',
+    name: 'mesh - batch — three.js r186',
+    description: 'Unmodified official webgl_mesh_batch module on the JSR THREE R1/WebGL2 runtime.',
+    icon: '🧊',
+    expected: {
+      html: 'b4dd967f53fe7fe823fde275049e3cdad8dd0703f1cf082677d0e2298e41c7b0',
+      module: '2769a520666b9ba7bcc655945777b4fa5bc6ad38e0668e0bdd9d2d1a7860ac82'
+    },
+    assets: []
+  },
+  webgl_mirror: {
+    id: 'three-mirror',
+    directory: 'three-mirror',
+    name: 'mirror — three.js r186',
+    description: 'Unmodified official webgl_mirror module on the JSR THREE R1/WebGL2 runtime.',
+    icon: '🧊',
+    expected: {
+      html: '1ca2cf1c05ea2ab4792fe1e24c109f403743fca3b6e3fd85193e25d30088af9d',
+      module: 'ab230979ae647beadd6a0f9ed4253fa624dd6876c7d962224ac7fa93acadf3ae'
+    },
+    assets: []
+  },
+  webgl_modifier_curve: {
+    id: 'three-modifier-curve',
+    directory: 'three-modifier-curve',
+    name: 'curve modifier — three.js r186',
+    description: 'Unmodified official webgl_modifier_curve module on the JSR THREE R1/WebGL2 runtime.',
+    icon: '🧊',
+    expected: {
+      html: '10791eb088492becd320081b4ce0434bdeeab0eaf454891d4538e3442d4066a6',
+      module: '2e007b3db942e50c66098ba697c9d21f60353a2a50825f58cb5d21ddcc86114b'
+    },
+    assets: []
+  },
+  webgl_modifier_curve_instanced: {
+    id: 'three-modifier-curve-instanced',
+    directory: 'three-modifier-curve-instanced',
+    name: 'curve modifier - instanced — three.js r186',
+    description: 'Unmodified official webgl_modifier_curve_instanced module on the JSR THREE R1/WebGL2 runtime.',
+    icon: '🧊',
+    expected: {
+      html: '0181008e92187be2bffc5d6e8e20e46e7dc378f6f68f7d57a332691741769d48',
+      module: '76b8e9e196fe3f40deb40ad3f3de99de579780787846c82ac67c04aec1d0883e'
+    },
+    assets: []
+  },
+  webgl_morphtargets_face: {
+    id: 'three-morphtargets-face',
+    directory: 'three-morphtargets-face',
+    name: 'morph targets - face — three.js r186',
+    description: 'Unmodified official webgl_morphtargets_face module on the JSR THREE R1/WebGL2 runtime.',
+    icon: '🧊',
+    expected: {
+      html: '61f1b2210d4591d7be198275299e602f0e18181d06d1766d1441ac0de13d5ad5',
+      module: '9fefd38a7519fdc22e77cd39c46e58165940bc38eecc81ac49864c7e220e4987'
+    },
+    assets: []
+  },
+  webgl_morphtargets_horse: {
+    id: 'three-morphtargets-horse',
+    directory: 'three-morphtargets-horse',
+    name: 'morph targets - horse — three.js r186',
+    description: 'Unmodified official webgl_morphtargets_horse module on the JSR THREE R1/WebGL2 runtime.',
+    icon: '🧊',
+    expected: {
+      html: '7b3cbce8efbebdd90df29f8a4019ce0a203959004b8f5c8b97381acd1c3d840f',
+      module: '1150e606493286f9eb6e0a70ec26e25a703531717ab9a9131e5f98f8ab6d43b7'
+    },
+    assets: []
+  },
+  webgl_morphtargets_webcam: {
+    id: 'three-morphtargets-webcam',
+    directory: 'three-morphtargets-webcam',
+    name: 'morph targets - webcam — three.js r186',
+    description: 'Unmodified official webgl_morphtargets_webcam module on the JSR THREE R1/WebGL2 runtime.',
+    icon: '🧊',
+    expected: {
+      html: '796c056faaf559a232adae07c74bbf0ca65bea8fee5e71450d11b2d404a83920',
+      module: 'c8eac3d132360cb3959f64fe1888b27119ddfe30f44f8a0c486c15c7c8ae4c76'
+    },
+    assets: []
+  },
+  webgl_multiple_elements: {
+    id: 'three-multiple-elements',
+    directory: 'three-multiple-elements',
+    name: 'multiple elements — three.js r186',
+    description: 'Unmodified official webgl_multiple_elements module on the JSR THREE R1/WebGL2 runtime.',
+    icon: '🧊',
+    expected: {
+      html: '844f58c11ff8bab14ab39e9103fa7746aca1cf054dbbd9dfcb9fce118411a6b2',
+      module: 'b57809a74961c4e34fa28242ecc6d914ae0174b90725911c318c68125c3d5ae7'
+    },
+    assets: []
+  },
+  webgl_multiple_elements_text: {
+    id: 'three-multiple-elements-text',
+    directory: 'three-multiple-elements-text',
+    name: 'multiple elements with text — three.js r186',
+    description: 'Unmodified official webgl_multiple_elements_text module on the JSR THREE R1/WebGL2 runtime.',
+    icon: '🧊',
+    expected: {
+      html: 'b308c6d9e82e01a21b9373c8aef92860ede881d038cb30be4e476378c53f7781',
+      module: 'afc2bed0e3ca62750c111374eb6cdb3ac2ef22a797569814df0229272787c59a'
+    },
+    assets: []
+  },
+  webgl_multiple_rendertargets: {
+    id: 'three-multiple-rendertargets',
+    directory: 'three-multiple-rendertargets',
+    name: 'Multiple Render Targets — three.js r186',
+    description: 'Unmodified official webgl_multiple_rendertargets module on the JSR THREE R1/WebGL2 runtime.',
+    icon: '🧊',
+    expected: {
+      html: '5df936e5dea98d7dff3ddeae29454e826e81eea65bcfcf9968b4570dbe9a0c59',
+      module: 'c14a5b21f25c06947a60a54eb0cf92577b8d9e849108e2524d66a6d746bcf425'
+    },
+    assets: []
+  },
+  webgl_multisampled_renderbuffers: {
+    id: 'three-multisampled-renderbuffers',
+    directory: 'three-multisampled-renderbuffers',
+    name: 'Multisampled Renderbuffers — three.js r186',
+    description: 'Unmodified official webgl_multisampled_renderbuffers module on the JSR THREE R1/WebGL2 runtime.',
+    icon: '🧊',
+    expected: {
+      html: '3ac5cd6ec3ebf82fbff6204c6d5afa9e1716b1b984727faa0fea56b964d0239e',
+      module: '48c1e5b0346f3df497d16aedb87cb96e963c064d1bab4d82c1d76e51acff10cc'
+    },
+    assets: []
+  },
+  webgl_performance: {
+    id: 'three-performance',
+    directory: 'three-performance',
+    name: 'GLTFloader — three.js r186',
+    description: 'Unmodified official webgl_performance module on the JSR THREE R1/WebGL2 runtime.',
+    icon: '🧊',
+    expected: {
+      html: '06af6ab15d64cf9fc424c955067243646810c6be9d6ed12b753a032c75db9664',
+      module: 'c300ddf94f7e231a250bdd024ae85bdb20d58f0e67e1733e0a2f829efc0ec9a2'
+    },
+    assets: []
+  },
+  webgl_pmrem_cubemap: {
+    id: 'three-pmrem-cubemap',
+    directory: 'three-pmrem-cubemap',
+    name: 'pmrem cubemap — three.js r186',
+    description: 'Unmodified official webgl_pmrem_cubemap module on the JSR THREE R1/WebGL2 runtime.',
+    icon: '🧊',
+    expected: {
+      html: 'ff7063edc37520c26514897c87a4188c060ed740eefc7967bf750dfa5eb8ea3b',
+      module: '762b5d1f0eccdb350ccf0ed7f9005084be323dd941cf178b044c1d49accbf23b'
+    },
+    assets: []
+  },
+  webgl_pmrem_equirectangular: {
+    id: 'three-pmrem-equirectangular',
+    directory: 'three-pmrem-equirectangular',
+    name: 'pmrem equirectangular — three.js r186',
+    description: 'Unmodified official webgl_pmrem_equirectangular module on the JSR THREE R1/WebGL2 runtime.',
+    icon: '🧊',
+    expected: {
+      html: '223968372809c4dc0e5087d4c0fbf447a92b67e85d8c0867fc11e3b9d6976b19',
+      module: '72d9f3656c6ece1778670febb77414cc38e373b4a3b37d77b77a8573eee467e0'
+    },
+    assets: []
+  },
+  webgl_pmrem_test: {
+    id: 'three-pmrem-test',
+    directory: 'three-pmrem-test',
+    name: 'PMREM Test — three.js r186',
+    description: 'Unmodified official webgl_pmrem_test module on the JSR THREE R1/WebGL2 runtime.',
+    icon: '🧊',
+    expected: {
+      html: '6f6a4366f0376910edd25fa87b97d2cebaf1a35648e444ab9148bb4a63a0d861',
+      module: 'ae61a3883372f5d058310f24c0a85ed597431bdfb5671bc98786d3642acb23d8'
+    },
+    assets: []
+  },
+  webgl_points_dynamic: {
+    id: 'three-points-dynamic',
+    directory: 'three-points-dynamic',
+    name: 'particles - dynamic - postprocessing — three.js r186',
+    description: 'Unmodified official webgl_points_dynamic module on the JSR THREE R1/WebGL2 runtime.',
+    icon: '🧊',
+    expected: {
+      html: 'e58edb41d59f4936e0f992fb079b0155d88e9b2ebe274117ec898ee59f7aa491',
+      module: '924b88f2ccc330175252a55890b2cac8ab04199390843a8eac49f11f1f39ee8e'
+    },
+    assets: []
+  },
+  webgl_portal: {
+    id: 'three-portal',
+    directory: 'three-portal',
+    name: 'portal — three.js r186',
+    description: 'Unmodified official webgl_portal module on the JSR THREE R1/WebGL2 runtime.',
+    icon: '🧊',
+    expected: {
+      html: 'f6b24f2cacf3c38da74f42d8851753ac6791aeacc0cb77110babddaca5f7072f',
+      module: '4d134e45a00b35316b8a1f1e70e5bf906b88bfe683fe5cba8e97079339d52839'
+    },
+    assets: []
+  },
+  webgl_postprocessing: {
+    id: 'three-postprocessing',
+    directory: 'three-postprocessing',
+    name: 'postprocessing — three.js r186',
+    description: 'Unmodified official webgl_postprocessing module on the JSR THREE R1/WebGL2 runtime.',
+    icon: '🧊',
+    expected: {
+      html: '2643be173de09bb638683d133d2467eb4593b2e238b49fcbbbbb6a65d25330a4',
+      module: '302a2342279ebf8dbdcf1cfc5142ff24b4d2d5547c7e60e7627b4d9197539796'
+    },
+    assets: []
+  },
+  webgl_postprocessing_3dlut: {
+    id: 'three-postprocessing-3dlut',
+    directory: 'three-postprocessing-3dlut',
+    name: '3d luts — three.js r186',
+    description: 'Unmodified official webgl_postprocessing_3dlut module on the JSR THREE R1/WebGL2 runtime.',
+    icon: '🧊',
+    expected: {
+      html: '3f57b9d77cee8978fcf614285016bf76a3de40c529aada12a238afc0fe7f68e3',
+      module: '3cc7d3eca9c59b868e5acc9cea17735cc61c42912d4e82f5ebbf90bc4f00d6de'
+    },
+    assets: []
+  },
+  webgl_postprocessing_advanced: {
+    id: 'three-postprocessing-advanced',
+    directory: 'three-postprocessing-advanced',
+    name: 'postprocessing — three.js r186',
+    description: 'Unmodified official webgl_postprocessing_advanced module on the JSR THREE R1/WebGL2 runtime.',
+    icon: '🧊',
+    expected: {
+      html: 'a1a0bad144ca0c8f7ec041e35094b4ffade79583f5ec5ce8f161bcdc6a14f5b4',
+      module: '4cf957fb47e59c410e1720afc8b8623d64c89d93d84a14a076089b2331f10a02'
+    },
+    assets: []
+  },
+  webgl_postprocessing_afterimage: {
+    id: 'three-postprocessing-afterimage',
+    directory: 'three-postprocessing-afterimage',
+    name: 'postprocessing - afterimage — three.js r186',
+    description: 'Unmodified official webgl_postprocessing_afterimage module on the JSR THREE R1/WebGL2 runtime.',
+    icon: '🧊',
+    expected: {
+      html: '756d8a42b4ab624feffa2d6f3a538239033ccf03766410dd8dcf90f6e31796d0',
+      module: '9a31add8a041ad4d3959defb45586e1d2841696bf29b9827a86ac1471030362e'
+    },
+    assets: []
+  },
+  webgl_postprocessing_backgrounds: {
+    id: 'three-postprocessing-backgrounds',
+    directory: 'three-postprocessing-backgrounds',
+    name: 'postprocessing backgrounds — three.js r186',
+    description: 'Unmodified official webgl_postprocessing_backgrounds module on the JSR THREE R1/WebGL2 runtime.',
+    icon: '🧊',
+    expected: {
+      html: '59cfe9f960efd98fe03f6ed3bcaebcf2d301d5314f87de344186bed78f622528',
+      module: '9d5e88a362aa49029109fcb7af61477712dce54531c7495c7044d5c00860ef50'
+    },
+    assets: []
+  },
+  webgl_postprocessing_dof: {
+    id: 'three-postprocessing-dof',
+    directory: 'three-postprocessing-dof',
+    name: 'postprocessing - depth-of-field — three.js r186',
+    description: 'Unmodified official webgl_postprocessing_dof module on the JSR THREE R1/WebGL2 runtime.',
+    icon: '🧊',
+    expected: {
+      html: 'fb11d4701c625832db304996ebe8fcf70c04da92b6bc3c19b6c61e1fe83e4462',
+      module: '9ff7ab803a200f9b3691e37a1c585ce36e3eaaaf10a9400ab2f28039338adbc0'
+    },
+    assets: []
+  },
+  webgl_postprocessing_dof2: {
+    id: 'three-postprocessing-dof2',
+    directory: 'three-postprocessing-dof2',
+    name: 'postprocessing - depth-of-field — three.js r186',
+    description: 'Unmodified official webgl_postprocessing_dof2 module on the JSR THREE R1/WebGL2 runtime.',
+    icon: '🧊',
+    expected: {
+      html: 'c68085e65ad3192e205aa5b7900d9bc597f2ba272ee09af693d340997c267d59',
+      module: '7d453ac6fc7c29d0c7721366c79c971b2f92f8e90ddc456baaca8c7a30fe2323'
+    },
+    assets: []
+  },
+  webgl_postprocessing_fxaa: {
+    id: 'three-postprocessing-fxaa',
+    directory: 'three-postprocessing-fxaa',
+    name: 'Postprocessing FXAA — three.js r186',
+    description: 'Unmodified official webgl_postprocessing_fxaa module on the JSR THREE R1/WebGL2 runtime.',
+    icon: '🧊',
+    expected: {
+      html: 'cb9af97322fbcf4ef08336e41d2a60f20d1c41fa78f8cc1871705fd22d5b17c2',
+      module: 'c5211e3a6e1f264c4c0cfe6e03eccf066c74759fc07c77fac9989db1ca76a4fc'
+    },
+    assets: []
+  },
+  webgl_postprocessing_glitch: {
+    id: 'three-postprocessing-glitch',
+    directory: 'three-postprocessing-glitch',
+    name: 'postprocessing - digital glitch — three.js r186',
+    description: 'Unmodified official webgl_postprocessing_glitch module on the JSR THREE R1/WebGL2 runtime.',
+    icon: '🧊',
+    expected: {
+      html: 'aa631a6123bf97c0d3d68695f21c2283a7cc286074b176ad0afd696db42cf596',
+      module: 'd76f49bac3541631dec0cd67ba0ccb6dae9b7091ce9290f20e74ad6aa8fdf34e'
+    },
+    assets: []
+  },
+  webgl_postprocessing_godrays: {
+    id: 'three-postprocessing-godrays',
+    directory: 'three-postprocessing-godrays',
+    name: 'postprocessing - godrays — three.js r186',
+    description: 'Unmodified official webgl_postprocessing_godrays module on the JSR THREE R1/WebGL2 runtime.',
+    icon: '🧊',
+    expected: {
+      html: '0d0d4a6bd0033766bdb5820fdb80f0a37cbe6347cde6be05b70de73fd1b8eb8f',
+      module: 'b2c42d3bb5897b328236bf1022cc62e63f75d2016028db86ae93258758970eb8'
+    },
+    assets: []
+  },
+  webgl_postprocessing_gtao: {
+    id: 'three-postprocessing-gtao',
+    directory: 'three-postprocessing-gtao',
+    name: 'postprocessing - GTAO — three.js r186',
+    description: 'Unmodified official webgl_postprocessing_gtao module on the JSR THREE R1/WebGL2 runtime.',
+    icon: '🧊',
+    expected: {
+      html: '866c247da716612a4d8fef0ea15bb35029a95fad17e9471058504ba9d83d215f',
+      module: 'eb741ba1bdca7ef6154f2302ba77c7a1c2ad7bee0280c32c70a597e4fd77c522'
+    },
+    assets: []
+  },
+  webgl_postprocessing_masking: {
+    id: 'three-postprocessing-masking',
+    directory: 'three-postprocessing-masking',
+    name: 'postprocessing - masking — three.js r186',
+    description: 'Unmodified official webgl_postprocessing_masking module on the JSR THREE R1/WebGL2 runtime.',
+    icon: '🧊',
+    expected: {
+      html: 'dff6f7d8f8267cb5f6c90784056238dca42541591ea03646c83ad402e5000de6',
+      module: 'ee8d6fd5e46b3c15a5c21d691abeb980a27a2d1570a3a84a1b36afceea4021e5'
+    },
+    assets: []
+  },
+  webgl_postprocessing_outline: {
+    id: 'three-postprocessing-outline',
+    directory: 'three-postprocessing-outline',
+    name: 'post processing - Outline Pass — three.js r186',
+    description: 'Unmodified official webgl_postprocessing_outline module on the JSR THREE R1/WebGL2 runtime.',
+    icon: '🧊',
+    expected: {
+      html: '56908a1236290fc58d727bb87cb3c98f9ba40a73db9185eb17024b362f5b6206',
+      module: 'dc8ee0c75e27e3f403144bad943dffb5c68be2682b466d7549121a2b086c34f4'
+    },
+    assets: []
+  },
+  webgl_postprocessing_pixel: {
+    id: 'three-postprocessing-pixel',
+    directory: 'three-postprocessing-pixel',
+    name: 'post processing - pixelation — three.js r186',
+    description: 'Unmodified official webgl_postprocessing_pixel module on the JSR THREE R1/WebGL2 runtime.',
+    icon: '🧊',
+    expected: {
+      html: 'ba74140e89cf87eb4875f3a74bfd9aec8e65bbd22d6d1904ef866a9579853fea',
+      module: '266557aeea47d2f470ffdab3e947ed9ffb58b95314586cae2429ce5e9bb2beee'
+    },
+    assets: []
+  },
+  webgl_postprocessing_procedural: {
+    id: 'three-postprocessing-procedural',
+    directory: 'three-postprocessing-procedural',
+    name: 'postprocessing procedural effects — three.js r186',
+    description: 'Unmodified official webgl_postprocessing_procedural module on the JSR THREE R1/WebGL2 runtime.',
+    icon: '🧊',
+    expected: {
+      html: '85ef7347b0d7d202a2ea790d7590e1861e13f9ed830480ad1f6c47cc64e6f514',
+      module: '1af4f2db5f7090836d5d4247b54d17cfc20f465474cc3c83287f21eeda282f4c'
+    },
+    assets: []
+  },
+  webgl_postprocessing_rgb_halftone: {
+    id: 'three-postprocessing-rgb-halftone',
+    directory: 'three-postprocessing-rgb-halftone',
+    name: 'postprocessing RGB Halftone — three.js r186',
+    description: 'Unmodified official webgl_postprocessing_rgb_halftone module on the JSR THREE R1/WebGL2 runtime.',
+    icon: '🧊',
+    expected: {
+      html: 'cf04a51d84bb35cc0e7a33fb77f25b5be5fe7a70bfba98defb1d4c24210ee3d2',
+      module: '21dabcfe83ffc5bf907e8fa5963cbd70e2f5ac632200d9142c8611db5bd5e44a'
+    },
+    assets: []
+  },
+  webgl_postprocessing_sao: {
+    id: 'three-postprocessing-sao',
+    directory: 'three-postprocessing-sao',
+    name: 'post processing - Scalable Ambient Occlusion (SAO) — three.js r186',
+    description: 'Unmodified official webgl_postprocessing_sao module on the JSR THREE R1/WebGL2 runtime.',
+    icon: '🧊',
+    expected: {
+      html: '00597698320b8b8afbde81b79ed06823804e5ada4f50bac20422e9e823e79a9e',
+      module: '3ed537f5140cd96c06bdac40d0e747fe4c33e388fcfa7020644bb58f47f94927'
+    },
+    assets: []
+  },
+  webgl_postprocessing_smaa: {
+    id: 'three-postprocessing-smaa',
+    directory: 'three-postprocessing-smaa',
+    name: 'postprocessing smaa — three.js r186',
+    description: 'Unmodified official webgl_postprocessing_smaa module on the JSR THREE R1/WebGL2 runtime.',
+    icon: '🧊',
+    expected: {
+      html: '3cf9050ca04ef58d74bc65627227bef3bd538d05d3338f4020aaa4339dfe676d',
+      module: '5a4db606c93e9a17530c20ffa4ca0b85deb23f10323c75f7f23f6e9fa099e30e'
+    },
+    assets: []
+  },
+  webgl_postprocessing_sobel: {
+    id: 'three-postprocessing-sobel',
+    directory: 'three-postprocessing-sobel',
+    name: 'postprocessing - sobel (edge detection) — three.js r186',
+    description: 'Unmodified official webgl_postprocessing_sobel module on the JSR THREE R1/WebGL2 runtime.',
+    icon: '🧊',
+    expected: {
+      html: '267051684a9a15db3fe1529650beaf04e3e88cce3a9e325f41cd51a63acc68b7',
+      module: '1da2b987e9a0fbfc14810a56aa70f27d71c91a6e36a7c63c2b673b6e9e0dc765'
+    },
+    assets: []
+  },
+  webgl_postprocessing_ssaa: {
+    id: 'three-postprocessing-ssaa',
+    directory: 'three-postprocessing-ssaa',
+    name: 'postprocessing manual ssaa — three.js r186',
+    description: 'Unmodified official webgl_postprocessing_ssaa module on the JSR THREE R1/WebGL2 runtime.',
+    icon: '🧊',
+    expected: {
+      html: 'ae46b36c6714bfd99f48ddf32adb6458de907ea79098783b5bba5e04008cc36a',
+      module: '214cafc313bb177db42c6073df1a295ab346c6aa6b1e17e0441d509a30e7deec'
+    },
+    assets: []
+  },
+  webgl_postprocessing_ssao: {
+    id: 'three-postprocessing-ssao',
+    directory: 'three-postprocessing-ssao',
+    name: 'postprocessing - Screen Space Ambient Occlusion — three.js r186',
+    description: 'Unmodified official webgl_postprocessing_ssao module on the JSR THREE R1/WebGL2 runtime.',
+    icon: '🧊',
+    expected: {
+      html: '10fa42ef38150d3f9874c62864f8464b23f474cd1181044490401ef9f5024dd3',
+      module: '59e0813713569371bbaa5a234a13c8d60281df29334e097729efa2776b4f83b2'
+    },
+    assets: []
+  },
+  webgl_postprocessing_ssr: {
+    id: 'three-postprocessing-ssr',
+    directory: 'three-postprocessing-ssr',
+    name: 'postprocessing - Screen Space Reflection — three.js r186',
+    description: 'Unmodified official webgl_postprocessing_ssr module on the JSR THREE R1/WebGL2 runtime.',
+    icon: '🧊',
+    expected: {
+      html: 'c358f3cc7c563e469dc11be2d7dbb0579f100e5d2ff860b439ac8e8c524c8349',
+      module: '2c2eeadc5d5e10c9cae9df9db7048f740addfaf21ff6685167ccc24861ee0a39'
+    },
+    assets: []
+  },
+  webgl_postprocessing_taa: {
+    id: 'three-postprocessing-taa',
+    directory: 'three-postprocessing-taa',
+    name: 'postprocessing manual taa and ssaa — three.js r186',
+    description: 'Unmodified official webgl_postprocessing_taa module on the JSR THREE R1/WebGL2 runtime.',
+    icon: '🧊',
+    expected: {
+      html: '182a74d59e13414a88b2c2b4551595997b73de59ff8d6fc065277df575e5e7ee',
+      module: '0e49f271543284d1349b43533bb86127f2bf396af091c2cd7f94f7762a55c4e0'
+    },
+    assets: []
+  },
+  webgl_postprocessing_transition: {
+    id: 'three-postprocessing-transition',
+    directory: 'three-postprocessing-transition',
+    name: 'scenes transition — three.js r186',
+    description: 'Unmodified official webgl_postprocessing_transition module on the JSR THREE R1/WebGL2 runtime.',
+    icon: '🧊',
+    expected: {
+      html: 'c6e9dfee46147c95905210a15b73e09ff99aa24ee0a5bbf4264706082344a745',
+      module: '998f5eacef55395f2f24bf19aaa92188ba26f7fb52bab0aa61ceb7f0b48913e2'
+    },
+    assets: []
+  },
+  webgl_postprocessing_unreal_bloom: {
+    id: 'three-postprocessing-unreal-bloom',
+    directory: 'three-postprocessing-unreal-bloom',
+    name: 'postprocessing - unreal bloom — three.js r186',
+    description: 'Unmodified official webgl_postprocessing_unreal_bloom module on the JSR THREE R1/WebGL2 runtime.',
+    icon: '🧊',
+    expected: {
+      html: 'c9a014b1fc8cc57d3448e49bc4848a0c6dffebb7c4d05c92e198c00996d6d6c0',
+      module: '64d4963fb1135ef97a2dfe70292c598f86ed675e3b414bac6fbffb5bca7b3550'
+    },
+    assets: []
+  },
+  webgl_postprocessing_unreal_bloom_selective: {
+    id: 'three-postprocessing-unreal-bloom-selective',
+    directory: 'three-postprocessing-unreal-bloom-selective',
+    name: 'postprocessing - unreal bloom selective — three.js r186',
+    description: 'Unmodified official webgl_postprocessing_unreal_bloom_selective module on the JSR THREE R1/WebGL2 runtime.',
+    icon: '🧊',
+    expected: {
+      html: '55e63e413e2d38f4f6b2b7153e6ea63742906b5258038abb4f8b5ffa3e911edb',
+      module: 'f2656158135ed99b18140c154397f92804d0882939c9c44b8794f75069204df5'
+    },
+    assets: []
+  },
+  webgl_random_uv: {
+    id: 'three-random-uv',
+    directory: 'three-random-uv',
+    name: 'random - uv — three.js r186',
+    description: 'Unmodified official webgl_random_uv module on the JSR THREE R1/WebGL2 runtime.',
+    icon: '🧊',
+    expected: {
+      html: 'a4ffb12f8d6ad45c5901abe401b0435418c83c61e11109ae66b9601b8ee73564',
+      module: '22c3980618f009a4f42ef878378d5c7fad4bb2d7fba906dd2b89e58bb6c0ac60'
+    },
+    assets: []
+  },
+  webgl_raycaster_bvh: {
+    id: 'three-raycaster-bvh',
+    directory: 'three-raycaster-bvh',
+    name: 'Raycaster BVH — three.js r186',
+    description: 'Unmodified official webgl_raycaster_bvh module on the JSR THREE R1/WebGL2 runtime.',
+    icon: '🧊',
+    expected: {
+      html: 'ec3276652a9c3c0591dcbd1bf55505a894e6ce67d1fff07d5e334fa484c18207',
+      module: '82527c68e12110969f3a3a8fb2e0ede996f274bfd22ced814345ee507cf2d763'
+    },
+    assets: []
+  },
+  webgl_read_float_buffer: {
+    id: 'three-read-float-buffer',
+    directory: 'three-read-float-buffer',
+    name: 'read float pixels — three.js r186',
+    description: 'Unmodified official webgl_read_float_buffer module on the JSR THREE R1/WebGL2 runtime.',
+    icon: '🧊',
+    expected: {
+      html: '93540252e7b1472697648d4df7b5a5358c373d5a28d89f6904dfa467cfa7d79d',
+      module: '82292a18591b12beaea51e00843660788ffcd4ef21d6c6cc396d8caf1d140ec0'
+    },
+    assets: []
+  },
+  webgl_refraction: {
+    id: 'three-refraction',
+    directory: 'three-refraction',
+    name: 'Refraction — three.js r186',
+    description: 'Unmodified official webgl_refraction module on the JSR THREE R1/WebGL2 runtime.',
+    icon: '🧊',
+    expected: {
+      html: '526ca2f257e812620ee09fed771494f01608000f5ee78fbe0c97ead4b529c18c',
+      module: 'c848049e14d3542c37cf022629c90e4788bc0881d123b27fc79109b0bb7f52e9'
+    },
+    assets: []
+  },
+  webgl_renderer_pathtracer: {
+    id: 'three-renderer-pathtracer',
+    directory: 'three-renderer-pathtracer',
+    name: 'three-gpu-pathtracer — three.js r186',
+    description: 'Unmodified official webgl_renderer_pathtracer module on the JSR THREE R1/WebGL2 runtime.',
+    icon: '🧊',
+    expected: {
+      html: '44eed0eceac5fed0da348732afe0012e917b930778adb7047cd9f97935f5c647',
+      module: 'ea81d81d1ce58c7ba65d2c453139d3b1ad78264242bcd9a0768d093dc1939f5f'
+    },
+    assets: []
+  },
+  webgl_rendertarget_texture2darray: {
+    id: 'three-rendertarget-texture2darray',
+    directory: 'three-rendertarget-texture2darray',
+    name: '2D texture array framebuffer attachment — three.js r186',
+    description: 'Unmodified official webgl_rendertarget_texture2darray module on the JSR THREE R1/WebGL2 runtime.',
+    icon: '🧊',
+    expected: {
+      html: '21765c3eed2ffb0cc91f92bdfb927a1c103d879d89fc9308e8d6618bdfe3dc33',
+      module: '4b8357e9151e3d4df4773938554bbcf2bd9c3c307c50c877120b6151737b907f'
+    },
+    assets: []
+  },
+  webgl_reversed_depth_buffer: {
+    id: 'three-reversed-depth-buffer',
+    directory: 'three-reversed-depth-buffer',
+    name: 'reverse depth buffer — three.js r186',
+    description: 'Unmodified official webgl_reversed_depth_buffer module on the JSR THREE R1/WebGL2 runtime.',
+    icon: '🧊',
+    expected: {
+      html: '8f2fd46aef6572ef745f0814fb849955c734c5008a5dfb523a069b4ec6402b9e',
+      module: 'f01068331c9d333fecfd64e894fd0b5b7517e0912b6869a009c28f2d1a5ef93e'
+    },
+    assets: []
+  },
+  webgl_sculpt: {
+    id: 'three-sculpt',
+    directory: 'three-sculpt',
+    name: 'sculpt — three.js r186',
+    description: 'Unmodified official webgl_sculpt module on the JSR THREE R1/WebGL2 runtime.',
+    icon: '🧊',
+    expected: {
+      html: '83c6e66f69c462a1dd942faae1fa79307cba1a0c46c7ecb0c75b6c0989b3b9ee',
+      module: 'ffa7fbc7141e8eb84bf5605f140a25b41818e2b4adf963872a4775df2727efa3'
+    },
+    assets: []
+  },
+  webgl_shader_lava: {
+    id: 'three-shader-lava',
+    directory: 'three-shader-lava',
+    name: 'materials - shaders [lava] — three.js r186',
+    description: 'Unmodified official webgl_shader_lava module on the JSR THREE R1/WebGL2 runtime.',
+    icon: '🧊',
+    expected: {
+      html: '2747fd426279ead3cc5c68fa8253c547fc3e8c53e9dadb3772449bdad051c74e',
+      module: '6715974dabc7010d7efd634340181b9e2598613fbbb6ec934a21cbc483ebe163'
+    },
+    assets: []
+  },
+  webgl_shaders_ocean: {
+    id: 'three-shaders-ocean',
+    directory: 'three-shaders-ocean',
+    name: 'shaders - ocean — three.js r186',
+    description: 'Unmodified official webgl_shaders_ocean module on the JSR THREE R1/WebGL2 runtime.',
+    icon: '🧊',
+    expected: {
+      html: '87b6965af1d05c32eebe21d1dba3e55c6b5981703c7c87992b359416fdc1ff5e',
+      module: '1512f890e35a610458f94c484d754469e666c4b40d7bf2515f809a23ebf30a86'
+    },
+    assets: []
+  },
+  webgl_shaders_sky: {
+    id: 'three-shaders-sky',
+    directory: 'three-shaders-sky',
+    name: 'shaders - sky sun shader — three.js r186',
+    description: 'Unmodified official webgl_shaders_sky module on the JSR THREE R1/WebGL2 runtime.',
+    icon: '🧊',
+    expected: {
+      html: '0ff9fde8861d424fc633c0d67fb61745849dd669b28a3cf2679814a978a19c23',
+      module: '525d77b73e19bb3e142959f446c7cc83bd606a2d7d5e6f4f22ccb9e38e1f0cea'
+    },
+    assets: []
+  },
+  webgl_shadow_contact: {
+    id: 'three-shadow-contact',
+    directory: 'three-shadow-contact',
+    name: 'contact shadows — three.js r186',
+    description: 'Unmodified official webgl_shadow_contact module on the JSR THREE R1/WebGL2 runtime.',
+    icon: '🧊',
+    expected: {
+      html: '6a777a477d3b4c27699f19f93d3f9885918c3e691dd5769306b7e3aa190a097d',
+      module: '959e7014099db34a499426550aa52fcb552e9c9d48c1ab3ac2852fdb57f1664b'
+    },
+    assets: []
+  },
+  webgl_shadowmap_csm: {
+    id: 'three-shadowmap-csm',
+    directory: 'three-shadowmap-csm',
+    name: 'cascaded shadow maps — three.js r186',
+    description: 'Unmodified official webgl_shadowmap_csm module on the JSR THREE R1/WebGL2 runtime.',
+    icon: '🧊',
+    expected: {
+      html: '7c90fec9c3d9146177e7b7d8bd345ad5f1e9f146c35db2e9bb7970edd8b22f8d',
+      module: 'bcb92319ba7687ef3307f7a9bec08a5a5a4c9e4a35f219d9ea5d574db1172f3a'
+    },
+    assets: []
+  },
+  webgl_shadowmap_pcss: {
+    id: 'three-shadowmap-pcss',
+    directory: 'three-shadowmap-pcss',
+    name: 'percent closer soft-shadows — three.js r186',
+    description: 'Unmodified official webgl_shadowmap_pcss module on the JSR THREE R1/WebGL2 runtime.',
+    icon: '🧊',
+    expected: {
+      html: '96a1c9a3950bb77b78fe92b15563213e739b7fd171e6ce34a0ab4b36abcf9f7f',
+      module: '5d9cc2ecacca71266fd7036e89e2dd5b3ddaedea4f200cffb377389d48755f5a'
+    },
+    assets: []
+  },
+  webgl_shadowmap_progressive: {
+    id: 'three-shadowmap-progressive',
+    directory: 'three-shadowmap-progressive',
+    name: 'progressive lightmap accumulation — three.js r186',
+    description: 'Unmodified official webgl_shadowmap_progressive module on the JSR THREE R1/WebGL2 runtime.',
+    icon: '🧊',
+    expected: {
+      html: '33f541b5d3187752ed863fbefc746ef5c15fb9ab3daba33b6c8bce3f8eff5f7d',
+      module: 'ec13c2c8448fa7ecd702665424f42ffa7a68e9afe9d97d4b3f05f5dea7a0ee7e'
+    },
+    assets: []
+  },
+  webgl_shadowmap_viewer: {
+    id: 'three-shadowmap-viewer',
+    directory: 'three-shadowmap-viewer',
+    name: 'ShadowMapViewer example — three.js r186',
+    description: 'Unmodified official webgl_shadowmap_viewer module on the JSR THREE R1/WebGL2 runtime.',
+    icon: '🧊',
+    expected: {
+      html: '905e1858f3386306c8b06cfc566d34f561a3d292693de7e779a1b7694d8b91a9',
+      module: '199c1b9048649744f7c5266ef5925925287f76416e3f96f4c8cafa28865051db'
+    },
+    assets: []
+  },
+  webgl_shadowmap_vsm: {
+    id: 'three-shadowmap-vsm',
+    directory: 'three-shadowmap-vsm',
+    name: 'VSM Shadows example — three.js r186',
+    description: 'Unmodified official webgl_shadowmap_vsm module on the JSR THREE R1/WebGL2 runtime.',
+    icon: '🧊',
+    expected: {
+      html: 'c404df3b225269212fbf62cc5354352bc5d7f960227f8fbe60a9bd1cbeed9cdc',
+      module: '1c0b6511549fad7e2315e1589821a70c6cebbbd9451b8b4178d25aa11a283357'
+    },
+    assets: []
+  },
+  webgl_shadowmesh: {
+    id: 'three-shadowmesh',
+    directory: 'three-shadowmesh',
+    name: 'ShadowMesh — three.js r186',
+    description: 'Unmodified official webgl_shadowmesh module on the JSR THREE R1/WebGL2 runtime.',
+    icon: '🧊',
+    expected: {
+      html: '22879e329cd53abec90fa2ba15b87d9deeae56fe24888fa814d399214fce98e6',
+      module: '7435b64e6bee92c8e044e841480758fc2f608b2d920e889822478dfa1ffd2bb2'
+    },
+    assets: []
+  },
+  webgl_simple_gi: {
+    id: 'three-simple-gi',
+    directory: 'three-simple-gi',
+    name: 'simple global illumination — three.js r186',
+    description: 'Unmodified official webgl_simple_gi module on the JSR THREE R1/WebGL2 runtime.',
+    icon: '🧊',
+    expected: {
+      html: 'bd832f6f9b7cdfba466ab440e9bf72de074f95cbb7c7a93ed5a9caeaa0890972',
+      module: 'aecf8c34ea1f966928b55dc49e7a050ea26563df3d9497f919249f740f5beaae'
+    },
+    assets: []
+  },
+  webgl_test_memory2: {
+    id: 'three-test-memory2',
+    directory: 'three-test-memory2',
+    name: 'Test Memory2 — three.js r186',
+    description: 'Unmodified official webgl_test_memory2 module on the JSR THREE R1/WebGL2 runtime.',
+    icon: '🧊',
+    expected: {
+      html: '8f11fd31434d1c9cb8c18a1205bdaa851dd5890e936125de01158be0533824a3',
+      module: '9dbdd14d45b51e495c0051a2096537c43a0039a4d5679adafad3e7d4abb7beb1'
+    },
+    assets: []
+  },
+  webgl_test_wide_gamut: {
+    id: 'three-test-wide-gamut',
+    directory: 'three-test-wide-gamut',
+    name: 'test - wide gamut — three.js r186',
+    description: 'Unmodified official webgl_test_wide_gamut module on the JSR THREE R1/WebGL2 runtime.',
+    icon: '🧊',
+    expected: {
+      html: '4d76ef5eefd9df8f804f34444299b11131b8a7b1a3df0c134fccd044ef84b0cc',
+      module: '8f7f47357481537eedc99f6602bbeb58a14826d66920ff714f21baad6d99729c'
+    },
+    assets: []
+  },
+  webgl_texture2darray: {
+    id: 'three-texture2darray',
+    directory: 'three-texture2darray',
+    name: '2D texture array — three.js r186',
+    description: 'Unmodified official webgl_texture2darray module on the JSR THREE R1/WebGL2 runtime.',
+    icon: '🧊',
+    expected: {
+      html: '57f95a9e1c7ee8dacdef3e33d252bb3947e4202d695f10292e18d1b13c1ac97f',
+      module: '00bb94e26c6b3c084eda14b3ef861f5c3bbbf48165dd2144c84d52906c8bd6f6'
+    },
+    assets: []
+  },
+  webgl_texture2darray_compressed: {
+    id: 'three-texture2darray-compressed',
+    directory: 'three-texture2darray-compressed',
+    name: '2D compressed texture array — three.js r186',
+    description: 'Unmodified official webgl_texture2darray_compressed module on the JSR THREE R1/WebGL2 runtime.',
+    icon: '🧊',
+    expected: {
+      html: '169f7723009b572fab9db7e70aa69db03fc195481b131f1cfc32f95af2b5807e',
+      module: '231df131652145fde3729f35f080ef2e5036a8698ff2fd11697f2f0fb0fd4ae4'
+    },
+    assets: []
+  },
+  webgl_texture2darray_layerupdate: {
+    id: 'three-texture2darray-layerupdate',
+    directory: 'three-texture2darray-layerupdate',
+    name: 'texture array layer update — three.js r186',
+    description: 'Unmodified official webgl_texture2darray_layerupdate module on the JSR THREE R1/WebGL2 runtime.',
+    icon: '🧊',
+    expected: {
+      html: 'e8403708a1f26c65dc2c205d8257551f920980df5cda07850609f4e029611d82',
+      module: 'bb7b71f6a810966199769db1f7383410f1783cbba7531a0b1632b6bd1f42cde4'
+    },
+    assets: []
+  },
+  webgl_texture3d: {
+    id: 'three-texture3d',
+    directory: 'three-texture3d',
+    name: 'volume rendering example — three.js r186',
+    description: 'Unmodified official webgl_texture3d module on the JSR THREE R1/WebGL2 runtime.',
+    icon: '🧊',
+    expected: {
+      html: '05c475d9448b419d88b673ba585d0edf77b015e049712187666a2295067907d8',
+      module: 'f3a51028281fd3e6456c2057a5a4bb4721a93988a21e7c4e5544986df5f57ec7'
+    },
+    assets: []
+  },
+  webgl_texture3d_partialupdate: {
+    id: 'three-texture3d-partialupdate',
+    directory: 'three-texture3d-partialupdate',
+    name: 'Texture3d Partialupdate — three.js r186',
+    description: 'Unmodified official webgl_texture3d_partialupdate module on the JSR THREE R1/WebGL2 runtime.',
+    icon: '🧊',
+    expected: {
+      html: 'b3c8fcd8b2eb0ee60a903023b81be1de88a9c9d833d90fe834636c444a8b3241',
+      module: 'f6a311017a3abff6854a6b09c54bbb3043c4139e4f1d9bc12952c402e42f0c17'
+    },
+    assets: []
+  },
+  webgl_tonemapping: {
+    id: 'three-tonemapping',
+    directory: 'three-tonemapping',
+    name: 'tone mapping — three.js r186',
+    description: 'Unmodified official webgl_tonemapping module on the JSR THREE R1/WebGL2 runtime.',
+    icon: '🧊',
+    expected: {
+      html: '62df7691a68a4665c32ffc97995b8247a028d4a387b2a39a883d929b494c1bb2',
+      module: 'a5fbae674d3369563392e6cc645c612b5676c767e536c2e69e66c9cf041a37b3'
+    },
+    assets: []
+  },
+  webgl_tsl_clearcoat: {
+    id: 'three-tsl-clearcoat',
+    directory: 'three-tsl-clearcoat',
+    name: 'TSL Clearcoat — three.js r186',
+    description: 'Unmodified official webgl_tsl_clearcoat module on the JSR THREE R1/WebGL2 runtime.',
+    icon: '🧊',
+    expected: {
+      html: '3106ff1fde2593624f2c9a529e81a138080684c9b7b715038af7a17298c90363',
+      module: '3118260a8540e8ae0e5cf212802a2a9d4fe965570bd873b86885cb56f2634048'
+    },
+    assets: []
+  },
+  webgl_tsl_instancing: {
+    id: 'three-tsl-instancing',
+    directory: 'three-tsl-instancing',
+    name: 'instancing - performance — three.js r186',
+    description: 'Unmodified official webgl_tsl_instancing module on the JSR THREE R1/WebGL2 runtime.',
+    icon: '🧊',
+    expected: {
+      html: 'e1982ef17d9be75ee0724bffb78a0a57e409fab70882c6fc37ac5f8317f85796',
+      module: '4e3d3f1651fb4f4d6747872ed9ecf996123b29c8ff76c02f9a5537baf88474ac'
+    },
+    assets: []
+  },
+  webgl_tsl_shadowmap: {
+    id: 'three-tsl-shadowmap',
+    directory: 'three-tsl-shadowmap',
+    name: 'TSL Shadowmap — three.js r186',
+    description: 'Unmodified official webgl_tsl_shadowmap module on the JSR THREE R1/WebGL2 runtime.',
+    icon: '🧊',
+    expected: {
+      html: 'bb76403130c73d93a1e4ee1937e862ddbc4269eca45fb829898e770593f5c451',
+      module: 'f2c3e9e7e85d22275ceaf747efb62156378726f038ad64c4233714dc9dd82bd0'
+    },
+    assets: []
+  },
+  webgl_tsl_skinning: {
+    id: 'three-tsl-skinning',
+    directory: 'three-tsl-skinning',
+    name: 'TSL Skinning — three.js r186',
+    description: 'Unmodified official webgl_tsl_skinning module on the JSR THREE R1/WebGL2 runtime.',
+    icon: '🧊',
+    expected: {
+      html: '4098311a21edab107a95383d9348716546b238c5eab11a26459f6735b80cd6fe',
+      module: 'ff4f7a0bd888418b6186bed6d831bac842196b5327ef9befc92d03f012ecf5f0'
+    },
+    assets: []
+  },
+  webgl_ubo: {
+    id: 'three-ubo',
+    directory: 'three-ubo',
+    name: 'UBO — three.js r186',
+    description: 'Unmodified official webgl_ubo module on the JSR THREE R1/WebGL2 runtime.',
+    icon: '🧊',
+    expected: {
+      html: 'b527743237db0c816b577cfc0a1a728452808c651f25c01acb4d036f90798ae9',
+      module: 'aa2a3c626d318c4b1c0ab85ed1c7399ad9ead28765182c4d7982b538a1d678d6'
+    },
+    assets: []
+  },
+  webgl_ubo_arrays: {
+    id: 'three-ubo-arrays',
+    directory: 'three-ubo-arrays',
+    name: 'UBO Arrays — three.js r186',
+    description: 'Unmodified official webgl_ubo_arrays module on the JSR THREE R1/WebGL2 runtime.',
+    icon: '🧊',
+    expected: {
+      html: '2fcec4cea4a131c86199464ce0cbaae6bfc20b305a68388adb0a49f248191f8e',
+      module: '3d30c8b6e761bc2bc63a096ca2e80f3a795724b15b4dbcbd5c09e237a9a97230'
+    },
+    assets: []
+  },
+  webgl_video_kinect: {
+    id: 'three-video-kinect',
+    directory: 'three-video-kinect',
+    name: 'Video Kinect — three.js r186',
+    description: 'Unmodified official webgl_video_kinect module on the JSR THREE R1/WebGL2 runtime.',
+    icon: '🧊',
+    expected: {
+      html: '53fb810843a582008fa81ce016b37b096384520d5b57aab92304ba2db042259a',
+      module: '8761a5b760de6727c428ca88f64b7f46579548a7f82ad2fa0b6a3b57aac66446'
+    },
+    assets: []
+  },
+  webgl_video_panorama_equirectangular: {
+    id: 'three-video-panorama-equirectangular',
+    directory: 'three-video-panorama-equirectangular',
+    name: 'equirectangular video panorama — three.js r186',
+    description: 'Unmodified official webgl_video_panorama_equirectangular module on the JSR THREE R1/WebGL2 runtime.',
+    icon: '🧊',
+    expected: {
+      html: 'b72355957601606dd32ff45402e0423aa4be338e2f5ca854b02ab78144cba742',
+      module: 'a19ee6ebadb6ea63eb99ffc574d9cc8e9c1d369a0ea9fa09064299b8cfd5ae57'
+    },
+    assets: []
+  },
+  webgl_volume_cloud: {
+    id: 'three-volume-cloud',
+    directory: 'three-volume-cloud',
+    name: 'Volume Cloud — three.js r186',
+    description: 'Unmodified official webgl_volume_cloud module on the JSR THREE R1/WebGL2 runtime.',
+    icon: '🧊',
+    expected: {
+      html: '5b2e537af55cefdb2d71c7a353980aa1e44c64cbc72efe539958abedfe9da264',
+      module: '5cdd934c6da96246e58c5f881322f5132933b0fc96f403b97ec73f1e4738f578'
+    },
+    assets: []
+  },
+  webgl_volume_instancing: {
+    id: 'three-volume-instancing',
+    directory: 'three-volume-instancing',
+    name: 'Volume Instancing — three.js r186',
+    description: 'Unmodified official webgl_volume_instancing module on the JSR THREE R1/WebGL2 runtime.',
+    icon: '🧊',
+    expected: {
+      html: 'b04a4f66929083683f2b84d84516c353150383e0249c59f16fab15a65e94cfb4',
+      module: '7e107054bb398c136c6a4f9c4e5ff6e0ca89c6505f7af1cb03f2b87200989424'
+    },
+    assets: []
+  },
+  webgl_volume_perlin: {
+    id: 'three-volume-perlin',
+    directory: 'three-volume-perlin',
+    name: 'Volume Perlin — three.js r186',
+    description: 'Unmodified official webgl_volume_perlin module on the JSR THREE R1/WebGL2 runtime.',
+    icon: '🧊',
+    expected: {
+      html: 'cde03b671908e042629699945b22fa2e16bae8b56940894f4687152d4b711bd4',
+      module: '663264f259b82b06cf561066e0de7f76ee4c8a8d5cc645c724a4b8a34e9a35cd'
+    },
+    assets: []
+  },
+  webgl_watch: {
+    id: 'three-watch',
+    directory: 'three-watch',
+    name: 'watch — three.js r186',
+    description: 'Unmodified official webgl_watch module on the JSR THREE R1/WebGL2 runtime.',
+    icon: '🧊',
+    expected: {
+      html: 'c64ffbdbce4187114d0ce016101f040b0ab9480a9206fbacdeaad4dd4e864242',
+      module: '6cd1c205815d4837ab1bc8698394eb4f61cc6cc837f8b38a39f4f4957007c434'
+    },
+    assets: []
+  },
+  webgl_worker_offscreencanvas: {
+    id: 'three-worker-offscreencanvas',
+    directory: 'three-worker-offscreencanvas',
+    name: 'worker - offscreen canvas — three.js r186',
+    description: 'Unmodified official webgl_worker_offscreencanvas module on the JSR THREE R1/WebGL2 runtime.',
+    icon: '🧊',
+    expected: {
+      html: '541155a55102491f17004b94cdbc70285ff4ddfd59e28e1a4191438fc5a98ccc',
+      module: '78727d2d204dbcf53c71f99c304db6e36ed37e932ec5f9766dc2bc7684d48be5'
+    },
+    assets: []
+  },
 });
 const slash = value => value.split(path.sep).join('/');
 const sha = bytes => createHash('sha256').update(bytes).digest('hex');

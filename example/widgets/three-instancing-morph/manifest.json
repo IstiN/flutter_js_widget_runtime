@@ -1,0 +1,13 @@
+{
+  "id": "three-instancing-morph",
+  "name": "instancing - Morph Target Animations — three.js r186",
+  "description": "Unmodified official webgl_instancing_morph module on the JSR THREE R1/WebGL2 runtime.",
+  "version": "0.1.0",
+  "icon": "🧊",
+  "allowedCommands": [],
+  "network": false,
+  "widget": {
+    "entry": "widget.js",
+    "interactive": true
+  }
+}

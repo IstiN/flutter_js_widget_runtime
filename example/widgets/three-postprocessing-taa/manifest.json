@@ -1,0 +1,13 @@
+{
+  "id": "three-postprocessing-taa",
+  "name": "postprocessing manual taa and ssaa — three.js r186",
+  "description": "Unmodified official webgl_postprocessing_taa module on the JSR THREE R1/WebGL2 runtime.",
+  "version": "0.1.0",
+  "icon": "🧊",
+  "allowedCommands": [],
+  "network": false,
+  "widget": {
+    "entry": "widget.js",
+    "interactive": true
+  }
+}

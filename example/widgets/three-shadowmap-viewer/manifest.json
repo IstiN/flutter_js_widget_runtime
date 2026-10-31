@@ -1,0 +1,13 @@
+{
+  "id": "three-shadowmap-viewer",
+  "name": "ShadowMapViewer example — three.js r186",
+  "description": "Unmodified official webgl_shadowmap_viewer module on the JSR THREE R1/WebGL2 runtime.",
+  "version": "0.1.0",
+  "icon": "🧊",
+  "allowedCommands": [],
+  "network": false,
+  "widget": {
+    "entry": "widget.js",
+    "interactive": true
+  }
+}

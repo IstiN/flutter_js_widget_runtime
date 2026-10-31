@@ -227,3 +227,172 @@ Audio: real upstream AudioListener/Audio/PositionalAudio over bounded native
 AudioContext + JsThreeAudioHost -> JsMediaHost (audioplayers), autoplay
 gesture unlock, upstream rolloff/cone/pan math. CRAP follow-up: 4 RT GPU
 functions being split to CC<=3 (rendertargets).
+
+## Full official r186 catalog expansion
+
+Inventory: 299 `webgl_*` + 4 `webaudio_*` = 303 official JS/WebGL/audio
+examples. All 303 now have pinned definitions in `prepare.mjs` and CLI prepare
+entries; no CSS/HTML-only or other official ID was silently skipped. The 191
+missing definitions were generated with HTML/module SHA-256 pins. Batch prepare
+attempted those 191 plus three older unprepared definitions, without rebuilding
+the original 109 widgets. 173 new widgets prepared and registered (171 WebGL +
+2 WebAudio), for 282/303 registered total (278/299 WebGL + 4/4 WebAudio).
+
+Reusable tooling: `tool/three_example/generate_missing_examples.py` (inventory,
+definition generation, prepared-only runner/pubspec registration) and
+`tool/three_example/prepare_missing.py` (offline batch prepare + per-ID logs).
+Prepare results: `/tmp/three_prepare_results.json`; logs:
+`/tmp/three_prepare_logs/`.
+
+### Prepare failures (21, all WebGL)
+
+- **Forbidden external bare imports (12):**
+  `webgl_batch_lod_bvh` (@three.ez/simplify-geometry),
+  `webgl_geometry_csg` (three-bvh-csg),
+  `webgl_loader_3dtiles` (3d-tiles-renderer plus postprocessing/@takram plugins),
+  `webgl_loader_gltf_animation_pointer` (@needle-tools/three-animation-pointer),
+  `webgl_loader_gltf_progressive_lod` (@needle-tools/gltf-progressive),
+  `webgl_loader_ifc` (web-ifc),
+  `webgl_materials_texture_html` (three-html-render/polyfill),
+  `webgl_modifier_subdivision` (three-subdivide),
+  `webgl_postprocessing_godrays` (goodrays),
+  `webgl_raycaster_bvh` (three-mesh-bvh),
+  `webgl_renderer_pathtracer` (three-gpu-pathtracer),
+  `webgl_watch` (tween).
+- **Unmapped three/webgpu or three/tsl imports (4):**
+  `webgl_tsl_clearcoat`, `webgl_tsl_instancing`, `webgl_tsl_shadowmap`,
+  `webgl_tsl_skinning`.
+- **Remote CDN imports / module-format blockers (3):**
+  `webgl_loader_texture_lottie` (lottie-web CDN),
+  `webgl_loader_ttf` (opentype.js CDN),
+  `webgl_morphtargets_webcam` (MediaPipe CDN plus top-level await under es2020).
+- **Second core import outside finite roots (1):**
+  `webgl_worker_offscreencanvas` (examples/jsm/offscreen/scene.js imports
+  build/three.module.js instead of the facade).
+- **Unsupported prepared asset type (1):** `webgl_loader_svg` (image/svg+xml).
+
+### Full matrix (282 prepared examples)
+
+`flutter test test/zz_three_matrix_test.dart --reporter expanded` completed all
+282 cases in 12m44s with no test-harness failures. Render means mounted=true,
+submitted>0 and draws>0. RAF-errors includes mounted scenes with submitted=0;
+RAF failures are reported asynchronously in the runner log rather than thrown
+into the JSONL error field.
+
+| Result | Count |
+|---|---:|
+| renders | 135 |
+| RAF-errors / no submitted frame | 79 |
+| init-aborts (mounted=false) | 40 |
+| submitted frames but draws=0 | 28 |
+| **Total** | **282** |
+
+The original 109 IDs have no status changes: all 106 baseline renders still
+render, the two original WebAudio cases remain matrix-host-limited, and
+`three-shader` remains the known arbitrary-GLSL gap. New-entry tally:
+29 renders / 78 RAF-errors / 38 init-aborts / 28 draws=0 (173 total).
+
+Raw results: `/tmp/three_matrix.jsonl` (282 unique IDs); summary:
+`/tmp/three_matrix_summary.json`; full log: `/tmp/three_matrix_run.log`;
+per-example logs: `/tmp/three_matrix_logs/`.
+
+### Broken-list triage (147 primary blockers, each ID listed once)
+
+Asset-first includes 44 log-confirmed `ThreeAssetError: no host asset loader is
+configured` cases plus 31 silent cases with official local/remote asset
+references and no completed render. Re-triage the latter after pinning because
+later native gaps can be masked. Explicit-native groups below come directly
+from representative per-example logs.
+
+- **Asset pins / unavailable remote assets (asset-first) (75)**
+  three-animation-keyframes, three-animation-skinning-additive-blending, three-animation-skinning-ik,
+  three-animation-walk, three-custom-attributes-lines, three-gpgpu-birds-gltf, three-gpgpu-water,
+  three-lightprobe, three-lightprobe-cubecamera, three-loader-3dm, three-loader-3ds, three-loader-3mf,
+  three-loader-collada, three-loader-collada-kinematics, three-loader-draco, three-loader-gcode,
+  three-loader-gltf, three-loader-gltf-anisotropy, three-loader-gltf-avif, three-loader-gltf-compressed,
+  three-loader-gltf-dispersion, three-loader-gltf-instancing, three-loader-gltf-iridescence,
+  three-loader-gltf-sheen, three-loader-gltf-transmission, three-loader-gltf-variants, three-loader-kmz,
+  three-loader-ldraw, three-loader-mdd, three-loader-nrrd, three-loader-pdb, three-loader-texture-exr,
+  three-loader-texture-hdr, three-loader-texture-ktx2, three-loader-texture-tiff, three-loader-usdz,
+  three-loader-vox, three-loader-vrml, three-materials-car, three-materials-cubemap-dynamic,
+  three-materials-cubemap-mipmaps, three-materials-cubemap-render-to-mipmaps, three-materials-envmaps-exr,
+  three-materials-envmaps-fasthdr, three-materials-envmaps-groundprojected, three-materials-envmaps-hdr,
+  three-materials-physical-transmission, three-materials-physical-transmission-alpha,
+  three-materials-texture-manualmipmap, three-modifier-curve, three-modifier-curve-instanced,
+  three-morphtargets-face, three-morphtargets-horse, three-multiple-rendertargets, three-performance,
+  three-pmrem-cubemap, three-pmrem-equirectangular, three-pmrem-test, three-points-dynamic,
+  three-postprocessing-3dlut, three-postprocessing-advanced, three-postprocessing-gtao,
+  three-postprocessing-outline, three-postprocessing-ssr, three-postprocessing-unreal-bloom, three-random-uv,
+  three-refraction, three-rendertarget-texture2darray, three-test-wide-gamut, three-texture2darray,
+  three-texture2darray-compressed, three-texture2darray-layerupdate, three-texture3d, three-tonemapping,
+  three-volume-instancing
+
+- **unsupported ShaderMaterial (7)**
+  three-buffergeometry-attributes-integer, three-custom-attributes, three-lightprobes-sponza,
+  three-lights-sunlight, three-mirror, three-postprocessing-procedural, three-shader
+
+- **unsupported instancedGeometry (4)**
+  three-buffergeometry-instancing, three-buffergeometry-instancing-billboards,
+  three-buffergeometry-instancing-interleaved, three-lines-fat-wireframe
+
+- **unsupported RawShaderMaterial (4)**
+  three-buffergeometry-rawshader, three-ubo, three-ubo-arrays, three-volume-perlin
+
+- **RAF cascade: 'update' of undefined (4)**
+  three-clipculldistance, three-effects-ascii, three-shaders-ocean, three-shadowmap-progressive
+
+- **unsupported materialState (alphaHash/premultipliedAlpha/colorWrite/stencil) (2)**
+  three-clipping-stencil, three-shadowmesh
+
+- **renderTarget: only one 2D RGBA8 target + optional depth (3)**
+  three-depth-texture, three-postprocessing-masking, three-postprocessing-pixel
+
+- **renderTargetTexture: requires linear non-mipmapped RGBA8 (16)**
+  three-interactive-cubes-gpu, three-materials-alphahash, three-portal, three-postprocessing,
+  three-postprocessing-afterimage, three-postprocessing-backgrounds, three-postprocessing-dof,
+  three-postprocessing-dof2, three-postprocessing-rgb-halftone, three-postprocessing-sao,
+  three-postprocessing-sobel, three-postprocessing-ssaa, three-postprocessing-ssao, three-postprocessing-taa,
+  three-read-float-buffer, three-shader-lava
+
+- **compressed texture path: unsupported textureType(1009) (2)**
+  three-loader-texture-dds, three-loader-texture-pvrtc
+
+- **RAF cascade: 'material' of undefined (2)**
+  three-texture3d-partialupdate, three-volume-cloud
+
+- **Other explicit native/runtime signatures (11)**
+  three-buffergeometry-glbufferattribute (GLBufferAttribute path: 'geometry' of undefined), three-gpgpu-birds
+  (GPUComputationRenderer cascade: 'time' of undefined), three-gpgpu-protoplanet (GPUComputationRenderer
+  cascade: 'texture' of undefined), three-lights-rectarealight (unsupported RectAreaLight),
+  three-loader-texture-ktx (render requires an Object3D), three-materials-blending-custom (unsupported
+  materialBlending), three-mesh-batch (unsupported BatchedMesh objectType), three-postprocessing-smaa (SMAA pass
+  cascade: 'enabled' of undefined), three-shaders-sky (CubeCamera coordinateSystem is undefined),
+  three-shadow-contact (unsupported scene overrideMaterial), three-shadowmap-csm (unsupported onBeforeCompile
+  arbitrary shader)
+
+- **Silent native/DOM paths (no host exception) (9)**
+  three-multiple-elements, three-multiple-elements-text, three-multisampled-renderbuffers,
+  three-postprocessing-fxaa, three-postprocessing-glitch, three-postprocessing-unreal-bloom-selective,
+  three-reversed-depth-buffer, three-shadowmap-viewer, three-test-memory2
+
+  - multiple-elements and multiple-elements-text require HTML layout/scissor
+    integration; multisampled-renderbuffers, postprocessing-fxaa,
+    postprocessing-glitch and postprocessing-unreal-bloom-selective stop during
+    composer/target setup; reversed-depth-buffer needs reversed depth;
+    shadowmap-viewer stops in shadow-viewer setup; test-memory2 uses arbitrary
+    ShaderMaterial. These need follow-up diagnostics after the logged groups.
+
+- **HTML video / camera media paths (4)**
+  three-materials-video, three-materials-video-webcam, three-video-kinect, three-video-panorama-equirectangular
+
+  materials-video and video-panorama-equirectangular need HTML video transport;
+  materials-video-webcam needs a camera; video-kinect also needs its HTML video
+  assets and custom ShaderMaterial.
+
+- **WebAudio matrix host/gesture limitation (4)**
+  three-webaudio-orientation, three-webaudio-sandbox, three-webaudio-timing, three-webaudio-visualizer
+
+  The matrix supplies no media host or user gesture. Orientation/timing already
+  pass their dedicated audio-host tests; sandbox/visualizer are prepared and
+  registered but still need equivalent dedicated audio-host coverage. These four
+  mounted=false matrix results are not evidence of a native draw-plan regression.

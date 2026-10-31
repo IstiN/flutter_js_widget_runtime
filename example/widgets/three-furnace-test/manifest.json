@@ -1,0 +1,13 @@
+{
+  "id": "three-furnace-test",
+  "name": "Furnace Test — three.js r186",
+  "description": "Unmodified official webgl_furnace_test module on the JSR THREE R1/WebGL2 runtime.",
+  "version": "0.1.0",
+  "icon": "🧊",
+  "allowedCommands": [],
+  "network": false,
+  "widget": {
+    "entry": "widget.js",
+    "interactive": true
+  }
+}

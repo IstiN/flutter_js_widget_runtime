@@ -33,12 +33,15 @@ CASES
 case = '''
   testWidgets('matrix ID', (tester) async {
     final result = <String, Object?>{'id': 'ID'};
+    result['phase'] = 'boot';
     try {
       final harness = await ThreeQuickjsExampleHarness.boot(
         tester,
         widgetId: 'ID',
         instanceId: 'ID-matrix',
       );
+      result['mounted'] = harness.engine.exportedState?['mounted'];
+      result['phase'] = 'pump';
       await harness.pumpUntil(
         tester,
         (state, plan) => state.submittedFrameCount >= 3,
@@ -48,6 +51,7 @@ case = '''
         () => Future<void>.delayed(const Duration(seconds: 1)),
       );
       await harness.pumpFrames(tester, 15);
+      result['phase'] = 'plan';
       final state = harness.state;
       final exported = harness.engine.exportedState;
       result['mounted'] = exported?['mounted'];
@@ -63,9 +67,13 @@ case = '''
         result['warnings'] = plan.diagnostics.warnings.take(3).toList();
         result['canRender'] = plan.canRender;
       }
+      result['phase'] = 'dispose';
       await harness.dispose(tester);
+      result['phase'] = 'done';
     } catch (error) {
-      result['error'] = error.toString().substring(0, 300);
+      result['failedPhase'] = result['phase'];
+      final message = error.toString();
+      result['error'] = message.substring(0, message.length < 300 ? message.length : 300);
     }
     File('/tmp/three_matrix.jsonl').writeAsStringSync('${jsonEncode(result)}\\n', mode: FileMode.append, flush: true);
   }, timeout: const Timeout(Duration(seconds: 120)));

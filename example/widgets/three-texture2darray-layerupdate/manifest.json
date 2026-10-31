@@ -1,0 +1,13 @@
+{
+  "id": "three-texture2darray-layerupdate",
+  "name": "texture array layer update — three.js r186",
+  "description": "Unmodified official webgl_texture2darray_layerupdate module on the JSR THREE R1/WebGL2 runtime.",
+  "version": "0.1.0",
+  "icon": "🧊",
+  "allowedCommands": [],
+  "network": false,
+  "widget": {
+    "entry": "widget.js",
+    "interactive": true
+  }
+}

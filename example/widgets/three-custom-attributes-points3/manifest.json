@@ -1,0 +1,13 @@
+{
+  "id": "three-custom-attributes-points3",
+  "name": "custom attributes [particles][billboards][alphatest] — three.js r186",
+  "description": "Unmodified official webgl_custom_attributes_points3 module on the JSR THREE R1/WebGL2 runtime.",
+  "version": "0.1.0",
+  "icon": "🧊",
+  "allowedCommands": [],
+  "network": false,
+  "widget": {
+    "entry": "widget.js",
+    "interactive": true
+  }
+}

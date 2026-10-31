@@ -1,0 +1,13 @@
+{
+  "id": "three-read-float-buffer",
+  "name": "read float pixels — three.js r186",
+  "description": "Unmodified official webgl_read_float_buffer module on the JSR THREE R1/WebGL2 runtime.",
+  "version": "0.1.0",
+  "icon": "🧊",
+  "allowedCommands": [],
+  "network": false,
+  "widget": {
+    "entry": "widget.js",
+    "interactive": true
+  }
+}
