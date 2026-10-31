@@ -1181,6 +1181,13 @@ webgl_geometry_shapes: {
                 "output": "Lucy100k.ply",
                 "sha256": "837f769e67155dc4a6e9a90683a61d6f6b4571a2a97d79586831011f450e66e2"
           }
+,
+      { rawRgba: true, url: 'textures/cube/Park3Med/px.jpg', sha256: '271ef2f791ff6b6f7e5ab45347279ac7195d5f8dab38eb08880036e4bac7d157', mime: 'image/jpeg' },
+      { rawRgba: true, url: 'textures/cube/Park3Med/nx.jpg', sha256: '6e27cd535b8ce0400dfec87298f1d7b009aeca54a69b38c8b00834c9d52ce438', mime: 'image/jpeg' },
+      { rawRgba: true, url: 'textures/cube/Park3Med/py.jpg', sha256: '27588b1f84b2b7075c56681b2b4893b01ff6c81ab50638884fa9ca8e40266af1', mime: 'image/jpeg' },
+      { rawRgba: true, url: 'textures/cube/Park3Med/ny.jpg', sha256: '9c58ffbc9a0a71a61f6b71c002f9367abf3a77e01bea8c6ba7e008c01695ab90', mime: 'image/jpeg' },
+      { rawRgba: true, url: 'textures/cube/Park3Med/pz.jpg', sha256: 'f97d0a20187c419622949a4bdb2afb652742bedb6924b9771d00e01d9fd428c7', mime: 'image/jpeg' },
+      { rawRgba: true, url: 'textures/cube/Park3Med/nz.jpg', sha256: 'ee32866c05c8221121856b5027d52d1ce0dbcd57185c2295135a5bab656d7503', mime: 'image/jpeg' }
     ]
   },
   webgl_geometry_cube: {
@@ -1853,7 +1860,15 @@ webgl_geometry_shapes: {
       html: '0553a5bf7b884d89586724825380b5a890986600eafe0836cec3504c3100ef77',
       module: '97eb1b8c9501140eaa69f2362172bcba48ce61517906f214c794d60dba6f3343'
     },
-    assets: []
+    assets: [
+      { url: 'models/obj/walt/WaltHead.obj', sha256: 'b8276ca88369af967a2329792c9c3df202ce8c02612790ff3842eba3d0dd44b5', mime: 'application/octet-stream' },
+      { rawRgba: true, url: 'textures/cube/SwedishRoyalCastle/px.jpg', sha256: '10a786132bc7eef6b142bd0d4b00ea94ffc1a1bfccfb1a6ec0baedf966d80734', mime: 'image/jpeg' },
+      { rawRgba: true, url: 'textures/cube/SwedishRoyalCastle/nx.jpg', sha256: '53a8d90cea6bab188d462c44676b84e5993424e465785c93829d810bbf7c5076', mime: 'image/jpeg' },
+      { rawRgba: true, url: 'textures/cube/SwedishRoyalCastle/py.jpg', sha256: '8b88f7f9af85fa5b442f28fb27532e534a197aba68ae60548bf4b3750f0d50f0', mime: 'image/jpeg' },
+      { rawRgba: true, url: 'textures/cube/SwedishRoyalCastle/ny.jpg', sha256: '17953cc33b9fec703c286266d4aca6033d758edd17ba0384fb3ebd7630085fd4', mime: 'image/jpeg' },
+      { rawRgba: true, url: 'textures/cube/SwedishRoyalCastle/pz.jpg', sha256: 'cc9252ba994a79c320ac4aed03aac9000f810c1358179e70a69b598d56e129db', mime: 'image/jpeg' },
+      { rawRgba: true, url: 'textures/cube/SwedishRoyalCastle/nz.jpg', sha256: '10149242ae21ba4c00663a0673f01a6722da63f201511fdc01941930d800ccff', mime: 'image/jpeg' }
+    ]
   },
   webgl_materials_envmaps: {
     id: 'three-materials-envmaps',
@@ -1903,6 +1918,41 @@ webgl_geometry_shapes: {
       html: '5550788aa81e4ec3884f154c910a24b479d57dad0e0a0fd86909f820a46182a2',
       module: '06fe3c5a9a763570e573b0999af47cba0b1291c7a00de7cfb7b3225c78772bf6'
     },
+    addonShims: {
+      'three/addons/loaders/HDRCubeTextureLoader.js': "export { CubeTextureLoader as HDRCubeTextureLoader } from 'three';",
+      'three/addons/textures/FlakesTexture.js': [
+        'export class FlakesTexture {',
+        '  constructor(width = 512, height = 512) {',
+        "    const canvas = document.createElement('canvas');",
+        '    canvas.width = width; canvas.height = height;',
+        "    const context = canvas.getContext('2d');",
+        '    const data = new Uint8ClampedArray(width * height * 4);',
+        '    for (let i = 0; i < width * height; i++) {',
+        '      data[i * 4] = 127; data[i * 4 + 1] = 127; data[i * 4 + 2] = 255; data[i * 4 + 3] = 255;',
+        '    }',
+        '    for (let i = 0; i < 4000; i++) {',
+        '      const x = Math.floor(Math.random() * width), y = Math.floor(Math.random() * height);',
+        '      const r = Math.random() * 3 + 3;',
+        '      let nx = Math.random() * 2 - 1, ny = Math.random() * 2 - 1, nz = 1.5;',
+        '      const l = Math.sqrt(nx * nx + ny * ny + nz * nz);',
+        '      nx /= l; ny /= l; nz /= l;',
+        '      const red = nx * 127 + 127, green = ny * 127 + 127, blue = nz * 255;',
+        '      const size = Math.ceil(2 * r);',
+        '      for (let py = 0; py < size; py++) {',
+        '        for (let px = 0; px < size; px++) {',
+        '          const tx = x + px, ty = y + py;',
+        '          if (tx >= width || ty >= height) continue;',
+        '          const to = (ty * width + tx) * 4;',
+        '          data[to] = red; data[to + 1] = green; data[to + 2] = blue;',
+        '        }',
+        '      }',
+        '    }',
+        '    context.putImageData({ data, width, height }, 0, 0);',
+        '    return canvas;',
+        '  }',
+        '}'
+      ].join('\n')
+    },
     assets: [
           {
                 "url": "textures/carbon/Carbon.png",
@@ -1934,6 +1984,13 @@ webgl_geometry_shapes: {
                 "output": "Water_1_M_Normal.jpg",
                 "sha256": "6d7825469a374ff84700b4fb1a2890bd1fce0ca1f777bdd4d5ecdaf15833a804"
           }
+,
+      { hdrRgba: true, url: 'textures/cube/pisaHDR/px.hdr', sha256: '72f6b4f08e657dbf47483367a92ac1b299979fa96906591f6a5260229ef128db', mime: 'image/vnd.radiance' },
+      { hdrRgba: true, url: 'textures/cube/pisaHDR/nx.hdr', sha256: '800985acb87cb45cd01ca959b2ee8199af3ebe2a4e3abfa104c064d16b4be6f8', mime: 'image/vnd.radiance' },
+      { hdrRgba: true, url: 'textures/cube/pisaHDR/py.hdr', sha256: 'd4bfbe9f1f00d4405618c172155729b4f2051cc37b1aaf6162e06763121da73c', mime: 'image/vnd.radiance' },
+      { hdrRgba: true, url: 'textures/cube/pisaHDR/ny.hdr', sha256: '76bac4fe6e6b148fdf37f9addbd90c25d3d4a8007598728c63fae3c35e987492', mime: 'image/vnd.radiance' },
+      { hdrRgba: true, url: 'textures/cube/pisaHDR/pz.hdr', sha256: 'ab9495d3e6a9efc8741fe820834446c9b8d0e0fc9771d325683366fe12843f54', mime: 'image/vnd.radiance' },
+      { hdrRgba: true, url: 'textures/cube/pisaHDR/nz.hdr', sha256: '9e10429a6dccfedf425c94e1b8be62150d40953b78c804b50b913c6f3bcafb78', mime: 'image/vnd.radiance' }
     ]
   },
   webgl_geometry_nurbs: {
@@ -2694,6 +2751,85 @@ function jpegDimensions(bytes, url) {
   throw new Error(`${url} has no JPEG dimensions`);
 }
 
+function bmpToRgba(bytes, url) {
+  if (bytes.toString('latin1', 0, 2) !== 'BM') throw new Error(`${url}: not a BMP`);
+  const dataOffset = bytes.readUInt32LE(10);
+  const width = bytes.readInt32LE(18);
+  const signedHeight = bytes.readInt32LE(22);
+  const bpp = bytes.readUInt16LE(28);
+  const compression = bytes.readUInt32LE(30);
+  if (compression !== 0 || (bpp !== 24 && bpp !== 32)) throw new Error(`${url}: unsupported BMP layout`);
+  const height = Math.abs(signedHeight);
+  const bottomUp = signedHeight > 0;
+  const rowSize = Math.floor((bpp * width + 31) / 32) * 4;
+  const pixelBytes = bpp / 8;
+  const out = Buffer.alloc(width * height * 4);
+  for (let y = 0; y < height; y++) {
+    const sourceRow = bottomUp ? height - 1 - y : y;
+    for (let x = 0; x < width; x++) {
+      const from = dataOffset + sourceRow * rowSize + x * pixelBytes;
+      const to = (y * width + x) * 4;
+      out[to] = bytes[from + 2];
+      out[to + 1] = bytes[from + 1];
+      out[to + 2] = bytes[from];
+      out[to + 3] = bpp === 32 ? bytes[from + 3] : 255;
+    }
+  }
+  return { bytes: out, width, height };
+}
+
+function rgbeToRgba(bytes, url) {
+  let offset = 0;
+  const readLine = () => {
+    const end = bytes.indexOf(0x0a, offset);
+    const line = bytes.toString('latin1', offset, end);
+    offset = end + 1;
+    return line;
+  };
+  if (!readLine().startsWith('#?')) throw new Error(`${url}: not a Radiance HDR`);
+  for (;;) { const line = readLine(); if (line === '') break; }
+  const dims = readLine().trim().split(/\s+/);
+  const height = Number(dims[1]);
+  const width = Number(dims[3]);
+  if (!Number.isInteger(width) || !Number.isInteger(height) || width <= 0 || height <= 0) throw new Error(`${url}: bad HDR dimensions`);
+  const out = Buffer.alloc(width * height * 4);
+  const scanline = Buffer.alloc(width * 4);
+  const enc = (value) => {
+    const v = Math.max(0, Math.min(1, value));
+    return Math.round((v <= 0.0031308 ? v * 12.92 : 1.055 * Math.pow(v, 1 / 2.4) - 0.055) * 255);
+  };
+  for (let y = 0; y < height; y++) {
+    if (bytes[offset] === 2 && bytes[offset + 1] === 2 && ((bytes[offset + 2] << 8) | bytes[offset + 3]) === width) {
+      offset += 4;
+      for (let channel = 0; channel < 4; channel++) {
+        let x = 0;
+        while (x < width) {
+          let count = bytes[offset++];
+          if (count > 128) {
+            const value = bytes[offset++];
+            for (let i = 0; i < count - 128; i++) scanline[x++ * 4 + channel] = value;
+          } else {
+            for (let i = 0; i < count; i++) scanline[x++ * 4 + channel] = bytes[offset++];
+          }
+        }
+      }
+    } else {
+      for (let x = 0; x < width * 4; x++) scanline[x] = bytes[offset++];
+    }
+    for (let x = 0; x < width; x++) {
+      const e = scanline[x * 4 + 3];
+      const to = (y * width + x) * 4;
+      if (e === 0) { out[to + 3] = 255; continue; }
+      const f = Math.pow(2, e - 136);
+      out[to] = enc(scanline[x * 4] * f);
+      out[to + 1] = enc(scanline[x * 4 + 1] * f);
+      out[to + 2] = enc(scanline[x * 4 + 2] * f);
+      out[to + 3] = 255;
+    }
+  }
+  return { bytes: out, width, height };
+}
+
 async function prepareAssets(source, definitions) {
   const assets = [];
   for (const pinned of definitions) {
@@ -2711,6 +2847,21 @@ async function prepareAssets(source, definitions) {
       execFileSync('sips', ['-s', 'format', 'png', tmpGif, '--out', tmpPng], { stdio: 'pipe' });
       bytes = await readFile(tmpPng);
       definition = { ...definition, mime: 'image/png' };
+    }
+    if (definition.hdrRgba) {
+      const decoded = rgbeToRgba(bytes, definition.url);
+      assets.push({ ...definition, bytes: decoded.bytes, width: decoded.width, height: decoded.height, mime: 'application/x-rgba' });
+      continue;
+    }
+    if (definition.rawRgba) {
+      const stamp = `${process.pid}-${assets.length}`;
+      const tmpIn = path.join(process.env.TMPDIR || '/tmp', `jsr-rgba-${stamp}-src`);
+      const tmpBmp = path.join(process.env.TMPDIR || '/tmp', `jsr-rgba-${stamp}.bmp`);
+      await writeFile(tmpIn, bytes);
+      execFileSync('sips', ['-s', 'format', 'bmp', tmpIn, '--out', tmpBmp], { stdio: 'pipe' });
+      const decoded = bmpToRgba(await readFile(tmpBmp), definition.url);
+      assets.push({ ...definition, bytes: decoded.bytes, width: decoded.width, height: decoded.height, mime: 'application/x-rgba' });
+      continue;
     }
     let dimensions;
     if (definition.mime === 'image/png') dimensions = pngDimensions(bytes, definition.url);
@@ -2790,12 +2941,24 @@ async function main() {
       loader: 'js'
     },
     outfile: path.join(out, 'widget.js'),
+       plugins: [{
+      name: 'jsr-addon-shims',
+      setup(build) {
+        const shims = definition.addonShims || {};
+        build.onResolve({ filter: /^three\/addons\// }, args => shims[args.path]
+          ? { path: args.path, namespace: 'jsr-addon-shim' }
+          : null);
+        build.onLoad({ filter: /.*/, namespace: 'jsr-addon-shim' }, args => ({
+          contents: shims[args.path], loader: 'js', resolveDir: HERE
+        }));
+      }
+    }],
     bundle: true,
     write: false,
     format: 'iife',
     platform: 'neutral',
     target: ['es2020'],
-    minify: true,
+    minify: !process.env.JSR_PREPARE_NO_MINIFY,
     treeShaking: true,
     legalComments: 'inline',
     sourcemap: false,

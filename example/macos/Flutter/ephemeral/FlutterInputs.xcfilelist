@@ -2254,7 +2254,7 @@
 /Users/Uladzimir_Klyshevich/git/flutter_js_widget_runtime/assets/three/three.native.js
 /Users/Uladzimir_Klyshevich/git/flutter_js_widget_runtime/assets/three/three.web.js
 /Users/Uladzimir_Klyshevich/git/flutter_js_widget_runtime/assets/three/three_r1.shaderbundle
-/Users/Uladzimir_Klyshevich/git/flutter_js_widget_runtime/example/DOES_NOT_EXIST_RERUN_FOR_WILDCARD899377474
+/Users/Uladzimir_Klyshevich/git/flutter_js_widget_runtime/example/DOES_NOT_EXIST_RERUN_FOR_WILDCARD798389354
 /Users/Uladzimir_Klyshevich/git/flutter_js_widget_runtime/example/assets/models/DamagedHelmet.glb
 /Users/Uladzimir_Klyshevich/git/flutter_js_widget_runtime/example/assets/models/coach_anny.LICENSE.txt
 /Users/Uladzimir_Klyshevich/git/flutter_js_widget_runtime/example/assets/models/coach_anny.glb
@@ -2561,8 +2561,18 @@
 /Users/Uladzimir_Klyshevich/git/flutter_js_widget_runtime/example/widgets/three-geometry-text-stroke/prepare_manifest.json
 /Users/Uladzimir_Klyshevich/git/flutter_js_widget_runtime/example/widgets/three-geometry-text-stroke/widget.js
 /Users/Uladzimir_Klyshevich/git/flutter_js_widget_runtime/example/widgets/three-geometry-text/THREE_LICENSE
+/Users/Uladzimir_Klyshevich/git/flutter_js_widget_runtime/example/widgets/three-geometry-text/fonts_droid_droid_sans_bold.typeface.json
+/Users/Uladzimir_Klyshevich/git/flutter_js_widget_runtime/example/widgets/three-geometry-text/fonts_droid_droid_sans_regular.typeface.json
+/Users/Uladzimir_Klyshevich/git/flutter_js_widget_runtime/example/widgets/three-geometry-text/fonts_droid_droid_serif_bold.typeface.json
+/Users/Uladzimir_Klyshevich/git/flutter_js_widget_runtime/example/widgets/three-geometry-text/fonts_droid_droid_serif_regular.typeface.json
+/Users/Uladzimir_Klyshevich/git/flutter_js_widget_runtime/example/widgets/three-geometry-text/gentilis_bold.typeface.json
+/Users/Uladzimir_Klyshevich/git/flutter_js_widget_runtime/example/widgets/three-geometry-text/gentilis_regular.typeface.json
+/Users/Uladzimir_Klyshevich/git/flutter_js_widget_runtime/example/widgets/three-geometry-text/helvetiker_bold.typeface.json
+/Users/Uladzimir_Klyshevich/git/flutter_js_widget_runtime/example/widgets/three-geometry-text/helvetiker_regular.typeface.json
 /Users/Uladzimir_Klyshevich/git/flutter_js_widget_runtime/example/widgets/three-geometry-text/manifest.json
 /Users/Uladzimir_Klyshevich/git/flutter_js_widget_runtime/example/widgets/three-geometry-text/official_module.js
+/Users/Uladzimir_Klyshevich/git/flutter_js_widget_runtime/example/widgets/three-geometry-text/optimer_bold.typeface.json
+/Users/Uladzimir_Klyshevich/git/flutter_js_widget_runtime/example/widgets/three-geometry-text/optimer_regular.typeface.json
 /Users/Uladzimir_Klyshevich/git/flutter_js_widget_runtime/example/widgets/three-geometry-text/original.html
 /Users/Uladzimir_Klyshevich/git/flutter_js_widget_runtime/example/widgets/three-geometry-text/prepare_manifest.json
 /Users/Uladzimir_Klyshevich/git/flutter_js_widget_runtime/example/widgets/three-geometry-text/widget.js
@@ -2809,6 +2819,7 @@
 /Users/Uladzimir_Klyshevich/git/flutter_js_widget_runtime/example/widgets/three-materials-physical-clearcoat/official_module.js
 /Users/Uladzimir_Klyshevich/git/flutter_js_widget_runtime/example/widgets/three-materials-physical-clearcoat/original.html
 /Users/Uladzimir_Klyshevich/git/flutter_js_widget_runtime/example/widgets/three-materials-physical-clearcoat/prepare_manifest.json
+/Users/Uladzimir_Klyshevich/git/flutter_js_widget_runtime/example/widgets/three-materials-physical-clearcoat/undefined
 /Users/Uladzimir_Klyshevich/git/flutter_js_widget_runtime/example/widgets/three-materials-physical-clearcoat/widget.js
 /Users/Uladzimir_Klyshevich/git/flutter_js_widget_runtime/example/widgets/three-materials-texture-anisotropy/THREE_LICENSE
 /Users/Uladzimir_Klyshevich/git/flutter_js_widget_runtime/example/widgets/three-materials-texture-anisotropy/crate.gif

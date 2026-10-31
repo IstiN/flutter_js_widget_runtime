@@ -26,12 +26,12 @@ function rgba(value) {
       parseInt(text[3] + text[3], 16), 255
     ];
   }
-  const match = /^rgba?\(\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)\s*(?:,\s*([0-9.]+)\s*)?\)$/.exec(text);
+  const match = /^rgba?\(\s*([0-9.]+)\s*,\s*([0-9.]+)\s*,\s*([0-9.]+)\s*(?:,\s*([0-9.]+)\s*)?\)$/.exec(text);
   if (!match) return null;
   const alpha = match[4] === undefined ? 1 : Number(match[4]);
   const values = [Number(match[1]), Number(match[2]), Number(match[3])];
   if (values.some(channel => channel > 255) || !(alpha >= 0 && alpha <= 1)) return null;
-  return [...values, Math.round(alpha * 255)];
+  return [...values.map(channel => Math.round(channel)), Math.round(alpha * 255)];
 }
 
 function checkedRect(x, y, width, height) {

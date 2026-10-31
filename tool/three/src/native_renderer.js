@@ -1,7 +1,7 @@
 import {
-  ACESFilmicToneMapping, AgXToneMapping, BackSide, CineonToneMapping, Color, CubeReflectionMapping,
+  ACESFilmicToneMapping, AgXToneMapping, BackSide, BoxGeometry, CineonToneMapping, Color, CubeReflectionMapping, CubeRefractionMapping,
   CustomToneMapping, DoubleSide, EquirectangularReflectionMapping, FrontSide, Frustum, LinearFilter,
-  LinearToneMapping, Matrix4, MeshBasicMaterial, MeshLambertMaterial, MeshStandardMaterial,
+  LinearToneMapping, Matrix4, Mesh, MeshBasicMaterial, MeshLambertMaterial, MeshStandardMaterial,
   MirroredRepeatWrapping, NeutralToneMapping, NearestFilter, NearestMipmapNearestFilter,
   NearestMipmapLinearFilter, NoToneMapping, NormalBlending, CustomBlending, PointsMaterial, HalfFloatType, RedFormat,
   ReinhardToneMapping, RGBAFormat, RepeatWrapping, SRGBColorSpace, UVMapping, UnsignedByteType,
@@ -265,6 +265,7 @@ function uvTransformElements(texture) {
 }
 
 function materialKind(material) {
+  if (material._r1Background) return 10;
   if (material.isMeshBasicMaterial) return 0;
   if (material.isMeshLambertMaterial) return 1;
   if (material.isMeshStandardMaterial) return 2;
@@ -666,7 +667,9 @@ export class JsrWebGLRenderer {
     // textures.
     const mappingOk = role === 'envMap'
       ? texture.mapping === EquirectangularReflectionMapping || texture.mapping === UVMapping ||
-        (texture.isCubeTexture && texture.mapping === CubeReflectionMapping)
+        (texture.isCubeTexture && (texture.mapping === CubeReflectionMapping ||
+          // Refraction degrades to the reflection sampler with a warning.
+          texture.mapping === CubeRefractionMapping))
       : texture.mapping === UVMapping;
     if (!mappingOk) unsupported('textureMapping', role === 'envMap'
       ? 'R1 envMap supports EquirectangularReflectionMapping on a single 2D texture or CubeReflectionMapping faces'
@@ -677,9 +680,12 @@ export class JsrWebGLRenderer {
     // degrades to exactly that clamp rather than being rejected.
     if (Number.isFinite(texture.anisotropy) === false || texture.anisotropy < 0) unsupported('textureState', 'anisotropy must be a nonnegative number');
     if (texture.channel !== 0) unsupported('textureChannel', 'R1 maps texture channel 0 only');
+    if (texture.isCubeTexture && texture.mapping === CubeRefractionMapping && !texture._r1RefractionWarned) {
+      texture._r1RefractionWarned = true;
+      console.warn('three: R1 samples CubeRefractionMapping as reflection (refraction stays 1B).');
+    }
     if (texture.isCubeTexture) return this._ensureCubeTexture(texture, commands);
     const image = texture.image;
-    if (image && !image.data && !texture._r1ImgDbg) { texture._r1ImgDbg = true; console.error('R1TEXDBG', texture.isCanvasTexture, image.constructor && image.constructor.name, Object.keys(image).slice(0,6).join(',')); }
     if (!image || !image.data) return 0;
     const id = resourceId(texture);
     const frameCached = this._frameTextures.get(id);
@@ -797,6 +803,15 @@ export class JsrWebGLRenderer {
   }
 
   _ensureMaterial(material, commands) {
+    if (material._r1EnvFromScene) {
+      material.envMap = this._sceneEnvironment || null;
+      if (!this._sceneEnvironment) material._r1EnvFromScene = false;
+    } else if (this._sceneEnvironment && !material.envMap &&
+        (material.isMeshBasicMaterial || material.isMeshLambertMaterial ||
+         material.isMeshPhongMaterial || material.isMeshStandardMaterial)) {
+      material.envMap = this._sceneEnvironment;
+      material._r1EnvFromScene = true;
+    }
     const kind = materialKind(material);
     validateMaterial(material);
     const id = resourceId(material);
@@ -819,7 +834,8 @@ export class JsrWebGLRenderer {
     if (spriteRotation && !Number.isFinite(spriteRotation)) throw new Error('three.invalid: material sprite rotation must be finite');
     const mapUvMatrix = uvTransformElements(material.map || null);
     const alphaMapUvMatrix = uvTransformElements(material.alphaMap || null);
-    const envMapIntensity = material.envMap ? material.envMapIntensity : 1;
+    // Lambert/Phong have no envMapIntensity (they use reflectivity): default 1.
+    const envMapIntensity = material.envMap && material.envMapIntensity !== undefined ? material.envMapIntensity : 1;
     if (!Number.isFinite(envMapIntensity) || envMapIntensity < 0) throw new Error('three.invalid: material envMapIntensity must be finite and nonnegative');
     const color = material.color || new Color(0xffffff);
     const opacity = material.opacity === undefined ? 1 : material.opacity;
@@ -1486,8 +1502,36 @@ export class JsrWebGLRenderer {
   _background(scene) {
     const background = scene.background;
     if (background === null || background === undefined) return { r: this._clearColor.r, g: this._clearColor.g, b: this._clearColor.b, a: this._clearAlpha };
-    if (!background.isColor) unsupported('backgroundTexture', 'R1 v1 accepts a Color or null background');
+    if (background.isTexture) return { r: 0, g: 0, b: 0, a: 1 }; // skybox mesh overdraws the clear
+    if (!background.isColor) unsupported('backgroundTexture', 'R1 accepts a Color, Texture or null background');
     return { r: background.r, g: background.g, b: background.b, a: 1 };
+  }
+
+  // scene.background = Texture/CubeTexture: an injected BackSide box with
+  // the dedicated background material kind (shader samples by view ray).
+  _ensureBackgroundNode(scene, camera, commands, seenNodes) {
+    const background = scene.background;
+    if (!background || !background.isTexture) return;
+    const ready = background.isCubeTexture
+      ? Array.isArray(background.image) && background.image.length === 6 && background.image.every(face => face && face.data)
+      : !!(background.image && background.image.data);
+    if (!ready) return; // wait for the async faces just like material maps
+    if (!this._backgroundMesh) {
+      const material = new MeshBasicMaterial({ side: BackSide, depthWrite: false, fog: false });
+      material._r1Background = true;
+      const geometry = new BoxGeometry(2, 2, 2);
+      geometry.clearGroups(); // single-material skybox must not split into batch parts
+      this._backgroundMesh = new Mesh(geometry, material);
+      this._backgroundMesh.frustumCulled = false;
+    }
+    const mesh = this._backgroundMesh;
+    mesh.material.envMap = background;
+    camera.getWorldPosition(_position);
+    mesh.position.copy(_position);
+    mesh.scale.setScalar(Math.max(0.001, (camera.near || 0.1) * 2));
+    mesh.updateMatrixWorld(true);
+    const result = this._ensureNode(mesh, resourceId(scene), commands, true);
+    if (result) seenNodes.add(result.id);
   }
 
   _fog(scene) {
@@ -1628,7 +1672,9 @@ export class JsrWebGLRenderer {
     if (this.outputColorSpace !== SRGBColorSpace) unsupported('outputColorSpace', 'native R1 requires SRGBColorSpace');
     if (!TONE_MAPPINGS.has(this.toneMapping)) unsupported('toneMapping', `${this.toneMapping} is not an upstream tone mapping constant`);
     if (this.xr.enabled) unsupported('xr');
-    if (scene.environment || scene.overrideMaterial) unsupported('sceneFeature', 'environment/overrideMaterial are outside R1 v1');
+    if (scene.overrideMaterial) unsupported('sceneFeature', 'overrideMaterial is outside R1 v1');
+    // scene.environment becomes the default envMap for env-less materials.
+    this._sceneEnvironment = scene.environment && scene.environment.isTexture ? scene.environment : null;
     if (!Array.isArray(this.clippingPlanes)) throw new Error('three.invalid: renderer.clippingPlanes must be an array');
     if (this.clippingPlanes.length > 16) unsupported('clippingPlanes', 'R1 supports at most 16 clipping planes');
     if (!camera || (!camera.isPerspectiveCamera && !camera.isOrthographicCamera)) unsupported('camera', 'R1 supports perspective and orthographic cameras');
@@ -1664,6 +1710,7 @@ export class JsrWebGLRenderer {
     let points = 0;
     const culledNodeIds = [];
     const shadowCandidates = [];
+    this._ensureBackgroundNode(scene, camera, commands, seenNodes);
     _frustumMatrix.multiplyMatrices(camera.projectionMatrix, camera.matrixWorldInverse);
     _frustum.setFromProjectionMatrix(_frustumMatrix);
     scene.traverseVisible(object => {

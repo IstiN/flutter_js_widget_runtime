@@ -332,8 +332,18 @@
 /Users/Uladzimir_Klyshevich/git/flutter_js_widget_runtime/example/build/macos/Build/Products/Release/App.framework/Versions/A/Resources/flutter_assets/widgets/three-geometry-text-stroke/prepare_manifest.json
 /Users/Uladzimir_Klyshevich/git/flutter_js_widget_runtime/example/build/macos/Build/Products/Release/App.framework/Versions/A/Resources/flutter_assets/widgets/three-geometry-text-stroke/widget.js
 /Users/Uladzimir_Klyshevich/git/flutter_js_widget_runtime/example/build/macos/Build/Products/Release/App.framework/Versions/A/Resources/flutter_assets/widgets/three-geometry-text/THREE_LICENSE
+/Users/Uladzimir_Klyshevich/git/flutter_js_widget_runtime/example/build/macos/Build/Products/Release/App.framework/Versions/A/Resources/flutter_assets/widgets/three-geometry-text/fonts_droid_droid_sans_bold.typeface.json
+/Users/Uladzimir_Klyshevich/git/flutter_js_widget_runtime/example/build/macos/Build/Products/Release/App.framework/Versions/A/Resources/flutter_assets/widgets/three-geometry-text/fonts_droid_droid_sans_regular.typeface.json
+/Users/Uladzimir_Klyshevich/git/flutter_js_widget_runtime/example/build/macos/Build/Products/Release/App.framework/Versions/A/Resources/flutter_assets/widgets/three-geometry-text/fonts_droid_droid_serif_bold.typeface.json
+/Users/Uladzimir_Klyshevich/git/flutter_js_widget_runtime/example/build/macos/Build/Products/Release/App.framework/Versions/A/Resources/flutter_assets/widgets/three-geometry-text/fonts_droid_droid_serif_regular.typeface.json
+/Users/Uladzimir_Klyshevich/git/flutter_js_widget_runtime/example/build/macos/Build/Products/Release/App.framework/Versions/A/Resources/flutter_assets/widgets/three-geometry-text/gentilis_bold.typeface.json
+/Users/Uladzimir_Klyshevich/git/flutter_js_widget_runtime/example/build/macos/Build/Products/Release/App.framework/Versions/A/Resources/flutter_assets/widgets/three-geometry-text/gentilis_regular.typeface.json
+/Users/Uladzimir_Klyshevich/git/flutter_js_widget_runtime/example/build/macos/Build/Products/Release/App.framework/Versions/A/Resources/flutter_assets/widgets/three-geometry-text/helvetiker_bold.typeface.json
+/Users/Uladzimir_Klyshevich/git/flutter_js_widget_runtime/example/build/macos/Build/Products/Release/App.framework/Versions/A/Resources/flutter_assets/widgets/three-geometry-text/helvetiker_regular.typeface.json
 /Users/Uladzimir_Klyshevich/git/flutter_js_widget_runtime/example/build/macos/Build/Products/Release/App.framework/Versions/A/Resources/flutter_assets/widgets/three-geometry-text/manifest.json
 /Users/Uladzimir_Klyshevich/git/flutter_js_widget_runtime/example/build/macos/Build/Products/Release/App.framework/Versions/A/Resources/flutter_assets/widgets/three-geometry-text/official_module.js
+/Users/Uladzimir_Klyshevich/git/flutter_js_widget_runtime/example/build/macos/Build/Products/Release/App.framework/Versions/A/Resources/flutter_assets/widgets/three-geometry-text/optimer_bold.typeface.json
+/Users/Uladzimir_Klyshevich/git/flutter_js_widget_runtime/example/build/macos/Build/Products/Release/App.framework/Versions/A/Resources/flutter_assets/widgets/three-geometry-text/optimer_regular.typeface.json
 /Users/Uladzimir_Klyshevich/git/flutter_js_widget_runtime/example/build/macos/Build/Products/Release/App.framework/Versions/A/Resources/flutter_assets/widgets/three-geometry-text/original.html
 /Users/Uladzimir_Klyshevich/git/flutter_js_widget_runtime/example/build/macos/Build/Products/Release/App.framework/Versions/A/Resources/flutter_assets/widgets/three-geometry-text/prepare_manifest.json
 /Users/Uladzimir_Klyshevich/git/flutter_js_widget_runtime/example/build/macos/Build/Products/Release/App.framework/Versions/A/Resources/flutter_assets/widgets/three-geometry-text/widget.js
@@ -580,6 +590,7 @@
 /Users/Uladzimir_Klyshevich/git/flutter_js_widget_runtime/example/build/macos/Build/Products/Release/App.framework/Versions/A/Resources/flutter_assets/widgets/three-materials-physical-clearcoat/official_module.js
 /Users/Uladzimir_Klyshevich/git/flutter_js_widget_runtime/example/build/macos/Build/Products/Release/App.framework/Versions/A/Resources/flutter_assets/widgets/three-materials-physical-clearcoat/original.html
 /Users/Uladzimir_Klyshevich/git/flutter_js_widget_runtime/example/build/macos/Build/Products/Release/App.framework/Versions/A/Resources/flutter_assets/widgets/three-materials-physical-clearcoat/prepare_manifest.json
+/Users/Uladzimir_Klyshevich/git/flutter_js_widget_runtime/example/build/macos/Build/Products/Release/App.framework/Versions/A/Resources/flutter_assets/widgets/three-materials-physical-clearcoat/undefined
 /Users/Uladzimir_Klyshevich/git/flutter_js_widget_runtime/example/build/macos/Build/Products/Release/App.framework/Versions/A/Resources/flutter_assets/widgets/three-materials-physical-clearcoat/widget.js
 /Users/Uladzimir_Klyshevich/git/flutter_js_widget_runtime/example/build/macos/Build/Products/Release/App.framework/Versions/A/Resources/flutter_assets/widgets/three-materials-texture-anisotropy/THREE_LICENSE
 /Users/Uladzimir_Klyshevich/git/flutter_js_widget_runtime/example/build/macos/Build/Products/Release/App.framework/Versions/A/Resources/flutter_assets/widgets/three-materials-texture-anisotropy/crate.gif

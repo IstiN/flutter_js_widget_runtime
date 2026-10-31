@@ -504,8 +504,8 @@
   },
   "inputs": {
     "assets/three/three.native.js": {
-      "bytes": 725143,
-      "sha256": "30a823006974c92ee6a3c7b6c08fefd94018468600b0349aec0f1b818c743426"
+      "bytes": 729395,
+      "sha256": "fac454c7680a7d75270a41f8dbd42076c94aad607ece3f37fcd12556954b57b4"
     },
     "assets/three/three.web.js": {
       "bytes": 835134,
@@ -519,18 +519,6 @@
       "bytes": 40755,
       "sha256": "3d79d07ecb686b4e5d93232eedab255331c1beef711e13164eaa1f68655a5f2b"
     },
-    "source/examples/jsm/loaders/HDRCubeTextureLoader.js": {
-      "bytes": 3731,
-      "sha256": "d67fcb9ec88e27736b55cfd591f86ed8529e61fc5a923328ee52cb499c753407"
-    },
-    "source/examples/jsm/loaders/HDRLoader.js": {
-      "bytes": 12079,
-      "sha256": "0986b578f9acd14cec74e5ee85e07f45e681b40bcd229a601a0391201f9b5ff1"
-    },
-    "source/examples/jsm/textures/FlakesTexture.js": {
-      "bytes": 1422,
-      "sha256": "2bb492f2239267428e872940a73b3d548540542762b7a7b423a6c9ffef5b0177"
-    },
     "source/examples/textures/carbon/Carbon.png": {
       "bytes": 4054,
       "sha256": "f5d4dd14c4b6f7548f50921e2bc75a77e2867fd93916928f60551f4857a96e06"
@@ -538,6 +526,30 @@
     "source/examples/textures/carbon/Carbon_Normal.png": {
       "bytes": 9513,
       "sha256": "15fe5cbeb3db8e85d8663ee1f67ffd5f0bfa457d01e1209c3011222ba08bb4fd"
+    },
+    "source/examples/textures/cube/pisaHDR/nx.hdr": {
+      "bytes": 262144,
+      "sha256": "b137ce9be734c9cd15b4c30a438fedaf6142512d4054bf67f3ed42f08170d79d"
+    },
+    "source/examples/textures/cube/pisaHDR/ny.hdr": {
+      "bytes": 262144,
+      "sha256": "df0c2024849427231c793b6ccb21a754616b3d08f28dc617fce68ea6f2240925"
+    },
+    "source/examples/textures/cube/pisaHDR/nz.hdr": {
+      "bytes": 262144,
+      "sha256": "e291c961cc11d96ce20fa487432416133f644a8582ad80faa7bd07c28e8b5e5c"
+    },
+    "source/examples/textures/cube/pisaHDR/px.hdr": {
+      "bytes": 262144,
+      "sha256": "ba17598a4365c14034eedf8a1ac7a2edad476299159e942a90dad69ea216bbe4"
+    },
+    "source/examples/textures/cube/pisaHDR/py.hdr": {
+      "bytes": 262144,
+      "sha256": "ae6fd09c9a4fc17be0de61d7aa2c65b81be50954ed9bcff2b54cefee85ba3d42"
+    },
+    "source/examples/textures/cube/pisaHDR/pz.hdr": {
+      "bytes": 262144,
+      "sha256": "4e97a4916e1637e5b6129f67e805354473c3f4908f0d2067a8b4b89270f14b20"
     },
     "source/examples/textures/golfball.jpg": {
       "bytes": 496438,
@@ -568,16 +580,16 @@
       "sha256": "261e6a04cba2e8e727062af9a8a3cedba03980bd955a0a3437ef87dd795a5748"
     },
     "tool/three_example/example_canvas2d.js": {
-      "bytes": 12266,
-      "sha256": "ac6cb1bda5630c44d9a8475356a93e0559f8816cc8c54aafe0957206050bd201"
+      "bytes": 12314,
+      "sha256": "f44f052a653ea254ae30b04cbeda1ed2476dd455bcd1055970970980ec94c53f"
     },
     "tool/three_example/lil_gui_adapter.js": {
       "bytes": 28485,
       "sha256": "de03987c75754c821c3e511a5edc819a1054ed73d95d09b7d65ec3dd69e0fa40"
     },
     "tool/three_example/prepare.mjs": {
-      "bytes": 118368,
-      "sha256": "6fe98eabbe5ce88d3494f73148415a2a9ab1d706c94a699d3491037e2cfc583a"
+      "bytes": 130601,
+      "sha256": "e761a14bac7cbd37c4e034ffc17ecb5858d0d3faccadd107b9ba3ae5c1211def"
     },
     "tool/three_example/stats_adapter.js": {
       "bytes": 2107,
@@ -621,9 +633,13 @@
       "bytes": 6779,
       "sha256": "5550788aa81e4ec3884f154c910a24b479d57dad0e0a0fd86909f820a46182a2"
     },
+    "undefined": {
+      "bytes": 262144,
+      "sha256": "e291c961cc11d96ce20fa487432416133f644a8582ad80faa7bd07c28e8b5e5c"
+    },
     "widget.js": {
-      "bytes": 2675398,
-      "sha256": "294fc6e847208d7af5f0cfe7b4a532a185ad97832682384f2d15423d60e3eb00"
+      "bytes": 4769294,
+      "sha256": "aac6103349f885833cec2da9795ff0d6c7e55fae69c0c2bfe4a0747f6e59fa09"
     }
   }
 }

@@ -1604,7 +1604,7 @@ void main() {
       final cases = <(int, Uint8List, int, int)>[
         (3, _material(), 0, 0),
         (3, _material(), 4, 0),
-        (3, _material(), 8, 10),
+        (3, _material(), 8, 11),
         (3, _material(), 16, 1024), // bits 7..9 are THREE blending; bit 10 stays invalid
         (3, _material(), 20, 3),
         (3, _material(), 52, 0),

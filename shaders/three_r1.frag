@@ -449,6 +449,18 @@ float spotDistanceFalloff(float lightDistance, float cutoffDistance) {
 void main() {
   applyClipping();
   int kind = int(material_info.roughnessMetalnessAlphaTestKind.w + 0.5);
+  if (kind == 10) {
+    // scene.background texture: an injected camera-centred skybox samples
+    // the environment by view DIRECTION (no reflection, no lighting, no
+    // fog/clipping), then follows the same exposure/tone/sRGB tail.
+    vec3 bgDir = normalize(worldPosition - frame_info.cameraPositionExposure.xyz);
+    vec3 bgColor = material_info.matcapGradientCube.z > 0.5
+        ? texture(envMapTexture, cubeAtlasUv(bgDir)).rgb
+        : texture(envMapTexture, equirectUv(bgDir)).rgb;
+    bgColor *= frame_info.cameraPositionExposure.w;
+    outColor = vec4(linearToSrgb(applyToneMapping(bgColor)), 1.0);
+    return;
+  }
   if (kind == 6) {
     vec3 n;
     if (material_info.vertexColorsFlatShadingHasMapReserved.y > 0.5) {

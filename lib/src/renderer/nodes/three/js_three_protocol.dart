@@ -35,7 +35,8 @@ enum JsThreeMaterialKind {
   meshNormal(6),
   shadow(7),
   meshTon(8),
-  meshMatcap(9);
+  meshMatcap(9),
+  background(10);
 
   const JsThreeMaterialKind(this.wireValue);
   final int wireValue;

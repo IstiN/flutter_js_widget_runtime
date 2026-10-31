@@ -238,6 +238,7 @@ const _meshMaterialKinds = {
   JsThreeMaterialKind.meshTon,
   JsThreeMaterialKind.meshMatcap,
   JsThreeMaterialKind.shadow,
+  JsThreeMaterialKind.background,
 };
 
 const _autoInstanceMaterialKinds = {
