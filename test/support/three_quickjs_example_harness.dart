@@ -52,6 +52,8 @@ final class ThreeQuickjsExampleHarness {
     WidgetTester tester, {
     required String source,
     required String instanceId,
+    Future<Object?> Function(String name, Map<String, dynamic> args)?
+    onHostCall,
   }) async {
     final threeSource = await tester.runAsync(
       () => rootBundle.loadString('assets/three/three.native.js'),
@@ -62,6 +64,7 @@ final class ThreeQuickjsExampleHarness {
       widgetId: 'three-native-test',
       instanceId: instanceId,
       tester: tester,
+      onHostCall: onHostCall,
     );
   }
 

@@ -43,6 +43,16 @@
       "sha256": "4971a60ae286bdbffd748dc066bb759ce40e828e07115aff4a8b46a3ae048674"
     }
   },
+  "assetDiscovery": [
+    {
+      "url": "textures/758px-Canestra_di_frutta_(Caravaggio).jpg",
+      "output": "textures__758px-Canestra_di_frutta___Caravaggio__.jpg",
+      "mime": "image/jpeg",
+      "diagnostic": "auto:textures/758px-Canestra_di_frutta_(Caravaggio).jpg",
+      "sha256": "3f9a556c4e12583981427e2d6b7fa268c1a46c9036a23514acd9e179c22ae37f",
+      "discovered": true
+    }
+  ],
   "facade": {
     "global": "globalThis.THREE",
     "exports": [
@@ -505,8 +515,8 @@
   },
   "inputs": {
     "assets/three/three.native.js": {
-      "bytes": 777104,
-      "sha256": "5adcb8e7c2d94dd83748134c4d13b9fcfcba9b671445fe27de895575402241b0"
+      "bytes": 791598,
+      "sha256": "58efdde0f4795a978fdf0a9ed9a4f606264aff39bb4e164aaaf00f5542c280e8"
     },
     "assets/three/three.web.js": {
       "bytes": 855325,
@@ -515,6 +525,10 @@
     "source/LICENSE": {
       "bytes": 1081,
       "sha256": "8b378ebe60e2fe500158cb0ac71cb5e8b7d92953c2abcc63a0eb90499653b5bc"
+    },
+    "source/examples/textures/758px-Canestra_di_frutta_(Caravaggio).jpg": {
+      "bytes": 148992,
+      "sha256": "3f9a556c4e12583981427e2d6b7fa268c1a46c9036a23514acd9e179c22ae37f"
     },
     "source/examples/webgl_materials_texture_manualmipmap.html": {
       "bytes": 8199,
@@ -528,9 +542,13 @@
       "bytes": 1951,
       "sha256": "7852c54a706c19e98978c884aa9cd9bfd8d040a2d304c8e6d8cf973dd3554eaf"
     },
+    "tool/three_example/asset_discovery.mjs": {
+      "bytes": 11532,
+      "sha256": "5219e6b747041382d9e40edc33901f04140df1cfb0454b181d8145414a75ee9e"
+    },
     "tool/three_example/example_adapter.js": {
-      "bytes": 20723,
-      "sha256": "9c713a0daa93289f0aeb2d75de6c067569ca4bc2235c24f3bb2bc8feab03336c"
+      "bytes": 36267,
+      "sha256": "c604a1842689cfaf43e2bdf335b55f2384780c7b163cd41ab6e91e3912704b61"
     },
     "tool/three_example/example_canvas2d.js": {
       "bytes": 20988,
@@ -541,8 +559,8 @@
       "sha256": "dc11346394f41bb4f385738d3afa6aa75e695ac80fe3be3a5fbf4201686376bf"
     },
     "tool/three_example/prepare.mjs": {
-      "bytes": 247876,
-      "sha256": "4ed1752612b57fb4ac32f62717e772e9a85f4e8a0f7e51a764443b68af0b8aac"
+      "bytes": 252492,
+      "sha256": "544095661162d33d5b6e91b6b744f7eb60b97c1ff9ea1f4ae297b2f39044af43"
     },
     "tool/three_example/stats_adapter.js": {
       "bytes": 2107,
@@ -566,9 +584,13 @@
       "bytes": 8199,
       "sha256": "59e775b82821b759caad44ccc2bd9976a7fd8b13928ace93ae25a0099b93742d"
     },
+    "textures__758px-Canestra_di_frutta___Caravaggio__.jpg": {
+      "bytes": 148992,
+      "sha256": "3f9a556c4e12583981427e2d6b7fa268c1a46c9036a23514acd9e179c22ae37f"
+    },
     "widget.js": {
-      "bytes": 33236,
-      "sha256": "0f1b87d858e47f478fca2647f57afaf69bc7b833148cb02c03caa972157a5605"
+      "bytes": 240364,
+      "sha256": "d76fd0cf46e0019ab038d548057278bfc1005d3a64cd6ae3409f1a9291c542c9"
     }
   }
 }

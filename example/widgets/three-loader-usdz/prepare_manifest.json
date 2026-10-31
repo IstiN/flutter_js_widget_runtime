@@ -43,6 +43,25 @@
       "sha256": "b2253e4e903723acaece947589747bfc2b8fbf963da5fa143bcd3104b8687bf2"
     }
   },
+  "assetDiscovery": [
+    {
+      "url": "models/usdz/saeukkang.usdz",
+      "output": "models__usdz__saeukkang.usdz",
+      "mime": "application/octet-stream",
+      "diagnostic": "auto:models/usdz/saeukkang.usdz",
+      "sha256": "dcc70e52a2468aeea3f63da3505ffe371bc7cf7c22e81b6c53b7f909a3e44d42",
+      "discovered": true
+    },
+    {
+      "url": "textures/equirectangular/venice_sunset_1k.hdr",
+      "output": "textures__equirectangular__venice_sunset_1k.hdr",
+      "mime": "image/vnd.radiance",
+      "diagnostic": "auto:textures/equirectangular/venice_sunset_1k.hdr",
+      "sha256": "0e72ed46b5316cb5fb67fc81ff85b024a09146fd89ef3811a8d2299647ada118",
+      "discovered": true,
+      "hdrRgba": true
+    }
+  ],
   "facade": {
     "global": "globalThis.THREE",
     "exports": [
@@ -505,8 +524,8 @@
   },
   "inputs": {
     "assets/three/three.native.js": {
-      "bytes": 777104,
-      "sha256": "5adcb8e7c2d94dd83748134c4d13b9fcfcba9b671445fe27de895575402241b0"
+      "bytes": 791598,
+      "sha256": "58efdde0f4795a978fdf0a9ed9a4f606264aff39bb4e164aaaf00f5542c280e8"
     },
     "assets/three/three.web.js": {
       "bytes": 855325,
@@ -524,10 +543,6 @@
       "bytes": 89384,
       "sha256": "209a4412eb48ce609edb4391992a792ffcc3983d30ee7e2b0b89a8c470f3cd8a"
     },
-    "source/examples/jsm/loaders/HDRLoader.js": {
-      "bytes": 12079,
-      "sha256": "0986b578f9acd14cec74e5ee85e07f45e681b40bcd229a601a0391201f9b5ff1"
-    },
     "source/examples/jsm/loaders/USDLoader.js": {
       "bytes": 7358,
       "sha256": "2fc767b02d8f8e7c30610f4daef50a09c0616cf23d2a455473a6ef12d4477ae9"
@@ -544,6 +559,14 @@
       "bytes": 112351,
       "sha256": "ab69972fe70cdb53a6ffa935ba4dbe541cbac4dc6c1b28faa3a3ad389e15cefb"
     },
+    "source/examples/models/usdz/saeukkang.usdz": {
+      "bytes": 3842733,
+      "sha256": "dcc70e52a2468aeea3f63da3505ffe371bc7cf7c22e81b6c53b7f909a3e44d42"
+    },
+    "source/examples/textures/equirectangular/venice_sunset_1k.hdr": {
+      "bytes": 1397783,
+      "sha256": "0e72ed46b5316cb5fb67fc81ff85b024a09146fd89ef3811a8d2299647ada118"
+    },
     "source/examples/webgl_loader_usdz.html": {
       "bytes": 3061,
       "sha256": "d45e9756fe5456e94acc6084db833a7ec7d2bf278bb254c1277f42e46cf1b046"
@@ -556,9 +579,13 @@
       "bytes": 1951,
       "sha256": "7852c54a706c19e98978c884aa9cd9bfd8d040a2d304c8e6d8cf973dd3554eaf"
     },
+    "tool/three_example/asset_discovery.mjs": {
+      "bytes": 11532,
+      "sha256": "5219e6b747041382d9e40edc33901f04140df1cfb0454b181d8145414a75ee9e"
+    },
     "tool/three_example/example_adapter.js": {
-      "bytes": 20723,
-      "sha256": "9c713a0daa93289f0aeb2d75de6c067569ca4bc2235c24f3bb2bc8feab03336c"
+      "bytes": 36267,
+      "sha256": "c604a1842689cfaf43e2bdf335b55f2384780c7b163cd41ab6e91e3912704b61"
     },
     "tool/three_example/example_canvas2d.js": {
       "bytes": 20988,
@@ -569,8 +596,8 @@
       "sha256": "dc11346394f41bb4f385738d3afa6aa75e695ac80fe3be3a5fbf4201686376bf"
     },
     "tool/three_example/prepare.mjs": {
-      "bytes": 247876,
-      "sha256": "4ed1752612b57fb4ac32f62717e772e9a85f4e8a0f7e51a764443b68af0b8aac"
+      "bytes": 252492,
+      "sha256": "544095661162d33d5b6e91b6b744f7eb60b97c1ff9ea1f4ae297b2f39044af43"
     },
     "tool/three_example/stats_adapter.js": {
       "bytes": 2107,
@@ -586,6 +613,10 @@
       "bytes": 339,
       "sha256": "7fad11ebe96d999529d5b3b6fd0b1430ff0827ae5188e23bc306f222dc3e6a2b"
     },
+    "models__usdz__saeukkang.usdz": {
+      "bytes": 3842733,
+      "sha256": "dcc70e52a2468aeea3f63da3505ffe371bc7cf7c22e81b6c53b7f909a3e44d42"
+    },
     "official_module.js": {
       "bytes": 2014,
       "sha256": "b2253e4e903723acaece947589747bfc2b8fbf963da5fa143bcd3104b8687bf2"
@@ -594,9 +625,13 @@
       "bytes": 3061,
       "sha256": "d45e9756fe5456e94acc6084db833a7ec7d2bf278bb254c1277f42e46cf1b046"
     },
+    "textures__equirectangular__venice_sunset_1k.hdr": {
+      "bytes": 2097152,
+      "sha256": "6afd08b5c4c228a17e656c04d6b16cf14425b9d4af3e1a4742a7f7bf65f281d8"
+    },
     "widget.js": {
-      "bytes": 128178,
-      "sha256": "e0c63e1d8c6c1d69fb2190c1b15a5117c195cf7aae5336e73b6c754d5cfa6fd2"
+      "bytes": 8053554,
+      "sha256": "0b000720d9eed59e20fd7f9b3a870367dd4cfce33bd3690d5901c105d31ea530"
     }
   }
 }

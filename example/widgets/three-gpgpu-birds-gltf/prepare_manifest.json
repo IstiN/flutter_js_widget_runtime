@@ -43,6 +43,24 @@
       "sha256": "372a4c0a61ee4edf3fd4fda45fb584812ae698268a11ddba0d627e4adc5a8bb6"
     }
   },
+  "assetDiscovery": [
+    {
+      "url": "models/gltf/Flamingo.glb",
+      "output": "models__gltf__Flamingo.glb",
+      "mime": "model/gltf-binary",
+      "diagnostic": "auto:models/gltf/Flamingo.glb",
+      "sha256": "9eabeb58587e4e0d11d5e23b30a26b73e4b8e6e8c83f2c36b3c5c3fe04dcf19f",
+      "discovered": true
+    },
+    {
+      "url": "models/gltf/Parrot.glb",
+      "output": "models__gltf__Parrot.glb",
+      "mime": "model/gltf-binary",
+      "diagnostic": "auto:models/gltf/Parrot.glb",
+      "sha256": "adcc5dae04d0b16957ce20b7bebb84d41c3bff1c01bf5ab1cf56d06345bc5170",
+      "discovered": true
+    }
+  ],
   "facade": {
     "global": "globalThis.THREE",
     "exports": [
@@ -505,8 +523,8 @@
   },
   "inputs": {
     "assets/three/three.native.js": {
-      "bytes": 777104,
-      "sha256": "5adcb8e7c2d94dd83748134c4d13b9fcfcba9b671445fe27de895575402241b0"
+      "bytes": 791598,
+      "sha256": "58efdde0f4795a978fdf0a9ed9a4f606264aff39bb4e164aaaf00f5542c280e8"
     },
     "assets/three/three.web.js": {
       "bytes": 855325,
@@ -540,6 +558,14 @@
       "bytes": 11535,
       "sha256": "b1632a703206c3d830de9fcbe515696770d04b71a15ee6b50afa6d2c3298c86f"
     },
+    "source/examples/models/gltf/Flamingo.glb": {
+      "bytes": 77428,
+      "sha256": "9eabeb58587e4e0d11d5e23b30a26b73e4b8e6e8c83f2c36b3c5c3fe04dcf19f"
+    },
+    "source/examples/models/gltf/Parrot.glb": {
+      "bytes": 97024,
+      "sha256": "adcc5dae04d0b16957ce20b7bebb84d41c3bff1c01bf5ab1cf56d06345bc5170"
+    },
     "source/examples/webgl_gpgpu_birds_gltf.html": {
       "bytes": 20719,
       "sha256": "f3196d89cb4b6e0cd4a237d94caa8d5462c4dba9673501cd8e5a1e3db60e8dbc"
@@ -552,9 +578,13 @@
       "bytes": 1951,
       "sha256": "7852c54a706c19e98978c884aa9cd9bfd8d040a2d304c8e6d8cf973dd3554eaf"
     },
+    "tool/three_example/asset_discovery.mjs": {
+      "bytes": 11532,
+      "sha256": "5219e6b747041382d9e40edc33901f04140df1cfb0454b181d8145414a75ee9e"
+    },
     "tool/three_example/example_adapter.js": {
-      "bytes": 20723,
-      "sha256": "9c713a0daa93289f0aeb2d75de6c067569ca4bc2235c24f3bb2bc8feab03336c"
+      "bytes": 36267,
+      "sha256": "c604a1842689cfaf43e2bdf335b55f2384780c7b163cd41ab6e91e3912704b61"
     },
     "tool/three_example/example_canvas2d.js": {
       "bytes": 20988,
@@ -565,8 +595,8 @@
       "sha256": "dc11346394f41bb4f385738d3afa6aa75e695ac80fe3be3a5fbf4201686376bf"
     },
     "tool/three_example/prepare.mjs": {
-      "bytes": 247876,
-      "sha256": "4ed1752612b57fb4ac32f62717e772e9a85f4e8a0f7e51a764443b68af0b8aac"
+      "bytes": 252492,
+      "sha256": "544095661162d33d5b6e91b6b744f7eb60b97c1ff9ea1f4ae297b2f39044af43"
     },
     "tool/three_example/stats_adapter.js": {
       "bytes": 2107,
@@ -582,6 +612,14 @@
       "bytes": 345,
       "sha256": "c24d6c6f9af8101753a09c7af9b9b4c5db80d817ebb8ea0fd46c26ef32ef9c46"
     },
+    "models__gltf__Flamingo.glb": {
+      "bytes": 77428,
+      "sha256": "9eabeb58587e4e0d11d5e23b30a26b73e4b8e6e8c83f2c36b3c5c3fe04dcf19f"
+    },
+    "models__gltf__Parrot.glb": {
+      "bytes": 97024,
+      "sha256": "adcc5dae04d0b16957ce20b7bebb84d41c3bff1c01bf5ab1cf56d06345bc5170"
+    },
     "official_module.js": {
       "bytes": 14618,
       "sha256": "372a4c0a61ee4edf3fd4fda45fb584812ae698268a11ddba0d627e4adc5a8bb6"
@@ -591,8 +629,8 @@
       "sha256": "f3196d89cb4b6e0cd4a237d94caa8d5462c4dba9673501cd8e5a1e3db60e8dbc"
     },
     "widget.js": {
-      "bytes": 137196,
-      "sha256": "fc347f485f4aa780756fb3100ab3d7023eee15252496439d453cebda371b4118"
+      "bytes": 378382,
+      "sha256": "6e8d4bf985d8a92dfd0f0ec38019e7b2911c38cddc6940117351cd687af27178"
     }
   }
 }

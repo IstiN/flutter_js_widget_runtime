@@ -43,6 +43,16 @@
       "sha256": "231df131652145fde3729f35f080ef2e5036a8698ff2fd11697f2f0fb0fd4ae4"
     }
   },
+  "assetDiscovery": [
+    {
+      "url": "textures/spiritedaway.ktx2",
+      "output": "textures__spiritedaway.ktx2",
+      "mime": "application/octet-stream",
+      "diagnostic": "auto:textures/spiritedaway.ktx2",
+      "sha256": "afab737973d40b8b2df1deda7204284e8a1b4271e1417c740a7de19254257f4b",
+      "discovered": true
+    }
+  ],
   "facade": {
     "global": "globalThis.THREE",
     "exports": [
@@ -505,8 +515,8 @@
   },
   "inputs": {
     "assets/three/three.native.js": {
-      "bytes": 777104,
-      "sha256": "5adcb8e7c2d94dd83748134c4d13b9fcfcba9b671445fe27de895575402241b0"
+      "bytes": 791598,
+      "sha256": "58efdde0f4795a978fdf0a9ed9a4f606264aff39bb4e164aaaf00f5542c280e8"
     },
     "assets/three/three.web.js": {
       "bytes": 855325,
@@ -536,6 +546,10 @@
       "bytes": 3110,
       "sha256": "5ac7095fd566bc9ae48376055fd66edf27cb9ebbf9e1269dc206bfd4933ae9eb"
     },
+    "source/examples/textures/spiritedaway.ktx2": {
+      "bytes": 774032,
+      "sha256": "afab737973d40b8b2df1deda7204284e8a1b4271e1417c740a7de19254257f4b"
+    },
     "source/examples/webgl_texture2darray_compressed.html": {
       "bytes": 4138,
       "sha256": "169f7723009b572fab9db7e70aa69db03fc195481b131f1cfc32f95af2b5807e"
@@ -548,9 +562,13 @@
       "bytes": 1951,
       "sha256": "7852c54a706c19e98978c884aa9cd9bfd8d040a2d304c8e6d8cf973dd3554eaf"
     },
+    "tool/three_example/asset_discovery.mjs": {
+      "bytes": 11532,
+      "sha256": "5219e6b747041382d9e40edc33901f04140df1cfb0454b181d8145414a75ee9e"
+    },
     "tool/three_example/example_adapter.js": {
-      "bytes": 20723,
-      "sha256": "9c713a0daa93289f0aeb2d75de6c067569ca4bc2235c24f3bb2bc8feab03336c"
+      "bytes": 36267,
+      "sha256": "c604a1842689cfaf43e2bdf335b55f2384780c7b163cd41ab6e91e3912704b61"
     },
     "tool/three_example/example_canvas2d.js": {
       "bytes": 20988,
@@ -561,8 +579,8 @@
       "sha256": "dc11346394f41bb4f385738d3afa6aa75e695ac80fe3be3a5fbf4201686376bf"
     },
     "tool/three_example/prepare.mjs": {
-      "bytes": 247876,
-      "sha256": "4ed1752612b57fb4ac32f62717e772e9a85f4e8a0f7e51a764443b68af0b8aac"
+      "bytes": 252492,
+      "sha256": "544095661162d33d5b6e91b6b744f7eb60b97c1ff9ea1f4ae297b2f39044af43"
     },
     "tool/three_example/stats_adapter.js": {
       "bytes": 2107,
@@ -586,9 +604,13 @@
       "bytes": 4138,
       "sha256": "169f7723009b572fab9db7e70aa69db03fc195481b131f1cfc32f95af2b5807e"
     },
+    "textures__spiritedaway.ktx2": {
+      "bytes": 774032,
+      "sha256": "afab737973d40b8b2df1deda7204284e8a1b4271e1417c740a7de19254257f4b"
+    },
     "widget.js": {
-      "bytes": 93006,
-      "sha256": "593df9a64dacd2c8b77b77f3d1cdaf6c1db851cd8a6d180d66fc42a03b003586"
+      "bytes": 1133492,
+      "sha256": "f53de857086e080bd166fbccd72585240015d6e2a0dcf885544dc8b1000abcf7"
     }
   }
 }

@@ -1,11 +1,11 @@
 import {
   ACESFilmicToneMapping, AgXToneMapping, BackSide, BoxGeometry, BufferGeometry, CineonToneMapping, Color, CubeReflectionMapping, CubeRefractionMapping,
   ClampToEdgeWrapping, CustomToneMapping, DataTexture, DoubleSide, DynamicDrawUsage, EquirectangularReflectionMapping, Float32BufferAttribute, FrontSide, Frustum, LinearFilter,
-  LinearToneMapping, LineBasicMaterial, Matrix4, Mesh, MeshBasicMaterial, MeshLambertMaterial, MeshStandardMaterial,
+  LinearMipmapNearestFilter, LinearMipmapLinearFilter, LinearToneMapping, LineBasicMaterial, Matrix4, Mesh, MeshBasicMaterial, MeshLambertMaterial, MeshNormalMaterial, MeshStandardMaterial,
   MirroredRepeatWrapping, NeutralToneMapping, NearestFilter, NearestMipmapNearestFilter,
-  NearestMipmapLinearFilter, NoToneMapping, NormalBlending, CustomBlending, PointsMaterial, HalfFloatType, RedFormat,
-  ReinhardToneMapping, RGBAFormat, RepeatWrapping, SRGBColorSpace, UVMapping, UnsignedByteType,
-  Vector3, Vector4
+  NearestMipmapLinearFilter, NoToneMapping, NormalBlending, CustomBlending, PointsMaterial, HalfFloatType, FloatType, IntType, RedFormat,
+  ReinhardToneMapping, RGBAFormat, RGBAIntegerFormat, RepeatWrapping, SRGBColorSpace, UVMapping, UnsignedByteType,
+  Vector3, Vector4, WebGLCoordinateSystem
 } from 'three';
 import { unsupported, requireFinite } from './errors.js';
 import { getThreeRuntime } from './runtime.js';
@@ -69,7 +69,8 @@ function attributeSignature(attribute) {
   if (!attribute) return '-';
   return [attribute.id, attribute.version, attribute.itemSize, attribute.normalized ? 1 : 0,
     attribute.count, token(attribute.array), attribute.data ? attribute.data.version : 0,
-    attribute.data ? token(attribute.data.array) : 0, attribute.offset || 0].join(':');
+    attribute.data ? token(attribute.data.array) : 0, attribute.offset || 0,
+    token(attribute.buffer), token(attribute.buffer?._r1Data)].join(':');
 }
 
 // FNV-1a over an attribute's raw element storage. Upstream helpers
@@ -138,9 +139,21 @@ function normalizedAttributeScale(array) {
 
 function attributeFloats(attribute, vertexCount, components, name, vertexOffset = 0) {
   if (!attribute) return null;
-  if (typeof attribute.getComponent !== 'function' || attribute.isGLBufferAttribute) unsupported('rawGLAttribute', name);
   if (attribute.itemSize !== components || attribute.count < vertexOffset + vertexCount) throw new Error(`three.invalid: ${name} attribute must have ${components} components per vertex`);
   const total = vertexCount * components;
+  if (attribute.isGLBufferAttribute) {
+    const data = attribute.buffer?._r1Data;
+    if (!data || data.length < (vertexOffset + vertexCount) * components) unsupported('rawGLAttribute', `${name} has no bounded software buffer data`);
+    const scale = attribute.normalized && data instanceof Uint8Array ? 1 / 255 : 1;
+    const values = new Float32Array(total);
+    for (let i = 0; i < total; i++) {
+      const value = data[vertexOffset * components + i] * scale;
+      requireFinite(value, `${name} attribute`);
+      values[i] = value;
+    }
+    return values;
+  }
+  if (typeof attribute.getComponent !== 'function') unsupported('rawGLAttribute', name);
   const values = new Float32Array(total);
   const array = attribute.array;
   const componentOffset = vertexOffset * components;
@@ -322,7 +335,8 @@ function boundedShaderSignature(material) {
     uniforms[name]?.value ? resourceId(uniforms[name].value) : 0);
   const matrices = ['colorMatrixLeft', 'colorMatrixRight'].map(name =>
     uniforms[name]?.value?.elements?.join(',') || '');
-  return [material.version, shaderTokens(material), ...textureIds, ...matrices].join('|');
+  const boundTextures = shaderTextureList(uniforms).map(texture => resourceId(texture));
+  return [material.version, shaderTokens(material), ...textureIds, ...matrices, ...boundTextures].join('|');
 }
 
 function copyShaderFlags(source, target) {
@@ -336,6 +350,225 @@ function copyShaderFlags(source, target) {
   target.toneMapped = source.toneMapped;
   target.fog = source.fog;
   return target;
+}
+
+function shaderTextureList(uniforms) {
+  const textures = [];
+  for (const uniform of Object.values(uniforms)) {
+    const value = uniform && uniform.value;
+    if (value?.isTexture) textures.push(value);
+    else if (Array.isArray(value)) for (const item of value) if (item?.isTexture) textures.push(item);
+  }
+  return textures;
+}
+
+function firstShaderTexture(uniforms) {
+  return shaderTextureList(uniforms)[0] || null;
+}
+
+function basicShaderMaterial(source, options = {}) {
+  const material = copyShaderFlags(source, new MeshBasicMaterial({
+    color: options.color || 0xffffff,
+    map: options.map || null,
+    vertexColors: !!options.vertexColors
+  }));
+  return material;
+}
+
+function timeColorGeometry(source) {
+  if (!source.attributes.position || !source.attributes.color) return null;
+  const geometry = new BufferGeometry();
+  for (const name of ['position', 'normal', 'uv']) {
+    if (source.attributes[name]) geometry.setAttribute(name, source.attributes[name]);
+  }
+  geometry.setAttribute('color', new Float32BufferAttribute(new Float32Array(source.attributes.position.count * 3), 3));
+  geometry.setIndex(source.index);
+  geometry.setDrawRange(source.drawRange.start, source.drawRange.count);
+  geometry.boundingSphere = source.boundingSphere;
+  geometry._r1TimeColor = { position: source.attributes.position, color: source.attributes.color };
+  return geometry;
+}
+
+function refreshTimeColorGeometry(geometry, time) {
+  const source = geometry._r1TimeColor;
+  if (!source) return;
+  const output = geometry.attributes.color;
+  for (let i = 0; i < output.count; i++) {
+    const red = source.color.getComponent(i, 0) + Math.sin(source.position.getComponent(i, 0) * 10 + time) * 0.5;
+    output.setXYZ(i, red, source.color.getComponent(i, 1), source.color.getComponent(i, 2));
+  }
+  output._r1DynamicContent = true;
+  output.needsUpdate = true;
+}
+
+function displacedShaderGeometry(source, amplitude) {
+  const position = source.attributes.position;
+  const normal = source.attributes.normal;
+  const displacement = source.attributes.displacement;
+  if (!position || !normal || !displacement) return null;
+  const geometry = new BufferGeometry();
+  geometry.setAttribute('position', new Float32BufferAttribute(new Float32Array(position.count * 3), 3));
+  for (const name of ['normal', 'uv']) if (source.attributes[name]) geometry.setAttribute(name, source.attributes[name]);
+  geometry.setIndex(source.index);
+  geometry.setDrawRange(source.drawRange.start, source.drawRange.count);
+  geometry._r1Displaced = { position, normal, displacement };
+  refreshDisplacedShaderGeometry(geometry, amplitude);
+  geometry.computeBoundingSphere();
+  return geometry;
+}
+
+function refreshDisplacedShaderGeometry(geometry, amplitude) {
+  const source = geometry._r1Displaced;
+  if (!source) return;
+  const output = geometry.attributes.position;
+  for (let i = 0; i < output.count; i++) {
+    const amount = source.displacement.getComponent(i, 0) * amplitude;
+    output.setXYZ(i,
+      source.position.getComponent(i, 0) + source.normal.getComponent(i, 0) * amount,
+      source.position.getComponent(i, 1) + source.normal.getComponent(i, 1) * amount,
+      source.position.getComponent(i, 2) + source.normal.getComponent(i, 2) * amount);
+  }
+  output._r1DynamicContent = true;
+  output.needsUpdate = true;
+}
+
+function instancedShaderGeometry(source, kind) {
+  const position = source.attributes.position;
+  if (!position) return null;
+  const perInstance = kind === 'billboards' ? sourceIndices(source, position.count) : null;
+  const verticesPerInstance = perInstance ? perInstance.length : position.count;
+  const instances = Math.min(source.instanceCount || 0, 2048);
+  if (!instances || !verticesPerInstance) return null;
+  const geometry = new BufferGeometry();
+  for (const name of ['position', 'color', 'uv']) {
+    const components = name === 'uv' ? 2 : 3;
+    geometry.setAttribute(name, new Float32BufferAttribute(new Float32Array(instances * verticesPerInstance * components), components));
+  }
+  geometry._r1Instanced = { source, kind, perInstance, verticesPerInstance, capacity: instances };
+  return geometry;
+}
+
+function rotateShaderQuaternion(vector, quaternion) {
+  const [x, y, z, w] = quaternion;
+  const cx = y * vector[2] - z * vector[1];
+  const cy = z * vector[0] - x * vector[2];
+  const cz = x * vector[1] - y * vector[0];
+  return [
+    cx * 2 * w + (y * cz - z * cy) * 2 + vector[0],
+    cy * 2 * w + (z * cx - x * cz) * 2 + vector[1],
+    cz * 2 * w + (x * cy - y * cx) * 2 + vector[2]
+  ];
+}
+
+function hslShaderColor(scale) {
+  const h = ((scale / 5) % 1 + 1) % 1;
+  const clamp = value => Math.max(0, Math.min(1, value));
+  return [clamp(Math.abs(h * 6 - 3) - 1), clamp(2 - Math.abs(h * 6 - 2)), clamp(Math.abs(h * 6 - 4) - 1)];
+}
+
+function refreshInstancedShaderGeometry(geometry, uniforms) {
+  const data = geometry._r1Instanced;
+  if (!data) return;
+  const { source, kind, perInstance, verticesPerInstance, capacity } = data;
+  const attrs = source.attributes;
+  const instances = Math.min(source.instanceCount || 0, capacity);
+  const positions = geometry.attributes.position;
+  const colors = geometry.attributes.color;
+  const uvs = geometry.attributes.uv;
+  const time = Number(uniforms.time?.value || 0);
+  const sineTime = Number(uniforms.sineTime?.value || 0);
+  for (let instance = 0; instance < instances; instance++) {
+    let scale = 0;
+    if (kind === 'billboards') {
+      const x = attrs.translate.getComponent(instance, 0), y = attrs.translate.getComponent(instance, 1), z = attrs.translate.getComponent(instance, 2);
+      scale = Math.sin((x + time) * 2.1) + Math.sin((y + time) * 3.2) + Math.sin((z + time) * 4.3);
+    }
+    const orientation = kind === 'instancing' ? [0, 1, 2, 3].map(c =>
+      attrs.orientationStart.getComponent(instance, c) * (1 - sineTime) + attrs.orientationEnd.getComponent(instance, c) * sineTime) : null;
+    if (orientation) {
+      const length = Math.hypot(...orientation) || 1;
+      for (let c = 0; c < 4; c++) orientation[c] /= length;
+    }
+    const color = kind === 'billboards' ? hslShaderColor(scale) : null;
+    for (let vertex = 0; vertex < verticesPerInstance; vertex++) {
+      const sourceVertex = perInstance ? perInstance[vertex] : vertex;
+      const output = instance * verticesPerInstance + vertex;
+      let point;
+      if (kind === 'billboards') {
+        const size = scale * 10 + 10;
+        point = [0, 1, 2].map(c => attrs.translate.getComponent(instance, c) + attrs.position.getComponent(sourceVertex, c) * size);
+      } else {
+        const spread = Math.max(Math.abs(sineTime * 2 + 1), 0.5);
+        point = [0, 1, 2].map(c => attrs.offset.getComponent(instance, c) * spread + attrs.position.getComponent(sourceVertex, c));
+        point = rotateShaderQuaternion(point, orientation);
+      }
+      positions.setXYZ(output, point[0], point[1], point[2]);
+      if (kind === 'billboards') colors.setXYZ(output, color[0], color[1], color[2]);
+      else colors.setXYZ(output,
+        attrs.color.getComponent(instance, 0) + Math.sin(point[0] * 10 + time) * 0.5,
+        attrs.color.getComponent(instance, 1), attrs.color.getComponent(instance, 2));
+      if (attrs.uv) uvs.setXY(output, attrs.uv.getComponent(sourceVertex, 0), attrs.uv.getComponent(sourceVertex, 1));
+    }
+  }
+  geometry.setDrawRange(0, instances * verticesPerInstance);
+  for (const attribute of [positions, colors, uvs]) {
+    attribute._r1DynamicContent = true;
+    attribute.needsUpdate = true;
+  }
+  geometry.computeBoundingSphere();
+}
+
+function shaderNoiseTexture(fragment) {
+  const size = 128;
+  const data = new Uint8Array(size * size * 4);
+  const rand = (x, y) => {
+    const value = Math.sin(x * 12.9898 + y * 78.233) * 43758.5453;
+    return value - Math.floor(value);
+  };
+  const mode = fragment.includes('vec3rand3=') ? 3 : fragment.includes('vec2rand2=') ? 2 : 1;
+  for (let y = 0; y < size; y++) for (let x = 0; x < size; x++) {
+    const u = x / size, v = y / size;
+    const a = rand(u, v), b = rand(u + 0.4, v + 0.6), c = rand(u + 0.6, v + 0.4);
+    let r = a, g = a, bl = a;
+    if (mode === 2) { r = 1 - a; g = (1 - a) * (1 - b); bl = a * (1 - b); }
+    else if (mode === 3) { r = a; g = b; bl = c; }
+    const offset = (y * size + x) * 4;
+    data[offset] = r * 255; data[offset + 1] = g * 255; data[offset + 2] = bl * 255; data[offset + 3] = 255;
+  }
+  const texture = new DataTexture(data, size, size);
+  texture.needsUpdate = true;
+  return texture;
+}
+
+function monjoriTexture(time) {
+  const size = 64, data = new Uint8Array(size * size * 4);
+  for (let py = 0; py < size; py++) for (let px = 0; px < size; px++) {
+    const x = -1 + 2 * px / (size - 1), y = -1 + 2 * py / (size - 1);
+    const a = time * 40, g = 1 / 40;
+    let e = 400 * (x * 0.5 + 0.5), f = 400 * (y * 0.5 + 0.5);
+    let i = 200 + Math.sin(e * g + a / 150) * 20;
+    let d = 200 + Math.cos(f * g / 2) * 18 + Math.cos(e * g) * 7;
+    const r = Math.hypot(i - e, d - f) || 1, q = f / r;
+    e = r * Math.cos(q) - a / 2; f = r * Math.sin(q) - a / 2;
+    d = Math.sin(e * g) * 340 + r;
+    let h = ((f + d) + a / 2) * g;
+    i = Math.cos(h + r * x / 1.3) * (2 * e + a) + Math.cos(q * g * 6) * (r + h / 3);
+    h = (Math.sin(f * g) * 144 - Math.sin(e * g) * 212 * x + (f - e) * q + Math.sin(r - (a + h) / 7) * 10 + i / 4) * g;
+    i += Math.cos(h * 2.3 * Math.sin(a / 350 - q)) * 184 * Math.sin(q - (r * 4.3 + a / 12) * g) + Math.tan(r * g + h) * 184 * Math.cos(r * g + h);
+    i = ((i / 5.6) % 256) / 64; if (i < 0) i += 4; if (i >= 2) i = 4 - i;
+    d = r / 350 + Math.sin((r / 350) ** 2 * 8) * 0.52;
+    const f0 = (Math.sin(a * g) + 1) / 2;
+    const red = f0 * i / 1.6 * d * x + (i / 1.3 + d / 8) * d * (1 - x);
+    const green = (i / 2 + d / 13) * d * x + (i / 2 + d / 18) * d * (1 - x);
+    const blue = i * d;
+    const offset = (py * size + px) * 4;
+    data[offset] = Math.max(0, Math.min(255, red * 255));
+    data[offset + 1] = Math.max(0, Math.min(255, green * 255));
+    data[offset + 2] = Math.max(0, Math.min(255, blue * 255)); data[offset + 3] = 255;
+  }
+  const texture = new DataTexture(data, size, size);
+  texture.needsUpdate = true;
+  return texture;
 }
 
 function proceduralRttGeometry(geometry, time) {
@@ -398,6 +631,107 @@ function adaptedShaderDraw(object) {
     const material = copyShaderFlags(source, new MeshBasicMaterial({ map: uniforms.tDiffuse.value }));
     return { material, geometry: object.geometry };
   }
+  const attrs = object.geometry.attributes;
+  const instancedKind = object.geometry.isInstancedBufferGeometry && attrs.offset && attrs.orientationStart ? 'instancing' :
+    object.geometry.isInstancedBufferGeometry && attrs.translate ? 'billboards' : null;
+  if (instancedKind) {
+    const geometry = instancedShaderGeometry(object.geometry, instancedKind);
+    if (geometry) {
+      refreshInstancedShaderGeometry(geometry, uniforms);
+      adaptationWarn(source, '_r1InstancedShaderWarned',
+        `R1 CPU-evaluates at most 2048 ${instancedKind} instances; billboard view alignment is approximated.`);
+      return { material: basicShaderMaterial(source, { map: uniforms.map?.value, vertexColors: true }), geometry };
+    }
+  }
+  if (attrs.id && fragment.includes('out_id=vid')) {
+    adaptationWarn(source, '_r1IntegerPickingWarned',
+      'R1 renders the picking geometry as vertex-colored RGBA8; integer ID readback is not retained.');
+    return { material: basicShaderMaterial(source, { vertexColors: !!attrs.color }), geometry: object.geometry };
+  }
+  if (source.name === 'GPUComputationShader') {
+    adaptationWarn(source, '_r1GpuComputationWarned',
+      'R1 lowers GPU computation passes to bounded texture copies/neutral draws; arbitrary compute math is dropped.');
+    const material = basicShaderMaterial(source, { map: firstShaderTexture(uniforms) });
+    material._r1ShaderTextures = shaderTextureList(uniforms);
+    return { material, geometry: object.geometry };
+  }
+  if (source.extensions?.clipCullDistance && attrs.color) {
+    adaptationWarn(source, '_r1ClipCullWarned',
+      'R1 keeps clip-cull vertex colors and positions; the shader clip-distance plane is dropped.');
+    return { material: basicShaderMaterial(source, { vertexColors: true }), geometry: object.geometry };
+  }
+  if (object.isSky || (source.name === 'SkyShader' && fragment.includes('vWorldPosition'))) {
+    adaptationWarn(source, '_r1SkyWarned', 'R1 renders the Sky bounds with a bounded atmospheric-blue material.');
+    return { material: basicShaderMaterial(source, { color: 0x87ceeb }), geometry: object.geometry };
+  }
+  if (attrs.position && attrs.color && fragment.includes('vColor') && vertex.includes('vPosition=position')) {
+    const geometry = timeColorGeometry(object.geometry);
+    if (geometry) {
+      geometry._r1Time = uniforms.time;
+      refreshTimeColorGeometry(geometry, Number(uniforms.time?.value || 0));
+      adaptationWarn(source, '_r1VertexColorShaderWarned',
+        'R1 evaluates the bounded position/color shader on the CPU, including its animated red channel.');
+      return { material: basicShaderMaterial(source, { vertexColors: true }), geometry };
+    }
+  }
+  if (attrs.position && attrs.normal && attrs.displacement && uniforms.amplitude && uniforms.colorTexture?.value) {
+    const geometry = displacedShaderGeometry(object.geometry, Number(uniforms.amplitude.value));
+    if (geometry) {
+      geometry._r1Amplitude = uniforms.amplitude;
+      adaptationWarn(source, '_r1CustomAttributesWarned',
+        'R1 evaluates custom displacement on the CPU and keeps the grayscale detail as its base map.');
+      return { material: basicShaderMaterial(source, { map: uniforms.colorTexture.value, color: uniforms.color?.value || 0xffffff }), geometry };
+    }
+  }
+  if (fragment.includes('vec4color=vec4(vColor)') && attrs.position && attrs.color) {
+    const geometry = timeColorGeometry(object.geometry);
+    if (geometry) {
+      geometry._r1Time = uniforms.time;
+      refreshTimeColorGeometry(geometry, Number(uniforms.time?.value || 0));
+      return { material: basicShaderMaterial(source, { vertexColors: true }), geometry };
+    }
+  }
+  if (fragment.includes('vec3rand3=vec3(rand(vUv)') || fragment.includes('vec2rand2=vec2(rand(vUv)') || fragment.includes('gl_FragColor.xyz=vec3(rand(vUv))')) {
+    adaptationWarn(source, '_r1NoiseShaderWarned', 'R1 bakes the bounded procedural noise shader into a 128x128 native texture.');
+    return { material: basicShaderMaterial(source, { map: shaderNoiseTexture(fragment) }), geometry: object.geometry };
+  }
+  if (fragment.includes('e=400.0*(p.x*0.5+0.5)') && uniforms.time) {
+    adaptationWarn(source, '_r1MonjoriWarned', 'R1 bakes one bounded 64x64 Monjori shader frame; subsequent time updates are not resampled.');
+    return { material: basicShaderMaterial(source, { map: monjoriTexture(Number(uniforms.time.value)) }), geometry: object.geometry };
+  }
+  if (fragment.includes('pointLightsCount') && vertex.includes('vPositionEye')) {
+    adaptationWarn(source, '_r1UboArrayWarned', 'R1 retains UBO-array geometry with a neutral base material; shader-only light arrays are dropped.');
+    return { material: basicShaderMaterial(source), geometry: object.geometry };
+  }
+  if (Object.keys(uniforms).length === 0 && vertex.includes('vNormal') && fragment.includes('vNormal')) {
+    adaptationWarn(source, '_r1NormalShaderWarned',
+      'R1 lowers this normal shader to MeshNormalMaterial; UV-only color terms are dropped.');
+    return { material: copyShaderFlags(source, new MeshNormalMaterial()), geometry: object.geometry };
+  }
+  const shaderTexture = firstShaderTexture(uniforms);
+  const pendingTexture = Object.entries(uniforms).some(([name, uniform]) => uniform && uniform.value == null &&
+    fragment.includes(name) && /sampler(?:2D|Cube|3D)/.test(fragment));
+  if (shaderTexture || pendingTexture) {
+    adaptationWarn(source, '_r1TextureShaderWarned',
+      'R1 lowers this textured shader to its first bound texture; custom lighting, raymarch and postprocess math are dropped.');
+    const material = basicShaderMaterial(source, { map: shaderTexture?.isCubeTexture ? null : shaderTexture,
+      color: uniforms.color?.value?.isColor ? uniforms.color.value : 0xffffff });
+    if (shaderTexture?.isCubeTexture) material.envMap = shaderTexture;
+    material._r1ShaderTextures = shaderTextureList(uniforms);
+    if (pendingTexture && !shaderTexture) adaptationWarn(source, '_r1PendingTextureWarned',
+      'R1 renders a neutral pass until this shader sampler is bound.');
+    if (object.isPoints) {
+      return { geometry: object.geometry, material: new PointsMaterial({
+        color: material.color, size: 4, sizeAttenuation: true, map: material.map,
+        transparent: material.transparent, opacity: material.opacity
+      }) };
+    }
+    return { material, geometry: object.geometry };
+  }
+  if (uniforms.color?.value?.isColor && vertex.includes('position')) {
+    adaptationWarn(source, '_r1ColorShaderWarned', 'R1 retains the bounded shader color and geometry; custom lighting is dropped.');
+    return { material: basicShaderMaterial(source, { color: uniforms.color.value, vertexColors: !!attrs.color }), geometry: object.geometry };
+  }
   if (uniforms.time && vertex === RTT_VERTEX && fragment === RTT_PROCEDURAL_FRAGMENT) {
     const material = copyShaderFlags(source, new MeshBasicMaterial({ vertexColors: true }));
     const geometry = proceduralRttGeometry(object.geometry, uniforms.time.value);
@@ -418,8 +752,20 @@ function validateMaterial(material) {
   }
   if (material.wireframe && !(material.isMeshBasicMaterial || material.isMeshLambertMaterial || material.isMeshPhongMaterial || material.isMeshNormalMaterial || (material.isMeshStandardMaterial) || material.isMeshToonMaterial || material.isMeshMatcapMaterial)) unsupported('wireframe', 'R1 wireframe requires a mesh material');
   if (material.wireframe && (material.wireframeLinewidth !== 1 || material.wireframeLinecap !== 'round' || material.wireframeLinejoin !== 'round')) unsupported('wireframeStyle', 'R1 supports one-pixel round wireframe lines');
-  if (material.blending === CustomBlending) unsupported('materialBlending');
-  if (material.alphaHash || material.premultipliedAlpha || material.colorWrite === false || material.stencilWrite) unsupported('materialState', 'alphaHash/premultipliedAlpha/colorWrite/stencil');
+  if (material.blending === CustomBlending) {
+    adaptationWarn(material, '_r1CustomBlendingWarned',
+      'R1 drops custom blend factors/equations and uses normal alpha blending.');
+  }
+  const droppedState = [
+    material.alphaHash ? 'alphaHash' : null,
+    material.premultipliedAlpha ? 'premultipliedAlpha' : null,
+    material.colorWrite === false ? 'colorWrite=false' : null,
+    material.stencilWrite ? 'stencilWrite' : null
+  ].filter(Boolean);
+  if (droppedState.length) {
+    adaptationWarn(material, '_r1MaterialStateWarned',
+      `R1 drops ${droppedState.join(', ')}; base color/depth rendering remains active.`);
+  }
   if (material.polygonOffset && !material._r1PolygonOffsetWarned) {
     // DecalGeometry enables polygon offset after the click. R1 has no factor/
     // units depth-state lane; keep drawing the decal with the base depth state
@@ -427,15 +773,18 @@ function validateMaterial(material) {
     material._r1PolygonOffsetWarned = true;
     console.warn('three: R1 drops material.polygonOffset (depth bias stays disabled).');
   }
-  if (Object.prototype.hasOwnProperty.call(material, 'onBeforeCompile')) unsupported('onBeforeCompile', 'arbitrary shaders require 1B');
+  if (Object.prototype.hasOwnProperty.call(material, 'onBeforeCompile')) {
+    adaptationWarn(material, '_r1OnBeforeCompileWarned',
+      'R1 does not execute material.onBeforeCompile; the unmodified native material is rendered.');
+  }
   // alphaMap, envMap (R1 v4), matcap and gradientMap (R1 v5) ride the
   // material texture slots; the rest of the upstream map family stays 1B.
-  const maps = ['aoMap', 'emissiveMap', 'lightMap', 'clearcoatMap', 'transmissionMap'];
+  const maps = ['aoMap', 'emissiveMap', 'clearcoatMap', 'transmissionMap'];
   if (!material.isMeshNormalMaterial) maps.push('displacementMap');
   for (const name of maps) if (material[name]) unsupported('materialTexture', `${material.type}.${name}`);
   // Visual-detail slots R1 can drop without changing the example's point:
   // degrade with a once-per-material warning instead of killing every frame.
-  for (const name of ['specularMap']) {
+  for (const name of ['specularMap', 'lightMap']) {
     if (material[name]) {
       const key = `${material.type}.${name}`;
       material._r1DroppedMaps || (material._r1DroppedMaps = {});
@@ -712,6 +1061,78 @@ function sideValue(side) {
   throw new Error('three.invalid: material side');
 }
 
+function installExampleGradientFacade(canvas) {
+  const document = canvas.ownerDocument;
+  if (!document || document._r1GradientFacade) return;
+  document._r1GradientFacade = true;
+  const augment = local => {
+    if (!local || local._r1GradientFacade || typeof local.getContext !== 'function') return local;
+    local._r1GradientFacade = true;
+    const getContext = local.getContext;
+    local.getContext = function(type, ...args) {
+      const context = getContext.call(this, type, ...args);
+      if (type !== '2d' || !context) return context;
+      context.createLinearGradient = (x0, y0, x1, y1) => {
+        finiteArray([x0, y0, x1, y1], 'linear gradient');
+        const gradient = { _r1LinearGradient: true, _r1Color: '#000000', _r1Distance: Infinity };
+        gradient.addColorStop = (offset, value) => {
+          requireFinite(offset, 'linear gradient offset');
+          if (offset < 0 || offset > 1) throw new Error('three.invalid: linear gradient offset');
+          const distance = Math.abs(offset - 0.5);
+          if (distance < gradient._r1Distance) {
+            gradient._r1Distance = distance;
+            gradient._r1Color = value;
+          }
+        };
+        return gradient;
+      };
+      let styleOwner = context;
+      let styleDescriptor = null;
+      while (styleOwner && !styleDescriptor) {
+        styleDescriptor = Object.getOwnPropertyDescriptor(styleOwner, 'fillStyle');
+        styleOwner = Object.getPrototypeOf(styleOwner);
+      }
+      if (styleDescriptor?.get && styleDescriptor?.set) {
+        Object.defineProperty(context, 'fillStyle', {
+          configurable: true,
+          enumerable: styleDescriptor.enumerable,
+          get() { return styleDescriptor.get.call(this); },
+          set(value) {
+            const gradient = value?._r1LinearGradient ? value : null;
+            if (gradient) {
+              adaptationWarn(canvas, '_r1LinearGradientWarned',
+                'R1 reduces example-canvas linear gradients to their midpoint color.');
+              value = gradient._r1Color;
+            }
+            styleDescriptor.set.call(this, value);
+          }
+        });
+      }
+      const fillRect = context.fillRect;
+      context.fillRect = function(...rect) {
+        const style = this.fillStyle;
+        if (!style?._r1LinearGradient) return fillRect.apply(this, rect);
+        adaptationWarn(canvas, '_r1LinearGradientWarned',
+          'R1 reduces example-canvas linear gradients to their midpoint color.');
+        this.fillStyle = style._r1Color;
+        try {
+          return fillRect.apply(this, rect);
+        } finally {
+          this.fillStyle = style;
+        }
+      };
+      return context;
+    };
+    return local;
+  };
+  for (const name of ['createElement', 'createElementNS']) {
+    const create = document[name];
+    if (typeof create === 'function') document[name] = function(...args) {
+      return augment(create.apply(this, args));
+    };
+  }
+}
+
 export class JsrWebGLRenderer {
   constructor(parameters = {}) {
     this.isWebGLRenderer = true;
@@ -720,15 +1141,37 @@ export class JsrWebGLRenderer {
     if (parameters.context != null) unsupported('rawWebGL', 'native R1 does not accept a caller-provided GL context');
     const canvas = parameters.canvas || this.runtime.createCanvas('main');
     if (!canvas.isJsrThreeCanvas) unsupported('canvas', 'native WebGLRenderer requires jsr.three.createCanvas()');
-    if (canvas.renderer && canvas.renderer !== this && !canvas.renderer._disposed) throw new Error('three.surface: canvas already has an active renderer');
+    if (canvas.renderer && canvas.renderer !== this && !canvas.renderer._disposed) {
+      return canvas.renderer._reuseForParameters(parameters);
+    }
     this.domElement = canvas;
     canvas.renderer = this;
+    installExampleGradientFacade(canvas);
+    let neutralPixels = null;
+    Object.defineProperty(canvas, '_examplePixels', {
+      configurable: true,
+      get: () => {
+        adaptationWarn(this, '_r1CanvasReadbackWarned',
+          'R1 provides neutral RGBA to example canvas readback; GPU pixels remain on the host.');
+        const width = canvas.width, height = canvas.height;
+        if (!neutralPixels || neutralPixels.width !== width || neutralPixels.height !== height) {
+          neutralPixels = { width, height, data: new Uint8ClampedArray(width * height * 4) };
+        }
+        return neutralPixels;
+      }
+    });
     this.capabilities = Object.assign({}, this.runtime.capabilities, {
       rawWebGL: false,
       isWebGL2: false,
       backend: 'flutterGpu',
       features: Object.freeze({ geometry: true, textures: true, lambert: true, standard: true, phong: true, normal: true, emissive: true, hemisphereLight: true, spotLight: true, clipping: true, wireframe: true, toneMapping: true, fogExp2: true, textureTransform: true, alphaMap: true, envMap: true, sprite: true, pointLightShadow: true, toonMaterial: true, matcapMaterial: true, cubeEnvMap: true, dataTexture: true, rawWebGL: false, shaderMaterial: false })
     });
+    this.extensions = {
+      has: name => ['WEBGL_clip_cull_distance', 'WEBGL_compressed_texture_astc',
+        'WEBGL_compressed_texture_etc1', 'WEBGL_compressed_texture_etc',
+        'WEBGL_compressed_texture_s3tc', 'WEBGL_compressed_texture_pvrtc'].includes(name),
+      get: name => this.getContext().getExtension(name)
+    };
     this.outputColorSpace = SRGBColorSpace;
     this.toneMapping = NoToneMapping;
     this.toneMappingExposure = 1;
@@ -740,6 +1183,17 @@ export class JsrWebGLRenderer {
     this.clippingPlanes = [];
     this.localClippingEnabled = false;
     this.shadowMap = { enabled: false, autoUpdate: true, needsUpdate: false };
+    const ignoredState = name => adaptationWarn(this, `_r1State_${name}`,
+      `R1 ignores renderer.state.${name} compatibility writes.`);
+    const stateBuffer = name => {
+      const ignore = () => ignoredState(name);
+      return { setMask: ignore, setLocked: ignore, setTest: ignore,
+        setOp: ignore, setFunc: ignore, setClear: ignore, getReversed: () => false };
+    };
+    this.state = { buffers: {
+      depth: stateBuffer('buffers.depth'), color: stateBuffer('buffers.color'), stencil: stateBuffer('buffers.stencil')
+    } };
+    this.coordinateSystem = WebGLCoordinateSystem;
     this._manualShadowRevision = 0;
     this._autoShadowRevision = 0;
     this._shadowCullingKey = null;
@@ -765,6 +1219,8 @@ export class JsrWebGLRenderer {
     this._renderTargets = new Map();
     this._renderTargetDisposers = new Map();
     this._renderTarget = null;
+    this._activeCubeFace = 0;
+    this._activeMipmapLevel = 0;
     this._clearFlags = 0;
     this._viewport = { x: 0, y: 0, z: this._width, w: this._height };
     this._scissor = { x: 0, y: 0, z: this._width, w: this._height };
@@ -785,10 +1241,42 @@ export class JsrWebGLRenderer {
       nodes: new Map(), batches: new Map(), lights: new Map(), cameras: new Map(),
       clippings: new Map(), renderTargets: new Map()
     });
+    this._depthParameterWarnings = new Set();
+    this._warnDepthParameters(parameters);
   }
 
-  getContext() { unsupported('rawWebGL', 'WebGLRenderer.getContext() is a 1B capability'); }
-  getContextAttributes() { unsupported('rawWebGL', 'WebGLRenderer.getContextAttributes() is a 1B capability'); }
+  _warnDepthParameters(parameters) {
+    for (const name of ['logarithmicDepthBuffer', 'reversedDepthBuffer']) {
+      if (!parameters[name] || this._depthParameterWarnings.has(name)) continue;
+      this._depthParameterWarnings.add(name);
+      console.warn(`three: R1 ${name} is unavailable; this renderer uses standard native depth.`);
+    }
+  }
+
+  _reuseForParameters(parameters) {
+    adaptationWarn(this, '_r1SharedRendererWarned',
+      'R1 shares one standard-depth renderer for this canvas; sequential viewport/scissor/target passes are preserved.');
+    this._warnDepthParameters(parameters);
+    return this;
+  }
+
+  getContext() {
+    if (this._boundedGL) return this._boundedGL;
+    let boundBuffer = null;
+    this._boundedGL = {
+      ARRAY_BUFFER: 34962, STATIC_DRAW: 35044, FLOAT: 5126, UNSIGNED_BYTE: 5121,
+      createBuffer: () => ({ _r1Data: null }),
+      bindBuffer: (target, buffer) => { if (target === 34962) boundBuffer = buffer; },
+      bufferData: (target, data, usage) => {
+        if (target !== 34962 || !boundBuffer || !ArrayBuffer.isView(data)) unsupported('rawWebGL', 'bounded bufferData requires an ARRAY_BUFFER typed array');
+        boundBuffer._r1Data = data;
+      },
+      getExtension: name => name === 'WEBGL_clip_cull_distance' ? { CLIP_DISTANCE0_WEBGL: 0 } : null,
+      enable: () => {}
+    };
+    return this._boundedGL;
+  }
+  getContextAttributes() { return { alpha: true, antialias: false, depth: true, stencil: false }; }
   getPixelRatio() { return this._pixelRatio; }
   getSize(target) { return target && target.set ? target.set(this._width, this._height) : { width: this._width, height: this._height }; }
   getDrawingBufferSize(target) { return target && target.set ? target.set(this.domElement.width, this.domElement.height) : { width: this.domElement.width, height: this.domElement.height }; }
@@ -833,11 +1321,35 @@ export class JsrWebGLRenderer {
   getScissor(target) { return target.copy(new Vector4(this._scissor.x, this._scissor.y, this._scissor.z, this._scissor.w)); }
   setScissorTest(value) { this._scissorTest = !!value; }
   getScissorTest() { return this._scissorTest; }
-  setRenderTarget(target) {
+  setEffects(effects) {
+    this._effects = Array.isArray(effects) ? effects.slice() : [];
+    if (this._effects.length) adaptationWarn(this, '_r1EffectsWarned',
+      'R1 ignores renderer.setEffects passes; the direct scene draw is retained.');
+  }
+  setRenderTarget(target, activeCubeFace = 0, activeMipmapLevel = 0) {
     this._renderTarget = target || null;
+    this._activeCubeFace = activeCubeFace;
+    this._activeMipmapLevel = activeMipmapLevel;
+    if (activeCubeFace) adaptationWarn(this, '_r1CubeTargetWarned',
+      'R1 reuses the bounded 2D target for cube-camera faces; separate face storage is dropped.');
     if (this._renderTarget) this._validateRenderTarget(this._renderTarget);
   }
   getRenderTarget() { return this._renderTarget; }
+  getActiveCubeFace() { return this._activeCubeFace; }
+  getActiveMipmapLevel() { return this._activeMipmapLevel; }
+  readRenderTargetPixels(target, x, y, width, height, buffer) {
+    if (!target?.isRenderTarget || !buffer || typeof buffer.length !== 'number') {
+      throw new Error('three.invalid: readRenderTargetPixels requires a target and typed output buffer');
+    }
+    adaptationWarn(this, '_r1ReadbackWarned',
+      'R1 target readback is a bounded neutral fallback; GPU pixels are not returned to JavaScript.');
+    const fill = buffer instanceof Int32Array || buffer instanceof Uint32Array ? -1 : 0;
+    buffer.fill(fill);
+  }
+  readRenderTargetPixelsAsync(target, x, y, width, height, buffer) {
+    this.readRenderTargetPixels(target, x, y, width, height, buffer);
+    return Promise.resolve();
+  }
   clear(color = true, depth = true) {
     if (color) this._clearFlags |= FRAME_TARGET_FLAGS.clearColor;
     if (depth) this._clearFlags |= FRAME_TARGET_FLAGS.clearDepth;
@@ -1027,22 +1539,43 @@ export class JsrWebGLRenderer {
 
   _validateRenderTarget(target) {
     const texture = target?.texture;
-    if (!target?.isRenderTarget || !texture || target.isWebGLCubeRenderTarget || target.depth !== 1 ||
-      target.textures?.length !== 1 || target.samples !== 0 || target.stencilBuffer || target.depthTexture) {
-      unsupported('renderTarget', 'R1 supports one 2D RGBA8 target with optional depth');
+    if (!target?.isRenderTarget || !texture || target.depth !== 1 || target.textures?.length !== 1) {
+      unsupported('renderTarget', 'R1 supports one 2D target per pass');
     }
-    if (texture.format !== RGBAFormat || texture.type !== UnsignedByteType || texture.generateMipmaps ||
-      texture.flipY || texture.colorSpace === SRGBColorSpace || texture.mapping !== UVMapping) {
-      unsupported('renderTargetTexture', 'R1 targets require linear, non-mipmapped RGBA8 textures');
+    if (![RGBAFormat, RGBAIntegerFormat].includes(texture.format) ||
+      ![UnsignedByteType, HalfFloatType, FloatType, IntType].includes(texture.type) || texture.flipY ||
+      (texture.mapping !== UVMapping && !(target.isWebGLCubeRenderTarget && texture.mapping === CubeReflectionMapping))) {
+      unsupported('renderTargetTexture', 'R1 targets require a 2D RGBA color attachment');
     }
-    if (![NearestFilter, LinearFilter].includes(texture.magFilter) ||
-      ![NearestFilter, LinearFilter].includes(texture.minFilter)) {
-      unsupported('renderTargetFilter', 'R1 target sampling supports nearest/linear only');
+    if (target.isWebGLCubeRenderTarget) adaptationWarn(target, '_r1CubeTargetStorageWarned',
+      'R1 stores a WebGLCubeRenderTarget as one bounded 2D color target; face sampling is approximated.');
+    if (texture.type !== UnsignedByteType || texture.format !== RGBAFormat) {
+      adaptationWarn(target, '_r1TargetPrecisionWarned',
+        'R1 stores this render target as RGBA8; floating-point/integer precision is not retained.');
+    }
+    if (texture.generateMipmaps || texture.colorSpace === SRGBColorSpace) {
+      adaptationWarn(target, '_r1TargetTextureStateWarned',
+        'R1 drops target mipmaps and stores target samples in the native linear RGBA8 attachment.');
+    }
+    if (![NearestFilter, LinearFilter].includes(texture.magFilter)) {
+      unsupported('renderTargetFilter', 'R1 target magnification supports nearest/linear only');
+    }
+    if (![NearestFilter, LinearFilter, NearestMipmapNearestFilter, NearestMipmapLinearFilter,
+      LinearMipmapNearestFilter, LinearMipmapLinearFilter].includes(texture.minFilter)) {
+      unsupported('renderTargetFilter', 'R1 target sampling supports nearest/linear filtering only');
+    }
+    if (texture.minFilter !== NearestFilter && texture.minFilter !== LinearFilter) {
+      adaptationWarn(target, '_r1TargetMipmapFilterWarned',
+        'R1 samples the target base level with linear filtering; mip levels are not generated.');
+    }
+    if (target.samples || target.stencilBuffer || target.depthTexture) {
+      adaptationWarn(target, '_r1TargetAttachmentWarned',
+        'R1 uses one non-multisampled color/depth pass; stencil, multisample resolve and depth-texture precision are approximated.');
     }
     const pixels = target.width * target.height;
-    if (!Number.isInteger(target.width) || !Number.isInteger(target.height) || target.width <= 0 || target.height <= 0 ||
+    if (!Number.isFinite(target.width) || !Number.isFinite(target.height) || target.width < 1 || target.height < 1 ||
       target.width > 8192 || target.height > 8192 || pixels > MAX_RENDER_TARGET_PIXELS) {
-      unsupported('renderTargetSize', 'R1 target exceeds the bounded 2D budget');
+      unsupported('renderTargetSize', `R1 target ${target.width}x${target.height} exceeds the bounded 2D budget`);
     }
   }
 
@@ -1058,6 +1591,7 @@ export class JsrWebGLRenderer {
   _trackRenderTarget(target) {
     this._validateRenderTarget(target);
     target.texture.renderTarget = target;
+    if (target.depthTexture) target.depthTexture.renderTarget = target;
     const id = resourceId(target.texture);
     if (this._renderTargets.has(id)) return id;
     if (this._renderTargets.size >= MAX_RENDER_TARGETS) unsupported('renderTargetLimit', 'R1 supports at most 16 live targets');
@@ -1083,11 +1617,12 @@ export class JsrWebGLRenderer {
     const id = this._trackRenderTarget(target);
     const record = this._renderTargets.get(id);
     const flags = this._renderTargetFlags(target);
-    const signature = [target.width, target.height, resourceId(target.texture), flags].join(':');
+    const width = Math.floor(target.width), height = Math.floor(target.height);
+    const signature = [width, height, resourceId(target.texture), flags].join(':');
     if (record.signature !== signature) {
       if (record.signature !== null) record.version++;
       record.signature = signature;
-      commands.push(renderTargetCommand(id, record.version, target.width, target.height, resourceId(target.texture), flags));
+      commands.push(renderTargetCommand(id, record.version, width, height, resourceId(target.texture), flags));
     }
     return id;
   }
@@ -1097,14 +1632,31 @@ export class JsrWebGLRenderer {
     if (!target) unsupported('renderTargetAssociation', 'R1 target texture has no owning target');
     if (this._renderTarget === target) unsupported('renderTargetFeedback', 'R1 cannot sample its active color target');
     this._ensureRenderTarget(target, commands);
+    if (texture.isDepthTexture) {
+      adaptationWarn(target, '_r1DepthSampleWarned',
+        'R1 samples the target color attachment in place of its depth texture for this bounded pass.');
+      return resourceId(target.texture);
+    }
     return resourceId(texture);
   }
 
   _ensureTexture(texture, commands, role = 'map') {
     if (!texture) return 0;
-    if (texture.isRenderTargetTexture) return this._ensureRenderTargetTexture(texture, commands);
+    if (texture.isRenderTargetTexture || (texture.isDepthTexture && texture.renderTarget)) {
+      return this._ensureRenderTargetTexture(texture, commands);
+    }
     if (!texture.isTexture) unsupported('texture', 'material map is not a THREE.Texture');
-    if (!texture.isCubeTexture && (texture.isDataArrayTexture || texture.isData3DTexture || texture.isCompressedTexture || texture.isVideoTexture || texture.isFramebufferTexture || texture.isDepthTexture || texture.isExternalTexture)) unsupported('textureType', texture.type);
+    if (texture.isCompressedTexture && (!texture.mipmaps || texture.mipmaps.length === 0)) {
+      adaptationWarn(texture, '_r1CompressedPendingWarned',
+        'R1 keeps an unloaded compressed texture unbound; base geometry renders while its asset is unavailable.');
+      return 0;
+    }
+    if (texture.isDataArrayTexture) {
+      adaptationWarn(texture, '_r1VolumeTextureWarned',
+        'R1 drops this array sampler in the bounded 2D material lowering.');
+      return 0;
+    }
+    if (!texture.isCubeTexture && (texture.isCompressedTexture || texture.isVideoTexture || texture.isFramebufferTexture || texture.isDepthTexture || texture.isExternalTexture)) unsupported('textureType', texture.type);
     if (texture.isCubeTexture && role !== 'envMap') unsupported('textureMapping', `R1 ${role} requires a plain 2D texture`);
     const canvas = this._canvasForTexture(texture);
     if (texture.isCanvasTexture && !canvas) unsupported('canvas2d.source', 'native CanvasTexture requires a Flutter canvas2d image');
@@ -1137,8 +1689,21 @@ export class JsrWebGLRenderer {
       console.warn('three: R1 samples CubeRefractionMapping as reflection (refraction stays 1B).');
     }
     if (texture.isCubeTexture) return this._ensureCubeTexture(texture, commands);
-    const image = texture.image;
+    let image = texture.image;
     if (!image || !image.data) return 0;
+    if (texture.isData3DTexture) {
+      const depth = image.depth || 0;
+      const components = texture.format === RedFormat ? 1 : texture.format === RGBAFormat ? 4 : 0;
+      if (!components || !(image.data instanceof Uint8Array) || !depth ||
+          image.data.length !== image.width * image.height * depth * components) {
+        unsupported('textureFormat', 'R1 volume slices require matching RGBA8 or R8 data');
+      }
+      const offset = Math.floor(depth / 2) * image.width * image.height * components;
+      image = { data: image.data.subarray(offset, offset + image.width * image.height * components),
+        width: image.width, height: image.height, encoding: 0 };
+      adaptationWarn(texture, '_r1VolumeTextureWarned',
+        'R1 samples the middle Data3DTexture slice as a bounded 2D texture; raymarch depth is dropped.');
+    }
     const id = resourceId(texture);
     const frameCached = this._frameTextures.get(id);
     if (frameCached !== undefined) return frameCached;
@@ -1185,6 +1750,17 @@ export class JsrWebGLRenderer {
           }
           const scaled = value <= 0 ? 0 : value >= 1 ? 255 : value * 255 + 0.5;
           expanded[i] = scaled;
+        }
+        bytes = expanded;
+      } else if (texture.type === FloatType) {
+        if (texture.format !== RGBAFormat || !(data instanceof Float32Array) || width * height * 4 !== data.length) {
+          throw new Error('three.invalid: float raw textures must be RGBA Float32 data with matching dimensions');
+        }
+        const expanded = new Uint8Array(data.length);
+        for (let i = 0; i < data.length; i++) {
+          const value = data[i];
+          requireFinite(value, 'float texture');
+          expanded[i] = value <= 0 ? 0 : value >= 1 ? 255 : value * 255 + 0.5;
         }
         bytes = expanded;
       } else if (texture.type !== UnsignedByteType) unsupported('textureFormat', 'R1 raw textures require RGBA8 or R8/UnsignedByteType');
@@ -1271,7 +1847,13 @@ export class JsrWebGLRenderer {
     const frameCached = this._frameMaterials.get(id);
     if (frameCached !== undefined) return frameCached;
     this._listen(material, 'materials', this._state.materials, id);
-    const mapId = this._ensureTexture(material.map || null, commands);
+    let shaderMap = material.map || null;
+    if (material._r1ShaderTextures && shaderMap?.renderTarget === this._renderTarget) {
+      shaderMap = material._r1ShaderTextures.find(texture => texture.renderTarget !== this._renderTarget) || null;
+      adaptationWarn(material, '_r1FeedbackPassWarned',
+        'R1 unbinds an active target from a lowered pass-through shader to preserve the feedback invariant.');
+    }
+    const mapId = this._ensureTexture(shaderMap, commands);
     const anaglyph = material._r1Anaglyph || null;
     const mapRightId = kind === 11 ? this._ensureTexture(anaglyph.right, commands) : 0;
     const alphaMapId = this._ensureTexture(material.alphaMap || null, commands);
@@ -1287,7 +1869,7 @@ export class JsrWebGLRenderer {
     const metalnessMapId = this._ensureTexture(material.metalnessMap || null, commands, 'map');
     const spriteRotation = material.isSpriteMaterial ? material.rotation : 0;
     if (spriteRotation && !Number.isFinite(spriteRotation)) throw new Error('three.invalid: material sprite rotation must be finite');
-    const mapUvMatrix = uvTransformElements(material.map || null);
+    const mapUvMatrix = uvTransformElements(shaderMap);
     const alphaMapUvMatrix = uvTransformElements(kind === 11 ? anaglyph.right : (material.alphaMap || null));
     // Lambert/Phong have no envMapIntensity (they use reflectivity): default 1.
     const envMapIntensity = material.envMap && material.envMapIntensity !== undefined ? material.envMapIntensity : 1;
@@ -1315,7 +1897,7 @@ export class JsrWebGLRenderer {
     const side = sideValue(material.side);
     const flags = (material.vertexColors ? 1 : 0) | (material.flatShading ? 2 : 0) | (material.transparent ? 4 : 0) | (material.depthTest ? 8 : 0) | (material.depthWrite ? 16 : 0) | (material.wireframe ? 32 : 0) | (material.sizeAttenuation === false ? 64 : 0) | ((material.blending || 0) << 7);
     const clip = this._resolveClipping(material, commands);
-    const signature = [kind, mapId, material.map ? this._state.textures.get(resourceId(material.map))?.version || 0 : 0,
+    const signature = [kind, mapId, shaderMap ? this._state.textures.get(resourceId(shaderMap))?.version || 0 : 0,
       flags, side, color.r, color.g, color.b, opacity, roughness, metalness, alphaTest, pointSize,
       specular ? specular.r : 0, specular ? specular.g : 0, specular ? specular.b : 0, shininess,
       emissive ? emissive.r : 0, emissive ? emissive.g : 0, emissive ? emissive.b : 0, emissiveIntensity, material.version,
@@ -1455,7 +2037,6 @@ export class JsrWebGLRenderer {
   }
 
   _ensureGeometry(geometry, primitive, mode, commands, wireframe = false) {    if (!geometry || !geometry.isBufferGeometry) unsupported('geometry', 'only BufferGeometry is supported');
-    if (geometry.isInstancedBufferGeometry) unsupported('instancedGeometry');
     if (geometry.index && (!geometry.index.array || geometry.index.isGLBufferAttribute)) unsupported('rawGLAttribute', 'index');
 
     const position = geometry.attributes.position;
@@ -1924,7 +2505,7 @@ export class JsrWebGLRenderer {
     const source = object.geometry;
     const material = object.material;
     if (!source || !material || Array.isArray(material)) return null;
-    const fat = object.isLineSegments2 === true;
+    const fat = object.isLineSegments2 === true || object.isWireframe === true;
     const dashed = material.isLineDashedMaterial === true || (fat && material.dashed === true);
     if (!fat && !dashed) return null;
     const attrs = source.attributes;
@@ -2173,22 +2754,34 @@ export class JsrWebGLRenderer {
       const sourcePosition = sourceGeometry && sourceGeometry.attributes.position;
       if (sourcePosition && sourceRange(sourceGeometry, sourcePosition.count).count === 0) {
         if (!batched) this._removeBatch(id, commands);
-        this._updateNode(object, id, parentId, 0, 0, visible, this._objectKind(object), commands, spriteCenter);
+        this._updateNode(object, id, parentId, 0, 0, visible, 0, commands, spriteCenter);
         return { id, draw: null };
       }
       this._applyMorphTargets(object);
       if (object.isSkinnedMesh) this._applySkining(object);
-      if (object.isBatchedMesh || object.isSprite) unsupported('objectType', object.type);
+      if (object.isBatchedMesh) {
+        adaptationWarn(object, '_r1BatchedMeshWarned',
+          'R1 draws the BatchedMesh shared geometry once; per-range visibility and per-instance transforms are not retained.');
+      }
       if (object.isLineLoop) unsupported('LineLoop');
-      const adapted = this._adaptDrawable(object);
-      const material = adapted ? adapted.material : object.material;
+      const adapted = this._sceneOverrideMaterial ? null : this._adaptDrawable(object);
+      const material = this._sceneOverrideMaterial || (adapted ? adapted.material : object.material);
       const renderGeometry = adapted ? adapted.geometry : object.geometry;
+      if (!adapted && !sourcePosition) {
+        adaptationWarn(object, '_r1EmptyGeometryWarned', 'R1 retains an empty drawable as a no-draw node.');
+        if (!batched) this._removeBatch(id, commands);
+        this._updateNode(object, id, parentId, 0, 0, visible, 0, commands, spriteCenter);
+        return { id, draw: null };
+      }
       if (material._r1ProceduralTime) refreshProceduralRtt(renderGeometry, material._r1ProceduralTime.value);
+      if (renderGeometry._r1TimeColor) refreshTimeColorGeometry(renderGeometry, Number(renderGeometry._r1Time?.value || 0));
+      if (renderGeometry._r1Displaced) refreshDisplacedShaderGeometry(renderGeometry, Number(renderGeometry._r1Amplitude?.value || 0));
+      if (renderGeometry._r1Instanced) refreshInstancedShaderGeometry(renderGeometry, object.material.uniforms || {});
       if (adapted) {
         const adaptedPosition = renderGeometry.attributes.position;
         if (!adaptedPosition || sourceRange(renderGeometry, adaptedPosition.count).count === 0) {
           if (!batched) this._removeBatch(id, commands);
-          this._updateNode(object, id, parentId, 0, 0, visible, this._objectKind(object), commands, spriteCenter);
+          this._updateNode(object, id, parentId, 0, 0, visible, 0, commands, spriteCenter);
           return { id, draw: null };
         }
       }
@@ -2245,7 +2838,11 @@ export class JsrWebGLRenderer {
     else if (light.isHemisphereLight) type = 3;
     else if (light.isSpotLight) type = 4;
     else if (light.type === 'SunLight') type = 1; // addons/lights/SunLight: directional towards the origin
-    else unsupported('light', light.type);
+    else if (light.isRectAreaLight) {
+      type = 2;
+      adaptationWarn(light, '_r1RectAreaWarned',
+        'R1 approximates RectAreaLight with a point light at its center; area shape and LTC distribution are dropped.');
+    } else unsupported('light', light.type);
     const id = resourceId(light);
     light.getWorldPosition(_position);
     _direction.set(0, 0, 0);
@@ -2472,12 +3069,22 @@ export class JsrWebGLRenderer {
     if (this.autoClear && this.autoClearDepth) flags |= FRAME_TARGET_FLAGS.clearDepth;
     return {
       targetId,
-      width: target ? target.width : 0,
-      height: target ? target.height : 0,
+      width: target ? Math.floor(target.width) : 0,
+      height: target ? Math.floor(target.height) : 0,
       viewport,
       scissor,
       flags
     };
+  }
+
+  compile(scene, camera) {
+    if (!scene?.isObject3D || !camera?.isCamera) throw new Error('three.invalid: compile requires a scene and camera');
+    adaptationWarn(this, '_r1CompileWarned',
+      'R1 compiles native materials on submission; onBeforeCompile shader injection is dropped.');
+  }
+  compileAsync(scene, camera) {
+    this.compile(scene, camera);
+    return Promise.resolve();
   }
 
   render(scene, camera) {
@@ -2516,7 +3123,17 @@ export class JsrWebGLRenderer {
     if (this.outputColorSpace !== SRGBColorSpace) unsupported('outputColorSpace', 'native R1 requires SRGBColorSpace');
     if (!TONE_MAPPINGS.has(this.toneMapping)) unsupported('toneMapping', `${this.toneMapping} is not an upstream tone mapping constant`);
     if (this.xr.enabled) unsupported('xr');
-    if (scene.overrideMaterial) unsupported('sceneFeature', 'overrideMaterial is outside R1 v1');
+    let overrideMaterial = scene.overrideMaterial || null;
+    if (overrideMaterial?.isMeshDepthMaterial ||
+        (overrideMaterial?.isShaderMaterial && (overrideMaterial.name === 'BokehDepthShader' || overrideMaterial.uniforms?.mNear))) {
+      if (!this._r1DepthOverride) this._r1DepthOverride = new MeshBasicMaterial({ color: 0x000000, side: overrideMaterial.side });
+      overrideMaterial = this._r1DepthOverride;
+      adaptationWarn(scene, '_r1DepthOverrideWarned',
+        'R1 lowers depth-material overrides to opaque dark geometry for bounded target passes.');
+    }
+    this._sceneOverrideMaterial = overrideMaterial;
+    if (overrideMaterial) adaptationWarn(scene, '_r1OverrideMaterialWarned',
+      'R1 applies the bounded scene.overrideMaterial to every drawable in this pass.');
     // scene.environment becomes the default envMap for env-less materials.
     this._sceneEnvironment = scene.environment && scene.environment.isTexture ? scene.environment : null;
     if (!Array.isArray(this.clippingPlanes)) throw new Error('three.invalid: renderer.clippingPlanes must be an array');

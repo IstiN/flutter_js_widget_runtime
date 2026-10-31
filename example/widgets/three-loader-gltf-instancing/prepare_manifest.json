@@ -43,6 +43,123 @@
       "sha256": "d3e63ccfc116efab51f5a8f2305bdbd6635425e99eae455e84fd98d8296b383f"
     }
   },
+  "assetDiscovery": [
+    {
+      "url": "models/gltf/DamagedHelmet/glTF-instancing/DamagedHelmetGpuInstancing.gltf",
+      "output": "models__gltf__DamagedHelmet__glTF-instancing__DamagedHelmetGpuInstancing.gltf",
+      "mime": "application/json",
+      "diagnostic": "auto:models/gltf/DamagedHelmet/glTF-instancing/DamagedHelmetGpuInstancing.gltf",
+      "sha256": "09ccbc68473fe7f32fd65a78f506edf79a4b8306f5cba7097d8d9ef00f5aa070",
+      "discovered": true
+    },
+    {
+      "url": "models/gltf/DamagedHelmet/glTF-instancing/GpuInstancingRotation.bin",
+      "output": "models__gltf__DamagedHelmet__glTF-instancing__GpuInstancingRotation.bin",
+      "mime": "application/octet-stream",
+      "diagnostic": "auto:models/gltf/DamagedHelmet/glTF-instancing/GpuInstancingRotation.bin",
+      "sha256": "f4d2726aa7ba9b5721fa1bae96bba6f72c093c98fe0b5bdb962aa9ebe3bc5036",
+      "discovered": true,
+      "aliases": [
+        "models/gltf/DamagedHelmet/glTF-instancing/./GpuInstancingRotation.bin"
+      ]
+    },
+    {
+      "url": "models/gltf/DamagedHelmet/glTF-instancing/GpuInstancingScale.bin",
+      "output": "models__gltf__DamagedHelmet__glTF-instancing__GpuInstancingScale.bin",
+      "mime": "application/octet-stream",
+      "diagnostic": "auto:models/gltf/DamagedHelmet/glTF-instancing/GpuInstancingScale.bin",
+      "sha256": "db25d49dc1f5006a73862b9871891997a9d3bf9ba19f7fc9268c62d2aba983b2",
+      "discovered": true,
+      "aliases": [
+        "models/gltf/DamagedHelmet/glTF-instancing/./GpuInstancingScale.bin"
+      ]
+    },
+    {
+      "url": "models/gltf/DamagedHelmet/glTF-instancing/GpuInstancingTranslation.bin",
+      "output": "models__gltf__DamagedHelmet__glTF-instancing__GpuInstancingTranslation.bin",
+      "mime": "application/octet-stream",
+      "diagnostic": "auto:models/gltf/DamagedHelmet/glTF-instancing/GpuInstancingTranslation.bin",
+      "sha256": "8d8eb81f44671e2290a236548431d3f8e2df26183aa2c207166874caf3142ad1",
+      "discovered": true,
+      "aliases": [
+        "models/gltf/DamagedHelmet/glTF-instancing/./GpuInstancingTranslation.bin"
+      ]
+    },
+    {
+      "url": "models/gltf/DamagedHelmet/glTF/DamagedHelmet.bin",
+      "output": "models__gltf__DamagedHelmet__glTF__DamagedHelmet.bin",
+      "mime": "application/octet-stream",
+      "diagnostic": "auto:models/gltf/DamagedHelmet/glTF/DamagedHelmet.bin",
+      "sha256": "61b33ead6aa3de23f39f02aaf0965bc3988575716a768f45b15d5ea3fb783fdf",
+      "discovered": true,
+      "aliases": [
+        "models/gltf/DamagedHelmet/glTF-instancing/./../glTF/DamagedHelmet.bin"
+      ]
+    },
+    {
+      "url": "models/gltf/DamagedHelmet/glTF/Default_albedo.jpg",
+      "output": "models__gltf__DamagedHelmet__glTF__Default_albedo.jpg",
+      "mime": "image/jpeg",
+      "diagnostic": "auto:models/gltf/DamagedHelmet/glTF/Default_albedo.jpg",
+      "sha256": "2dc95e87aeb0cd7c8a65ef0eb8b23212388da0534ca379811427a9a8780511f5",
+      "discovered": true,
+      "aliases": [
+        "models/gltf/DamagedHelmet/glTF-instancing/./../glTF/Default_albedo.jpg"
+      ]
+    },
+    {
+      "url": "models/gltf/DamagedHelmet/glTF/Default_AO.jpg",
+      "output": "models__gltf__DamagedHelmet__glTF__Default_AO.jpg",
+      "mime": "image/jpeg",
+      "diagnostic": "auto:models/gltf/DamagedHelmet/glTF/Default_AO.jpg",
+      "sha256": "7024051b65ed2ead8d24ebc9bd5ea61d4c21639a57b15dab29870668bcc6b90f",
+      "discovered": true,
+      "aliases": [
+        "models/gltf/DamagedHelmet/glTF-instancing/./../glTF/Default_AO.jpg"
+      ]
+    },
+    {
+      "url": "models/gltf/DamagedHelmet/glTF/Default_emissive.jpg",
+      "output": "models__gltf__DamagedHelmet__glTF__Default_emissive.jpg",
+      "mime": "image/jpeg",
+      "diagnostic": "auto:models/gltf/DamagedHelmet/glTF/Default_emissive.jpg",
+      "sha256": "dd0057989f22f93a4ab796d06ebf85a7c12fbfae1d59a86ae8b0c54770dc1159",
+      "discovered": true,
+      "aliases": [
+        "models/gltf/DamagedHelmet/glTF-instancing/./../glTF/Default_emissive.jpg"
+      ]
+    },
+    {
+      "url": "models/gltf/DamagedHelmet/glTF/Default_metalRoughness.jpg",
+      "output": "models__gltf__DamagedHelmet__glTF__Default_metalRoughness.jpg",
+      "mime": "image/jpeg",
+      "diagnostic": "auto:models/gltf/DamagedHelmet/glTF/Default_metalRoughness.jpg",
+      "sha256": "0f05e7ffbeaa974f7d2c83436b04109969966d64ab188cbc3a19a265a0a69ae0",
+      "discovered": true,
+      "aliases": [
+        "models/gltf/DamagedHelmet/glTF-instancing/./../glTF/Default_metalRoughness.jpg"
+      ]
+    },
+    {
+      "url": "models/gltf/DamagedHelmet/glTF/Default_normal.jpg",
+      "output": "models__gltf__DamagedHelmet__glTF__Default_normal.jpg",
+      "mime": "image/jpeg",
+      "diagnostic": "auto:models/gltf/DamagedHelmet/glTF/Default_normal.jpg",
+      "sha256": "f253ba09a90a86ffd8a807dc45d7953111f8b3421e15d7a21d1e915b01dd33c1",
+      "discovered": true,
+      "aliases": [
+        "models/gltf/DamagedHelmet/glTF-instancing/./../glTF/Default_normal.jpg"
+      ]
+    },
+    {
+      "url": "textures/equirectangular/royal_esplanade_2k.hdr.jpg",
+      "output": "textures__equirectangular__royal_esplanade_2k.hdr.jpg",
+      "mime": "image/jpeg",
+      "diagnostic": "auto:textures/equirectangular/royal_esplanade_2k.hdr.jpg",
+      "sha256": "b05a664c5fb022ddc6104f253a6684570e99876d30b41a220c8dea4482df6d64",
+      "discovered": true
+    }
+  ],
   "facade": {
     "global": "globalThis.THREE",
     "exports": [
@@ -505,8 +622,8 @@
   },
   "inputs": {
     "assets/three/three.native.js": {
-      "bytes": 777104,
-      "sha256": "5adcb8e7c2d94dd83748134c4d13b9fcfcba9b671445fe27de895575402241b0"
+      "bytes": 791598,
+      "sha256": "58efdde0f4795a978fdf0a9ed9a4f606264aff39bb4e164aaaf00f5542c280e8"
     },
     "assets/three/three.web.js": {
       "bytes": 855325,
@@ -524,10 +641,6 @@
       "bytes": 117570,
       "sha256": "131c0f78c01d19368ae495caa65b3adaa10487810a36a05bb5901b769a35ac16"
     },
-    "source/examples/jsm/loaders/UltraHDRLoader.js": {
-      "bytes": 19696,
-      "sha256": "fd67cf0e861d9f4eeb02e3b5acc62896658edafb6410eb4fc4c178352c0a6971"
-    },
     "source/examples/jsm/utils/BufferGeometryUtils.js": {
       "bytes": 37712,
       "sha256": "9fb63427ce6641fa14fd0baff9cc4d1b5f9c3d85fd084bf2e90e803c44ec1797"
@@ -535,6 +648,50 @@
     "source/examples/jsm/utils/SkeletonUtils.js": {
       "bytes": 11535,
       "sha256": "b1632a703206c3d830de9fcbe515696770d04b71a15ee6b50afa6d2c3298c86f"
+    },
+    "source/examples/models/gltf/DamagedHelmet/glTF-instancing/DamagedHelmetGpuInstancing.gltf": {
+      "bytes": 5887,
+      "sha256": "09ccbc68473fe7f32fd65a78f506edf79a4b8306f5cba7097d8d9ef00f5aa070"
+    },
+    "source/examples/models/gltf/DamagedHelmet/glTF-instancing/GpuInstancingRotation.bin": {
+      "bytes": 1024,
+      "sha256": "f4d2726aa7ba9b5721fa1bae96bba6f72c093c98fe0b5bdb962aa9ebe3bc5036"
+    },
+    "source/examples/models/gltf/DamagedHelmet/glTF-instancing/GpuInstancingScale.bin": {
+      "bytes": 768,
+      "sha256": "db25d49dc1f5006a73862b9871891997a9d3bf9ba19f7fc9268c62d2aba983b2"
+    },
+    "source/examples/models/gltf/DamagedHelmet/glTF-instancing/GpuInstancingTranslation.bin": {
+      "bytes": 768,
+      "sha256": "8d8eb81f44671e2290a236548431d3f8e2df26183aa2c207166874caf3142ad1"
+    },
+    "source/examples/models/gltf/DamagedHelmet/glTF/DamagedHelmet.bin": {
+      "bytes": 558504,
+      "sha256": "61b33ead6aa3de23f39f02aaf0965bc3988575716a768f45b15d5ea3fb783fdf"
+    },
+    "source/examples/models/gltf/DamagedHelmet/glTF/Default_AO.jpg": {
+      "bytes": 361678,
+      "sha256": "7024051b65ed2ead8d24ebc9bd5ea61d4c21639a57b15dab29870668bcc6b90f"
+    },
+    "source/examples/models/gltf/DamagedHelmet/glTF/Default_albedo.jpg": {
+      "bytes": 935629,
+      "sha256": "2dc95e87aeb0cd7c8a65ef0eb8b23212388da0534ca379811427a9a8780511f5"
+    },
+    "source/examples/models/gltf/DamagedHelmet/glTF/Default_emissive.jpg": {
+      "bytes": 97499,
+      "sha256": "dd0057989f22f93a4ab796d06ebf85a7c12fbfae1d59a86ae8b0c54770dc1159"
+    },
+    "source/examples/models/gltf/DamagedHelmet/glTF/Default_metalRoughness.jpg": {
+      "bytes": 1300661,
+      "sha256": "0f05e7ffbeaa974f7d2c83436b04109969966d64ab188cbc3a19a265a0a69ae0"
+    },
+    "source/examples/models/gltf/DamagedHelmet/glTF/Default_normal.jpg": {
+      "bytes": 517757,
+      "sha256": "f253ba09a90a86ffd8a807dc45d7953111f8b3421e15d7a21d1e915b01dd33c1"
+    },
+    "source/examples/textures/equirectangular/royal_esplanade_2k.hdr.jpg": {
+      "bytes": 552463,
+      "sha256": "b05a664c5fb022ddc6104f253a6684570e99876d30b41a220c8dea4482df6d64"
     },
     "source/examples/webgl_loader_gltf_instancing.html": {
       "bytes": 3533,
@@ -548,9 +705,13 @@
       "bytes": 1951,
       "sha256": "7852c54a706c19e98978c884aa9cd9bfd8d040a2d304c8e6d8cf973dd3554eaf"
     },
+    "tool/three_example/asset_discovery.mjs": {
+      "bytes": 11532,
+      "sha256": "5219e6b747041382d9e40edc33901f04140df1cfb0454b181d8145414a75ee9e"
+    },
     "tool/three_example/example_adapter.js": {
-      "bytes": 20723,
-      "sha256": "9c713a0daa93289f0aeb2d75de6c067569ca4bc2235c24f3bb2bc8feab03336c"
+      "bytes": 36267,
+      "sha256": "c604a1842689cfaf43e2bdf335b55f2384780c7b163cd41ab6e91e3912704b61"
     },
     "tool/three_example/example_canvas2d.js": {
       "bytes": 20988,
@@ -561,8 +722,8 @@
       "sha256": "dc11346394f41bb4f385738d3afa6aa75e695ac80fe3be3a5fbf4201686376bf"
     },
     "tool/three_example/prepare.mjs": {
-      "bytes": 247876,
-      "sha256": "4ed1752612b57fb4ac32f62717e772e9a85f4e8a0f7e51a764443b68af0b8aac"
+      "bytes": 252492,
+      "sha256": "544095661162d33d5b6e91b6b744f7eb60b97c1ff9ea1f4ae297b2f39044af43"
     },
     "tool/three_example/stats_adapter.js": {
       "bytes": 2107,
@@ -578,6 +739,46 @@
       "bytes": 364,
       "sha256": "a0075fab33cb129335789f29930021c60da668e5d41b747ad0948f956b9ce2a3"
     },
+    "models__gltf__DamagedHelmet__glTF-instancing__DamagedHelmetGpuInstancing.gltf": {
+      "bytes": 5887,
+      "sha256": "09ccbc68473fe7f32fd65a78f506edf79a4b8306f5cba7097d8d9ef00f5aa070"
+    },
+    "models__gltf__DamagedHelmet__glTF-instancing__GpuInstancingRotation.bin": {
+      "bytes": 1024,
+      "sha256": "f4d2726aa7ba9b5721fa1bae96bba6f72c093c98fe0b5bdb962aa9ebe3bc5036"
+    },
+    "models__gltf__DamagedHelmet__glTF-instancing__GpuInstancingScale.bin": {
+      "bytes": 768,
+      "sha256": "db25d49dc1f5006a73862b9871891997a9d3bf9ba19f7fc9268c62d2aba983b2"
+    },
+    "models__gltf__DamagedHelmet__glTF-instancing__GpuInstancingTranslation.bin": {
+      "bytes": 768,
+      "sha256": "8d8eb81f44671e2290a236548431d3f8e2df26183aa2c207166874caf3142ad1"
+    },
+    "models__gltf__DamagedHelmet__glTF__DamagedHelmet.bin": {
+      "bytes": 558504,
+      "sha256": "61b33ead6aa3de23f39f02aaf0965bc3988575716a768f45b15d5ea3fb783fdf"
+    },
+    "models__gltf__DamagedHelmet__glTF__Default_AO.jpg": {
+      "bytes": 361678,
+      "sha256": "7024051b65ed2ead8d24ebc9bd5ea61d4c21639a57b15dab29870668bcc6b90f"
+    },
+    "models__gltf__DamagedHelmet__glTF__Default_albedo.jpg": {
+      "bytes": 935629,
+      "sha256": "2dc95e87aeb0cd7c8a65ef0eb8b23212388da0534ca379811427a9a8780511f5"
+    },
+    "models__gltf__DamagedHelmet__glTF__Default_emissive.jpg": {
+      "bytes": 97499,
+      "sha256": "dd0057989f22f93a4ab796d06ebf85a7c12fbfae1d59a86ae8b0c54770dc1159"
+    },
+    "models__gltf__DamagedHelmet__glTF__Default_metalRoughness.jpg": {
+      "bytes": 1300661,
+      "sha256": "0f05e7ffbeaa974f7d2c83436b04109969966d64ab188cbc3a19a265a0a69ae0"
+    },
+    "models__gltf__DamagedHelmet__glTF__Default_normal.jpg": {
+      "bytes": 517757,
+      "sha256": "f253ba09a90a86ffd8a807dc45d7953111f8b3421e15d7a21d1e915b01dd33c1"
+    },
     "official_module.js": {
       "bytes": 2134,
       "sha256": "d3e63ccfc116efab51f5a8f2305bdbd6635425e99eae455e84fd98d8296b383f"
@@ -586,9 +787,13 @@
       "bytes": 3533,
       "sha256": "d0a5ccd5df8fb32dc9a17f2aa6ac2c29ac0ddb6b1d472fae90ec66d7f9891296"
     },
+    "textures__equirectangular__royal_esplanade_2k.hdr.jpg": {
+      "bytes": 552463,
+      "sha256": "b05a664c5fb022ddc6104f253a6684570e99876d30b41a220c8dea4482df6d64"
+    },
     "widget.js": {
-      "bytes": 101940,
-      "sha256": "4991264bcc2aeed5abbcc37498df716067a9da6cf58e8c761f5ebc63acc01595"
+      "bytes": 10918624,
+      "sha256": "f6a42c24b4fc667b328cde126b61b31c878326dea7161b71b916c65160dda240"
     }
   }
 }

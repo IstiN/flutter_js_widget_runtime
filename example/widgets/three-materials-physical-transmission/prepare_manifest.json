@@ -43,6 +43,16 @@
       "sha256": "494f3562007e6da414a3a5683ba2f901d285838c186cfeb7288dd801d9142e6b"
     }
   },
+  "assetDiscovery": [
+    {
+      "url": "textures/equirectangular/royal_esplanade_2k.hdr.jpg",
+      "output": "textures__equirectangular__royal_esplanade_2k.hdr.jpg",
+      "mime": "image/jpeg",
+      "diagnostic": "auto:textures/equirectangular/royal_esplanade_2k.hdr.jpg",
+      "sha256": "b05a664c5fb022ddc6104f253a6684570e99876d30b41a220c8dea4482df6d64",
+      "discovered": true
+    }
+  ],
   "facade": {
     "global": "globalThis.THREE",
     "exports": [
@@ -505,8 +515,8 @@
   },
   "inputs": {
     "assets/three/three.native.js": {
-      "bytes": 777104,
-      "sha256": "5adcb8e7c2d94dd83748134c4d13b9fcfcba9b671445fe27de895575402241b0"
+      "bytes": 791598,
+      "sha256": "58efdde0f4795a978fdf0a9ed9a4f606264aff39bb4e164aaaf00f5542c280e8"
     },
     "assets/three/three.web.js": {
       "bytes": 855325,
@@ -524,9 +534,9 @@
       "bytes": 29526,
       "sha256": "5e31e7fc4d3a1268550b948463eabe06c7a6c03c158ccb99c78616d2c9682518"
     },
-    "source/examples/jsm/loaders/UltraHDRLoader.js": {
-      "bytes": 19696,
-      "sha256": "fd67cf0e861d9f4eeb02e3b5acc62896658edafb6410eb4fc4c178352c0a6971"
+    "source/examples/textures/equirectangular/royal_esplanade_2k.hdr.jpg": {
+      "bytes": 552463,
+      "sha256": "b05a664c5fb022ddc6104f253a6684570e99876d30b41a220c8dea4482df6d64"
     },
     "source/examples/webgl_materials_physical_transmission.html": {
       "bytes": 6322,
@@ -540,9 +550,13 @@
       "bytes": 1951,
       "sha256": "7852c54a706c19e98978c884aa9cd9bfd8d040a2d304c8e6d8cf973dd3554eaf"
     },
+    "tool/three_example/asset_discovery.mjs": {
+      "bytes": 11532,
+      "sha256": "5219e6b747041382d9e40edc33901f04140df1cfb0454b181d8145414a75ee9e"
+    },
     "tool/three_example/example_adapter.js": {
-      "bytes": 20723,
-      "sha256": "9c713a0daa93289f0aeb2d75de6c067569ca4bc2235c24f3bb2bc8feab03336c"
+      "bytes": 36267,
+      "sha256": "c604a1842689cfaf43e2bdf335b55f2384780c7b163cd41ab6e91e3912704b61"
     },
     "tool/three_example/example_canvas2d.js": {
       "bytes": 20988,
@@ -553,8 +567,8 @@
       "sha256": "dc11346394f41bb4f385738d3afa6aa75e695ac80fe3be3a5fbf4201686376bf"
     },
     "tool/three_example/prepare.mjs": {
-      "bytes": 247876,
-      "sha256": "4ed1752612b57fb4ac32f62717e772e9a85f4e8a0f7e51a764443b68af0b8aac"
+      "bytes": 252492,
+      "sha256": "544095661162d33d5b6e91b6b744f7eb60b97c1ff9ea1f4ae297b2f39044af43"
     },
     "tool/three_example/stats_adapter.js": {
       "bytes": 2107,
@@ -578,9 +592,13 @@
       "bytes": 6322,
       "sha256": "53574f462a5578c31e7add5506415f78ddd0deaa68a71cad4bc993319b198060"
     },
+    "textures__equirectangular__royal_esplanade_2k.hdr.jpg": {
+      "bytes": 552463,
+      "sha256": "b05a664c5fb022ddc6104f253a6684570e99876d30b41a220c8dea4482df6d64"
+    },
     "widget.js": {
-      "bytes": 101791,
-      "sha256": "fd8495c56007d2b8ea91902ce886f6d5cebeab33d3fda8401f13f2303cf56a03"
+      "bytes": 841532,
+      "sha256": "90391ebca8ca41eaab21b0cbc0d631a6cd4d7451202b9578d31c51940e3898a2"
     }
   }
 }

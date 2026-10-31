@@ -43,6 +43,62 @@
       "sha256": "4ebbd9301db3285c18e6aae07ad128c65644d3b09e1dbada683a8d0a4c32b181"
     }
   },
+  "assetDiscovery": [
+    {
+      "url": "textures/cube/pisa/nx.png",
+      "output": "textures__cube__pisa__nx.png",
+      "mime": "image/png",
+      "diagnostic": "auto:textures/cube/pisa/nx.png",
+      "sha256": "cf01cfc9a168e7c71bf66d0bed8dcad3a4fd353f528e73caaba62d1a097c49a1",
+      "discovered": true,
+      "rawRgba": true
+    },
+    {
+      "url": "textures/cube/pisa/ny.png",
+      "output": "textures__cube__pisa__ny.png",
+      "mime": "image/png",
+      "diagnostic": "auto:textures/cube/pisa/ny.png",
+      "sha256": "61a94678f04f9853509d7a864fd839cf688c6705ee9df02fc4e42bfca858270b",
+      "discovered": true,
+      "rawRgba": true
+    },
+    {
+      "url": "textures/cube/pisa/nz.png",
+      "output": "textures__cube__pisa__nz.png",
+      "mime": "image/png",
+      "diagnostic": "auto:textures/cube/pisa/nz.png",
+      "sha256": "e5c1774f9a41d8124f8f223c9810e95d277f256104f8aee57ad2e5ef73a64424",
+      "discovered": true,
+      "rawRgba": true
+    },
+    {
+      "url": "textures/cube/pisa/px.png",
+      "output": "textures__cube__pisa__px.png",
+      "mime": "image/png",
+      "diagnostic": "auto:textures/cube/pisa/px.png",
+      "sha256": "11d859640e7da526ac0654dbfa1cc18f40dd8fc100db197730485218a7c9d24d",
+      "discovered": true,
+      "rawRgba": true
+    },
+    {
+      "url": "textures/cube/pisa/py.png",
+      "output": "textures__cube__pisa__py.png",
+      "mime": "image/png",
+      "diagnostic": "auto:textures/cube/pisa/py.png",
+      "sha256": "b34a1cec12e62327c9555ca9f82a38bea73f519915e1368fa69bbd51c82ec712",
+      "discovered": true,
+      "rawRgba": true
+    },
+    {
+      "url": "textures/cube/pisa/pz.png",
+      "output": "textures__cube__pisa__pz.png",
+      "mime": "image/png",
+      "diagnostic": "auto:textures/cube/pisa/pz.png",
+      "sha256": "bd528b739e9e0ea6c1e8627e949caa950991719069c983e8abdc3a8640039667",
+      "discovered": true,
+      "rawRgba": true
+    }
+  ],
   "facade": {
     "global": "globalThis.THREE",
     "exports": [
@@ -505,8 +561,8 @@
   },
   "inputs": {
     "assets/three/three.native.js": {
-      "bytes": 777104,
-      "sha256": "5adcb8e7c2d94dd83748134c4d13b9fcfcba9b671445fe27de895575402241b0"
+      "bytes": 791598,
+      "sha256": "58efdde0f4795a978fdf0a9ed9a4f606264aff39bb4e164aaaf00f5542c280e8"
     },
     "assets/three/three.web.js": {
       "bytes": 855325,
@@ -532,6 +588,30 @@
       "bytes": 7728,
       "sha256": "e609630d1f399c79dcf4a3f8063c81cb2344a0765df1ddf6335ccca3b40ffa98"
     },
+    "source/examples/textures/cube/pisa/nx.png": {
+      "bytes": 54416,
+      "sha256": "cf01cfc9a168e7c71bf66d0bed8dcad3a4fd353f528e73caaba62d1a097c49a1"
+    },
+    "source/examples/textures/cube/pisa/ny.png": {
+      "bytes": 80866,
+      "sha256": "61a94678f04f9853509d7a864fd839cf688c6705ee9df02fc4e42bfca858270b"
+    },
+    "source/examples/textures/cube/pisa/nz.png": {
+      "bytes": 82807,
+      "sha256": "e5c1774f9a41d8124f8f223c9810e95d277f256104f8aee57ad2e5ef73a64424"
+    },
+    "source/examples/textures/cube/pisa/px.png": {
+      "bytes": 65831,
+      "sha256": "11d859640e7da526ac0654dbfa1cc18f40dd8fc100db197730485218a7c9d24d"
+    },
+    "source/examples/textures/cube/pisa/py.png": {
+      "bytes": 71533,
+      "sha256": "b34a1cec12e62327c9555ca9f82a38bea73f519915e1368fa69bbd51c82ec712"
+    },
+    "source/examples/textures/cube/pisa/pz.png": {
+      "bytes": 86688,
+      "sha256": "bd528b739e9e0ea6c1e8627e949caa950991719069c983e8abdc3a8640039667"
+    },
     "source/examples/webgl_lightprobe.html": {
       "bytes": 4842,
       "sha256": "8a60cc69a0484ce3d4530684ce18742c148fe3090d26314d3b9ac8c4b966d0a4"
@@ -544,9 +624,13 @@
       "bytes": 1951,
       "sha256": "7852c54a706c19e98978c884aa9cd9bfd8d040a2d304c8e6d8cf973dd3554eaf"
     },
+    "tool/three_example/asset_discovery.mjs": {
+      "bytes": 11532,
+      "sha256": "5219e6b747041382d9e40edc33901f04140df1cfb0454b181d8145414a75ee9e"
+    },
     "tool/three_example/example_adapter.js": {
-      "bytes": 20723,
-      "sha256": "9c713a0daa93289f0aeb2d75de6c067569ca4bc2235c24f3bb2bc8feab03336c"
+      "bytes": 36267,
+      "sha256": "c604a1842689cfaf43e2bdf335b55f2384780c7b163cd41ab6e91e3912704b61"
     },
     "tool/three_example/example_canvas2d.js": {
       "bytes": 20988,
@@ -557,8 +641,8 @@
       "sha256": "dc11346394f41bb4f385738d3afa6aa75e695ac80fe3be3a5fbf4201686376bf"
     },
     "tool/three_example/prepare.mjs": {
-      "bytes": 247876,
-      "sha256": "4ed1752612b57fb4ac32f62717e772e9a85f4e8a0f7e51a764443b68af0b8aac"
+      "bytes": 252492,
+      "sha256": "544095661162d33d5b6e91b6b744f7eb60b97c1ff9ea1f4ae297b2f39044af43"
     },
     "tool/three_example/stats_adapter.js": {
       "bytes": 2107,
@@ -582,9 +666,33 @@
       "bytes": 4842,
       "sha256": "8a60cc69a0484ce3d4530684ce18742c148fe3090d26314d3b9ac8c4b966d0a4"
     },
+    "textures__cube__pisa__nx.png": {
+      "bytes": 262144,
+      "sha256": "ccf045013d83d1cff5ef60c795b05e30844c3905367339889d5313120f45658f"
+    },
+    "textures__cube__pisa__ny.png": {
+      "bytes": 262144,
+      "sha256": "b568727624cb4d3fad154891996ffd30237853b8d4da7615cb66311709f25c66"
+    },
+    "textures__cube__pisa__nz.png": {
+      "bytes": 262144,
+      "sha256": "85292646e013fbf3f33c82b7bc8270765caf34255309f759dba8688dc318007d"
+    },
+    "textures__cube__pisa__px.png": {
+      "bytes": 262144,
+      "sha256": "bd5b727439b1b19b07040395a135b1377cfda7a33058f0e1441821792d3d4e5c"
+    },
+    "textures__cube__pisa__py.png": {
+      "bytes": 262144,
+      "sha256": "a7d0d4f2d2f13261a8e28d0b2dd7e067ce503be0abf1ca7919ab4bd0ba76e675"
+    },
+    "textures__cube__pisa__pz.png": {
+      "bytes": 262144,
+      "sha256": "6f1ec63941eb0ed1cce40d5f9335b9ad4fa4dc285446c7b647fb412e6cee1139"
+    },
     "widget.js": {
-      "bytes": 100019,
-      "sha256": "42c40f5f03973670e3ce9ff20e945db4cd17c6548487af3187c6c2128c69c0c9"
+      "bytes": 2206422,
+      "sha256": "30a1ee5cd916c5761c8f648008c3c28ac12656b3af01e605a5678a028a2f9431"
     }
   }
 }

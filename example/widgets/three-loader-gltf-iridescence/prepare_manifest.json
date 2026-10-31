@@ -43,6 +43,26 @@
       "sha256": "bf429234169eb56702419bfc9ae0c51a8fcace9393f72e0a6e279f77b818d588"
     }
   },
+  "assetDiscovery": [
+    {
+      "url": "models/gltf/IridescenceLamp.glb",
+      "output": "models__gltf__IridescenceLamp.glb",
+      "mime": "model/gltf-binary",
+      "diagnostic": "auto:models/gltf/IridescenceLamp.glb",
+      "sha256": "60e991ad33985c7b2b3af1d8a0d0f62e1e2d1f3c05f5d8f0aabfb8db6b70be30",
+      "discovered": true,
+      "externalizeImages": true
+    },
+    {
+      "url": "textures/equirectangular/venice_sunset_1k.hdr",
+      "output": "textures__equirectangular__venice_sunset_1k.hdr",
+      "mime": "image/vnd.radiance",
+      "diagnostic": "auto:textures/equirectangular/venice_sunset_1k.hdr",
+      "sha256": "0e72ed46b5316cb5fb67fc81ff85b024a09146fd89ef3811a8d2299647ada118",
+      "discovered": true,
+      "hdrRgba": true
+    }
+  ],
   "facade": {
     "global": "globalThis.THREE",
     "exports": [
@@ -505,8 +525,8 @@
   },
   "inputs": {
     "assets/three/three.native.js": {
-      "bytes": 777104,
-      "sha256": "5adcb8e7c2d94dd83748134c4d13b9fcfcba9b671445fe27de895575402241b0"
+      "bytes": 791598,
+      "sha256": "58efdde0f4795a978fdf0a9ed9a4f606264aff39bb4e164aaaf00f5542c280e8"
     },
     "assets/three/three.web.js": {
       "bytes": 855325,
@@ -524,10 +544,6 @@
       "bytes": 117570,
       "sha256": "131c0f78c01d19368ae495caa65b3adaa10487810a36a05bb5901b769a35ac16"
     },
-    "source/examples/jsm/loaders/HDRLoader.js": {
-      "bytes": 12079,
-      "sha256": "0986b578f9acd14cec74e5ee85e07f45e681b40bcd229a601a0391201f9b5ff1"
-    },
     "source/examples/jsm/utils/BufferGeometryUtils.js": {
       "bytes": 37712,
       "sha256": "9fb63427ce6641fa14fd0baff9cc4d1b5f9c3d85fd084bf2e90e803c44ec1797"
@@ -535,6 +551,26 @@
     "source/examples/jsm/utils/SkeletonUtils.js": {
       "bytes": 11535,
       "sha256": "b1632a703206c3d830de9fcbe515696770d04b71a15ee6b50afa6d2c3298c86f"
+    },
+    "source/examples/models/gltf/IridescenceLamp.glb": {
+      "bytes": 5291216,
+      "sha256": "60e991ad33985c7b2b3af1d8a0d0f62e1e2d1f3c05f5d8f0aabfb8db6b70be30"
+    },
+    "source/examples/models/gltf/embedded-0.png": {
+      "bytes": 1164997,
+      "sha256": "24bbb33cfee52baeccb51fbb55f318e9dfa2ca61d03224dc78bf6348cf28fd8a"
+    },
+    "source/examples/models/gltf/embedded-1.png": {
+      "bytes": 2941814,
+      "sha256": "a7a89ed1f64190998b2322f9cca5ad37ff4b86bd901fc8b5c87cbeafe97becee"
+    },
+    "source/examples/models/gltf/embedded-2.png": {
+      "bytes": 725084,
+      "sha256": "2a65a4aec3cbe8919c16c96dd0ac680f90db39fee65e5fb710ec827f58bd180b"
+    },
+    "source/examples/textures/equirectangular/venice_sunset_1k.hdr": {
+      "bytes": 1397783,
+      "sha256": "0e72ed46b5316cb5fb67fc81ff85b024a09146fd89ef3811a8d2299647ada118"
     },
     "source/examples/webgl_loader_gltf_iridescence.html": {
       "bytes": 3485,
@@ -548,9 +584,13 @@
       "bytes": 1951,
       "sha256": "7852c54a706c19e98978c884aa9cd9bfd8d040a2d304c8e6d8cf973dd3554eaf"
     },
+    "tool/three_example/asset_discovery.mjs": {
+      "bytes": 11532,
+      "sha256": "5219e6b747041382d9e40edc33901f04140df1cfb0454b181d8145414a75ee9e"
+    },
     "tool/three_example/example_adapter.js": {
-      "bytes": 20723,
-      "sha256": "9c713a0daa93289f0aeb2d75de6c067569ca4bc2235c24f3bb2bc8feab03336c"
+      "bytes": 36267,
+      "sha256": "c604a1842689cfaf43e2bdf335b55f2384780c7b163cd41ab6e91e3912704b61"
     },
     "tool/three_example/example_canvas2d.js": {
       "bytes": 20988,
@@ -561,8 +601,8 @@
       "sha256": "dc11346394f41bb4f385738d3afa6aa75e695ac80fe3be3a5fbf4201686376bf"
     },
     "tool/three_example/prepare.mjs": {
-      "bytes": 247876,
-      "sha256": "4ed1752612b57fb4ac32f62717e772e9a85f4e8a0f7e51a764443b68af0b8aac"
+      "bytes": 252492,
+      "sha256": "544095661162d33d5b6e91b6b744f7eb60b97c1ff9ea1f4ae297b2f39044af43"
     },
     "tool/three_example/stats_adapter.js": {
       "bytes": 2107,
@@ -578,6 +618,22 @@
       "bytes": 367,
       "sha256": "d6e1967390038fd64098c677726924c52d39866577dfcef9bf19a9ac2fee8b7f"
     },
+    "models__gltf__IridescenceLamp.glb": {
+      "bytes": 5291240,
+      "sha256": "5db73651b888dd3aa72bced7d4c010b28202473d29a0f2f3cc3a10319d9e1433"
+    },
+    "models__gltf__embedded-0.png": {
+      "bytes": 1164997,
+      "sha256": "24bbb33cfee52baeccb51fbb55f318e9dfa2ca61d03224dc78bf6348cf28fd8a"
+    },
+    "models__gltf__embedded-1.png": {
+      "bytes": 2941814,
+      "sha256": "a7a89ed1f64190998b2322f9cca5ad37ff4b86bd901fc8b5c87cbeafe97becee"
+    },
+    "models__gltf__embedded-2.png": {
+      "bytes": 725084,
+      "sha256": "2a65a4aec3cbe8919c16c96dd0ac680f90db39fee65e5fb710ec827f58bd180b"
+    },
     "official_module.js": {
       "bytes": 1970,
       "sha256": "bf429234169eb56702419bfc9ae0c51a8fcace9393f72e0a6e279f77b818d588"
@@ -586,9 +642,13 @@
       "bytes": 3485,
       "sha256": "6f0d8183c62d8746870bd3d65532c75acc2e20c84930b7ac9d5ff67b5b7d72d6"
     },
+    "textures__equirectangular__venice_sunset_1k.hdr": {
+      "bytes": 2097152,
+      "sha256": "6afd08b5c4c228a17e656c04d6b16cf14425b9d4af3e1a4742a7f7bf65f281d8"
+    },
     "widget.js": {
-      "bytes": 99795,
-      "sha256": "1083583b69bd45d344f1f438f885ff02ecf4eb48f3f5fab46a20a0c9629c3ad3"
+      "bytes": 22842205,
+      "sha256": "b471e2f2086043a834874b19ef851ef51ec1b4b1ceeca02ff2190da81240321d"
     }
   }
 }

@@ -43,6 +43,16 @@
       "sha256": "c14a5b21f25c06947a60a54eb0cf92577b8d9e849108e2524d66a6d746bcf425"
     }
   },
+  "assetDiscovery": [
+    {
+      "url": "textures/hardwood2_diffuse.jpg",
+      "output": "textures__hardwood2_diffuse.jpg",
+      "mime": "image/jpeg",
+      "diagnostic": "auto:textures/hardwood2_diffuse.jpg",
+      "sha256": "3986fe3bd7d3c24b18e7da17ae72bbef9385dbc355c931c52a04dbfe1412c802",
+      "discovered": true
+    }
+  ],
   "facade": {
     "global": "globalThis.THREE",
     "exports": [
@@ -505,8 +515,8 @@
   },
   "inputs": {
     "assets/three/three.native.js": {
-      "bytes": 777104,
-      "sha256": "5adcb8e7c2d94dd83748134c4d13b9fcfcba9b671445fe27de895575402241b0"
+      "bytes": 791598,
+      "sha256": "58efdde0f4795a978fdf0a9ed9a4f606264aff39bb4e164aaaf00f5542c280e8"
     },
     "assets/three/three.web.js": {
       "bytes": 855325,
@@ -524,6 +534,10 @@
       "bytes": 29526,
       "sha256": "5e31e7fc4d3a1268550b948463eabe06c7a6c03c158ccb99c78616d2c9682518"
     },
+    "source/examples/textures/hardwood2_diffuse.jpg": {
+      "bytes": 413689,
+      "sha256": "3986fe3bd7d3c24b18e7da17ae72bbef9385dbc355c931c52a04dbfe1412c802"
+    },
     "source/examples/webgl_multiple_rendertargets.html": {
       "bytes": 6879,
       "sha256": "5df936e5dea98d7dff3ddeae29454e826e81eea65bcfcf9968b4570dbe9a0c59"
@@ -536,9 +550,13 @@
       "bytes": 1951,
       "sha256": "7852c54a706c19e98978c884aa9cd9bfd8d040a2d304c8e6d8cf973dd3554eaf"
     },
+    "tool/three_example/asset_discovery.mjs": {
+      "bytes": 11532,
+      "sha256": "5219e6b747041382d9e40edc33901f04140df1cfb0454b181d8145414a75ee9e"
+    },
     "tool/three_example/example_adapter.js": {
-      "bytes": 20723,
-      "sha256": "9c713a0daa93289f0aeb2d75de6c067569ca4bc2235c24f3bb2bc8feab03336c"
+      "bytes": 36267,
+      "sha256": "c604a1842689cfaf43e2bdf335b55f2384780c7b163cd41ab6e91e3912704b61"
     },
     "tool/three_example/example_canvas2d.js": {
       "bytes": 20988,
@@ -549,8 +567,8 @@
       "sha256": "dc11346394f41bb4f385738d3afa6aa75e695ac80fe3be3a5fbf4201686376bf"
     },
     "tool/three_example/prepare.mjs": {
-      "bytes": 247876,
-      "sha256": "4ed1752612b57fb4ac32f62717e772e9a85f4e8a0f7e51a764443b68af0b8aac"
+      "bytes": 252492,
+      "sha256": "544095661162d33d5b6e91b6b744f7eb60b97c1ff9ea1f4ae297b2f39044af43"
     },
     "tool/three_example/stats_adapter.js": {
       "bytes": 2107,
@@ -574,9 +592,13 @@
       "bytes": 6879,
       "sha256": "5df936e5dea98d7dff3ddeae29454e826e81eea65bcfcf9968b4570dbe9a0c59"
     },
+    "textures__hardwood2_diffuse.jpg": {
+      "bytes": 413689,
+      "sha256": "3986fe3bd7d3c24b18e7da17ae72bbef9385dbc355c931c52a04dbfe1412c802"
+    },
     "widget.js": {
-      "bytes": 97967,
-      "sha256": "59f264903640654726f50870ee1a9178893d27baee6486eb3da4eeb897651b27"
+      "bytes": 657996,
+      "sha256": "247ac2e9ab39354e09de83c2529bc9a9df8d0cc8ae9d2f474987c125fc36838a"
     }
   }
 }

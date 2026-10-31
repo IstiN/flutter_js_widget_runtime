@@ -43,6 +43,50 @@
       "sha256": "22c3980618f009a4f42ef878378d5c7fad4bb2d7fba906dd2b89e58bb6c0ac60"
     }
   },
+  "assetDiscovery": [
+    {
+      "url": "models/gltf/ShaderBall2.glb",
+      "output": "models__gltf__ShaderBall2.glb",
+      "mime": "model/gltf-binary",
+      "diagnostic": "auto:models/gltf/ShaderBall2.glb",
+      "sha256": "cf87e3a52cb8c9659935fa53541fd4e5f5302a9221420a9b8911a8f307b5efd2",
+      "discovered": true,
+      "externalizeImages": true
+    },
+    {
+      "url": "textures/equirectangular/lobe.hdr",
+      "output": "textures__equirectangular__lobe.hdr",
+      "mime": "image/vnd.radiance",
+      "diagnostic": "auto:textures/equirectangular/lobe.hdr",
+      "sha256": "4d6566361e5da0d121a4f17a949e62267fce73697ed66087476788440a8f9874",
+      "discovered": true,
+      "hdrRgba": true
+    },
+    {
+      "url": "textures/jade.jpg",
+      "output": "textures__jade.jpg",
+      "mime": "image/jpeg",
+      "diagnostic": "auto:textures/jade.jpg",
+      "sha256": "7bcf9e70dee0618841762521b0f974e36e8f605a16aca73d1c166701dcb7b59b",
+      "discovered": true
+    },
+    {
+      "url": "textures/noise.png",
+      "output": "textures__noise.png",
+      "mime": "image/png",
+      "diagnostic": "auto:textures/noise.png",
+      "sha256": "755dd787816471602e1a9facb576af611f87c0b83fd29c1c622747ba2d0dc016",
+      "discovered": true
+    },
+    {
+      "url": "textures/shaderball_ds.jpg",
+      "output": "textures__shaderball_ds.jpg",
+      "mime": "image/jpeg",
+      "diagnostic": "auto:textures/shaderball_ds.jpg",
+      "sha256": "568b360e0e3502c9c90d14aa1b7b11396f962090b35f41335fefdcb788ec595e",
+      "discovered": true
+    }
+  ],
   "facade": {
     "global": "globalThis.THREE",
     "exports": [
@@ -505,8 +549,8 @@
   },
   "inputs": {
     "assets/three/three.native.js": {
-      "bytes": 777104,
-      "sha256": "5adcb8e7c2d94dd83748134c4d13b9fcfcba9b671445fe27de895575402241b0"
+      "bytes": 791598,
+      "sha256": "58efdde0f4795a978fdf0a9ed9a4f606264aff39bb4e164aaaf00f5542c280e8"
     },
     "assets/three/three.web.js": {
       "bytes": 855325,
@@ -532,10 +576,6 @@
       "bytes": 117570,
       "sha256": "131c0f78c01d19368ae495caa65b3adaa10487810a36a05bb5901b769a35ac16"
     },
-    "source/examples/jsm/loaders/HDRLoader.js": {
-      "bytes": 12079,
-      "sha256": "0986b578f9acd14cec74e5ee85e07f45e681b40bcd229a601a0391201f9b5ff1"
-    },
     "source/examples/jsm/utils/BufferGeometryUtils.js": {
       "bytes": 37712,
       "sha256": "9fb63427ce6641fa14fd0baff9cc4d1b5f9c3d85fd084bf2e90e803c44ec1797"
@@ -543,6 +583,30 @@
     "source/examples/jsm/utils/SkeletonUtils.js": {
       "bytes": 11535,
       "sha256": "b1632a703206c3d830de9fcbe515696770d04b71a15ee6b50afa6d2c3298c86f"
+    },
+    "source/examples/models/gltf/ShaderBall2.glb": {
+      "bytes": 203976,
+      "sha256": "cf87e3a52cb8c9659935fa53541fd4e5f5302a9221420a9b8911a8f307b5efd2"
+    },
+    "source/examples/models/gltf/embedded-0.jpg": {
+      "bytes": 142384,
+      "sha256": "8501997bb938d8626c5ddcc759078e84ca223e814f3bcb7f46e2e6ea743a4585"
+    },
+    "source/examples/textures/equirectangular/lobe.hdr": {
+      "bytes": 1662993,
+      "sha256": "4d6566361e5da0d121a4f17a949e62267fce73697ed66087476788440a8f9874"
+    },
+    "source/examples/textures/jade.jpg": {
+      "bytes": 16746,
+      "sha256": "7bcf9e70dee0618841762521b0f974e36e8f605a16aca73d1c166701dcb7b59b"
+    },
+    "source/examples/textures/noise.png": {
+      "bytes": 197320,
+      "sha256": "755dd787816471602e1a9facb576af611f87c0b83fd29c1c622747ba2d0dc016"
+    },
+    "source/examples/textures/shaderball_ds.jpg": {
+      "bytes": 252715,
+      "sha256": "568b360e0e3502c9c90d14aa1b7b11396f962090b35f41335fefdcb788ec595e"
     },
     "source/examples/webgl_random_uv.html": {
       "bytes": 11192,
@@ -556,9 +620,13 @@
       "bytes": 1951,
       "sha256": "7852c54a706c19e98978c884aa9cd9bfd8d040a2d304c8e6d8cf973dd3554eaf"
     },
+    "tool/three_example/asset_discovery.mjs": {
+      "bytes": 11532,
+      "sha256": "5219e6b747041382d9e40edc33901f04140df1cfb0454b181d8145414a75ee9e"
+    },
     "tool/three_example/example_adapter.js": {
-      "bytes": 20723,
-      "sha256": "9c713a0daa93289f0aeb2d75de6c067569ca4bc2235c24f3bb2bc8feab03336c"
+      "bytes": 36267,
+      "sha256": "c604a1842689cfaf43e2bdf335b55f2384780c7b163cd41ab6e91e3912704b61"
     },
     "tool/three_example/example_canvas2d.js": {
       "bytes": 20988,
@@ -569,8 +637,8 @@
       "sha256": "dc11346394f41bb4f385738d3afa6aa75e695ac80fe3be3a5fbf4201686376bf"
     },
     "tool/three_example/prepare.mjs": {
-      "bytes": 247876,
-      "sha256": "4ed1752612b57fb4ac32f62717e772e9a85f4e8a0f7e51a764443b68af0b8aac"
+      "bytes": 252492,
+      "sha256": "544095661162d33d5b6e91b6b744f7eb60b97c1ff9ea1f4ae297b2f39044af43"
     },
     "tool/three_example/stats_adapter.js": {
       "bytes": 2107,
@@ -586,6 +654,14 @@
       "bytes": 326,
       "sha256": "63caaa05772ec01a917e373c9d9df383d63daa6fd8be90dc8cad5b0b32f2db1b"
     },
+    "models__gltf__ShaderBall2.glb": {
+      "bytes": 203984,
+      "sha256": "142095d0fa36aca20360eb71afe8367765fae507c8150bd2052a5957611fb2e2"
+    },
+    "models__gltf__embedded-0.jpg": {
+      "bytes": 142384,
+      "sha256": "8501997bb938d8626c5ddcc759078e84ca223e814f3bcb7f46e2e6ea743a4585"
+    },
     "official_module.js": {
       "bytes": 10236,
       "sha256": "22c3980618f009a4f42ef878378d5c7fad4bb2d7fba906dd2b89e58bb6c0ac60"
@@ -594,9 +670,25 @@
       "bytes": 11192,
       "sha256": "a4ffb12f8d6ad45c5901abe401b0435418c83c61e11109ae66b9601b8ee73564"
     },
+    "textures__equirectangular__lobe.hdr": {
+      "bytes": 2097152,
+      "sha256": "08e7f729744216695da6291797abe8b79c561e09a7e4defef1cc2a123ecac13f"
+    },
+    "textures__jade.jpg": {
+      "bytes": 16746,
+      "sha256": "7bcf9e70dee0618841762521b0f974e36e8f605a16aca73d1c166701dcb7b59b"
+    },
+    "textures__noise.png": {
+      "bytes": 197320,
+      "sha256": "755dd787816471602e1a9facb576af611f87c0b83fd29c1c622747ba2d0dc016"
+    },
+    "textures__shaderball_ds.jpg": {
+      "bytes": 252715,
+      "sha256": "568b360e0e3502c9c90d14aa1b7b11396f962090b35f41335fefdcb788ec595e"
+    },
     "widget.js": {
-      "bytes": 155257,
-      "sha256": "d08a85d1c8a84cfcfe4043934ed6789dec0d05c71a4c027db907a9810a3f4e50"
+      "bytes": 4231618,
+      "sha256": "49e8812bf7cb94116199b7c7444d183b80c579661d841fef5fcb3d9e82216105"
     }
   }
 }

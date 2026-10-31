@@ -3,8 +3,69 @@ import { installThreeRuntime } from './runtime.js';
 import { installNativeCanvas2D } from './native_canvas2d.js';
 import { installNativeRaycastBVH } from './native_raycast_bvh.js';
 import { JsrWebGLRenderer } from './native_renderer.js';
+import { JsrImageLoader } from './native_loaders.js';
+
+// Addon passes construct Image directly for embedded lookup textures. Route
+// those elements through the same host decoder as ImageLoader, including the
+// DOM onload/addEventListener surface used by SMAAPass and texture upload.
+class JsrImageElement {
+  constructor() {
+    this.complete = false;
+    this.width = 0;
+    this.height = 0;
+    this.naturalWidth = 0;
+    this.naturalHeight = 0;
+    this.onload = null;
+    this.onerror = null;
+    this._listeners = new Map();
+    this._request = 0;
+    this._src = '';
+  }
+
+  get src() { return this._src; }
+
+  set src(value) {
+    this._src = String(value);
+    this.complete = false;
+    const request = ++this._request;
+    new JsrImageLoader().load(this._src, image => {
+      if (request !== this._request) return;
+      this.width = this.naturalWidth = image.width;
+      this.height = this.naturalHeight = image.height;
+      this.data = image.data;
+      this.encoding = image.encoding;
+      this.encoded = image.encoded;
+      this._r1Pixels = image._r1Pixels;
+      this.complete = true;
+      if (typeof this.onload === 'function') this.onload({ type: 'load', target: this });
+      this.dispatchEvent({ type: 'load', target: this });
+    }, error => {
+      if (request !== this._request) return;
+      if (typeof this.onerror === 'function') this.onerror(error);
+      this.dispatchEvent({ type: 'error', target: this, error });
+    });
+  }
+
+  addEventListener(type, callback) {
+    const list = this._listeners.get(type) || [];
+    if (!list.includes(callback)) list.push(callback);
+    this._listeners.set(type, list);
+  }
+
+  removeEventListener(type, callback) {
+    const list = this._listeners.get(type);
+    if (list) this._listeners.set(type, list.filter(item => item !== callback));
+  }
+
+  dispatchEvent(event) {
+    for (const callback of (this._listeners.get(event.type) || []).slice()) {
+      callback.call(this, event);
+    }
+  }
+}
 
 installNativeCanvas2D(installThreeRuntime(false));
+if (typeof globalThis.Image === 'undefined') globalThis.Image = JsrImageElement;
 installNativeRaycastBVH(Mesh);
 
 const pmremWarnings = new WeakSet();

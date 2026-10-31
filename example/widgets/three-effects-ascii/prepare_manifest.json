@@ -505,12 +505,12 @@
   },
   "inputs": {
     "assets/three/three.native.js": {
-      "bytes": 777104,
-      "sha256": "5adcb8e7c2d94dd83748134c4d13b9fcfcba9b671445fe27de895575402241b0"
+      "bytes": 790904,
+      "sha256": "8bc95e2e78c64c9c2474a937b952545dc71d43135cd411d90161e3f7befa5e06"
     },
     "assets/three/three.web.js": {
-      "bytes": 855325,
-      "sha256": "973b78155b07710ece2f22e803cb25a8cb08da4f62b5f825dc676715f5859311"
+      "bytes": 855446,
+      "sha256": "134aec8728cf7774d9d4eb473a7c73baa9c984f698ecfd078b2e52fa47d0275c"
     },
     "source/LICENSE": {
       "bytes": 1081,
@@ -536,9 +536,13 @@
       "bytes": 1951,
       "sha256": "7852c54a706c19e98978c884aa9cd9bfd8d040a2d304c8e6d8cf973dd3554eaf"
     },
+    "tool/three_example/asset_discovery.mjs": {
+      "bytes": 11476,
+      "sha256": "1226125cc2c81ec4267691d86e0d45fd0ae2bd8f95fa3c7e8f79e9e29de9ab38"
+    },
     "tool/three_example/example_adapter.js": {
-      "bytes": 20723,
-      "sha256": "9c713a0daa93289f0aeb2d75de6c067569ca4bc2235c24f3bb2bc8feab03336c"
+      "bytes": 35252,
+      "sha256": "7aff5e6dc4e40000252f080e76d191eb08cf2866f375c132e50ef6f1b5fdfe56"
     },
     "tool/three_example/example_canvas2d.js": {
       "bytes": 20988,
@@ -549,8 +553,8 @@
       "sha256": "dc11346394f41bb4f385738d3afa6aa75e695ac80fe3be3a5fbf4201686376bf"
     },
     "tool/three_example/prepare.mjs": {
-      "bytes": 247876,
-      "sha256": "4ed1752612b57fb4ac32f62717e772e9a85f4e8a0f7e51a764443b68af0b8aac"
+      "bytes": 252145,
+      "sha256": "e55f430218d7a34da60ddd147a484af36b7c1a0dcddf8e56a3853f107f16154a"
     },
     "tool/three_example/stats_adapter.js": {
       "bytes": 2107,
@@ -575,8 +579,8 @@
       "sha256": "09fbb0266e91f0e6a56938310ca5fa0d09f151198bd1a08f9d592870144113dc"
     },
     "widget.js": {
-      "bytes": 47570,
-      "sha256": "75774c2c984ffc013e616e8a34ab243839de1f46a08f78d69c92620c535b3a17"
+      "bytes": 55401,
+      "sha256": "2cdd58872d1f9d81296dacf91706a1df31c4a33f11dc25be475fa3ac98d1fa49"
     }
   }
 }

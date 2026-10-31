@@ -43,6 +43,17 @@
       "sha256": "f283071fe8d4159a83da990b0076230985cdf63e562f4af28a45f6d9538cc7de"
     }
   },
+  "assetDiscovery": [
+    {
+      "url": "models/gltf/AVIFTest/forest_house.glb",
+      "output": "models__gltf__AVIFTest__forest_house.glb",
+      "mime": "model/gltf-binary",
+      "diagnostic": "auto:models/gltf/AVIFTest/forest_house.glb",
+      "sha256": "d7e567c978c1b266744e20f8418f29e90591e38a2bd6fdb5220c3b9eed91a137",
+      "discovered": true,
+      "externalizeImages": true
+    }
+  ],
   "facade": {
     "global": "globalThis.THREE",
     "exports": [
@@ -505,8 +516,8 @@
   },
   "inputs": {
     "assets/three/three.native.js": {
-      "bytes": 777104,
-      "sha256": "5adcb8e7c2d94dd83748134c4d13b9fcfcba9b671445fe27de895575402241b0"
+      "bytes": 794350,
+      "sha256": "b0a22173ef8aedbe8821fb1c720b05acd177bb46820b37c2a1d2ca4ea7ea576d"
     },
     "assets/three/three.web.js": {
       "bytes": 855325,
@@ -536,6 +547,10 @@
       "bytes": 11535,
       "sha256": "b1632a703206c3d830de9fcbe515696770d04b71a15ee6b50afa6d2c3298c86f"
     },
+    "source/examples/models/gltf/AVIFTest/forest_house.glb": {
+      "bytes": 303984,
+      "sha256": "d7e567c978c1b266744e20f8418f29e90591e38a2bd6fdb5220c3b9eed91a137"
+    },
     "source/examples/webgl_loader_gltf_avif.html": {
       "bytes": 2934,
       "sha256": "f6b3e0d31c97a7e78333ea7255ca249f112f82e56704ab7680f98a772f6b3f61"
@@ -548,9 +563,13 @@
       "bytes": 1951,
       "sha256": "7852c54a706c19e98978c884aa9cd9bfd8d040a2d304c8e6d8cf973dd3554eaf"
     },
+    "tool/three_example/asset_discovery.mjs": {
+      "bytes": 11580,
+      "sha256": "61df540ad93d367d071167057ad68a74c4526b7493ac1748a2b750e4c26ae0ea"
+    },
     "tool/three_example/example_adapter.js": {
-      "bytes": 20723,
-      "sha256": "9c713a0daa93289f0aeb2d75de6c067569ca4bc2235c24f3bb2bc8feab03336c"
+      "bytes": 36310,
+      "sha256": "d4b30ea893767085c461138a82c7d1644c3311ad8e1a734712ad0c2be5ad0011"
     },
     "tool/three_example/example_canvas2d.js": {
       "bytes": 20988,
@@ -561,8 +580,8 @@
       "sha256": "dc11346394f41bb4f385738d3afa6aa75e695ac80fe3be3a5fbf4201686376bf"
     },
     "tool/three_example/prepare.mjs": {
-      "bytes": 247876,
-      "sha256": "4ed1752612b57fb4ac32f62717e772e9a85f4e8a0f7e51a764443b68af0b8aac"
+      "bytes": 252302,
+      "sha256": "e6f9fd556a40a617de3f0a8d75c6d76b21a2020d19e988e7b657f6034a647845"
     },
     "tool/three_example/stats_adapter.js": {
       "bytes": 2107,
@@ -578,6 +597,10 @@
       "bytes": 358,
       "sha256": "3981ebb4fb1e3267041dd0595af4893b8145c1eeefd27788ed23392d48234001"
     },
+    "models__gltf__AVIFTest__forest_house.glb": {
+      "bytes": 303984,
+      "sha256": "d7e567c978c1b266744e20f8418f29e90591e38a2bd6fdb5220c3b9eed91a137"
+    },
     "official_module.js": {
       "bytes": 1699,
       "sha256": "f283071fe8d4159a83da990b0076230985cdf63e562f4af28a45f6d9538cc7de"
@@ -587,8 +610,8 @@
       "sha256": "f6b3e0d31c97a7e78333ea7255ca249f112f82e56704ab7680f98a772f6b3f61"
     },
     "widget.js": {
-      "bytes": 103477,
-      "sha256": "4b47c8da60801e0369679e7d7f24d07b377832aca213f2657f454cc5f87e2c80"
+      "bytes": 517270,
+      "sha256": "e7b4944288b207472d697c2c661d6789c375d858303f86172265374a46272bbb"
     }
   }
 }

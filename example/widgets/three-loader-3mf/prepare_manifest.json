@@ -43,6 +43,80 @@
       "sha256": "aca96938eb251d4d2ca88da45cad39ee7e3b11320ce006fe1a4911b54e79b7f1"
     }
   },
+  "assetDiscovery": [
+    {
+      "url": "models/3mf/cube_gears.3mf",
+      "output": "models__3mf__cube_gears.3mf",
+      "mime": "application/octet-stream",
+      "diagnostic": "auto:models/3mf/cube_gears.3mf",
+      "sha256": "b73c2e260b7331e002c9dc669f99ad0cd24b5064409335738cbd8f55a2a6fdd1",
+      "discovered": true
+    },
+    {
+      "url": "models/3mf/facecolors.3mf",
+      "output": "models__3mf__facecolors.3mf",
+      "mime": "application/octet-stream",
+      "diagnostic": "auto:models/3mf/facecolors.3mf",
+      "sha256": "76e67544e5398831d29c45c7e424909c022beb55203a0aeaa0778a06d3a5dcb0",
+      "discovered": true
+    },
+    {
+      "url": "models/3mf/multipletextures.3mf",
+      "output": "models__3mf__multipletextures.3mf",
+      "mime": "application/octet-stream",
+      "diagnostic": "auto:models/3mf/multipletextures.3mf",
+      "sha256": "1024c33276043c5ef25bf111496056d87bf5a816ae2f6eb6a6804d75ced02d59",
+      "discovered": true
+    },
+    {
+      "url": "models/3mf/pyramid.3mf",
+      "output": "models__3mf__pyramid.3mf",
+      "mime": "application/octet-stream",
+      "diagnostic": "auto:models/3mf/pyramid.3mf",
+      "sha256": "187bbb00a3ad0b31096d27e7a1638736f4560ef3bf9b2a05ba9aa2e5864004f8",
+      "discovered": true
+    },
+    {
+      "url": "models/3mf/spinal implant.3mf",
+      "output": "models__3mf__spinal__implant.3mf",
+      "mime": "application/octet-stream",
+      "diagnostic": "auto:models/3mf/spinal implant.3mf",
+      "sha256": "9b4b7d43e071b2b7d4b9cd38031c63f598a0064090acec50696a849da40536e8",
+      "discovered": true
+    },
+    {
+      "url": "models/3mf/truck.3mf",
+      "output": "models__3mf__truck.3mf",
+      "mime": "application/octet-stream",
+      "diagnostic": "auto:models/3mf/truck.3mf",
+      "sha256": "242ff6467b34b47c75c5a5b6417db30da15e45b805bbe0a0245bb5cca0a03a86",
+      "discovered": true
+    },
+    {
+      "url": "models/3mf/variable voronoi.3mf",
+      "output": "models__3mf__variable__voronoi.3mf",
+      "mime": "application/octet-stream",
+      "diagnostic": "auto:models/3mf/variable voronoi.3mf",
+      "sha256": "45bd479e36a05ab0624c1d41fa355d6f4619514101d235172469a83c1d722a43",
+      "discovered": true
+    },
+    {
+      "url": "models/3mf/vertexcolors.3mf",
+      "output": "models__3mf__vertexcolors.3mf",
+      "mime": "application/octet-stream",
+      "diagnostic": "auto:models/3mf/vertexcolors.3mf",
+      "sha256": "1f79beb48ede62406b780a7f42933a05ff695e85d6a95124a2d0eff782b91555",
+      "discovered": true
+    },
+    {
+      "url": "models/3mf/volumetric.3mf",
+      "output": "models__3mf__volumetric.3mf",
+      "mime": "application/octet-stream",
+      "diagnostic": "auto:models/3mf/volumetric.3mf",
+      "sha256": "bcd1e7d2bed8ac5162fff9d743306e0ad301ff97b775e422e2765430b3208921",
+      "discovered": true
+    }
+  ],
   "facade": {
     "global": "globalThis.THREE",
     "exports": [
@@ -505,8 +579,8 @@
   },
   "inputs": {
     "assets/three/three.native.js": {
-      "bytes": 777104,
-      "sha256": "5adcb8e7c2d94dd83748134c4d13b9fcfcba9b671445fe27de895575402241b0"
+      "bytes": 791598,
+      "sha256": "58efdde0f4795a978fdf0a9ed9a4f606264aff39bb4e164aaaf00f5542c280e8"
     },
     "assets/three/three.web.js": {
       "bytes": 855325,
@@ -536,6 +610,42 @@
       "bytes": 37712,
       "sha256": "9fb63427ce6641fa14fd0baff9cc4d1b5f9c3d85fd084bf2e90e803c44ec1797"
     },
+    "source/examples/models/3mf/cube_gears.3mf": {
+      "bytes": 228459,
+      "sha256": "b73c2e260b7331e002c9dc669f99ad0cd24b5064409335738cbd8f55a2a6fdd1"
+    },
+    "source/examples/models/3mf/facecolors.3mf": {
+      "bytes": 1643,
+      "sha256": "76e67544e5398831d29c45c7e424909c022beb55203a0aeaa0778a06d3a5dcb0"
+    },
+    "source/examples/models/3mf/multipletextures.3mf": {
+      "bytes": 3093233,
+      "sha256": "1024c33276043c5ef25bf111496056d87bf5a816ae2f6eb6a6804d75ced02d59"
+    },
+    "source/examples/models/3mf/pyramid.3mf": {
+      "bytes": 4830,
+      "sha256": "187bbb00a3ad0b31096d27e7a1638736f4560ef3bf9b2a05ba9aa2e5864004f8"
+    },
+    "source/examples/models/3mf/spinal implant.3mf": {
+      "bytes": 261883,
+      "sha256": "9b4b7d43e071b2b7d4b9cd38031c63f598a0064090acec50696a849da40536e8"
+    },
+    "source/examples/models/3mf/truck.3mf": {
+      "bytes": 2649329,
+      "sha256": "242ff6467b34b47c75c5a5b6417db30da15e45b805bbe0a0245bb5cca0a03a86"
+    },
+    "source/examples/models/3mf/variable voronoi.3mf": {
+      "bytes": 20958,
+      "sha256": "45bd479e36a05ab0624c1d41fa355d6f4619514101d235172469a83c1d722a43"
+    },
+    "source/examples/models/3mf/vertexcolors.3mf": {
+      "bytes": 1261,
+      "sha256": "1f79beb48ede62406b780a7f42933a05ff695e85d6a95124a2d0eff782b91555"
+    },
+    "source/examples/models/3mf/volumetric.3mf": {
+      "bytes": 61937,
+      "sha256": "bcd1e7d2bed8ac5162fff9d743306e0ad301ff97b775e422e2765430b3208921"
+    },
     "source/examples/webgl_loader_3mf.html": {
       "bytes": 4323,
       "sha256": "404fb62573b07e3eb01c9f8b4a00f6bf4d4051d9a83b905adc9bf0819c7492e4"
@@ -548,9 +658,13 @@
       "bytes": 1951,
       "sha256": "7852c54a706c19e98978c884aa9cd9bfd8d040a2d304c8e6d8cf973dd3554eaf"
     },
+    "tool/three_example/asset_discovery.mjs": {
+      "bytes": 11532,
+      "sha256": "5219e6b747041382d9e40edc33901f04140df1cfb0454b181d8145414a75ee9e"
+    },
     "tool/three_example/example_adapter.js": {
-      "bytes": 20723,
-      "sha256": "9c713a0daa93289f0aeb2d75de6c067569ca4bc2235c24f3bb2bc8feab03336c"
+      "bytes": 36267,
+      "sha256": "c604a1842689cfaf43e2bdf335b55f2384780c7b163cd41ab6e91e3912704b61"
     },
     "tool/three_example/example_canvas2d.js": {
       "bytes": 20988,
@@ -561,8 +675,8 @@
       "sha256": "dc11346394f41bb4f385738d3afa6aa75e695ac80fe3be3a5fbf4201686376bf"
     },
     "tool/three_example/prepare.mjs": {
-      "bytes": 247876,
-      "sha256": "4ed1752612b57fb4ac32f62717e772e9a85f4e8a0f7e51a764443b68af0b8aac"
+      "bytes": 252492,
+      "sha256": "544095661162d33d5b6e91b6b744f7eb60b97c1ff9ea1f4ae297b2f39044af43"
     },
     "tool/three_example/stats_adapter.js": {
       "bytes": 2107,
@@ -578,6 +692,42 @@
       "bytes": 320,
       "sha256": "971b1c44f240de09d667697ae2e8138e4916a5d6bdd14dca8b1e3e70e320b2b6"
     },
+    "models__3mf__cube_gears.3mf": {
+      "bytes": 228459,
+      "sha256": "b73c2e260b7331e002c9dc669f99ad0cd24b5064409335738cbd8f55a2a6fdd1"
+    },
+    "models__3mf__facecolors.3mf": {
+      "bytes": 1643,
+      "sha256": "76e67544e5398831d29c45c7e424909c022beb55203a0aeaa0778a06d3a5dcb0"
+    },
+    "models__3mf__multipletextures.3mf": {
+      "bytes": 3093233,
+      "sha256": "1024c33276043c5ef25bf111496056d87bf5a816ae2f6eb6a6804d75ced02d59"
+    },
+    "models__3mf__pyramid.3mf": {
+      "bytes": 4830,
+      "sha256": "187bbb00a3ad0b31096d27e7a1638736f4560ef3bf9b2a05ba9aa2e5864004f8"
+    },
+    "models__3mf__spinal__implant.3mf": {
+      "bytes": 261883,
+      "sha256": "9b4b7d43e071b2b7d4b9cd38031c63f598a0064090acec50696a849da40536e8"
+    },
+    "models__3mf__truck.3mf": {
+      "bytes": 2649329,
+      "sha256": "242ff6467b34b47c75c5a5b6417db30da15e45b805bbe0a0245bb5cca0a03a86"
+    },
+    "models__3mf__variable__voronoi.3mf": {
+      "bytes": 20958,
+      "sha256": "45bd479e36a05ab0624c1d41fa355d6f4619514101d235172469a83c1d722a43"
+    },
+    "models__3mf__vertexcolors.3mf": {
+      "bytes": 1261,
+      "sha256": "1f79beb48ede62406b780a7f42933a05ff695e85d6a95124a2d0eff782b91555"
+    },
+    "models__3mf__volumetric.3mf": {
+      "bytes": 61937,
+      "sha256": "bcd1e7d2bed8ac5162fff9d743306e0ad301ff97b775e422e2765430b3208921"
+    },
     "official_module.js": {
       "bytes": 3045,
       "sha256": "aca96938eb251d4d2ca88da45cad39ee7e3b11320ce006fe1a4911b54e79b7f1"
@@ -587,8 +737,8 @@
       "sha256": "404fb62573b07e3eb01c9f8b4a00f6bf4d4051d9a83b905adc9bf0819c7492e4"
     },
     "widget.js": {
-      "bytes": 120382,
-      "sha256": "1bbf54aea6499bf9b6729c0475724cb206ac87d9ce4184f11dadf36371c0838a"
+      "bytes": 8561545,
+      "sha256": "016b8fd16f069e5e92421201d9c43edcbe5f4f77af19fcf69dcdad725900c401"
     }
   }
 }

@@ -43,6 +43,32 @@
       "sha256": "4c8edad288f986d9a023cc700ab68c316d0f081b80a1b93e93fdff92e27831bb"
     }
   },
+  "assetDiscovery": [
+    {
+      "url": "textures/tiff/crate_jpeg.tif",
+      "output": "textures__tiff__crate_jpeg.tif",
+      "mime": "application/octet-stream",
+      "diagnostic": "auto:textures/tiff/crate_jpeg.tif",
+      "sha256": "c8a9e0a848d6ce6ec633d3e7a12097778130e3d95ab86056c9b458e674e9b2c4",
+      "discovered": true
+    },
+    {
+      "url": "textures/tiff/crate_lzw.tif",
+      "output": "textures__tiff__crate_lzw.tif",
+      "mime": "application/octet-stream",
+      "diagnostic": "auto:textures/tiff/crate_lzw.tif",
+      "sha256": "d9ea5311be5df454647a6ee1f96f0bb6909c2132d7d35d3c1ab8ff93cea5cf74",
+      "discovered": true
+    },
+    {
+      "url": "textures/tiff/crate_uncompressed.tif",
+      "output": "textures__tiff__crate_uncompressed.tif",
+      "mime": "application/octet-stream",
+      "diagnostic": "auto:textures/tiff/crate_uncompressed.tif",
+      "sha256": "d2d64f206234f4148d7716abe8a14d47db5ecd569317e2f010eac1cf25ca2445",
+      "discovered": true
+    }
+  ],
   "facade": {
     "global": "globalThis.THREE",
     "exports": [
@@ -505,8 +531,8 @@
   },
   "inputs": {
     "assets/three/three.native.js": {
-      "bytes": 777104,
-      "sha256": "5adcb8e7c2d94dd83748134c4d13b9fcfcba9b671445fe27de895575402241b0"
+      "bytes": 791598,
+      "sha256": "58efdde0f4795a978fdf0a9ed9a4f606264aff39bb4e164aaaf00f5542c280e8"
     },
     "assets/three/three.web.js": {
       "bytes": 855325,
@@ -524,6 +550,18 @@
       "bytes": 1221,
       "sha256": "c166ff39d8ff1c4bf6c38d2d355f5d5e29516cde712eebee827a0a131cee57a0"
     },
+    "source/examples/textures/tiff/crate_jpeg.tif": {
+      "bytes": 920202,
+      "sha256": "c8a9e0a848d6ce6ec633d3e7a12097778130e3d95ab86056c9b458e674e9b2c4"
+    },
+    "source/examples/textures/tiff/crate_lzw.tif": {
+      "bytes": 853872,
+      "sha256": "d9ea5311be5df454647a6ee1f96f0bb6909c2132d7d35d3c1ab8ff93cea5cf74"
+    },
+    "source/examples/textures/tiff/crate_uncompressed.tif": {
+      "bytes": 264874,
+      "sha256": "d2d64f206234f4148d7716abe8a14d47db5ecd569317e2f010eac1cf25ca2445"
+    },
     "source/examples/webgl_loader_texture_tiff.html": {
       "bytes": 3073,
       "sha256": "6279a81061acb1fc20cbc261208afc02e3185be81a519c291ec29bfbdbb462f9"
@@ -536,9 +574,13 @@
       "bytes": 1951,
       "sha256": "7852c54a706c19e98978c884aa9cd9bfd8d040a2d304c8e6d8cf973dd3554eaf"
     },
+    "tool/three_example/asset_discovery.mjs": {
+      "bytes": 11532,
+      "sha256": "5219e6b747041382d9e40edc33901f04140df1cfb0454b181d8145414a75ee9e"
+    },
     "tool/three_example/example_adapter.js": {
-      "bytes": 20723,
-      "sha256": "9c713a0daa93289f0aeb2d75de6c067569ca4bc2235c24f3bb2bc8feab03336c"
+      "bytes": 36267,
+      "sha256": "c604a1842689cfaf43e2bdf335b55f2384780c7b163cd41ab6e91e3912704b61"
     },
     "tool/three_example/example_canvas2d.js": {
       "bytes": 20988,
@@ -549,8 +591,8 @@
       "sha256": "dc11346394f41bb4f385738d3afa6aa75e695ac80fe3be3a5fbf4201686376bf"
     },
     "tool/three_example/prepare.mjs": {
-      "bytes": 247876,
-      "sha256": "4ed1752612b57fb4ac32f62717e772e9a85f4e8a0f7e51a764443b68af0b8aac"
+      "bytes": 252492,
+      "sha256": "544095661162d33d5b6e91b6b744f7eb60b97c1ff9ea1f4ae297b2f39044af43"
     },
     "tool/three_example/stats_adapter.js": {
       "bytes": 2107,
@@ -574,9 +616,21 @@
       "bytes": 3073,
       "sha256": "6279a81061acb1fc20cbc261208afc02e3185be81a519c291ec29bfbdbb462f9"
     },
+    "textures__tiff__crate_jpeg.tif": {
+      "bytes": 920202,
+      "sha256": "c8a9e0a848d6ce6ec633d3e7a12097778130e3d95ab86056c9b458e674e9b2c4"
+    },
+    "textures__tiff__crate_lzw.tif": {
+      "bytes": 853872,
+      "sha256": "d9ea5311be5df454647a6ee1f96f0bb6909c2132d7d35d3c1ab8ff93cea5cf74"
+    },
+    "textures__tiff__crate_uncompressed.tif": {
+      "bytes": 264874,
+      "sha256": "d2d64f206234f4148d7716abe8a14d47db5ecd569317e2f010eac1cf25ca2445"
+    },
     "widget.js": {
-      "bytes": 97635,
-      "sha256": "af294cacd37f620f61a94437425e42b72673499ca532db9c4d93974f3ddd3bbe"
+      "bytes": 2825071,
+      "sha256": "0787dca2a62d4fa75d6176a2d18fe8c7ab87bc1bd52001c83cc2ec4cd2bc7e91"
     }
   }
 }

@@ -43,6 +43,10 @@ let statsDiagnostics = {
   begins: 0, ends: 0, updates: 0, mode: 0
 };
 let guiDiagnostics = { roots: 0, controllers: 0, changes: 0, finishes: 0, values: [] };
+const mediaDiagnostics = {
+  videoElements: 0, videoTextures: 0, shaderFallbacks: 0, warnings: []
+};
+let publishedMediaSignature = '';
 const assetDiagnostics = {};
 for (const asset of ASSETS) {
   assetDiagnostics[asset.url] = {
@@ -72,7 +76,13 @@ function publishDiagnostics() {
       textures: finite(memory.textures)
     },
     stats: Object.assign({}, statsDiagnostics),
-    gui: guiDiagnostics
+    gui: guiDiagnostics,
+    media: {
+      videoElements: mediaDiagnostics.videoElements,
+      videoTextures: mediaDiagnostics.videoTextures,
+      shaderFallbacks: mediaDiagnostics.shaderFallbacks,
+      warnings: mediaDiagnostics.warnings.slice()
+    }
   };
   for (const asset of ASSETS) {
     if (asset.diagnostic) state[asset.diagnostic] = assetDiagnostics[asset.url];
@@ -184,6 +194,47 @@ function localElement(tagName) {
       contains(name) { return this._names.has(name); }
     }
   });
+  const cssNumber = (value, fallback) => {
+    const parsed = Number.parseFloat(value);
+    return Number.isFinite(parsed) ? parsed : fallback;
+  };
+  const viewportSize = dimension => cssNumber(
+    element.style[dimension],
+    runtimeDocument.defaultView[dimension === 'width' ? 'innerWidth' : 'innerHeight']
+  );
+  Object.defineProperties(element, {
+    offsetWidth: { get: () => viewportSize('width') },
+    offsetHeight: { get: () => viewportSize('height') },
+    clientWidth: { get: () => viewportSize('width') },
+    clientHeight: { get: () => viewportSize('height') }
+  });
+  element.getBoundingClientRect = function() {
+    let left = cssNumber(this.style.left, 0);
+    let top = cssNumber(this.style.top, 0);
+    let width = this.offsetWidth;
+    let height = this.offsetHeight;
+    let ancestor = this.parentNode;
+    while (ancestor && !String(ancestor.className || '').split(/\s+/).includes('list-item')) {
+      ancestor = ancestor.parentNode;
+    }
+    if (ancestor) {
+      const index = Math.max(0, ancestor.parentNode ? ancestor.parentNode.children.indexOf(ancestor) : 0);
+      width = Math.max(1, Math.floor(runtimeDocument.defaultView.innerWidth / 4));
+      height = Math.max(1, Math.floor(runtimeDocument.defaultView.innerHeight / 2));
+      left = (index % 4) * width;
+      top = Math.floor(index / 4) * height;
+    } else if (String(this.className || '').split(/\s+/).includes('view')) {
+      const index = Math.max(0, staticViews.indexOf(this));
+      width = Math.min(this.offsetWidth, runtimeDocument.defaultView.innerWidth);
+      height = Math.min(this.offsetHeight, runtimeDocument.defaultView.innerHeight);
+      left = 0;
+      top = index * height;
+    }
+    return {
+      x: left, y: top, left, top, width, height,
+      right: left + width, bottom: top + height
+    };
+  };
   element.ownerDocument = runtimeDocument;
   element.getRootNode = () => runtimeDocument;
   element.appendChild = function(child) {
@@ -370,7 +421,37 @@ function localCanvas() {
     if (typeof JSR.three.createCanvas2D !== 'function') {
       throw new Error(`${WIDGET_ID}: native Flutter canvas2d is unavailable`);
     }
-    return createExampleCanvas2D(JSR, 'main', { width: 300, height: 150 });
+    const local = createExampleCanvas2D(JSR, 'main', { width: 300, height: 150 });
+    const getContext = local.getContext;
+    local.getContext = function(type, ...args) {
+      const context = getContext.call(this, type, ...args);
+      if (type === '2d' && context && typeof context.arc !== 'function') {
+        context.arc = function(x, y, radius, start, end, counterclockwise = false) {
+          if (![x, y, radius, start, end].every(Number.isFinite) || radius < 0) {
+            throw new Error('three.invalid: canvas arc expects finite coordinates and a non-negative radius');
+          }
+          const fullTurn = Math.PI * 2;
+          let span = end - start;
+          if (!counterclockwise && span < 0) span = span % fullTurn + fullTurn;
+          if (counterclockwise && span > 0) span = span % fullTurn - fullTurn;
+          if (Math.abs(span) >= fullTurn) span = counterclockwise ? -fullTurn : fullTurn;
+          const steps = Math.max(1, Math.min(64, Math.ceil(Math.abs(span) / (Math.PI / 32))));
+          for (let index = 0; index <= steps; index++) {
+            const angle = start + span * index / steps;
+            context.lineTo(x + Math.cos(angle) * radius, y + Math.sin(angle) * radius);
+          }
+        };
+      }
+      if (type === '2d' && context && typeof context.measureText !== 'function') {
+        context.measureText = text => {
+          const match = /([0-9]+(?:\.[0-9]+)?)\s*(?:px|pt)?/i.exec(context.font || '');
+          const size = match ? Number(match[1]) : 10;
+          return { width: String(text).length * size * 0.6 };
+        };
+      }
+      return context;
+    };
+    return local;
   }
   if (typeof ROOT.OffscreenCanvas !== 'function') {
     throw new Error(`${WIDGET_ID}: local 2D canvases require OffscreenCanvas`);
@@ -438,6 +519,80 @@ function localAudioElement(record) {
   return element;
 }
 
+function waveDisplacement(kind) {
+  if (kind === 0) return (x, y, z, t, target) => target.set(Math.sin(x - t), 0, 0);
+  if (kind === 1) return (x, y, z, t, target) => {
+    if (x * x + y * y < 0.01) return target.set(0, 0, 0);
+    const rho = Math.sqrt(x * x + y * y);
+    const phi = Math.atan2(y, x);
+    const amplitude = 1.5 * Math.sin(rho - t) / Math.sqrt(rho);
+    return target.set(amplitude * Math.cos(phi), amplitude * Math.sin(phi), 0);
+  };
+  return (x, y, z, t, target) => {
+    if (x * x + y * y + z * z < 0.01) return target.set(0, 0, 0);
+    const radius = Math.sqrt(x * x + y * y + z * z);
+    const theta = Math.acos(z / radius);
+    const phi = Math.atan2(y, x);
+    const amplitude = 3 * Math.sin(radius - t) / radius;
+    return target.set(
+      amplitude * Math.cos(phi) * Math.sin(theta),
+      amplitude * Math.sin(phi) * Math.sin(theta),
+      amplitude * Math.cos(theta)
+    );
+  };
+}
+
+const staticViews = EXAMPLE === 'webgl_multiple_elements_text'
+  ? Array.from({ length: 6 }, (_, index) => {
+    const view = localElement('div');
+    view.className = 'view';
+    view.style.width = '480px';
+    view.style.height = '360px';
+    view.lattice = index % 2 === 0;
+    view.displacement = waveDisplacement(Math.floor(index / 2));
+    return view;
+  })
+  : [];
+
+const VIDEO_URLS = {
+  webgl_materials_video: 'textures/sintel.mp4',
+  webgl_video_kinect: 'textures/kinect.mp4',
+  webgl_video_panorama_equirectangular: 'textures/pano.mp4'
+};
+
+function localVideoElement(id) {
+  const element = eventTarget({
+    __jsrThreeExampleLocal: true,
+    tagName: 'VIDEO', id, style: {}, children: [], parentNode: null,
+    loop: true, muted: true, autoplay: true, playsInline: true,
+    preload: 'auto', currentTime: 0, volume: 1, paused: true,
+    readyState: 4, videoWidth: 16, videoHeight: 16,
+    srcObject: null, _jsrVideoUrl: VIDEO_URLS[EXAMPLE] || ''
+  });
+  mediaDiagnostics.videoElements++;
+  element.play = function() {
+    this.paused = false;
+    this.dispatchEvent({ type: 'play' });
+    return Promise.resolve();
+  };
+  element.pause = function() {
+    this.paused = true;
+    this.dispatchEvent({ type: 'pause' });
+  };
+  element.load = function() {};
+  element.remove = function() {};
+  return element;
+}
+
+if (typeof ROOT.navigator === 'undefined') {
+  ROOT.navigator = { userAgent: 'JSR QuickJS' };
+}
+if (EXAMPLE === 'webgl_materials_video_webcam' && !ROOT.navigator.mediaDevices) {
+  ROOT.navigator.mediaDevices = {
+    getUserMedia: () => Promise.resolve({ getTracks: () => [] })
+  };
+}
+
 if (typeof ROOT.Audio !== 'function') {
   ROOT.Audio = function(source) {
     return localAudioElement({ url: String(source || ''), mime: 'audio/mpeg', loop: false });
@@ -450,6 +605,21 @@ const INLINE_SCRIPTS = JSON.parse(__JSR_THREE_EXAMPLE_SCRIPTS_JSON__);
 const AUDIO_ELEMENTS = JSON.parse(__JSR_THREE_EXAMPLE_AUDIO_JSON__);
 const localElementsById = new Map();
 runtimeDocument.getElementById = function(id) {
+  if (id === 'c') {
+    if (!canvas.parentNode) {
+      canvas.setSize(
+        runtimeDocument.defaultView.innerWidth,
+        runtimeDocument.defaultView.innerHeight,
+        false
+      );
+      appendMainCanvas(container, canvas);
+    }
+    return canvas;
+  }
+  if (id === 'video') {
+    if (!localElementsById.has(id)) localElementsById.set(id, localVideoElement(id));
+    return localElementsById.get(id);
+  }
   if (id === 'container') return container;
   if (id === 'info') return info;
   if (Object.prototype.hasOwnProperty.call(AUDIO_ELEMENTS, id)) {
@@ -473,6 +643,7 @@ runtimeDocument.getElementById = function(id) {
 runtimeDocument.querySelector = function(selector) {
   const value = String(selector);
   if (value === '.container') return container;
+  if (value === '.view' && staticViews.length) return staticViews[0];
   if (value.startsWith('#') && value.length > 1) return runtimeDocument.getElementById(value.slice(1));
   if (/^\.[A-Za-z_][\w-]*$/.test(value)) {
     const element = runtimeDocument.getElementById(value.slice(1));
@@ -480,6 +651,25 @@ runtimeDocument.querySelector = function(selector) {
     return element;
   }
   return null;
+};
+runtimeDocument.querySelectorAll = function(selector) {
+  const value = String(selector);
+  if (!/^\.[A-Za-z_][\w-]*$/.test(value)) return [];
+  const className = value.slice(1);
+  const result = [];
+  const visited = new Set();
+  const matches = element => String(element.className || '').split(/\s+/).includes(className);
+  const visit = element => {
+    if (!element || visited.has(element)) return;
+    visited.add(element);
+    if (matches(element)) result.push(element);
+    for (const child of element.children || []) visit(child);
+  };
+  for (const view of staticViews) visit(view);
+  visit(container);
+  visit(body);
+  for (const element of localElementsById.values()) visit(element);
+  return result;
 };
 
 // The host dispatches pointer events to the canvas and document. Browser
@@ -513,7 +703,216 @@ for (const type of ['pointerdown', 'pointermove', 'pointerup', 'pointercancel'])
   });
 }
 
+function warnCompat(key, message) {
+  if (mediaDiagnostics.warnings.includes(key)) return;
+  mediaDiagnostics.warnings.push(key);
+  console.warn(message);
+}
+
+function publishMediaChanges() {
+  const signature = [
+    mediaDiagnostics.videoElements,
+    mediaDiagnostics.videoTextures,
+    mediaDiagnostics.shaderFallbacks,
+    mediaDiagnostics.warnings.length
+  ].join(':');
+  if (signature === publishedMediaSignature) return;
+  publishedMediaSignature = signature;
+  publishDiagnostics();
+}
+
+function videoFallbackImage() {
+  const data = new Uint8Array(16 * 16 * 4);
+  for (let y = 0; y < 16; y++) {
+    for (let x = 0; x < 16; x++) {
+      const offset = (y * 16 + x) * 4;
+      const alternate = ((x >> 2) + (y >> 2)) % 2 === 0;
+      data[offset] = alternate ? 224 : 32;
+      data[offset + 1] = alternate ? 160 : 64;
+      data[offset + 2] = alternate ? 64 : 128;
+      data[offset + 3] = 255;
+    }
+  }
+  return { data, width: 16, height: 16, encoding: 0, encoded: false };
+}
+
+function degradeVideoTexture(texture) {
+  if (!texture || !texture.isVideoTexture) return;
+  texture.userData.jsrVideoElement = texture.image || null;
+  texture.isVideoTexture = false;
+  texture.image = videoFallbackImage();
+  texture.needsUpdate = true;
+  mediaDiagnostics.videoTextures++;
+  warnCompat(
+    'video-texture',
+    'three: R1 VideoTexture transport is unavailable; rendering a bounded 16x16 RGBA fallback instead of a black frame.'
+  );
+}
+
+const VIDEO_TEXTURE_SLOTS = [
+  'map', 'alphaMap', 'aoMap', 'emissiveMap', 'normalMap', 'bumpMap',
+  'roughnessMap', 'metalnessMap', 'envMap', 'matcap', 'gradientMap',
+  'specularMap', 'displacementMap'
+];
+
+function degradeMaterialVideos(material) {
+  if (!material) return;
+  for (const slot of VIDEO_TEXTURE_SLOTS) degradeVideoTexture(material[slot]);
+  const uniforms = material.uniforms || {};
+  for (const key of Object.keys(uniforms)) {
+    const value = uniforms[key] && uniforms[key].value;
+    if (value && value.isTexture) degradeVideoTexture(value);
+  }
+}
+
+function degradeSceneVideos(scene) {
+  if (!scene) return;
+  degradeVideoTexture(scene.background);
+  degradeVideoTexture(scene.environment);
+  if (typeof scene.traverse !== 'function') return;
+  scene.traverse(object => {
+    if (Array.isArray(object.material)) {
+      for (const material of object.material) degradeMaterialVideos(material);
+    } else degradeMaterialVideos(object.material);
+  });
+}
+
+function installNativeExampleCompat() {
+  const three = ROOT.THREE;
+  if (!three || !three.WebGLRenderer || JSR.three.getCapabilities().backend !== 'flutterGpu') return;
+  const prototype = three.WebGLRenderer.prototype;
+  if (prototype.render.__jsrExampleCompat) return;
+  const nativeRender = prototype.render;
+  const nativeSetRenderTarget = prototype.setRenderTarget;
+  const shaderFallbacks = new WeakMap();
+  let visualizerCamera = null;
+  const singleShaderScene = scene => {
+    if (!scene) return false;
+    if (scene.isMesh) return !!(scene.material && scene.material.isShaderMaterial);
+    if (!scene.isScene || scene.children.length === 0) return false;
+    let shader = false;
+    for (const child of scene.children) {
+      if (!child.isMesh || !child.material) return false;
+      if (child.material.isShaderMaterial) shader = true;
+    }
+    return shader;
+  };
+  const adaptMediaShaders = scene => {
+    if (EXAMPLE !== 'webaudio_visualizer' && EXAMPLE !== 'webgl_video_kinect' &&
+        EXAMPLE !== 'webgl_test_memory2') return;
+    if (!scene || typeof scene.traverse !== 'function') return;
+    scene.traverse(object => {
+      const source = object.material;
+      if (!source || Array.isArray(source) || !source.isShaderMaterial) return;
+      let fallback = shaderFallbacks.get(source);
+      if (!fallback) {
+        fallback = object.isPoints
+          ? new three.PointsMaterial({
+            color: 0x60a5fa, size: 2, sizeAttenuation: false,
+            transparent: true, opacity: 0.8, depthWrite: false
+          })
+          : new three.MeshBasicMaterial({ color: 0x2563eb });
+        shaderFallbacks.set(source, fallback);
+        mediaDiagnostics.shaderFallbacks++;
+        warnCompat(
+          `shader-fallback-${EXAMPLE}`,
+          `three: ${EXAMPLE} arbitrary shader is unavailable on R1; rendering its native ${object.isPoints ? 'point-cloud' : 'mesh'} fallback with an explicit static color.`
+        );
+      }
+      object.material = fallback;
+    });
+  };
+  const prepareShadowViewer = (renderer, scene) => {
+    if (EXAMPLE !== 'webgl_shadowmap_viewer' || !scene || typeof scene.traverse !== 'function') return;
+    scene.traverse(object => {
+      if (!object.castShadow || !object.shadow || object.shadow.map) return;
+      if (!renderer.__jsrShadowViewerTexture) {
+        renderer.__jsrShadowViewerTexture = new three.DataTexture(
+          new Uint8Array([255, 255, 255, 255]), 1, 1
+        );
+        renderer.__jsrShadowViewerTexture.needsUpdate = true;
+      }
+      object.shadow.map = { texture: renderer.__jsrShadowViewerTexture };
+    });
+  };
+  const wrappedRender = function(scene, camera) {
+    if (!renderer) {
+      renderer = this;
+      publishDiagnostics();
+    }
+    degradeSceneVideos(scene);
+    adaptMediaShaders(scene);
+    if (EXAMPLE === 'webgl_materials_video' && singleShaderScene(scene)) return;
+    if (EXAMPLE === 'webgl_shadowmap_viewer') {
+      if (singleShaderScene(scene)) {
+        warnCompat(
+          'shadow-viewer',
+          'three: R1 omits the ShadowMapViewer HUD; the main scene and native shadow maps continue rendering.'
+        );
+        return;
+      }
+      prepareShadowViewer(this, scene);
+    }
+    if (EXAMPLE === 'webaudio_visualizer' && camera && camera.isCamera &&
+        !camera.isPerspectiveCamera && !camera.isOrthographicCamera) {
+      if (!visualizerCamera) {
+        visualizerCamera = new three.OrthographicCamera(-1, 1, 1, -1, 0.1, 10);
+        visualizerCamera.position.z = 1;
+        warnCompat(
+          'visualizer-camera',
+          'three: R1 maps the visualizer base Camera to a bounded orthographic camera.'
+        );
+      }
+      camera = visualizerCamera;
+    }
+    publishMediaChanges();
+    return nativeRender.call(this, scene, camera);
+  };
+  Object.defineProperty(wrappedRender, '__jsrExampleCompat', { value: true });
+  prototype.render = wrappedRender;
+  prototype.setRenderTarget = function(target) {
+    if (EXAMPLE === 'webgl_materials_video') {
+      warnCompat(
+        'postprocessing-fallback',
+        'three: R1 drops webgl_materials_video postprocessing; the base video-grid scene renders directly.'
+      );
+      return nativeSetRenderTarget.call(this, null);
+    }
+    return nativeSetRenderTarget.call(this, target);
+  };
+  if (EXAMPLE === 'webgl_multiple_elements' || EXAMPLE === 'webgl_multiple_elements_text') {
+    const nativeSetViewport = prototype.setViewport;
+    const nativeSetScissor = prototype.setScissor;
+    const clip = (canvas, x, y, width, height) => {
+      const left = Math.max(0, Math.min(canvas.clientWidth, x));
+      const bottom = Math.max(0, Math.min(canvas.clientHeight, y));
+      const right = Math.max(left, Math.min(canvas.clientWidth, x + width));
+      const top = Math.max(bottom, Math.min(canvas.clientHeight, y + height));
+      return [left, bottom, right - left, top - bottom];
+    };
+    prototype.setViewport = function(x, y, width, height) {
+      if (![x, y, width, height].every(Number.isFinite)) {
+        return nativeSetViewport.call(this, x, y, width, height);
+      }
+      return nativeSetViewport.call(this, ...clip(this.domElement, x, y, width, height));
+    };
+    prototype.setScissor = function(x, y, width, height) {
+      if (![x, y, width, height].every(Number.isFinite)) {
+        return nativeSetScissor.call(this, x, y, width, height);
+      }
+      return nativeSetScissor.call(this, ...clip(this.domElement, x, y, width, height));
+    };
+  }
+}
+
+installNativeExampleCompat();
 ROOT.document = runtimeDocument;
 ROOT.window = runtimeDocument.defaultView;
+
+Promise.resolve().then(() => {
+  if (typeof ROOT.window.onload === 'function') {
+    ROOT.window.onload.call(ROOT.window, { type: 'load' });
+  }
+}).catch(error => console.error(String(error), error && error.stack || ''));
 
 publishDiagnostics();

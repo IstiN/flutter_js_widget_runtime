@@ -5,6 +5,7 @@ import path from 'node:path';
 import { createRequire } from 'node:module';
 import { fileURLToPath } from 'node:url';
 import { helperFastPathPlugin } from './helper_fast_path_plugin.mjs';
+import { assetDependencyAlias, assetOutputName, discoverAssets } from './asset_discovery.mjs';
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.resolve(HERE, '../..');
@@ -2689,6 +2690,7 @@ webgl_geometry_shapes: {
       html: '68dd0cf9d8dd135628bfe70a4f06f7d637d6b29c806af9beec2be701decf7106',
       module: '85b28721436f86d762ce31f51d6ad64a3f2b4baf2a4f2da679ea2f877e774134'
     },
+    discoverAssets: true,
     assets: []
   },
   webgl_animation_skinning_additive_blending: {
@@ -2701,6 +2703,7 @@ webgl_geometry_shapes: {
       html: '8059a8d4d4a238aa3a43e3489df2c6c0904da092d4dbc45c66de6b9ac3a905b9',
       module: '5106f804ad37d95462024cf6af1a8cec6cfba1ef2570d7c9e93e931392563132'
     },
+    discoverAssets: true,
     assets: []
   },
   webgl_animation_skinning_ik: {
@@ -2713,6 +2716,7 @@ webgl_geometry_shapes: {
       html: '81fe03ae043999f28c4201250feab05387a8555afdc0d46706ffdf3e71708de0',
       module: '19574be3bb978c4f746937300813c521730f5cb756848ec74ab54988e381eac7'
     },
+    discoverAssets: true,
     assets: []
   },
   webgl_animation_walk: {
@@ -2725,6 +2729,7 @@ webgl_geometry_shapes: {
       html: '4e490a8d3b5064a0f2caa9a0d51cf6ed25880bde077cb9460cfea472e45b511e',
       module: '4f518577e78e6eae44aeeaec36287f224dff6653436eec1616375ace9e9f4a0f'
     },
+    discoverAssets: true,
     assets: []
   },
   webgl_batch_lod_bvh: {
@@ -2869,6 +2874,7 @@ webgl_geometry_shapes: {
       html: 'dd9ba3293b6f3e6689a35e762f74a2f0fcb28be45e4252bf9b2021c88c8b1fdb',
       module: '257a44a4831441384fc58cadcc7d288b4bea1352944a479c2bb6506dd9a67036'
     },
+    discoverAssets: true,
     assets: []
   },
   webgl_custom_attributes_points: {
@@ -2989,6 +2995,7 @@ webgl_geometry_shapes: {
       html: 'f3196d89cb4b6e0cd4a237d94caa8d5462c4dba9673501cd8e5a1e3db60e8dbc',
       module: '372a4c0a61ee4edf3fd4fda45fb584812ae698268a11ddba0d627e4adc5a8bb6'
     },
+    discoverAssets: true,
     assets: []
   },
   webgl_gpgpu_protoplanet: {
@@ -3013,6 +3020,7 @@ webgl_geometry_shapes: {
       html: '7116f677e30465bfc895b5da47fa247c3535585ba7a7a6bcfbf81fdabfe31c4e',
       module: 'd43f0c91d94c378ee1b0f6c8cdcaf6314054439c7d6733386a800fda42c40ddf'
     },
+    discoverAssets: true,
     assets: []
   },
   webgl_instancing_morph: {
@@ -3061,6 +3069,7 @@ webgl_geometry_shapes: {
       html: '8a60cc69a0484ce3d4530684ce18742c148fe3090d26314d3b9ac8c4b966d0a4',
       module: '4ebbd9301db3285c18e6aae07ad128c65644d3b09e1dbada683a8d0a4c32b181'
     },
+    discoverAssets: true,
     assets: []
   },
   webgl_lightprobe_cubecamera: {
@@ -3073,6 +3082,7 @@ webgl_geometry_shapes: {
       html: 'b2ad73847b7c05b0d14d6e010150b4a605fb2f929d79a47aa0fe2017b243b78f',
       module: '05acd4e6b535799096ff8d331cffbee9945c62b54e4c3994b649326a6c5647ac'
     },
+    discoverAssets: true,
     assets: []
   },
   webgl_lightprobes: {
@@ -3169,6 +3179,7 @@ webgl_geometry_shapes: {
       html: '37fde3f49f1f8efe06fcd045cb8ec18803ad19a4f6db4747fcca7b3f1029d677',
       module: '3dc1a5727a379a841284abc0a8eeff7817a036ada3b6b315396e2c960982e1de'
     },
+    discoverAssets: true,
     assets: []
   },
   webgl_loader_3ds: {
@@ -3181,6 +3192,7 @@ webgl_geometry_shapes: {
       html: '856222fcdecd8bd11c5380e0e4d778988d6960380672148120708728777bc77a',
       module: '1392ff28e2ff4a912f6c9145023599724bac75bebf56540f9f9da7d1873d4269'
     },
+    discoverAssets: true,
     assets: []
   },
   webgl_loader_3dtiles: {
@@ -3205,6 +3217,7 @@ webgl_geometry_shapes: {
       html: '404fb62573b07e3eb01c9f8b4a00f6bf4d4051d9a83b905adc9bf0819c7492e4',
       module: 'aca96938eb251d4d2ca88da45cad39ee7e3b11320ce006fe1a4911b54e79b7f1'
     },
+    discoverAssets: true,
     assets: []
   },
   webgl_loader_3mf_materials: {
@@ -3253,6 +3266,7 @@ webgl_geometry_shapes: {
       html: 'bbb4970bad5d35034e44dfaa529408be5462eaef71cc5732957abf41f399639e',
       module: '97168a046a02998d9e680d9fc51f056b0e17e0dc27794e12553b657e3115a22f'
     },
+    discoverAssets: true,
     assets: []
   },
   webgl_loader_collada_kinematics: {
@@ -3265,6 +3279,7 @@ webgl_geometry_shapes: {
       html: '4039717283dcf1e15d6dd38f407f2c651d583c23d0e021b19b8fa06667092a26',
       module: '47825636c4797a252f79e958861d851936314325b99a11bc1034869b7fe32812'
     },
+    discoverAssets: true,
     assets: []
   },
   webgl_loader_collada_skinning: {
@@ -3289,6 +3304,7 @@ webgl_geometry_shapes: {
       html: '9f13086a8563d24339c701efdf84c4a33a6e1e490414a507819116a04e1c160a',
       module: '2210ceb45a1ed060224752da9685c270af787dc51157a3d3b35f954d6ed648ab'
     },
+    discoverAssets: true,
     assets: []
   },
   webgl_loader_fbx: {
@@ -3325,6 +3341,7 @@ webgl_geometry_shapes: {
       html: '4dfd6074651e2a95658679539d869e4d92fd4c53d336ff431b201cee7f8fb642',
       module: 'e2267ffbe56df1d6c11e2ab94ec7b90381f5f50db4f9aabf8f5fc7ee2d6edaad'
     },
+    discoverAssets: true,
     assets: []
   },
   webgl_loader_gltf: {
@@ -3337,6 +3354,7 @@ webgl_geometry_shapes: {
       html: '46564bbb6dc5abbfee13d3718c9853a11ba734087760d89174963e43bf0d5695',
       module: 'ac1330273f078a23cd8d984375b8ba162506ad3ca913bbe2e041cffe92052013'
     },
+    discoverAssets: true,
     assets: []
   },
   webgl_loader_gltf_animation_pointer: {
@@ -3361,6 +3379,7 @@ webgl_geometry_shapes: {
       html: 'aeabd8b5985d438afc60f72f83f6495e47b744ce32f8160ac7724ce38b6361b8',
       module: '7d8ecb38a834ac6101ccd205e70be2236cc738c859d6a326f4f7c4f5ab1d0551'
     },
+    discoverAssets: true,
     assets: []
   },
   webgl_loader_gltf_avif: {
@@ -3373,6 +3392,7 @@ webgl_geometry_shapes: {
       html: 'f6b3e0d31c97a7e78333ea7255ca249f112f82e56704ab7680f98a772f6b3f61',
       module: 'f283071fe8d4159a83da990b0076230985cdf63e562f4af28a45f6d9538cc7de'
     },
+    discoverAssets: true,
     assets: []
   },
   webgl_loader_gltf_compressed: {
@@ -3385,6 +3405,7 @@ webgl_geometry_shapes: {
       html: 'e1537edce61b1b41ba057a00150c41c2030f6bb0131a46db7c70ecfad2b03413',
       module: '22ec9dbebafd54928146af0b87703233da4d0ce5bfc1e784be057297c3abcf36'
     },
+    discoverAssets: true,
     assets: []
   },
   webgl_loader_gltf_dispersion: {
@@ -3397,6 +3418,7 @@ webgl_geometry_shapes: {
       html: '6822f939b081ebb4a99d49c74491a5e56f19704046fc0270dbbc7feee276726a',
       module: '2daed2bbce66d791cc73ecf9fd65d59f015f47a9fe28873f3f2b529f96e337df'
     },
+    discoverAssets: true,
     assets: []
   },
   webgl_loader_gltf_instancing: {
@@ -3409,6 +3431,7 @@ webgl_geometry_shapes: {
       html: 'd0a5ccd5df8fb32dc9a17f2aa6ac2c29ac0ddb6b1d472fae90ec66d7f9891296',
       module: 'd3e63ccfc116efab51f5a8f2305bdbd6635425e99eae455e84fd98d8296b383f'
     },
+    discoverAssets: true,
     assets: []
   },
   webgl_loader_gltf_iridescence: {
@@ -3421,6 +3444,7 @@ webgl_geometry_shapes: {
       html: '6f0d8183c62d8746870bd3d65532c75acc2e20c84930b7ac9d5ff67b5b7d72d6',
       module: 'bf429234169eb56702419bfc9ae0c51a8fcace9393f72e0a6e279f77b818d588'
     },
+    discoverAssets: true,
     assets: []
   },
   webgl_loader_gltf_progressive_lod: {
@@ -3445,6 +3469,7 @@ webgl_geometry_shapes: {
       html: 'b4b191f40cfe8b327da443119d95aa1ea43d5a9aa5a1b389be9e87cca9981ee5',
       module: '31248009ced4e9b9c761bb6549fc76fd48284295de91976a118e1b0afcbc686d'
     },
+    discoverAssets: true,
     assets: []
   },
   webgl_loader_gltf_transmission: {
@@ -3457,6 +3482,7 @@ webgl_geometry_shapes: {
       html: '6a604abcba0a092dbdff61e19eb897aa58b869e19534e20f3e0b308fed6cb704',
       module: '715287a7e3e61cca41d2109e365187d300f989ca6a7efcc9ed47fb6ab4afbd59'
     },
+    discoverAssets: true,
     assets: []
   },
   webgl_loader_gltf_variants: {
@@ -3469,6 +3495,7 @@ webgl_geometry_shapes: {
       html: 'a6d1e8fa8e31b5cc5e1dfe37bc4f248bb96e15199aed0d081d1d91581f0d445c',
       module: '7d8ab3353eb9f428939a82666a02c3da105b0788f7793c7c8d1e8b1139a30769'
     },
+    discoverAssets: true,
     assets: []
   },
   webgl_loader_ifc: {
@@ -3505,6 +3532,7 @@ webgl_geometry_shapes: {
       html: 'af1e01ea1dd3f22cccbdc09a572c5889338837ca7b0a043b2d98371f68d86ea2',
       module: '191ed83bae51c15a8915bc677d8ed37bf630e4098c556c37e590b25408710da5'
     },
+    discoverAssets: true,
     assets: []
   },
   webgl_loader_ldraw: {
@@ -3517,6 +3545,7 @@ webgl_geometry_shapes: {
       html: 'ca8c1279fecd8707e599961882a65e4243aa22abcbecb511c3189fdfda679837',
       module: '6e2312b5c918168418957bd9304fffecb2dfca572438f88e5975e4832b0e0afa'
     },
+    discoverAssets: true,
     assets: []
   },
   webgl_loader_md2: {
@@ -3553,6 +3582,7 @@ webgl_geometry_shapes: {
       html: '1f2ac7b4f32ea19d433762c8cadb1e3f85bc2303fefdfb75b55ef32556ebb0ad',
       module: '6d445b814eaec02bd37c9fd725373025833c76f28daa8f35209a9ea15566063b'
     },
+    discoverAssets: true,
     assets: []
   },
   webgl_loader_nrrd: {
@@ -3565,6 +3595,7 @@ webgl_geometry_shapes: {
       html: '8b7a3ce401dfb916364d0424f4cb4b555f23daba408a6b83765d1ae8911508fd',
       module: '1b580ee34fe79c898420e9fa47a49fc30eb399180e4fb9f78af4efc879236ab4'
     },
+    discoverAssets: true,
     assets: []
   },
   webgl_loader_pdb: {
@@ -3577,6 +3608,7 @@ webgl_geometry_shapes: {
       html: 'ed16fe831ea2d161e870f594e7d4113d01aad05f7fe9f3c653d40181910f5bb6',
       module: '4a158ab6fe3f410c22c1b3678bf6e3e8d267e07b403a8cd7ca85257780f0e52e'
     },
+    discoverAssets: true,
     assets: []
   },
   webgl_loader_texture_dds: {
@@ -3601,6 +3633,7 @@ webgl_geometry_shapes: {
       html: 'e1c47f465b8a08d1536f151926101db5caaba80c3cabb8773a209033b31427fd',
       module: 'cdcd6b6caa5f7100053ca7c95c07654b2dc55700f576e954165008f4f0542051'
     },
+    discoverAssets: true,
     assets: []
   },
   webgl_loader_texture_hdr: {
@@ -3613,6 +3646,7 @@ webgl_geometry_shapes: {
       html: '6c1d4dafed6fa9ccdf4cf7d66b0d5e34242449ee6ec69a9f6009c7798d76895d',
       module: 'fbac30e30798599ba786852f0d77485dc44e16e339e82c760a784a7a83f4fdff'
     },
+    discoverAssets: true,
     assets: []
   },
   webgl_loader_texture_ktx: {
@@ -3637,6 +3671,7 @@ webgl_geometry_shapes: {
       html: '023d48c7ea9585d40c3dca72e5b32980dcecaa7a2f94061c8ae6e397a2f26d84',
       module: 'de2e97c4ad08cf2f77bb50a36ae158a6a2541d26b63f416c3555679d15336876'
     },
+    discoverAssets: true,
     assets: []
   },
   webgl_loader_texture_lottie: {
@@ -3673,6 +3708,7 @@ webgl_geometry_shapes: {
       html: '6279a81061acb1fc20cbc261208afc02e3185be81a519c291ec29bfbdbb462f9',
       module: '4c8edad288f986d9a023cc700ab68c316d0f081b80a1b93e93fdff92e27831bb'
     },
+    discoverAssets: true,
     assets: []
   },
   webgl_loader_texture_ultrahdr: {
@@ -3709,6 +3745,7 @@ webgl_geometry_shapes: {
       html: 'd45e9756fe5456e94acc6084db833a7ec7d2bf278bb254c1277f42e46cf1b046',
       module: 'b2253e4e903723acaece947589747bfc2b8fbf963da5fa143bcd3104b8687bf2'
     },
+    discoverAssets: true,
     assets: []
   },
   webgl_loader_vox: {
@@ -3721,6 +3758,7 @@ webgl_geometry_shapes: {
       html: '9cf4ce7a6f61c05812ff3e786b694ec70237aae1aae97ffd271a657593139dbf',
       module: '77f57f8f3cc112df17e623041d8c03958d8104e8308aaa7bb5a609e5fec1e91b'
     },
+    discoverAssets: true,
     assets: []
   },
   webgl_loader_vrml: {
@@ -3733,6 +3771,7 @@ webgl_geometry_shapes: {
       html: '2fcc9406cffb725ee89f140037b5d825449f4d1c516d469e7da065391085d065',
       module: '347a5492a0d8947a8815b9b04f030129b5c575460f00575bc18636a3762dcafd'
     },
+    discoverAssets: true,
     assets: []
   },
   webgl_marchingcubes: {
@@ -3781,6 +3820,7 @@ webgl_geometry_shapes: {
       html: 'e362b6ebc8a5e6da4f05b2d4d6b09933b0c9ab88503b9690e0e598d5b2137ef8',
       module: '34c65d30b07b7b01d97adf805b828ec7601251dc0e7236b7d3040d4863f49c24'
     },
+    discoverAssets: true,
     assets: []
   },
   webgl_materials_cubemap_dynamic: {
@@ -3793,6 +3833,7 @@ webgl_geometry_shapes: {
       html: '5cb03de22a45e53c571d9a9ac331113ae7ac33560028981de7f4ba7f89f05169',
       module: '4f6d865d179963ee48ca2e7df3705f6f1ecb41b4f79e644bfb01e0e00484be6b'
     },
+    discoverAssets: true,
     assets: []
   },
   webgl_materials_cubemap_mipmaps: {
@@ -3805,6 +3846,7 @@ webgl_geometry_shapes: {
       html: '81b8fbd05b839fe09d63ffa57c5437a8b2c41a12ce165f366d57b12bbf43d07b',
       module: 'c389d5c2b0d8915429ead2667dc9da72a938178ca0d3601be04afb68a7d81683'
     },
+    discoverAssets: true,
     assets: []
   },
   webgl_materials_cubemap_render_to_mipmaps: {
@@ -3817,6 +3859,7 @@ webgl_geometry_shapes: {
       html: 'be81d353ef03d8d4c7efe1adbac629fe7bbddfec95801a2eb829dd609b4fdabc',
       module: '5d81ebfb68a58974efd263296a5f14719097745328ac78b86a0827062c3cbe29'
     },
+    discoverAssets: true,
     assets: []
   },
   webgl_materials_envmaps_exr: {
@@ -3829,6 +3872,7 @@ webgl_geometry_shapes: {
       html: 'ddf161a1c589e9728b7ede5b656da28e2020840f65ba5edac89985c72f7669ff',
       module: '8114d7691e37ce972d26e380a9115a9a8847c4b718752e305f28e54d020bf2e1'
     },
+    discoverAssets: true,
     assets: []
   },
   webgl_materials_envmaps_fasthdr: {
@@ -3841,6 +3885,7 @@ webgl_geometry_shapes: {
       html: 'c4a15cd7ecfee7ef26ffa057cc73151ec2458a95c2e6b342fd8e5f5cbcec4622',
       module: 'd3497f62f015a8dabf80bb6e779f150eda71144e88ce9ea606c671bf5896b915'
     },
+    discoverAssets: true,
     assets: []
   },
   webgl_materials_envmaps_groundprojected: {
@@ -3853,6 +3898,7 @@ webgl_geometry_shapes: {
       html: '17998c545c4f3b5eef81f66da7ac5f98f0091e00e7a1733581eeceba947c08c7',
       module: '4908129b3d8ad4f2d606234923b12be115d5caeb8bb8de77dc7a28126beb6b3f'
     },
+    discoverAssets: true,
     assets: []
   },
   webgl_materials_envmaps_hdr: {
@@ -3865,6 +3911,7 @@ webgl_geometry_shapes: {
       html: '72869b5fdc7ed08edd3bd638ea8be867dce9c43e4fc4683733db515947428580',
       module: 'ef233a58c6b24f7f6ae5101eab7527359abd1c86b02abfdb3f90cd9643eb760c'
     },
+    discoverAssets: true,
     assets: []
   },
   webgl_materials_physical_transmission: {
@@ -3877,6 +3924,7 @@ webgl_geometry_shapes: {
       html: '53574f462a5578c31e7add5506415f78ddd0deaa68a71cad4bc993319b198060',
       module: '494f3562007e6da414a3a5683ba2f901d285838c186cfeb7288dd801d9142e6b'
     },
+    discoverAssets: true,
     assets: []
   },
   webgl_materials_physical_transmission_alpha: {
@@ -3889,6 +3937,7 @@ webgl_geometry_shapes: {
       html: '0e2d88df8deaf5881d1c3667c7dc11d788f10093830ab98a91c12d6c02272804',
       module: '951d83cb01d4ecd1846f5bbc618eed2ae57a88dc49c40c2b60631b045110e18b'
     },
+    discoverAssets: true,
     assets: []
   },
   webgl_materials_subsurface_scattering: {
@@ -3925,6 +3974,7 @@ webgl_geometry_shapes: {
       html: '59e775b82821b759caad44ccc2bd9976a7fd8b13928ace93ae25a0099b93742d',
       module: '4971a60ae286bdbffd748dc066bb759ce40e828e07115aff4a8b46a3ae048674'
     },
+    discoverAssets: true,
     assets: []
   },
   webgl_materials_video: {
@@ -3985,6 +4035,7 @@ webgl_geometry_shapes: {
       html: '10791eb088492becd320081b4ce0434bdeeab0eaf454891d4538e3442d4066a6',
       module: '2e007b3db942e50c66098ba697c9d21f60353a2a50825f58cb5d21ddcc86114b'
     },
+    discoverAssets: true,
     assets: []
   },
   webgl_modifier_curve_instanced: {
@@ -3997,6 +4048,7 @@ webgl_geometry_shapes: {
       html: '0181008e92187be2bffc5d6e8e20e46e7dc378f6f68f7d57a332691741769d48',
       module: '76b8e9e196fe3f40deb40ad3f3de99de579780787846c82ac67c04aec1d0883e'
     },
+    discoverAssets: true,
     assets: []
   },
   webgl_morphtargets_face: {
@@ -4009,6 +4061,7 @@ webgl_geometry_shapes: {
       html: '61f1b2210d4591d7be198275299e602f0e18181d06d1766d1441ac0de13d5ad5',
       module: '9fefd38a7519fdc22e77cd39c46e58165940bc38eecc81ac49864c7e220e4987'
     },
+    discoverAssets: true,
     assets: []
   },
   webgl_morphtargets_horse: {
@@ -4021,6 +4074,7 @@ webgl_geometry_shapes: {
       html: '7b3cbce8efbebdd90df29f8a4019ce0a203959004b8f5c8b97381acd1c3d840f',
       module: '1150e606493286f9eb6e0a70ec26e25a703531717ab9a9131e5f98f8ab6d43b7'
     },
+    discoverAssets: true,
     assets: []
   },
   webgl_morphtargets_webcam: {
@@ -4069,6 +4123,7 @@ webgl_geometry_shapes: {
       html: '5df936e5dea98d7dff3ddeae29454e826e81eea65bcfcf9968b4570dbe9a0c59',
       module: 'c14a5b21f25c06947a60a54eb0cf92577b8d9e849108e2524d66a6d746bcf425'
     },
+    discoverAssets: true,
     assets: []
   },
   webgl_multisampled_renderbuffers: {
@@ -4093,6 +4148,7 @@ webgl_geometry_shapes: {
       html: '06af6ab15d64cf9fc424c955067243646810c6be9d6ed12b753a032c75db9664',
       module: 'c300ddf94f7e231a250bdd024ae85bdb20d58f0e67e1733e0a2f829efc0ec9a2'
     },
+    discoverAssets: true,
     assets: []
   },
   webgl_pmrem_cubemap: {
@@ -4105,6 +4161,7 @@ webgl_geometry_shapes: {
       html: 'ff7063edc37520c26514897c87a4188c060ed740eefc7967bf750dfa5eb8ea3b',
       module: '762b5d1f0eccdb350ccf0ed7f9005084be323dd941cf178b044c1d49accbf23b'
     },
+    discoverAssets: true,
     assets: []
   },
   webgl_pmrem_equirectangular: {
@@ -4117,6 +4174,7 @@ webgl_geometry_shapes: {
       html: '223968372809c4dc0e5087d4c0fbf447a92b67e85d8c0867fc11e3b9d6976b19',
       module: '72d9f3656c6ece1778670febb77414cc38e373b4a3b37d77b77a8573eee467e0'
     },
+    discoverAssets: true,
     assets: []
   },
   webgl_pmrem_test: {
@@ -4129,6 +4187,7 @@ webgl_geometry_shapes: {
       html: '6f6a4366f0376910edd25fa87b97d2cebaf1a35648e444ab9148bb4a63a0d861',
       module: 'ae61a3883372f5d058310f24c0a85ed597431bdfb5671bc98786d3642acb23d8'
     },
+    discoverAssets: true,
     assets: []
   },
   webgl_points_dynamic: {
@@ -4141,6 +4200,7 @@ webgl_geometry_shapes: {
       html: 'e58edb41d59f4936e0f992fb079b0155d88e9b2ebe274117ec898ee59f7aa491',
       module: '924b88f2ccc330175252a55890b2cac8ab04199390843a8eac49f11f1f39ee8e'
     },
+    discoverAssets: true,
     assets: []
   },
   webgl_portal: {
@@ -4177,6 +4237,7 @@ webgl_geometry_shapes: {
       html: '3f57b9d77cee8978fcf614285016bf76a3de40c529aada12a238afc0fe7f68e3',
       module: '3cc7d3eca9c59b868e5acc9cea17735cc61c42912d4e82f5ebbf90bc4f00d6de'
     },
+    discoverAssets: true,
     assets: []
   },
   webgl_postprocessing_advanced: {
@@ -4189,6 +4250,7 @@ webgl_geometry_shapes: {
       html: 'a1a0bad144ca0c8f7ec041e35094b4ffade79583f5ec5ce8f161bcdc6a14f5b4',
       module: '4cf957fb47e59c410e1720afc8b8623d64c89d93d84a14a076089b2331f10a02'
     },
+    discoverAssets: true,
     assets: []
   },
   webgl_postprocessing_afterimage: {
@@ -4285,6 +4347,7 @@ webgl_geometry_shapes: {
       html: '866c247da716612a4d8fef0ea15bb35029a95fad17e9471058504ba9d83d215f',
       module: 'eb741ba1bdca7ef6154f2302ba77c7a1c2ad7bee0280c32c70a597e4fd77c522'
     },
+    discoverAssets: true,
     assets: []
   },
   webgl_postprocessing_masking: {
@@ -4309,6 +4372,7 @@ webgl_geometry_shapes: {
       html: '56908a1236290fc58d727bb87cb3c98f9ba40a73db9185eb17024b362f5b6206',
       module: 'dc8ee0c75e27e3f403144bad943dffb5c68be2682b466d7549121a2b086c34f4'
     },
+    discoverAssets: true,
     assets: []
   },
   webgl_postprocessing_pixel: {
@@ -4417,6 +4481,7 @@ webgl_geometry_shapes: {
       html: 'c358f3cc7c563e469dc11be2d7dbb0579f100e5d2ff860b439ac8e8c524c8349',
       module: '2c2eeadc5d5e10c9cae9df9db7048f740addfaf21ff6685167ccc24861ee0a39'
     },
+    discoverAssets: true,
     assets: []
   },
   webgl_postprocessing_taa: {
@@ -4453,6 +4518,7 @@ webgl_geometry_shapes: {
       html: 'c9a014b1fc8cc57d3448e49bc4848a0c6dffebb7c4d05c92e198c00996d6d6c0',
       module: '64d4963fb1135ef97a2dfe70292c598f86ed675e3b414bac6fbffb5bca7b3550'
     },
+    discoverAssets: true,
     assets: []
   },
   webgl_postprocessing_unreal_bloom_selective: {
@@ -4477,6 +4543,7 @@ webgl_geometry_shapes: {
       html: 'a4ffb12f8d6ad45c5901abe401b0435418c83c61e11109ae66b9601b8ee73564',
       module: '22c3980618f009a4f42ef878378d5c7fad4bb2d7fba906dd2b89e58bb6c0ac60'
     },
+    discoverAssets: true,
     assets: []
   },
   webgl_raycaster_bvh: {
@@ -4513,6 +4580,7 @@ webgl_geometry_shapes: {
       html: '526ca2f257e812620ee09fed771494f01608000f5ee78fbe0c97ead4b529c18c',
       module: 'c848049e14d3542c37cf022629c90e4788bc0881d123b27fc79109b0bb7f52e9'
     },
+    discoverAssets: true,
     assets: []
   },
   webgl_renderer_pathtracer: {
@@ -4537,6 +4605,7 @@ webgl_geometry_shapes: {
       html: '21765c3eed2ffb0cc91f92bdfb927a1c103d879d89fc9308e8d6618bdfe3dc33',
       module: '4b8357e9151e3d4df4773938554bbcf2bd9c3c307c50c877120b6151737b907f'
     },
+    discoverAssets: true,
     assets: []
   },
   webgl_reversed_depth_buffer: {
@@ -4717,6 +4786,7 @@ webgl_geometry_shapes: {
       html: '4d76ef5eefd9df8f804f34444299b11131b8a7b1a3df0c134fccd044ef84b0cc',
       module: '8f7f47357481537eedc99f6602bbeb58a14826d66920ff714f21baad6d99729c'
     },
+    discoverAssets: true,
     assets: []
   },
   webgl_texture2darray: {
@@ -4729,6 +4799,7 @@ webgl_geometry_shapes: {
       html: '57f95a9e1c7ee8dacdef3e33d252bb3947e4202d695f10292e18d1b13c1ac97f',
       module: '00bb94e26c6b3c084eda14b3ef861f5c3bbbf48165dd2144c84d52906c8bd6f6'
     },
+    discoverAssets: true,
     assets: []
   },
   webgl_texture2darray_compressed: {
@@ -4741,6 +4812,7 @@ webgl_geometry_shapes: {
       html: '169f7723009b572fab9db7e70aa69db03fc195481b131f1cfc32f95af2b5807e',
       module: '231df131652145fde3729f35f080ef2e5036a8698ff2fd11697f2f0fb0fd4ae4'
     },
+    discoverAssets: true,
     assets: []
   },
   webgl_texture2darray_layerupdate: {
@@ -4753,6 +4825,7 @@ webgl_geometry_shapes: {
       html: 'e8403708a1f26c65dc2c205d8257551f920980df5cda07850609f4e029611d82',
       module: 'bb7b71f6a810966199769db1f7383410f1783cbba7531a0b1632b6bd1f42cde4'
     },
+    discoverAssets: true,
     assets: []
   },
   webgl_texture3d: {
@@ -4765,6 +4838,7 @@ webgl_geometry_shapes: {
       html: '05c475d9448b419d88b673ba585d0edf77b015e049712187666a2295067907d8',
       module: 'f3a51028281fd3e6456c2057a5a4bb4721a93988a21e7c4e5544986df5f57ec7'
     },
+    discoverAssets: true,
     assets: []
   },
   webgl_texture3d_partialupdate: {
@@ -4789,6 +4863,7 @@ webgl_geometry_shapes: {
       html: '62df7691a68a4665c32ffc97995b8247a028d4a387b2a39a883d929b494c1bb2',
       module: 'a5fbae674d3369563392e6cc645c612b5676c767e536c2e69e66c9cf041a37b3'
     },
+    discoverAssets: true,
     assets: []
   },
   webgl_tsl_clearcoat: {
@@ -4909,6 +4984,7 @@ webgl_geometry_shapes: {
       html: 'b04a4f66929083683f2b84d84516c353150383e0249c59f16fab15a65e94cfb4',
       module: '7e107054bb398c136c6a4f9c4e5ff6e0ca89c6505f7af1cb03f2b87200989424'
     },
+    discoverAssets: true,
     assets: []
   },
   webgl_volume_perlin: {
@@ -5439,6 +5515,10 @@ async function externalizeGlbImages(bytes, definition) {
       embedded = await readFile(tmpPng);
       mime = 'image/png';
     }
+    // Compressed embedded images stay in their original bufferViews. They are
+    // loader-specific payloads, not browser Image sources, and are re-triaged
+    // by the native compressed-texture path after the model bytes are pinned.
+    if (mime !== 'image/png' && mime !== 'image/jpeg') continue;
     const extension = mime === 'image/png' ? 'png' : 'jpg';
     const name = path.basename(image.name || `embedded-${index}.${extension}`);
     if (!name || usedNames.has(name)) throw new Error(`${definition.url}: duplicate embedded image name ${name}`);
@@ -5450,15 +5530,19 @@ async function externalizeGlbImages(bytes, definition) {
         ? jpegDimensions(embedded, url)
         : (() => { throw new Error(`${url}: unsupported embedded image MIME ${mime}`); })();
     images.push({
-      url, output: name, bytes: embedded,
+      url, output: definition.discovered ? assetOutputName(url) : name, bytes: embedded,
       width: dimensions.width, height: dimensions.height,
-      mime
+      mime, sourceRecord: record(embedded),
+      ...(definition.discovered ? { aliases: [assetDependencyAlias(definition.url, name)] } : {})
     });
     delete image.bufferView;
     image.mimeType = mime;
     image.uri = name;
   }
-  if (images.length === 0) throw new Error(`${definition.url}: no bufferView images found`);
+  if (images.length === 0) {
+    if (definition.discovered) return { bytes, images };
+    throw new Error(`${definition.url}: no bufferView images found`);
+  }
   const jsonText = Buffer.from(JSON.stringify(json), 'utf8');
   const jsonLength = (jsonText.length + 3) & ~3;
   const jsonChunk = Buffer.alloc(8 + jsonLength, 0x20);
@@ -5524,12 +5608,40 @@ function rgbeToRgba(bytes, url) {
   return { bytes: out, width, height };
 }
 
+function hdrTextureLoaderShim(name) {
+  return `import { TextureLoader } from 'three';
+export class ${name} extends TextureLoader {
+  load(url, onLoad, onProgress, onError) {
+    return super.load(url, texture => {
+      const image = texture.image || {};
+      if (onLoad) onLoad(texture, { width: image.width || 0, height: image.height || 0 });
+    }, onProgress, onError);
+  }
+}`;
+}
+
+function automaticAssetAddonShims(definitions) {
+  const shims = {};
+  if (definitions.some(definition => definition.hdrRgba)) {
+    shims['three/addons/loaders/HDRLoader.js'] = hdrTextureLoaderShim('HDRLoader');
+    shims['three/addons/loaders/RGBELoader.js'] = hdrTextureLoaderShim('RGBELoader');
+    shims['three/addons/loaders/HDRCubeTextureLoader.js'] = "export { CubeTextureLoader as HDRCubeTextureLoader } from 'three';";
+  }
+  // UltraHDRLoader's gain-map metadata uses DOMParser. The pinned base JPEG
+  // remains a valid SDR environment, so keep that image without the gain map.
+  if (definitions.some(definition => definition.url.endsWith('.hdr.jpg'))) {
+    shims['three/addons/loaders/UltraHDRLoader.js'] = "export { TextureLoader as UltraHDRLoader } from 'three';";
+  }
+  return shims;
+}
+
 async function prepareAssets(source, definitions) {
   const assets = [];
   for (const pinned of definitions) {
     let definition = pinned;
     let bytes = await readFile(path.join(source, 'examples', definition.url));
     if (sha(bytes) !== definition.sha256) throw new Error(`${definition.url} differs from the pinned r186 bytes`);
+    definition = { ...definition, sourceRecord: record(bytes) };
     if (definition.convertToPng) {
       if (definition.mime !== 'image/gif') throw new Error(`${definition.url}: convertToPng expects a GIF asset`);
       // R1 decodes PNG/JPEG only: transcode the pinned GIF at prepare time
@@ -5602,9 +5714,7 @@ async function main() {
   const tree = await verifySource(source);
   const htmlPath = path.join(source, `examples/${options.example}.html`);
   const licensePath = path.join(source, 'LICENSE');
-  const [html, license, assets] = await Promise.all([
-    readFile(htmlPath), readFile(licensePath), prepareAssets(source, definition.assets)
-  ]);
+  const [html, license] = await Promise.all([readFile(htmlPath), readFile(licensePath)]);
   if (sha(html) !== definition.expected.html) {
     throw new Error(`Official ${options.example} HTML differs from the pinned r186 bytes`);
   }
@@ -5612,9 +5722,24 @@ async function main() {
   if (sha(extracted.moduleBytes) !== definition.expected.module) {
     throw new Error(`Extracted official ${options.example} module differs from the pinned r186 bytes`);
   }
+  const assetDefinitions = definition.discoverAssets
+    ? await discoverAssets({
+        source,
+        moduleSource: extracted.moduleBytes.toString('utf8'),
+        explicit: definition.assets
+      })
+    : definition.assets;
+  const assets = await prepareAssets(source, assetDefinitions);
+  const addonShims = {
+    ...automaticAssetAddonShims(assetDefinitions),
+    ...(definition.addonShims || {})
+  };
   const exportNames = await discoverExports(source);
   const facadeSource = facadeModule(exportNames, definition.id, definition.facadeWraps || null);
-  const adapterAssets = assets.map(asset => ({
+  const adapterAssets = assets.flatMap(asset => [
+    asset,
+    ...(asset.aliases || []).map(url => ({ ...asset, url }))
+  ]).map(asset => ({
     url: asset.url,
     data: asset.bytes.toString('base64'),
     mime: asset.mime,
@@ -5638,7 +5763,7 @@ async function main() {
        plugins: [{
       name: 'jsr-addon-shims',
       setup(build) {
-        const shims = definition.addonShims || {};
+        const shims = addonShims;
         build.onResolve({ filter: /^three\/addons\// }, args => shims[args.path]
           ? { path: args.path, namespace: 'jsr-addon-shim' }
           : null);
@@ -5664,7 +5789,7 @@ async function main() {
       officialBytes: extracted.moduleBytes,
       final: true,
       compatSource: definition.compat || null,
-      addonShims: definition.addonShims || null
+      addonShims
     })],
     define: {
       __JSR_THREE_EXAMPLE_ID__: JSON.stringify(options.example),
@@ -5709,8 +5834,11 @@ async function main() {
   }
   await addInput(`source/examples/${options.example}.html`, html);
   await addInput('source/LICENSE', license);
-  for (const asset of assets) await addInput(`source/examples/${asset.url}`, asset.bytes);
-  for (const file of ['prepare.mjs', 'example_adapter.js', 'example_canvas2d.js', 'lil_gui_adapter.js', 'stats_adapter.js']) {
+  for (const asset of assets) {
+    const label = `source/examples/${asset.url}`;
+    if (!inputs[label]) inputs[label] = asset.sourceRecord || record(asset.bytes);
+  }
+  for (const file of ['prepare.mjs', 'asset_discovery.mjs', 'example_adapter.js', 'example_canvas2d.js', 'lil_gui_adapter.js', 'stats_adapter.js']) {
     await addInput(`tool/three_example/${file}`, await readFile(path.join(HERE, file)));
   }
   for (const file of ['source-pin.json', 'src/native_entry.js']) {
@@ -5756,6 +5884,7 @@ async function main() {
       importmapBytes: record(extracted.importmapBytes),
       officialModule: record(extracted.moduleBytes)
     },
+    assetDiscovery: definition.discoverAssets ? assetDefinitions : undefined,
     facade: {
       global: 'globalThis.THREE',
       exports: exportNames,

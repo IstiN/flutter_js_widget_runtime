@@ -1135,28 +1135,13 @@ final class _ThreeFrameEncoder {
     int face,
   ) {
     if (!_isShadowCaster(draw)) return 0;
-    final resources = _shadowResources(draw);
-    if (resources == null) {
-      backend._skippedDrawCount++;
-      return 0;
-    }
-    final geometry = resources.geometry;
-    pass.bindVertexBuffer(resources.instances, slot: 1);
-    _bindThreeVertices(pass, geometry, draw);
-    _bindThreeIndices(pass, geometry, draw);
-    _bindThreeUniform(
-      backend,
+    final geometry = _bindShadowGeometry(
       pass,
       vertexSlot,
-      _threeVertexUniform(
-        draw,
-        plan,
-        pointSizeScale,
-        viewportHeight: viewportHeight,
-        shadowPass: true,
-        pointShadowFace: face,
-      ),
+      draw,
+      pointShadowFace: face,
     );
+    if (geometry == null) return 0;
     _bindThreeUniform(
       backend,
       pass,
@@ -1270,15 +1255,27 @@ final class _ThreeFrameEncoder {
     ThreeDrawItem draw,
   ) {
     if (!_isShadowCaster(draw)) return 0;
+    pass.setCullMode(_threeShadowCull(draw));
+    final geometry = _bindShadowGeometry(pass, vertexSlot, draw);
+    if (geometry == null) return 0;
+    _bindShadowClipping(backend, pass, clippingSlot, plan, draw.material);
+    _drawThreeGeometry(pass, draw, geometry);
+    return 1;
+  }
+
+  _GpuGeometry? _bindShadowGeometry(
+    gpu.RenderPass pass,
+    gpu.UniformSlot vertexSlot,
+    ThreeDrawItem draw, {
+    int? pointShadowFace,
+  }) {
     final resources = _shadowResources(draw);
     if (resources == null) {
       backend._skippedDrawCount++;
-      return 0;
+      return null;
     }
     final geometry = resources.geometry;
-    pass
-      ..setCullMode(_threeShadowCull(draw))
-      ..bindVertexBuffer(resources.instances, slot: 1);
+    pass.bindVertexBuffer(resources.instances, slot: 1);
     _bindThreeVertices(pass, geometry, draw);
     _bindThreeIndices(pass, geometry, draw);
     _bindThreeUniform(
@@ -1291,11 +1288,10 @@ final class _ThreeFrameEncoder {
         pointSizeScale,
         viewportHeight: viewportHeight,
         shadowPass: true,
+        pointShadowFace: pointShadowFace ?? 0,
       ),
     );
-    _bindShadowClipping(backend, pass, clippingSlot, plan, draw.material);
-    _drawThreeGeometry(pass, draw, geometry);
-    return 1;
+    return geometry;
   }
 
   int _recordDraw(

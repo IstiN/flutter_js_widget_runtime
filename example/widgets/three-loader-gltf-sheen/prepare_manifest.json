@@ -43,6 +43,17 @@
       "sha256": "31248009ced4e9b9c761bb6549fc76fd48284295de91976a118e1b0afcbc686d"
     }
   },
+  "assetDiscovery": [
+    {
+      "url": "models/gltf/SheenChair.glb",
+      "output": "models__gltf__SheenChair.glb",
+      "mime": "model/gltf-binary",
+      "diagnostic": "auto:models/gltf/SheenChair.glb",
+      "sha256": "07c80216eb5d57fc9d4148e1e14a69e19d3436eca1af33590d8d36c04957ffd4",
+      "discovered": true,
+      "externalizeImages": true
+    }
+  ],
   "facade": {
     "global": "globalThis.THREE",
     "exports": [
@@ -505,8 +516,8 @@
   },
   "inputs": {
     "assets/three/three.native.js": {
-      "bytes": 777104,
-      "sha256": "5adcb8e7c2d94dd83748134c4d13b9fcfcba9b671445fe27de895575402241b0"
+      "bytes": 791598,
+      "sha256": "58efdde0f4795a978fdf0a9ed9a4f606264aff39bb4e164aaaf00f5542c280e8"
     },
     "assets/three/three.web.js": {
       "bytes": 855325,
@@ -540,6 +551,38 @@
       "bytes": 11535,
       "sha256": "b1632a703206c3d830de9fcbe515696770d04b71a15ee6b50afa6d2c3298c86f"
     },
+    "source/examples/models/gltf/SheenChair.glb": {
+      "bytes": 4396728,
+      "sha256": "07c80216eb5d57fc9d4148e1e14a69e19d3436eca1af33590d8d36c04957ffd4"
+    },
+    "source/examples/models/gltf/embedded-0.png": {
+      "bytes": 1475646,
+      "sha256": "d345086cc096b7bb067359b351252ca60f99e78b08945988cf99986d7f254712"
+    },
+    "source/examples/models/gltf/embedded-1.png": {
+      "bytes": 208194,
+      "sha256": "b62bab0872a8f9824852a5f10077225dfc6b32b52de3a7e8939dfc2a8c93c413"
+    },
+    "source/examples/models/gltf/embedded-2.png": {
+      "bytes": 225681,
+      "sha256": "b6d655072f22c41ffa614ed52560d1f36fd8f1db0635617b557535ae346bbb95"
+    },
+    "source/examples/models/gltf/embedded-3.png": {
+      "bytes": 299307,
+      "sha256": "672f706b4711e48bb760df505e4e3bde34dee2d111925b6a6810ae2b1ffe426e"
+    },
+    "source/examples/models/gltf/embedded-4.png": {
+      "bytes": 210158,
+      "sha256": "c5d32793882cd73c41dcf291f56a3bc1dfa26fc152f5c5480ca93f640206fa87"
+    },
+    "source/examples/models/gltf/embedded-5.png": {
+      "bytes": 692759,
+      "sha256": "dbc2e5c525300fa4ac08671bebaf3a681b19a5914a7f034c44031997434c34f3"
+    },
+    "source/examples/models/gltf/embedded-6.png": {
+      "bytes": 138891,
+      "sha256": "34f145c0fe08f4458733abe39e71a6a526657816e76f44ccb15b163c7479cb29"
+    },
     "source/examples/webgl_loader_gltf_sheen.html": {
       "bytes": 3586,
       "sha256": "b4b191f40cfe8b327da443119d95aa1ea43d5a9aa5a1b389be9e87cca9981ee5"
@@ -552,9 +595,13 @@
       "bytes": 1951,
       "sha256": "7852c54a706c19e98978c884aa9cd9bfd8d040a2d304c8e6d8cf973dd3554eaf"
     },
+    "tool/three_example/asset_discovery.mjs": {
+      "bytes": 11532,
+      "sha256": "5219e6b747041382d9e40edc33901f04140df1cfb0454b181d8145414a75ee9e"
+    },
     "tool/three_example/example_adapter.js": {
-      "bytes": 20723,
-      "sha256": "9c713a0daa93289f0aeb2d75de6c067569ca4bc2235c24f3bb2bc8feab03336c"
+      "bytes": 36267,
+      "sha256": "c604a1842689cfaf43e2bdf335b55f2384780c7b163cd41ab6e91e3912704b61"
     },
     "tool/three_example/example_canvas2d.js": {
       "bytes": 20988,
@@ -565,8 +612,8 @@
       "sha256": "dc11346394f41bb4f385738d3afa6aa75e695ac80fe3be3a5fbf4201686376bf"
     },
     "tool/three_example/prepare.mjs": {
-      "bytes": 247876,
-      "sha256": "4ed1752612b57fb4ac32f62717e772e9a85f4e8a0f7e51a764443b68af0b8aac"
+      "bytes": 252492,
+      "sha256": "544095661162d33d5b6e91b6b744f7eb60b97c1ff9ea1f4ae297b2f39044af43"
     },
     "tool/three_example/stats_adapter.js": {
       "bytes": 2107,
@@ -582,6 +629,38 @@
       "bytes": 349,
       "sha256": "cc65d507a5a146dd036cea61ac2e17a7dc0240b40a6b91a471ca86721361f7aa"
     },
+    "models__gltf__SheenChair.glb": {
+      "bytes": 4396784,
+      "sha256": "8563aaaca8e8f1254cbf931e5006c2bfdcdf1a83866fee3ce339f82814724ed2"
+    },
+    "models__gltf__embedded-0.png": {
+      "bytes": 1475646,
+      "sha256": "d345086cc096b7bb067359b351252ca60f99e78b08945988cf99986d7f254712"
+    },
+    "models__gltf__embedded-1.png": {
+      "bytes": 208194,
+      "sha256": "b62bab0872a8f9824852a5f10077225dfc6b32b52de3a7e8939dfc2a8c93c413"
+    },
+    "models__gltf__embedded-2.png": {
+      "bytes": 225681,
+      "sha256": "b6d655072f22c41ffa614ed52560d1f36fd8f1db0635617b557535ae346bbb95"
+    },
+    "models__gltf__embedded-3.png": {
+      "bytes": 299307,
+      "sha256": "672f706b4711e48bb760df505e4e3bde34dee2d111925b6a6810ae2b1ffe426e"
+    },
+    "models__gltf__embedded-4.png": {
+      "bytes": 210158,
+      "sha256": "c5d32793882cd73c41dcf291f56a3bc1dfa26fc152f5c5480ca93f640206fa87"
+    },
+    "models__gltf__embedded-5.png": {
+      "bytes": 692759,
+      "sha256": "dbc2e5c525300fa4ac08671bebaf3a681b19a5914a7f034c44031997434c34f3"
+    },
+    "models__gltf__embedded-6.png": {
+      "bytes": 138891,
+      "sha256": "34f145c0fe08f4458733abe39e71a6a526657816e76f44ccb15b163c7479cb29"
+    },
     "official_module.js": {
       "bytes": 2252,
       "sha256": "31248009ced4e9b9c761bb6549fc76fd48284295de91976a118e1b0afcbc686d"
@@ -591,8 +670,8 @@
       "sha256": "b4b191f40cfe8b327da443119d95aa1ea43d5a9aa5a1b389be9e87cca9981ee5"
     },
     "widget.js": {
-      "bytes": 141682,
-      "sha256": "ae0e8ea7de1e9a744fded489050908f0743db4146122c6e8928a6aecaadf38c3"
+      "bytes": 14682376,
+      "sha256": "df4b56ba20d8cdaed446a430abf37b8c4044fa31880f92ee3bb901e863723b7b"
     }
   }
 }

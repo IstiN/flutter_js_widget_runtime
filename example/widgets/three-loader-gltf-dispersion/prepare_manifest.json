@@ -43,6 +43,17 @@
       "sha256": "2daed2bbce66d791cc73ecf9fd65d59f015f47a9fe28873f3f2b529f96e337df"
     }
   },
+  "assetDiscovery": [
+    {
+      "url": "models/gltf/DispersionTest.glb",
+      "output": "models__gltf__DispersionTest.glb",
+      "mime": "model/gltf-binary",
+      "diagnostic": "auto:models/gltf/DispersionTest.glb",
+      "sha256": "bb7710e6eaeb1c81fc5f62000ed014689e4bd8ef300c3f9e3a08b2a6db821be7",
+      "discovered": true,
+      "externalizeImages": true
+    }
+  ],
   "facade": {
     "global": "globalThis.THREE",
     "exports": [
@@ -505,8 +516,8 @@
   },
   "inputs": {
     "assets/three/three.native.js": {
-      "bytes": 777104,
-      "sha256": "5adcb8e7c2d94dd83748134c4d13b9fcfcba9b671445fe27de895575402241b0"
+      "bytes": 791598,
+      "sha256": "58efdde0f4795a978fdf0a9ed9a4f606264aff39bb4e164aaaf00f5542c280e8"
     },
     "assets/three/three.web.js": {
       "bytes": 855325,
@@ -536,6 +547,18 @@
       "bytes": 11535,
       "sha256": "b1632a703206c3d830de9fcbe515696770d04b71a15ee6b50afa6d2c3298c86f"
     },
+    "source/examples/models/gltf/CheckerWithLines": {
+      "bytes": 682,
+      "sha256": "783aa609cd007c3507f87493822a4c5348fc77947c8f78f1e156f6343892df7e"
+    },
+    "source/examples/models/gltf/DispersionTest.glb": {
+      "bytes": 1382692,
+      "sha256": "bb7710e6eaeb1c81fc5f62000ed014689e4bd8ef300c3f9e3a08b2a6db821be7"
+    },
+    "source/examples/models/gltf/Dispersion_Labels2": {
+      "bytes": 15627,
+      "sha256": "1c89c21c36655616a13c8f6e98b4fd8715c4034b8f7a3342ff2940835571d058"
+    },
     "source/examples/webgl_loader_gltf_dispersion.html": {
       "bytes": 3212,
       "sha256": "6822f939b081ebb4a99d49c74491a5e56f19704046fc0270dbbc7feee276726a"
@@ -548,9 +571,13 @@
       "bytes": 1951,
       "sha256": "7852c54a706c19e98978c884aa9cd9bfd8d040a2d304c8e6d8cf973dd3554eaf"
     },
+    "tool/three_example/asset_discovery.mjs": {
+      "bytes": 11532,
+      "sha256": "5219e6b747041382d9e40edc33901f04140df1cfb0454b181d8145414a75ee9e"
+    },
     "tool/three_example/example_adapter.js": {
-      "bytes": 20723,
-      "sha256": "9c713a0daa93289f0aeb2d75de6c067569ca4bc2235c24f3bb2bc8feab03336c"
+      "bytes": 36267,
+      "sha256": "c604a1842689cfaf43e2bdf335b55f2384780c7b163cd41ab6e91e3912704b61"
     },
     "tool/three_example/example_canvas2d.js": {
       "bytes": 20988,
@@ -561,8 +588,8 @@
       "sha256": "dc11346394f41bb4f385738d3afa6aa75e695ac80fe3be3a5fbf4201686376bf"
     },
     "tool/three_example/prepare.mjs": {
-      "bytes": 247876,
-      "sha256": "4ed1752612b57fb4ac32f62717e772e9a85f4e8a0f7e51a764443b68af0b8aac"
+      "bytes": 252492,
+      "sha256": "544095661162d33d5b6e91b6b744f7eb60b97c1ff9ea1f4ae297b2f39044af43"
     },
     "tool/three_example/stats_adapter.js": {
       "bytes": 2107,
@@ -578,6 +605,18 @@
       "bytes": 364,
       "sha256": "e6d8718aff2d1d1f26994ce95083cddeadb57efbd41afbf2dfc622fa59640023"
     },
+    "models__gltf__CheckerWithLines": {
+      "bytes": 682,
+      "sha256": "783aa609cd007c3507f87493822a4c5348fc77947c8f78f1e156f6343892df7e"
+    },
+    "models__gltf__DispersionTest.glb": {
+      "bytes": 1382712,
+      "sha256": "62e48ec93124c5614531a5ac26b35b0d448ccdd7b60cd49e1222703f9df15a76"
+    },
+    "models__gltf__Dispersion_Labels2": {
+      "bytes": 15627,
+      "sha256": "1c89c21c36655616a13c8f6e98b4fd8715c4034b8f7a3342ff2940835571d058"
+    },
     "official_module.js": {
       "bytes": 2073,
       "sha256": "2daed2bbce66d791cc73ecf9fd65d59f015f47a9fe28873f3f2b529f96e337df"
@@ -587,8 +626,8 @@
       "sha256": "6822f939b081ebb4a99d49c74491a5e56f19704046fc0270dbbc7feee276726a"
     },
     "widget.js": {
-      "bytes": 98468,
-      "sha256": "c66fb6eefcdcc0c37bbc78b8885663838250c0bb3862ddfe24877389530b2a15"
+      "bytes": 1994456,
+      "sha256": "7c52cfd9d8264aa0378e78663c6c353df2fc809814129c161ef1cb32d0f900f7"
     }
   }
 }

@@ -43,6 +43,16 @@
       "sha256": "191ed83bae51c15a8915bc677d8ed37bf630e4098c556c37e590b25408710da5"
     }
   },
+  "assetDiscovery": [
+    {
+      "url": "models/kmz/Box.kmz",
+      "output": "models__kmz__Box.kmz",
+      "mime": "application/octet-stream",
+      "diagnostic": "auto:models/kmz/Box.kmz",
+      "sha256": "3047740775949f2a71725af12f13f95c7d55110a940ef61c021adf9907abf17c",
+      "discovered": true
+    }
+  ],
   "facade": {
     "global": "globalThis.THREE",
     "exports": [
@@ -505,8 +515,8 @@
   },
   "inputs": {
     "assets/three/three.native.js": {
-      "bytes": 777104,
-      "sha256": "5adcb8e7c2d94dd83748134c4d13b9fcfcba9b671445fe27de895575402241b0"
+      "bytes": 791598,
+      "sha256": "58efdde0f4795a978fdf0a9ed9a4f606264aff39bb4e164aaaf00f5542c280e8"
     },
     "assets/three/three.web.js": {
       "bytes": 855325,
@@ -544,6 +554,10 @@
       "bytes": 36839,
       "sha256": "d9532ab17f1d9e2919deba8029d759d5dcaed2f21195ded9e29491f719b1a0c6"
     },
+    "source/examples/models/kmz/Box.kmz": {
+      "bytes": 2478,
+      "sha256": "3047740775949f2a71725af12f13f95c7d55110a940ef61c021adf9907abf17c"
+    },
     "source/examples/webgl_loader_kmz.html": {
       "bytes": 2679,
       "sha256": "af1e01ea1dd3f22cccbdc09a572c5889338837ca7b0a043b2d98371f68d86ea2"
@@ -556,9 +570,13 @@
       "bytes": 1951,
       "sha256": "7852c54a706c19e98978c884aa9cd9bfd8d040a2d304c8e6d8cf973dd3554eaf"
     },
+    "tool/three_example/asset_discovery.mjs": {
+      "bytes": 11532,
+      "sha256": "5219e6b747041382d9e40edc33901f04140df1cfb0454b181d8145414a75ee9e"
+    },
     "tool/three_example/example_adapter.js": {
-      "bytes": 20723,
-      "sha256": "9c713a0daa93289f0aeb2d75de6c067569ca4bc2235c24f3bb2bc8feab03336c"
+      "bytes": 36267,
+      "sha256": "c604a1842689cfaf43e2bdf335b55f2384780c7b163cd41ab6e91e3912704b61"
     },
     "tool/three_example/example_canvas2d.js": {
       "bytes": 20988,
@@ -569,8 +587,8 @@
       "sha256": "dc11346394f41bb4f385738d3afa6aa75e695ac80fe3be3a5fbf4201686376bf"
     },
     "tool/three_example/prepare.mjs": {
-      "bytes": 247876,
-      "sha256": "4ed1752612b57fb4ac32f62717e772e9a85f4e8a0f7e51a764443b68af0b8aac"
+      "bytes": 252492,
+      "sha256": "544095661162d33d5b6e91b6b744f7eb60b97c1ff9ea1f4ae297b2f39044af43"
     },
     "tool/three_example/stats_adapter.js": {
       "bytes": 2107,
@@ -586,6 +604,10 @@
       "bytes": 326,
       "sha256": "2ad6fbb6e87e0e981a5485004ae23ede715afb78ec028ab75121342d52327640"
     },
+    "models__kmz__Box.kmz": {
+      "bytes": 2478,
+      "sha256": "3047740775949f2a71725af12f13f95c7d55110a940ef61c021adf9907abf17c"
+    },
     "official_module.js": {
       "bytes": 1660,
       "sha256": "191ed83bae51c15a8915bc677d8ed37bf630e4098c556c37e590b25408710da5"
@@ -595,8 +617,8 @@
       "sha256": "af1e01ea1dd3f22cccbdc09a572c5889338837ca7b0a043b2d98371f68d86ea2"
     },
     "widget.js": {
-      "bytes": 112744,
-      "sha256": "182f5e4066f4082fd2e35b82368368d87fe85ea02afa5462ef0f4c607f2b08cd"
+      "bytes": 124495,
+      "sha256": "858c245f45f340ad9aa93b56ebe66a5bc842b051b97293c291033f0ea17c92ee"
     }
   }
 }

@@ -43,6 +43,16 @@
       "sha256": "257a44a4831441384fc58cadcc7d288b4bea1352944a479c2bb6506dd9a67036"
     }
   },
+  "assetDiscovery": [
+    {
+      "url": "fonts/helvetiker_bold.typeface.json",
+      "output": "fonts__helvetiker_bold.typeface.json",
+      "mime": "application/json",
+      "diagnostic": "auto:fonts/helvetiker_bold.typeface.json",
+      "sha256": "bd68159ee0b8d10fe24b9daa2e32f19686f9d8269a79dc8d44203a66298bfa2f",
+      "discovered": true
+    }
+  ],
   "facade": {
     "global": "globalThis.THREE",
     "exports": [
@@ -505,8 +515,8 @@
   },
   "inputs": {
     "assets/three/three.native.js": {
-      "bytes": 777104,
-      "sha256": "5adcb8e7c2d94dd83748134c4d13b9fcfcba9b671445fe27de895575402241b0"
+      "bytes": 791598,
+      "sha256": "58efdde0f4795a978fdf0a9ed9a4f606264aff39bb4e164aaaf00f5542c280e8"
     },
     "assets/three/three.web.js": {
       "bytes": 855325,
@@ -515,6 +525,10 @@
     "source/LICENSE": {
       "bytes": 1081,
       "sha256": "8b378ebe60e2fe500158cb0ac71cb5e8b7d92953c2abcc63a0eb90499653b5bc"
+    },
+    "source/examples/fonts/helvetiker_bold.typeface.json": {
+      "bytes": 61632,
+      "sha256": "bd68159ee0b8d10fe24b9daa2e32f19686f9d8269a79dc8d44203a66298bfa2f"
     },
     "source/examples/jsm/geometries/TextGeometry.js": {
       "bytes": 3312,
@@ -536,9 +550,13 @@
       "bytes": 1951,
       "sha256": "7852c54a706c19e98978c884aa9cd9bfd8d040a2d304c8e6d8cf973dd3554eaf"
     },
+    "tool/three_example/asset_discovery.mjs": {
+      "bytes": 11532,
+      "sha256": "5219e6b747041382d9e40edc33901f04140df1cfb0454b181d8145414a75ee9e"
+    },
     "tool/three_example/example_adapter.js": {
-      "bytes": 20723,
-      "sha256": "9c713a0daa93289f0aeb2d75de6c067569ca4bc2235c24f3bb2bc8feab03336c"
+      "bytes": 36267,
+      "sha256": "c604a1842689cfaf43e2bdf335b55f2384780c7b163cd41ab6e91e3912704b61"
     },
     "tool/three_example/example_canvas2d.js": {
       "bytes": 20988,
@@ -549,8 +567,8 @@
       "sha256": "dc11346394f41bb4f385738d3afa6aa75e695ac80fe3be3a5fbf4201686376bf"
     },
     "tool/three_example/prepare.mjs": {
-      "bytes": 247876,
-      "sha256": "4ed1752612b57fb4ac32f62717e772e9a85f4e8a0f7e51a764443b68af0b8aac"
+      "bytes": 252492,
+      "sha256": "544095661162d33d5b6e91b6b744f7eb60b97c1ff9ea1f4ae297b2f39044af43"
     },
     "tool/three_example/stats_adapter.js": {
       "bytes": 2107,
@@ -561,6 +579,10 @@
     "THREE_LICENSE": {
       "bytes": 1081,
       "sha256": "8b378ebe60e2fe500158cb0ac71cb5e8b7d92953c2abcc63a0eb90499653b5bc"
+    },
+    "fonts__helvetiker_bold.typeface.json": {
+      "bytes": 61632,
+      "sha256": "bd68159ee0b8d10fe24b9daa2e32f19686f9d8269a79dc8d44203a66298bfa2f"
     },
     "manifest.json": {
       "bytes": 368,
@@ -575,8 +597,8 @@
       "sha256": "dd9ba3293b6f3e6689a35e762f74a2f0fcb28be45e4252bf9b2021c88c8b1fdb"
     },
     "widget.js": {
-      "bytes": 36366,
-      "sha256": "bf7e83e9be72d5a9bb87034b5d2c785fca4e72db5293895038e0bcdc0982ce29"
+      "bytes": 126975,
+      "sha256": "0654bde82553745d0c6585e98364337d6fbe8cc82de3d28031fae75e30286fab"
     }
   }
 }

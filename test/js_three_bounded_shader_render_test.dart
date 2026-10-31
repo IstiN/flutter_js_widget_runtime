@@ -3,7 +3,6 @@ import 'package:js_widget_runtime/src/renderer/nodes/three/js_three_protocol.dar
 import 'package:js_widget_runtime/src/renderer/nodes/three/three_draw_plan.dart';
 
 import 'support/three_example_render_contract.dart';
-import 'support/three_quickjs_example_harness.dart';
 import 'support/widget_logic_helper.dart';
 
 void main() {
@@ -51,7 +50,10 @@ void main() {
   testWidgets('webgl_interactive_points retains textured colored points', (
     tester,
   ) async {
-    final (harness, plan) = await renderThreeExampleStrict(tester, 'three-interactive-points');
+    final (harness, plan) = await renderThreeExampleStrict(
+      tester,
+      'three-interactive-points',
+    );
     expect(plan.draws, hasLength(1));
     final draw = plan.draws.single;
     expect(draw.primitive, ThreeDrawPrimitive.points);
@@ -67,7 +69,10 @@ void main() {
   testWidgets(
     'webgl_points_waves animates positions with a native disc sprite',
     (tester) async {
-      final (harness, plan) = await renderThreeExampleStrict(tester, 'three-points-waves');
+      final (harness, plan) = await renderThreeExampleStrict(
+        tester,
+        'three-points-waves',
+      );
       expect(plan.draws, hasLength(1));
       final draw = plan.draws.single;
       expect(draw.primitive, ThreeDrawPrimitive.points);
@@ -100,6 +105,72 @@ void main() {
     expect(draw.material.kind, JsThreeMaterialKind.meshBasic);
     expect(draw.material.vertexColors, isTrue);
     expect(harness.state!.textureUploadCount, 0);
+    await harness.dispose(tester);
+  }, timeout: const Timeout(Duration(seconds: 180)));
+
+  testWidgets('webgl_buffergeometry_rawshader lowers its color attributes', (
+    tester,
+  ) async {
+    final (harness, plan) = await renderThreeExampleStrict(
+      tester,
+      'three-buffergeometry-rawshader',
+    );
+    final draw = plan.draws.single;
+    expect(draw.material.kind, JsThreeMaterialKind.meshBasic);
+    expect(draw.material.vertexColors, isTrue);
+    expect(draw.drawCount, greaterThan(0));
+    await harness.dispose(tester);
+  }, timeout: const Timeout(Duration(seconds: 180)));
+
+  testWidgets('webgl_custom_attributes evaluates bounded custom displacement', (
+    tester,
+  ) async {
+    final (harness, plan) = await renderThreeExampleStrict(
+      tester,
+      'three-custom-attributes',
+    );
+    final draw = plan.draws.single;
+    expect(draw.material.kind, JsThreeMaterialKind.meshBasic);
+    expect(draw.drawCount, greaterThan(0));
+    await harness.dispose(tester);
+  }, timeout: const Timeout(Duration(seconds: 180)));
+
+  testWidgets('webgl_clipculldistance retains its vertex-color geometry', (
+    tester,
+  ) async {
+    final (harness, plan) = await renderThreeExampleStrict(
+      tester,
+      'three-clipculldistance',
+    );
+    final draw = plan.draws.single;
+    expect(draw.material.kind, JsThreeMaterialKind.meshBasic);
+    expect(draw.material.vertexColors, isTrue);
+    expect(draw.drawCount, greaterThan(0));
+    await harness.dispose(tester);
+  }, timeout: const Timeout(Duration(seconds: 180)));
+
+  testWidgets('webgl_volume_cloud samples a bounded 3D texture slice', (
+    tester,
+  ) async {
+    final (harness, plan) = await renderThreeExampleStrict(
+      tester,
+      'three-volume-cloud',
+    );
+    expect(plan.draws, isNotEmpty);
+    expect(plan.draws.any((draw) => draw.material.mapTextureId > 0), isTrue);
+    expect(harness.state!.textureUploadCount, greaterThan(0));
+    await harness.dispose(tester);
+  }, timeout: const Timeout(Duration(seconds: 180)));
+
+  testWidgets('webgl_texture3d_partialupdate initializes its canvas and mesh', (
+    tester,
+  ) async {
+    final (harness, plan) = await renderThreeExampleStrict(
+      tester,
+      'three-texture3d-partialupdate',
+    );
+    expect(plan.draws, isNotEmpty);
+    expect(harness.state!.textureUploadCount, greaterThan(0));
     await harness.dispose(tester);
   }, timeout: const Timeout(Duration(seconds: 180)));
 }

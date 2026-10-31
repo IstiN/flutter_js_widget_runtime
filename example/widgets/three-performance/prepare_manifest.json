@@ -43,6 +43,25 @@
       "sha256": "c300ddf94f7e231a250bdd024ae85bdb20d58f0e67e1733e0a2f829efc0ec9a2"
     }
   },
+  "assetDiscovery": [
+    {
+      "url": "models/gltf/dungeon_warkarma.glb",
+      "output": "models__gltf__dungeon_warkarma.glb",
+      "mime": "model/gltf-binary",
+      "diagnostic": "auto:models/gltf/dungeon_warkarma.glb",
+      "sha256": "cac0fc8c16d107e7ac4e69efde89c2cb6ef4bc66c34456a4dd0923218e5aafb1",
+      "discovered": true,
+      "externalizeImages": true
+    },
+    {
+      "url": "textures/equirectangular/royal_esplanade_2k.hdr.jpg",
+      "output": "textures__equirectangular__royal_esplanade_2k.hdr.jpg",
+      "mime": "image/jpeg",
+      "diagnostic": "auto:textures/equirectangular/royal_esplanade_2k.hdr.jpg",
+      "sha256": "b05a664c5fb022ddc6104f253a6684570e99876d30b41a220c8dea4482df6d64",
+      "discovered": true
+    }
+  ],
   "facade": {
     "global": "globalThis.THREE",
     "exports": [
@@ -505,8 +524,8 @@
   },
   "inputs": {
     "assets/three/three.native.js": {
-      "bytes": 777104,
-      "sha256": "5adcb8e7c2d94dd83748134c4d13b9fcfcba9b671445fe27de895575402241b0"
+      "bytes": 791598,
+      "sha256": "58efdde0f4795a978fdf0a9ed9a4f606264aff39bb4e164aaaf00f5542c280e8"
     },
     "assets/three/three.web.js": {
       "bytes": 855325,
@@ -524,10 +543,6 @@
       "bytes": 117570,
       "sha256": "131c0f78c01d19368ae495caa65b3adaa10487810a36a05bb5901b769a35ac16"
     },
-    "source/examples/jsm/loaders/UltraHDRLoader.js": {
-      "bytes": 19696,
-      "sha256": "fd67cf0e861d9f4eeb02e3b5acc62896658edafb6410eb4fc4c178352c0a6971"
-    },
     "source/examples/jsm/utils/BufferGeometryUtils.js": {
       "bytes": 37712,
       "sha256": "9fb63427ce6641fa14fd0baff9cc4d1b5f9c3d85fd084bf2e90e803c44ec1797"
@@ -535,6 +550,114 @@
     "source/examples/jsm/utils/SkeletonUtils.js": {
       "bytes": 11535,
       "sha256": "b1632a703206c3d830de9fcbe515696770d04b71a15ee6b50afa6d2c3298c86f"
+    },
+    "source/examples/models/gltf/Cloth_Red_metallicRoughness": {
+      "bytes": 802907,
+      "sha256": "d58dcca815769d1d97d0a8dd9323562952ebb2b24e6bb62b4cc2443d593f48a6"
+    },
+    "source/examples/models/gltf/Cloth_Wood_metallicRoughness": {
+      "bytes": 660171,
+      "sha256": "86985695039165e749633b79ea28d614d5538730d80e181fb5fd0ee56bdd9b61"
+    },
+    "source/examples/models/gltf/Coin_metallicRoughness": {
+      "bytes": 1959546,
+      "sha256": "9c1a8c4089254fc4089b8138cf17f6174fc7e0802e3045093cf4a493b5c8471b"
+    },
+    "source/examples/models/gltf/Floor_01_metallicRoughness": {
+      "bytes": 2405820,
+      "sha256": "8585e437d32ed5737525ed68d63d58e235e29ca7cec83f390912b64cf27eeaf4"
+    },
+    "source/examples/models/gltf/Floor_02_metallicRoughness": {
+      "bytes": 665031,
+      "sha256": "5b7bdffeccb1cae7310ba839016abaa4fa9e755ba88738c606c523434abbc464"
+    },
+    "source/examples/models/gltf/Floor_Stone_metallicRoughness": {
+      "bytes": 2823759,
+      "sha256": "b87d05fe37be7e68e49a5a5543a530ff645f697f7feca059f201044e76549d29"
+    },
+    "source/examples/models/gltf/Global_Black_metallicRoughness": {
+      "bytes": 1552732,
+      "sha256": "a90da7f1ce59c3f833c9ed5cddd8839c3d63429b57a9407b2b1a1a2b79636dcb"
+    },
+    "source/examples/models/gltf/Global_Metal_metallicRoughness": {
+      "bytes": 2178555,
+      "sha256": "3ed796be0747a78f4c6983b11d2e52c91ee53ec810b9228d4bf90970185f810b"
+    },
+    "source/examples/models/gltf/Global_White_metallicRoughness": {
+      "bytes": 532598,
+      "sha256": "a8ead4197fba0fbe5e356da6852df20d7c366ecdb27bbaa9bc8c9a2044e99d66"
+    },
+    "source/examples/models/gltf/Global_Wood_metallicRoughness": {
+      "bytes": 2933285,
+      "sha256": "2aaeae9f797045a23cbfb65a094e73c2fc9968dde9015bac013c946ddab03dac"
+    },
+    "source/examples/models/gltf/P_Steps_metallicRoughness": {
+      "bytes": 1295635,
+      "sha256": "58b31b2a8c2f9f838ab37f4a7ad675c5f7e5a65ac5b6d7f79674f92a5c7f325d"
+    },
+    "source/examples/models/gltf/Pillars_metallicRoughness": {
+      "bytes": 1622168,
+      "sha256": "b784eec5abce3eab260a45183b2d4953a6e32b7e9399aa903e85fb0943c1479f"
+    },
+    "source/examples/models/gltf/Skull_metallicRoughness": {
+      "bytes": 1207535,
+      "sha256": "b1246e7ad9accfe504ab0bd203a7b0e39581c2421ecca4d610351eeb21514365"
+    },
+    "source/examples/models/gltf/Steps_metallicRoughness": {
+      "bytes": 2169167,
+      "sha256": "0aa2c0cb6ecb61a2822858fecfd7dc7ed61d2c5547d9c677fdf14e1800c14cc4"
+    },
+    "source/examples/models/gltf/Stone_metallicRoughness": {
+      "bytes": 2562992,
+      "sha256": "8ab530fbbd1aaf6991532734a1ed4a737e317a4d5c75d9099805dd62e4017b38"
+    },
+    "source/examples/models/gltf/Tile_Border_metallicRoughness": {
+      "bytes": 1159436,
+      "sha256": "801148ab5457b5da66f3b923ab1838a255b020269e82f667373c63be6d67e16b"
+    },
+    "source/examples/models/gltf/Tile_Borders__0_metallicRoughness": {
+      "bytes": 2169167,
+      "sha256": "0aa2c0cb6ecb61a2822858fecfd7dc7ed61d2c5547d9c677fdf14e1800c14cc4"
+    },
+    "source/examples/models/gltf/Tiles_metallicRoughness": {
+      "bytes": 1590275,
+      "sha256": "08ffb70fe107a4e14a5192a83eefed2eacec6ad8c92cbd3e3a7ea852e5d12ed9"
+    },
+    "source/examples/models/gltf/Torch_Flame_metallicRoughness": {
+      "bytes": 1895354,
+      "sha256": "4f4d1788b304d1e7525810e5e1847458b283531660d9ff0a7167443f0ed481bd"
+    },
+    "source/examples/models/gltf/Torch_Metal_metallicRoughness": {
+      "bytes": 2258919,
+      "sha256": "63e21de383da3992e4b9850f4ccbc602c8854391733d800dd070e177f22135de"
+    },
+    "source/examples/models/gltf/Torch_Wood_metallicRoughness": {
+      "bytes": 2345796,
+      "sha256": "725984b739d560525a07b5e4bf858be0057df56bdb71eef62e0faa8074356fa1"
+    },
+    "source/examples/models/gltf/Wall_Dark_Blue_metallicRoughness": {
+      "bytes": 3753546,
+      "sha256": "eb9aa9998725c9f9075dcdbd649e594e19017c20e1c5a223f6bafd3dcf886a5a"
+    },
+    "source/examples/models/gltf/Wall_Dark_White_metallicRoughness": {
+      "bytes": 1877927,
+      "sha256": "bcccdcf897e23e93fc177e5bfb3dc1aa050c81a9d8abb8019aee621cf3480728"
+    },
+    "source/examples/models/gltf/Weapon_Metal_metallicRoughness": {
+      "bytes": 379729,
+      "sha256": "25d08a2e98a155761ebcca4c882c2dad7096a54d0b7afb2d693bdbbeb4db6e62"
+    },
+    "source/examples/models/gltf/Weapon_Wood_metallicRoughness": {
+      "bytes": 390135,
+      "sha256": "fdab591a486b006a543f4cea5468b4034f320e0a03baeeaa33fbe4762167f066"
+    },
+    "source/examples/models/gltf/dungeon_warkarma.glb": {
+      "bytes": 7990584,
+      "sha256": "cac0fc8c16d107e7ac4e69efde89c2cb6ef4bc66c34456a4dd0923218e5aafb1"
+    },
+    "source/examples/textures/equirectangular/royal_esplanade_2k.hdr.jpg": {
+      "bytes": 552463,
+      "sha256": "b05a664c5fb022ddc6104f253a6684570e99876d30b41a220c8dea4482df6d64"
     },
     "source/examples/webgl_performance.html": {
       "bytes": 3494,
@@ -548,9 +671,13 @@
       "bytes": 1951,
       "sha256": "7852c54a706c19e98978c884aa9cd9bfd8d040a2d304c8e6d8cf973dd3554eaf"
     },
+    "tool/three_example/asset_discovery.mjs": {
+      "bytes": 11532,
+      "sha256": "5219e6b747041382d9e40edc33901f04140df1cfb0454b181d8145414a75ee9e"
+    },
     "tool/three_example/example_adapter.js": {
-      "bytes": 20723,
-      "sha256": "9c713a0daa93289f0aeb2d75de6c067569ca4bc2235c24f3bb2bc8feab03336c"
+      "bytes": 36267,
+      "sha256": "c604a1842689cfaf43e2bdf335b55f2384780c7b163cd41ab6e91e3912704b61"
     },
     "tool/three_example/example_canvas2d.js": {
       "bytes": 20988,
@@ -561,8 +688,8 @@
       "sha256": "dc11346394f41bb4f385738d3afa6aa75e695ac80fe3be3a5fbf4201686376bf"
     },
     "tool/three_example/prepare.mjs": {
-      "bytes": 247876,
-      "sha256": "4ed1752612b57fb4ac32f62717e772e9a85f4e8a0f7e51a764443b68af0b8aac"
+      "bytes": 252492,
+      "sha256": "544095661162d33d5b6e91b6b744f7eb60b97c1ff9ea1f4ae297b2f39044af43"
     },
     "tool/three_example/stats_adapter.js": {
       "bytes": 2107,
@@ -578,6 +705,110 @@
       "bytes": 329,
       "sha256": "afa3b718f38a41dd21ffbe034ea0faaca0d4e271a57361519a2ea3ea50cfe1f1"
     },
+    "models__gltf__Cloth_Red_metallicRoughness": {
+      "bytes": 802907,
+      "sha256": "d58dcca815769d1d97d0a8dd9323562952ebb2b24e6bb62b4cc2443d593f48a6"
+    },
+    "models__gltf__Cloth_Wood_metallicRoughness": {
+      "bytes": 660171,
+      "sha256": "86985695039165e749633b79ea28d614d5538730d80e181fb5fd0ee56bdd9b61"
+    },
+    "models__gltf__Coin_metallicRoughness": {
+      "bytes": 1959546,
+      "sha256": "9c1a8c4089254fc4089b8138cf17f6174fc7e0802e3045093cf4a493b5c8471b"
+    },
+    "models__gltf__Floor_01_metallicRoughness": {
+      "bytes": 2405820,
+      "sha256": "8585e437d32ed5737525ed68d63d58e235e29ca7cec83f390912b64cf27eeaf4"
+    },
+    "models__gltf__Floor_02_metallicRoughness": {
+      "bytes": 665031,
+      "sha256": "5b7bdffeccb1cae7310ba839016abaa4fa9e755ba88738c606c523434abbc464"
+    },
+    "models__gltf__Floor_Stone_metallicRoughness": {
+      "bytes": 2823759,
+      "sha256": "b87d05fe37be7e68e49a5a5543a530ff645f697f7feca059f201044e76549d29"
+    },
+    "models__gltf__Global_Black_metallicRoughness": {
+      "bytes": 1552732,
+      "sha256": "a90da7f1ce59c3f833c9ed5cddd8839c3d63429b57a9407b2b1a1a2b79636dcb"
+    },
+    "models__gltf__Global_Metal_metallicRoughness": {
+      "bytes": 2178555,
+      "sha256": "3ed796be0747a78f4c6983b11d2e52c91ee53ec810b9228d4bf90970185f810b"
+    },
+    "models__gltf__Global_White_metallicRoughness": {
+      "bytes": 532598,
+      "sha256": "a8ead4197fba0fbe5e356da6852df20d7c366ecdb27bbaa9bc8c9a2044e99d66"
+    },
+    "models__gltf__Global_Wood_metallicRoughness": {
+      "bytes": 2933285,
+      "sha256": "2aaeae9f797045a23cbfb65a094e73c2fc9968dde9015bac013c946ddab03dac"
+    },
+    "models__gltf__P_Steps_metallicRoughness": {
+      "bytes": 1295635,
+      "sha256": "58b31b2a8c2f9f838ab37f4a7ad675c5f7e5a65ac5b6d7f79674f92a5c7f325d"
+    },
+    "models__gltf__Pillars_metallicRoughness": {
+      "bytes": 1622168,
+      "sha256": "b784eec5abce3eab260a45183b2d4953a6e32b7e9399aa903e85fb0943c1479f"
+    },
+    "models__gltf__Skull_metallicRoughness": {
+      "bytes": 1207535,
+      "sha256": "b1246e7ad9accfe504ab0bd203a7b0e39581c2421ecca4d610351eeb21514365"
+    },
+    "models__gltf__Steps_metallicRoughness": {
+      "bytes": 2169167,
+      "sha256": "0aa2c0cb6ecb61a2822858fecfd7dc7ed61d2c5547d9c677fdf14e1800c14cc4"
+    },
+    "models__gltf__Stone_metallicRoughness": {
+      "bytes": 2562992,
+      "sha256": "8ab530fbbd1aaf6991532734a1ed4a737e317a4d5c75d9099805dd62e4017b38"
+    },
+    "models__gltf__Tile_Border_metallicRoughness": {
+      "bytes": 1159436,
+      "sha256": "801148ab5457b5da66f3b923ab1838a255b020269e82f667373c63be6d67e16b"
+    },
+    "models__gltf__Tile_Borders__0_metallicRoughness": {
+      "bytes": 2169167,
+      "sha256": "0aa2c0cb6ecb61a2822858fecfd7dc7ed61d2c5547d9c677fdf14e1800c14cc4"
+    },
+    "models__gltf__Tiles_metallicRoughness": {
+      "bytes": 1590275,
+      "sha256": "08ffb70fe107a4e14a5192a83eefed2eacec6ad8c92cbd3e3a7ea852e5d12ed9"
+    },
+    "models__gltf__Torch_Flame_metallicRoughness": {
+      "bytes": 1895354,
+      "sha256": "4f4d1788b304d1e7525810e5e1847458b283531660d9ff0a7167443f0ed481bd"
+    },
+    "models__gltf__Torch_Metal_metallicRoughness": {
+      "bytes": 2258919,
+      "sha256": "63e21de383da3992e4b9850f4ccbc602c8854391733d800dd070e177f22135de"
+    },
+    "models__gltf__Torch_Wood_metallicRoughness": {
+      "bytes": 2345796,
+      "sha256": "725984b739d560525a07b5e4bf858be0057df56bdb71eef62e0faa8074356fa1"
+    },
+    "models__gltf__Wall_Dark_Blue_metallicRoughness": {
+      "bytes": 3753546,
+      "sha256": "eb9aa9998725c9f9075dcdbd649e594e19017c20e1c5a223f6bafd3dcf886a5a"
+    },
+    "models__gltf__Wall_Dark_White_metallicRoughness": {
+      "bytes": 1877927,
+      "sha256": "bcccdcf897e23e93fc177e5bfb3dc1aa050c81a9d8abb8019aee621cf3480728"
+    },
+    "models__gltf__Weapon_Metal_metallicRoughness": {
+      "bytes": 379729,
+      "sha256": "25d08a2e98a155761ebcca4c882c2dad7096a54d0b7afb2d693bdbbeb4db6e62"
+    },
+    "models__gltf__Weapon_Wood_metallicRoughness": {
+      "bytes": 390135,
+      "sha256": "fdab591a486b006a543f4cea5468b4034f320e0a03baeeaa33fbe4762167f066"
+    },
+    "models__gltf__dungeon_warkarma.glb": {
+      "bytes": 7991084,
+      "sha256": "de017f928f39c7e06f24a82521a03b46d9ae1f5693e66ce60b0cc0a95fddfe7a"
+    },
     "official_module.js": {
       "bytes": 2311,
       "sha256": "c300ddf94f7e231a250bdd024ae85bdb20d58f0e67e1733e0a2f829efc0ec9a2"
@@ -586,9 +817,13 @@
       "bytes": 3494,
       "sha256": "06af6ab15d64cf9fc424c955067243646810c6be9d6ed12b753a032c75db9664"
     },
+    "textures__equirectangular__royal_esplanade_2k.hdr.jpg": {
+      "bytes": 552463,
+      "sha256": "b05a664c5fb022ddc6104f253a6684570e99876d30b41a220c8dea4482df6d64"
+    },
     "widget.js": {
-      "bytes": 103224,
-      "sha256": "c495510093c2a4734049d85dd2e8686fc0728d2a32936756212815f45e8b984b"
+      "bytes": 126683292,
+      "sha256": "7b102f3ec59923e3805bd2292bf50fac37260ea43ae28eb35eaa7ca7e4a1e81c"
     }
   }
 }

@@ -304,28 +304,72 @@ references and no completed render. Re-triage the latter after pinning because
 later native gaps can be masked. Explicit-native groups below come directly
 from representative per-example logs.
 
-- **Asset pins / unavailable remote assets (asset-first) (75)**
-  three-animation-keyframes, three-animation-skinning-additive-blending, three-animation-skinning-ik,
-  three-animation-walk, three-custom-attributes-lines, three-gpgpu-birds-gltf, three-gpgpu-water,
-  three-lightprobe, three-lightprobe-cubecamera, three-loader-3dm, three-loader-3ds, three-loader-3mf,
-  three-loader-collada, three-loader-collada-kinematics, three-loader-draco, three-loader-gcode,
-  three-loader-gltf, three-loader-gltf-anisotropy, three-loader-gltf-avif, three-loader-gltf-compressed,
-  three-loader-gltf-dispersion, three-loader-gltf-instancing, three-loader-gltf-iridescence,
-  three-loader-gltf-sheen, three-loader-gltf-transmission, three-loader-gltf-variants, three-loader-kmz,
-  three-loader-ldraw, three-loader-mdd, three-loader-nrrd, three-loader-pdb, three-loader-texture-exr,
-  three-loader-texture-hdr, three-loader-texture-ktx2, three-loader-texture-tiff, three-loader-usdz,
-  three-loader-vox, three-loader-vrml, three-materials-car, three-materials-cubemap-dynamic,
-  three-materials-cubemap-mipmaps, three-materials-cubemap-render-to-mipmaps, three-materials-envmaps-exr,
-  three-materials-envmaps-fasthdr, three-materials-envmaps-groundprojected, three-materials-envmaps-hdr,
-  three-materials-physical-transmission, three-materials-physical-transmission-alpha,
-  three-materials-texture-manualmipmap, three-modifier-curve, three-modifier-curve-instanced,
-  three-morphtargets-face, three-morphtargets-horse, three-multiple-rendertargets, three-performance,
-  three-pmrem-cubemap, three-pmrem-equirectangular, three-pmrem-test, three-points-dynamic,
-  three-postprocessing-3dlut, three-postprocessing-advanced, three-postprocessing-gtao,
-  three-postprocessing-outline, three-postprocessing-ssr, three-postprocessing-unreal-bloom, three-random-uv,
-  three-refraction, three-rendertarget-texture2darray, three-test-wide-gamut, three-texture2darray,
-  three-texture2darray-compressed, three-texture2darray-layerupdate, three-texture3d, three-tonemapping,
-  three-volume-instancing
+- **Asset pins / unavailable remote assets — discovery completed (75; 26 rendering, 49 re-triaged)**
+  `prepare.mjs` now auto-discovers official local URLs and loader `setPath` / array
+  references, recursively expands glTF/bin/image and embedded-GLB dependencies, and
+  emits deterministic sha256 pins. All 75 manifests contain discovered pins (295
+  entries, including raw JPEG/PNG lanes, HDR RGBA, GIF-to-PNG and exact `/./`
+  aliases). LUTs and UltraHDR JPEG are included. Regression:
+  `node tool/three_example/test/asset_discovery_test.mjs`; all 75 also pass
+  `discover_assets.mjs <webgl_id> --verify`. Batch entry point:
+  `prepare_asset_group.mjs --ids-file <file>`.
+
+  Final matrix: 74 completed cases plus the reproducible collada-kinematics boot
+  hang; 26 render with mounted=true, submitted>0 and draws>0. Results:
+  `/tmp/three_asset_matrix_final_combined.jsonl`; logs:
+  `/tmp/three_asset_matrix_logs_final/` (the last single-case 3dlut check is in
+  `/tmp/three_asset_matrix_3dlut_run.log`). Rendering IDs:
+  three-animation-walk, three-gpgpu-birds-gltf, three-loader-3ds, three-loader-gcode,
+  three-loader-gltf, three-loader-gltf-dispersion, three-loader-gltf-instancing,
+  three-loader-gltf-variants, three-loader-mdd, three-loader-nrrd, three-loader-pdb,
+  three-loader-texture-exr, three-loader-texture-hdr, three-loader-texture-tiff,
+  three-loader-vox, three-materials-physical-transmission,
+  three-materials-physical-transmission-alpha, three-morphtargets-horse,
+  three-points-dynamic, three-postprocessing-advanced, three-postprocessing-outline,
+  three-postprocessing-unreal-bloom, three-refraction, three-texture2darray,
+  three-texture3d, three-volume-instancing.
+
+  The remaining 49 are asset-complete except for the two explicitly unavailable
+  externals below; they are re-triaged rather than left in the silent asset bucket:
+
+  - **Draco / Basis / KTX2 decoder-transcoder paths (18)**:
+    three-animation-keyframes, three-animation-skinning-ik, three-gpgpu-water,
+    three-loader-draco, three-loader-gltf-avif, three-loader-gltf-compressed,
+    three-loader-gltf-transmission, three-loader-texture-ktx2, three-materials-car,
+    three-materials-envmaps-fasthdr, three-materials-envmaps-groundprojected,
+    three-morphtargets-face, three-postprocessing-gtao, three-postprocessing-ssr,
+    three-random-uv, three-texture2darray-compressed,
+    three-texture2darray-layerupdate, three-tonemapping. Their pinned models
+    advertise KHR_draco_mesh_compression / KHR_texture_basisu or the official
+    module awaits the Draco/Basis worker transcoder; they stop before first render.
+  - **XML / model parser paths (5)**: three-loader-3mf, three-loader-collada,
+    three-loader-collada-kinematics, three-loader-kmz, three-loader-vrml. 3MF,
+    Collada and KMZ report `ReferenceError: 'DOMParser' is not defined`; VRML
+    reports `InternalError: stack overflow`; collada-kinematics hangs during boot
+    after its pinned DAE is supplied.
+  - **R1 material / target / PMREM capabilities (17)**:
+    three-custom-attributes-lines (incompatible node object/geometry/material),
+    three-loader-gltf-iridescence and three-loader-gltf-sheen (unsupported aoMap),
+    three-materials-cubemap-dynamic (undefined CubeCamera coordinateSystem),
+    three-materials-cubemap-mipmaps and three-materials-texture-manualmipmap
+    (unsupported custom mipmaps), three-materials-cubemap-render-to-mipmaps,
+    three-materials-envmaps-exr (`begin` of undefined RAF cascade),
+    three-materials-envmaps-hdr, three-modifier-curve,
+    three-modifier-curve-instanced (unsupported LineLoop),
+    three-multiple-rendertargets, three-pmrem-cubemap,
+    three-pmrem-equirectangular, three-pmrem-test, three-postprocessing-3dlut
+    (raw-LUT canvas ingestion plus unsupported aoMap),
+    three-rendertarget-texture2darray (one-2D-target-per-pass limit).
+  - **Silent native / DOM / planner paths after pins (7)**:
+    three-animation-skinning-additive-blending (`classList` of undefined),
+    three-lightprobe, three-lightprobe-cubecamera, three-loader-gltf-anisotropy,
+    three-loader-usdz, three-performance, three-test-wide-gamut. These now have
+    pinned bytes but still produce no native draw (or no submitted frame) without
+    a residual host-asset-loader error.
+  - **Still unavailable external inputs (2)**: three-loader-3dm needs the remote
+    `rhino3dm@8.32.1/rhino3dm.js` runtime; three-loader-ldraw references
+    `models/ldraw/officialLibrary/models/car.ldr_Packed.mpd`, which is absent from
+    the official r186 source tree.
 
 - **unsupported ShaderMaterial (7)**
   three-buffergeometry-attributes-integer, three-custom-attributes, three-lightprobes-sponza,
@@ -370,29 +414,95 @@ from representative per-example logs.
   three-shadow-contact (unsupported scene overrideMaterial), three-shadowmap-csm (unsupported onBeforeCompile
   arbitrary shader)
 
-- **Silent native/DOM paths (no host exception) (9)**
+- **Silent native/DOM paths (no host exception) (9; 8 now render, 1 native spec open)**
   three-multiple-elements, three-multiple-elements-text, three-multisampled-renderbuffers,
   three-postprocessing-fxaa, three-postprocessing-glitch, three-postprocessing-unreal-bloom-selective,
   three-reversed-depth-buffer, three-shadowmap-viewer, three-test-memory2
 
-  - multiple-elements and multiple-elements-text require HTML layout/scissor
-    integration; multisampled-renderbuffers, postprocessing-fxaa,
-    postprocessing-glitch and postprocessing-unreal-bloom-selective stop during
-    composer/target setup; reversed-depth-buffer needs reversed depth;
-    shadowmap-viewer stops in shadow-viewer setup; test-memory2 uses arbitrary
-    ShaderMaterial. These need follow-up diagnostics after the logged groups.
+  - FIXED in the example adapter: multiple-elements mounts the official `#c`
+    canvas and provides bounded DOM rect/scissor clipping; multiple-elements-text
+    restores six static `.view` elements, dispatches `window.onload`, and provides
+    bounded Canvas2D arcs; shadowmap-viewer renders the main scene while explicitly
+    omitting its ShaderMaterial HUD; test-memory2 retains all 100 sphere draws and
+    material disposal with a warned static-color native material instead of
+    arbitrary GLSL. The multi-scene global light-cap warnings remain explicit.
+  - VERIFIED on the current native build: multisampled-renderbuffers,
+    postprocessing-fxaa and postprocessing-unreal-bloom-selective submit native
+    degraded draws. postprocessing-glitch also renders after its required
+    `#startButton` pointer gesture; mounted=false in the gesture-less matrix is a
+    host limitation, not a scene failure.
+  - OPEN native spec for reversed-depth-buffer: `native_renderer.js:1117` rejects
+    the second of three official WebGLRenderer instances on the shared `main`
+    canvas. Add a supported shared-renderer reuse/factory path that preserves
+    sequential viewport/scissor/target commands (do not merely clear private
+    `_disposed` state). The constructor flags `logarithmicDepthBuffer` and
+    `reversedDepthBuffer` currently have no native implementation; after shared
+    renderer setup, either implement their projection/depth-range semantics with
+    suitable DepthTexture precision or emit a once-per-renderer standard-depth
+    degrade warning. No silent claim of reversed/logarithmic depth is acceptable.
 
-- **HTML video / camera media paths (4)**
+- **HTML video / camera media paths (4; all render with explicit bounded degrades)**
   three-materials-video, three-materials-video-webcam, three-video-kinect, three-video-panorama-equirectangular
 
-  materials-video and video-panorama-equirectangular need HTML video transport;
-  materials-video-webcam needs a camera; video-kinect also needs its HTML video
-  assets and custom ShaderMaterial.
+  The adapter now supplies local video/camera facades and converts VideoTexture
+  to a warned 16x16 RGBA checker before native upload, so no case silently becomes
+  a black frame. materials-video renders its 200-cell grid with postprocessing
+  explicitly dropped; webcam renders 128 cells from a fake getUserMedia stream;
+  panorama renders its sphere; kinect renders a warned static-color point cloud.
+  Real frame/stream transport through JsMediaHost remains future feature work;
+  these are deliberately bounded degrades, not claims of VideoTexture support.
 
-- **WebAudio matrix host/gesture limitation (4)**
+- **WebAudio matrix host/gesture limitation (4; dedicated coverage complete)**
   three-webaudio-orientation, three-webaudio-sandbox, three-webaudio-timing, three-webaudio-visualizer
 
-  The matrix supplies no media host or user gesture. Orientation/timing already
-  pass their dedicated audio-host tests; sandbox/visualizer are prepared and
-  registered but still need equivalent dedicated audio-host coverage. These four
-  mounted=false matrix results are not evidence of a native draw-plan regression.
+  All four now pass `js_three_webaudio_examples_test.dart` with QuickJS and an
+  audio host. Sandbox proves gesture resume plus three media-source plays and one
+  oscillator play; visualizer proves gesture resume/play and its warned native
+  mesh/camera fallback with zero-filled analyser data. The matrix still supplies
+  no media host or user gesture, so mounted=false sandbox/visualizer matrix
+  results are not evidence of a native draw-plan regression.
+
+Focused evidence: `js_three_media_dom_examples_test.dart` and
+`js_three_webaudio_examples_test.dart`; matrix subset output
+`/tmp/media_dom_matrix_final.jsonl`.
+
+### Native restriction resolution (2026-10-31)
+
+All 56 assigned native-restriction cases now submit non-empty native draw plans:
+ShaderMaterial 7/7, instancedGeometry 4/4, RawShaderMaterial 4/4, undefined-update
+RAF cascades 4/4, materialState 2/2, render-target restrictions 3/3,
+render-target-texture restrictions 16/16, compressed texture types 2/2,
+undefined-material cascades 2/2, other individual signatures 11/11, plus the
+shared-renderer reversed-depth case. The final single matrix run is
+`/tmp/native_final_all.jsonl` with log `/tmp/native_final_all.log`: 56/56 have
+submitted>0 and draws>0 (2,503 submitted frames, 710 planned draws), with zero
+RAF tick errors. effects-ascii still reports mounted=false after its ASCII
+surface replaces the canvas, but it submits 18 frames with two native draws;
+this is not an empty-scene result.
+
+The bounded implementation keeps the existing R1 v6 wire protocol. Render-target
+color/depth/cube textures can be sampled through native materials, with warned
+RGBA8/target-pass approximations and active-target feedback unbinding. DDS and
+PVRTC decode to bounded RGBA8 pixels. Instanced shader profiles CPU-expand a
+bounded instance count; RawShaderMaterial and ShaderMaterial recognizers retain
+only their identified geometry/color/texture behavior. alphaHash,
+premultipliedAlpha, colorWrite/stencil, RectAreaLight, onBeforeCompile and
+scene.overrideMaterial paths degrade explicitly instead of aborting. Native
+Canvas2D/DataTexture paths remove the volume/material cascades; a bounded global
+Image facade uses the host decoder for SMAA's embedded lookup textures. Multiple
+WebGLRenderer instances now reuse the shared canvas renderer while preserving
+sequential passes, and logarithmic/reversed depth emits explicit standard-depth
+warnings. Empty source geometry is emitted as a no-draw node, not an invalid
+geometry/material-zero draw.
+
+Regression coverage: `js_three_bounded_shader_render_test.dart`,
+`js_three_lines_instancing_render_test.dart`,
+`js_three_render_target_effects_test.dart`, and
+`js_three_camera_logarithmicdepthbuffer_example_test.dart` (28 tests, all pass).
+Analyzer is clean for the changed tests. No protocol fixtures required changes.
+
+Residual asset handoff: three-shadowmap-progressive now renders its native scene
+and has no RAF cascade, but still logs a missing
+`models/gltf/ShadowmappableMesh.glb` host asset. Add that pin in the asset wave;
+its dedicated test deliberately checks the native RAF invariant separately from
+this external model failure.

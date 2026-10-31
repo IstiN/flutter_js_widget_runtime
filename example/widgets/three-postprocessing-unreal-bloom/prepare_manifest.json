@@ -43,6 +43,16 @@
       "sha256": "64d4963fb1135ef97a2dfe70292c598f86ed675e3b414bac6fbffb5bca7b3550"
     }
   },
+  "assetDiscovery": [
+    {
+      "url": "models/gltf/PrimaryIonDrive.glb",
+      "output": "models__gltf__PrimaryIonDrive.glb",
+      "mime": "model/gltf-binary",
+      "diagnostic": "auto:models/gltf/PrimaryIonDrive.glb",
+      "sha256": "4da2bc76db5a1f639866f05219426c9fde0ece3239c3cb054b5675a8dc1cde21",
+      "discovered": true
+    }
+  ],
   "facade": {
     "global": "globalThis.THREE",
     "exports": [
@@ -505,8 +515,8 @@
   },
   "inputs": {
     "assets/three/three.native.js": {
-      "bytes": 777104,
-      "sha256": "5adcb8e7c2d94dd83748134c4d13b9fcfcba9b671445fe27de895575402241b0"
+      "bytes": 791598,
+      "sha256": "58efdde0f4795a978fdf0a9ed9a4f606264aff39bb4e164aaaf00f5542c280e8"
     },
     "assets/three/three.web.js": {
       "bytes": 855325,
@@ -576,6 +586,10 @@
       "bytes": 11535,
       "sha256": "b1632a703206c3d830de9fcbe515696770d04b71a15ee6b50afa6d2c3298c86f"
     },
+    "source/examples/models/gltf/PrimaryIonDrive.glb": {
+      "bytes": 5800408,
+      "sha256": "4da2bc76db5a1f639866f05219426c9fde0ece3239c3cb054b5675a8dc1cde21"
+    },
     "source/examples/webgl_postprocessing_unreal_bloom.html": {
       "bytes": 5483,
       "sha256": "c9a014b1fc8cc57d3448e49bc4848a0c6dffebb7c4d05c92e198c00996d6d6c0"
@@ -588,9 +602,13 @@
       "bytes": 1951,
       "sha256": "7852c54a706c19e98978c884aa9cd9bfd8d040a2d304c8e6d8cf973dd3554eaf"
     },
+    "tool/three_example/asset_discovery.mjs": {
+      "bytes": 11532,
+      "sha256": "5219e6b747041382d9e40edc33901f04140df1cfb0454b181d8145414a75ee9e"
+    },
     "tool/three_example/example_adapter.js": {
-      "bytes": 20723,
-      "sha256": "9c713a0daa93289f0aeb2d75de6c067569ca4bc2235c24f3bb2bc8feab03336c"
+      "bytes": 36267,
+      "sha256": "c604a1842689cfaf43e2bdf335b55f2384780c7b163cd41ab6e91e3912704b61"
     },
     "tool/three_example/example_canvas2d.js": {
       "bytes": 20988,
@@ -601,8 +619,8 @@
       "sha256": "dc11346394f41bb4f385738d3afa6aa75e695ac80fe3be3a5fbf4201686376bf"
     },
     "tool/three_example/prepare.mjs": {
-      "bytes": 247876,
-      "sha256": "4ed1752612b57fb4ac32f62717e772e9a85f4e8a0f7e51a764443b68af0b8aac"
+      "bytes": 252492,
+      "sha256": "544095661162d33d5b6e91b6b744f7eb60b97c1ff9ea1f4ae297b2f39044af43"
     },
     "tool/three_example/stats_adapter.js": {
       "bytes": 2107,
@@ -618,6 +636,10 @@
       "bytes": 380,
       "sha256": "50bf80a7800f15d6395abdff14f43d1d9ed441a0198b2d8434fdf7977b2719ad"
     },
+    "models__gltf__PrimaryIonDrive.glb": {
+      "bytes": 5800408,
+      "sha256": "4da2bc76db5a1f639866f05219426c9fde0ece3239c3cb054b5675a8dc1cde21"
+    },
     "official_module.js": {
       "bytes": 3936,
       "sha256": "64d4963fb1135ef97a2dfe70292c598f86ed675e3b414bac6fbffb5bca7b3550"
@@ -627,8 +649,8 @@
       "sha256": "c9a014b1fc8cc57d3448e49bc4848a0c6dffebb7c4d05c92e198c00996d6d6c0"
     },
     "widget.js": {
-      "bytes": 160485,
-      "sha256": "7279750aaba24a3dd855cc934483667512c96dc625371fd93fd1b34a4870fdd4"
+      "bytes": 7902817,
+      "sha256": "00d224a3fb7fe02ad38610827d70aa116501270e9b0dd6a662be87317a8fa15d"
     }
   }
 }

@@ -43,6 +43,17 @@
       "sha256": "22ec9dbebafd54928146af0b87703233da4d0ce5bfc1e784be057297c3abcf36"
     }
   },
+  "assetDiscovery": [
+    {
+      "url": "models/gltf/coffeemat.glb",
+      "output": "models__gltf__coffeemat.glb",
+      "mime": "model/gltf-binary",
+      "diagnostic": "auto:models/gltf/coffeemat.glb",
+      "sha256": "2cf091a8a32da5fc495f64beb02b1155fc57c0c9d3ef871ebce67981dedddf69",
+      "discovered": true,
+      "externalizeImages": true
+    }
+  ],
   "facade": {
     "global": "globalThis.THREE",
     "exports": [
@@ -505,8 +516,8 @@
   },
   "inputs": {
     "assets/three/three.native.js": {
-      "bytes": 777104,
-      "sha256": "5adcb8e7c2d94dd83748134c4d13b9fcfcba9b671445fe27de895575402241b0"
+      "bytes": 791598,
+      "sha256": "58efdde0f4795a978fdf0a9ed9a4f606264aff39bb4e164aaaf00f5542c280e8"
     },
     "assets/three/three.web.js": {
       "bytes": 855325,
@@ -560,6 +571,10 @@
       "bytes": 3110,
       "sha256": "5ac7095fd566bc9ae48376055fd66edf27cb9ebbf9e1269dc206bfd4933ae9eb"
     },
+    "source/examples/models/gltf/coffeemat.glb": {
+      "bytes": 4780672,
+      "sha256": "2cf091a8a32da5fc495f64beb02b1155fc57c0c9d3ef871ebce67981dedddf69"
+    },
     "source/examples/webgl_loader_gltf_compressed.html": {
       "bytes": 4083,
       "sha256": "e1537edce61b1b41ba057a00150c41c2030f6bb0131a46db7c70ecfad2b03413"
@@ -572,9 +587,13 @@
       "bytes": 1951,
       "sha256": "7852c54a706c19e98978c884aa9cd9bfd8d040a2d304c8e6d8cf973dd3554eaf"
     },
+    "tool/three_example/asset_discovery.mjs": {
+      "bytes": 11532,
+      "sha256": "5219e6b747041382d9e40edc33901f04140df1cfb0454b181d8145414a75ee9e"
+    },
     "tool/three_example/example_adapter.js": {
-      "bytes": 20723,
-      "sha256": "9c713a0daa93289f0aeb2d75de6c067569ca4bc2235c24f3bb2bc8feab03336c"
+      "bytes": 36267,
+      "sha256": "c604a1842689cfaf43e2bdf335b55f2384780c7b163cd41ab6e91e3912704b61"
     },
     "tool/three_example/example_canvas2d.js": {
       "bytes": 20988,
@@ -585,8 +604,8 @@
       "sha256": "dc11346394f41bb4f385738d3afa6aa75e695ac80fe3be3a5fbf4201686376bf"
     },
     "tool/three_example/prepare.mjs": {
-      "bytes": 247876,
-      "sha256": "4ed1752612b57fb4ac32f62717e772e9a85f4e8a0f7e51a764443b68af0b8aac"
+      "bytes": 252492,
+      "sha256": "544095661162d33d5b6e91b6b744f7eb60b97c1ff9ea1f4ae297b2f39044af43"
     },
     "tool/three_example/stats_adapter.js": {
       "bytes": 2107,
@@ -602,6 +621,10 @@
       "bytes": 364,
       "sha256": "9fa1c9387bb0f29145c509ba89431447de0731d307590af2eda3c8689be5a34a"
     },
+    "models__gltf__coffeemat.glb": {
+      "bytes": 4780672,
+      "sha256": "2cf091a8a32da5fc495f64beb02b1155fc57c0c9d3ef871ebce67981dedddf69"
+    },
     "official_module.js": {
       "bytes": 2860,
       "sha256": "22ec9dbebafd54928146af0b87703233da4d0ce5bfc1e784be057297c3abcf36"
@@ -611,8 +634,8 @@
       "sha256": "e1537edce61b1b41ba057a00150c41c2030f6bb0131a46db7c70ecfad2b03413"
     },
     "widget.js": {
-      "bytes": 184299,
-      "sha256": "da8fba3c074a1aaa30787ec42b6258564347a5840b291d8c0f36ab7c2c548136"
+      "bytes": 6566979,
+      "sha256": "6ad039395ec89958054b2fd4b61f2eda71d620f87872a6afa72368dd1ccf2961"
     }
   }
 }

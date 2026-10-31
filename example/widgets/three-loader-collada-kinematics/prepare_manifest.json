@@ -43,6 +43,16 @@
       "sha256": "47825636c4797a252f79e958861d851936314325b99a11bc1034869b7fe32812"
     }
   },
+  "assetDiscovery": [
+    {
+      "url": "models/collada/abb_irb52_7_120.dae",
+      "output": "models__collada__abb_irb52_7_120.dae",
+      "mime": "application/octet-stream",
+      "diagnostic": "auto:models/collada/abb_irb52_7_120.dae",
+      "sha256": "d016d827423984a2b8f3d0052074304d4ae3f0b0e69663c3c7d9a9523b6317d6",
+      "discovered": true
+    }
+  ],
   "facade": {
     "global": "globalThis.THREE",
     "exports": [
@@ -505,8 +515,8 @@
   },
   "inputs": {
     "assets/three/three.native.js": {
-      "bytes": 777104,
-      "sha256": "5adcb8e7c2d94dd83748134c4d13b9fcfcba9b671445fe27de895575402241b0"
+      "bytes": 791598,
+      "sha256": "58efdde0f4795a978fdf0a9ed9a4f606264aff39bb4e164aaaf00f5542c280e8"
     },
     "assets/three/three.web.js": {
       "bytes": 855325,
@@ -536,6 +546,10 @@
       "bytes": 36839,
       "sha256": "d9532ab17f1d9e2919deba8029d759d5dcaed2f21195ded9e29491f719b1a0c6"
     },
+    "source/examples/models/collada/abb_irb52_7_120.dae": {
+      "bytes": 5157221,
+      "sha256": "d016d827423984a2b8f3d0052074304d4ae3f0b0e69663c3c7d9a9523b6317d6"
+    },
     "source/examples/webgl_loader_collada_kinematics.html": {
       "bytes": 4371,
       "sha256": "4039717283dcf1e15d6dd38f407f2c651d583c23d0e021b19b8fa06667092a26"
@@ -548,9 +562,13 @@
       "bytes": 1951,
       "sha256": "7852c54a706c19e98978c884aa9cd9bfd8d040a2d304c8e6d8cf973dd3554eaf"
     },
+    "tool/three_example/asset_discovery.mjs": {
+      "bytes": 11532,
+      "sha256": "5219e6b747041382d9e40edc33901f04140df1cfb0454b181d8145414a75ee9e"
+    },
     "tool/three_example/example_adapter.js": {
-      "bytes": 20723,
-      "sha256": "9c713a0daa93289f0aeb2d75de6c067569ca4bc2235c24f3bb2bc8feab03336c"
+      "bytes": 36267,
+      "sha256": "c604a1842689cfaf43e2bdf335b55f2384780c7b163cd41ab6e91e3912704b61"
     },
     "tool/three_example/example_canvas2d.js": {
       "bytes": 20988,
@@ -561,8 +579,8 @@
       "sha256": "dc11346394f41bb4f385738d3afa6aa75e695ac80fe3be3a5fbf4201686376bf"
     },
     "tool/three_example/prepare.mjs": {
-      "bytes": 247876,
-      "sha256": "4ed1752612b57fb4ac32f62717e772e9a85f4e8a0f7e51a764443b68af0b8aac"
+      "bytes": 252492,
+      "sha256": "544095661162d33d5b6e91b6b744f7eb60b97c1ff9ea1f4ae297b2f39044af43"
     },
     "tool/three_example/stats_adapter.js": {
       "bytes": 2107,
@@ -578,6 +596,10 @@
       "bytes": 367,
       "sha256": "c9e66f4c3d48e7c8a5f1b058a5e167e568f5ff941e591ffca4676e31631d5993"
     },
+    "models__collada__abb_irb52_7_120.dae": {
+      "bytes": 5157221,
+      "sha256": "d016d827423984a2b8f3d0052074304d4ae3f0b0e69663c3c7d9a9523b6317d6"
+    },
     "official_module.js": {
       "bytes": 3270,
       "sha256": "47825636c4797a252f79e958861d851936314325b99a11bc1034869b7fe32812"
@@ -587,8 +609,8 @@
       "sha256": "4039717283dcf1e15d6dd38f407f2c651d583c23d0e021b19b8fa06667092a26"
     },
     "widget.js": {
-      "bytes": 100316,
-      "sha256": "9e5522f48bc88b113923c4011131ba274fcca750ebf3736c4661b75693fdd9b4"
+      "bytes": 6985087,
+      "sha256": "bcdc0c872c9dd6462880f6543336e0c7f760b20dbf135dde1505b745997877d4"
     }
   }
 }

@@ -43,6 +43,25 @@
       "sha256": "715287a7e3e61cca41d2109e365187d300f989ca6a7efcc9ed47fb6ab4afbd59"
     }
   },
+  "assetDiscovery": [
+    {
+      "url": "models/gltf/IridescentDishWithOlives.glb",
+      "output": "models__gltf__IridescentDishWithOlives.glb",
+      "mime": "model/gltf-binary",
+      "diagnostic": "auto:models/gltf/IridescentDishWithOlives.glb",
+      "sha256": "98a6db7fbc0b90b9807fd57189e8cf71642672ee0301609b0aabcc28c698f29f",
+      "discovered": true,
+      "externalizeImages": true
+    },
+    {
+      "url": "textures/equirectangular/royal_esplanade_2k.hdr.jpg",
+      "output": "textures__equirectangular__royal_esplanade_2k.hdr.jpg",
+      "mime": "image/jpeg",
+      "diagnostic": "auto:textures/equirectangular/royal_esplanade_2k.hdr.jpg",
+      "sha256": "b05a664c5fb022ddc6104f253a6684570e99876d30b41a220c8dea4482df6d64",
+      "discovered": true
+    }
+  ],
   "facade": {
     "global": "globalThis.THREE",
     "exports": [
@@ -505,8 +524,8 @@
   },
   "inputs": {
     "assets/three/three.native.js": {
-      "bytes": 777104,
-      "sha256": "5adcb8e7c2d94dd83748134c4d13b9fcfcba9b671445fe27de895575402241b0"
+      "bytes": 791598,
+      "sha256": "58efdde0f4795a978fdf0a9ed9a4f606264aff39bb4e164aaaf00f5542c280e8"
     },
     "assets/three/three.web.js": {
       "bytes": 855325,
@@ -528,10 +547,6 @@
       "bytes": 117570,
       "sha256": "131c0f78c01d19368ae495caa65b3adaa10487810a36a05bb5901b769a35ac16"
     },
-    "source/examples/jsm/loaders/UltraHDRLoader.js": {
-      "bytes": 19696,
-      "sha256": "fd67cf0e861d9f4eeb02e3b5acc62896658edafb6410eb4fc4c178352c0a6971"
-    },
     "source/examples/jsm/utils/BufferGeometryUtils.js": {
       "bytes": 37712,
       "sha256": "9fb63427ce6641fa14fd0baff9cc4d1b5f9c3d85fd084bf2e90e803c44ec1797"
@@ -539,6 +554,58 @@
     "source/examples/jsm/utils/SkeletonUtils.js": {
       "bytes": 11535,
       "sha256": "b1632a703206c3d830de9fcbe515696770d04b71a15ee6b50afa6d2c3298c86f"
+    },
+    "source/examples/models/gltf/IridescentDishWithOlives.glb": {
+      "bytes": 4095320,
+      "sha256": "98a6db7fbc0b90b9807fd57189e8cf71642672ee0301609b0aabcc28c698f29f"
+    },
+    "source/examples/models/gltf/embedded-0.jpg": {
+      "bytes": 24402,
+      "sha256": "5432d5c3ac2f9d1767df9747dd82b1c05f34e9642b5a301c11bd9c3347e14ff1"
+    },
+    "source/examples/models/gltf/embedded-1.png": {
+      "bytes": 208199,
+      "sha256": "3896b80e61fe7ec4f6b71a3a7d06d5b28dbf869ba96774ef66a6183caf129ac5"
+    },
+    "source/examples/models/gltf/embedded-10.png": {
+      "bytes": 1260,
+      "sha256": "f46234d373aba73615ef85876f1bdffa137fbfcfba5d1c84fa20363c2cd42835"
+    },
+    "source/examples/models/gltf/embedded-2.jpg": {
+      "bytes": 153807,
+      "sha256": "dea602af0ea1ad8bd43d7aed883e8359b2c020413a7e83534334130ff9804180"
+    },
+    "source/examples/models/gltf/embedded-3.jpg": {
+      "bytes": 49544,
+      "sha256": "5e448fc55deea7ef763101cd430b0a2ae305ca3deed6a828ef5fffb1976ab3f0"
+    },
+    "source/examples/models/gltf/embedded-4.png": {
+      "bytes": 426418,
+      "sha256": "c25bba44f575e59dde9acbd15e7226faf86bdfd68deba0c2d731f0e37abd4375"
+    },
+    "source/examples/models/gltf/embedded-5.jpg": {
+      "bytes": 96878,
+      "sha256": "8dd033b7b30d8d955353e8fb47508c1fe7cf34e7bff7587e679fe86c5f54159d"
+    },
+    "source/examples/models/gltf/embedded-6.jpg": {
+      "bytes": 381173,
+      "sha256": "dee71252ff72edb8e41118f862770272ab81a9966a363e78012e1e74ad53f0a2"
+    },
+    "source/examples/models/gltf/embedded-7.png": {
+      "bytes": 1459992,
+      "sha256": "7a3edcf65b7b904c7c821d90f8b7011b2ed5297afc95a19a533cae876d5e0111"
+    },
+    "source/examples/models/gltf/embedded-8.jpg": {
+      "bytes": 315186,
+      "sha256": "d6adb9e044c206437260a4b133c9aa88aac068a54d91d3b5cb59a1524bafd46a"
+    },
+    "source/examples/models/gltf/embedded-9.png": {
+      "bytes": 889423,
+      "sha256": "4bb07e378854ba9df582ace4524b0be66e20d2a208c3d6c32f3b666286a09e6d"
+    },
+    "source/examples/textures/equirectangular/royal_esplanade_2k.hdr.jpg": {
+      "bytes": 552463,
+      "sha256": "b05a664c5fb022ddc6104f253a6684570e99876d30b41a220c8dea4482df6d64"
     },
     "source/examples/webgl_loader_gltf_transmission.html": {
       "bytes": 4063,
@@ -552,9 +619,13 @@
       "bytes": 1951,
       "sha256": "7852c54a706c19e98978c884aa9cd9bfd8d040a2d304c8e6d8cf973dd3554eaf"
     },
+    "tool/three_example/asset_discovery.mjs": {
+      "bytes": 11532,
+      "sha256": "5219e6b747041382d9e40edc33901f04140df1cfb0454b181d8145414a75ee9e"
+    },
     "tool/three_example/example_adapter.js": {
-      "bytes": 20723,
-      "sha256": "9c713a0daa93289f0aeb2d75de6c067569ca4bc2235c24f3bb2bc8feab03336c"
+      "bytes": 36267,
+      "sha256": "c604a1842689cfaf43e2bdf335b55f2384780c7b163cd41ab6e91e3912704b61"
     },
     "tool/three_example/example_canvas2d.js": {
       "bytes": 20988,
@@ -565,8 +636,8 @@
       "sha256": "dc11346394f41bb4f385738d3afa6aa75e695ac80fe3be3a5fbf4201686376bf"
     },
     "tool/three_example/prepare.mjs": {
-      "bytes": 247876,
-      "sha256": "4ed1752612b57fb4ac32f62717e772e9a85f4e8a0f7e51a764443b68af0b8aac"
+      "bytes": 252492,
+      "sha256": "544095661162d33d5b6e91b6b744f7eb60b97c1ff9ea1f4ae297b2f39044af43"
     },
     "tool/three_example/stats_adapter.js": {
       "bytes": 2107,
@@ -582,6 +653,54 @@
       "bytes": 370,
       "sha256": "1b7050a2cc848f1d1a3d9685751d97905067eddb267c09958a31451624b7c1f8"
     },
+    "models__gltf__IridescentDishWithOlives.glb": {
+      "bytes": 4095408,
+      "sha256": "604282ac8f56f136037b27112e03896f686082b8ee541e62d858c9167a45a305"
+    },
+    "models__gltf__embedded-0.jpg": {
+      "bytes": 24402,
+      "sha256": "5432d5c3ac2f9d1767df9747dd82b1c05f34e9642b5a301c11bd9c3347e14ff1"
+    },
+    "models__gltf__embedded-1.png": {
+      "bytes": 208199,
+      "sha256": "3896b80e61fe7ec4f6b71a3a7d06d5b28dbf869ba96774ef66a6183caf129ac5"
+    },
+    "models__gltf__embedded-10.png": {
+      "bytes": 1260,
+      "sha256": "f46234d373aba73615ef85876f1bdffa137fbfcfba5d1c84fa20363c2cd42835"
+    },
+    "models__gltf__embedded-2.jpg": {
+      "bytes": 153807,
+      "sha256": "dea602af0ea1ad8bd43d7aed883e8359b2c020413a7e83534334130ff9804180"
+    },
+    "models__gltf__embedded-3.jpg": {
+      "bytes": 49544,
+      "sha256": "5e448fc55deea7ef763101cd430b0a2ae305ca3deed6a828ef5fffb1976ab3f0"
+    },
+    "models__gltf__embedded-4.png": {
+      "bytes": 426418,
+      "sha256": "c25bba44f575e59dde9acbd15e7226faf86bdfd68deba0c2d731f0e37abd4375"
+    },
+    "models__gltf__embedded-5.jpg": {
+      "bytes": 96878,
+      "sha256": "8dd033b7b30d8d955353e8fb47508c1fe7cf34e7bff7587e679fe86c5f54159d"
+    },
+    "models__gltf__embedded-6.jpg": {
+      "bytes": 381173,
+      "sha256": "dee71252ff72edb8e41118f862770272ab81a9966a363e78012e1e74ad53f0a2"
+    },
+    "models__gltf__embedded-7.png": {
+      "bytes": 1459992,
+      "sha256": "7a3edcf65b7b904c7c821d90f8b7011b2ed5297afc95a19a533cae876d5e0111"
+    },
+    "models__gltf__embedded-8.jpg": {
+      "bytes": 315186,
+      "sha256": "d6adb9e044c206437260a4b133c9aa88aac068a54d91d3b5cb59a1524bafd46a"
+    },
+    "models__gltf__embedded-9.png": {
+      "bytes": 889423,
+      "sha256": "4bb07e378854ba9df582ace4524b0be66e20d2a208c3d6c32f3b666286a09e6d"
+    },
     "official_module.js": {
       "bytes": 2581,
       "sha256": "715287a7e3e61cca41d2109e365187d300f989ca6a7efcc9ed47fb6ab4afbd59"
@@ -590,9 +709,13 @@
       "bytes": 4063,
       "sha256": "6a604abcba0a092dbdff61e19eb897aa58b869e19534e20f3e0b308fed6cb704"
     },
+    "textures__equirectangular__royal_esplanade_2k.hdr.jpg": {
+      "bytes": 552463,
+      "sha256": "b05a664c5fb022ddc6104f253a6684570e99876d30b41a220c8dea4482df6d64"
+    },
     "widget.js": {
-      "bytes": 109307,
-      "sha256": "70aa601327698c76e63fbf3eff9683c9d935741434612a603ade63da8228411a"
+      "bytes": 16995608,
+      "sha256": "c0c36effb5f85f27369bbaa545a9d4a982a5de19dddb022488687d56a101cce0"
     }
   }
 }

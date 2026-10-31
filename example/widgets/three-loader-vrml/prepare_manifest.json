@@ -43,6 +43,145 @@
       "sha256": "347a5492a0d8947a8815b9b04f030129b5c575460f00575bc18636a3762dcafd"
     }
   },
+  "assetDiscovery": [
+    {
+      "url": "models/vrml/camera.wrl",
+      "output": "models__vrml__camera.wrl",
+      "mime": "application/octet-stream",
+      "diagnostic": "auto:models/vrml/camera.wrl",
+      "sha256": "52406b47d468e4ab51a685ead28e66f855d32c72df88cc85b897335edecb30f6",
+      "discovered": true
+    },
+    {
+      "url": "models/vrml/creaseAngle.wrl",
+      "output": "models__vrml__creaseAngle.wrl",
+      "mime": "application/octet-stream",
+      "diagnostic": "auto:models/vrml/creaseAngle.wrl",
+      "sha256": "92b40800693fb038a8c15a58a31bc5282f68938e4ea42b6ecc0e1fc9c6f8d2b1",
+      "discovered": true
+    },
+    {
+      "url": "models/vrml/crystal.wrl",
+      "output": "models__vrml__crystal.wrl",
+      "mime": "application/octet-stream",
+      "diagnostic": "auto:models/vrml/crystal.wrl",
+      "sha256": "f31234b505a11b6a97b0727a84f6a6e887b6de5678594f3c2d5de5a9e120a60e",
+      "discovered": true
+    },
+    {
+      "url": "models/vrml/elevationGrid1.wrl",
+      "output": "models__vrml__elevationGrid1.wrl",
+      "mime": "application/octet-stream",
+      "diagnostic": "auto:models/vrml/elevationGrid1.wrl",
+      "sha256": "f4706fdc10edea40a6e1fbcc8c0656af947ce5545deaeab5dcd62276976a0d9b",
+      "discovered": true
+    },
+    {
+      "url": "models/vrml/elevationGrid2.wrl",
+      "output": "models__vrml__elevationGrid2.wrl",
+      "mime": "application/octet-stream",
+      "diagnostic": "auto:models/vrml/elevationGrid2.wrl",
+      "sha256": "2f32c9d42e450bba872376b14e7264bee2157b4f50f6619d2f599144bd3cba16",
+      "discovered": true
+    },
+    {
+      "url": "models/vrml/extrusion1.wrl",
+      "output": "models__vrml__extrusion1.wrl",
+      "mime": "application/octet-stream",
+      "diagnostic": "auto:models/vrml/extrusion1.wrl",
+      "sha256": "61f934a7bb4780fb65a205548b5f3d6105e1a12280b97228012775921048b857",
+      "discovered": true
+    },
+    {
+      "url": "models/vrml/extrusion2.wrl",
+      "output": "models__vrml__extrusion2.wrl",
+      "mime": "application/octet-stream",
+      "diagnostic": "auto:models/vrml/extrusion2.wrl",
+      "sha256": "d22276fc3f9124d2798cc1f6823e77aec55aa989e3a03e715032f18c00719114",
+      "discovered": true
+    },
+    {
+      "url": "models/vrml/extrusion3.wrl",
+      "output": "models__vrml__extrusion3.wrl",
+      "mime": "application/octet-stream",
+      "diagnostic": "auto:models/vrml/extrusion3.wrl",
+      "sha256": "a679dcf403777b3840c585c6257e2c780543fd9b3c4f7463e32d66c316535f19",
+      "discovered": true
+    },
+    {
+      "url": "models/vrml/house.wrl",
+      "output": "models__vrml__house.wrl",
+      "mime": "application/octet-stream",
+      "diagnostic": "auto:models/vrml/house.wrl",
+      "sha256": "fec8801b01958e4b17bac1d8dbbb3345c8cef7dc5a1133a5bda5c421edd48d58",
+      "discovered": true
+    },
+    {
+      "url": "models/vrml/lines.wrl",
+      "output": "models__vrml__lines.wrl",
+      "mime": "application/octet-stream",
+      "diagnostic": "auto:models/vrml/lines.wrl",
+      "sha256": "dbb28f1b2cba2fd0840b338e77577a9be7222d179d6a4f3db499270a55334c10",
+      "discovered": true
+    },
+    {
+      "url": "models/vrml/linesTransparent.wrl",
+      "output": "models__vrml__linesTransparent.wrl",
+      "mime": "application/octet-stream",
+      "diagnostic": "auto:models/vrml/linesTransparent.wrl",
+      "sha256": "8cf2926bd72afe37f2abcc29224defd5928969da09233fb13d1c79e8e866a02e",
+      "discovered": true
+    },
+    {
+      "url": "models/vrml/map.gif",
+      "output": "models__vrml__map.gif",
+      "mime": "image/gif",
+      "diagnostic": "auto:models/vrml/map.gif",
+      "sha256": "a890f0a89eadc083cb39bfbe597c1395d7acf47a19f673b5643d4a9c174ea52f",
+      "discovered": true,
+      "convertToPng": true
+    },
+    {
+      "url": "models/vrml/meshWithLines.wrl",
+      "output": "models__vrml__meshWithLines.wrl",
+      "mime": "application/octet-stream",
+      "diagnostic": "auto:models/vrml/meshWithLines.wrl",
+      "sha256": "93ae9d0987ac92f16d1412adbd04b7927480500a486e355a5a6c2050cdda5edf",
+      "discovered": true
+    },
+    {
+      "url": "models/vrml/meshWithTexture.wrl",
+      "output": "models__vrml__meshWithTexture.wrl",
+      "mime": "application/octet-stream",
+      "diagnostic": "auto:models/vrml/meshWithTexture.wrl",
+      "sha256": "0a357dd4087e5af58c6dd41d73fb42a9b08e719680b33c14c21affd7d830a1e0",
+      "discovered": true
+    },
+    {
+      "url": "models/vrml/multilineString.wrl",
+      "output": "models__vrml__multilineString.wrl",
+      "mime": "application/octet-stream",
+      "diagnostic": "auto:models/vrml/multilineString.wrl",
+      "sha256": "a7f4100c67e91f99900bc7d51fba1b7173331d5a0d65aa97cc2a3ed0d8cbfd6d",
+      "discovered": true
+    },
+    {
+      "url": "models/vrml/pixelTexture.wrl",
+      "output": "models__vrml__pixelTexture.wrl",
+      "mime": "application/octet-stream",
+      "diagnostic": "auto:models/vrml/pixelTexture.wrl",
+      "sha256": "6f35725f58ae86d90653693ad25845d3338344dae8f343aead1a919c89ebd4d4",
+      "discovered": true
+    },
+    {
+      "url": "models/vrml/points.wrl",
+      "output": "models__vrml__points.wrl",
+      "mime": "application/octet-stream",
+      "diagnostic": "auto:models/vrml/points.wrl",
+      "sha256": "441d555c2d73369e105886761465318d0a11494b119958fbfaa7c211fde62b0d",
+      "discovered": true
+    }
+  ],
   "facade": {
     "global": "globalThis.THREE",
     "exports": [
@@ -505,8 +644,8 @@
   },
   "inputs": {
     "assets/three/three.native.js": {
-      "bytes": 777104,
-      "sha256": "5adcb8e7c2d94dd83748134c4d13b9fcfcba9b671445fe27de895575402241b0"
+      "bytes": 791598,
+      "sha256": "58efdde0f4795a978fdf0a9ed9a4f606264aff39bb4e164aaaf00f5542c280e8"
     },
     "assets/three/three.web.js": {
       "bytes": 855325,
@@ -532,6 +671,74 @@
       "bytes": 76363,
       "sha256": "731e9e9e993f81d6a641862ec68d6d329be17274880544aa8da245fc6b189361"
     },
+    "source/examples/models/vrml/camera.wrl": {
+      "bytes": 819,
+      "sha256": "52406b47d468e4ab51a685ead28e66f855d32c72df88cc85b897335edecb30f6"
+    },
+    "source/examples/models/vrml/creaseAngle.wrl": {
+      "bytes": 2669,
+      "sha256": "92b40800693fb038a8c15a58a31bc5282f68938e4ea42b6ecc0e1fc9c6f8d2b1"
+    },
+    "source/examples/models/vrml/crystal.wrl": {
+      "bytes": 3582,
+      "sha256": "f31234b505a11b6a97b0727a84f6a6e887b6de5678594f3c2d5de5a9e120a60e"
+    },
+    "source/examples/models/vrml/elevationGrid1.wrl": {
+      "bytes": 42970,
+      "sha256": "f4706fdc10edea40a6e1fbcc8c0656af947ce5545deaeab5dcd62276976a0d9b"
+    },
+    "source/examples/models/vrml/elevationGrid2.wrl": {
+      "bytes": 480,
+      "sha256": "2f32c9d42e450bba872376b14e7264bee2157b4f50f6619d2f599144bd3cba16"
+    },
+    "source/examples/models/vrml/extrusion1.wrl": {
+      "bytes": 2131,
+      "sha256": "61f934a7bb4780fb65a205548b5f3d6105e1a12280b97228012775921048b857"
+    },
+    "source/examples/models/vrml/extrusion2.wrl": {
+      "bytes": 2001,
+      "sha256": "d22276fc3f9124d2798cc1f6823e77aec55aa989e3a03e715032f18c00719114"
+    },
+    "source/examples/models/vrml/extrusion3.wrl": {
+      "bytes": 2219,
+      "sha256": "a679dcf403777b3840c585c6257e2c780543fd9b3c4f7463e32d66c316535f19"
+    },
+    "source/examples/models/vrml/house.wrl": {
+      "bytes": 95314,
+      "sha256": "fec8801b01958e4b17bac1d8dbbb3345c8cef7dc5a1133a5bda5c421edd48d58"
+    },
+    "source/examples/models/vrml/lines.wrl": {
+      "bytes": 464,
+      "sha256": "dbb28f1b2cba2fd0840b338e77577a9be7222d179d6a4f3db499270a55334c10"
+    },
+    "source/examples/models/vrml/linesTransparent.wrl": {
+      "bytes": 714,
+      "sha256": "8cf2926bd72afe37f2abcc29224defd5928969da09233fb13d1c79e8e866a02e"
+    },
+    "source/examples/models/vrml/map.gif": {
+      "bytes": 67585,
+      "sha256": "a890f0a89eadc083cb39bfbe597c1395d7acf47a19f673b5643d4a9c174ea52f"
+    },
+    "source/examples/models/vrml/meshWithLines.wrl": {
+      "bytes": 5092,
+      "sha256": "93ae9d0987ac92f16d1412adbd04b7927480500a486e355a5a6c2050cdda5edf"
+    },
+    "source/examples/models/vrml/meshWithTexture.wrl": {
+      "bytes": 3188,
+      "sha256": "0a357dd4087e5af58c6dd41d73fb42a9b08e719680b33c14c21affd7d830a1e0"
+    },
+    "source/examples/models/vrml/multilineString.wrl": {
+      "bytes": 431,
+      "sha256": "a7f4100c67e91f99900bc7d51fba1b7173331d5a0d65aa97cc2a3ed0d8cbfd6d"
+    },
+    "source/examples/models/vrml/pixelTexture.wrl": {
+      "bytes": 2787,
+      "sha256": "6f35725f58ae86d90653693ad25845d3338344dae8f343aead1a919c89ebd4d4"
+    },
+    "source/examples/models/vrml/points.wrl": {
+      "bytes": 250,
+      "sha256": "441d555c2d73369e105886761465318d0a11494b119958fbfaa7c211fde62b0d"
+    },
     "source/examples/webgl_loader_vrml.html": {
       "bytes": 3847,
       "sha256": "2fcc9406cffb725ee89f140037b5d825449f4d1c516d469e7da065391085d065"
@@ -544,9 +751,13 @@
       "bytes": 1951,
       "sha256": "7852c54a706c19e98978c884aa9cd9bfd8d040a2d304c8e6d8cf973dd3554eaf"
     },
+    "tool/three_example/asset_discovery.mjs": {
+      "bytes": 11532,
+      "sha256": "5219e6b747041382d9e40edc33901f04140df1cfb0454b181d8145414a75ee9e"
+    },
     "tool/three_example/example_adapter.js": {
-      "bytes": 20723,
-      "sha256": "9c713a0daa93289f0aeb2d75de6c067569ca4bc2235c24f3bb2bc8feab03336c"
+      "bytes": 36267,
+      "sha256": "c604a1842689cfaf43e2bdf335b55f2384780c7b163cd41ab6e91e3912704b61"
     },
     "tool/three_example/example_canvas2d.js": {
       "bytes": 20988,
@@ -557,8 +768,8 @@
       "sha256": "dc11346394f41bb4f385738d3afa6aa75e695ac80fe3be3a5fbf4201686376bf"
     },
     "tool/three_example/prepare.mjs": {
-      "bytes": 247876,
-      "sha256": "4ed1752612b57fb4ac32f62717e772e9a85f4e8a0f7e51a764443b68af0b8aac"
+      "bytes": 252492,
+      "sha256": "544095661162d33d5b6e91b6b744f7eb60b97c1ff9ea1f4ae297b2f39044af43"
     },
     "tool/three_example/stats_adapter.js": {
       "bytes": 2107,
@@ -574,6 +785,74 @@
       "bytes": 340,
       "sha256": "6505eddd7e5c30f2ae63881dbf7df8d5224b9461db9d2bf74d3dad9a3e06510e"
     },
+    "models__vrml__camera.wrl": {
+      "bytes": 819,
+      "sha256": "52406b47d468e4ab51a685ead28e66f855d32c72df88cc85b897335edecb30f6"
+    },
+    "models__vrml__creaseAngle.wrl": {
+      "bytes": 2669,
+      "sha256": "92b40800693fb038a8c15a58a31bc5282f68938e4ea42b6ecc0e1fc9c6f8d2b1"
+    },
+    "models__vrml__crystal.wrl": {
+      "bytes": 3582,
+      "sha256": "f31234b505a11b6a97b0727a84f6a6e887b6de5678594f3c2d5de5a9e120a60e"
+    },
+    "models__vrml__elevationGrid1.wrl": {
+      "bytes": 42970,
+      "sha256": "f4706fdc10edea40a6e1fbcc8c0656af947ce5545deaeab5dcd62276976a0d9b"
+    },
+    "models__vrml__elevationGrid2.wrl": {
+      "bytes": 480,
+      "sha256": "2f32c9d42e450bba872376b14e7264bee2157b4f50f6619d2f599144bd3cba16"
+    },
+    "models__vrml__extrusion1.wrl": {
+      "bytes": 2131,
+      "sha256": "61f934a7bb4780fb65a205548b5f3d6105e1a12280b97228012775921048b857"
+    },
+    "models__vrml__extrusion2.wrl": {
+      "bytes": 2001,
+      "sha256": "d22276fc3f9124d2798cc1f6823e77aec55aa989e3a03e715032f18c00719114"
+    },
+    "models__vrml__extrusion3.wrl": {
+      "bytes": 2219,
+      "sha256": "a679dcf403777b3840c585c6257e2c780543fd9b3c4f7463e32d66c316535f19"
+    },
+    "models__vrml__house.wrl": {
+      "bytes": 95314,
+      "sha256": "fec8801b01958e4b17bac1d8dbbb3345c8cef7dc5a1133a5bda5c421edd48d58"
+    },
+    "models__vrml__lines.wrl": {
+      "bytes": 464,
+      "sha256": "dbb28f1b2cba2fd0840b338e77577a9be7222d179d6a4f3db499270a55334c10"
+    },
+    "models__vrml__linesTransparent.wrl": {
+      "bytes": 714,
+      "sha256": "8cf2926bd72afe37f2abcc29224defd5928969da09233fb13d1c79e8e866a02e"
+    },
+    "models__vrml__map.gif": {
+      "bytes": 119768,
+      "sha256": "11b530b5b08bf97001ecf189781fbeabcfe4336fc40f33fa013dd62aa5310f40"
+    },
+    "models__vrml__meshWithLines.wrl": {
+      "bytes": 5092,
+      "sha256": "93ae9d0987ac92f16d1412adbd04b7927480500a486e355a5a6c2050cdda5edf"
+    },
+    "models__vrml__meshWithTexture.wrl": {
+      "bytes": 3188,
+      "sha256": "0a357dd4087e5af58c6dd41d73fb42a9b08e719680b33c14c21affd7d830a1e0"
+    },
+    "models__vrml__multilineString.wrl": {
+      "bytes": 431,
+      "sha256": "a7f4100c67e91f99900bc7d51fba1b7173331d5a0d65aa97cc2a3ed0d8cbfd6d"
+    },
+    "models__vrml__pixelTexture.wrl": {
+      "bytes": 2787,
+      "sha256": "6f35725f58ae86d90653693ad25845d3338344dae8f343aead1a919c89ebd4d4"
+    },
+    "models__vrml__points.wrl": {
+      "bytes": 250,
+      "sha256": "441d555c2d73369e105886761465318d0a11494b119958fbfaa7c211fde62b0d"
+    },
     "official_module.js": {
       "bytes": 2907,
       "sha256": "347a5492a0d8947a8815b9b04f030129b5c575460f00575bc18636a3762dcafd"
@@ -583,8 +862,8 @@
       "sha256": "2fcc9406cffb725ee89f140037b5d825449f4d1c516d469e7da065391085d065"
     },
     "widget.js": {
-      "bytes": 280339,
-      "sha256": "af0573b9de21c865862ef537e9a5612163ea9d20a765669f03326803b0c06712"
+      "bytes": 671262,
+      "sha256": "a1e00d09377fb1e13751438c6958ea6a699201e1bf5e5a39b44c32199c31cd57"
     }
   }
 }

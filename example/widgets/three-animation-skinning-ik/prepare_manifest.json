@@ -43,6 +43,17 @@
       "sha256": "19574be3bb978c4f746937300813c521730f5cb756848ec74ab54988e381eac7"
     }
   },
+  "assetDiscovery": [
+    {
+      "url": "models/gltf/kira.glb",
+      "output": "models__gltf__kira.glb",
+      "mime": "model/gltf-binary",
+      "diagnostic": "auto:models/gltf/kira.glb",
+      "sha256": "22bc87b9ee12aa7daa5b8c8c91bda245bae9f7e2c6a3ad8c4496ae7fa18910cf",
+      "discovered": true,
+      "externalizeImages": true
+    }
+  ],
   "facade": {
     "global": "globalThis.THREE",
     "exports": [
@@ -505,8 +516,8 @@
   },
   "inputs": {
     "assets/three/three.native.js": {
-      "bytes": 777104,
-      "sha256": "5adcb8e7c2d94dd83748134c4d13b9fcfcba9b671445fe27de895575402241b0"
+      "bytes": 791598,
+      "sha256": "58efdde0f4795a978fdf0a9ed9a4f606264aff39bb4e164aaaf00f5542c280e8"
     },
     "assets/three/three.web.js": {
       "bytes": 855325,
@@ -548,6 +559,18 @@
       "bytes": 11535,
       "sha256": "b1632a703206c3d830de9fcbe515696770d04b71a15ee6b50afa6d2c3298c86f"
     },
+    "source/examples/models/gltf/4096_kira_char_baked": {
+      "bytes": 5341496,
+      "sha256": "746955a69695064773a20c1ce9cec609d6ff21cbd57c1e72aa534574edbb4c9e"
+    },
+    "source/examples/models/gltf/baked1": {
+      "bytes": 4624451,
+      "sha256": "f1ea0f5776af9a68ca8b2f92c13835ac34a6e066bad7b71deb94196042b4cf75"
+    },
+    "source/examples/models/gltf/kira.glb": {
+      "bytes": 983004,
+      "sha256": "22bc87b9ee12aa7daa5b8c8c91bda245bae9f7e2c6a3ad8c4496ae7fa18910cf"
+    },
     "source/examples/webgl_animation_skinning_ik.html": {
       "bytes": 7218,
       "sha256": "81fe03ae043999f28c4201250feab05387a8555afdc0d46706ffdf3e71708de0"
@@ -560,9 +583,13 @@
       "bytes": 1951,
       "sha256": "7852c54a706c19e98978c884aa9cd9bfd8d040a2d304c8e6d8cf973dd3554eaf"
     },
+    "tool/three_example/asset_discovery.mjs": {
+      "bytes": 11532,
+      "sha256": "5219e6b747041382d9e40edc33901f04140df1cfb0454b181d8145414a75ee9e"
+    },
     "tool/three_example/example_adapter.js": {
-      "bytes": 20723,
-      "sha256": "9c713a0daa93289f0aeb2d75de6c067569ca4bc2235c24f3bb2bc8feab03336c"
+      "bytes": 36267,
+      "sha256": "c604a1842689cfaf43e2bdf335b55f2384780c7b163cd41ab6e91e3912704b61"
     },
     "tool/three_example/example_canvas2d.js": {
       "bytes": 20988,
@@ -573,8 +600,8 @@
       "sha256": "dc11346394f41bb4f385738d3afa6aa75e695ac80fe3be3a5fbf4201686376bf"
     },
     "tool/three_example/prepare.mjs": {
-      "bytes": 247876,
-      "sha256": "4ed1752612b57fb4ac32f62717e772e9a85f4e8a0f7e51a764443b68af0b8aac"
+      "bytes": 252492,
+      "sha256": "544095661162d33d5b6e91b6b744f7eb60b97c1ff9ea1f4ae297b2f39044af43"
     },
     "tool/three_example/stats_adapter.js": {
       "bytes": 2107,
@@ -590,6 +617,18 @@
       "bytes": 364,
       "sha256": "42b9e815529c2d8328741f58d7371883960aa6b95616a00b6bd19dba111f45c7"
     },
+    "models__gltf__4096_kira_char_baked": {
+      "bytes": 5341496,
+      "sha256": "746955a69695064773a20c1ce9cec609d6ff21cbd57c1e72aa534574edbb4c9e"
+    },
+    "models__gltf__baked1": {
+      "bytes": 4624451,
+      "sha256": "f1ea0f5776af9a68ca8b2f92c13835ac34a6e066bad7b71deb94196042b4cf75"
+    },
+    "models__gltf__kira.glb": {
+      "bytes": 983012,
+      "sha256": "8d5d4059a9a63aa1e37c5dc8192436d47dc070c9fe502dc1f48b6e8d7be488be"
+    },
     "official_module.js": {
       "bytes": 5738,
       "sha256": "19574be3bb978c4f746937300813c521730f5cb756848ec74ab54988e381eac7"
@@ -599,8 +638,8 @@
       "sha256": "81fe03ae043999f28c4201250feab05387a8555afdc0d46706ffdf3e71708de0"
     },
     "widget.js": {
-      "bytes": 176691,
-      "sha256": "b6ad8fc6ec4b15c34161944daa2e2368d618ee8588f48e8e3c3085effce877f1"
+      "bytes": 28072113,
+      "sha256": "4980fca3d2fb3bb8935e3a4de1f8ad16914db5208ea26f737238a1fd1e694f7c"
     }
   }
 }

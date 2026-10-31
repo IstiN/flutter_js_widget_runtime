@@ -43,6 +43,26 @@
       "sha256": "d43f0c91d94c378ee1b0f6c8cdcaf6314054439c7d6733386a800fda42c40ddf"
     }
   },
+  "assetDiscovery": [
+    {
+      "url": "models/gltf/duck.glb",
+      "output": "models__gltf__duck.glb",
+      "mime": "model/gltf-binary",
+      "diagnostic": "auto:models/gltf/duck.glb",
+      "sha256": "76c62e63a0aec09cd66f2e2c9452a6dcee428f2464dd2c6d845958a8f7f7cdd1",
+      "discovered": true,
+      "externalizeImages": true
+    },
+    {
+      "url": "textures/equirectangular/blouberg_sunrise_2_1k.hdr",
+      "output": "textures__equirectangular__blouberg_sunrise_2_1k.hdr",
+      "mime": "image/vnd.radiance",
+      "diagnostic": "auto:textures/equirectangular/blouberg_sunrise_2_1k.hdr",
+      "sha256": "1cb809a131ff3cb7df94b639d5967fc6fc08ecd25b6c43930af3b5d99f1d8855",
+      "discovered": true,
+      "hdrRgba": true
+    }
+  ],
   "facade": {
     "global": "globalThis.THREE",
     "exports": [
@@ -505,8 +525,8 @@
   },
   "inputs": {
     "assets/three/three.native.js": {
-      "bytes": 777104,
-      "sha256": "5adcb8e7c2d94dd83748134c4d13b9fcfcba9b671445fe27de895575402241b0"
+      "bytes": 791598,
+      "sha256": "58efdde0f4795a978fdf0a9ed9a4f606264aff39bb4e164aaaf00f5542c280e8"
     },
     "assets/three/three.web.js": {
       "bytes": 855325,
@@ -540,10 +560,6 @@
       "bytes": 117570,
       "sha256": "131c0f78c01d19368ae495caa65b3adaa10487810a36a05bb5901b769a35ac16"
     },
-    "source/examples/jsm/loaders/HDRLoader.js": {
-      "bytes": 12079,
-      "sha256": "0986b578f9acd14cec74e5ee85e07f45e681b40bcd229a601a0391201f9b5ff1"
-    },
     "source/examples/jsm/math/SimplexNoise.js": {
       "bytes": 15148,
       "sha256": "4b1455617135e6b477de76244de07547d95570643379b72f4758e50161b06072"
@@ -564,6 +580,18 @@
       "bytes": 11535,
       "sha256": "b1632a703206c3d830de9fcbe515696770d04b71a15ee6b50afa6d2c3298c86f"
     },
+    "source/examples/models/gltf/duck.glb": {
+      "bytes": 32464,
+      "sha256": "76c62e63a0aec09cd66f2e2c9452a6dcee428f2464dd2c6d845958a8f7f7cdd1"
+    },
+    "source/examples/models/gltf/embedded-0.png": {
+      "bytes": 16304,
+      "sha256": "d9b75fd8dc15a4b46d5a1b1f9cd9a31a1844fce9cdb24a9de6e61f27d5170124"
+    },
+    "source/examples/textures/equirectangular/blouberg_sunrise_2_1k.hdr": {
+      "bytes": 1539084,
+      "sha256": "1cb809a131ff3cb7df94b639d5967fc6fc08ecd25b6c43930af3b5d99f1d8855"
+    },
     "source/examples/webgl_gpgpu_water.html": {
       "bytes": 22355,
       "sha256": "7116f677e30465bfc895b5da47fa247c3535585ba7a7a6bcfbf81fdabfe31c4e"
@@ -576,9 +604,13 @@
       "bytes": 1951,
       "sha256": "7852c54a706c19e98978c884aa9cd9bfd8d040a2d304c8e6d8cf973dd3554eaf"
     },
+    "tool/three_example/asset_discovery.mjs": {
+      "bytes": 11532,
+      "sha256": "5219e6b747041382d9e40edc33901f04140df1cfb0454b181d8145414a75ee9e"
+    },
     "tool/three_example/example_adapter.js": {
-      "bytes": 20723,
-      "sha256": "9c713a0daa93289f0aeb2d75de6c067569ca4bc2235c24f3bb2bc8feab03336c"
+      "bytes": 36267,
+      "sha256": "c604a1842689cfaf43e2bdf335b55f2384780c7b163cd41ab6e91e3912704b61"
     },
     "tool/three_example/example_canvas2d.js": {
       "bytes": 20988,
@@ -589,8 +621,8 @@
       "sha256": "dc11346394f41bb4f385738d3afa6aa75e695ac80fe3be3a5fbf4201686376bf"
     },
     "tool/three_example/prepare.mjs": {
-      "bytes": 247876,
-      "sha256": "4ed1752612b57fb4ac32f62717e772e9a85f4e8a0f7e51a764443b68af0b8aac"
+      "bytes": 252492,
+      "sha256": "544095661162d33d5b6e91b6b744f7eb60b97c1ff9ea1f4ae297b2f39044af43"
     },
     "tool/three_example/stats_adapter.js": {
       "bytes": 2107,
@@ -606,6 +638,14 @@
       "bytes": 332,
       "sha256": "406f684f667a77d05fd0f32af4ba3fcb6562983e70b168f9b93e71244a72766b"
     },
+    "models__gltf__duck.glb": {
+      "bytes": 32468,
+      "sha256": "6914615466ad8bc0759557f965dbb356b1e0d68f1520d4a6e8fcb845b2077155"
+    },
+    "models__gltf__embedded-0.png": {
+      "bytes": 16304,
+      "sha256": "d9b75fd8dc15a4b46d5a1b1f9cd9a31a1844fce9cdb24a9de6e61f27d5170124"
+    },
     "official_module.js": {
       "bytes": 18038,
       "sha256": "d43f0c91d94c378ee1b0f6c8cdcaf6314054439c7d6733386a800fda42c40ddf"
@@ -614,9 +654,13 @@
       "bytes": 22355,
       "sha256": "7116f677e30465bfc895b5da47fa247c3535585ba7a7a6bcfbf81fdabfe31c4e"
     },
+    "textures__equirectangular__blouberg_sunrise_2_1k.hdr": {
+      "bytes": 2097152,
+      "sha256": "78e9f88a19b2e4a62a0b4091bf74f4d3fc614dc580dded5d6b3752cac3f702a9"
+    },
     "widget.js": {
-      "bytes": 173835,
-      "sha256": "4d4993be59419e00b838e5aab0ec7788a9d017efb110b275cb325a6ff1086683"
+      "bytes": 3062532,
+      "sha256": "42bc891fb3b027eba52871a1d1f391cb41cd2358801750f60a3bf2f8a6c42a0b"
     }
   }
 }

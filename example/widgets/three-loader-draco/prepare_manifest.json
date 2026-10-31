@@ -43,6 +43,16 @@
       "sha256": "2210ceb45a1ed060224752da9685c270af787dc51157a3d3b35f954d6ed648ab"
     }
   },
+  "assetDiscovery": [
+    {
+      "url": "models/draco/bunny.drc",
+      "output": "models__draco__bunny.drc",
+      "mime": "application/octet-stream",
+      "diagnostic": "auto:models/draco/bunny.drc",
+      "sha256": "3bb08f257d873f69ded447e07c2dd4e9d7a264d58a686c88978c38430c5f6eb4",
+      "discovered": true
+    }
+  ],
   "facade": {
     "global": "globalThis.THREE",
     "exports": [
@@ -505,8 +515,8 @@
   },
   "inputs": {
     "assets/three/three.native.js": {
-      "bytes": 777104,
-      "sha256": "5adcb8e7c2d94dd83748134c4d13b9fcfcba9b671445fe27de895575402241b0"
+      "bytes": 791598,
+      "sha256": "58efdde0f4795a978fdf0a9ed9a4f606264aff39bb4e164aaaf00f5542c280e8"
     },
     "assets/three/three.web.js": {
       "bytes": 855325,
@@ -520,6 +530,10 @@
       "bytes": 19030,
       "sha256": "fdafdf4aa11bbc65d89adb338efd844bedf94073702f9049240ff1f1ea48ad5f"
     },
+    "source/examples/models/draco/bunny.drc": {
+      "bytes": 46825,
+      "sha256": "3bb08f257d873f69ded447e07c2dd4e9d7a264d58a686c88978c38430c5f6eb4"
+    },
     "source/examples/webgl_loader_draco.html": {
       "bytes": 3467,
       "sha256": "9f13086a8563d24339c701efdf84c4a33a6e1e490414a507819116a04e1c160a"
@@ -532,9 +546,13 @@
       "bytes": 1951,
       "sha256": "7852c54a706c19e98978c884aa9cd9bfd8d040a2d304c8e6d8cf973dd3554eaf"
     },
+    "tool/three_example/asset_discovery.mjs": {
+      "bytes": 11532,
+      "sha256": "5219e6b747041382d9e40edc33901f04140df1cfb0454b181d8145414a75ee9e"
+    },
     "tool/three_example/example_adapter.js": {
-      "bytes": 20723,
-      "sha256": "9c713a0daa93289f0aeb2d75de6c067569ca4bc2235c24f3bb2bc8feab03336c"
+      "bytes": 36267,
+      "sha256": "c604a1842689cfaf43e2bdf335b55f2384780c7b163cd41ab6e91e3912704b61"
     },
     "tool/three_example/example_canvas2d.js": {
       "bytes": 20988,
@@ -545,8 +563,8 @@
       "sha256": "dc11346394f41bb4f385738d3afa6aa75e695ac80fe3be3a5fbf4201686376bf"
     },
     "tool/three_example/prepare.mjs": {
-      "bytes": 247876,
-      "sha256": "4ed1752612b57fb4ac32f62717e772e9a85f4e8a0f7e51a764443b68af0b8aac"
+      "bytes": 252492,
+      "sha256": "544095661162d33d5b6e91b6b744f7eb60b97c1ff9ea1f4ae297b2f39044af43"
     },
     "tool/three_example/stats_adapter.js": {
       "bytes": 2107,
@@ -562,6 +580,10 @@
       "bytes": 343,
       "sha256": "d66ff88fcba42b0f8720c7e9c21b39f96a520aae4399fd5c190532c98870db4d"
     },
+    "models__draco__bunny.drc": {
+      "bytes": 46825,
+      "sha256": "3bb08f257d873f69ded447e07c2dd4e9d7a264d58a686c88978c38430c5f6eb4"
+    },
     "official_module.js": {
       "bytes": 2435,
       "sha256": "2210ceb45a1ed060224752da9685c270af787dc51157a3d3b35f954d6ed648ab"
@@ -571,8 +593,8 @@
       "sha256": "9f13086a8563d24339c701efdf84c4a33a6e1e490414a507819116a04e1c160a"
     },
     "widget.js": {
-      "bytes": 39037,
-      "sha256": "bcea3dd9e41bdd4865caada4b6cf3c687fb1141ab8116d76abb504ad41e82441"
+      "bytes": 109894,
+      "sha256": "03aec4ffb79496a738a4928ecbd2dae359dbb6a64167a9e0d6ade4e5d40f209b"
     }
   }
 }

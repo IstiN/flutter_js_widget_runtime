@@ -43,6 +43,494 @@
       "sha256": "c389d5c2b0d8915429ead2667dc9da72a938178ca0d3601be04afb68a7d81683"
     }
   },
+  "assetDiscovery": [
+    {
+      "url": "textures/cube/angus/cube_m00_c00.jpg",
+      "output": "textures__cube__angus__cube_m00_c00.jpg",
+      "mime": "image/jpeg",
+      "diagnostic": "auto:textures/cube/angus/cube_m00_c00.jpg",
+      "sha256": "91d3c69ca2255217eb391f26c8a80e9a18c4774d840e33c2c8458e0eeb857e63",
+      "discovered": true,
+      "rawRgba": true
+    },
+    {
+      "url": "textures/cube/angus/cube_m00_c01.jpg",
+      "output": "textures__cube__angus__cube_m00_c01.jpg",
+      "mime": "image/jpeg",
+      "diagnostic": "auto:textures/cube/angus/cube_m00_c01.jpg",
+      "sha256": "5b62b8c085f7e2acc2ac4507be91f66d786c893a28ddd1becbf02525c8226d4c",
+      "discovered": true,
+      "rawRgba": true
+    },
+    {
+      "url": "textures/cube/angus/cube_m00_c02.jpg",
+      "output": "textures__cube__angus__cube_m00_c02.jpg",
+      "mime": "image/jpeg",
+      "diagnostic": "auto:textures/cube/angus/cube_m00_c02.jpg",
+      "sha256": "acce6efb5500b3b2e2169cb2d39cf09f4d8e7ce52ce736bdc9884475349c3296",
+      "discovered": true,
+      "rawRgba": true
+    },
+    {
+      "url": "textures/cube/angus/cube_m00_c03.jpg",
+      "output": "textures__cube__angus__cube_m00_c03.jpg",
+      "mime": "image/jpeg",
+      "diagnostic": "auto:textures/cube/angus/cube_m00_c03.jpg",
+      "sha256": "9de6e5797a5648f4779c97136ee880c1ef7489ebad1b3dc78eeed681a5a4da71",
+      "discovered": true,
+      "rawRgba": true
+    },
+    {
+      "url": "textures/cube/angus/cube_m00_c04.jpg",
+      "output": "textures__cube__angus__cube_m00_c04.jpg",
+      "mime": "image/jpeg",
+      "diagnostic": "auto:textures/cube/angus/cube_m00_c04.jpg",
+      "sha256": "6cfcf22fd21e4cbed1212934aa901fda9f9b81afb49d2da40c5fc16d52b77dce",
+      "discovered": true,
+      "rawRgba": true
+    },
+    {
+      "url": "textures/cube/angus/cube_m00_c05.jpg",
+      "output": "textures__cube__angus__cube_m00_c05.jpg",
+      "mime": "image/jpeg",
+      "diagnostic": "auto:textures/cube/angus/cube_m00_c05.jpg",
+      "sha256": "6617aa31784623150183b67621fb5508e9fd780d431e08705947ba36d3dc41f2",
+      "discovered": true,
+      "rawRgba": true
+    },
+    {
+      "url": "textures/cube/angus/cube_m01_c00.jpg",
+      "output": "textures__cube__angus__cube_m01_c00.jpg",
+      "mime": "image/jpeg",
+      "diagnostic": "auto:textures/cube/angus/cube_m01_c00.jpg",
+      "sha256": "ce9869d6ed5d1792a200980e0448e85606a0cded9dcaf0521748e137736663b4",
+      "discovered": true,
+      "rawRgba": true
+    },
+    {
+      "url": "textures/cube/angus/cube_m01_c01.jpg",
+      "output": "textures__cube__angus__cube_m01_c01.jpg",
+      "mime": "image/jpeg",
+      "diagnostic": "auto:textures/cube/angus/cube_m01_c01.jpg",
+      "sha256": "2e2ac3f48e4a4aa2364d6450082f785da207a50c2f1d933448a7b4dcf73681a3",
+      "discovered": true,
+      "rawRgba": true
+    },
+    {
+      "url": "textures/cube/angus/cube_m01_c02.jpg",
+      "output": "textures__cube__angus__cube_m01_c02.jpg",
+      "mime": "image/jpeg",
+      "diagnostic": "auto:textures/cube/angus/cube_m01_c02.jpg",
+      "sha256": "a358109f3955db8b069e29281390ce5990b0bcebdefb3a6a8d02c6ba5049597c",
+      "discovered": true,
+      "rawRgba": true
+    },
+    {
+      "url": "textures/cube/angus/cube_m01_c03.jpg",
+      "output": "textures__cube__angus__cube_m01_c03.jpg",
+      "mime": "image/jpeg",
+      "diagnostic": "auto:textures/cube/angus/cube_m01_c03.jpg",
+      "sha256": "6492fbe39e0689a3f94c55c027bc0935087c72135f7bb9c2ea2136b0f1ef71e4",
+      "discovered": true,
+      "rawRgba": true
+    },
+    {
+      "url": "textures/cube/angus/cube_m01_c04.jpg",
+      "output": "textures__cube__angus__cube_m01_c04.jpg",
+      "mime": "image/jpeg",
+      "diagnostic": "auto:textures/cube/angus/cube_m01_c04.jpg",
+      "sha256": "424ca767df4781064f06bec4b18e0c00ce833b33b00e9bc37336396d95ea6e56",
+      "discovered": true,
+      "rawRgba": true
+    },
+    {
+      "url": "textures/cube/angus/cube_m01_c05.jpg",
+      "output": "textures__cube__angus__cube_m01_c05.jpg",
+      "mime": "image/jpeg",
+      "diagnostic": "auto:textures/cube/angus/cube_m01_c05.jpg",
+      "sha256": "56731a6c35d9ebe888adef6f518369cffcc5367d15a95e427c167307d0a577f7",
+      "discovered": true,
+      "rawRgba": true
+    },
+    {
+      "url": "textures/cube/angus/cube_m02_c00.jpg",
+      "output": "textures__cube__angus__cube_m02_c00.jpg",
+      "mime": "image/jpeg",
+      "diagnostic": "auto:textures/cube/angus/cube_m02_c00.jpg",
+      "sha256": "6aea33d353d5bd5c55e14c10a8f2d0530aed382ba7df5c4a49b5bd4579b5e9f5",
+      "discovered": true,
+      "rawRgba": true
+    },
+    {
+      "url": "textures/cube/angus/cube_m02_c01.jpg",
+      "output": "textures__cube__angus__cube_m02_c01.jpg",
+      "mime": "image/jpeg",
+      "diagnostic": "auto:textures/cube/angus/cube_m02_c01.jpg",
+      "sha256": "9e6abc09ec1ff759c0c98a7833d674ac0df21f1efc7ac718cbd483914dab5642",
+      "discovered": true,
+      "rawRgba": true
+    },
+    {
+      "url": "textures/cube/angus/cube_m02_c02.jpg",
+      "output": "textures__cube__angus__cube_m02_c02.jpg",
+      "mime": "image/jpeg",
+      "diagnostic": "auto:textures/cube/angus/cube_m02_c02.jpg",
+      "sha256": "1d8cfd31577311b9be6d93842bb0473801491ae453ce84edd2757b171cd77405",
+      "discovered": true,
+      "rawRgba": true
+    },
+    {
+      "url": "textures/cube/angus/cube_m02_c03.jpg",
+      "output": "textures__cube__angus__cube_m02_c03.jpg",
+      "mime": "image/jpeg",
+      "diagnostic": "auto:textures/cube/angus/cube_m02_c03.jpg",
+      "sha256": "ae7790dd278b98a0acf52c4e2b2627f76832348504b7295ebcbeac6a67ebb0e7",
+      "discovered": true,
+      "rawRgba": true
+    },
+    {
+      "url": "textures/cube/angus/cube_m02_c04.jpg",
+      "output": "textures__cube__angus__cube_m02_c04.jpg",
+      "mime": "image/jpeg",
+      "diagnostic": "auto:textures/cube/angus/cube_m02_c04.jpg",
+      "sha256": "7e66a736f13f200e9546466f5a8afc388340fa9673d348539f04e259f8700907",
+      "discovered": true,
+      "rawRgba": true
+    },
+    {
+      "url": "textures/cube/angus/cube_m02_c05.jpg",
+      "output": "textures__cube__angus__cube_m02_c05.jpg",
+      "mime": "image/jpeg",
+      "diagnostic": "auto:textures/cube/angus/cube_m02_c05.jpg",
+      "sha256": "c95a318ae6e911a9184fa7bb70dac34019c3d86563ab6fca5cf4dc7d7af72541",
+      "discovered": true,
+      "rawRgba": true
+    },
+    {
+      "url": "textures/cube/angus/cube_m03_c00.jpg",
+      "output": "textures__cube__angus__cube_m03_c00.jpg",
+      "mime": "image/jpeg",
+      "diagnostic": "auto:textures/cube/angus/cube_m03_c00.jpg",
+      "sha256": "336f3af9768daf436cb97b8a7ac269c25e716e30829b066a27a967a1d563e500",
+      "discovered": true,
+      "rawRgba": true
+    },
+    {
+      "url": "textures/cube/angus/cube_m03_c01.jpg",
+      "output": "textures__cube__angus__cube_m03_c01.jpg",
+      "mime": "image/jpeg",
+      "diagnostic": "auto:textures/cube/angus/cube_m03_c01.jpg",
+      "sha256": "19e2a0e70a31a49694c1e59c99ba108bd1e6a794c044845cced1e9af54002446",
+      "discovered": true,
+      "rawRgba": true
+    },
+    {
+      "url": "textures/cube/angus/cube_m03_c02.jpg",
+      "output": "textures__cube__angus__cube_m03_c02.jpg",
+      "mime": "image/jpeg",
+      "diagnostic": "auto:textures/cube/angus/cube_m03_c02.jpg",
+      "sha256": "3d3df8a8e043371665b4b21a4f50fc0897e28affd446349f68528a18174fc741",
+      "discovered": true,
+      "rawRgba": true
+    },
+    {
+      "url": "textures/cube/angus/cube_m03_c03.jpg",
+      "output": "textures__cube__angus__cube_m03_c03.jpg",
+      "mime": "image/jpeg",
+      "diagnostic": "auto:textures/cube/angus/cube_m03_c03.jpg",
+      "sha256": "85c1635c19b442f284082afe9de83ae8670fc03510880a9ba69d0b6acf67c582",
+      "discovered": true,
+      "rawRgba": true
+    },
+    {
+      "url": "textures/cube/angus/cube_m03_c04.jpg",
+      "output": "textures__cube__angus__cube_m03_c04.jpg",
+      "mime": "image/jpeg",
+      "diagnostic": "auto:textures/cube/angus/cube_m03_c04.jpg",
+      "sha256": "96eef6e8495dc0b46f18dc8c0aa0323782cadb06b7ad1af957c6435abad95b14",
+      "discovered": true,
+      "rawRgba": true
+    },
+    {
+      "url": "textures/cube/angus/cube_m03_c05.jpg",
+      "output": "textures__cube__angus__cube_m03_c05.jpg",
+      "mime": "image/jpeg",
+      "diagnostic": "auto:textures/cube/angus/cube_m03_c05.jpg",
+      "sha256": "08095ec74c20f4bbc3cd5b05b81134893725041132cd599f55a3b6fa07296d34",
+      "discovered": true,
+      "rawRgba": true
+    },
+    {
+      "url": "textures/cube/angus/cube_m04_c00.jpg",
+      "output": "textures__cube__angus__cube_m04_c00.jpg",
+      "mime": "image/jpeg",
+      "diagnostic": "auto:textures/cube/angus/cube_m04_c00.jpg",
+      "sha256": "aa17112bed3c6705279e09677c49c89a00fae5fa8438be2e32749e1cefe71ff5",
+      "discovered": true,
+      "rawRgba": true
+    },
+    {
+      "url": "textures/cube/angus/cube_m04_c01.jpg",
+      "output": "textures__cube__angus__cube_m04_c01.jpg",
+      "mime": "image/jpeg",
+      "diagnostic": "auto:textures/cube/angus/cube_m04_c01.jpg",
+      "sha256": "538c4486d9ca7c7b93c3930c0a90dadc9631310807a8135355f67a496dc1bde3",
+      "discovered": true,
+      "rawRgba": true
+    },
+    {
+      "url": "textures/cube/angus/cube_m04_c02.jpg",
+      "output": "textures__cube__angus__cube_m04_c02.jpg",
+      "mime": "image/jpeg",
+      "diagnostic": "auto:textures/cube/angus/cube_m04_c02.jpg",
+      "sha256": "f027737c2d28d46b47a9361c984062163b47168426384e40e16aa17885cdab4e",
+      "discovered": true,
+      "rawRgba": true
+    },
+    {
+      "url": "textures/cube/angus/cube_m04_c03.jpg",
+      "output": "textures__cube__angus__cube_m04_c03.jpg",
+      "mime": "image/jpeg",
+      "diagnostic": "auto:textures/cube/angus/cube_m04_c03.jpg",
+      "sha256": "5fe9ed99bb305c9bb8dfc9898f49847d242697802c7ecac3657732761c17e156",
+      "discovered": true,
+      "rawRgba": true
+    },
+    {
+      "url": "textures/cube/angus/cube_m04_c04.jpg",
+      "output": "textures__cube__angus__cube_m04_c04.jpg",
+      "mime": "image/jpeg",
+      "diagnostic": "auto:textures/cube/angus/cube_m04_c04.jpg",
+      "sha256": "e2f6148606cf2024013e0db64de004652d02088ab4430fb9b52bf6d0751add1d",
+      "discovered": true,
+      "rawRgba": true
+    },
+    {
+      "url": "textures/cube/angus/cube_m04_c05.jpg",
+      "output": "textures__cube__angus__cube_m04_c05.jpg",
+      "mime": "image/jpeg",
+      "diagnostic": "auto:textures/cube/angus/cube_m04_c05.jpg",
+      "sha256": "be0cabe9f8639de15774a34c89ca9a93a5c2dc2899cb53b1ccbcda4c87f10c54",
+      "discovered": true,
+      "rawRgba": true
+    },
+    {
+      "url": "textures/cube/angus/cube_m05_c00.jpg",
+      "output": "textures__cube__angus__cube_m05_c00.jpg",
+      "mime": "image/jpeg",
+      "diagnostic": "auto:textures/cube/angus/cube_m05_c00.jpg",
+      "sha256": "fb0963a44fd248e67a7bc949d03e859203dfbca0bc01c61d6afab9ffd03136e6",
+      "discovered": true,
+      "rawRgba": true
+    },
+    {
+      "url": "textures/cube/angus/cube_m05_c01.jpg",
+      "output": "textures__cube__angus__cube_m05_c01.jpg",
+      "mime": "image/jpeg",
+      "diagnostic": "auto:textures/cube/angus/cube_m05_c01.jpg",
+      "sha256": "3464ccb29e529db59a4509d937ca8df2811be87ff463c389798ea27b60415999",
+      "discovered": true,
+      "rawRgba": true
+    },
+    {
+      "url": "textures/cube/angus/cube_m05_c02.jpg",
+      "output": "textures__cube__angus__cube_m05_c02.jpg",
+      "mime": "image/jpeg",
+      "diagnostic": "auto:textures/cube/angus/cube_m05_c02.jpg",
+      "sha256": "5865f07534d0f179db571e0cf77bb382e200c6cf06beca497d3c6004b1aca6f4",
+      "discovered": true,
+      "rawRgba": true
+    },
+    {
+      "url": "textures/cube/angus/cube_m05_c03.jpg",
+      "output": "textures__cube__angus__cube_m05_c03.jpg",
+      "mime": "image/jpeg",
+      "diagnostic": "auto:textures/cube/angus/cube_m05_c03.jpg",
+      "sha256": "5e8209ec04799ece1b894256b14eef47aa1e7d37871a0551e29694878a53454e",
+      "discovered": true,
+      "rawRgba": true
+    },
+    {
+      "url": "textures/cube/angus/cube_m05_c04.jpg",
+      "output": "textures__cube__angus__cube_m05_c04.jpg",
+      "mime": "image/jpeg",
+      "diagnostic": "auto:textures/cube/angus/cube_m05_c04.jpg",
+      "sha256": "7bce46db7ab150a48ac187a43a13adaf22cffbc30eaeff2ffbb7a4be35774225",
+      "discovered": true,
+      "rawRgba": true
+    },
+    {
+      "url": "textures/cube/angus/cube_m05_c05.jpg",
+      "output": "textures__cube__angus__cube_m05_c05.jpg",
+      "mime": "image/jpeg",
+      "diagnostic": "auto:textures/cube/angus/cube_m05_c05.jpg",
+      "sha256": "f73ac3376df603d6cdcc41d7a6e13c35820b0eded89c3573fe6022305635821c",
+      "discovered": true,
+      "rawRgba": true
+    },
+    {
+      "url": "textures/cube/angus/cube_m06_c00.jpg",
+      "output": "textures__cube__angus__cube_m06_c00.jpg",
+      "mime": "image/jpeg",
+      "diagnostic": "auto:textures/cube/angus/cube_m06_c00.jpg",
+      "sha256": "b599f0124938418845ea9784a02b39d7c2362216cb1b3e2f6e21650b2ced25e3",
+      "discovered": true,
+      "rawRgba": true
+    },
+    {
+      "url": "textures/cube/angus/cube_m06_c01.jpg",
+      "output": "textures__cube__angus__cube_m06_c01.jpg",
+      "mime": "image/jpeg",
+      "diagnostic": "auto:textures/cube/angus/cube_m06_c01.jpg",
+      "sha256": "eeca143fcdf5ce57541974bc4095051ab0d41b2a939bc0286b1429f08dbab2df",
+      "discovered": true,
+      "rawRgba": true
+    },
+    {
+      "url": "textures/cube/angus/cube_m06_c02.jpg",
+      "output": "textures__cube__angus__cube_m06_c02.jpg",
+      "mime": "image/jpeg",
+      "diagnostic": "auto:textures/cube/angus/cube_m06_c02.jpg",
+      "sha256": "09b9e3166eae81d41da10543b755e8c02cc09121407dee99d12d5f3cde76441f",
+      "discovered": true,
+      "rawRgba": true
+    },
+    {
+      "url": "textures/cube/angus/cube_m06_c03.jpg",
+      "output": "textures__cube__angus__cube_m06_c03.jpg",
+      "mime": "image/jpeg",
+      "diagnostic": "auto:textures/cube/angus/cube_m06_c03.jpg",
+      "sha256": "d13a4fe84491b446fdfaff445c9c3608fbfdb52d26eda0cd7788e960f073ba1e",
+      "discovered": true,
+      "rawRgba": true
+    },
+    {
+      "url": "textures/cube/angus/cube_m06_c04.jpg",
+      "output": "textures__cube__angus__cube_m06_c04.jpg",
+      "mime": "image/jpeg",
+      "diagnostic": "auto:textures/cube/angus/cube_m06_c04.jpg",
+      "sha256": "bb166e6ea83d3a2b99c436a69d002b7ff1f42b2fe7f3f3d28c99ffd123c047d6",
+      "discovered": true,
+      "rawRgba": true
+    },
+    {
+      "url": "textures/cube/angus/cube_m06_c05.jpg",
+      "output": "textures__cube__angus__cube_m06_c05.jpg",
+      "mime": "image/jpeg",
+      "diagnostic": "auto:textures/cube/angus/cube_m06_c05.jpg",
+      "sha256": "b1c0d92570f45c1c276ce73d27be4c62f95d0802840e5c2b262ba50afd874c57",
+      "discovered": true,
+      "rawRgba": true
+    },
+    {
+      "url": "textures/cube/angus/cube_m07_c00.jpg",
+      "output": "textures__cube__angus__cube_m07_c00.jpg",
+      "mime": "image/jpeg",
+      "diagnostic": "auto:textures/cube/angus/cube_m07_c00.jpg",
+      "sha256": "a4aa34065c0c700c4d5a16ab07ae315a7fa326e7a5d362ef5374ea55717fae8d",
+      "discovered": true,
+      "rawRgba": true
+    },
+    {
+      "url": "textures/cube/angus/cube_m07_c01.jpg",
+      "output": "textures__cube__angus__cube_m07_c01.jpg",
+      "mime": "image/jpeg",
+      "diagnostic": "auto:textures/cube/angus/cube_m07_c01.jpg",
+      "sha256": "b8321ac425d9620d93049dec72ddbc281cbfb769b03068540c0abd3449869b7e",
+      "discovered": true,
+      "rawRgba": true
+    },
+    {
+      "url": "textures/cube/angus/cube_m07_c02.jpg",
+      "output": "textures__cube__angus__cube_m07_c02.jpg",
+      "mime": "image/jpeg",
+      "diagnostic": "auto:textures/cube/angus/cube_m07_c02.jpg",
+      "sha256": "5b023f1db8c6536eb146caa5dea1fdef6f10b9feeb105c9eb3bb45c132313542",
+      "discovered": true,
+      "rawRgba": true
+    },
+    {
+      "url": "textures/cube/angus/cube_m07_c03.jpg",
+      "output": "textures__cube__angus__cube_m07_c03.jpg",
+      "mime": "image/jpeg",
+      "diagnostic": "auto:textures/cube/angus/cube_m07_c03.jpg",
+      "sha256": "06078d81198e24ece854390f75a121e5701eaf0212adf9e310e87b954e35a601",
+      "discovered": true,
+      "rawRgba": true
+    },
+    {
+      "url": "textures/cube/angus/cube_m07_c04.jpg",
+      "output": "textures__cube__angus__cube_m07_c04.jpg",
+      "mime": "image/jpeg",
+      "diagnostic": "auto:textures/cube/angus/cube_m07_c04.jpg",
+      "sha256": "18dc1c56910b5a7ccfe759538b920e86e164b2feff829b7f6c38c48a9e590c46",
+      "discovered": true,
+      "rawRgba": true
+    },
+    {
+      "url": "textures/cube/angus/cube_m07_c05.jpg",
+      "output": "textures__cube__angus__cube_m07_c05.jpg",
+      "mime": "image/jpeg",
+      "diagnostic": "auto:textures/cube/angus/cube_m07_c05.jpg",
+      "sha256": "722706511a8d6162ef68d70171ff15f33d5358000c4bf7350fd65fdbd027a03e",
+      "discovered": true,
+      "rawRgba": true
+    },
+    {
+      "url": "textures/cube/angus/cube_m08_c00.jpg",
+      "output": "textures__cube__angus__cube_m08_c00.jpg",
+      "mime": "image/jpeg",
+      "diagnostic": "auto:textures/cube/angus/cube_m08_c00.jpg",
+      "sha256": "c2321c39a6c14eb7e5ef05565e901ab02ae226e1def462e81eb0b80772004da0",
+      "discovered": true,
+      "rawRgba": true
+    },
+    {
+      "url": "textures/cube/angus/cube_m08_c01.jpg",
+      "output": "textures__cube__angus__cube_m08_c01.jpg",
+      "mime": "image/jpeg",
+      "diagnostic": "auto:textures/cube/angus/cube_m08_c01.jpg",
+      "sha256": "c2321c39a6c14eb7e5ef05565e901ab02ae226e1def462e81eb0b80772004da0",
+      "discovered": true,
+      "rawRgba": true
+    },
+    {
+      "url": "textures/cube/angus/cube_m08_c02.jpg",
+      "output": "textures__cube__angus__cube_m08_c02.jpg",
+      "mime": "image/jpeg",
+      "diagnostic": "auto:textures/cube/angus/cube_m08_c02.jpg",
+      "sha256": "c2321c39a6c14eb7e5ef05565e901ab02ae226e1def462e81eb0b80772004da0",
+      "discovered": true,
+      "rawRgba": true
+    },
+    {
+      "url": "textures/cube/angus/cube_m08_c03.jpg",
+      "output": "textures__cube__angus__cube_m08_c03.jpg",
+      "mime": "image/jpeg",
+      "diagnostic": "auto:textures/cube/angus/cube_m08_c03.jpg",
+      "sha256": "c2321c39a6c14eb7e5ef05565e901ab02ae226e1def462e81eb0b80772004da0",
+      "discovered": true,
+      "rawRgba": true
+    },
+    {
+      "url": "textures/cube/angus/cube_m08_c04.jpg",
+      "output": "textures__cube__angus__cube_m08_c04.jpg",
+      "mime": "image/jpeg",
+      "diagnostic": "auto:textures/cube/angus/cube_m08_c04.jpg",
+      "sha256": "c2321c39a6c14eb7e5ef05565e901ab02ae226e1def462e81eb0b80772004da0",
+      "discovered": true,
+      "rawRgba": true
+    },
+    {
+      "url": "textures/cube/angus/cube_m08_c05.jpg",
+      "output": "textures__cube__angus__cube_m08_c05.jpg",
+      "mime": "image/jpeg",
+      "diagnostic": "auto:textures/cube/angus/cube_m08_c05.jpg",
+      "sha256": "c2321c39a6c14eb7e5ef05565e901ab02ae226e1def462e81eb0b80772004da0",
+      "discovered": true,
+      "rawRgba": true
+    }
+  ],
   "facade": {
     "global": "globalThis.THREE",
     "exports": [
@@ -505,8 +993,8 @@
   },
   "inputs": {
     "assets/three/three.native.js": {
-      "bytes": 777104,
-      "sha256": "5adcb8e7c2d94dd83748134c4d13b9fcfcba9b671445fe27de895575402241b0"
+      "bytes": 791598,
+      "sha256": "58efdde0f4795a978fdf0a9ed9a4f606264aff39bb4e164aaaf00f5542c280e8"
     },
     "assets/three/three.web.js": {
       "bytes": 855325,
@@ -520,6 +1008,222 @@
       "bytes": 40755,
       "sha256": "3d79d07ecb686b4e5d93232eedab255331c1beef711e13164eaa1f68655a5f2b"
     },
+    "source/examples/textures/cube/angus/cube_m00_c00.jpg": {
+      "bytes": 11862,
+      "sha256": "91d3c69ca2255217eb391f26c8a80e9a18c4774d840e33c2c8458e0eeb857e63"
+    },
+    "source/examples/textures/cube/angus/cube_m00_c01.jpg": {
+      "bytes": 10753,
+      "sha256": "5b62b8c085f7e2acc2ac4507be91f66d786c893a28ddd1becbf02525c8226d4c"
+    },
+    "source/examples/textures/cube/angus/cube_m00_c02.jpg": {
+      "bytes": 12177,
+      "sha256": "acce6efb5500b3b2e2169cb2d39cf09f4d8e7ce52ce736bdc9884475349c3296"
+    },
+    "source/examples/textures/cube/angus/cube_m00_c03.jpg": {
+      "bytes": 10037,
+      "sha256": "9de6e5797a5648f4779c97136ee880c1ef7489ebad1b3dc78eeed681a5a4da71"
+    },
+    "source/examples/textures/cube/angus/cube_m00_c04.jpg": {
+      "bytes": 11874,
+      "sha256": "6cfcf22fd21e4cbed1212934aa901fda9f9b81afb49d2da40c5fc16d52b77dce"
+    },
+    "source/examples/textures/cube/angus/cube_m00_c05.jpg": {
+      "bytes": 11145,
+      "sha256": "6617aa31784623150183b67621fb5508e9fd780d431e08705947ba36d3dc41f2"
+    },
+    "source/examples/textures/cube/angus/cube_m01_c00.jpg": {
+      "bytes": 3458,
+      "sha256": "ce9869d6ed5d1792a200980e0448e85606a0cded9dcaf0521748e137736663b4"
+    },
+    "source/examples/textures/cube/angus/cube_m01_c01.jpg": {
+      "bytes": 3130,
+      "sha256": "2e2ac3f48e4a4aa2364d6450082f785da207a50c2f1d933448a7b4dcf73681a3"
+    },
+    "source/examples/textures/cube/angus/cube_m01_c02.jpg": {
+      "bytes": 3488,
+      "sha256": "a358109f3955db8b069e29281390ce5990b0bcebdefb3a6a8d02c6ba5049597c"
+    },
+    "source/examples/textures/cube/angus/cube_m01_c03.jpg": {
+      "bytes": 2983,
+      "sha256": "6492fbe39e0689a3f94c55c027bc0935087c72135f7bb9c2ea2136b0f1ef71e4"
+    },
+    "source/examples/textures/cube/angus/cube_m01_c04.jpg": {
+      "bytes": 3498,
+      "sha256": "424ca767df4781064f06bec4b18e0c00ce833b33b00e9bc37336396d95ea6e56"
+    },
+    "source/examples/textures/cube/angus/cube_m01_c05.jpg": {
+      "bytes": 3474,
+      "sha256": "56731a6c35d9ebe888adef6f518369cffcc5367d15a95e427c167307d0a577f7"
+    },
+    "source/examples/textures/cube/angus/cube_m02_c00.jpg": {
+      "bytes": 1377,
+      "sha256": "6aea33d353d5bd5c55e14c10a8f2d0530aed382ba7df5c4a49b5bd4579b5e9f5"
+    },
+    "source/examples/textures/cube/angus/cube_m02_c01.jpg": {
+      "bytes": 1276,
+      "sha256": "9e6abc09ec1ff759c0c98a7833d674ac0df21f1efc7ac718cbd483914dab5642"
+    },
+    "source/examples/textures/cube/angus/cube_m02_c02.jpg": {
+      "bytes": 1385,
+      "sha256": "1d8cfd31577311b9be6d93842bb0473801491ae453ce84edd2757b171cd77405"
+    },
+    "source/examples/textures/cube/angus/cube_m02_c03.jpg": {
+      "bytes": 1186,
+      "sha256": "ae7790dd278b98a0acf52c4e2b2627f76832348504b7295ebcbeac6a67ebb0e7"
+    },
+    "source/examples/textures/cube/angus/cube_m02_c04.jpg": {
+      "bytes": 1388,
+      "sha256": "7e66a736f13f200e9546466f5a8afc388340fa9673d348539f04e259f8700907"
+    },
+    "source/examples/textures/cube/angus/cube_m02_c05.jpg": {
+      "bytes": 1436,
+      "sha256": "c95a318ae6e911a9184fa7bb70dac34019c3d86563ab6fca5cf4dc7d7af72541"
+    },
+    "source/examples/textures/cube/angus/cube_m03_c00.jpg": {
+      "bytes": 859,
+      "sha256": "336f3af9768daf436cb97b8a7ac269c25e716e30829b066a27a967a1d563e500"
+    },
+    "source/examples/textures/cube/angus/cube_m03_c01.jpg": {
+      "bytes": 814,
+      "sha256": "19e2a0e70a31a49694c1e59c99ba108bd1e6a794c044845cced1e9af54002446"
+    },
+    "source/examples/textures/cube/angus/cube_m03_c02.jpg": {
+      "bytes": 846,
+      "sha256": "3d3df8a8e043371665b4b21a4f50fc0897e28affd446349f68528a18174fc741"
+    },
+    "source/examples/textures/cube/angus/cube_m03_c03.jpg": {
+      "bytes": 773,
+      "sha256": "85c1635c19b442f284082afe9de83ae8670fc03510880a9ba69d0b6acf67c582"
+    },
+    "source/examples/textures/cube/angus/cube_m03_c04.jpg": {
+      "bytes": 829,
+      "sha256": "96eef6e8495dc0b46f18dc8c0aa0323782cadb06b7ad1af957c6435abad95b14"
+    },
+    "source/examples/textures/cube/angus/cube_m03_c05.jpg": {
+      "bytes": 874,
+      "sha256": "08095ec74c20f4bbc3cd5b05b81134893725041132cd599f55a3b6fa07296d34"
+    },
+    "source/examples/textures/cube/angus/cube_m04_c00.jpg": {
+      "bytes": 686,
+      "sha256": "aa17112bed3c6705279e09677c49c89a00fae5fa8438be2e32749e1cefe71ff5"
+    },
+    "source/examples/textures/cube/angus/cube_m04_c01.jpg": {
+      "bytes": 680,
+      "sha256": "538c4486d9ca7c7b93c3930c0a90dadc9631310807a8135355f67a496dc1bde3"
+    },
+    "source/examples/textures/cube/angus/cube_m04_c02.jpg": {
+      "bytes": 694,
+      "sha256": "f027737c2d28d46b47a9361c984062163b47168426384e40e16aa17885cdab4e"
+    },
+    "source/examples/textures/cube/angus/cube_m04_c03.jpg": {
+      "bytes": 670,
+      "sha256": "5fe9ed99bb305c9bb8dfc9898f49847d242697802c7ecac3657732761c17e156"
+    },
+    "source/examples/textures/cube/angus/cube_m04_c04.jpg": {
+      "bytes": 679,
+      "sha256": "e2f6148606cf2024013e0db64de004652d02088ab4430fb9b52bf6d0751add1d"
+    },
+    "source/examples/textures/cube/angus/cube_m04_c05.jpg": {
+      "bytes": 688,
+      "sha256": "be0cabe9f8639de15774a34c89ca9a93a5c2dc2899cb53b1ccbcda4c87f10c54"
+    },
+    "source/examples/textures/cube/angus/cube_m05_c00.jpg": {
+      "bytes": 656,
+      "sha256": "fb0963a44fd248e67a7bc949d03e859203dfbca0bc01c61d6afab9ffd03136e6"
+    },
+    "source/examples/textures/cube/angus/cube_m05_c01.jpg": {
+      "bytes": 649,
+      "sha256": "3464ccb29e529db59a4509d937ca8df2811be87ff463c389798ea27b60415999"
+    },
+    "source/examples/textures/cube/angus/cube_m05_c02.jpg": {
+      "bytes": 651,
+      "sha256": "5865f07534d0f179db571e0cf77bb382e200c6cf06beca497d3c6004b1aca6f4"
+    },
+    "source/examples/textures/cube/angus/cube_m05_c03.jpg": {
+      "bytes": 649,
+      "sha256": "5e8209ec04799ece1b894256b14eef47aa1e7d37871a0551e29694878a53454e"
+    },
+    "source/examples/textures/cube/angus/cube_m05_c04.jpg": {
+      "bytes": 651,
+      "sha256": "7bce46db7ab150a48ac187a43a13adaf22cffbc30eaeff2ffbb7a4be35774225"
+    },
+    "source/examples/textures/cube/angus/cube_m05_c05.jpg": {
+      "bytes": 655,
+      "sha256": "f73ac3376df603d6cdcc41d7a6e13c35820b0eded89c3573fe6022305635821c"
+    },
+    "source/examples/textures/cube/angus/cube_m06_c00.jpg": {
+      "bytes": 653,
+      "sha256": "b599f0124938418845ea9784a02b39d7c2362216cb1b3e2f6e21650b2ced25e3"
+    },
+    "source/examples/textures/cube/angus/cube_m06_c01.jpg": {
+      "bytes": 653,
+      "sha256": "eeca143fcdf5ce57541974bc4095051ab0d41b2a939bc0286b1429f08dbab2df"
+    },
+    "source/examples/textures/cube/angus/cube_m06_c02.jpg": {
+      "bytes": 650,
+      "sha256": "09b9e3166eae81d41da10543b755e8c02cc09121407dee99d12d5f3cde76441f"
+    },
+    "source/examples/textures/cube/angus/cube_m06_c03.jpg": {
+      "bytes": 651,
+      "sha256": "d13a4fe84491b446fdfaff445c9c3608fbfdb52d26eda0cd7788e960f073ba1e"
+    },
+    "source/examples/textures/cube/angus/cube_m06_c04.jpg": {
+      "bytes": 653,
+      "sha256": "bb166e6ea83d3a2b99c436a69d002b7ff1f42b2fe7f3f3d28c99ffd123c047d6"
+    },
+    "source/examples/textures/cube/angus/cube_m06_c05.jpg": {
+      "bytes": 655,
+      "sha256": "b1c0d92570f45c1c276ce73d27be4c62f95d0802840e5c2b262ba50afd874c57"
+    },
+    "source/examples/textures/cube/angus/cube_m07_c00.jpg": {
+      "bytes": 648,
+      "sha256": "a4aa34065c0c700c4d5a16ab07ae315a7fa326e7a5d362ef5374ea55717fae8d"
+    },
+    "source/examples/textures/cube/angus/cube_m07_c01.jpg": {
+      "bytes": 649,
+      "sha256": "b8321ac425d9620d93049dec72ddbc281cbfb769b03068540c0abd3449869b7e"
+    },
+    "source/examples/textures/cube/angus/cube_m07_c02.jpg": {
+      "bytes": 648,
+      "sha256": "5b023f1db8c6536eb146caa5dea1fdef6f10b9feeb105c9eb3bb45c132313542"
+    },
+    "source/examples/textures/cube/angus/cube_m07_c03.jpg": {
+      "bytes": 649,
+      "sha256": "06078d81198e24ece854390f75a121e5701eaf0212adf9e310e87b954e35a601"
+    },
+    "source/examples/textures/cube/angus/cube_m07_c04.jpg": {
+      "bytes": 652,
+      "sha256": "18dc1c56910b5a7ccfe759538b920e86e164b2feff829b7f6c38c48a9e590c46"
+    },
+    "source/examples/textures/cube/angus/cube_m07_c05.jpg": {
+      "bytes": 652,
+      "sha256": "722706511a8d6162ef68d70171ff15f33d5358000c4bf7350fd65fdbd027a03e"
+    },
+    "source/examples/textures/cube/angus/cube_m08_c00.jpg": {
+      "bytes": 632,
+      "sha256": "c2321c39a6c14eb7e5ef05565e901ab02ae226e1def462e81eb0b80772004da0"
+    },
+    "source/examples/textures/cube/angus/cube_m08_c01.jpg": {
+      "bytes": 632,
+      "sha256": "c2321c39a6c14eb7e5ef05565e901ab02ae226e1def462e81eb0b80772004da0"
+    },
+    "source/examples/textures/cube/angus/cube_m08_c02.jpg": {
+      "bytes": 632,
+      "sha256": "c2321c39a6c14eb7e5ef05565e901ab02ae226e1def462e81eb0b80772004da0"
+    },
+    "source/examples/textures/cube/angus/cube_m08_c03.jpg": {
+      "bytes": 632,
+      "sha256": "c2321c39a6c14eb7e5ef05565e901ab02ae226e1def462e81eb0b80772004da0"
+    },
+    "source/examples/textures/cube/angus/cube_m08_c04.jpg": {
+      "bytes": 632,
+      "sha256": "c2321c39a6c14eb7e5ef05565e901ab02ae226e1def462e81eb0b80772004da0"
+    },
+    "source/examples/textures/cube/angus/cube_m08_c05.jpg": {
+      "bytes": 632,
+      "sha256": "c2321c39a6c14eb7e5ef05565e901ab02ae226e1def462e81eb0b80772004da0"
+    },
     "source/examples/webgl_materials_cubemap_mipmaps.html": {
       "bytes": 4522,
       "sha256": "81b8fbd05b839fe09d63ffa57c5437a8b2c41a12ce165f366d57b12bbf43d07b"
@@ -532,9 +1236,13 @@
       "bytes": 1951,
       "sha256": "7852c54a706c19e98978c884aa9cd9bfd8d040a2d304c8e6d8cf973dd3554eaf"
     },
+    "tool/three_example/asset_discovery.mjs": {
+      "bytes": 11532,
+      "sha256": "5219e6b747041382d9e40edc33901f04140df1cfb0454b181d8145414a75ee9e"
+    },
     "tool/three_example/example_adapter.js": {
-      "bytes": 20723,
-      "sha256": "9c713a0daa93289f0aeb2d75de6c067569ca4bc2235c24f3bb2bc8feab03336c"
+      "bytes": 36267,
+      "sha256": "c604a1842689cfaf43e2bdf335b55f2384780c7b163cd41ab6e91e3912704b61"
     },
     "tool/three_example/example_canvas2d.js": {
       "bytes": 20988,
@@ -545,8 +1253,8 @@
       "sha256": "dc11346394f41bb4f385738d3afa6aa75e695ac80fe3be3a5fbf4201686376bf"
     },
     "tool/three_example/prepare.mjs": {
-      "bytes": 247876,
-      "sha256": "4ed1752612b57fb4ac32f62717e772e9a85f4e8a0f7e51a764443b68af0b8aac"
+      "bytes": 252492,
+      "sha256": "544095661162d33d5b6e91b6b744f7eb60b97c1ff9ea1f4ae297b2f39044af43"
     },
     "tool/three_example/stats_adapter.js": {
       "bytes": 2107,
@@ -570,9 +1278,225 @@
       "bytes": 4522,
       "sha256": "81b8fbd05b839fe09d63ffa57c5437a8b2c41a12ce165f366d57b12bbf43d07b"
     },
+    "textures__cube__angus__cube_m00_c00.jpg": {
+      "bytes": 262144,
+      "sha256": "d0bac99ba182038c8e75b42eafd14d1a447f570ef93de1660711325ef7de95fb"
+    },
+    "textures__cube__angus__cube_m00_c01.jpg": {
+      "bytes": 262144,
+      "sha256": "37a5c9d936453b4f5ac7da3b2b6ea9569b2ee941bf8481e33fe23c4d03baea0b"
+    },
+    "textures__cube__angus__cube_m00_c02.jpg": {
+      "bytes": 262144,
+      "sha256": "656b5779efb509426ae26b7f98456e5bfd4b1bc07b78018179d8fd0b2e1f796e"
+    },
+    "textures__cube__angus__cube_m00_c03.jpg": {
+      "bytes": 262144,
+      "sha256": "9e98a962e707ccff71e15666add2f4700dbf77d6ac5b24e280b3bafe640a160a"
+    },
+    "textures__cube__angus__cube_m00_c04.jpg": {
+      "bytes": 262144,
+      "sha256": "286d26779d3e462ecfaba9fefb2bc8b30326578b623e5d32324d3b9ce75e2c1e"
+    },
+    "textures__cube__angus__cube_m00_c05.jpg": {
+      "bytes": 262144,
+      "sha256": "67579107231a82ad4bb6df1e563ad77c5d2bfc44e79bb9cb6d1f97264544a45c"
+    },
+    "textures__cube__angus__cube_m01_c00.jpg": {
+      "bytes": 65536,
+      "sha256": "5c2adc2dfc11189658dbf9685612c2c21b64f2e14ee86145b8e5bdd81f137337"
+    },
+    "textures__cube__angus__cube_m01_c01.jpg": {
+      "bytes": 65536,
+      "sha256": "020af98dfd8ae999985802da01555089cd90c2b2ad39a74f66ea55b3677e3c9e"
+    },
+    "textures__cube__angus__cube_m01_c02.jpg": {
+      "bytes": 65536,
+      "sha256": "42f846eafefa92b083a866fba4f4dc4b1ba9315ee03a1ead57ea57ca72ac0423"
+    },
+    "textures__cube__angus__cube_m01_c03.jpg": {
+      "bytes": 65536,
+      "sha256": "caefb8fde7db6acf63abbf6345bceabf6e46cb98f6016b129829d163f523f8ee"
+    },
+    "textures__cube__angus__cube_m01_c04.jpg": {
+      "bytes": 65536,
+      "sha256": "e3955b19bed8767405e66458feb6e8696cf0903f8c2987134fe787f3e748e330"
+    },
+    "textures__cube__angus__cube_m01_c05.jpg": {
+      "bytes": 65536,
+      "sha256": "5e052f72a962a948b97c261f23949f10dda5a9f4dbebdbb6829240dc6e7ac25c"
+    },
+    "textures__cube__angus__cube_m02_c00.jpg": {
+      "bytes": 16384,
+      "sha256": "74ae7dacdc2c11d1702ac6e357eae339e79aaae489039a506909ed4a57e44cfb"
+    },
+    "textures__cube__angus__cube_m02_c01.jpg": {
+      "bytes": 16384,
+      "sha256": "41bed4b0e83595679ab8257a28af12336c8cb9ef76ad8e6f8061acfa58c99654"
+    },
+    "textures__cube__angus__cube_m02_c02.jpg": {
+      "bytes": 16384,
+      "sha256": "5ecdc88c9bfcf40bebf3515d8ea2bf22b6941152f55700064adbc303bd5112ec"
+    },
+    "textures__cube__angus__cube_m02_c03.jpg": {
+      "bytes": 16384,
+      "sha256": "0a92187fd470a5596d87ef936ee74d8d50abfeb2f764f20132cbc34b02b3aa12"
+    },
+    "textures__cube__angus__cube_m02_c04.jpg": {
+      "bytes": 16384,
+      "sha256": "28d0191af5e36dbbb165ff185f7fb230c1d8c1baff035428cfe0479375cc6cbf"
+    },
+    "textures__cube__angus__cube_m02_c05.jpg": {
+      "bytes": 16384,
+      "sha256": "363fb31e622050a683f0471c4856a3969410f0ca8d5584b0e0149d137cc8d3cc"
+    },
+    "textures__cube__angus__cube_m03_c00.jpg": {
+      "bytes": 4096,
+      "sha256": "de6866c7ab806432c5a6d416ba6505e3f1c2fb2a2e6cbe503bbca5f4ad305466"
+    },
+    "textures__cube__angus__cube_m03_c01.jpg": {
+      "bytes": 4096,
+      "sha256": "353cc98c1f82d2521c1fff5b3a730b4beaf6edf910b6acf8f199c238fdf56a07"
+    },
+    "textures__cube__angus__cube_m03_c02.jpg": {
+      "bytes": 4096,
+      "sha256": "a6ca6307f31a4ac91708acb792c6399955b1f660973b434f0c63e15f7f3b65cb"
+    },
+    "textures__cube__angus__cube_m03_c03.jpg": {
+      "bytes": 4096,
+      "sha256": "01e6c0a1c132063d8dfbc7faab6bcbe8eb2a6666ba9df62bef9596b486bb3f17"
+    },
+    "textures__cube__angus__cube_m03_c04.jpg": {
+      "bytes": 4096,
+      "sha256": "c463a7cbb241ace359779bd5c99451faf5695c5e2427c95e2b68e4c168a60f9a"
+    },
+    "textures__cube__angus__cube_m03_c05.jpg": {
+      "bytes": 4096,
+      "sha256": "9c86bc9eada690c7e7238b7d7dccb0e892c5f97b4c82b935bf78499a28475303"
+    },
+    "textures__cube__angus__cube_m04_c00.jpg": {
+      "bytes": 1024,
+      "sha256": "8b797a2159c92585c37ca8915a36aa8a8406c435a05e2eb4aaaa3cd640ce9bb3"
+    },
+    "textures__cube__angus__cube_m04_c01.jpg": {
+      "bytes": 1024,
+      "sha256": "857030e96e81329a8e6d16ce733ce623a95d60827705f3660be87c4d8b00602d"
+    },
+    "textures__cube__angus__cube_m04_c02.jpg": {
+      "bytes": 1024,
+      "sha256": "4811e37f90875628fea6e94a080125a49187a5a4e5a2e2b514168e986d47fb61"
+    },
+    "textures__cube__angus__cube_m04_c03.jpg": {
+      "bytes": 1024,
+      "sha256": "7e08798f555bb8b3e14766e0e36ee6866b811e6a463597dca6c6df4097f05a8b"
+    },
+    "textures__cube__angus__cube_m04_c04.jpg": {
+      "bytes": 1024,
+      "sha256": "710df4ba8114ba2ed23a1370167cd906e55b06bba7976ce60c1cfe892ecc22b6"
+    },
+    "textures__cube__angus__cube_m04_c05.jpg": {
+      "bytes": 1024,
+      "sha256": "b58faac0c0f7a1f633a0a83acbc934d0005f55e838e973eb0a935d7ae185996d"
+    },
+    "textures__cube__angus__cube_m05_c00.jpg": {
+      "bytes": 256,
+      "sha256": "a76566b6163ac70f55896f8e8042073bc3869def1d2cba700931fbaa6b593558"
+    },
+    "textures__cube__angus__cube_m05_c01.jpg": {
+      "bytes": 256,
+      "sha256": "32841cc323bb309f6aabea4b2c4d0b307a504a27d5668e538149f85369267cc6"
+    },
+    "textures__cube__angus__cube_m05_c02.jpg": {
+      "bytes": 256,
+      "sha256": "df615f8d4857347c12018e2f4a52a7ce50a2fcfb6e1067ad948f19690aa2d64a"
+    },
+    "textures__cube__angus__cube_m05_c03.jpg": {
+      "bytes": 256,
+      "sha256": "27de2c6675f7bb2227f8ceb365d5d526ded0964a30463372f5f8dda9c1fe0e14"
+    },
+    "textures__cube__angus__cube_m05_c04.jpg": {
+      "bytes": 256,
+      "sha256": "27982e067715135448bde73401e42987de667c1fe25d171aa58901a75f7c9b96"
+    },
+    "textures__cube__angus__cube_m05_c05.jpg": {
+      "bytes": 256,
+      "sha256": "d31b7a3853b55e438c22118a0e808f1c030696668a611b4a9c5d9afd1c228909"
+    },
+    "textures__cube__angus__cube_m06_c00.jpg": {
+      "bytes": 64,
+      "sha256": "05bb4a58172a963f303f8961432a6edda4112925236e8cd2aca0018511037500"
+    },
+    "textures__cube__angus__cube_m06_c01.jpg": {
+      "bytes": 64,
+      "sha256": "9cee6b295f76111f8bdf5d57c9ca5b4d0a97f7c2d693d9d8a91a5e96a8421211"
+    },
+    "textures__cube__angus__cube_m06_c02.jpg": {
+      "bytes": 64,
+      "sha256": "0ee1c0fee476b97814623fe16adcb6f77a9677c3c1dbaf14cb1132c1ea5cad6f"
+    },
+    "textures__cube__angus__cube_m06_c03.jpg": {
+      "bytes": 64,
+      "sha256": "79901360c6758f828bd8d61084e96898384455a6b22fd0b246f9b96e62a5f747"
+    },
+    "textures__cube__angus__cube_m06_c04.jpg": {
+      "bytes": 64,
+      "sha256": "06d4ae8ff2717587c32bafe6294c78c1975072d596a9d8935f05aa9278d8a25b"
+    },
+    "textures__cube__angus__cube_m06_c05.jpg": {
+      "bytes": 64,
+      "sha256": "e24b836afdf6f4307343effb6c08b2759c33d07250687ade6e522e963f9d8006"
+    },
+    "textures__cube__angus__cube_m07_c00.jpg": {
+      "bytes": 16,
+      "sha256": "356f28245a11f5514d5665a1abe3f8f513f6af710d92334a56357475294c2155"
+    },
+    "textures__cube__angus__cube_m07_c01.jpg": {
+      "bytes": 16,
+      "sha256": "1696cf45a056414529120717151ebb230f370f48e53f3f5a1df01800a226b215"
+    },
+    "textures__cube__angus__cube_m07_c02.jpg": {
+      "bytes": 16,
+      "sha256": "ae1be8441df5bc296c0c50f2d15bb8239d56a11d3d58decfba98bba19091c14e"
+    },
+    "textures__cube__angus__cube_m07_c03.jpg": {
+      "bytes": 16,
+      "sha256": "9b3509267e6f44fbed5098bb6d6a847972a034ab5c4df152278b285f4773c871"
+    },
+    "textures__cube__angus__cube_m07_c04.jpg": {
+      "bytes": 16,
+      "sha256": "e2bfeb0d6ab16ad3732b60ea05980253dbadc5a6271567568c06f1361f702900"
+    },
+    "textures__cube__angus__cube_m07_c05.jpg": {
+      "bytes": 16,
+      "sha256": "3cd7a9326deae924d842906326303a608c5923fdd633eb2ef5ab72cdd7e0df27"
+    },
+    "textures__cube__angus__cube_m08_c00.jpg": {
+      "bytes": 4,
+      "sha256": "86bd82be30b758a6f5d1383ce45864314b3a54863b9a0bbcb17afc5c27fdc259"
+    },
+    "textures__cube__angus__cube_m08_c01.jpg": {
+      "bytes": 4,
+      "sha256": "86bd82be30b758a6f5d1383ce45864314b3a54863b9a0bbcb17afc5c27fdc259"
+    },
+    "textures__cube__angus__cube_m08_c02.jpg": {
+      "bytes": 4,
+      "sha256": "86bd82be30b758a6f5d1383ce45864314b3a54863b9a0bbcb17afc5c27fdc259"
+    },
+    "textures__cube__angus__cube_m08_c03.jpg": {
+      "bytes": 4,
+      "sha256": "86bd82be30b758a6f5d1383ce45864314b3a54863b9a0bbcb17afc5c27fdc259"
+    },
+    "textures__cube__angus__cube_m08_c04.jpg": {
+      "bytes": 4,
+      "sha256": "86bd82be30b758a6f5d1383ce45864314b3a54863b9a0bbcb17afc5c27fdc259"
+    },
+    "textures__cube__angus__cube_m08_c05.jpg": {
+      "bytes": 4,
+      "sha256": "86bd82be30b758a6f5d1383ce45864314b3a54863b9a0bbcb17afc5c27fdc259"
+    },
     "widget.js": {
-      "bytes": 51991,
-      "sha256": "d6ad0db757526b56d45121671a8a7af9b63574be7e9e52167739535057cf82b3"
+      "bytes": 2866164,
+      "sha256": "2405304448f90d840d63b2a4b9fdce4485b7990cd0eaf98c3c0efe15072e3228"
     }
   }
 }

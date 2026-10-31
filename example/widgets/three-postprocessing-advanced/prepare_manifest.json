@@ -43,6 +43,41 @@
       "sha256": "4cf957fb47e59c410e1720afc8b8623d64c89d93d84a14a076089b2331f10a02"
     }
   },
+  "assetDiscovery": [
+    {
+      "url": "models/gltf/LeePerrySmith/Infinite-Level_02_Tangent_SmoothUV.jpg",
+      "output": "models__gltf__LeePerrySmith__Infinite-Level_02_Tangent_SmoothUV.jpg",
+      "mime": "image/jpeg",
+      "diagnostic": "auto:models/gltf/LeePerrySmith/Infinite-Level_02_Tangent_SmoothUV.jpg",
+      "sha256": "36925e51ad9b324b94e8faf4692da1b4132809f2762bb8d5bd549ffd215d4ca6",
+      "discovered": true
+    },
+    {
+      "url": "models/gltf/LeePerrySmith/LeePerrySmith.glb",
+      "output": "models__gltf__LeePerrySmith__LeePerrySmith.glb",
+      "mime": "model/gltf-binary",
+      "diagnostic": "auto:models/gltf/LeePerrySmith/LeePerrySmith.glb",
+      "sha256": "402b8a8ac9f03232e6d64b5962929703a069daf99d3c49ac8eb0e48bedc9c576",
+      "discovered": true
+    },
+    {
+      "url": "models/gltf/LeePerrySmith/Map-COL.jpg",
+      "output": "models__gltf__LeePerrySmith__Map-COL.jpg",
+      "mime": "image/jpeg",
+      "diagnostic": "auto:models/gltf/LeePerrySmith/Map-COL.jpg",
+      "sha256": "e976d73b31407f8d0967412bf468019ed26a5d5a32cf5811aabff7e816458a65",
+      "discovered": true
+    },
+    {
+      "url": "textures/cube/SwedishRoyalCastle/pz.jpg",
+      "output": "textures__cube__SwedishRoyalCastle__pz.jpg",
+      "mime": "image/jpeg",
+      "diagnostic": "auto:textures/cube/SwedishRoyalCastle/pz.jpg",
+      "sha256": "cc9252ba994a79c320ac4aed03aac9000f810c1358179e70a69b598d56e129db",
+      "discovered": true,
+      "rawRgba": true
+    }
+  ],
   "facade": {
     "global": "globalThis.THREE",
     "exports": [
@@ -505,8 +540,8 @@
   },
   "inputs": {
     "assets/three/three.native.js": {
-      "bytes": 777104,
-      "sha256": "5adcb8e7c2d94dd83748134c4d13b9fcfcba9b671445fe27de895575402241b0"
+      "bytes": 791598,
+      "sha256": "58efdde0f4795a978fdf0a9ed9a4f606264aff39bb4e164aaaf00f5542c280e8"
     },
     "assets/three/three.web.js": {
       "bytes": 855325,
@@ -608,6 +643,22 @@
       "bytes": 11535,
       "sha256": "b1632a703206c3d830de9fcbe515696770d04b71a15ee6b50afa6d2c3298c86f"
     },
+    "source/examples/models/gltf/LeePerrySmith/Infinite-Level_02_Tangent_SmoothUV.jpg": {
+      "bytes": 146793,
+      "sha256": "36925e51ad9b324b94e8faf4692da1b4132809f2762bb8d5bd549ffd215d4ca6"
+    },
+    "source/examples/models/gltf/LeePerrySmith/LeePerrySmith.glb": {
+      "bytes": 404976,
+      "sha256": "402b8a8ac9f03232e6d64b5962929703a069daf99d3c49ac8eb0e48bedc9c576"
+    },
+    "source/examples/models/gltf/LeePerrySmith/Map-COL.jpg": {
+      "bytes": 148269,
+      "sha256": "e976d73b31407f8d0967412bf468019ed26a5d5a32cf5811aabff7e816458a65"
+    },
+    "source/examples/textures/cube/SwedishRoyalCastle/pz.jpg": {
+      "bytes": 75549,
+      "sha256": "cc9252ba994a79c320ac4aed03aac9000f810c1358179e70a69b598d56e129db"
+    },
     "source/examples/webgl_postprocessing_advanced.html": {
       "bytes": 11144,
       "sha256": "a1a0bad144ca0c8f7ec041e35094b4ffade79583f5ec5ce8f161bcdc6a14f5b4"
@@ -620,9 +671,13 @@
       "bytes": 1951,
       "sha256": "7852c54a706c19e98978c884aa9cd9bfd8d040a2d304c8e6d8cf973dd3554eaf"
     },
+    "tool/three_example/asset_discovery.mjs": {
+      "bytes": 11532,
+      "sha256": "5219e6b747041382d9e40edc33901f04140df1cfb0454b181d8145414a75ee9e"
+    },
     "tool/three_example/example_adapter.js": {
-      "bytes": 20723,
-      "sha256": "9c713a0daa93289f0aeb2d75de6c067569ca4bc2235c24f3bb2bc8feab03336c"
+      "bytes": 36267,
+      "sha256": "c604a1842689cfaf43e2bdf335b55f2384780c7b163cd41ab6e91e3912704b61"
     },
     "tool/three_example/example_canvas2d.js": {
       "bytes": 20988,
@@ -633,8 +688,8 @@
       "sha256": "dc11346394f41bb4f385738d3afa6aa75e695ac80fe3be3a5fbf4201686376bf"
     },
     "tool/three_example/prepare.mjs": {
-      "bytes": 247876,
-      "sha256": "4ed1752612b57fb4ac32f62717e772e9a85f4e8a0f7e51a764443b68af0b8aac"
+      "bytes": 252492,
+      "sha256": "544095661162d33d5b6e91b6b744f7eb60b97c1ff9ea1f4ae297b2f39044af43"
     },
     "tool/three_example/stats_adapter.js": {
       "bytes": 2107,
@@ -650,6 +705,18 @@
       "bytes": 357,
       "sha256": "141f7f4a64b979f53958f292746855d9c8b863cbe107208f43eca958f8447335"
     },
+    "models__gltf__LeePerrySmith__Infinite-Level_02_Tangent_SmoothUV.jpg": {
+      "bytes": 146793,
+      "sha256": "36925e51ad9b324b94e8faf4692da1b4132809f2762bb8d5bd549ffd215d4ca6"
+    },
+    "models__gltf__LeePerrySmith__LeePerrySmith.glb": {
+      "bytes": 404976,
+      "sha256": "402b8a8ac9f03232e6d64b5962929703a069daf99d3c49ac8eb0e48bedc9c576"
+    },
+    "models__gltf__LeePerrySmith__Map-COL.jpg": {
+      "bytes": 148269,
+      "sha256": "e976d73b31407f8d0967412bf468019ed26a5d5a32cf5811aabff7e816458a65"
+    },
     "official_module.js": {
       "bytes": 10040,
       "sha256": "4cf957fb47e59c410e1720afc8b8623d64c89d93d84a14a076089b2331f10a02"
@@ -658,9 +725,13 @@
       "bytes": 11144,
       "sha256": "a1a0bad144ca0c8f7ec041e35094b4ffade79583f5ec5ce8f161bcdc6a14f5b4"
     },
+    "textures__cube__SwedishRoyalCastle__pz.jpg": {
+      "bytes": 1048576,
+      "sha256": "9a1b84872e9ba8f72c76d701457b04caa8fab9957a2e9a4be219b0bd360a8697"
+    },
     "widget.js": {
-      "bytes": 99207,
-      "sha256": "735d530a1ae9c2c354a371ca3331c21b8f4c5d4e4d0fa1e5a7fa2c1db8a39141"
+      "bytes": 2439766,
+      "sha256": "4a4654f13a311ba099c932cdce4ef03aedf2a0fa6617b7408892340a1abbd0be"
     }
   }
 }

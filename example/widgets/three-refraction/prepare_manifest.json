@@ -43,6 +43,16 @@
       "sha256": "c848049e14d3542c37cf022629c90e4788bc0881d123b27fc79109b0bb7f52e9"
     }
   },
+  "assetDiscovery": [
+    {
+      "url": "textures/waterdudv.jpg",
+      "output": "textures__waterdudv.jpg",
+      "mime": "image/jpeg",
+      "diagnostic": "auto:textures/waterdudv.jpg",
+      "sha256": "84dd625b243e1b6f23236972679d3a861ab704e2e7fdb0677a2d7a933976cdd2",
+      "discovered": true
+    }
+  ],
   "facade": {
     "global": "globalThis.THREE",
     "exports": [
@@ -505,8 +515,8 @@
   },
   "inputs": {
     "assets/three/three.native.js": {
-      "bytes": 777104,
-      "sha256": "5adcb8e7c2d94dd83748134c4d13b9fcfcba9b671445fe27de895575402241b0"
+      "bytes": 791598,
+      "sha256": "58efdde0f4795a978fdf0a9ed9a4f606264aff39bb4e164aaaf00f5542c280e8"
     },
     "assets/three/three.web.js": {
       "bytes": 855325,
@@ -528,6 +538,10 @@
       "bytes": 2046,
       "sha256": "cad67ed479d112d787281b1ab37561659a50d5fad6ad951a2d9f89a45f229cf5"
     },
+    "source/examples/textures/waterdudv.jpg": {
+      "bytes": 177925,
+      "sha256": "84dd625b243e1b6f23236972679d3a861ab704e2e7fdb0677a2d7a933976cdd2"
+    },
     "source/examples/webgl_refraction.html": {
       "bytes": 5456,
       "sha256": "526ca2f257e812620ee09fed771494f01608000f5ee78fbe0c97ead4b529c18c"
@@ -540,9 +554,13 @@
       "bytes": 1951,
       "sha256": "7852c54a706c19e98978c884aa9cd9bfd8d040a2d304c8e6d8cf973dd3554eaf"
     },
+    "tool/three_example/asset_discovery.mjs": {
+      "bytes": 11532,
+      "sha256": "5219e6b747041382d9e40edc33901f04140df1cfb0454b181d8145414a75ee9e"
+    },
     "tool/three_example/example_adapter.js": {
-      "bytes": 20723,
-      "sha256": "9c713a0daa93289f0aeb2d75de6c067569ca4bc2235c24f3bb2bc8feab03336c"
+      "bytes": 36267,
+      "sha256": "c604a1842689cfaf43e2bdf335b55f2384780c7b163cd41ab6e91e3912704b61"
     },
     "tool/three_example/example_canvas2d.js": {
       "bytes": 20988,
@@ -553,8 +571,8 @@
       "sha256": "dc11346394f41bb4f385738d3afa6aa75e695ac80fe3be3a5fbf4201686376bf"
     },
     "tool/three_example/prepare.mjs": {
-      "bytes": 247876,
-      "sha256": "4ed1752612b57fb4ac32f62717e772e9a85f4e8a0f7e51a764443b68af0b8aac"
+      "bytes": 252492,
+      "sha256": "544095661162d33d5b6e91b6b744f7eb60b97c1ff9ea1f4ae297b2f39044af43"
     },
     "tool/three_example/stats_adapter.js": {
       "bytes": 2107,
@@ -578,9 +596,13 @@
       "bytes": 5456,
       "sha256": "526ca2f257e812620ee09fed771494f01608000f5ee78fbe0c97ead4b529c18c"
     },
+    "textures__waterdudv.jpg": {
+      "bytes": 177925,
+      "sha256": "84dd625b243e1b6f23236972679d3a861ab704e2e7fdb0677a2d7a933976cdd2"
+    },
     "widget.js": {
-      "bytes": 57526,
-      "sha256": "4b69ea7ff532d691d3179a34e4e511666b2ad690c68a006c901dcd6114f2668f"
+      "bytes": 303184,
+      "sha256": "34ba9b99d6f5a08cfd66ef6c2d0a7eae00b3fa6ef1e1bf0bfe2c8682a78b24bf"
     }
   }
 }

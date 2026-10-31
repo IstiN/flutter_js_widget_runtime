@@ -505,8 +505,8 @@
   },
   "inputs": {
     "assets/three/three.native.js": {
-      "bytes": 777104,
-      "sha256": "5adcb8e7c2d94dd83748134c4d13b9fcfcba9b671445fe27de895575402241b0"
+      "bytes": 795456,
+      "sha256": "6f635dbae695d2506b5ab29829f39a4574d0dc3f049b1952c53a91f3ac01a470"
     },
     "assets/three/three.web.js": {
       "bytes": 855325,
@@ -560,9 +560,13 @@
       "bytes": 1951,
       "sha256": "7852c54a706c19e98978c884aa9cd9bfd8d040a2d304c8e6d8cf973dd3554eaf"
     },
+    "tool/three_example/asset_discovery.mjs": {
+      "bytes": 11580,
+      "sha256": "61df540ad93d367d071167057ad68a74c4526b7493ac1748a2b750e4c26ae0ea"
+    },
     "tool/three_example/example_adapter.js": {
-      "bytes": 20723,
-      "sha256": "9c713a0daa93289f0aeb2d75de6c067569ca4bc2235c24f3bb2bc8feab03336c"
+      "bytes": 36310,
+      "sha256": "d4b30ea893767085c461138a82c7d1644c3311ad8e1a734712ad0c2be5ad0011"
     },
     "tool/three_example/example_canvas2d.js": {
       "bytes": 20988,
@@ -573,8 +577,8 @@
       "sha256": "dc11346394f41bb4f385738d3afa6aa75e695ac80fe3be3a5fbf4201686376bf"
     },
     "tool/three_example/prepare.mjs": {
-      "bytes": 247876,
-      "sha256": "4ed1752612b57fb4ac32f62717e772e9a85f4e8a0f7e51a764443b68af0b8aac"
+      "bytes": 252302,
+      "sha256": "e6f9fd556a40a617de3f0a8d75c6d76b21a2020d19e988e7b657f6034a647845"
     },
     "tool/three_example/stats_adapter.js": {
       "bytes": 2107,
@@ -599,8 +603,8 @@
       "sha256": "33f541b5d3187752ed863fbefc746ef5c15fb9ab3daba33b6c8bce3f8eff5f7d"
     },
     "widget.js": {
-      "bytes": 172121,
-      "sha256": "a2f8b4297357ff9391cdec22ba84868ab804f4df16c1b64dfe48aab943d35dd6"
+      "bytes": 180445,
+      "sha256": "ae2ff96bac683a84b27d29a303635efc8487ea4539ad35174605c29d43eb156e"
     }
   }
 }

@@ -43,6 +43,62 @@
       "sha256": "762b5d1f0eccdb350ccf0ed7f9005084be323dd941cf178b044c1d49accbf23b"
     }
   },
+  "assetDiscovery": [
+    {
+      "url": "textures/cube/pisaHDR/nx.hdr",
+      "output": "textures__cube__pisaHDR__nx.hdr",
+      "mime": "image/vnd.radiance",
+      "diagnostic": "auto:textures/cube/pisaHDR/nx.hdr",
+      "sha256": "800985acb87cb45cd01ca959b2ee8199af3ebe2a4e3abfa104c064d16b4be6f8",
+      "discovered": true,
+      "hdrRgba": true
+    },
+    {
+      "url": "textures/cube/pisaHDR/ny.hdr",
+      "output": "textures__cube__pisaHDR__ny.hdr",
+      "mime": "image/vnd.radiance",
+      "diagnostic": "auto:textures/cube/pisaHDR/ny.hdr",
+      "sha256": "76bac4fe6e6b148fdf37f9addbd90c25d3d4a8007598728c63fae3c35e987492",
+      "discovered": true,
+      "hdrRgba": true
+    },
+    {
+      "url": "textures/cube/pisaHDR/nz.hdr",
+      "output": "textures__cube__pisaHDR__nz.hdr",
+      "mime": "image/vnd.radiance",
+      "diagnostic": "auto:textures/cube/pisaHDR/nz.hdr",
+      "sha256": "9e10429a6dccfedf425c94e1b8be62150d40953b78c804b50b913c6f3bcafb78",
+      "discovered": true,
+      "hdrRgba": true
+    },
+    {
+      "url": "textures/cube/pisaHDR/px.hdr",
+      "output": "textures__cube__pisaHDR__px.hdr",
+      "mime": "image/vnd.radiance",
+      "diagnostic": "auto:textures/cube/pisaHDR/px.hdr",
+      "sha256": "72f6b4f08e657dbf47483367a92ac1b299979fa96906591f6a5260229ef128db",
+      "discovered": true,
+      "hdrRgba": true
+    },
+    {
+      "url": "textures/cube/pisaHDR/py.hdr",
+      "output": "textures__cube__pisaHDR__py.hdr",
+      "mime": "image/vnd.radiance",
+      "diagnostic": "auto:textures/cube/pisaHDR/py.hdr",
+      "sha256": "d4bfbe9f1f00d4405618c172155729b4f2051cc37b1aaf6162e06763121da73c",
+      "discovered": true,
+      "hdrRgba": true
+    },
+    {
+      "url": "textures/cube/pisaHDR/pz.hdr",
+      "output": "textures__cube__pisaHDR__pz.hdr",
+      "mime": "image/vnd.radiance",
+      "diagnostic": "auto:textures/cube/pisaHDR/pz.hdr",
+      "sha256": "ab9495d3e6a9efc8741fe820834446c9b8d0e0fc9771d325683366fe12843f54",
+      "discovered": true,
+      "hdrRgba": true
+    }
+  ],
   "facade": {
     "global": "globalThis.THREE",
     "exports": [
@@ -505,8 +561,8 @@
   },
   "inputs": {
     "assets/three/three.native.js": {
-      "bytes": 777104,
-      "sha256": "5adcb8e7c2d94dd83748134c4d13b9fcfcba9b671445fe27de895575402241b0"
+      "bytes": 791598,
+      "sha256": "58efdde0f4795a978fdf0a9ed9a4f606264aff39bb4e164aaaf00f5542c280e8"
     },
     "assets/three/three.web.js": {
       "bytes": 855325,
@@ -520,13 +576,29 @@
       "bytes": 40755,
       "sha256": "3d79d07ecb686b4e5d93232eedab255331c1beef711e13164eaa1f68655a5f2b"
     },
-    "source/examples/jsm/loaders/HDRCubeTextureLoader.js": {
-      "bytes": 3731,
-      "sha256": "d67fcb9ec88e27736b55cfd591f86ed8529e61fc5a923328ee52cb499c753407"
+    "source/examples/textures/cube/pisaHDR/nx.hdr": {
+      "bytes": 225429,
+      "sha256": "800985acb87cb45cd01ca959b2ee8199af3ebe2a4e3abfa104c064d16b4be6f8"
     },
-    "source/examples/jsm/loaders/HDRLoader.js": {
-      "bytes": 12079,
-      "sha256": "0986b578f9acd14cec74e5ee85e07f45e681b40bcd229a601a0391201f9b5ff1"
+    "source/examples/textures/cube/pisaHDR/ny.hdr": {
+      "bytes": 198706,
+      "sha256": "76bac4fe6e6b148fdf37f9addbd90c25d3d4a8007598728c63fae3c35e987492"
+    },
+    "source/examples/textures/cube/pisaHDR/nz.hdr": {
+      "bytes": 231110,
+      "sha256": "9e10429a6dccfedf425c94e1b8be62150d40953b78c804b50b913c6f3bcafb78"
+    },
+    "source/examples/textures/cube/pisaHDR/px.hdr": {
+      "bytes": 225119,
+      "sha256": "72f6b4f08e657dbf47483367a92ac1b299979fa96906591f6a5260229ef128db"
+    },
+    "source/examples/textures/cube/pisaHDR/py.hdr": {
+      "bytes": 209513,
+      "sha256": "d4bfbe9f1f00d4405618c172155729b4f2051cc37b1aaf6162e06763121da73c"
+    },
+    "source/examples/textures/cube/pisaHDR/pz.hdr": {
+      "bytes": 230384,
+      "sha256": "ab9495d3e6a9efc8741fe820834446c9b8d0e0fc9771d325683366fe12843f54"
     },
     "source/examples/webgl_pmrem_cubemap.html": {
       "bytes": 3076,
@@ -540,9 +612,13 @@
       "bytes": 1951,
       "sha256": "7852c54a706c19e98978c884aa9cd9bfd8d040a2d304c8e6d8cf973dd3554eaf"
     },
+    "tool/three_example/asset_discovery.mjs": {
+      "bytes": 11532,
+      "sha256": "5219e6b747041382d9e40edc33901f04140df1cfb0454b181d8145414a75ee9e"
+    },
     "tool/three_example/example_adapter.js": {
-      "bytes": 20723,
-      "sha256": "9c713a0daa93289f0aeb2d75de6c067569ca4bc2235c24f3bb2bc8feab03336c"
+      "bytes": 36267,
+      "sha256": "c604a1842689cfaf43e2bdf335b55f2384780c7b163cd41ab6e91e3912704b61"
     },
     "tool/three_example/example_canvas2d.js": {
       "bytes": 20988,
@@ -553,8 +629,8 @@
       "sha256": "dc11346394f41bb4f385738d3afa6aa75e695ac80fe3be3a5fbf4201686376bf"
     },
     "tool/three_example/prepare.mjs": {
-      "bytes": 247876,
-      "sha256": "4ed1752612b57fb4ac32f62717e772e9a85f4e8a0f7e51a764443b68af0b8aac"
+      "bytes": 252492,
+      "sha256": "544095661162d33d5b6e91b6b744f7eb60b97c1ff9ea1f4ae297b2f39044af43"
     },
     "tool/three_example/stats_adapter.js": {
       "bytes": 2107,
@@ -578,9 +654,33 @@
       "bytes": 3076,
       "sha256": "ff7063edc37520c26514897c87a4188c060ed740eefc7967bf750dfa5eb8ea3b"
     },
+    "textures__cube__pisaHDR__nx.hdr": {
+      "bytes": 262144,
+      "sha256": "b137ce9be734c9cd15b4c30a438fedaf6142512d4054bf67f3ed42f08170d79d"
+    },
+    "textures__cube__pisaHDR__ny.hdr": {
+      "bytes": 262144,
+      "sha256": "df0c2024849427231c793b6ccb21a754616b3d08f28dc617fce68ea6f2240925"
+    },
+    "textures__cube__pisaHDR__nz.hdr": {
+      "bytes": 262144,
+      "sha256": "e291c961cc11d96ce20fa487432416133f644a8582ad80faa7bd07c28e8b5e5c"
+    },
+    "textures__cube__pisaHDR__px.hdr": {
+      "bytes": 262144,
+      "sha256": "ba17598a4365c14034eedf8a1ac7a2edad476299159e942a90dad69ea216bbe4"
+    },
+    "textures__cube__pisaHDR__py.hdr": {
+      "bytes": 262144,
+      "sha256": "ae6fd09c9a4fc17be0de61d7aa2c65b81be50954ed9bcff2b54cefee85ba3d42"
+    },
+    "textures__cube__pisaHDR__pz.hdr": {
+      "bytes": 262144,
+      "sha256": "4e97a4916e1637e5b6129f67e805354473c3f4908f0d2067a8b4b89270f14b20"
+    },
     "widget.js": {
-      "bytes": 55761,
-      "sha256": "0c6af1b4273e05ff79a65cc625f9958e72f64865b9a7eafaae412988a04673b6"
+      "bytes": 2158050,
+      "sha256": "4ed39ddf27deddc23353926d149eeb753e2cc0c70d0008a8098c3da5639623b5"
     }
   }
 }

@@ -43,6 +43,152 @@
       "sha256": "4a158ab6fe3f410c22c1b3678bf6e3e8d267e07b403a8cd7ca85257780f0e52e"
     }
   },
+  "assetDiscovery": [
+    {
+      "url": "models/pdb/Al2O3.pdb",
+      "output": "models__pdb__Al2O3.pdb",
+      "mime": "application/octet-stream",
+      "diagnostic": "auto:models/pdb/Al2O3.pdb",
+      "sha256": "8e89ea9d163f0b1d9bb520a90787056211a15529d812063fe5af048a702244d3",
+      "discovered": true
+    },
+    {
+      "url": "models/pdb/aspirin.pdb",
+      "output": "models__pdb__aspirin.pdb",
+      "mime": "application/octet-stream",
+      "diagnostic": "auto:models/pdb/aspirin.pdb",
+      "sha256": "2b720bcb8e155ad9041c98947e620e266c96770852637d7b2f1650e787acc7b2",
+      "discovered": true
+    },
+    {
+      "url": "models/pdb/buckyball.pdb",
+      "output": "models__pdb__buckyball.pdb",
+      "mime": "application/octet-stream",
+      "diagnostic": "auto:models/pdb/buckyball.pdb",
+      "sha256": "07f589d83ffd751884bab39938f204f12ab75283bc9a31862eb08a254dabf7f4",
+      "discovered": true
+    },
+    {
+      "url": "models/pdb/caf2.pdb",
+      "output": "models__pdb__caf2.pdb",
+      "mime": "application/octet-stream",
+      "diagnostic": "auto:models/pdb/caf2.pdb",
+      "sha256": "fec5c7f0df920ca153b5f76b7ae7201ab4309e7e881dbe7d993c2be15b8e1672",
+      "discovered": true
+    },
+    {
+      "url": "models/pdb/caffeine.pdb",
+      "output": "models__pdb__caffeine.pdb",
+      "mime": "application/octet-stream",
+      "diagnostic": "auto:models/pdb/caffeine.pdb",
+      "sha256": "f55f7c10b7dd5c80e47c9a778583c5546ed9ec877621761a5e610fffa31ff802",
+      "discovered": true
+    },
+    {
+      "url": "models/pdb/cholesterol.pdb",
+      "output": "models__pdb__cholesterol.pdb",
+      "mime": "application/octet-stream",
+      "diagnostic": "auto:models/pdb/cholesterol.pdb",
+      "sha256": "99299d88541923d82b659ab1d7debcad277d18698c5b0b49389fc34998d7ef1c",
+      "discovered": true
+    },
+    {
+      "url": "models/pdb/cocaine.pdb",
+      "output": "models__pdb__cocaine.pdb",
+      "mime": "application/octet-stream",
+      "diagnostic": "auto:models/pdb/cocaine.pdb",
+      "sha256": "11e18b4d3aa92fa82884164445188fee7b2a1b96844585144fa953d056d11bd3",
+      "discovered": true
+    },
+    {
+      "url": "models/pdb/cu.pdb",
+      "output": "models__pdb__cu.pdb",
+      "mime": "application/octet-stream",
+      "diagnostic": "auto:models/pdb/cu.pdb",
+      "sha256": "e9ecaf549bed768dd80cdc1ab55ae7482593e9fc228bb557d8cd925c862d9fa4",
+      "discovered": true
+    },
+    {
+      "url": "models/pdb/cubane.pdb",
+      "output": "models__pdb__cubane.pdb",
+      "mime": "application/octet-stream",
+      "diagnostic": "auto:models/pdb/cubane.pdb",
+      "sha256": "341b65ae91f61e91119e7a0469a0818abd83b6cf26d83579651a786853c867b6",
+      "discovered": true
+    },
+    {
+      "url": "models/pdb/diamond.pdb",
+      "output": "models__pdb__diamond.pdb",
+      "mime": "application/octet-stream",
+      "diagnostic": "auto:models/pdb/diamond.pdb",
+      "sha256": "fe5e420ddf7b8d25f4b1f617234fe058a842381e6b0ce31e46690eedbfbd6507",
+      "discovered": true
+    },
+    {
+      "url": "models/pdb/ethanol.pdb",
+      "output": "models__pdb__ethanol.pdb",
+      "mime": "application/octet-stream",
+      "diagnostic": "auto:models/pdb/ethanol.pdb",
+      "sha256": "9e8fe6787d99d6e17c0184c8f821543a9349417307fe0c1f2cc4b27651b3e390",
+      "discovered": true
+    },
+    {
+      "url": "models/pdb/glucose.pdb",
+      "output": "models__pdb__glucose.pdb",
+      "mime": "application/octet-stream",
+      "diagnostic": "auto:models/pdb/glucose.pdb",
+      "sha256": "e6893392290be8969451bee67b43e7a01e2d163f9073965a476627cf8edd829f",
+      "discovered": true
+    },
+    {
+      "url": "models/pdb/graphite.pdb",
+      "output": "models__pdb__graphite.pdb",
+      "mime": "application/octet-stream",
+      "diagnostic": "auto:models/pdb/graphite.pdb",
+      "sha256": "23ca49f73cb6163ed1a2d32ed720235ef61efc9333583e0f27ec37728ee65e90",
+      "discovered": true
+    },
+    {
+      "url": "models/pdb/lsd.pdb",
+      "output": "models__pdb__lsd.pdb",
+      "mime": "application/octet-stream",
+      "diagnostic": "auto:models/pdb/lsd.pdb",
+      "sha256": "7c4383ab0ecd025600de725c617117fa6a807b16d7d7c7eff56479c2eb05efd5",
+      "discovered": true
+    },
+    {
+      "url": "models/pdb/lycopene.pdb",
+      "output": "models__pdb__lycopene.pdb",
+      "mime": "application/octet-stream",
+      "diagnostic": "auto:models/pdb/lycopene.pdb",
+      "sha256": "a47e53ed0db3daef8b3f62b3eaa3e753bbb6262f6e00ddc19dea6185145c6f39",
+      "discovered": true
+    },
+    {
+      "url": "models/pdb/nacl.pdb",
+      "output": "models__pdb__nacl.pdb",
+      "mime": "application/octet-stream",
+      "diagnostic": "auto:models/pdb/nacl.pdb",
+      "sha256": "e71dd826410f218160f2f0d155ed886dc9b8912f5a9205c05a8bd17fc68fd4b2",
+      "discovered": true
+    },
+    {
+      "url": "models/pdb/nicotine.pdb",
+      "output": "models__pdb__nicotine.pdb",
+      "mime": "application/octet-stream",
+      "diagnostic": "auto:models/pdb/nicotine.pdb",
+      "sha256": "8147b117aa9695ccee04f53b419317abd3bb22539914de6f5efadc947706f8cf",
+      "discovered": true
+    },
+    {
+      "url": "models/pdb/ybco.pdb",
+      "output": "models__pdb__ybco.pdb",
+      "mime": "application/octet-stream",
+      "diagnostic": "auto:models/pdb/ybco.pdb",
+      "sha256": "95678be779e8b6cfdd8fdaec83aa6185238ef33322fa5537d14c8977e085aa38",
+      "discovered": true
+    }
+  ],
   "facade": {
     "global": "globalThis.THREE",
     "exports": [
@@ -505,8 +651,8 @@
   },
   "inputs": {
     "assets/three/three.native.js": {
-      "bytes": 777104,
-      "sha256": "5adcb8e7c2d94dd83748134c4d13b9fcfcba9b671445fe27de895575402241b0"
+      "bytes": 791598,
+      "sha256": "58efdde0f4795a978fdf0a9ed9a4f606264aff39bb4e164aaaf00f5542c280e8"
     },
     "assets/three/three.web.js": {
       "bytes": 855325,
@@ -532,6 +678,78 @@
       "bytes": 7990,
       "sha256": "256abfc6ae1aa20eb83c10d7a0e26534527df65872e4d52da6354bee78288c34"
     },
+    "source/examples/models/pdb/Al2O3.pdb": {
+      "bytes": 12701,
+      "sha256": "8e89ea9d163f0b1d9bb520a90787056211a15529d812063fe5af048a702244d3"
+    },
+    "source/examples/models/pdb/aspirin.pdb": {
+      "bytes": 1628,
+      "sha256": "2b720bcb8e155ad9041c98947e620e266c96770852637d7b2f1650e787acc7b2"
+    },
+    "source/examples/models/pdb/buckyball.pdb": {
+      "bytes": 8068,
+      "sha256": "07f589d83ffd751884bab39938f204f12ab75283bc9a31862eb08a254dabf7f4"
+    },
+    "source/examples/models/pdb/caf2.pdb": {
+      "bytes": 2250,
+      "sha256": "fec5c7f0df920ca153b5f76b7ae7201ab4309e7e881dbe7d993c2be15b8e1672"
+    },
+    "source/examples/models/pdb/caffeine.pdb": {
+      "bytes": 3484,
+      "sha256": "f55f7c10b7dd5c80e47c9a778583c5546ed9ec877621761a5e610fffa31ff802"
+    },
+    "source/examples/models/pdb/cholesterol.pdb": {
+      "bytes": 17855,
+      "sha256": "99299d88541923d82b659ab1d7debcad277d18698c5b0b49389fc34998d7ef1c"
+    },
+    "source/examples/models/pdb/cocaine.pdb": {
+      "bytes": 5256,
+      "sha256": "11e18b4d3aa92fa82884164445188fee7b2a1b96844585144fa953d056d11bd3"
+    },
+    "source/examples/models/pdb/cu.pdb": {
+      "bytes": 6028,
+      "sha256": "e9ecaf549bed768dd80cdc1ab55ae7482593e9fc228bb557d8cd925c862d9fa4"
+    },
+    "source/examples/models/pdb/cubane.pdb": {
+      "bytes": 2350,
+      "sha256": "341b65ae91f61e91119e7a0469a0818abd83b6cf26d83579651a786853c867b6"
+    },
+    "source/examples/models/pdb/diamond.pdb": {
+      "bytes": 27777,
+      "sha256": "fe5e420ddf7b8d25f4b1f617234fe058a842381e6b0ce31e46690eedbfbd6507"
+    },
+    "source/examples/models/pdb/ethanol.pdb": {
+      "bytes": 1376,
+      "sha256": "9e8fe6787d99d6e17c0184c8f821543a9349417307fe0c1f2cc4b27651b3e390"
+    },
+    "source/examples/models/pdb/glucose.pdb": {
+      "bytes": 2899,
+      "sha256": "e6893392290be8969451bee67b43e7a01e2d163f9073965a476627cf8edd829f"
+    },
+    "source/examples/models/pdb/graphite.pdb": {
+      "bytes": 15900,
+      "sha256": "23ca49f73cb6163ed1a2d32ed720235ef61efc9333583e0f27ec37728ee65e90"
+    },
+    "source/examples/models/pdb/lsd.pdb": {
+      "bytes": 6319,
+      "sha256": "7c4383ab0ecd025600de725c617117fa6a807b16d7d7c7eff56479c2eb05efd5"
+    },
+    "source/examples/models/pdb/lycopene.pdb": {
+      "bytes": 6955,
+      "sha256": "a47e53ed0db3daef8b3f62b3eaa3e753bbb6262f6e00ddc19dea6185145c6f39"
+    },
+    "source/examples/models/pdb/nacl.pdb": {
+      "bytes": 6383,
+      "sha256": "e71dd826410f218160f2f0d155ed886dc9b8912f5a9205c05a8bd17fc68fd4b2"
+    },
+    "source/examples/models/pdb/nicotine.pdb": {
+      "bytes": 4743,
+      "sha256": "8147b117aa9695ccee04f53b419317abd3bb22539914de6f5efadc947706f8cf"
+    },
+    "source/examples/models/pdb/ybco.pdb": {
+      "bytes": 6564,
+      "sha256": "95678be779e8b6cfdd8fdaec83aa6185238ef33322fa5537d14c8977e085aa38"
+    },
     "source/examples/webgl_loader_pdb.html": {
       "bytes": 7057,
       "sha256": "ed16fe831ea2d161e870f594e7d4113d01aad05f7fe9f3c653d40181910f5bb6"
@@ -544,9 +762,13 @@
       "bytes": 1951,
       "sha256": "7852c54a706c19e98978c884aa9cd9bfd8d040a2d304c8e6d8cf973dd3554eaf"
     },
+    "tool/three_example/asset_discovery.mjs": {
+      "bytes": 11532,
+      "sha256": "5219e6b747041382d9e40edc33901f04140df1cfb0454b181d8145414a75ee9e"
+    },
     "tool/three_example/example_adapter.js": {
-      "bytes": 20723,
-      "sha256": "9c713a0daa93289f0aeb2d75de6c067569ca4bc2235c24f3bb2bc8feab03336c"
+      "bytes": 36267,
+      "sha256": "c604a1842689cfaf43e2bdf335b55f2384780c7b163cd41ab6e91e3912704b61"
     },
     "tool/three_example/example_canvas2d.js": {
       "bytes": 20988,
@@ -557,8 +779,8 @@
       "sha256": "dc11346394f41bb4f385738d3afa6aa75e695ac80fe3be3a5fbf4201686376bf"
     },
     "tool/three_example/prepare.mjs": {
-      "bytes": 247876,
-      "sha256": "4ed1752612b57fb4ac32f62717e772e9a85f4e8a0f7e51a764443b68af0b8aac"
+      "bytes": 252492,
+      "sha256": "544095661162d33d5b6e91b6b744f7eb60b97c1ff9ea1f4ae297b2f39044af43"
     },
     "tool/three_example/stats_adapter.js": {
       "bytes": 2107,
@@ -574,6 +796,78 @@
       "bytes": 326,
       "sha256": "9bf3274d9a676f838b520591192d7a2566e5cb497dc960f033aef6b67107cf24"
     },
+    "models__pdb__Al2O3.pdb": {
+      "bytes": 12701,
+      "sha256": "8e89ea9d163f0b1d9bb520a90787056211a15529d812063fe5af048a702244d3"
+    },
+    "models__pdb__aspirin.pdb": {
+      "bytes": 1628,
+      "sha256": "2b720bcb8e155ad9041c98947e620e266c96770852637d7b2f1650e787acc7b2"
+    },
+    "models__pdb__buckyball.pdb": {
+      "bytes": 8068,
+      "sha256": "07f589d83ffd751884bab39938f204f12ab75283bc9a31862eb08a254dabf7f4"
+    },
+    "models__pdb__caf2.pdb": {
+      "bytes": 2250,
+      "sha256": "fec5c7f0df920ca153b5f76b7ae7201ab4309e7e881dbe7d993c2be15b8e1672"
+    },
+    "models__pdb__caffeine.pdb": {
+      "bytes": 3484,
+      "sha256": "f55f7c10b7dd5c80e47c9a778583c5546ed9ec877621761a5e610fffa31ff802"
+    },
+    "models__pdb__cholesterol.pdb": {
+      "bytes": 17855,
+      "sha256": "99299d88541923d82b659ab1d7debcad277d18698c5b0b49389fc34998d7ef1c"
+    },
+    "models__pdb__cocaine.pdb": {
+      "bytes": 5256,
+      "sha256": "11e18b4d3aa92fa82884164445188fee7b2a1b96844585144fa953d056d11bd3"
+    },
+    "models__pdb__cu.pdb": {
+      "bytes": 6028,
+      "sha256": "e9ecaf549bed768dd80cdc1ab55ae7482593e9fc228bb557d8cd925c862d9fa4"
+    },
+    "models__pdb__cubane.pdb": {
+      "bytes": 2350,
+      "sha256": "341b65ae91f61e91119e7a0469a0818abd83b6cf26d83579651a786853c867b6"
+    },
+    "models__pdb__diamond.pdb": {
+      "bytes": 27777,
+      "sha256": "fe5e420ddf7b8d25f4b1f617234fe058a842381e6b0ce31e46690eedbfbd6507"
+    },
+    "models__pdb__ethanol.pdb": {
+      "bytes": 1376,
+      "sha256": "9e8fe6787d99d6e17c0184c8f821543a9349417307fe0c1f2cc4b27651b3e390"
+    },
+    "models__pdb__glucose.pdb": {
+      "bytes": 2899,
+      "sha256": "e6893392290be8969451bee67b43e7a01e2d163f9073965a476627cf8edd829f"
+    },
+    "models__pdb__graphite.pdb": {
+      "bytes": 15900,
+      "sha256": "23ca49f73cb6163ed1a2d32ed720235ef61efc9333583e0f27ec37728ee65e90"
+    },
+    "models__pdb__lsd.pdb": {
+      "bytes": 6319,
+      "sha256": "7c4383ab0ecd025600de725c617117fa6a807b16d7d7c7eff56479c2eb05efd5"
+    },
+    "models__pdb__lycopene.pdb": {
+      "bytes": 6955,
+      "sha256": "a47e53ed0db3daef8b3f62b3eaa3e753bbb6262f6e00ddc19dea6185145c6f39"
+    },
+    "models__pdb__nacl.pdb": {
+      "bytes": 6383,
+      "sha256": "e71dd826410f218160f2f0d155ed886dc9b8912f5a9205c05a8bd17fc68fd4b2"
+    },
+    "models__pdb__nicotine.pdb": {
+      "bytes": 4743,
+      "sha256": "8147b117aa9695ccee04f53b419317abd3bb22539914de6f5efadc947706f8cf"
+    },
+    "models__pdb__ybco.pdb": {
+      "bytes": 6564,
+      "sha256": "95678be779e8b6cfdd8fdaec83aa6185238ef33322fa5537d14c8977e085aa38"
+    },
     "official_module.js": {
       "bytes": 5994,
       "sha256": "4a158ab6fe3f410c22c1b3678bf6e3e8d267e07b403a8cd7ca85257780f0e52e"
@@ -583,8 +877,8 @@
       "sha256": "ed16fe831ea2d161e870f594e7d4113d01aad05f7fe9f3c653d40181910f5bb6"
     },
     "widget.js": {
-      "bytes": 96288,
-      "sha256": "430f9ba008433cfb22845cdc1278d03e29b3a90b2ad360a0ccd3067d2560f18d"
+      "bytes": 292061,
+      "sha256": "ded1038d17b2413dbe80db22761cd81d71bbd09c4458e9871056211c8f1273ee"
     }
   }
 }

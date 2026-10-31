@@ -43,6 +43,16 @@
       "sha256": "1b580ee34fe79c898420e9fa47a49fc30eb399180e4fb9f78af4efc879236ab4"
     }
   },
+  "assetDiscovery": [
+    {
+      "url": "models/nrrd/I.nrrd",
+      "output": "models__nrrd__I.nrrd",
+      "mime": "application/octet-stream",
+      "diagnostic": "auto:models/nrrd/I.nrrd",
+      "sha256": "741e36154074b3834be49c0554e1b49875a9a96d8ed1e466d7614758f2a8f726",
+      "discovered": true
+    }
+  ],
   "facade": {
     "global": "globalThis.THREE",
     "exports": [
@@ -505,8 +515,8 @@
   },
   "inputs": {
     "assets/three/three.native.js": {
-      "bytes": 777104,
-      "sha256": "5adcb8e7c2d94dd83748134c4d13b9fcfcba9b671445fe27de895575402241b0"
+      "bytes": 791598,
+      "sha256": "58efdde0f4795a978fdf0a9ed9a4f606264aff39bb4e164aaaf00f5542c280e8"
     },
     "assets/three/three.web.js": {
       "bytes": 855325,
@@ -540,6 +550,10 @@
       "bytes": 6507,
       "sha256": "2490d903e4c30cb84a0f7d769b6c6e4da5963bbb75495e3f41947769b65f9c30"
     },
+    "source/examples/models/nrrd/I.nrrd": {
+      "bytes": 7120975,
+      "sha256": "741e36154074b3834be49c0554e1b49875a9a96d8ed1e466d7614758f2a8f726"
+    },
     "source/examples/webgl_loader_nrrd.html": {
       "bytes": 4930,
       "sha256": "8b7a3ce401dfb916364d0424f4cb4b555f23daba408a6b83765d1ae8911508fd"
@@ -552,9 +566,13 @@
       "bytes": 1951,
       "sha256": "7852c54a706c19e98978c884aa9cd9bfd8d040a2d304c8e6d8cf973dd3554eaf"
     },
+    "tool/three_example/asset_discovery.mjs": {
+      "bytes": 11532,
+      "sha256": "5219e6b747041382d9e40edc33901f04140df1cfb0454b181d8145414a75ee9e"
+    },
     "tool/three_example/example_adapter.js": {
-      "bytes": 20723,
-      "sha256": "9c713a0daa93289f0aeb2d75de6c067569ca4bc2235c24f3bb2bc8feab03336c"
+      "bytes": 36267,
+      "sha256": "c604a1842689cfaf43e2bdf335b55f2384780c7b163cd41ab6e91e3912704b61"
     },
     "tool/three_example/example_canvas2d.js": {
       "bytes": 20988,
@@ -565,8 +583,8 @@
       "sha256": "dc11346394f41bb4f385738d3afa6aa75e695ac80fe3be3a5fbf4201686376bf"
     },
     "tool/three_example/prepare.mjs": {
-      "bytes": 247876,
-      "sha256": "4ed1752612b57fb4ac32f62717e772e9a85f4e8a0f7e51a764443b68af0b8aac"
+      "bytes": 252492,
+      "sha256": "544095661162d33d5b6e91b6b744f7eb60b97c1ff9ea1f4ae297b2f39044af43"
     },
     "tool/three_example/stats_adapter.js": {
       "bytes": 2107,
@@ -582,6 +600,10 @@
       "bytes": 340,
       "sha256": "f1f13a90a7dcbc523b081d58aa7a81f540cb4ede64b262ed5cd4b37108bdd9ed"
     },
+    "models__nrrd__I.nrrd": {
+      "bytes": 7120975,
+      "sha256": "741e36154074b3834be49c0554e1b49875a9a96d8ed1e466d7614758f2a8f726"
+    },
     "official_module.js": {
       "bytes": 3949,
       "sha256": "1b580ee34fe79c898420e9fa47a49fc30eb399180e4fb9f78af4efc879236ab4"
@@ -591,8 +613,8 @@
       "sha256": "8b7a3ce401dfb916364d0424f4cb4b555f23daba408a6b83765d1ae8911508fd"
     },
     "widget.js": {
-      "bytes": 107060,
-      "sha256": "dfaabe21f309b14dfb5029230e0d8ec2b693f3b06120fcd369f882e9e2760439"
+      "bytes": 9610131,
+      "sha256": "5cd25e9705f2aee511db1657023bc1a80e6ffa65d3e09429f8ef5cb3902448f0"
     }
   }
 }

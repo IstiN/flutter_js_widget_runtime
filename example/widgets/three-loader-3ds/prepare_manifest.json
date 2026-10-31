@@ -43,6 +43,32 @@
       "sha256": "1392ff28e2ff4a912f6c9145023599724bac75bebf56540f9f9da7d1873d4269"
     }
   },
+  "assetDiscovery": [
+    {
+      "url": "models/3ds/portalgun/portalgun.3ds",
+      "output": "models__3ds__portalgun__portalgun.3ds",
+      "mime": "application/octet-stream",
+      "diagnostic": "auto:models/3ds/portalgun/portalgun.3ds",
+      "sha256": "4c90f14d34e18d850276817987687f14f5434ce6b857077e1ceba50a61f154b8",
+      "discovered": true
+    },
+    {
+      "url": "models/3ds/portalgun/textures/color.jpg",
+      "output": "models__3ds__portalgun__textures__color.jpg",
+      "mime": "image/jpeg",
+      "diagnostic": "auto:models/3ds/portalgun/textures/color.jpg",
+      "sha256": "4056e9d2be7f33563a6a29a6dacf678e869e3f327a0c7ffaf81e502289f3bb45",
+      "discovered": true
+    },
+    {
+      "url": "models/3ds/portalgun/textures/normal.jpg",
+      "output": "models__3ds__portalgun__textures__normal.jpg",
+      "mime": "image/jpeg",
+      "diagnostic": "auto:models/3ds/portalgun/textures/normal.jpg",
+      "sha256": "fcf5175c825ceafcb442ec3b44270e4a872f50294e2204fca6af4bf63cb5d433",
+      "discovered": true
+    }
+  ],
   "facade": {
     "global": "globalThis.THREE",
     "exports": [
@@ -505,8 +531,8 @@
   },
   "inputs": {
     "assets/three/three.native.js": {
-      "bytes": 777104,
-      "sha256": "5adcb8e7c2d94dd83748134c4d13b9fcfcba9b671445fe27de895575402241b0"
+      "bytes": 791598,
+      "sha256": "58efdde0f4795a978fdf0a9ed9a4f606264aff39bb4e164aaaf00f5542c280e8"
     },
     "assets/three/three.web.js": {
       "bytes": 855325,
@@ -524,6 +550,18 @@
       "bytes": 25168,
       "sha256": "44ddcadff60e929f39bdf4aaca13b2315baea19169cfca3527507d10c77e557e"
     },
+    "source/examples/models/3ds/portalgun/portalgun.3ds": {
+      "bytes": 119053,
+      "sha256": "4c90f14d34e18d850276817987687f14f5434ce6b857077e1ceba50a61f154b8"
+    },
+    "source/examples/models/3ds/portalgun/textures/color.jpg": {
+      "bytes": 138763,
+      "sha256": "4056e9d2be7f33563a6a29a6dacf678e869e3f327a0c7ffaf81e502289f3bb45"
+    },
+    "source/examples/models/3ds/portalgun/textures/normal.jpg": {
+      "bytes": 142524,
+      "sha256": "fcf5175c825ceafcb442ec3b44270e4a872f50294e2204fca6af4bf63cb5d433"
+    },
     "source/examples/webgl_loader_3ds.html": {
       "bytes": 2904,
       "sha256": "856222fcdecd8bd11c5380e0e4d778988d6960380672148120708728777bc77a"
@@ -536,9 +574,13 @@
       "bytes": 1951,
       "sha256": "7852c54a706c19e98978c884aa9cd9bfd8d040a2d304c8e6d8cf973dd3554eaf"
     },
+    "tool/three_example/asset_discovery.mjs": {
+      "bytes": 11532,
+      "sha256": "5219e6b747041382d9e40edc33901f04140df1cfb0454b181d8145414a75ee9e"
+    },
     "tool/three_example/example_adapter.js": {
-      "bytes": 20723,
-      "sha256": "9c713a0daa93289f0aeb2d75de6c067569ca4bc2235c24f3bb2bc8feab03336c"
+      "bytes": 36267,
+      "sha256": "c604a1842689cfaf43e2bdf335b55f2384780c7b163cd41ab6e91e3912704b61"
     },
     "tool/three_example/example_canvas2d.js": {
       "bytes": 20988,
@@ -549,8 +591,8 @@
       "sha256": "dc11346394f41bb4f385738d3afa6aa75e695ac80fe3be3a5fbf4201686376bf"
     },
     "tool/three_example/prepare.mjs": {
-      "bytes": 247876,
-      "sha256": "4ed1752612b57fb4ac32f62717e772e9a85f4e8a0f7e51a764443b68af0b8aac"
+      "bytes": 252492,
+      "sha256": "544095661162d33d5b6e91b6b744f7eb60b97c1ff9ea1f4ae297b2f39044af43"
     },
     "tool/three_example/stats_adapter.js": {
       "bytes": 2107,
@@ -566,6 +608,18 @@
       "bytes": 337,
       "sha256": "60a6ba9ae7e9954be35a2345cf434416e35f99bf27cd1920c93c06b760c92ac9"
     },
+    "models__3ds__portalgun__portalgun.3ds": {
+      "bytes": 119053,
+      "sha256": "4c90f14d34e18d850276817987687f14f5434ce6b857077e1ceba50a61f154b8"
+    },
+    "models__3ds__portalgun__textures__color.jpg": {
+      "bytes": 138763,
+      "sha256": "4056e9d2be7f33563a6a29a6dacf678e869e3f327a0c7ffaf81e502289f3bb45"
+    },
+    "models__3ds__portalgun__textures__normal.jpg": {
+      "bytes": 142524,
+      "sha256": "fcf5175c825ceafcb442ec3b44270e4a872f50294e2204fca6af4bf63cb5d433"
+    },
     "official_module.js": {
       "bytes": 1968,
       "sha256": "1392ff28e2ff4a912f6c9145023599724bac75bebf56540f9f9da7d1873d4269"
@@ -575,8 +629,8 @@
       "sha256": "856222fcdecd8bd11c5380e0e4d778988d6960380672148120708728777bc77a"
     },
     "widget.js": {
-      "bytes": 53069,
-      "sha256": "4b7d1258cd4097da51fcf9be5c64fb1e329dfa2978d91275686a29392bdb61b6"
+      "bytes": 595675,
+      "sha256": "cb958d494ad915d6991d3da1b65b8fb81352545a648a859d3f2d38069d12acf5"
     }
   }
 }

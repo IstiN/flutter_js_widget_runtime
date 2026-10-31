@@ -43,6 +43,33 @@
       "sha256": "4908129b3d8ad4f2d606234923b12be115d5caeb8bb8de77dc7a28126beb6b3f"
     }
   },
+  "assetDiscovery": [
+    {
+      "url": "models/gltf/ferrari_ao.png",
+      "output": "models__gltf__ferrari_ao.png",
+      "mime": "image/png",
+      "diagnostic": "auto:models/gltf/ferrari_ao.png",
+      "sha256": "d2b0e56a6191cce2992db488fe59fc788a02aed58717554eefc0e6bf16786430",
+      "discovered": true
+    },
+    {
+      "url": "models/gltf/ferrari.glb",
+      "output": "models__gltf__ferrari.glb",
+      "mime": "model/gltf-binary",
+      "diagnostic": "auto:models/gltf/ferrari.glb",
+      "sha256": "cafe3f48da6797aa9bde75ca768bc5b57db366575fd233e90df186ae988a876e",
+      "discovered": true
+    },
+    {
+      "url": "textures/equirectangular/blouberg_sunrise_2_1k.hdr",
+      "output": "textures__equirectangular__blouberg_sunrise_2_1k.hdr",
+      "mime": "image/vnd.radiance",
+      "diagnostic": "auto:textures/equirectangular/blouberg_sunrise_2_1k.hdr",
+      "sha256": "1cb809a131ff3cb7df94b639d5967fc6fc08ecd25b6c43930af3b5d99f1d8855",
+      "discovered": true,
+      "hdrRgba": true
+    }
+  ],
   "facade": {
     "global": "globalThis.THREE",
     "exports": [
@@ -505,8 +532,8 @@
   },
   "inputs": {
     "assets/three/three.native.js": {
-      "bytes": 777104,
-      "sha256": "5adcb8e7c2d94dd83748134c4d13b9fcfcba9b671445fe27de895575402241b0"
+      "bytes": 791598,
+      "sha256": "58efdde0f4795a978fdf0a9ed9a4f606264aff39bb4e164aaaf00f5542c280e8"
     },
     "assets/three/three.web.js": {
       "bytes": 855325,
@@ -532,10 +559,6 @@
       "bytes": 117570,
       "sha256": "131c0f78c01d19368ae495caa65b3adaa10487810a36a05bb5901b769a35ac16"
     },
-    "source/examples/jsm/loaders/HDRLoader.js": {
-      "bytes": 12079,
-      "sha256": "0986b578f9acd14cec74e5ee85e07f45e681b40bcd229a601a0391201f9b5ff1"
-    },
     "source/examples/jsm/objects/GroundedSkybox.js": {
       "bytes": 1980,
       "sha256": "86e13051e05cb5beed632a377abc9eff13fd7cae10f1f5fb4d8cc41ce1cf2681"
@@ -547,6 +570,18 @@
     "source/examples/jsm/utils/SkeletonUtils.js": {
       "bytes": 11535,
       "sha256": "b1632a703206c3d830de9fcbe515696770d04b71a15ee6b50afa6d2c3298c86f"
+    },
+    "source/examples/models/gltf/ferrari.glb": {
+      "bytes": 1681572,
+      "sha256": "cafe3f48da6797aa9bde75ca768bc5b57db366575fd233e90df186ae988a876e"
+    },
+    "source/examples/models/gltf/ferrari_ao.png": {
+      "bytes": 21407,
+      "sha256": "d2b0e56a6191cce2992db488fe59fc788a02aed58717554eefc0e6bf16786430"
+    },
+    "source/examples/textures/equirectangular/blouberg_sunrise_2_1k.hdr": {
+      "bytes": 1539084,
+      "sha256": "1cb809a131ff3cb7df94b639d5967fc6fc08ecd25b6c43930af3b5d99f1d8855"
     },
     "source/examples/webgl_materials_envmaps_groundprojected.html": {
       "bytes": 5829,
@@ -560,9 +595,13 @@
       "bytes": 1951,
       "sha256": "7852c54a706c19e98978c884aa9cd9bfd8d040a2d304c8e6d8cf973dd3554eaf"
     },
+    "tool/three_example/asset_discovery.mjs": {
+      "bytes": 11532,
+      "sha256": "5219e6b747041382d9e40edc33901f04140df1cfb0454b181d8145414a75ee9e"
+    },
     "tool/three_example/example_adapter.js": {
-      "bytes": 20723,
-      "sha256": "9c713a0daa93289f0aeb2d75de6c067569ca4bc2235c24f3bb2bc8feab03336c"
+      "bytes": 36267,
+      "sha256": "c604a1842689cfaf43e2bdf335b55f2384780c7b163cd41ab6e91e3912704b61"
     },
     "tool/three_example/example_canvas2d.js": {
       "bytes": 20988,
@@ -573,8 +612,8 @@
       "sha256": "dc11346394f41bb4f385738d3afa6aa75e695ac80fe3be3a5fbf4201686376bf"
     },
     "tool/three_example/prepare.mjs": {
-      "bytes": 247876,
-      "sha256": "4ed1752612b57fb4ac32f62717e772e9a85f4e8a0f7e51a764443b68af0b8aac"
+      "bytes": 252492,
+      "sha256": "544095661162d33d5b6e91b6b744f7eb60b97c1ff9ea1f4ae297b2f39044af43"
     },
     "tool/three_example/stats_adapter.js": {
       "bytes": 2107,
@@ -590,6 +629,14 @@
       "bytes": 396,
       "sha256": "1c3b5acb3b9c81c48e4a21e152571738efd273819be0f88451157e9956e2fd4e"
     },
+    "models__gltf__ferrari.glb": {
+      "bytes": 1681572,
+      "sha256": "cafe3f48da6797aa9bde75ca768bc5b57db366575fd233e90df186ae988a876e"
+    },
+    "models__gltf__ferrari_ao.png": {
+      "bytes": 21407,
+      "sha256": "d2b0e56a6191cce2992db488fe59fc788a02aed58717554eefc0e6bf16786430"
+    },
     "official_module.js": {
       "bytes": 4362,
       "sha256": "4908129b3d8ad4f2d606234923b12be115d5caeb8bb8de77dc7a28126beb6b3f"
@@ -598,9 +645,13 @@
       "bytes": 5829,
       "sha256": "17998c545c4f3b5eef81f66da7ac5f98f0091e00e7a1733581eeceba947c08c7"
     },
+    "textures__equirectangular__blouberg_sunrise_2_1k.hdr": {
+      "bytes": 2097152,
+      "sha256": "78e9f88a19b2e4a62a0b4091bf74f4d3fc614dc580dded5d6b3752cac3f702a9"
+    },
     "widget.js": {
-      "bytes": 151616,
-      "sha256": "b2502c4708380bf7572d78252eb14a64d0f01820c2d14c177a7374a32f4efcb9"
+      "bytes": 5224099,
+      "sha256": "c632905c876d1d89d3d91495adf5f3947cde638a42f691f7ea2b25fefdf38c28"
     }
   }
 }

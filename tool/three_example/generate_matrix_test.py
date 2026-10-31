@@ -6,13 +6,23 @@ line to /tmp/three_matrix.jsonl: mounted state, submitted frames, draw counts
 by material kind, texture uploads and planner warnings. Used to measure the
 "80% of three API examples render correctly" goal; not committed.
 """
+import argparse
 import json
 import pathlib
 
+parser = argparse.ArgumentParser(description=__doc__)
+parser.add_argument('--examples', nargs='*', help='generate only these three-* widget IDs')
+parser.add_argument('--results', default='/tmp/three_matrix.jsonl', help='JSONL result path')
+args = parser.parse_args()
 ROOT = pathlib.Path(__file__).resolve().parents[2]
 widgets = sorted(
     p.parent.name for p in (ROOT / 'example/widgets').glob('three-*/widget.js')
 )
+if args.examples is not None:
+    unknown = sorted(set(args.examples) - set(widgets))
+    if unknown:
+        parser.error(f"widgets not prepared: {', '.join(unknown)}")
+    widgets = sorted(args.examples)
 template = '''
 import 'dart:convert';
 import 'dart:io';
@@ -80,5 +90,8 @@ case = '''
 '''
 cases = ''.join(case.replace('ID', widget) for widget in widgets)
 out = ROOT / 'test/zz_three_matrix_test.dart'
-out.write_text(template.replace('CASES', cases))
-print(f'{len(widgets)} cases -> {out}')
+source = template.replace('CASES', cases).replace(
+    "File('/tmp/three_matrix.jsonl')", f'File({json.dumps(args.results)})'
+)
+out.write_text(source)
+print(f'{len(widgets)} cases -> {out}; results: {args.results}')

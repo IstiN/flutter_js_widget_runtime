@@ -42,4 +42,25 @@ void main() {
     );
     await harness.dispose(tester);
   }, timeout: const Timeout(Duration(seconds: 180)));
+
+  testWidgets('webgl_reversed_depth_buffer shares sequential native passes', (
+    tester,
+  ) async {
+    final (harness, plan) = await renderThreeExampleStrict(
+      tester,
+      'three-reversed-depth-buffer',
+    );
+    expect(plan.draws, isNotEmpty);
+    expect(harness.state!.renderTargets, isNotEmpty);
+    final logs = harness.backend
+        .peekLogs()
+        .map((entry) => entry['msg'])
+        .join('\n');
+    expect(logs, contains('shares one standard-depth renderer'));
+    expect(
+      RegExp('reversedDepthBuffer is unavailable').allMatches(logs).length,
+      1,
+    );
+    await harness.dispose(tester);
+  }, timeout: const Timeout(Duration(seconds: 180)));
 }

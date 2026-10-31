@@ -43,6 +43,42 @@
       "sha256": "4f518577e78e6eae44aeeaec36287f224dff6653436eec1616375ace9e9f4a0f"
     }
   },
+  "assetDiscovery": [
+    {
+      "url": "models/gltf/Soldier.glb",
+      "output": "models__gltf__Soldier.glb",
+      "mime": "model/gltf-binary",
+      "diagnostic": "auto:models/gltf/Soldier.glb",
+      "sha256": "dfb230fc1f942f259dd00281a1186953ad602fc5d69067ce63e24b2aa439736b",
+      "discovered": true,
+      "externalizeImages": true
+    },
+    {
+      "url": "textures/equirectangular/lobe.hdr",
+      "output": "textures__equirectangular__lobe.hdr",
+      "mime": "image/vnd.radiance",
+      "diagnostic": "auto:textures/equirectangular/lobe.hdr",
+      "sha256": "4d6566361e5da0d121a4f17a949e62267fce73697ed66087476788440a8f9874",
+      "discovered": true,
+      "hdrRgba": true
+    },
+    {
+      "url": "textures/floors/FloorsCheckerboard_S_Diffuse.jpg",
+      "output": "textures__floors__FloorsCheckerboard_S_Diffuse.jpg",
+      "mime": "image/jpeg",
+      "diagnostic": "auto:textures/floors/FloorsCheckerboard_S_Diffuse.jpg",
+      "sha256": "d7547036c6221a840b80ce11138dc2c1a26df2630419217234c479b00e50a119",
+      "discovered": true
+    },
+    {
+      "url": "textures/floors/FloorsCheckerboard_S_Normal.jpg",
+      "output": "textures__floors__FloorsCheckerboard_S_Normal.jpg",
+      "mime": "image/jpeg",
+      "diagnostic": "auto:textures/floors/FloorsCheckerboard_S_Normal.jpg",
+      "sha256": "4fd83ccadaa88575fe871eef2cb12447193958619c67ff7635d037aee2bd77a1",
+      "discovered": true
+    }
+  ],
   "facade": {
     "global": "globalThis.THREE",
     "exports": [
@@ -505,8 +541,8 @@
   },
   "inputs": {
     "assets/three/three.native.js": {
-      "bytes": 777104,
-      "sha256": "5adcb8e7c2d94dd83748134c4d13b9fcfcba9b671445fe27de895575402241b0"
+      "bytes": 791598,
+      "sha256": "58efdde0f4795a978fdf0a9ed9a4f606264aff39bb4e164aaaf00f5542c280e8"
     },
     "assets/three/three.web.js": {
       "bytes": 855325,
@@ -536,10 +572,6 @@
       "bytes": 117570,
       "sha256": "131c0f78c01d19368ae495caa65b3adaa10487810a36a05bb5901b769a35ac16"
     },
-    "source/examples/jsm/loaders/HDRLoader.js": {
-      "bytes": 12079,
-      "sha256": "0986b578f9acd14cec74e5ee85e07f45e681b40bcd229a601a0391201f9b5ff1"
-    },
     "source/examples/jsm/utils/BufferGeometryUtils.js": {
       "bytes": 37712,
       "sha256": "9fb63427ce6641fa14fd0baff9cc4d1b5f9c3d85fd084bf2e90e803c44ec1797"
@@ -547,6 +579,30 @@
     "source/examples/jsm/utils/SkeletonUtils.js": {
       "bytes": 11535,
       "sha256": "b1632a703206c3d830de9fcbe515696770d04b71a15ee6b50afa6d2c3298c86f"
+    },
+    "source/examples/models/gltf/Soldier.glb": {
+      "bytes": 2160468,
+      "sha256": "dfb230fc1f942f259dd00281a1186953ad602fc5d69067ce63e24b2aa439736b"
+    },
+    "source/examples/models/gltf/file2": {
+      "bytes": 365808,
+      "sha256": "64e72c583d859ac947b83abbc6bcf58ff8001589565f81ce5d76589a9e7a9e47"
+    },
+    "source/examples/models/gltf/vanguard_vanguard_diffuse_tga": {
+      "bytes": 296774,
+      "sha256": "1269e411b662f8ede260861670a4c53835c1c25a316471b955a3b56426df1a14"
+    },
+    "source/examples/textures/equirectangular/lobe.hdr": {
+      "bytes": 1662993,
+      "sha256": "4d6566361e5da0d121a4f17a949e62267fce73697ed66087476788440a8f9874"
+    },
+    "source/examples/textures/floors/FloorsCheckerboard_S_Diffuse.jpg": {
+      "bytes": 119418,
+      "sha256": "d7547036c6221a840b80ce11138dc2c1a26df2630419217234c479b00e50a119"
+    },
+    "source/examples/textures/floors/FloorsCheckerboard_S_Normal.jpg": {
+      "bytes": 295443,
+      "sha256": "4fd83ccadaa88575fe871eef2cb12447193958619c67ff7635d037aee2bd77a1"
     },
     "source/examples/webgl_animation_walk.html": {
       "bytes": 11357,
@@ -560,9 +616,13 @@
       "bytes": 1951,
       "sha256": "7852c54a706c19e98978c884aa9cd9bfd8d040a2d304c8e6d8cf973dd3554eaf"
     },
+    "tool/three_example/asset_discovery.mjs": {
+      "bytes": 11532,
+      "sha256": "5219e6b747041382d9e40edc33901f04140df1cfb0454b181d8145414a75ee9e"
+    },
     "tool/three_example/example_adapter.js": {
-      "bytes": 20723,
-      "sha256": "9c713a0daa93289f0aeb2d75de6c067569ca4bc2235c24f3bb2bc8feab03336c"
+      "bytes": 36267,
+      "sha256": "c604a1842689cfaf43e2bdf335b55f2384780c7b163cd41ab6e91e3912704b61"
     },
     "tool/three_example/example_canvas2d.js": {
       "bytes": 20988,
@@ -573,8 +633,8 @@
       "sha256": "dc11346394f41bb4f385738d3afa6aa75e695ac80fe3be3a5fbf4201686376bf"
     },
     "tool/three_example/prepare.mjs": {
-      "bytes": 247876,
-      "sha256": "4ed1752612b57fb4ac32f62717e772e9a85f4e8a0f7e51a764443b68af0b8aac"
+      "bytes": 252492,
+      "sha256": "544095661162d33d5b6e91b6b744f7eb60b97c1ff9ea1f4ae297b2f39044af43"
     },
     "tool/three_example/stats_adapter.js": {
       "bytes": 2107,
@@ -590,6 +650,18 @@
       "bytes": 341,
       "sha256": "ac281717f399e4b91795ce9313ec6e17f677b7c7c626e25bbb6b56e0a182c0e5"
     },
+    "models__gltf__Soldier.glb": {
+      "bytes": 2160488,
+      "sha256": "07a2ddec9d726a79d5cf9eced3713595c7aa5867f5dc453bd81ed8ad5e3b864b"
+    },
+    "models__gltf__file2": {
+      "bytes": 365808,
+      "sha256": "64e72c583d859ac947b83abbc6bcf58ff8001589565f81ce5d76589a9e7a9e47"
+    },
+    "models__gltf__vanguard_vanguard_diffuse_tga": {
+      "bytes": 296774,
+      "sha256": "1269e411b662f8ede260861670a4c53835c1c25a316471b955a3b56426df1a14"
+    },
     "official_module.js": {
       "bytes": 10190,
       "sha256": "4f518577e78e6eae44aeeaec36287f224dff6653436eec1616375ace9e9f4a0f"
@@ -598,9 +670,21 @@
       "bytes": 11357,
       "sha256": "4e490a8d3b5064a0f2caa9a0d51cf6ed25880bde077cb9460cfea472e45b511e"
     },
+    "textures__equirectangular__lobe.hdr": {
+      "bytes": 2097152,
+      "sha256": "08e7f729744216695da6291797abe8b79c561e09a7e4defef1cc2a123ecac13f"
+    },
+    "textures__floors__FloorsCheckerboard_S_Diffuse.jpg": {
+      "bytes": 119418,
+      "sha256": "d7547036c6221a840b80ce11138dc2c1a26df2630419217234c479b00e50a119"
+    },
+    "textures__floors__FloorsCheckerboard_S_Normal.jpg": {
+      "bytes": 295443,
+      "sha256": "4fd83ccadaa88575fe871eef2cb12447193958619c67ff7635d037aee2bd77a1"
+    },
     "widget.js": {
-      "bytes": 149877,
-      "sha256": "ca044fc62777baea6a44a0ca47babe6125ac519ecdb398f77504e572101bb2f2"
+      "bytes": 8153058,
+      "sha256": "71d37e80bea8698611f757cd2cd29e28645df002e90ac2e50cfc37961677b824"
     }
   }
 }

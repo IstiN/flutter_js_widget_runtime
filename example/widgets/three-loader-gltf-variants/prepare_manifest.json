@@ -43,6 +43,91 @@
       "sha256": "7d8ab3353eb9f428939a82666a02c3da105b0788f7793c7c8d1e8b1139a30769"
     }
   },
+  "assetDiscovery": [
+    {
+      "url": "models/gltf/MaterialsVariantsShoe/glTF/diffuseBeach.jpg",
+      "output": "models__gltf__MaterialsVariantsShoe__glTF__diffuseBeach.jpg",
+      "mime": "image/jpeg",
+      "diagnostic": "auto:models/gltf/MaterialsVariantsShoe/glTF/diffuseBeach.jpg",
+      "sha256": "346526481eb3f2399cad743cc46b4f89dc281d90af703c910dfac8c860191035",
+      "discovered": true,
+      "aliases": [
+        "models/gltf/MaterialsVariantsShoe/glTF/./diffuseBeach.jpg"
+      ]
+    },
+    {
+      "url": "models/gltf/MaterialsVariantsShoe/glTF/diffuseMidnight.jpg",
+      "output": "models__gltf__MaterialsVariantsShoe__glTF__diffuseMidnight.jpg",
+      "mime": "image/jpeg",
+      "diagnostic": "auto:models/gltf/MaterialsVariantsShoe/glTF/diffuseMidnight.jpg",
+      "sha256": "44050f6953b7a212a8f4016c980ac7e7ea6887c44e6d9ead45473a34f1818dd6",
+      "discovered": true,
+      "aliases": [
+        "models/gltf/MaterialsVariantsShoe/glTF/./diffuseMidnight.jpg"
+      ]
+    },
+    {
+      "url": "models/gltf/MaterialsVariantsShoe/glTF/diffuseStreet.jpg",
+      "output": "models__gltf__MaterialsVariantsShoe__glTF__diffuseStreet.jpg",
+      "mime": "image/jpeg",
+      "diagnostic": "auto:models/gltf/MaterialsVariantsShoe/glTF/diffuseStreet.jpg",
+      "sha256": "170ae397f725cd2c1b1560c5f3c4280984c49901faaf5033f47b52c578e1b676",
+      "discovered": true,
+      "aliases": [
+        "models/gltf/MaterialsVariantsShoe/glTF/./diffuseStreet.jpg"
+      ]
+    },
+    {
+      "url": "models/gltf/MaterialsVariantsShoe/glTF/MaterialsVariantsShoe.bin",
+      "output": "models__gltf__MaterialsVariantsShoe__glTF__MaterialsVariantsShoe.bin",
+      "mime": "application/octet-stream",
+      "diagnostic": "auto:models/gltf/MaterialsVariantsShoe/glTF/MaterialsVariantsShoe.bin",
+      "sha256": "76396a934f53ca9ef39fab20fe27178a5b00e726b710432089b924b6c3d87c4c",
+      "discovered": true,
+      "aliases": [
+        "models/gltf/MaterialsVariantsShoe/glTF/./MaterialsVariantsShoe.bin"
+      ]
+    },
+    {
+      "url": "models/gltf/MaterialsVariantsShoe/glTF/MaterialsVariantsShoe.gltf",
+      "output": "models__gltf__MaterialsVariantsShoe__glTF__MaterialsVariantsShoe.gltf",
+      "mime": "application/json",
+      "diagnostic": "auto:models/gltf/MaterialsVariantsShoe/glTF/MaterialsVariantsShoe.gltf",
+      "sha256": "80f0a8feff5494ad1cfb978578502cc980fe75d8f585a5346033c3108d90906f",
+      "discovered": true
+    },
+    {
+      "url": "models/gltf/MaterialsVariantsShoe/glTF/normal.jpg",
+      "output": "models__gltf__MaterialsVariantsShoe__glTF__normal.jpg",
+      "mime": "image/jpeg",
+      "diagnostic": "auto:models/gltf/MaterialsVariantsShoe/glTF/normal.jpg",
+      "sha256": "36b185826d49e8dafc98a2550a40c5693a4f25cf0210e3c37826501377aaa78f",
+      "discovered": true,
+      "aliases": [
+        "models/gltf/MaterialsVariantsShoe/glTF/./normal.jpg"
+      ]
+    },
+    {
+      "url": "models/gltf/MaterialsVariantsShoe/glTF/occlusionRougnessMetalness.jpg",
+      "output": "models__gltf__MaterialsVariantsShoe__glTF__occlusionRougnessMetalness.jpg",
+      "mime": "image/jpeg",
+      "diagnostic": "auto:models/gltf/MaterialsVariantsShoe/glTF/occlusionRougnessMetalness.jpg",
+      "sha256": "c5316fbc0054b4c1fdd8fa0de705e0e9fc33629586b29a20bb7ededfd6000bb9",
+      "discovered": true,
+      "aliases": [
+        "models/gltf/MaterialsVariantsShoe/glTF/./occlusionRougnessMetalness.jpg"
+      ]
+    },
+    {
+      "url": "textures/equirectangular/quarry_01_1k.hdr",
+      "output": "textures__equirectangular__quarry_01_1k.hdr",
+      "mime": "image/vnd.radiance",
+      "diagnostic": "auto:textures/equirectangular/quarry_01_1k.hdr",
+      "sha256": "a3101f0ae89ed847dbed88da3ffa3ddb17b5acf8063099b26ceae08f640eea9b",
+      "discovered": true,
+      "hdrRgba": true
+    }
+  ],
   "facade": {
     "global": "globalThis.THREE",
     "exports": [
@@ -505,8 +590,8 @@
   },
   "inputs": {
     "assets/three/three.native.js": {
-      "bytes": 777104,
-      "sha256": "5adcb8e7c2d94dd83748134c4d13b9fcfcba9b671445fe27de895575402241b0"
+      "bytes": 791598,
+      "sha256": "58efdde0f4795a978fdf0a9ed9a4f606264aff39bb4e164aaaf00f5542c280e8"
     },
     "assets/three/three.web.js": {
       "bytes": 855325,
@@ -528,10 +613,6 @@
       "bytes": 117570,
       "sha256": "131c0f78c01d19368ae495caa65b3adaa10487810a36a05bb5901b769a35ac16"
     },
-    "source/examples/jsm/loaders/HDRLoader.js": {
-      "bytes": 12079,
-      "sha256": "0986b578f9acd14cec74e5ee85e07f45e681b40bcd229a601a0391201f9b5ff1"
-    },
     "source/examples/jsm/utils/BufferGeometryUtils.js": {
       "bytes": 37712,
       "sha256": "9fb63427ce6641fa14fd0baff9cc4d1b5f9c3d85fd084bf2e90e803c44ec1797"
@@ -539,6 +620,38 @@
     "source/examples/jsm/utils/SkeletonUtils.js": {
       "bytes": 11535,
       "sha256": "b1632a703206c3d830de9fcbe515696770d04b71a15ee6b50afa6d2c3298c86f"
+    },
+    "source/examples/models/gltf/MaterialsVariantsShoe/glTF/MaterialsVariantsShoe.bin": {
+      "bytes": 705680,
+      "sha256": "76396a934f53ca9ef39fab20fe27178a5b00e726b710432089b924b6c3d87c4c"
+    },
+    "source/examples/models/gltf/MaterialsVariantsShoe/glTF/MaterialsVariantsShoe.gltf": {
+      "bytes": 7005,
+      "sha256": "80f0a8feff5494ad1cfb978578502cc980fe75d8f585a5346033c3108d90906f"
+    },
+    "source/examples/models/gltf/MaterialsVariantsShoe/glTF/diffuseBeach.jpg": {
+      "bytes": 343740,
+      "sha256": "346526481eb3f2399cad743cc46b4f89dc281d90af703c910dfac8c860191035"
+    },
+    "source/examples/models/gltf/MaterialsVariantsShoe/glTF/diffuseMidnight.jpg": {
+      "bytes": 373438,
+      "sha256": "44050f6953b7a212a8f4016c980ac7e7ea6887c44e6d9ead45473a34f1818dd6"
+    },
+    "source/examples/models/gltf/MaterialsVariantsShoe/glTF/diffuseStreet.jpg": {
+      "bytes": 311693,
+      "sha256": "170ae397f725cd2c1b1560c5f3c4280984c49901faaf5033f47b52c578e1b676"
+    },
+    "source/examples/models/gltf/MaterialsVariantsShoe/glTF/normal.jpg": {
+      "bytes": 804026,
+      "sha256": "36b185826d49e8dafc98a2550a40c5693a4f25cf0210e3c37826501377aaa78f"
+    },
+    "source/examples/models/gltf/MaterialsVariantsShoe/glTF/occlusionRougnessMetalness.jpg": {
+      "bytes": 421360,
+      "sha256": "c5316fbc0054b4c1fdd8fa0de705e0e9fc33629586b29a20bb7ededfd6000bb9"
+    },
+    "source/examples/textures/equirectangular/quarry_01_1k.hdr": {
+      "bytes": 1477951,
+      "sha256": "a3101f0ae89ed847dbed88da3ffa3ddb17b5acf8063099b26ceae08f640eea9b"
     },
     "source/examples/webgl_loader_gltf_variants.html": {
       "bytes": 5452,
@@ -552,9 +665,13 @@
       "bytes": 1951,
       "sha256": "7852c54a706c19e98978c884aa9cd9bfd8d040a2d304c8e6d8cf973dd3554eaf"
     },
+    "tool/three_example/asset_discovery.mjs": {
+      "bytes": 11532,
+      "sha256": "5219e6b747041382d9e40edc33901f04140df1cfb0454b181d8145414a75ee9e"
+    },
     "tool/three_example/example_adapter.js": {
-      "bytes": 20723,
-      "sha256": "9c713a0daa93289f0aeb2d75de6c067569ca4bc2235c24f3bb2bc8feab03336c"
+      "bytes": 36267,
+      "sha256": "c604a1842689cfaf43e2bdf335b55f2384780c7b163cd41ab6e91e3912704b61"
     },
     "tool/three_example/example_canvas2d.js": {
       "bytes": 20988,
@@ -565,8 +682,8 @@
       "sha256": "dc11346394f41bb4f385738d3afa6aa75e695ac80fe3be3a5fbf4201686376bf"
     },
     "tool/three_example/prepare.mjs": {
-      "bytes": 247876,
-      "sha256": "4ed1752612b57fb4ac32f62717e772e9a85f4e8a0f7e51a764443b68af0b8aac"
+      "bytes": 252492,
+      "sha256": "544095661162d33d5b6e91b6b744f7eb60b97c1ff9ea1f4ae297b2f39044af43"
     },
     "tool/three_example/stats_adapter.js": {
       "bytes": 2107,
@@ -582,6 +699,34 @@
       "bytes": 358,
       "sha256": "4e9807bfdfd6db4462b48d92cf49d1e416c691e23b53b5ff3bde10dbb4d9710f"
     },
+    "models__gltf__MaterialsVariantsShoe__glTF__MaterialsVariantsShoe.bin": {
+      "bytes": 705680,
+      "sha256": "76396a934f53ca9ef39fab20fe27178a5b00e726b710432089b924b6c3d87c4c"
+    },
+    "models__gltf__MaterialsVariantsShoe__glTF__MaterialsVariantsShoe.gltf": {
+      "bytes": 7005,
+      "sha256": "80f0a8feff5494ad1cfb978578502cc980fe75d8f585a5346033c3108d90906f"
+    },
+    "models__gltf__MaterialsVariantsShoe__glTF__diffuseBeach.jpg": {
+      "bytes": 343740,
+      "sha256": "346526481eb3f2399cad743cc46b4f89dc281d90af703c910dfac8c860191035"
+    },
+    "models__gltf__MaterialsVariantsShoe__glTF__diffuseMidnight.jpg": {
+      "bytes": 373438,
+      "sha256": "44050f6953b7a212a8f4016c980ac7e7ea6887c44e6d9ead45473a34f1818dd6"
+    },
+    "models__gltf__MaterialsVariantsShoe__glTF__diffuseStreet.jpg": {
+      "bytes": 311693,
+      "sha256": "170ae397f725cd2c1b1560c5f3c4280984c49901faaf5033f47b52c578e1b676"
+    },
+    "models__gltf__MaterialsVariantsShoe__glTF__normal.jpg": {
+      "bytes": 804026,
+      "sha256": "36b185826d49e8dafc98a2550a40c5693a4f25cf0210e3c37826501377aaa78f"
+    },
+    "models__gltf__MaterialsVariantsShoe__glTF__occlusionRougnessMetalness.jpg": {
+      "bytes": 421360,
+      "sha256": "c5316fbc0054b4c1fdd8fa0de705e0e9fc33629586b29a20bb7ededfd6000bb9"
+    },
     "official_module.js": {
       "bytes": 3888,
       "sha256": "7d8ab3353eb9f428939a82666a02c3da105b0788f7793c7c8d1e8b1139a30769"
@@ -590,9 +735,13 @@
       "bytes": 5452,
       "sha256": "a6d1e8fa8e31b5cc5e1dfe37bc4f248bb96e15199aed0d081d1d91581f0d445c"
     },
+    "textures__equirectangular__quarry_01_1k.hdr": {
+      "bytes": 2097152,
+      "sha256": "c9d4d7b7e1d5fd3b96dd2c18ce2a332ce6878399189d0d3e2ade9ae5a912a3ba"
+    },
     "widget.js": {
-      "bytes": 143707,
-      "sha256": "0716827d1510b36ed67c1ee7ca44bf5b38d4e0a090d3926b65ab8ff7de6850c1"
+      "bytes": 10850660,
+      "sha256": "930f9be251973529cf01db11de6e51de77d8369dbaffeb54576b410cb0bc4f2e"
     }
   }
 }

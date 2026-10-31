@@ -43,6 +43,112 @@
       "sha256": "924b88f2ccc330175252a55890b2cac8ab04199390843a8eac49f11f1f39ee8e"
     }
   },
+  "assetDiscovery": [
+    {
+      "url": "models/obj/female02/01_-_Default1noCulling.JPG",
+      "output": "models__obj__female02__01_-_Default1noCulling.JPG",
+      "mime": "image/jpeg",
+      "diagnostic": "auto:models/obj/female02/01_-_Default1noCulling.JPG",
+      "sha256": "2170117384178588c9a5d92fb217764ca0f698268815d87ae9b1a29beae0462e",
+      "discovered": true,
+      "aliases": [
+        "models/obj/female02/./01_-_Default1noCulling.JPG"
+      ]
+    },
+    {
+      "url": "models/obj/female02/02_-_Default1noCulling.JPG",
+      "output": "models__obj__female02__02_-_Default1noCulling.JPG",
+      "mime": "image/jpeg",
+      "diagnostic": "auto:models/obj/female02/02_-_Default1noCulling.JPG",
+      "sha256": "df41151f5069ece1e9674d7b7d042b6487f2261d26431be040ff994d6d1af6df",
+      "discovered": true,
+      "aliases": [
+        "models/obj/female02/./02_-_Default1noCulling.JPG"
+      ]
+    },
+    {
+      "url": "models/obj/female02/03_-_Default1noCulling.JPG",
+      "output": "models__obj__female02__03_-_Default1noCulling.JPG",
+      "mime": "image/jpeg",
+      "diagnostic": "auto:models/obj/female02/03_-_Default1noCulling.JPG",
+      "sha256": "ef57b974a38788c5fda7058970140a78667249817154a5ad42b1cbca7a7776e6",
+      "discovered": true,
+      "aliases": [
+        "models/obj/female02/./03_-_Default1noCulling.JPG"
+      ]
+    },
+    {
+      "url": "models/obj/female02/female02.mtl",
+      "output": "models__obj__female02__female02.mtl",
+      "mime": "application/octet-stream",
+      "diagnostic": "auto:models/obj/female02/female02.mtl",
+      "sha256": "d03d753a9654a51c012812940a66fc092f6861e4b597183fe343ef3f5910816c",
+      "discovered": true,
+      "aliases": [
+        "models/obj/female02/./female02.mtl"
+      ]
+    },
+    {
+      "url": "models/obj/female02/female02.obj",
+      "output": "models__obj__female02__female02.obj",
+      "mime": "application/octet-stream",
+      "diagnostic": "auto:models/obj/female02/female02.obj",
+      "sha256": "65916ef144d593d80f8d08c3e7fb70a43d8b69cf0b9f055fdaf3b508025bdc18",
+      "discovered": true
+    },
+    {
+      "url": "models/obj/male02/01_-_Default1noCulling.JPG",
+      "output": "models__obj__male02__01_-_Default1noCulling.JPG",
+      "mime": "image/jpeg",
+      "diagnostic": "auto:models/obj/male02/01_-_Default1noCulling.JPG",
+      "sha256": "3259a89133a08c2063a565b3eaaa442ba9b9521117ffdddc88d4ae7079b05803",
+      "discovered": true,
+      "aliases": [
+        "models/obj/male02/./01_-_Default1noCulling.JPG"
+      ]
+    },
+    {
+      "url": "models/obj/male02/male-02-1noCulling.JPG",
+      "output": "models__obj__male02__male-02-1noCulling.JPG",
+      "mime": "image/jpeg",
+      "diagnostic": "auto:models/obj/male02/male-02-1noCulling.JPG",
+      "sha256": "672bbeb356bbe8a1e30790412573e6794fd2adf69ebc38bbdf090ab811141ab3",
+      "discovered": true,
+      "aliases": [
+        "models/obj/male02/./male-02-1noCulling.JPG"
+      ]
+    },
+    {
+      "url": "models/obj/male02/male02.mtl",
+      "output": "models__obj__male02__male02.mtl",
+      "mime": "application/octet-stream",
+      "diagnostic": "auto:models/obj/male02/male02.mtl",
+      "sha256": "a1d2f6df681197208221b74e6c32d74207a38fb84119ed55452998ed24b0e8ce",
+      "discovered": true,
+      "aliases": [
+        "models/obj/male02/./male02.mtl"
+      ]
+    },
+    {
+      "url": "models/obj/male02/male02.obj",
+      "output": "models__obj__male02__male02.obj",
+      "mime": "application/octet-stream",
+      "diagnostic": "auto:models/obj/male02/male02.obj",
+      "sha256": "6e521dceb9cf5b0d9b375c607364f23c7a9db7d56a135f2a74c2da698b7671b3",
+      "discovered": true
+    },
+    {
+      "url": "models/obj/male02/orig_02_-_Defaul1noCulling.JPG",
+      "output": "models__obj__male02__orig_02_-_Defaul1noCulling.JPG",
+      "mime": "image/jpeg",
+      "diagnostic": "auto:models/obj/male02/orig_02_-_Defaul1noCulling.JPG",
+      "sha256": "303095f93c5f72c65a744e4ab47fe967332a69ea4b4206b8cefcae13cf5a2291",
+      "discovered": true,
+      "aliases": [
+        "models/obj/male02/./orig_02_-_Defaul1noCulling.JPG"
+      ]
+    }
+  ],
   "facade": {
     "global": "globalThis.THREE",
     "exports": [
@@ -505,8 +611,8 @@
   },
   "inputs": {
     "assets/three/three.native.js": {
-      "bytes": 777104,
-      "sha256": "5adcb8e7c2d94dd83748134c4d13b9fcfcba9b671445fe27de895575402241b0"
+      "bytes": 791598,
+      "sha256": "58efdde0f4795a978fdf0a9ed9a4f606264aff39bb4e164aaaf00f5542c280e8"
     },
     "assets/three/three.web.js": {
       "bytes": 855325,
@@ -572,6 +678,46 @@
       "bytes": 1876,
       "sha256": "353479f77a8d7e2629d49ccac9fc2f5dbfdda5442e0adf867b00377a2fcb0cb2"
     },
+    "source/examples/models/obj/female02/01_-_Default1noCulling.JPG": {
+      "bytes": 24836,
+      "sha256": "2170117384178588c9a5d92fb217764ca0f698268815d87ae9b1a29beae0462e"
+    },
+    "source/examples/models/obj/female02/02_-_Default1noCulling.JPG": {
+      "bytes": 25240,
+      "sha256": "df41151f5069ece1e9674d7b7d042b6487f2261d26431be040ff994d6d1af6df"
+    },
+    "source/examples/models/obj/female02/03_-_Default1noCulling.JPG": {
+      "bytes": 96273,
+      "sha256": "ef57b974a38788c5fda7058970140a78667249817154a5ad42b1cbca7a7776e6"
+    },
+    "source/examples/models/obj/female02/female02.mtl": {
+      "bytes": 1352,
+      "sha256": "d03d753a9654a51c012812940a66fc092f6861e4b597183fe343ef3f5910816c"
+    },
+    "source/examples/models/obj/female02/female02.obj": {
+      "bytes": 590864,
+      "sha256": "65916ef144d593d80f8d08c3e7fb70a43d8b69cf0b9f055fdaf3b508025bdc18"
+    },
+    "source/examples/models/obj/male02/01_-_Default1noCulling.JPG": {
+      "bytes": 34307,
+      "sha256": "3259a89133a08c2063a565b3eaaa442ba9b9521117ffdddc88d4ae7079b05803"
+    },
+    "source/examples/models/obj/male02/male-02-1noCulling.JPG": {
+      "bytes": 130731,
+      "sha256": "672bbeb356bbe8a1e30790412573e6794fd2adf69ebc38bbdf090ab811141ab3"
+    },
+    "source/examples/models/obj/male02/male02.mtl": {
+      "bytes": 1114,
+      "sha256": "a1d2f6df681197208221b74e6c32d74207a38fb84119ed55452998ed24b0e8ce"
+    },
+    "source/examples/models/obj/male02/male02.obj": {
+      "bytes": 464590,
+      "sha256": "6e521dceb9cf5b0d9b375c607364f23c7a9db7d56a135f2a74c2da698b7671b3"
+    },
+    "source/examples/models/obj/male02/orig_02_-_Defaul1noCulling.JPG": {
+      "bytes": 21891,
+      "sha256": "303095f93c5f72c65a744e4ab47fe967332a69ea4b4206b8cefcae13cf5a2291"
+    },
     "source/examples/webgl_points_dynamic.html": {
       "bytes": 10048,
       "sha256": "e58edb41d59f4936e0f992fb079b0155d88e9b2ebe274117ec898ee59f7aa491"
@@ -584,9 +730,13 @@
       "bytes": 1951,
       "sha256": "7852c54a706c19e98978c884aa9cd9bfd8d040a2d304c8e6d8cf973dd3554eaf"
     },
+    "tool/three_example/asset_discovery.mjs": {
+      "bytes": 11532,
+      "sha256": "5219e6b747041382d9e40edc33901f04140df1cfb0454b181d8145414a75ee9e"
+    },
     "tool/three_example/example_adapter.js": {
-      "bytes": 20723,
-      "sha256": "9c713a0daa93289f0aeb2d75de6c067569ca4bc2235c24f3bb2bc8feab03336c"
+      "bytes": 36267,
+      "sha256": "c604a1842689cfaf43e2bdf335b55f2384780c7b163cd41ab6e91e3912704b61"
     },
     "tool/three_example/example_canvas2d.js": {
       "bytes": 20988,
@@ -597,8 +747,8 @@
       "sha256": "dc11346394f41bb4f385738d3afa6aa75e695ac80fe3be3a5fbf4201686376bf"
     },
     "tool/three_example/prepare.mjs": {
-      "bytes": 247876,
-      "sha256": "4ed1752612b57fb4ac32f62717e772e9a85f4e8a0f7e51a764443b68af0b8aac"
+      "bytes": 252492,
+      "sha256": "544095661162d33d5b6e91b6b744f7eb60b97c1ff9ea1f4ae297b2f39044af43"
     },
     "tool/three_example/stats_adapter.js": {
       "bytes": 2107,
@@ -614,6 +764,46 @@
       "bytes": 361,
       "sha256": "afa26dd6c118218b080da2feb87ef43e63f0598818413bdcaed00122bed972cf"
     },
+    "models__obj__female02__01_-_Default1noCulling.JPG": {
+      "bytes": 24836,
+      "sha256": "2170117384178588c9a5d92fb217764ca0f698268815d87ae9b1a29beae0462e"
+    },
+    "models__obj__female02__02_-_Default1noCulling.JPG": {
+      "bytes": 25240,
+      "sha256": "df41151f5069ece1e9674d7b7d042b6487f2261d26431be040ff994d6d1af6df"
+    },
+    "models__obj__female02__03_-_Default1noCulling.JPG": {
+      "bytes": 96273,
+      "sha256": "ef57b974a38788c5fda7058970140a78667249817154a5ad42b1cbca7a7776e6"
+    },
+    "models__obj__female02__female02.mtl": {
+      "bytes": 1352,
+      "sha256": "d03d753a9654a51c012812940a66fc092f6861e4b597183fe343ef3f5910816c"
+    },
+    "models__obj__female02__female02.obj": {
+      "bytes": 590864,
+      "sha256": "65916ef144d593d80f8d08c3e7fb70a43d8b69cf0b9f055fdaf3b508025bdc18"
+    },
+    "models__obj__male02__01_-_Default1noCulling.JPG": {
+      "bytes": 34307,
+      "sha256": "3259a89133a08c2063a565b3eaaa442ba9b9521117ffdddc88d4ae7079b05803"
+    },
+    "models__obj__male02__male-02-1noCulling.JPG": {
+      "bytes": 130731,
+      "sha256": "672bbeb356bbe8a1e30790412573e6794fd2adf69ebc38bbdf090ab811141ab3"
+    },
+    "models__obj__male02__male02.mtl": {
+      "bytes": 1114,
+      "sha256": "a1d2f6df681197208221b74e6c32d74207a38fb84119ed55452998ed24b0e8ce"
+    },
+    "models__obj__male02__male02.obj": {
+      "bytes": 464590,
+      "sha256": "6e521dceb9cf5b0d9b375c607364f23c7a9db7d56a135f2a74c2da698b7671b3"
+    },
+    "models__obj__male02__orig_02_-_Defaul1noCulling.JPG": {
+      "bytes": 21891,
+      "sha256": "303095f93c5f72c65a744e4ab47fe967332a69ea4b4206b8cefcae13cf5a2291"
+    },
     "official_module.js": {
       "bytes": 8739,
       "sha256": "924b88f2ccc330175252a55890b2cac8ab04199390843a8eac49f11f1f39ee8e"
@@ -623,8 +813,8 @@
       "sha256": "e58edb41d59f4936e0f992fb079b0155d88e9b2ebe274117ec898ee59f7aa491"
     },
     "widget.js": {
-      "bytes": 60651,
-      "sha256": "535689592d242d59316a2eb9d2b7429758478e72e91c094972c1303796848b37"
+      "bytes": 2374874,
+      "sha256": "ec6fb99ac735203d01be26ffc3f147e0c3f721a82bda183e2bcca3d052908b1b"
     }
   }
 }

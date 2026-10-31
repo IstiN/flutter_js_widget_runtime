@@ -43,6 +43,60 @@
       "sha256": "97168a046a02998d9e680d9fc51f056b0e17e0dc27794e12553b657e3115a22f"
     }
   },
+  "assetDiscovery": [
+    {
+      "url": "models/collada/elf/Body_tex_003.jpg",
+      "output": "models__collada__elf__Body_tex_003.jpg",
+      "mime": "image/jpeg",
+      "diagnostic": "auto:models/collada/elf/Body_tex_003.jpg",
+      "sha256": "91ed8c79574289f8d8626273cfe950def6cadac25a5cc289a68e9f0b9f37ecab",
+      "discovered": true,
+      "aliases": [
+        "models/collada/elf/./Body_tex_003.jpg"
+      ]
+    },
+    {
+      "url": "models/collada/elf/ce.jpg",
+      "output": "models__collada__elf__ce.jpg",
+      "mime": "image/jpeg",
+      "diagnostic": "auto:models/collada/elf/ce.jpg",
+      "sha256": "40d6a751eb5a9484259684c081e6518bab99348f671ab7a82a9ec3d6be60ffd4",
+      "discovered": true,
+      "aliases": [
+        "models/collada/elf/./ce.jpg"
+      ]
+    },
+    {
+      "url": "models/collada/elf/elf.dae",
+      "output": "models__collada__elf__elf.dae",
+      "mime": "application/octet-stream",
+      "diagnostic": "auto:models/collada/elf/elf.dae",
+      "sha256": "14ce50b81a4da5798a7971063c57a6421fcffe0236f64c2ab6b50de5a6d5ccd5",
+      "discovered": true
+    },
+    {
+      "url": "models/collada/elf/Face_tex_002_toObj.jpg",
+      "output": "models__collada__elf__Face_tex_002_toObj.jpg",
+      "mime": "image/jpeg",
+      "diagnostic": "auto:models/collada/elf/Face_tex_002_toObj.jpg",
+      "sha256": "0b41b95fa0b997eb5f73c97853f9f397dbeeb00cbacafaf87f96af6cda318625",
+      "discovered": true,
+      "aliases": [
+        "models/collada/elf/./Face_tex_002_toObj.jpg"
+      ]
+    },
+    {
+      "url": "models/collada/elf/Hair_tex_001.jpg",
+      "output": "models__collada__elf__Hair_tex_001.jpg",
+      "mime": "image/jpeg",
+      "diagnostic": "auto:models/collada/elf/Hair_tex_001.jpg",
+      "sha256": "0070ea64cb17de55c6c6afe7638fa141d1ea1c48b631507cf231df0577d8b4bf",
+      "discovered": true,
+      "aliases": [
+        "models/collada/elf/./Hair_tex_001.jpg"
+      ]
+    }
+  ],
   "facade": {
     "global": "globalThis.THREE",
     "exports": [
@@ -505,8 +559,8 @@
   },
   "inputs": {
     "assets/three/three.native.js": {
-      "bytes": 777104,
-      "sha256": "5adcb8e7c2d94dd83748134c4d13b9fcfcba9b671445fe27de895575402241b0"
+      "bytes": 791598,
+      "sha256": "58efdde0f4795a978fdf0a9ed9a4f606264aff39bb4e164aaaf00f5542c280e8"
     },
     "assets/three/three.web.js": {
       "bytes": 855325,
@@ -532,6 +586,26 @@
       "bytes": 36839,
       "sha256": "d9532ab17f1d9e2919deba8029d759d5dcaed2f21195ded9e29491f719b1a0c6"
     },
+    "source/examples/models/collada/elf/Body_tex_003.jpg": {
+      "bytes": 222968,
+      "sha256": "91ed8c79574289f8d8626273cfe950def6cadac25a5cc289a68e9f0b9f37ecab"
+    },
+    "source/examples/models/collada/elf/Face_tex_002_toObj.jpg": {
+      "bytes": 121701,
+      "sha256": "0b41b95fa0b997eb5f73c97853f9f397dbeeb00cbacafaf87f96af6cda318625"
+    },
+    "source/examples/models/collada/elf/Hair_tex_001.jpg": {
+      "bytes": 165840,
+      "sha256": "0070ea64cb17de55c6c6afe7638fa141d1ea1c48b631507cf231df0577d8b4bf"
+    },
+    "source/examples/models/collada/elf/ce.jpg": {
+      "bytes": 127839,
+      "sha256": "40d6a751eb5a9484259684c081e6518bab99348f671ab7a82a9ec3d6be60ffd4"
+    },
+    "source/examples/models/collada/elf/elf.dae": {
+      "bytes": 1942817,
+      "sha256": "14ce50b81a4da5798a7971063c57a6421fcffe0236f64c2ab6b50de5a6d5ccd5"
+    },
     "source/examples/webgl_loader_collada.html": {
       "bytes": 3210,
       "sha256": "bbb4970bad5d35034e44dfaa529408be5462eaef71cc5732957abf41f399639e"
@@ -544,9 +618,13 @@
       "bytes": 1951,
       "sha256": "7852c54a706c19e98978c884aa9cd9bfd8d040a2d304c8e6d8cf973dd3554eaf"
     },
+    "tool/three_example/asset_discovery.mjs": {
+      "bytes": 11532,
+      "sha256": "5219e6b747041382d9e40edc33901f04140df1cfb0454b181d8145414a75ee9e"
+    },
     "tool/three_example/example_adapter.js": {
-      "bytes": 20723,
-      "sha256": "9c713a0daa93289f0aeb2d75de6c067569ca4bc2235c24f3bb2bc8feab03336c"
+      "bytes": 36267,
+      "sha256": "c604a1842689cfaf43e2bdf335b55f2384780c7b163cd41ab6e91e3912704b61"
     },
     "tool/three_example/example_canvas2d.js": {
       "bytes": 20988,
@@ -557,8 +635,8 @@
       "sha256": "dc11346394f41bb4f385738d3afa6aa75e695ac80fe3be3a5fbf4201686376bf"
     },
     "tool/three_example/prepare.mjs": {
-      "bytes": 247876,
-      "sha256": "4ed1752612b57fb4ac32f62717e772e9a85f4e8a0f7e51a764443b68af0b8aac"
+      "bytes": 252492,
+      "sha256": "544095661162d33d5b6e91b6b744f7eb60b97c1ff9ea1f4ae297b2f39044af43"
     },
     "tool/three_example/stats_adapter.js": {
       "bytes": 2107,
@@ -574,6 +652,26 @@
       "bytes": 332,
       "sha256": "04870b8f234fe5701427029513b9c60ec887c9d62ef262190aad7eaadc4bb299"
     },
+    "models__collada__elf__Body_tex_003.jpg": {
+      "bytes": 222968,
+      "sha256": "91ed8c79574289f8d8626273cfe950def6cadac25a5cc289a68e9f0b9f37ecab"
+    },
+    "models__collada__elf__Face_tex_002_toObj.jpg": {
+      "bytes": 121701,
+      "sha256": "0b41b95fa0b997eb5f73c97853f9f397dbeeb00cbacafaf87f96af6cda318625"
+    },
+    "models__collada__elf__Hair_tex_001.jpg": {
+      "bytes": 165840,
+      "sha256": "0070ea64cb17de55c6c6afe7638fa141d1ea1c48b631507cf231df0577d8b4bf"
+    },
+    "models__collada__elf__ce.jpg": {
+      "bytes": 127839,
+      "sha256": "40d6a751eb5a9484259684c081e6518bab99348f671ab7a82a9ec3d6be60ffd4"
+    },
+    "models__collada__elf__elf.dae": {
+      "bytes": 1942817,
+      "sha256": "14ce50b81a4da5798a7971063c57a6421fcffe0236f64c2ab6b50de5a6d5ccd5"
+    },
     "official_module.js": {
       "bytes": 2050,
       "sha256": "97168a046a02998d9e680d9fc51f056b0e17e0dc27794e12553b657e3115a22f"
@@ -583,8 +681,8 @@
       "sha256": "bbb4970bad5d35034e44dfaa529408be5462eaef71cc5732957abf41f399639e"
     },
     "widget.js": {
-      "bytes": 87524,
-      "sha256": "b592655b2098b4af949cae263516e2f37418e23228d3475f0ff003208bf20852"
+      "bytes": 4390053,
+      "sha256": "79ecb03527009b1ee1db07e81bee02e2dc67bce5c2b3995eef41242656db52d9"
     }
   }
 }

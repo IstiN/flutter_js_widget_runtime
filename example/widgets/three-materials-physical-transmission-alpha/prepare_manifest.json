@@ -43,6 +43,25 @@
       "sha256": "951d83cb01d4ecd1846f5bbc618eed2ae57a88dc49c40c2b60631b045110e18b"
     }
   },
+  "assetDiscovery": [
+    {
+      "url": "models/gltf/DragonAttenuation.glb",
+      "output": "models__gltf__DragonAttenuation.glb",
+      "mime": "model/gltf-binary",
+      "diagnostic": "auto:models/gltf/DragonAttenuation.glb",
+      "sha256": "dbac78de3fefb33ba744cfa703936892b6e2fc47b58d88acc52f4be39e5464be",
+      "discovered": true,
+      "externalizeImages": true
+    },
+    {
+      "url": "textures/equirectangular/royal_esplanade_2k.hdr.jpg",
+      "output": "textures__equirectangular__royal_esplanade_2k.hdr.jpg",
+      "mime": "image/jpeg",
+      "diagnostic": "auto:textures/equirectangular/royal_esplanade_2k.hdr.jpg",
+      "sha256": "b05a664c5fb022ddc6104f253a6684570e99876d30b41a220c8dea4482df6d64",
+      "discovered": true
+    }
+  ],
   "facade": {
     "global": "globalThis.THREE",
     "exports": [
@@ -505,8 +524,8 @@
   },
   "inputs": {
     "assets/three/three.native.js": {
-      "bytes": 777104,
-      "sha256": "5adcb8e7c2d94dd83748134c4d13b9fcfcba9b671445fe27de895575402241b0"
+      "bytes": 791598,
+      "sha256": "58efdde0f4795a978fdf0a9ed9a4f606264aff39bb4e164aaaf00f5542c280e8"
     },
     "assets/three/three.web.js": {
       "bytes": 855325,
@@ -528,10 +547,6 @@
       "bytes": 117570,
       "sha256": "131c0f78c01d19368ae495caa65b3adaa10487810a36a05bb5901b769a35ac16"
     },
-    "source/examples/jsm/loaders/UltraHDRLoader.js": {
-      "bytes": 19696,
-      "sha256": "fd67cf0e861d9f4eeb02e3b5acc62896658edafb6410eb4fc4c178352c0a6971"
-    },
     "source/examples/jsm/utils/BufferGeometryUtils.js": {
       "bytes": 37712,
       "sha256": "9fb63427ce6641fa14fd0baff9cc4d1b5f9c3d85fd084bf2e90e803c44ec1797"
@@ -539,6 +554,22 @@
     "source/examples/jsm/utils/SkeletonUtils.js": {
       "bytes": 11535,
       "sha256": "b1632a703206c3d830de9fcbe515696770d04b71a15ee6b50afa6d2c3298c86f"
+    },
+    "source/examples/models/gltf/DragonAttenuation.glb": {
+      "bytes": 6566656,
+      "sha256": "dbac78de3fefb33ba744cfa703936892b6e2fc47b58d88acc52f4be39e5464be"
+    },
+    "source/examples/models/gltf/embedded-0.jpg": {
+      "bytes": 167652,
+      "sha256": "7e45b73f07c301b76d50e37c86b864341cf9aeaf4672363960712a3cfb5a9b99"
+    },
+    "source/examples/models/gltf/embedded-1.jpg": {
+      "bytes": 578150,
+      "sha256": "d43e2467430bbbf5601faa062c71b968f62580fe63b197a7677460758475e118"
+    },
+    "source/examples/textures/equirectangular/royal_esplanade_2k.hdr.jpg": {
+      "bytes": 552463,
+      "sha256": "b05a664c5fb022ddc6104f253a6684570e99876d30b41a220c8dea4482df6d64"
     },
     "source/examples/webgl_materials_physical_transmission_alpha.html": {
       "bytes": 7604,
@@ -552,9 +583,13 @@
       "bytes": 1951,
       "sha256": "7852c54a706c19e98978c884aa9cd9bfd8d040a2d304c8e6d8cf973dd3554eaf"
     },
+    "tool/three_example/asset_discovery.mjs": {
+      "bytes": 11532,
+      "sha256": "5219e6b747041382d9e40edc33901f04140df1cfb0454b181d8145414a75ee9e"
+    },
     "tool/three_example/example_adapter.js": {
-      "bytes": 20723,
-      "sha256": "9c713a0daa93289f0aeb2d75de6c067569ca4bc2235c24f3bb2bc8feab03336c"
+      "bytes": 36267,
+      "sha256": "c604a1842689cfaf43e2bdf335b55f2384780c7b163cd41ab6e91e3912704b61"
     },
     "tool/three_example/example_canvas2d.js": {
       "bytes": 20988,
@@ -565,8 +600,8 @@
       "sha256": "dc11346394f41bb4f385738d3afa6aa75e695ac80fe3be3a5fbf4201686376bf"
     },
     "tool/three_example/prepare.mjs": {
-      "bytes": 247876,
-      "sha256": "4ed1752612b57fb4ac32f62717e772e9a85f4e8a0f7e51a764443b68af0b8aac"
+      "bytes": 252492,
+      "sha256": "544095661162d33d5b6e91b6b744f7eb60b97c1ff9ea1f4ae297b2f39044af43"
     },
     "tool/three_example/stats_adapter.js": {
       "bytes": 2107,
@@ -582,6 +617,18 @@
       "bytes": 408,
       "sha256": "6e9e319f0fda2e395b95c62128b05435176f7dcca36f0975ab9f6a3a6dee5b78"
     },
+    "models__gltf__DragonAttenuation.glb": {
+      "bytes": 6566672,
+      "sha256": "7450ad58ffa7a860726d6d54120dac1e9594f35aef881cbb9b11e4a43371014d"
+    },
+    "models__gltf__embedded-0.jpg": {
+      "bytes": 167652,
+      "sha256": "7e45b73f07c301b76d50e37c86b864341cf9aeaf4672363960712a3cfb5a9b99"
+    },
+    "models__gltf__embedded-1.jpg": {
+      "bytes": 578150,
+      "sha256": "d43e2467430bbbf5601faa062c71b968f62580fe63b197a7677460758475e118"
+    },
     "official_module.js": {
       "bytes": 5744,
       "sha256": "951d83cb01d4ecd1846f5bbc618eed2ae57a88dc49c40c2b60631b045110e18b"
@@ -590,9 +637,13 @@
       "bytes": 7604,
       "sha256": "0e2d88df8deaf5881d1c3667c7dc11d788f10093830ab98a91c12d6c02272804"
     },
+    "textures__equirectangular__royal_esplanade_2k.hdr.jpg": {
+      "bytes": 552463,
+      "sha256": "b05a664c5fb022ddc6104f253a6684570e99876d30b41a220c8dea4482df6d64"
+    },
     "widget.js": {
-      "bytes": 147111,
-      "sha256": "f028984d70c4cff812d2464f1e0d80ba08c035bb3b215fd82d71dd62a79d28b3"
+      "bytes": 11631834,
+      "sha256": "0e1edb7994e694799595832ff14a047ae246f55ab151e9ba096757930246f9b3"
     }
   }
 }
