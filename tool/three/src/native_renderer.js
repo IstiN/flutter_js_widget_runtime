@@ -267,7 +267,7 @@ function uvTransformElements(texture) {
 function materialKind(material) {
   if (material.isMeshBasicMaterial) return 0;
   if (material.isMeshLambertMaterial) return 1;
-  if (material.isMeshStandardMaterial && !material.isMeshPhysicalMaterial) return 2;
+  if (material.isMeshStandardMaterial) return 2;
   if (material.isLineBasicMaterial && !material.isLineDashedMaterial) return 3;
   if (material.isPointsMaterial) return 4;
   if (material.isMeshPhongMaterial) return 5;
@@ -284,13 +284,19 @@ function materialKind(material) {
 
 function supportsEmissive(material) {
   return material.isMeshLambertMaterial || material.isMeshPhongMaterial ||
-    (material.isMeshStandardMaterial && !material.isMeshPhysicalMaterial) ||
+    (material.isMeshStandardMaterial) ||
     material.isMeshToonMaterial;
 }
 
 function validateMaterial(material) {
   if (material.isShaderMaterial || material.isRawShaderMaterial) unsupported('ShaderMaterial', 'arbitrary shaders require 1B');
-  if (material.wireframe && !(material.isMeshBasicMaterial || material.isMeshLambertMaterial || material.isMeshPhongMaterial || material.isMeshNormalMaterial || (material.isMeshStandardMaterial && !material.isMeshPhysicalMaterial) || material.isMeshToonMaterial || material.isMeshMatcapMaterial)) unsupported('wireframe', 'R1 wireframe requires a mesh material');
+  if (material.isMeshPhysicalMaterial && !material._r1PhysicalWarned) {
+    // Physical is Standard plus clearcoat/transmission/sheen/iridescence:
+    // R1 keeps the Standard PBR base and drops the physical-only lobes.
+    material._r1PhysicalWarned = true;
+    console.warn('three: R1 shades MeshPhysicalMaterial as MeshStandardMaterial (physical-only lobes dropped).');
+  }
+  if (material.wireframe && !(material.isMeshBasicMaterial || material.isMeshLambertMaterial || material.isMeshPhongMaterial || material.isMeshNormalMaterial || (material.isMeshStandardMaterial) || material.isMeshToonMaterial || material.isMeshMatcapMaterial)) unsupported('wireframe', 'R1 wireframe requires a mesh material');
   if (material.wireframe && (material.wireframeLinewidth !== 1 || material.wireframeLinecap !== 'round' || material.wireframeLinejoin !== 'round')) unsupported('wireframeStyle', 'R1 supports one-pixel round wireframe lines');
   if (material.blending === CustomBlending) unsupported('materialBlending');
   if (material.alphaHash || material.premultipliedAlpha || material.colorWrite === false || material.stencilWrite || material.polygonOffset) unsupported('materialState', 'alphaHash/premultipliedAlpha/colorWrite/stencil/polygonOffset');
@@ -314,7 +320,7 @@ function validateMaterial(material) {
     }
   }
   if (material.envMap && !(material.isMeshBasicMaterial || material.isMeshLambertMaterial ||
-      (material.isMeshStandardMaterial && !material.isMeshPhysicalMaterial) || material.isMeshPhongMaterial)) {
+      (material.isMeshStandardMaterial) || material.isMeshPhongMaterial)) {
     unsupported('materialTexture', `${material.type}.envMap`);
   }
   // R1 v6: tangentless (derivative TBN) normal mapping on the lit mesh
@@ -327,14 +333,14 @@ function validateMaterial(material) {
     material.bumpMap = null;
   }
   if ((material.normalMap || material.bumpMap) && !(material.isMeshLambertMaterial || material.isMeshPhongMaterial ||
-      (material.isMeshStandardMaterial && !material.isMeshPhysicalMaterial))) {
+      (material.isMeshStandardMaterial))) {
     unsupported('materialTexture', `${material.type}.normalMap/bumpMap`);
   }
   if (material.bumpMap && !Number.isFinite(material.bumpScale)) {
     throw new Error('three.invalid: material bumpScale must be finite');
   }
   if ((material.roughnessMap || material.metalnessMap) &&
-      !(material.isMeshStandardMaterial && !material.isMeshPhysicalMaterial)) {
+      !(material.isMeshStandardMaterial)) {
     unsupported('materialTexture', `${material.type}.roughnessMap/metalnessMap`);
   }
   if (material.normalMap && material.normalScale &&
@@ -634,8 +640,10 @@ export class JsrWebGLRenderer {
   }
 
   _canvasForTexture(texture) {
-    if (!texture.isCanvasTexture) return null;
+    // Plain THREE.Texture with a canvas image (webgl_panorama_cube slices its
+    // atlas through 2D canvases) is just as canvas-backed as CanvasTexture.
     if (isNativeCanvas2D(texture.image)) return texture.image;
+    if (!texture.isCanvasTexture) return null;
     const canvas = texture.userData && texture.userData.jsrCanvas2D;
     return isNativeCanvas2D(canvas) ? canvas : null;
   }
@@ -671,6 +679,7 @@ export class JsrWebGLRenderer {
     if (texture.channel !== 0) unsupported('textureChannel', 'R1 maps texture channel 0 only');
     if (texture.isCubeTexture) return this._ensureCubeTexture(texture, commands);
     const image = texture.image;
+    if (image && !image.data && !texture._r1ImgDbg) { texture._r1ImgDbg = true; console.error('R1TEXDBG', texture.isCanvasTexture, image.constructor && image.constructor.name, Object.keys(image).slice(0,6).join(',')); }
     if (!image || !image.data) return 0;
     const id = resourceId(texture);
     const frameCached = this._frameTextures.get(id);

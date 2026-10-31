@@ -504,16 +504,56 @@
   },
   "inputs": {
     "assets/three/three.native.js": {
-      "bytes": 724399,
-      "sha256": "f5274a4cb428b18491b082eed0d416d90dc36ea7a84a129f752dec1b9ee5596b"
+      "bytes": 728276,
+      "sha256": "b3a8aecb6f8e32d869e0473c6534cfb8a7cf7a9e8e9b4aac4aa5cad70c9220e5"
     },
     "assets/three/three.web.js": {
-      "bytes": 834390,
-      "sha256": "e4e059b5c360606fb4ed721f2d686821b0b840119a3939535160b279c5deea6b"
+      "bytes": 835134,
+      "sha256": "9fc36cb776a1a4a8c0ef3e2e7fdefa7943967d4e525014b339f9e7417edc625a"
     },
     "source/LICENSE": {
       "bytes": 1081,
       "sha256": "8b378ebe60e2fe500158cb0ac71cb5e8b7d92953c2abcc63a0eb90499653b5bc"
+    },
+    "source/examples/fonts/droid/droid_sans_bold.typeface.json": {
+      "bytes": 329885,
+      "sha256": "ec40f077e0695e4ce9f74e9953034312eb6d1d5a9eb6c584b1eb0fd84077fb81"
+    },
+    "source/examples/fonts/droid/droid_sans_regular.typeface.json": {
+      "bytes": 319895,
+      "sha256": "8f0570e6cbb9b0230dc8a19b1942fd414191f0f3bfc76e3f413c2f9cfccd2eac"
+    },
+    "source/examples/fonts/droid/droid_serif_bold.typeface.json": {
+      "bytes": 485403,
+      "sha256": "e9a71de592e239acc3da3601cfbad53836931f498f409ab68535140f2045f29d"
+    },
+    "source/examples/fonts/droid/droid_serif_regular.typeface.json": {
+      "bytes": 477058,
+      "sha256": "99ff855b8c18bcec3428745f576a75bfb0da5f63fe52c23f2484c2e655c2c64a"
+    },
+    "source/examples/fonts/gentilis_bold.typeface.json": {
+      "bytes": 649318,
+      "sha256": "c028fd9c4017e34f1bf46694e4c23479cd22b812d0308f5dfc7446412c41d88c"
+    },
+    "source/examples/fonts/gentilis_regular.typeface.json": {
+      "bytes": 627529,
+      "sha256": "7ed95f2faa30f59dbe7cfb145b97c42a6ba1188cd2eec01ca61485e8c83ee9de"
+    },
+    "source/examples/fonts/helvetiker_bold.typeface.json": {
+      "bytes": 61632,
+      "sha256": "bd68159ee0b8d10fe24b9daa2e32f19686f9d8269a79dc8d44203a66298bfa2f"
+    },
+    "source/examples/fonts/helvetiker_regular.typeface.json": {
+      "bytes": 63182,
+      "sha256": "d5c5467690f74061179a292af83bd85c4c551e0f106b2af99714f11184c96981"
+    },
+    "source/examples/fonts/optimer_bold.typeface.json": {
+      "bytes": 112249,
+      "sha256": "d690a5f45706db0c15c39313cc36f8ce62ef154c6a21923809814a89f6df7c98"
+    },
+    "source/examples/fonts/optimer_regular.typeface.json": {
+      "bytes": 110666,
+      "sha256": "17e5e14d94d66e0e60eed3bfde403fcfa3e677f3c914e4cbed264c0c0ba95175"
     },
     "source/examples/jsm/geometries/TextGeometry.js": {
       "bytes": 3312,
@@ -552,8 +592,8 @@
       "sha256": "de03987c75754c821c3e511a5edc819a1054ed73d95d09b7d65ec3dd69e0fa40"
     },
     "tool/three_example/prepare.mjs": {
-      "bytes": 97048,
-      "sha256": "916f8f2e1bdfcd6ec98f14286260c3c3d5c687554751519ffcdfa4f31f942fd6"
+      "bytes": 122138,
+      "sha256": "0039953d6cdba167ee9dedcffb3d38c1006530857c78ea55c1d7b2302a643ab4"
     },
     "tool/three_example/stats_adapter.js": {
       "bytes": 2107,
@@ -565,6 +605,38 @@
       "bytes": 1081,
       "sha256": "8b378ebe60e2fe500158cb0ac71cb5e8b7d92953c2abcc63a0eb90499653b5bc"
     },
+    "fonts_droid_droid_sans_bold.typeface.json": {
+      "bytes": 329885,
+      "sha256": "ec40f077e0695e4ce9f74e9953034312eb6d1d5a9eb6c584b1eb0fd84077fb81"
+    },
+    "fonts_droid_droid_sans_regular.typeface.json": {
+      "bytes": 319895,
+      "sha256": "8f0570e6cbb9b0230dc8a19b1942fd414191f0f3bfc76e3f413c2f9cfccd2eac"
+    },
+    "fonts_droid_droid_serif_bold.typeface.json": {
+      "bytes": 485403,
+      "sha256": "e9a71de592e239acc3da3601cfbad53836931f498f409ab68535140f2045f29d"
+    },
+    "fonts_droid_droid_serif_regular.typeface.json": {
+      "bytes": 477058,
+      "sha256": "99ff855b8c18bcec3428745f576a75bfb0da5f63fe52c23f2484c2e655c2c64a"
+    },
+    "gentilis_bold.typeface.json": {
+      "bytes": 649318,
+      "sha256": "c028fd9c4017e34f1bf46694e4c23479cd22b812d0308f5dfc7446412c41d88c"
+    },
+    "gentilis_regular.typeface.json": {
+      "bytes": 627529,
+      "sha256": "7ed95f2faa30f59dbe7cfb145b97c42a6ba1188cd2eec01ca61485e8c83ee9de"
+    },
+    "helvetiker_bold.typeface.json": {
+      "bytes": 61632,
+      "sha256": "bd68159ee0b8d10fe24b9daa2e32f19686f9d8269a79dc8d44203a66298bfa2f"
+    },
+    "helvetiker_regular.typeface.json": {
+      "bytes": 63182,
+      "sha256": "d5c5467690f74061179a292af83bd85c4c551e0f106b2af99714f11184c96981"
+    },
     "manifest.json": {
       "bytes": 336,
       "sha256": "b7b956f4885796c26b1f579682351f4eb499e01a7401f8e7cda2a97585dc5fc4"
@@ -573,13 +645,21 @@
       "bytes": 7423,
       "sha256": "4f81a9da8b0d5d81f0a2270f2d722f278debf1c92db380c29002af32b8942c55"
     },
+    "optimer_bold.typeface.json": {
+      "bytes": 112249,
+      "sha256": "d690a5f45706db0c15c39313cc36f8ce62ef154c6a21923809814a89f6df7c98"
+    },
+    "optimer_regular.typeface.json": {
+      "bytes": 110666,
+      "sha256": "17e5e14d94d66e0e60eed3bfde403fcfa3e677f3c914e4cbed264c0c0ba95175"
+    },
     "original.html": {
       "bytes": 8417,
       "sha256": "de2ab6c9f3a9a3b745e41c60ea41d642bd8ec26c42f0aa54ba324928a1805147"
     },
     "widget.js": {
-      "bytes": 70718,
-      "sha256": "2d2f0a0ff82c2eba42cade07df1c8797ed3d352288542a012797f3fcc238da65"
+      "bytes": 4387698,
+      "sha256": "e729b6fdd970b87cb7eb8dd7b86709aa24e60cee29959c8be611821c9d27e553"
     }
   }
 }

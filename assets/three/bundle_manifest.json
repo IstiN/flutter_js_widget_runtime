@@ -29,7 +29,7 @@
       "tool/three/src/native_entry.js": "5fb8a476137d36328693c1d75c0754075b673f0f18acdfeafe12c6b4426cf57f",
       "tool/three/src/native_loaders.js": "d12ef99a8d7388a1468c9a6202d2f71d84c44d56bc3880524ff4d89cf7d80da9",
       "tool/three/src/native_raycast_bvh.js": "9aada0445e0fb5d1cba38ea8e801588d8b496cce8531f57ab9c60e61d7049384",
-      "tool/three/src/native_renderer.js": "ea5d1d44ccd455986f0bf1b59b0e176fcfdc9eed9850ff890604c6f28e843dcc",
+      "tool/three/src/native_renderer.js": "6e00ad85bea71e06afa2af9fd42702a555a81e6ddfbe386af29cafab6b93c517",
       "tool/three/src/native_three_shim.js": "e22a117b5d6e47db333aded60ed1b545a3b9c96b6d07b86b00867b84224dd93e",
       "tool/three/src/r1.js": "1fb8e7b5f04fd2c00bc9a5243645393a87b778fd51456856f9f07adff1b1d2ff",
       "tool/three/src/runtime.js": "54d44b4263e131260539da5a2785af3b3d9c7f5e2ae75de2b07dae4e205901fd",
@@ -44,16 +44,16 @@
   },
   "outputs": {
     "jsr_three_native.js": {
-      "bytes": 728101,
-      "sha256": "76ecbca384fc024499363b1aaa3ec4f196a0f2dc077feba26f82141b51a875b3"
+      "bytes": 728276,
+      "sha256": "b3a8aecb6f8e32d869e0473c6534cfb8a7cf7a9e8e9b4aac4aa5cad70c9220e5"
     },
     "jsr_three_web.js": {
       "bytes": 835134,
       "sha256": "9fc36cb776a1a4a8c0ef3e2e7fdefa7943967d4e525014b339f9e7417edc625a"
     },
     "three.native.js": {
-      "bytes": 728101,
-      "sha256": "76ecbca384fc024499363b1aaa3ec4f196a0f2dc077feba26f82141b51a875b3"
+      "bytes": 728276,
+      "sha256": "b3a8aecb6f8e32d869e0473c6534cfb8a7cf7a9e8e9b4aac4aa5cad70c9220e5"
     },
     "three.web.js": {
       "bytes": 835134,

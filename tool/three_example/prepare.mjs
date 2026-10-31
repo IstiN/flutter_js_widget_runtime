@@ -1490,7 +1490,18 @@ webgl_geometry_shapes: {
       html: 'de2ab6c9f3a9a3b745e41c60ea41d642bd8ec26c42f0aa54ba324928a1805147',
       module: '4f81a9da8b0d5d81f0a2270f2d722f278debf1c92db380c29002af32b8942c55'
     },
-    assets: []
+    assets: [
+      { url: 'fonts/helvetiker_regular.typeface.json', sha256: 'd5c5467690f74061179a292af83bd85c4c551e0f106b2af99714f11184c96981', output: 'helvetiker_regular.typeface.json', mime: 'application/json' },
+      { url: 'fonts/helvetiker_bold.typeface.json', sha256: 'bd68159ee0b8d10fe24b9daa2e32f19686f9d8269a79dc8d44203a66298bfa2f', output: 'helvetiker_bold.typeface.json', mime: 'application/json' },
+      { url: 'fonts/optimer_regular.typeface.json', sha256: '17e5e14d94d66e0e60eed3bfde403fcfa3e677f3c914e4cbed264c0c0ba95175', output: 'optimer_regular.typeface.json', mime: 'application/json' },
+      { url: 'fonts/optimer_bold.typeface.json', sha256: 'd690a5f45706db0c15c39313cc36f8ce62ef154c6a21923809814a89f6df7c98', output: 'optimer_bold.typeface.json', mime: 'application/json' },
+      { url: 'fonts/gentilis_regular.typeface.json', sha256: '7ed95f2faa30f59dbe7cfb145b97c42a6ba1188cd2eec01ca61485e8c83ee9de', output: 'gentilis_regular.typeface.json', mime: 'application/json' },
+      { url: 'fonts/gentilis_bold.typeface.json', sha256: 'c028fd9c4017e34f1bf46694e4c23479cd22b812d0308f5dfc7446412c41d88c', output: 'gentilis_bold.typeface.json', mime: 'application/json' },
+      { url: 'fonts/droid/droid_sans_regular.typeface.json', sha256: '8f0570e6cbb9b0230dc8a19b1942fd414191f0f3bfc76e3f413c2f9cfccd2eac', output: 'fonts_droid_droid_sans_regular.typeface.json', mime: 'application/json' },
+      { url: 'fonts/droid/droid_sans_bold.typeface.json', sha256: 'ec40f077e0695e4ce9f74e9953034312eb6d1d5a9eb6c584b1eb0fd84077fb81', output: 'fonts_droid_droid_sans_bold.typeface.json', mime: 'application/json' },
+      { url: 'fonts/droid/droid_serif_regular.typeface.json', sha256: '99ff855b8c18bcec3428745f576a75bfb0da5f63fe52c23f2484c2e655c2c64a', output: 'fonts_droid_droid_serif_regular.typeface.json', mime: 'application/json' },
+      { url: 'fonts/droid/droid_serif_bold.typeface.json', sha256: 'e9a71de592e239acc3da3601cfbad53836931f498f409ab68535140f2045f29d', output: 'fonts_droid_droid_serif_bold.typeface.json', mime: 'application/json' }
+    ]
   },
   webgl_instancing_dynamic: {
     id: 'three-instancing-dynamic',
