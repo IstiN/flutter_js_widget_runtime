@@ -127,4 +127,11 @@ flutter:
     - widgets/three-geometry-text-stroke/
     - widgets/three-test-memory/
     - widgets/three-loader-texture-tga/
+    - widgets/three-morphtargets/
+    - widgets/three-morphtargets-sphere/
+    - widgets/three-shadowmap/
+    - widgets/three-shadowmap-performance/
+    - widgets/three-animation-multiple/
+    - widgets/three-animation-skinning-blending/
+    - widgets/three-animation-skinning-morph/
     - assets/models/

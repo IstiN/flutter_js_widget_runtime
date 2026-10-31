@@ -396,7 +396,7 @@ export class JsrWebGLRenderer {
       reset: () => { this.info.render.calls = 0; this.info.render.triangles = 0; this.info.render.points = 0; this.info.render.lines = 0; }
     };
     this._clearColor = new Color(0x000000);
-    this._clearAlpha = 0;
+    this._clearAlpha = 1; // upstream WebGLRenderer clears opaque black by default
     this._pixelRatio = canvas.pixelRatio || 1;
     this._width = canvas.clientWidth || canvas.width;
     this._height = canvas.clientHeight || canvas.height;
@@ -963,7 +963,7 @@ export class JsrWebGLRenderer {
   _ensureGeometry(geometry, primitive, mode, commands, wireframe = false) {    if (!geometry || !geometry.isBufferGeometry) unsupported('geometry', 'only BufferGeometry is supported');
     if (geometry.isInstancedBufferGeometry) unsupported('instancedGeometry');
     if (geometry.index && (!geometry.index.array || geometry.index.isGLBufferAttribute)) unsupported('rawGLAttribute', 'index');
-    if (geometry.morphAttributes && Object.keys(geometry.morphAttributes).some(key => geometry.morphAttributes[key] && geometry.morphAttributes[key].length)) unsupported('morphTargets');
+
     const position = geometry.attributes.position;
     if (!position) throw new Error('three.invalid: position attribute is required');
     const vertexCount = position.count;
@@ -1189,6 +1189,144 @@ export class JsrWebGLRenderer {
     return { primitive: 0, parts, instanceCount: instance ? instance.count : 1 };
   }
 
+  /// CPU morph targets: blend the base position/normal attributes with the
+  /// mesh's morphTargetInfluences in place. The ordinary attribute
+  /// version/hash lane then uploads the result, so morphing needs no
+  /// protocol or shader changes. Shared geometry with per-mesh influences
+  /// is unsupported upstream-style (last writer wins), matching the
+  /// examples' single-mesh usage.
+  _applyMorphTargets(object) {
+    const geometry = object.geometry;
+    const influences = object.morphTargetInfluences;
+    if (!geometry || !geometry.morphAttributes || !influences || !influences.length) return;
+    const morphPositions = geometry.morphAttributes.position;
+    const morphNormals = geometry.morphAttributes.normal;
+    if ((!morphPositions || !morphPositions.length) && (!morphNormals || !morphNormals.length)) return;
+    if (!geometry._r1MorphBase) {
+      geometry._r1MorphBase = {
+        position: geometry.attributes.position.array.slice(),
+        normal: geometry.attributes.normal ? geometry.attributes.normal.array.slice() : null,
+        key: ''
+      };
+    }
+    const base = geometry._r1MorphBase;
+    const key = influences.join(',');
+
+    if (base.key === key) return;
+    base.key = key;
+    const relative = !!geometry.morphTargetsRelative;
+    let baseInfluence = 1;
+    if (!relative) for (let i = 0; i < influences.length; i++) baseInfluence -= influences[i];
+    const blend = (attributeName, targets, baseArray) => {
+      const attribute = geometry.attributes[attributeName];
+      if (!attribute || !targets || !targets.length || !baseArray) return;
+      const out = attribute.array;
+      const count = out.length;
+      for (let i = 0; i < count; i++) {
+        let value = relative ? baseArray[i] : baseArray[i] * baseInfluence;
+        for (let t = 0; t < targets.length && t < influences.length; t++) {
+          const weight = influences[t];
+          if (weight === 0) continue;
+          const source = targets[t].array;
+          value += weight * (relative ? source[i] : source[i]);
+        }
+        out[i] = value;
+      }
+      attribute.version++;
+    };
+    if (morphPositions && morphPositions.length) blend('position', morphPositions, base.position);
+    if (morphNormals && morphNormals.length && base.normal) blend('normal', morphNormals, base.normal);
+  }
+
+  /// CPU skeletal animation: B_i = bindMatrixInverse * boneMatrix_i *
+  /// bindMatrix composed once per frame, then a typed-array weighted blend
+  /// per vertex. Same upload lane as CPU morphing; GPU skinning remains a
+  /// possible later optimization for very large meshes.
+  _applySkining(object) {
+    const geometry = object.geometry;
+    const skeleton = object.skeleton;
+    if (!geometry || !skeleton) return;
+    skeleton.update();
+    const position = geometry.attributes.position;
+    if (!position) return;
+    if (!geometry._r1SkinBase) {
+      geometry._r1SkinBase = {
+        position: position.array.slice(),
+        normal: geometry.attributes.normal ? geometry.attributes.normal.array.slice() : null
+      };
+    }
+    const base = geometry._r1SkinBase;
+    const readAccessor = (attribute) => {
+      const interleaved = !!attribute.isInterleavedBufferAttribute;
+      let scale = 1;
+      if (attribute.normalized) {
+        const array = attribute.array;
+        if (array instanceof Uint8Array) scale = 1 / 255;
+        else if (array instanceof Uint16Array) scale = 1 / 65535;
+        else if (array instanceof Uint32Array) scale = 1 / 4294967295;
+        else if (array instanceof Int8Array) scale = 1 / 127;
+        else if (array instanceof Int16Array) scale = 1 / 32767;
+        else if (array instanceof Int32Array) scale = 1 / 2147483647;
+      }
+      return {
+        array: attribute.array,
+        stride: interleaved ? attribute.data.stride : attribute.itemSize,
+        offset: interleaved ? attribute.offset : 0,
+        scale
+      };
+    };
+    const si = readAccessor(geometry.attributes.skinIndex);
+    const sw = readAccessor(geometry.attributes.skinWeight);
+    const boneCount = skeleton.bones.length;
+    if (!this._r1SkinMatrices || this._r1SkinMatrices.length < boneCount * 16) {
+      this._r1SkinMatrices = new Float32Array(boneCount * 16);
+    }
+    const B = this._r1SkinMatrices;
+    const tmpA = this._r1SkinTmpA || (this._r1SkinTmpA = new object.bindMatrix.constructor());
+    const tmpB = this._r1SkinTmpB || (this._r1SkinTmpB = new object.bindMatrix.constructor());
+    for (let b = 0; b < boneCount; b++) {
+      tmpA.fromArray(skeleton.boneMatrices, b * 16);
+      tmpB.multiplyMatrices(object.bindMatrixInverse, tmpA);
+      tmpA.multiplyMatrices(tmpB, object.bindMatrix);
+      B.set(tmpA.elements, b * 16);
+    }
+    const basePos = base.position;
+    const outPos = position.array;
+    const normal = geometry.attributes.normal;
+    const baseNormal = base.normal;
+    const outNormal = normal ? normal.array : null;
+    for (let v = 0; v < position.count; v++) {
+      const p3 = v * 3, w4 = v * 4;
+      const x = basePos[p3], y = basePos[p3 + 1], z = basePos[p3 + 2];
+      const nx = baseNormal ? baseNormal[p3] : 0;
+      const ny = baseNormal ? baseNormal[p3 + 1] : 0;
+      const nz = baseNormal ? baseNormal[p3 + 2] : 0;
+      let ox = 0, oy = 0, oz = 0, onx = 0, ony = 0, onz = 0;
+      for (let k = 0; k < 4; k++) {
+        const w = sw.array[v * sw.stride + sw.offset + k] * sw.scale;
+        if (w === 0) continue;
+        const m = si.array[v * si.stride + si.offset + k] * 16;
+        ox += w * (B[m] * x + B[m + 4] * y + B[m + 8] * z + B[m + 12]);
+        oy += w * (B[m + 1] * x + B[m + 5] * y + B[m + 9] * z + B[m + 13]);
+        oz += w * (B[m + 2] * x + B[m + 6] * y + B[m + 10] * z + B[m + 14]);
+        if (outNormal) {
+          onx += w * (B[m] * nx + B[m + 4] * ny + B[m + 8] * nz);
+          ony += w * (B[m + 1] * nx + B[m + 5] * ny + B[m + 9] * nz);
+          onz += w * (B[m + 2] * nx + B[m + 6] * ny + B[m + 10] * nz);
+        }
+      }
+      outPos[p3] = ox; outPos[p3 + 1] = oy; outPos[p3 + 2] = oz;
+      if (outNormal) {
+        const length = Math.sqrt(onx * onx + ony * ony + onz * onz) || 1;
+        outNormal[p3] = onx / length;
+        outNormal[p3 + 1] = ony / length;
+        outNormal[p3 + 2] = onz / length;
+      }
+    }
+    position.version++;
+    if (normal) normal.version++;
+  }
+
   _ensureNode(object, parentId, commands, drawVisible) {
     const id = resourceId(object);
     const materialVisible = !object.material || object.material.visible !== false;
@@ -1235,7 +1373,9 @@ export class JsrWebGLRenderer {
       objectKind = 4;
       draw = { primitive: 0, count: geometry.drawCount };
     } else if (object.isMesh || object.isLine || object.isLineSegments || object.isPoints) {
-      if (object.isSkinnedMesh || object.isBatchedMesh || object.isSprite) unsupported('objectType', object.type);
+      this._applyMorphTargets(object);
+      if (object.isSkinnedMesh) this._applySkining(object);
+      if (object.isBatchedMesh || object.isSprite) unsupported('objectType', object.type);
       if (object.isLineLoop) unsupported('LineLoop');
       const material = object.material;
       if (!material || (Array.isArray(material) && material.length === 0)) throw new Error('three.invalid: drawable has no material');
@@ -1258,7 +1398,7 @@ export class JsrWebGLRenderer {
       }
     } else if (object.isLight || object.isCamera) {
       return null;
-    } else if (object.isSkinnedMesh || object.isInstancedMesh || object.isBatchedMesh) {
+    } else if (object.isInstancedMesh || object.isBatchedMesh) {
       unsupported('objectType', object.type);
     }
     if (!batched) this._removeBatch(id, commands);

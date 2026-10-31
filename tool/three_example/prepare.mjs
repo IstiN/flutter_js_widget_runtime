@@ -1293,7 +1293,20 @@ webgl_geometry_shapes: {
       html: 'a55e9abd43d38d768a4e2794597c8d18942baed688ce6d67fc9ed596cfd876e6',
       module: 'ffa7ef69413efb516d8d6413f7b19f7e1b6e9eeb443871938d5549f755c6d520'
     },
-    assets: []
+    assets: [
+          {
+                "url": "models/gltf/AnimatedMorphSphere/glTF/AnimatedMorphSphere.bin",
+                "mime": "application/octet-stream",
+                "output": "AnimatedMorphSphere.bin",
+                "sha256": "ce13772de449d2c577cc960bc5f74a7c572e886c15046c73eb028023f9c7d167"
+          },
+          {
+                "url": "models/gltf/AnimatedMorphSphere/glTF/AnimatedMorphSphere.gltf",
+                "mime": "application/json",
+                "output": "AnimatedMorphSphere.gltf",
+                "sha256": "3513fe07ad24f9a8bbb47a961d2d7474b5ff22dbbf87f9273e5982562ced2aee"
+          }
+    ]
   },
   webgl_points_waves: {
     id: 'three-points-waves',

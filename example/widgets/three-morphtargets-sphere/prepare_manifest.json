@@ -504,12 +504,12 @@
   },
   "inputs": {
     "assets/three/three.native.js": {
-      "bytes": 724399,
-      "sha256": "f5274a4cb428b18491b082eed0d416d90dc36ea7a84a129f752dec1b9ee5596b"
+      "bytes": 726307,
+      "sha256": "42fb67a6c01fc2deeb757a73c014c56573111a3afaf545855954a1ab3eb25554"
     },
     "assets/three/three.web.js": {
-      "bytes": 834390,
-      "sha256": "e4e059b5c360606fb4ed721f2d686821b0b840119a3939535160b279c5deea6b"
+      "bytes": 835134,
+      "sha256": "9fc36cb776a1a4a8c0ef3e2e7fdefa7943967d4e525014b339f9e7417edc625a"
     },
     "source/LICENSE": {
       "bytes": 1081,
@@ -530,6 +530,14 @@
     "source/examples/jsm/utils/SkeletonUtils.js": {
       "bytes": 11535,
       "sha256": "b1632a703206c3d830de9fcbe515696770d04b71a15ee6b50afa6d2c3298c86f"
+    },
+    "source/examples/models/gltf/AnimatedMorphSphere/glTF/AnimatedMorphSphere.bin": {
+      "bytes": 218476,
+      "sha256": "ce13772de449d2c577cc960bc5f74a7c572e886c15046c73eb028023f9c7d167"
+    },
+    "source/examples/models/gltf/AnimatedMorphSphere/glTF/AnimatedMorphSphere.gltf": {
+      "bytes": 4622,
+      "sha256": "3513fe07ad24f9a8bbb47a961d2d7474b5ff22dbbf87f9273e5982562ced2aee"
     },
     "source/examples/webgl_morphtargets_sphere.html": {
       "bytes": 3801,
@@ -556,8 +564,8 @@
       "sha256": "de03987c75754c821c3e511a5edc819a1054ed73d95d09b7d65ec3dd69e0fa40"
     },
     "tool/three_example/prepare.mjs": {
-      "bytes": 97048,
-      "sha256": "916f8f2e1bdfcd6ec98f14286260c3c3d5c687554751519ffcdfa4f31f942fd6"
+      "bytes": 120078,
+      "sha256": "967d5ebcdbb5805fcf822cbcd181cfa4a7e1e605d10a94c5f8690fcbdff2f23d"
     },
     "tool/three_example/stats_adapter.js": {
       "bytes": 2107,
@@ -565,6 +573,14 @@
     }
   },
   "outputs": {
+    "AnimatedMorphSphere.bin": {
+      "bytes": 218476,
+      "sha256": "ce13772de449d2c577cc960bc5f74a7c572e886c15046c73eb028023f9c7d167"
+    },
+    "AnimatedMorphSphere.gltf": {
+      "bytes": 4622,
+      "sha256": "3513fe07ad24f9a8bbb47a961d2d7474b5ff22dbbf87f9273e5982562ced2aee"
+    },
     "THREE_LICENSE": {
       "bytes": 1081,
       "sha256": "8b378ebe60e2fe500158cb0ac71cb5e8b7d92953c2abcc63a0eb90499653b5bc"
@@ -582,8 +598,8 @@
       "sha256": "a55e9abd43d38d768a4e2794597c8d18942baed688ce6d67fc9ed596cfd876e6"
     },
     "widget.js": {
-      "bytes": 88940,
-      "sha256": "11577c52e398a1b7020b2aebb204f7d9537f3410d8204317406bb12a2513777e"
+      "bytes": 386700,
+      "sha256": "06a800d1fbc29f8d31d90da737b7d13388ed208f417997c61ac2fa723d126312"
     }
   }
 }

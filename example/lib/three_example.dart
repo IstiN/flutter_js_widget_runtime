@@ -1,6 +1,9 @@
 import 'dart:async';
+import 'dart:io';
+import 'dart:ui' as ui;
 
 import 'package:flutter/foundation.dart';
+import 'package:flutter/rendering.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:js_widget_runtime/js_widget_runtime.dart';
@@ -423,7 +426,48 @@ enum ThreeExampleSelection {
     assetPath: 'widgets/three-loader-texture-tga/widget.js',
   ),
 
-  ;
+  morphtargets(
+    exampleId: 'webgl_morphtargets',
+    label: 'Morph Targets',
+    widgetId: 'three-morphtargets',
+    assetPath: 'widgets/three-morphtargets/widget.js',
+  ),
+  morphtargetsSphere(
+    exampleId: 'webgl_morphtargets_sphere',
+    label: 'Morph Sphere',
+    widgetId: 'three-morphtargets-sphere',
+    assetPath: 'widgets/three-morphtargets-sphere/widget.js',
+  ),
+  shadowmap(
+    exampleId: 'webgl_shadowmap',
+    label: 'Shadow Map',
+    widgetId: 'three-shadowmap',
+    assetPath: 'widgets/three-shadowmap/widget.js',
+  ),
+  shadowmapPerformance(
+    exampleId: 'webgl_shadowmap_performance',
+    label: 'Shadow Map Performance',
+    widgetId: 'three-shadowmap-performance',
+    assetPath: 'widgets/three-shadowmap-performance/widget.js',
+  ),
+  animationMultiple(
+    exampleId: 'webgl_animation_multiple',
+    label: 'Animation Multiple',
+    widgetId: 'three-animation-multiple',
+    assetPath: 'widgets/three-animation-multiple/widget.js',
+  ),
+  animationSkinningBlending(
+    exampleId: 'webgl_animation_skinning_blending',
+    label: 'Skinning Blending',
+    widgetId: 'three-animation-skinning-blending',
+    assetPath: 'widgets/three-animation-skinning-blending/widget.js',
+  ),
+  animationSkinningMorph(
+    exampleId: 'webgl_animation_skinning_morph',
+    label: 'Skinning Morph',
+    widgetId: 'three-animation-skinning-morph',
+    assetPath: 'widgets/three-animation-skinning-morph/widget.js',
+  );
 
   const ThreeExampleSelection({
     required this.exampleId,
@@ -452,6 +496,13 @@ enum ThreeExampleSelection {
   /// lightsHemisphere and interactivePoints render a ShaderMaterial
   /// (skydome / point sprites) that native R1 does not provide by design.
   static final List<ThreeExampleSelection> sidebarOrder = [
+    morphtargets,
+    morphtargetsSphere,
+    shadowmap,
+    shadowmapPerformance,
+    animationMultiple,
+    animationSkinningBlending,
+    animationSkinningMorph,
     geometries,
     lod,
     cameraArray,
@@ -559,6 +610,9 @@ class ThreeExampleApp extends StatefulWidget {
 
 class _ThreeExampleAppState extends State<ThreeExampleApp> {
   static const _autoMs = int.fromEnvironment('JSR_THREE_AUTO');
+  static const _captureDir = String.fromEnvironment('JSR_CAPTURE_DIR');
+  final GlobalKey _captureKey = GlobalKey();
+  Timer? _captureTimer;
   ThreeExampleSelection _selection = ThreeExampleSelection.initial;
   ThreeExampleSelection? _pendingSelection;
   Timer? _autoTimer;
@@ -567,6 +621,7 @@ class _ThreeExampleAppState extends State<ThreeExampleApp> {
   @override
   void initState() {
     super.initState();
+    _scheduleCapture(_selection);
     if (_autoMs > 0) {
       _autoTimer = Timer.periodic(Duration(milliseconds: _autoMs), (_) {
         if (!mounted) return;
@@ -580,8 +635,28 @@ class _ThreeExampleAppState extends State<ThreeExampleApp> {
 
   @override
   void dispose() {
+    _captureTimer?.cancel();
     _autoTimer?.cancel();
     super.dispose();
+  }
+
+  /// Screenshot mode for visual parity checks against the official WebGL
+  /// examples: after the selection settles, capture the preview boundary.
+  void _scheduleCapture(ThreeExampleSelection selection) {
+    if (_captureDir.isEmpty) return;
+    _captureTimer?.cancel();
+    _captureTimer = Timer(const Duration(seconds: 7), () async {
+      final boundary = _captureKey.currentContext?.findRenderObject();
+      if (boundary is! RenderRepaintBoundary) return;
+      final image = await boundary.toImage(pixelRatio: 2);
+      final bytes = await image.toByteData(format: ui.ImageByteFormat.png);
+      if (bytes == null) return;
+      final file = File('$_captureDir/${selection.exampleId}.png');
+      await file.create(recursive: true);
+      await file.writeAsBytes(bytes.buffer.asUint8List(), flush: true);
+      debugPrint('CAPTURED ${selection.exampleId} ${bytes.lengthInBytes}');
+      image.dispose();
+    });
   }
 
   void _selectExample(ThreeExampleSelection selection) {
@@ -595,6 +670,7 @@ class _ThreeExampleAppState extends State<ThreeExampleApp> {
     // Paint the loading overlay before disposing the old engine and starting
     // the next one. Both operations can synchronously occupy the UI isolate.
     setState(() => _pendingSelection = selection);
+    _scheduleCapture(selection);
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted || _pendingSelection != selection) return;
       setState(() {
@@ -620,7 +696,9 @@ class _ThreeExampleAppState extends State<ThreeExampleApp> {
               onChanged: _selectExample,
             ),
             Expanded(
-              child: Stack(
+              child: RepaintBoundary(
+                key: _captureKey,
+                child: Stack(
                 fit: StackFit.expand,
                 children: [
                   ThreeExamplePage(
@@ -632,6 +710,7 @@ class _ThreeExampleAppState extends State<ThreeExampleApp> {
                       child: _ThreeExampleLoading(selection: pendingSelection),
                     ),
                 ],
+                ),
               ),
             ),
           ],

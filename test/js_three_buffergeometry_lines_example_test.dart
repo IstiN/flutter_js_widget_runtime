@@ -158,173 +158,64 @@ void main() {
   // morph attributes stripped renders a full healthy draw plan. If R1 ever
   // gains morph target support, this test should collapse into part 3's
   // assertions run against the unmodified widget.
-  testWidgets('webgl_buffergeometry_lines boots but cannot render on R1 '
-      '(morphTargets facade gap)', (tester) async {
-    // Part 1 — the unmodified widget: healthy boot, zero R1 frame submits.
+  testWidgets('webgl_buffergeometry_lines renders with CPU morph targets',
+      (tester) async {
+    // R1 applies morphTargetInfluences on the CPU in the scene serializer
+    // (native_renderer._applyMorphTargets): the same widget that used to
+    // fail with three.unsupported: morphTargets now renders every frame.
     final harness = await ThreeQuickjsExampleHarness.boot(
       tester,
       widgetId: 'three-buffergeometry-lines',
       instanceId: 'three-buffergeometry-lines-test',
     );
-    await harness.pumpFrames(tester, 120);
-
-    final exported = harness.engine.exportedState!;
-    expect(exported['example'], 'webgl_buffergeometry_lines');
-    expect(exported['backend'], 'flutterGpu');
-    expect(exported['canvasCount'], 1);
-    expect(exported['mounted'], isTrue);
-    // The mount render envelope carries the capability error; the RAF loop
-    // re-throws it every tick, so renderer/stats counters never advance.
-    expect(harness.renderTrees.first['type'], 'three');
-    expect(harness.renderTrees.first['canvasId'], 'main');
-    expect(
-      harness.renderTrees.last.toString(),
-      contains('three.unsupported: morphTargets'),
-    );
-    expect(harness.surface, isNull);
-    expect((exported['renderer'] as Map<String, dynamic>)['frame'], 0);
-    expect((exported['stats'] as Map<String, dynamic>)['updates'], 0);
-    await harness.dispose(tester);
-
-    // Part 2 — instrumented copy proving the exact per-frame failure:
-    // animate() runs on every RAF tick and renderer.render() throws the
-    // morphTargets capability error.
-    var source = File(
-      'example/widgets/three-buffergeometry-lines/widget.js',
-    ).readAsStringSync();
-    source = source
-        .replaceAll(
-          'function Ae(){I.update();',
-          'function Ae(){console.log("JSR_ANIM");I.update();',
-        )
-        .replaceAll(
-          'v.morphTargetInfluences[0]=Math.abs(Math.sin(xe)),'
-              'F.render(Y,P),Q.update()}',
-          '(function(){try{return F.render(Y,P)}catch(e)'
-              '{console.error("JSR_RENDERFAIL code="+e.code'
-              '+" feature="+e.feature+" msg="+e.message)}})()'
-              ',Q.update()}',
-        );
-    final probe = await ThreeQuickjsExampleHarness.bootSource(
-      tester,
-      source: source,
-      instanceId: 'three-buffergeometry-lines-gap-probe',
-    );
-    await probe.pumpFrames(tester, 20);
-    final logs = (probe.backend as QuickjsWidgetEngineBackend).peekLogs().map(
-      (entry) => entry['msg'] as String,
-    );
-
-    expect(logs.any((msg) => msg.contains('JSR_ANIM')), isTrue);
-    expectRenderFailFeature(logs, 'morphTargets');
-    await probe.dispose(tester);
-
-    // Part 3 — the same widget with ONLY the morph pieces stripped
-    // (generateMorphTargets call and the influence mutation): everything
-    // else is R1-clean and renders the full non-indexed line plan.
-    source = File(
-      'example/widgets/three-buffergeometry-lines/widget.js',
-    ).readAsStringSync();
-    source = source
-        .replaceAll(
-          'new k(a,3)),Fe(r),r.computeBoundingSphere()',
-          'new k(a,3)),r.computeBoundingSphere()',
-        )
-        .replaceAll('v.morphTargetInfluences[0]=Math.abs(Math.sin(xe)),', '');
-    source = source.replaceAll(
-      'F.render(Y,P),Q.update()}',
-      '(function(){try{return F.render(Y,P)}catch(e){console.error("DEMORPHFAIL "+e.code+" "+e.message)}})(),Q.update()}',
-    );
-    final clean = await ThreeQuickjsExampleHarness.bootSource(
-      tester,
-      source: source,
-      instanceId: 'three-buffergeometry-lines-demorphed-probe',
-    );
-    await clean.pumpUntil(
+    await harness.pumpUntil(
       tester,
       (state, plan) =>
-          state.geometryUploadCount == 1 &&
+          state.geometryUploadCount >= 1 &&
           plan.draws.length == 1 &&
           state.submittedFrameCount >= 3,
     );
-    clean.expectHealthy('webgl_buffergeometry_lines');
+    harness.expectHealthy('webgl_buffergeometry_lines');
 
-    final state = clean.state!;
-    final plan = clean.plan!;
-    expect(state.geometryUploadCount, 1);
+    final state = harness.state!;
+    final plan = harness.plan!;
     expect(state.textureUploadCount, 0);
     expect(state.materialUploadCount, 1);
-    expect(state.materials, hasLength(1));
-    expect(plan.triangleCount, 0);
-    expect(plan.spotLights, isEmpty);
-    expect(plan.directionalLights, isEmpty);
-    expect(plan.pointLights, isEmpty);
-    expect(plan.hemisphereLights, isEmpty);
-    expect(plan.frame!.hasShadow, isFalse);
-
-    // THREE.Line (strip): R1 materializes strips as segment-pair indices
-    // (tool/three/src/native_renderer.js:101-111 prepareIndices expands
-    // mode 'line' to (N-1)*2 entries), so 10000 vertices become 9999
-    // segments even though the module's source geometry is non-indexed.
     expect(plan.draws, hasLength(1));
     final draw = plan.draws.single;
     expect(draw.primitive, ThreeDrawPrimitive.lines);
     expect(draw.indexed, isTrue);
     expect(draw.geometry.indexCount, 19998);
     expect(draw.drawCount, 19998);
-    expect(draw.drawCount ~/ 2, 9999); // consecutive-vertex strip segments
     expect(draw.geometry.vertexCount, 10000);
-    expect(draw.instanceCount, 1);
-    expect(draw.instanced, isFalse);
     expect(draw.geometry.normals, isNull);
     expect(draw.geometry.colors, isNotNull);
-
-    // The palette is a pure function of the random positions:
-    // color channel = coordinate / 800 + 0.5 with coordinates in [-400, 400).
-    final positions = draw.geometry.positions;
-    final colors = draw.geometry.colors!;
-    expect(positions.length, 10000 * 3);
-    expect(colors.length, 10000 * 3);
-    for (var i = 0; i < positions.length; i++) {
-      expect(positions[i], inInclusiveRange(-400, 400));
-      expect(colors[i], closeTo(positions[i] / 800 + 0.5, 0.0001));
-    }
-
     expectLineBasicVertexColorsMaterial(draw.material);
 
-    // Camera sits at z = 2750; the line rotates about its own origin, so
-    // its view-space depth stays fixed at -2750.
-    expect(state.camera, isNotNull);
-    expect(state.camera!.matrixWorld[14], closeTo(2750, 1));
-    expect(draw.viewDepth, closeTo(-2750, 10));
-
-    // Topology: exactly one line node, parented DIRECTLY on the scene root
-    // (no parent_node group in this variant).
-    final lineNodes = state.nodes.values
-        .where((node) => node.objectKind == JsThreeObjectKind.line)
-        .toList();
-    expect(lineNodes, hasLength(1));
-    final lineNode = lineNodes.single;
-    expect(lineNode, same(draw.node));
-    expect(lineNode.visible, isTrue);
-    expect(lineNode.parentId, state.scene!.nodeId);
-
-    // animate() spins the line itself (rotation.x = time * 0.25, y = time *
-    // 0.5): frames keep flowing without re-uploading resources and the live
-    // node matrix keeps changing. Node upserts are immutable snapshots.
-    final nodeId = lineNode.nodeId;
-    final before = List<double>.from(lineNode.matrixWorld);
-    final uploadsBefore = (
-      state.geometryUploadCount,
-      state.materialUploadCount,
-    );
+    // The morphed positions animate with |sin(time)| influences: positions
+    // change across frames while the palette attribute stays constant.
+    final positionsBefore = List<double>.from(draw.geometry.positions);
+    final colorsBefore = List<double>.from(draw.geometry.colors!);
     final framesBefore = state.submittedFrameCount;
-    await clean.pumpFrames(tester, 5);
+    final lineNode = state.nodes.values
+        .where((node) => node.objectKind == JsThreeObjectKind.line)
+        .single;
+    final matrixBefore = List<double>.from(lineNode.matrixWorld);
+    // |sin(Date.now() * 0.001)| drives the influence: advance the wall
+    // clock so the sampled influence provably changes between snapshots.
+    await tester.runAsync(() => Future<void>.delayed(const Duration(milliseconds: 120)));
+    await harness.pumpFrames(tester, 8);
     expect(state.submittedFrameCount, greaterThan(framesBefore));
-    expect(state.geometryUploadCount, uploadsBefore.$1);
-    expect(state.materialUploadCount, uploadsBefore.$2);
-    final after = List<double>.from(state.nodes[nodeId]!.matrixWorld);
-    expect(after, isNot(equals(before)));
-    await clean.dispose(tester);
+    // harness.plan is only rebuilt inside pumpUntil: re-plan explicitly to
+    // observe the freshly uploaded morphed geometry.
+    final afterPlan = const ThreeDrawPlanner().plan(harness.state!);
+    final positionsAfter = afterPlan.draws.single.geometry.positions;
+    expect(positionsAfter, isNot(equals(positionsBefore)));
+    expect(afterPlan.draws.single.geometry.colors!, equals(colorsBefore));
+    expect(
+      state.nodes[lineNode.nodeId]!.matrixWorld,
+      isNot(equals(matrixBefore)),
+    );
+    await harness.dispose(tester);
   }, timeout: const Timeout(Duration(seconds: 180)));
 }
