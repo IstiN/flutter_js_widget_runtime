@@ -364,15 +364,15 @@ ByteData _threeLightsUniform(ThreeDrawPlan plan) {
 
 const _threeBooleanFloat = <bool, double>{false: 0, true: 1};
 
-const int threeMaxClippingPlanes = 8;
+const int threeMaxClippingPlanes = 16;
 
-/// Per-draw clipping block: 8 world-space planes plus
+/// Per-draw clipping block: 16 world-space planes plus
 /// [count, intersection, clipShadows, reserved].
 ByteData _threeClippingUniform(
   ThreeDrawPlan plan,
   JsThreeMaterialUpsert material,
 ) {
-  final data = ByteData(144);
+  final data = ByteData(272);
   if (!material.hasClipping) return data;
   final set = plan.clippings[material.clipId];
   if (set == null) return data;
@@ -391,7 +391,7 @@ ByteData _threeClippingUniform(
       -set.planes[offset + 3],
     ]);
   }
-  _writeFloats(data, 128, [
+  _writeFloats(data, 256, [
     count.toDouble(),
     material.clipIntersection ? 1 : 0,
     material.clipShadows ? 1 : 0,

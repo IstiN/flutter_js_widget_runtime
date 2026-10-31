@@ -113,11 +113,52 @@ function sourceIndices(geometry, vertexCount) {
   return result;
 }
 
+// Matches THREE's denormalize() scaling for normalized integer attributes.
+function normalizedAttributeScale(array) {
+  if (array instanceof Int8Array) return 1 / 127;
+  if (array instanceof Int16Array) return 1 / 32767;
+  if (array instanceof Int32Array) return 1 / 2147483647;
+  if (array instanceof Uint8Array || array instanceof Uint8ClampedArray) return 1 / 255;
+  if (array instanceof Uint16Array) return 1 / 65535;
+  if (array instanceof Uint32Array) return 1 / 4294967295;
+  return 0;
+}
+
 function attributeFloats(attribute, vertexCount, components, name) {
   if (!attribute) return null;
   if (typeof attribute.getComponent !== 'function' || attribute.isGLBufferAttribute) unsupported('rawGLAttribute', name);
   if (attribute.itemSize !== components || attribute.count !== vertexCount) throw new Error(`three.invalid: ${name} attribute must have ${components} components per vertex`);
-  const values = new Float32Array(vertexCount * components);
+  const total = vertexCount * components;
+  const values = new Float32Array(total);
+  const array = attribute.array;
+  // Fast path: a plain (non-interleaved) typed array is read by direct
+  // indexing. Calling attribute.getComponent per component costs ~13.5M
+  // QuickJS calls on the 500k-triangle integer-buffergeometry example and
+  // dominated its load time; integer arrays are always finite, so the
+  // strict finite check is only needed for float input.
+  if (array && !attribute.isInterleavedBufferAttribute && array.length >= total) {
+    if (attribute.normalized) {
+      const scale = normalizedAttributeScale(array);
+      if (scale) {
+        const signed = array instanceof Int8Array || array instanceof Int16Array || array instanceof Int32Array;
+        for (let i = 0; i < total; i++) {
+          const value = array[i] * scale;
+          values[i] = signed ? Math.max(value, -1) : value;
+        }
+        return values;
+      }
+    } else if (array instanceof Float32Array || array instanceof Float64Array) {
+      for (let i = 0; i < total; i++) {
+        const value = array[i];
+        requireFinite(value, `${name} attribute`);
+        values[i] = value;
+      }
+      return values;
+    } else {
+      for (let i = 0; i < total; i++) values[i] = array[i];
+      return values;
+    }
+  }
   for (let i = 0; i < vertexCount; i++) {
     for (let c = 0; c < components; c++) {
       const value = attribute.getComponent(i, c);
@@ -129,6 +170,14 @@ function attributeFloats(attribute, vertexCount, components, name) {
 }
 
 function prepareIndices(geometry, primitive, mode, vertexCount) {
+  // Skip materializing the sequential [0..vertexCount) index array for a
+  // full-range non-indexed draw only to discard it again below.
+  if (!geometry.index && mode !== 'line' && geometry.drawRange.start === 0 && geometry.drawRange.count === Infinity) {
+    if ((primitive === 0 && vertexCount % 3 !== 0) || (primitive === 1 && vertexCount % 2 !== 0)) {
+      throw new Error('three.invalid: primitive vertex count is not aligned');
+    }
+    return null;
+  }
   let source = sourceIndices(geometry, vertexCount);
   if (mode === 'line') {
     if (source.length < 2) throw new Error('three.invalid: Line needs at least two vertices');
@@ -792,7 +841,7 @@ export class JsrWebGLRenderer {
     if (this.clippingPlanes.length) planes.push(...this.clippingPlanes);
     if (localPlanes) planes.push(...localPlanes);
     if (!planes.length) return { id: 0, flags: 0, signature: 'none' };
-    if (planes.length > 8) unsupported('clippingPlanes', 'R1 supports at most 8 clipping planes');
+    if (planes.length > 16) unsupported('clippingPlanes', 'R1 supports at most 16 clipping planes');
     const normalized = planes.map(plane => {
       if (!plane || plane.isPlane !== true) {
         throw new Error('three.invalid: clipping planes must be THREE.Plane instances');
@@ -1407,7 +1456,7 @@ export class JsrWebGLRenderer {
     if (this.xr.enabled) unsupported('xr');
     if (scene.environment || scene.overrideMaterial) unsupported('sceneFeature', 'environment/overrideMaterial are outside R1 v1');
     if (!Array.isArray(this.clippingPlanes)) throw new Error('three.invalid: renderer.clippingPlanes must be an array');
-    if (this.clippingPlanes.length > 8) unsupported('clippingPlanes', 'R1 supports at most 8 clipping planes');
+    if (this.clippingPlanes.length > 16) unsupported('clippingPlanes', 'R1 supports at most 16 clipping planes');
     if (!camera || (!camera.isPerspectiveCamera && !camera.isOrthographicCamera)) unsupported('camera', 'R1 supports perspective and orthographic cameras');
     if (scene.matrixWorldAutoUpdate === true) scene.updateMatrixWorld();
     if (camera.parent === null && camera.matrixWorldAutoUpdate === true) {
@@ -1425,6 +1474,12 @@ export class JsrWebGLRenderer {
     }
     const seenNodes = new Set();
     const seenLights = new Set();
+    // Multi-scene composition (webgl_sprites renders a perspective scene then
+    // an ortho HUD scene in the same tick): retire only nodes/lights owned by
+    // THE SCENE BEING RENDERED. Unscoped retirement made the two passes
+    // delete each other's nodes every tick, so the perspective scene never
+    // survived to presentation.
+    const renderedSceneId = resourceId(scene);
     let shadowLight = null;
     const retiredNodes = [];
     const parents = new Map();
@@ -1442,7 +1497,12 @@ export class JsrWebGLRenderer {
       const visibleHere = parentVisible && !!object.visible && (!object.material || object.material.visible !== false);
       drawVisibility.set(object, visibleHere);
       if (object.isLight) {
-        if (object.visible) seenLights.add(this._ensureLight(object, commands));
+        if (object.visible) {
+          const lightId = this._ensureLight(object, commands);
+          seenLights.add(lightId);
+          const lightEntry = this._state.lights.get(lightId);
+          if (lightEntry) lightEntry.sceneId = renderedSceneId;
+        }
         if (!shadowLight && object.visible && object.castShadow &&
             (object.isDirectionalLight || object.isSpotLight || object.isPointLight)) {
           shadowLight = object;
@@ -1461,6 +1521,8 @@ export class JsrWebGLRenderer {
       const result = this._ensureNode(object, parentId, commands, visibleHere);
       if (result) {
         seenNodes.add(result.id);
+        const nodeEntry = this._state.nodes.get(result.id);
+        if (nodeEntry) nodeEntry.sceneId = renderedSceneId;
         parents.set(object, result.id);
         // Upstream sprites never cast shadows, so they stay out of the
         // shadow scan even with a user-set castShadow flag.
@@ -1484,7 +1546,7 @@ export class JsrWebGLRenderer {
       } else parents.set(object, parentId);
     });
     for (const [id, node] of this._state.nodes) {
-      if (!seenNodes.has(id)) {
+      if (!seenNodes.has(id) && node.sceneId === renderedSceneId) {
         this._removeBatch(id, commands);
         commands.push(removeNodeCommand(id));
         this._mapDelete(this._state.nodes, id);
@@ -1492,7 +1554,7 @@ export class JsrWebGLRenderer {
       }
     }
     for (const [id] of this._state.lights) {
-      if (!seenLights.has(id)) {
+      if (!seenLights.has(id) && this._state.lights.get(id)?.sceneId === renderedSceneId) {
         commands.push(disposeResourceCommand(id, RESOURCE_KIND.light));
         this._mapDelete(this._state.lights, id);
       }

@@ -68,7 +68,7 @@ uniform Lights {
 } lights;
 
 uniform ClippingInfo {
-  vec4 clipPlanes[8];
+  vec4 clipPlanes[16];
   // x: plane count, y: intersection flag, z: clip shadows flag.
   vec4 clipCountFlags;
 } clipping_info;
@@ -423,7 +423,7 @@ void applyClipping() {
   if (clipCount <= 0) return;
   bool intersection = clipping_info.clipCountFlags.y > 0.5;
   int clippedCount = 0;
-  for (int i = 0; i < 8; ++i) {
+  for (int i = 0; i < 16; ++i) {
     if (i < clipCount) {
       bool clipped = dot(clipping_info.clipPlanes[i].xyz, worldPosition) <
                      clipping_info.clipPlanes[i].w;

@@ -703,7 +703,7 @@ final class JsThreeProtocolDecoder {
   static const int maxIndexCount = 12000000;
   static const int maxDrawBatchPartCount = 65536;
   static const int maxDrawBatchInstanceCount = 1000000;
-  static const int maxClippingPlaneCount = 8;
+  static const int maxClippingPlaneCount = 16;
 
   final int maxEnvelopeBytes;
 

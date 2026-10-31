@@ -1087,16 +1087,16 @@ void main() {
       expect(draw.material.clipId, 5);
       expect(draw.material.clipShadows, isTrue);
       final clipping = debugThreeClippingUniform(plan, draw.material);
-      expect(clipping.lengthInBytes, 144);
+      expect(clipping.lengthInBytes, 272);
       expect(clipping.getFloat32(4, Endian.little), closeTo(-1, 1e-6));
       // The protocol carries three.js Plane constants verbatim; the GPU
       // binding must NEGATE them because the R1 shaders discard where
       // `dot(normal, p) < w` while three.js keeps the `normal·p + constant
       // >= 0` half-space (webgl_clipping rendered empty before this).
       expect(clipping.getFloat32(7 * 4, Endian.little), closeTo(-0.1, 1e-6));
-      expect(clipping.getFloat32(128, Endian.little), 2);
-      expect(clipping.getFloat32(132, Endian.little), 0);
-      expect(clipping.getFloat32(136, Endian.little), 1);
+      expect(clipping.getFloat32(256, Endian.little), 2);
+      expect(clipping.getFloat32(260, Endian.little), 0);
+      expect(clipping.getFloat32(264, Endian.little), 1);
 
       final unclipped = ThreeDrawPlanFixture.basic();
       unclipped
@@ -1105,7 +1105,7 @@ void main() {
       final plainPlan = const ThreeDrawPlanner().plan(unclipped.state());
       final plainDraw = plainPlan.opaque.single;
       final zero = debugThreeClippingUniform(plainPlan, plainDraw.material);
-      for (var offset = 0; offset < 144; offset += 4) {
+      for (var offset = 0; offset < 272; offset += 4) {
         expect(zero.getFloat32(offset, Endian.little), 0);
       }
     });

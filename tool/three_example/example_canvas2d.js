@@ -143,20 +143,37 @@ class SoftwarePixels {
     }
     const width = Math.min(this.width - Math.floor(x), Math.ceil(source.width * scaleX));
     const height = Math.min(this.height - Math.floor(y), Math.ceil(source.height * scaleY));
+    // Bilinear resampling: browsers scale drawImage with image smoothing by
+    // default, and the terrain-raycast example relies on it for its 4x
+    // texture upscale (nearest-neighbour produced visibly faceted terrain).
     for (let py = Math.max(0, Math.floor(y)); py < Math.floor(y) + height; py++) {
       if (py >= this.height) break;
-      const sourceY = Math.min(source.height - 1, Math.floor((py - y) / scaleY));
+      const sourceY = (py + 0.5 - y) / scaleY - 0.5;
+      const y0 = Math.max(0, Math.min(source.height - 1, Math.floor(sourceY)));
+      const y1 = Math.min(source.height - 1, y0 + 1);
+      const fy = Math.max(0, Math.min(1, sourceY - Math.floor(sourceY)));
       for (let px = Math.max(0, Math.floor(x)); px < Math.floor(x) + width; px++) {
         if (px >= this.width) break;
-        const sourceX = Math.min(source.width - 1, Math.floor((px - x) / scaleX));
-        const from = (sourceY * source.width + sourceX) * 4;
+        const sourceX = (px + 0.5 - x) / scaleX - 0.5;
+        const x0 = Math.max(0, Math.min(source.width - 1, Math.floor(sourceX)));
+        const x1 = Math.min(source.width - 1, x0 + 1);
+        const fx = Math.max(0, Math.min(1, sourceX - Math.floor(sourceX)));
+        const i00 = (y0 * source.width + x0) * 4;
+        const i01 = (y0 * source.width + x1) * 4;
+        const i10 = (y1 * source.width + x0) * 4;
+        const i11 = (y1 * source.width + x1) * 4;
         const to = (py * this.width + px) * 4;
-        const alpha = source.data[from + 3] / 255;
+        const top = 1 - fx;
+        const upper = 1 - fy;
+        const alpha = (source.data[i00 + 3] * top * upper + source.data[i01 + 3] * fx * upper +
+          source.data[i10 + 3] * top * fy + source.data[i11 + 3] * fx * fy) / 255;
         const inverse = 1 - alpha;
-        this.data[to] = source.data[from] * alpha + this.data[to] * inverse;
-        this.data[to + 1] = source.data[from + 1] * alpha + this.data[to + 1] * inverse;
-        this.data[to + 2] = source.data[from + 2] * alpha + this.data[to + 2] * inverse;
-        this.data[to + 3] = source.data[from + 3] + this.data[to + 3] * inverse;
+        for (let c = 0; c < 3; c++) {
+          const value = source.data[i00 + c] * top * upper + source.data[i01 + c] * fx * upper +
+            source.data[i10 + c] * top * fy + source.data[i11 + c] * fx * fy;
+          this.data[to + c] = value * alpha + this.data[to + c] * inverse;
+        }
+        this.data[to + 3] = alpha * 255 + this.data[to + 3] * inverse;
       }
     }
   }

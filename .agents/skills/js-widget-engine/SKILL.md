@@ -143,6 +143,14 @@ identity lives in `ThreeUpstreamBundle`, `tool/three/source-pin.json` and
   strict Dart decode also accepts legacy R1-v1 streams. `rawWebGL == false`,
   `getContext()` and ShaderMaterial fail with
   `three.unsupported`. It is NOT WebGL in a WebView.
+- Multi-`render()` ticks composite into one present (per-pass command
+  buffers, color LOAD + depth clear on later passes); node/light retirement
+  is scoped to the rendered scene (`sceneId`), or alternating scenes delete
+  each other. Clipping allows 16 planes (272-byte ClippingInfo; FrameInfo
+  stays 144). `attributeFloats` uses typed-array fast paths (denormalize
+  scales mirror THREE) — keep per-component `getComponent` only for
+  interleaved/raw attributes. See AGENTS.md for the helper fast-path
+  prepare plugin, bilinear example canvas and sidebar preview assets.
 - `JsWidgetBridge` binds each packet to its generated/preserved engine id,
   copies call-scoped native byte views, and `FlutterGpuThreeHost` verifies
   the envelope id before applying it. Every resource key is

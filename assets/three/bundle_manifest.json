@@ -29,9 +29,9 @@
       "tool/three/src/native_entry.js": "5fb8a476137d36328693c1d75c0754075b673f0f18acdfeafe12c6b4426cf57f",
       "tool/three/src/native_loaders.js": "d12ef99a8d7388a1468c9a6202d2f71d84c44d56bc3880524ff4d89cf7d80da9",
       "tool/three/src/native_raycast_bvh.js": "9aada0445e0fb5d1cba38ea8e801588d8b496cce8531f57ab9c60e61d7049384",
-      "tool/three/src/native_renderer.js": "7e06284e4d59c07c1f9ca19163db636f73eac6850818ac694c46a2b972e9b804",
+      "tool/three/src/native_renderer.js": "e6d532cce5c9ddb72f492d6560cd88ef6329a3e716cfaae574c560cda2437732",
       "tool/three/src/native_three_shim.js": "e22a117b5d6e47db333aded60ed1b545a3b9c96b6d07b86b00867b84224dd93e",
-      "tool/three/src/r1.js": "f35a7e32d1969e1719104e9a5f6fadb2884abc5a91c021413d4f731caedda156",
+      "tool/three/src/r1.js": "1fb8e7b5f04fd2c00bc9a5243645393a87b778fd51456856f9f07adff1b1d2ff",
       "tool/three/src/runtime.js": "d24945f85f833816d1dd362fd28ed015fd49c1bc2f6479260dfad4be432f142c",
       "tool/three/src/web_entry.js": "538a1625cffb9539d70055b173c98320799457a9c5e7b5a4c0577c22841cd3ad",
       "tool/three/src/web_renderer.js": "2b808b22123fce8e49b9ed8d76f75872199efb527b477e202f295ed6a244819c",
@@ -44,16 +44,16 @@
   },
   "outputs": {
     "jsr_three_native.js": {
-      "bytes": 723221,
-      "sha256": "889a3df665aa83def70c1a8a4250fff92b54786cccfad93aacc261456f489ec7"
+      "bytes": 724276,
+      "sha256": "09621130cc9de55c6a6c7a88250ef5c2382eac594222bd7bd39701fd5e2e0fd7"
     },
     "jsr_three_web.js": {
       "bytes": 834390,
       "sha256": "e4e059b5c360606fb4ed721f2d686821b0b840119a3939535160b279c5deea6b"
     },
     "three.native.js": {
-      "bytes": 723221,
-      "sha256": "889a3df665aa83def70c1a8a4250fff92b54786cccfad93aacc261456f489ec7"
+      "bytes": 724276,
+      "sha256": "09621130cc9de55c6a6c7a88250ef5c2382eac594222bd7bd39701fd5e2e0fd7"
     },
     "three.web.js": {
       "bytes": 834390,

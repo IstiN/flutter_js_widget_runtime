@@ -151,6 +151,27 @@ Renderer effects ported from YoClip: radial gradients, box shadows, blur nodes, 
   change. The macOS stress target additionally demonstrates a host-specific
   raw relative-mouse channel (`jsr.three.pointer`) with cursor disassociation,
   hide/unhide and focus-loss unlock, falling back to normal `localDelta`.
+- Multiple `renderer.render()` calls within one JS tick (e.g. webgl_sprites'
+  perspective scene + ortho HUD) now compose into ONE presented image: the
+  host drains all pending frames, the backend records each pass in its own
+  command buffer (Metal forbids two open encoders on one buffer), later
+  passes LOAD color and clear depth. JS-side node/light retirement is scoped
+  to the scene being rendered (`node.sceneId`) — unscoped retirement used to
+  let alternating scenes delete each other's nodes every tick. Global +
+  local clipping supports up to 16 planes (shader `clipPlanes[16]`, 272-byte
+  ClippingInfo block; FrameInfo stays 144 bytes — do not bulk-replace the
+  two). `attributeFloats` reads plain typed arrays directly (normalized int
+  scales mirror THREE.denormalize) instead of per-component `getComponent`
+  calls — the 500k-triangle uint example's load dropped ~40%.
+- The example sidebar ships captured thumbnails
+  (`example/assets/three_previews/<widgetId>.png`, regenerate via the
+  screenshot runner per id + `sips -Z 128`) with the play-icon fallback.
+  `--dart-define=JSR_SWITCH_LOG=true` logs per-example first-frame ms and
+  presented-fps lines. `tool/three_example/helper_fast_path_plugin.mjs`
+  swaps VertexNormals/TangentsHelper update() loops for typed-array math at
+  prepare time (webgl_helpers: 27.6ms → 13.2ms RAF eval, ~76fps); the
+  software example canvas `drawImage` resamples bilinearly (terrain texture
+  upscale matches browser smoothing).
 - Rebuild pinned bundles with `node tool/three/build.mjs --source
   /tmp/jsr-three-r186` (add `--verify`); shaders with
   `tool/build_three_shaders.dart`. Prepare supported official modules with

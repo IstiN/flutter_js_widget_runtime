@@ -4,6 +4,7 @@ import { readFile, readdir, stat, mkdir, writeFile, realpath } from 'node:fs/pro
 import path from 'node:path';
 import { createRequire } from 'node:module';
 import { fileURLToPath } from 'node:url';
+import { helperFastPathPlugin } from './helper_fast_path_plugin.mjs';
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.resolve(HERE, '../..');
@@ -1692,7 +1693,7 @@ async function main() {
     sourcemap: false,
     metafile: true,
     logLevel: 'silent',
-    plugins: [localOnlyPlugin({
+    plugins: [helperFastPathPlugin(), localOnlyPlugin({
       source,
       facadeSource,
       officialBytes: extracted.moduleBytes,

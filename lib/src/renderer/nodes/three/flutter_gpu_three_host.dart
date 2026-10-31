@@ -487,18 +487,30 @@ _ThreeRenderRequest? _nextThreeRenderRequest(FlutterGpuThreeSurface surface) {
 _ThreeRenderRequest? _createThreeRenderRequest(FlutterGpuThreeSurface surface) {
   final current = surface.state;
   if (current == null || current.pendingFrameCount == 0) return null;
-  return _threeRequestForFrame(surface, current, current.takePendingFrame());
+  return _threeRequestForFrames(surface, current, _drainThreePendingFrames(current));
 }
 
-_ThreeRenderRequest? _threeRequestForFrame(
+/// Drains every render() submitted during the same JS tick so they present
+/// as ONE composited image (perspective + ortho HUD in webgl_sprites).
+List<JsThreeSubmitFrame> _drainThreePendingFrames(JsThreeSurfaceState state) {
+  final frames = <JsThreeSubmitFrame>[];
+  JsThreeSubmitFrame? next = state.takePendingFrame();
+  while (next != null) {
+    frames.add(next);
+    next = state.takePendingFrame();
+  }
+  return frames;
+}
+
+_ThreeRenderRequest? _threeRequestForFrames(
   FlutterGpuThreeSurface surface,
   JsThreeSurfaceState state,
-  JsThreeSubmitFrame? frame,
+  List<JsThreeSubmitFrame> frames,
 ) {
-  if (frame == null) return null;
+  if (frames.isEmpty) return null;
   return _ThreeRenderRequest(
     state: state,
-    frame: frame,
+    frames: frames,
     width: (surface._size.width * surface._dpr).round().clamp(1, 16384).toInt(),
     height: (surface._size.height * surface._dpr)
         .round()
@@ -518,7 +530,7 @@ Future<void> _renderThreeRequest(
     request.state,
     width: request.width,
     height: request.height,
-    frame: request.frame,
+    frames: request.frames,
     pointSizeScale: surface._dpr,
   );
   if (!_threeRequestLive(surface, request)) return;
@@ -555,6 +567,8 @@ void _handleThreePumpError(
 ) {
   if (request.generation == surface._generation && !surface.isDisposed) {
     surface.lastError = 'three.unsupported: flutterGpu — $error';
+    // ignore: avoid_print
+    print('THREE_PUMP_ERROR $error');
     surface._notify();
   }
 }
@@ -606,14 +620,14 @@ FlutterGpuThreeBackend _adoptThreeBackend(
 final class _ThreeRenderRequest {
   _ThreeRenderRequest({
     required this.state,
-    required this.frame,
+    required this.frames,
     required this.width,
     required this.height,
     required this.generation,
   });
 
   final JsThreeSurfaceState state;
-  final JsThreeSubmitFrame frame;
+  final List<JsThreeSubmitFrame> frames;
   final int width;
   final int height;
   final int generation;

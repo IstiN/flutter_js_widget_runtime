@@ -361,8 +361,8 @@ export function lightCommand(id, type, color, intensity, position, direction, gr
 export function clippingCommand(id, version, planes) {
   checkedU32(id, 'clipping id');
   checkedU32(version, 'clipping version');
-  if (!Array.isArray(planes) || planes.length === 0 || planes.length > 8) {
-    throw new Error('three.invalid: clipping plane count must be within 1..8');
+  if (!Array.isArray(planes) || planes.length === 0 || planes.length > 16) {
+    throw new Error('three.invalid: clipping plane count must be within 1..16');
   }
   for (const plane of planes) {
     if (!plane || !Number.isFinite(plane.normalX) || !Number.isFinite(plane.normalY) ||

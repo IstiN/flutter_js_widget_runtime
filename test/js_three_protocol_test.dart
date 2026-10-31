@@ -1839,7 +1839,7 @@ void main() {
       _bad(() => _decoder.decodeR1(_r1([(13, clipping())], version: 2)));
       _bad(
         () => _decoder.decodeR1(
-          _r1([(13, clipping(count: 9))], version: 3),
+          _r1([(13, clipping(count: 17))], version: 3),
         ),
       );
       final zeroNormal = clipping();

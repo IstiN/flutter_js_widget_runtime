@@ -513,13 +513,15 @@ gpu.RenderPass _createThreeRenderPass(
   FlutterGpuThreeBackend backend,
   ThreeDrawPlan plan,
   gpu.GpuImageSurfaceFrame surfaceFrame,
-  gpu.CommandBuffer command,
-) {
+  gpu.CommandBuffer command, {
+  bool preserveColor = false,
+}) {
   final background = plan.background;
   final pass = command.createRenderPass(
     gpu.RenderTarget.singleColor(
       gpu.ColorAttachment(
         texture: surfaceFrame.colorTexture,
+        loadAction: preserveColor ? gpu.LoadAction.load : gpu.LoadAction.clear,
         clearValue: vm.Vector4(
           _linearToSrgbUnit(background.r),
           _linearToSrgbUnit(background.g),
@@ -1553,6 +1555,7 @@ final class FlutterGpuThreeBackend {
     required int width,
     required int height,
     JsThreeSubmitFrame? frame,
+    List<JsThreeSubmitFrame>? frames,
     double pointSizeScale = 1.0,
   }) {
     final validationError = _threeRenderError(
@@ -1569,6 +1572,7 @@ final class FlutterGpuThreeBackend {
         width: width,
         height: height,
         frame: frame,
+        frames: frames,
         pointSizeScale: pointSizeScale,
       ),
     );
@@ -1579,20 +1583,49 @@ final class FlutterGpuThreeBackend {
     return result;
   }
 
+  // Multiple render() calls within one JS tick (e.g. webgl_sprites renders
+  // its perspective scene then its ortho HUD) compose into ONE presented
+  // image instead of alternating presentations (the visible flicker).
+  List<ThreeDrawPlan> _planThreeFrames(
+    JsThreeSurfaceState state,
+    JsThreeSubmitFrame? frame,
+    List<JsThreeSubmitFrame>? frames,
+  ) {
+    final frameList = frames ?? <JsThreeSubmitFrame?>[frame];
+    final plans = [
+      for (final item in frameList)
+        _planner.plan(state, frame: item, lineMode: lineMode),
+    ];
+    for (final current in plans) {
+      for (final warning in current.diagnostics.warnings) {
+        _note(warning);
+      }
+    }
+    return plans;
+  }
+
+  void _assertThreePlansRenderable(List<ThreeDrawPlan> plans) {
+    for (final current in plans) {
+      if (!current.canRender) {
+        throw ThreeDrawPlanException(
+          'no renderable frame/camera: ${current.diagnostics.warnings.join('; ')}',
+        );
+      }
+    }
+  }
+
   Future<ui.Image> _render(
     JsThreeSurfaceState state, {
     required int width,
     required int height,
     required JsThreeSubmitFrame? frame,
+    required List<JsThreeSubmitFrame>? frames,
     required double pointSizeScale,
   }) async {
     _checkDisposed();
     _lastSequence = state.lastSequence;
-    final plan = _planner.plan(state, frame: frame, lineMode: lineMode);
-    _lastPlan = plan;
-    for (final warning in plan.diagnostics.warnings) {
-      _note(warning);
-    }
+    final plans = _planThreeFrames(state, frame, frames);
+    _lastPlan = plans.first;
 
     // Resource reconciliation always runs, even when no presentable frame or
     // camera exists. Disposal/reuse therefore cannot strand a cached version.
@@ -1600,16 +1633,12 @@ final class FlutterGpuThreeBackend {
     _synchronizeBatches(state);
     await _synchronizeTextures(state);
     _checkDisposed();
-    if (!plan.canRender) {
-      throw ThreeDrawPlanException(
-        'no renderable frame/camera: ${plan.diagnostics.warnings.join('; ')}',
-      );
-    }
+    _assertThreePlansRenderable(plans);
     await _waitForPresentationSlot();
     _checkDisposed();
     _ensureThreeTargets(this, width, height);
     final image = _recordAndPresent(
-      plan,
+      plans,
       pointSizeScale,
       height.toDouble(),
       state.contentRevision,
@@ -1719,29 +1748,67 @@ final class FlutterGpuThreeBackend {
     _cacheShadow(frame, contentRevision);
   }
 
-  ui.Image _recordAndPresent(
+  /// Records one composed pass. Later passes LOAD the color written by
+  /// earlier passes (upstream autoClear=false composition); depth is cleared
+  /// per pass, matching the clearDepth() call between per-tick renders.
+  /// Each pass gets its own command buffer: Metal forbids a second open
+  /// render encoder on a buffer that is already encoding.
+  ({gpu.CommandBuffer command, int draws}) _recordThreePass(
     ThreeDrawPlan plan,
+    gpu.GpuImageSurfaceFrame surfaceFrame, {
+    required bool preserveColor,
+    required bool submitAfter,
+    required double pointSizeScale,
+    required double viewportHeight,
+    required int contentRevision,
+  }) {
+    _shadowFrameActive = false;
+    final encoder = _ThreeFrameEncoder(
+      this,
+      plan,
+      pointSizeScale,
+      viewportHeight,
+    );
+    _prepareThreeAutoInstanceCache(this, plan);
+    _recordShadow(encoder, plan.frame!, contentRevision);
+    final command = _context.createCommandBuffer();
+    final pass = _createThreeRenderPass(
+      this,
+      plan,
+      surfaceFrame,
+      command,
+      preserveColor: preserveColor,
+    );
+    final draws = encoder.record(pass);
+    if (submitAfter) _submitThreeFrame(this, command);
+    return (command: command, draws: draws);
+  }
+
+  ui.Image _recordAndPresent(
+    List<ThreeDrawPlan> plans,
     double pointSizeScale,
     double viewportHeight,
     int contentRevision,
   ) {
     final surface = _imageSurface!;
     final surfaceFrame = surface.acquireNextFrame();
-    final command = _context.createCommandBuffer();
+    var command = _context.createCommandBuffer();
     var presented = false;
     try {
-      _shadowFrameActive = false;
-      final encoder = _ThreeFrameEncoder(
-        this,
-        plan,
-        pointSizeScale,
-        viewportHeight,
-      );
-      _prepareThreeAutoInstanceCache(this, plan);
-      final frame = plan.frame!;
-      _recordShadow(encoder, frame, contentRevision);
-      final pass = _createThreeRenderPass(this, plan, surfaceFrame, command);
-      final recordedDraws = encoder.record(pass);
+      var recordedDraws = 0;
+      for (var index = 0; index < plans.length; index++) {
+        final result = _recordThreePass(
+          plans[index],
+          surfaceFrame,
+          preserveColor: index > 0,
+          submitAfter: index < plans.length - 1,
+          pointSizeScale: pointSizeScale,
+          viewportHeight: viewportHeight,
+          contentRevision: contentRevision,
+        );
+        command = result.command;
+        recordedDraws = result.draws;
+      }
       surfaceFrame.present(command);
       presented = true;
       _submitThreeFrame(this, command);
