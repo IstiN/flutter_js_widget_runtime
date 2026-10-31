@@ -2,37 +2,9 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:js_widget_runtime/src/renderer/nodes/three/js_three_protocol.dart';
 import 'package:js_widget_runtime/src/renderer/nodes/three/three_draw_plan.dart';
 
+import 'support/three_example_render_contract.dart';
 import 'support/three_quickjs_example_harness.dart';
 import 'support/widget_logic_helper.dart';
-
-Future<(ThreeQuickjsExampleHarness, ThreeDrawPlan)> _render(
-  WidgetTester tester,
-  String id,
-) async {
-  final harness = await ThreeQuickjsExampleHarness.boot(
-    tester,
-    widgetId: id,
-    instanceId: '$id-lines-instancing-test',
-  );
-  await harness.pumpUntil(
-    tester,
-    (state, plan) => state.submittedFrameCount >= 3 && plan.draws.isNotEmpty,
-    attempts: 60,
-  );
-  await tester.runAsync(
-    () => Future<void>.delayed(const Duration(milliseconds: 1500)),
-  );
-  await harness.pumpFrames(tester, 20);
-  final plan = const ThreeDrawPlanner().plan(harness.state!);
-  expect(plan.diagnostics.warnings, isEmpty);
-  expect(
-    harness.engine.peekLogs().where(
-      (entry) => (entry['msg'] as String).startsWith('[E]'),
-    ),
-    isEmpty,
-  );
-  return (harness, plan);
-}
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
@@ -41,7 +13,7 @@ void main() {
   testWidgets('webgl_lines_dashed tessellates dash and gap intervals', (
     tester,
   ) async {
-    final (harness, plan) = await _render(tester, 'three-lines-dashed');
+    final (harness, plan) = await renderThreeExampleStrict(tester, 'three-lines-dashed');
     expect(plan.draws, hasLength(2));
     for (final draw in plan.draws) {
       expect(draw.primitive, ThreeDrawPrimitive.lines);
@@ -62,7 +34,7 @@ void main() {
   testWidgets('webgl_lines_fat lowers Line2 to real native line segments', (
     tester,
   ) async {
-    final (harness, plan) = await _render(tester, 'three-lines-fat');
+    final (harness, plan) = await renderThreeExampleStrict(tester, 'three-lines-fat');
     expect(plan.draws, hasLength(1));
     final draw = plan.draws.single;
     expect(draw.primitive, ThreeDrawPrimitive.lines);
@@ -79,7 +51,7 @@ void main() {
   testWidgets('webgl_instancing_dynamic initializes despite optional PMREM', (
     tester,
   ) async {
-    final (harness, plan) = await _render(tester, 'three-instancing-dynamic');
+    final (harness, plan) = await renderThreeExampleStrict(tester, 'three-instancing-dynamic');
     expect(plan.draws, hasLength(1));
     final draw = plan.draws.single;
     expect(draw.primitive, ThreeDrawPrimitive.triangles);

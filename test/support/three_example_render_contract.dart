@@ -36,3 +36,35 @@ Future<ThreeDrawPlan> pumpThreeExampleHealthy(
   );
   return plan;
 }
+
+/// Boots an official example and returns its final plan, asserting zero
+/// planner warnings and zero JS error logs (strict variant used by the
+/// bounded-shader and lines/instancing regression suites).
+Future<(ThreeQuickjsExampleHarness, ThreeDrawPlan)> renderThreeExampleStrict(
+  WidgetTester tester,
+  String id,
+) async {
+  final harness = await ThreeQuickjsExampleHarness.boot(
+    tester,
+    widgetId: id,
+    instanceId: '$id-strict-test',
+  );
+  await harness.pumpUntil(
+    tester,
+    (state, plan) => state.submittedFrameCount >= 3 && plan.draws.isNotEmpty,
+    attempts: 60,
+  );
+  await tester.runAsync(
+    () => Future<void>.delayed(const Duration(milliseconds: 1500)),
+  );
+  await harness.pumpFrames(tester, 20);
+  final plan = const ThreeDrawPlanner().plan(harness.state!);
+  expect(plan.diagnostics.warnings, isEmpty);
+  expect(
+    harness.engine.peekLogs().where(
+      (entry) => (entry['msg'] as String).startsWith('[E]'),
+    ),
+    isEmpty,
+  );
+  return (harness, plan);
+}

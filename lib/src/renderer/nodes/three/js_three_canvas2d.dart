@@ -108,52 +108,65 @@ JsThreeCanvas2DRequest parseJsThreeCanvas2DRequest(
   }
   final dispose = action == 'dispose';
   final decode = action == 'decodeImage';
-  final width = decode
-      ? 0
-      : _integer(source, 'width', 0, jsThreeCanvas2DMaxDimension);
-  final height = decode
-      ? 0
-      : _integer(source, 'height', 0, jsThreeCanvas2DMaxDimension);
-  if (!dispose && !decode && (width == 0 || height == 0)) {
-    throw const FormatException('three.canvas2d: dimensions must be nonzero');
-  }
-  if (width * height > jsThreeCanvas2DMaxPixels) {
-    throw const FormatException('three.canvas2d: pixel quota exceeded');
-  }
-  final rawCommands = decode ? const <dynamic>[] : source['commands'];
-  if (rawCommands is! List || rawCommands.length > jsThreeCanvas2DMaxCommands) {
-    throw const FormatException('three.canvas2d: invalid command list');
-  }
-  final commands = dispose || decode
-      ? const <JsThreeCanvas2DFillRect>[]
-      : rawCommands.map(_parseCommand).toList(growable: false);
-  Uint8List? encodedImage;
-  if (decode) {
-    final encoded = source['data'];
-    if (encoded is! String || encoded.isEmpty || encoded.length > 89478488) {
-      throw const FormatException('three.canvas2d: invalid encoded image');
-    }
-    try {
-      encodedImage = base64Decode(encoded);
-    } on FormatException {
-      throw const FormatException('three.canvas2d: invalid encoded image');
-    }
-    if (encodedImage.lengthInBytes > 64 * 1024 * 1024) {
-      throw const FormatException('three.canvas2d: image byte quota exceeded');
-    }
-  }
+  final dimensions = decode
+      ? const (0, 0)
+      : _rasterDimensions(source, skipValidation: dispose);
   return JsThreeCanvas2DRequest(
     engineId: _identity(source, 'engineId'),
     surfaceId: _identity(source, 'surfaceId'),
     canvasId: _identity(source, 'canvasId'),
     generation: _integer(source, 'generation', 1, 9007199254740991),
     requestId: _integer(source, 'requestId', 1, 9007199254740991),
-    width: width,
-    height: height,
-    commands: commands,
+    width: dimensions.$1,
+    height: dimensions.$2,
+    commands: _rasterCommands(source, skip: dispose || decode),
     dispose: dispose,
-    encodedImage: encodedImage,
+    encodedImage: decode ? _decodeImageData(source) : null,
   );
+}
+
+(int, int) _rasterDimensions(
+  Map<String, dynamic> source, {
+  required bool skipValidation,
+}) {
+  final width = _integer(source, 'width', 0, jsThreeCanvas2DMaxDimension);
+  final height = _integer(source, 'height', 0, jsThreeCanvas2DMaxDimension);
+  if (!skipValidation && (width == 0 || height == 0)) {
+    throw const FormatException('three.canvas2d: dimensions must be nonzero');
+  }
+  if (width * height > jsThreeCanvas2DMaxPixels) {
+    throw const FormatException('three.canvas2d: pixel quota exceeded');
+  }
+  return (width, height);
+}
+
+List<JsThreeCanvas2DFillRect> _rasterCommands(
+  Map<String, dynamic> source, {
+  required bool skip,
+}) {
+  if (skip) return const <JsThreeCanvas2DFillRect>[];
+  final rawCommands = source['commands'];
+  if (rawCommands is! List || rawCommands.length > jsThreeCanvas2DMaxCommands) {
+    throw const FormatException('three.canvas2d: invalid command list');
+  }
+  return rawCommands.map(_parseCommand).toList(growable: false);
+}
+
+Uint8List _decodeImageData(Map<String, dynamic> source) {
+  final encoded = source['data'];
+  if (encoded is! String || encoded.isEmpty || encoded.length > 89478488) {
+    throw const FormatException('three.canvas2d: invalid encoded image');
+  }
+  final Uint8List bytes;
+  try {
+    bytes = base64Decode(encoded);
+  } on FormatException {
+    throw const FormatException('three.canvas2d: invalid encoded image');
+  }
+  if (bytes.lengthInBytes > 64 * 1024 * 1024) {
+    throw const FormatException('three.canvas2d: image byte quota exceeded');
+  }
+  return bytes;
 }
 
 String _identity(Map<String, dynamic> source, String name) {

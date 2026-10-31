@@ -4,6 +4,7 @@ import 'dart:typed_data';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:js_widget_runtime/src/renderer/nodes/three/flutter_gpu_three_host.dart';
+import 'package:js_widget_runtime/src/renderer/nodes/three/js_three_canvas2d.dart';
 import 'package:js_widget_runtime/src/renderer/nodes/three/js_three_host.dart';
 import 'package:js_widget_runtime/src/renderer/nodes/three/js_three_protocol.dart';
 
@@ -216,5 +217,40 @@ void main() {
     expect(results.map((result) => result.data!.length), everyElement(4));
     host.disposeEngine('engine-a');
     host.disposeEngine('engine-b');
+  });
+
+  test('canvas2d color parser covers every hex form', () {
+    List<Object?> rect(String color) => [
+      {
+        'op': 'fillRect',
+        'x': 0,
+        'y': 0,
+        'width': 4,
+        'height': 4,
+        'style': {'kind': 'color', 'color': color},
+      },
+    ];
+    for (final color in [
+      '#abc',
+      '#abcd',
+      '#a1b2c3',
+      '#a1b2c3d4',
+      'red',
+      'transparent',
+      'rgb(1, 2, 3)',
+      'rgba(1, 2, 3, 0.5)',
+    ]) {
+      final request = parseJsThreeCanvas2DRequest(
+        _request(commands: rect(color)),
+      );
+      expect(request.commands, hasLength(1), reason: color);
+    }
+    for (final color in ['#abcde', '#a1b2c3d', 'not-a-color', '#zzzzzz']) {
+      expect(
+        () => parseJsThreeCanvas2DRequest(_request(commands: rect(color))),
+        throwsA(isA<JsThreeUnsupportedException>()),
+        reason: color,
+      );
+    }
   });
 }
