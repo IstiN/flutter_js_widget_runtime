@@ -161,6 +161,7 @@ function appendMainCanvas(parent, child) {
     // Controls overlays (lil-gui) may already have rendered a full stack; a
     // bare canvas render here would wipe them. Prefer the overlay rerender.
     const rerenderOverlays = JSR.three._guiRerender;
+    publishDiagnostics();
     if (typeof rerenderOverlays === 'function' && rerenderOverlays()) return;
     JSR.render({ type: 'three', canvasId: 'main' });
   }
@@ -174,7 +175,14 @@ function localElement(tagName) {
     tagName: String(tagName).toUpperCase(),
     style: {},
     children: [],
-    parentNode: null
+    parentNode: null,
+    classList: {
+      _names: new Set(),
+      add(...names) { for (const name of names) this._names.add(String(name)); },
+      remove(...names) { for (const name of names) this._names.delete(String(name)); },
+      toggle(name) { if (this._names.has(name)) { this._names.delete(name); return false; } this._names.add(name); return true; },
+      contains(name) { return this._names.has(name); }
+    }
   });
   element.ownerDocument = runtimeDocument;
   element.getRootNode = () => runtimeDocument;
@@ -195,6 +203,76 @@ function localElement(tagName) {
   return element;
 }
 
+const BASE64 = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/';
+let imageDecodeRequestId = 0;
+
+function decodeBase64(value) {
+  if (typeof value !== 'string') throw new Error(`${WIDGET_ID}: decoded image data must be base64`);
+  const clean = value.replace(/\s/g, '');
+  if (clean.length % 4 === 1 || /[^A-Za-z0-9+/=_-]/.test(clean)) {
+    throw new Error(`${WIDGET_ID}: decoded image data is invalid base64`);
+  }
+  const normalized = clean.replace(/-/g, '+').replace(/_/g, '/');
+  const padding = normalized.endsWith('==') ? 2 : normalized.endsWith('=') ? 1 : 0;
+  const output = new Uint8Array(Math.floor(normalized.length * 3 / 4) - padding);
+  let buffer = 0;
+  let bits = 0;
+  let offset = 0;
+  for (let index = 0; index < normalized.length; index++) {
+    const character = normalized[index];
+    if (character === '=') break;
+    const value = BASE64.indexOf(character);
+    if (value < 0) throw new Error(`${WIDGET_ID}: decoded image data is invalid base64`);
+    buffer = (buffer << 6) | value;
+    bits += 6;
+    if (bits >= 8) {
+      bits -= 8;
+      if (offset >= output.length) throw new Error(`${WIDGET_ID}: decoded image data has invalid padding`);
+      output[offset++] = (buffer >> bits) & 255;
+    }
+  }
+  if (offset !== output.length) throw new Error(`${WIDGET_ID}: decoded image data has an invalid length`);
+  return output;
+}
+
+function nativeImagePixels(source, record) {
+  const bytes = record.bytes;
+  const mime = String(record.mime || '').toLowerCase();
+  const raw = mime.includes('rgba') || mime.includes('raw');
+  if (raw) {
+    const width = record.width || 0;
+    const height = record.height || 0;
+    if (!Number.isInteger(width) || !Number.isInteger(height) || width <= 0 || height <= 0 ||
+        !bytes || bytes.length !== width * height * 4) {
+      throw new Error(`${WIDGET_ID}: invalid raw RGBA image ${source}`);
+    }
+    return { bytes, width, height, encoding: 0, encoded: false };
+  }
+  if (typeof JSR.hostCall !== 'function') {
+    throw new Error(`${WIDGET_ID}: native host image decoding is unavailable for ${source}`);
+  }
+  const requestId = ++imageDecodeRequestId;
+  const canvasId = `example-image-decode-${requestId}`;
+  const generation = canvas.generation;
+  return JSR.hostCall('three.canvas2d', {
+    action: 'decodeImage', engineId: canvas.engineId, surfaceId: canvas.surfaceId,
+    canvasId, generation, requestId, width: 0, height: 0, commands: [], data: record.data
+  }).then(result => {
+    if (!result || result.stale || result.engineId !== canvas.engineId ||
+        result.surfaceId !== canvas.surfaceId || result.canvasId !== canvasId ||
+        result.generation !== generation || result.requestId !== requestId ||
+        !Number.isInteger(result.width) || !Number.isInteger(result.height) ||
+        result.width <= 0 || result.height <= 0 || typeof result.data !== 'string') {
+      throw new Error(`${WIDGET_ID}: invalid decoded image response for ${source}`);
+    }
+    const decoded = decodeBase64(result.data);
+    if (decoded.length !== result.width * result.height * 4) {
+      throw new Error(`${WIDGET_ID}: decoded image RGBA length mismatch for ${source}`);
+    }
+    return { bytes: decoded, width: result.width, height: result.height, encoding: 0, encoded: false };
+  });
+}
+
 function localImage() {
   if (typeof ROOT.OffscreenCanvas !== 'function') {
     // Native JSR lane: no DOM Image exists, but the R1 texture path only
@@ -202,7 +280,10 @@ function localImage() {
     // encoding (the same shape JsrTextureLoader installs on Texture.image).
     // Serve registered/host assets through runtime.loadAsset so modules
     // using ImageLoader / document.createElement('img') keep working.
-    const image = eventTarget({ complete: false, width: 0, height: 0, data: null });
+    const image = eventTarget({
+      complete: false, width: 0, height: 0, naturalWidth: 0, naturalHeight: 0,
+      data: null, _examplePixels: null
+    });
     let source = '';
     Object.defineProperty(image, 'src', {
       configurable: true,
@@ -210,21 +291,19 @@ function localImage() {
       set(value) {
         source = String(value);
         JSR.three.loadAsset(source).then(record => {
-          const bytes = record.bytes;
-          if (!bytes) throw new Error(`${WIDGET_ID}: asset ${source} has no bytes`);
-          image.data = bytes;
-          image.width = record.width || 0;
-          image.height = record.height || 0;
-          image.mime = record.mime || '';
-          if (bytes.length >= 8 && bytes[0] === 137 && bytes[1] === 80 && bytes[2] === 78 && bytes[3] === 71) {
-            image.encoding = 1; image.encoded = true;
-          } else if (bytes.length >= 2 && bytes[0] === 0xff && bytes[1] === 0xd8) {
-            image.encoding = 2; image.encoded = true;
-          } else if (/rgba|raw/.test(String(record.mime || '').toLowerCase())) {
-            image.encoding = 0; image.encoded = false;
-          } else {
-            throw new Error(`${WIDGET_ID}: unsupported image encoding for ${source}`);
-          }
+          if (!record.bytes) throw new Error(`${WIDGET_ID}: asset ${source} has no bytes`);
+          return nativeImagePixels(source, record);
+        }).then(decoded => {
+          if (canvas.disposed) throw new Error(`${WIDGET_ID}: surface disposed during image decode`);
+          const pixels = new Uint8ClampedArray(decoded.bytes);
+          image.data = decoded.bytes;
+          image.width = decoded.width;
+          image.height = decoded.height;
+          image.naturalWidth = decoded.width;
+          image.naturalHeight = decoded.height;
+          image.encoding = decoded.encoding;
+          image.encoded = decoded.encoded;
+          image._examplePixels = { data: pixels, width: decoded.width, height: decoded.height };
           image.complete = true;
           image.dispatchEvent({ type: 'load' });
         }).catch(error => {
@@ -253,6 +332,8 @@ function localImage() {
         }
         image.width = asset.width;
         image.height = asset.height;
+        image.naturalWidth = asset.width;
+        image.naturalHeight = asset.height;
         const encoded = ROOT.atob(asset.data);
         const bytes = new Uint8Array(encoded.length);
         for (let i = 0; i < encoded.length; i++) bytes[i] = encoded.charCodeAt(i);
@@ -339,11 +420,23 @@ runtimeDocument.getElementById = function(id) {
   // bounded memoized local element so innerHTML/textContent/style writes
   // behave like the browser instead of crashing on null.
   if (!localElementsById.has(id)) {
-    const element = localElement(id);
+    const element = localElement('div');
+    element.id = String(id);
     element.innerHTML = '';
     localElementsById.set(id, element);
   }
   return localElementsById.get(id);
+};
+runtimeDocument.querySelector = function(selector) {
+  const value = String(selector);
+  if (value === '.container') return container;
+  if (value.startsWith('#') && value.length > 1) return runtimeDocument.getElementById(value.slice(1));
+  if (/^\.[A-Za-z_][\w-]*$/.test(value)) {
+    const element = runtimeDocument.getElementById(value.slice(1));
+    element.className = value.slice(1);
+    return element;
+  }
+  return null;
 };
 
 // The host dispatches pointer events to the canvas and document. Browser

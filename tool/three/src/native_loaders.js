@@ -45,9 +45,16 @@ export class JsrFileLoader extends Loader {
         default: return text(bytes);
       }
     };
+    const report = error => {
+      if (onError) onError(error);
+      // Official examples often omit onError. Never swallow an exception
+      // thrown by their onLoad callback: without this log a parsed model can
+      // fail in modifier/setup code and leave an unexplained empty scene.
+      else if (typeof console !== 'undefined' && console.error) console.error(error);
+    };
     if (cached !== undefined) {
       this.manager.itemStart(url);
-      Promise.resolve().then(() => finish(cached, onLoad)).catch(error => { if (onError) onError(error); }).finally(() => this.manager.itemEnd(url));
+      Promise.resolve().then(() => finish(cached, onLoad)).catch(report).finally(() => this.manager.itemEnd(url));
       return;
     }
     this.manager.itemStart(url);
@@ -56,7 +63,7 @@ export class JsrFileLoader extends Loader {
       Cache.add(`file:${url}`, data);
       finish(data, onLoad);
     }).catch(error => {
-      if (onError) onError(error);
+      report(error);
       this.manager.itemError(url);
     }).finally(() => this.manager.itemEnd(url));
   }

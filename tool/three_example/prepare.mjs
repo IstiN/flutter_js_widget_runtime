@@ -323,7 +323,26 @@ const EXAMPLES = Object.freeze({
       mime: 'model/gltf-binary',
       sha256: '9eabeb58587e4e0d11d5e23b30a26b73e4b8e6e8c83f2c36b3c5c3fe04dcf19f',
       diagnostic: 'flamingo'
-    }]
+    }],
+    // Keep the sky dome as an unlit BackSide mesh using the official top
+    // color. The custom vertical-gradient shader itself remains 1B-only.
+    facadeWraps: {
+      ShaderMaterial: `Base => {
+        let warned = false;
+        return class extends __three.MeshBasicMaterial {
+          constructor(params = {}) {
+            const uniforms = params.uniforms || {};
+            const top = uniforms.topColor && uniforms.topColor.value;
+            super({ color: top || 0x0077ff, side: params.side });
+            this.uniforms = uniforms;
+            if (!warned) {
+              warned = true;
+              console.warn('three-lights-hemisphere: R1 renders a solid-color sky dome; gradient ShaderMaterial dropped.');
+            }
+          }
+        };
+      }`
+    }
   },
   webgl_interactive_points: {
     id: 'three-interactive-points',
@@ -872,8 +891,35 @@ webgl_loader_ply: {
                 "mime": "application/octet-stream",
                 'output': 'ninjaHead_Low.obj',
       "sha256": "07819eacecae77a8539fbaf673d9a0908ec2e6383d1b6cedd94544b2a2f2c53b"
+          },
+      { rawRgba: true, url: 'textures/cube/SwedishRoyalCastle/px.jpg', output: 'castle-px.jpg', mime: 'image/jpeg', sha256: '10a786132bc7eef6b142bd0d4b00ea94ffc1a1bfccfb1a6ec0baedf966d80734' },
+      { rawRgba: true, url: 'textures/cube/SwedishRoyalCastle/nx.jpg', output: 'castle-nx.jpg', mime: 'image/jpeg', sha256: '53a8d90cea6bab188d462c44676b84e5993424e465785c93829d810bbf7c5076' },
+      { rawRgba: true, url: 'textures/cube/SwedishRoyalCastle/py.jpg', output: 'castle-py.jpg', mime: 'image/jpeg', sha256: '8b88f7f9af85fa5b442f28fb27532e534a197aba68ae60548bf4b3750f0d50f0' },
+      { rawRgba: true, url: 'textures/cube/SwedishRoyalCastle/ny.jpg', output: 'castle-ny.jpg', mime: 'image/jpeg', sha256: '17953cc33b9fec703c286266d4aca6033d758edd17ba0384fb3ebd7630085fd4' },
+      { rawRgba: true, url: 'textures/cube/SwedishRoyalCastle/pz.jpg', output: 'castle-pz.jpg', mime: 'image/jpeg', sha256: 'cc9252ba994a79c320ac4aed03aac9000f810c1358179e70a69b598d56e129db' },
+      { rawRgba: true, url: 'textures/cube/SwedishRoyalCastle/nz.jpg', output: 'castle-nz.jpg', mime: 'image/jpeg', sha256: '10149242ae21ba4c00663a0673f01a6722da63f201511fdc01941930d800ccff' }
+    ],
+    // Keep normal + cube environment mapping. AO and vertex displacement
+    // still require native material lanes, so peel only those two slots.
+    facadeWraps: {
+      MeshStandardMaterial: `Base => {
+        let warned = false;
+        return class extends Base {
+          constructor(params) {
+            if (params && (params.aoMap || params.displacementMap)) {
+              const peeled = Object.assign({}, params);
+              delete peeled.aoMap;
+              delete peeled.displacementMap;
+              if (!warned) {
+                warned = true;
+                console.warn('three-materials-displacementmap: R1 drops aoMap/displacementMap; normalMap and envMap retained.');
+              }
+              super(peeled);
+            } else super(params);
           }
-    ]
+        };
+      }`
+    }
   },
 
   webgl_materials_modified: {
@@ -893,7 +939,24 @@ webgl_loader_ply: {
                 "mime": "model/gltf-binary",
       "sha256": "402b8a8ac9f03232e6d64b5962929703a069daf99d3c49ac8eb0e48bedc9c576"
           }
-    ]
+    ],
+    // Render both heads with stock MeshNormalMaterial when arbitrary shader
+    // injection is unavailable. The prototype setter prevents an own
+    // onBeforeCompile property from reaching R1's capability guard.
+    facadeWraps: {
+      MeshNormalMaterial: `Base => {
+        let warned = false;
+        return class extends Base {
+          get onBeforeCompile() { return undefined; }
+          set onBeforeCompile(value) {
+            if (typeof value === 'function' && !warned) {
+              warned = true;
+              console.warn('three-materials-modified: R1 renders static normal heads; onBeforeCompile twist dropped.');
+            }
+          }
+        };
+      }`
+    }
   },
 
   webgl_buffergeometry_lines: {
@@ -1063,7 +1126,24 @@ webgl_geometry_shapes: {
                 "output": "helvetiker_regular.typeface.json",
                 "sha256": "d5c5467690f74061179a292af83bd85c4c551e0f106b2af99714f11184c96981"
           }
-    ]
+    ],
+    // The official comparison has two renderer objects but one surface in
+    // JSR. Share the first R1 renderer; logarithmicDepthBuffer remains a
+    // documented native-depth feature, not a reason to lose the whole scene.
+    facadeWraps: {
+      WebGLRenderer: `Base => {
+        let shared = null;
+        let warned = false;
+        return function(params) {
+          if (!shared) shared = new Base(params);
+          if (params && params.logarithmicDepthBuffer && !warned) {
+            warned = true;
+            console.warn('three-camera-logarithmicdepthbuffer: R1 shares one standard-depth renderer; logarithmic depth is not emulated.');
+          }
+          return shared;
+        };
+      }`
+    }
   },
   webgl_instancing_performance: {
     id: 'three-instancing-performance',
@@ -1075,7 +1155,9 @@ webgl_geometry_shapes: {
       html: '241ca59d6decbeb027fb17a13a89b364c626141bbb18fabda594a832e7514e2d',
       module: '4aa00c361d5731aa5a6ac583a0179208b2f90f990a53214ab53068e301f9ec16'
     },
-    assets: []
+    assets: [
+      { url: 'models/json/suzanne_buffergeometry.json', sha256: '8aa6f692a08b2ec0991b7903914cfa3154e2f553a4ca72ca3fb5d7e6c16f839f', mime: 'application/octet-stream' }
+    ]
   },
   webgl_instancing_scatter: {
     id: 'three-instancing-scatter',
@@ -1355,7 +1437,29 @@ webgl_geometry_shapes: {
       html: '1cea23c77de561d18886dfe3612b7907276c9f46d08a2286b971bde5c6739df6',
       module: '6de20b371724a85fa60a3324d842088867ccdb85ea9f3ee706c0ca2bbd8d81b1'
     },
-    assets: []
+    assets: [
+      { url: 'textures/uv_grid_opengl.jpg', output: 'uv_grid_opengl.jpg', mime: 'image/jpeg', sha256: '909d9a1eb2a5d5de9d221a5e8de4e9119d409decddf522d48896bd51523d354d' },
+      { url: 'textures/sprite0.jpg', output: 'sprite0.jpg', mime: 'image/jpeg', sha256: '1dad128859c53e70eb0fe6e0291192787a5f1c08613b5e44b52e89fcf29750cb' },
+      { url: 'textures/sprite0.png', output: 'sprite0.png', mime: 'image/png', sha256: '79592d002649e69628ed7ea9dc79ab911c43dded78c716362742e225acec32fb' },
+      { url: 'textures/lensflare/lensflare0.png', output: 'lensflare0.png', mime: 'image/png', sha256: '5266c28e6597607f5646801469a7a08f98b4eddd358cef1824745698671802b8' },
+      { url: 'textures/lensflare/lensflare0_alpha.png', output: 'lensflare0_alpha.png', mime: 'image/png', sha256: '5f632ba4d17b6645b665c06eba4e57eaee39099009e9322ed58269ad88fc0365' }
+    ],
+    // R1 blends straight alpha only. Keep every official blending mode but
+    // degrade the premultipliedAlpha toggle instead of rejecting all 50 draws.
+    facadeWraps: {
+      MeshBasicMaterial: `Base => {
+        let warned = false;
+        return class extends Base {
+          get premultipliedAlpha() { return false; }
+          set premultipliedAlpha(value) {
+            if (value && !warned) {
+              warned = true;
+              console.warn('three-materials-blending: R1 uses straight alpha; premultipliedAlpha dropped.');
+            }
+          }
+        };
+      }`
+    }
   },
   webgl_multiple_scenes_comparison: {
     id: 'three-multiple-scenes-comparison',
@@ -1589,7 +1693,26 @@ webgl_geometry_shapes: {
                 "output": "WaltHeadLo_buffergeometry.json",
                 "sha256": "7fbdd9db5849c7bef4db31e4d883f5ac722f3fdfeb617347825c4e0e659a3a35"
           }
-    ]
+    ],
+    // R1 has real indexed wireframe draws. Use that lane for the official
+    // barycentric ShaderMaterial head too; thickness remains GUI-compatible
+    // through the retained uniforms object but is fixed at one pixel.
+    facadeWraps: {
+      ShaderMaterial: `Base => {
+        let warned = false;
+        return class extends __three.MeshBasicMaterial {
+          constructor(params = {}) {
+            super({ color: 0xe0e0ff, wireframe: true, side: params.side });
+            this.uniforms = params.uniforms || {};
+            this.alphaToCoverage = !!params.alphaToCoverage;
+            if (!warned) {
+              warned = true;
+              console.warn('three-materials-wireframe: R1 uses one-pixel MeshBasicMaterial wireframe for the shader head.');
+            }
+          }
+        };
+      }`
+    }
   },
   webgl_modifier_edgesplit: {
     id: 'three-modifier-edgesplit',
@@ -1601,7 +1724,10 @@ webgl_geometry_shapes: {
       html: 'dbb115e40909c4844f4639f2b9f411b748487cbc7aa8300908eb9cfc56a6c2ea',
       module: '2536872df6ad45c5e1bf3de35f45c67085f14be141613eb6ea74170aa0510017'
     },
-    assets: []
+    assets: [
+      { url: 'models/obj/cerberus/Cerberus.obj', sha256: '0ffac38139fe00145683774bf33d2fb245e2770a68bb71c552812ab9d12ee534', mime: 'application/octet-stream' },
+      { rawRgba: true, url: 'models/obj/cerberus/Cerberus_A.jpg', sha256: 'e29e1d326560c635bf2407ba3bf506d632ae603d212082f74ada55c4f22423b6', mime: 'image/jpeg' }
+    ]
   },
   webgl_modifier_simplifier: {
     id: 'three-modifier-simplifier',
@@ -1612,6 +1738,33 @@ webgl_geometry_shapes: {
     expected: {
       html: '6ba92c0619730cd31adf350e0a584c08873e8e668b4dfbc17cc2d567de88bb83',
       module: 'd01fffeaf99f17d6a11705dfa30f5c9a8c2405bfb814d129d35c9c4d87a7c9e8'
+    },
+    addonShims: {
+      'three/addons/modifiers/SimplifyModifier.js': [
+        '// Bounded deterministic CPU reduction: the bundled meshopt WASM never',
+        '// resolves under QuickJS. Samples complete source triangles with their',
+        '// original attributes; reduced quality is explicit, never silent.',
+        'export class SimplifyModifier {',
+        '  modify(geometry, verticesToRemove = 0) {',
+        "    console.warn('three: SimplifyModifier uses deterministic triangle sampling (meshopt unavailable)');",
+        '    const index = geometry.getIndex();',
+        '    const source = index ? Array.from(index.array) : null;',
+        '    const triangleCount = source ? source.length / 3 : geometry.getAttribute(\'position\').count / 3;',
+        '    const target = Math.max(1, triangleCount - Math.max(0, verticesToRemove));',
+        '    const step = triangleCount / target;',
+        '    const indices = [];',
+        '    for (let i = 0; i < target; i++) {',
+        '      const triangle = Math.min(triangleCount - 1, Math.floor(i * step));',
+        '      for (let corner = 0; corner < 3; corner++) {',
+        '        indices.push(source ? source[triangle * 3 + corner] : triangle * 3 + corner);',
+        '      }',
+        '    }',
+        '    const result = geometry.clone();',
+        '    result.setIndex(indices);',
+        '    return result;',
+        '  }',
+        '}'
+      ].join('\n')
     },
     assets: [
           {
@@ -1859,7 +2012,9 @@ webgl_geometry_shapes: {
       html: '4189452a6878da428b231a975fda7d58eabdda08125397e5112a9ca40bbd14c6',
       module: '2971b68a9a30dd36b07b6a6b905a9df7a15352c168a63632be6ca2c5cde51daa'
     },
-    assets: []
+    assets: [
+      { url: 'models/pcd/binary/Zaghetto.pcd', sha256: '0efcd6f363c852571e00cfca44fbd2e760df31b9bccb754d2dc27ba225d998ab', mime: 'application/octet-stream' }
+    ]
   },
   webgl_materials_cubemap: {
     id: 'three-materials-cubemap',
@@ -1897,7 +2052,13 @@ webgl_geometry_shapes: {
                 "mime": "image/jpeg",
                 "output": "2294472375_24a3b8ef46_o.jpg",
                 "sha256": "3efa22071f3f84ec26248ee58aa05aba635a0a9d810bca93da5a94f33e907524"
-          }
+          },
+      { rawRgba: true, url: 'textures/cube/Bridge2/posx.jpg', output: 'bridge2-posx.jpg', mime: 'image/jpeg', sha256: 'bfea380ae3b2f2b44d3040c9fe7a8f3e325450a12b7a0f29561b5ca175f1a250' },
+      { rawRgba: true, url: 'textures/cube/Bridge2/negx.jpg', output: 'bridge2-negx.jpg', mime: 'image/jpeg', sha256: '047052e77f698a819903f1d2fe27b40ee56930150fc38913da7e1c58e8dcae70' },
+      { rawRgba: true, url: 'textures/cube/Bridge2/posy.jpg', output: 'bridge2-posy.jpg', mime: 'image/jpeg', sha256: 'cc467777340037ee8f95460b19772a8ae6a71c125af1714bfd408db2c1c33d98' },
+      { rawRgba: true, url: 'textures/cube/Bridge2/negy.jpg', output: 'bridge2-negy.jpg', mime: 'image/jpeg', sha256: '52b4b95125c777d48ac9ea568d79d55fd3fb62e24a7da37600720cdddb7ab333' },
+      { rawRgba: true, url: 'textures/cube/Bridge2/posz.jpg', output: 'bridge2-posz.jpg', mime: 'image/jpeg', sha256: 'd56085e5da2e8f2cee13694519ed153995045f5a11b1d41d25be70380cf15548' },
+      { rawRgba: true, url: 'textures/cube/Bridge2/negz.jpg', output: 'bridge2-negz.jpg', mime: 'image/jpeg', sha256: '1bc79f442f31931576d734565821b41b331a017dd86f2ac6a60ac6d3bbbbe6ba' }
     ]
   },
   webgl_materials_normalmap_object_space: {
@@ -2126,7 +2287,14 @@ webgl_geometry_shapes: {
       html: '0db6b652663646a2566e08d7c4fcb194bc014a5a1c10eba997e90728ce496953',
       module: '36e9b7fdd5fcab94ab4da7623bfad1dc43ac869c55543a1ec53b5447358e83ac'
     },
-    assets: []
+    assets: [
+      { rawRgba: true, url: 'textures/cube/Park3Med/px.jpg', sha256: '271ef2f791ff6b6f7e5ab45347279ac7195d5f8dab38eb08880036e4bac7d157', mime: 'image/jpeg' },
+      { rawRgba: true, url: 'textures/cube/Park3Med/nx.jpg', sha256: '6e27cd535b8ce0400dfec87298f1d7b009aeca54a69b38c8b00834c9d52ce438', mime: 'image/jpeg' },
+      { rawRgba: true, url: 'textures/cube/Park3Med/py.jpg', sha256: '27588b1f84b2b7075c56681b2b4893b01ff6c81ab50638884fa9ca8e40266af1', mime: 'image/jpeg' },
+      { rawRgba: true, url: 'textures/cube/Park3Med/ny.jpg', sha256: '9c58ffbc9a0a71a61f6b71c002f9367abf3a77e01bea8c6ba7e008c01695ab90', mime: 'image/jpeg' },
+      { rawRgba: true, url: 'textures/cube/Park3Med/pz.jpg', sha256: 'f97d0a20187c419622949a4bdb2afb652742bedb6924b9771d00e01d9fd428c7', mime: 'image/jpeg' },
+      { rawRgba: true, url: 'textures/cube/Park3Med/nz.jpg', sha256: 'ee32866c05c8221121856b5027d52d1ce0dbcd57185c2295135a5bab656d7503', mime: 'image/jpeg' }
+    ]
   },
   webgl_test_memory: {
     id: 'three-test-memory',

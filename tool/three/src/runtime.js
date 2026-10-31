@@ -45,6 +45,83 @@ function installAbortController() {
   ROOT.AbortController = AbortController;
   ROOT.AbortSignal = AbortSignal;
 }
+function installOfflineFetch() {
+  if (typeof ROOT.Headers === 'undefined') {
+    ROOT.Headers = class Headers {
+      constructor(init = {}) {
+        this._values = new Map();
+        if (init && typeof init.forEach === 'function' && !Array.isArray(init)) {
+          init.forEach((value, key) => this.set(key, value));
+        } else if (Array.isArray(init)) {
+          for (const entry of init) if (entry && entry.length >= 2) this.set(entry[0], entry[1]);
+        } else if (init && typeof init === 'object') {
+          for (const key of Object.keys(init)) this.set(key, init[key]);
+        }
+      }
+      append(name, value) { this.set(name, this.has(name) ? `${this.get(name)}, ${value}` : value); }
+      delete(name) { this._values.delete(String(name).toLowerCase()); }
+      get(name) { const value = this._values.get(String(name).toLowerCase()); return value === undefined ? null : value; }
+      has(name) { return this._values.has(String(name).toLowerCase()); }
+      set(name, value) { this._values.set(String(name).toLowerCase(), String(value)); }
+      forEach(callback, thisArg) { this._values.forEach((value, key) => callback.call(thisArg, value, key, this)); }
+      entries() { return this._values.entries(); }
+    };
+  }
+  if (typeof ROOT.Request === 'undefined') {
+    ROOT.Request = class Request {
+      constructor(input, options = {}) {
+        this.url = String(input && input.url !== undefined ? input.url : input);
+        this.headers = new ROOT.Headers(input && input.headers ? input.headers : options.headers || {});
+        this.credentials = options.credentials || 'same-origin';
+        this.signal = options.signal || (input && input.signal);
+      }
+    };
+  }
+  const bytesOf = body => {
+    if (body === undefined || body === null) return new Uint8Array();
+    if (body instanceof Uint8Array) return new Uint8Array(body);
+    if (body instanceof ArrayBuffer) return new Uint8Array(body.slice(0));
+    if (ArrayBuffer.isView(body)) return new Uint8Array(body.buffer.slice(body.byteOffset, body.byteOffset + body.byteLength));
+    return utf8(String(body));
+  };
+  if (typeof ROOT.Response === 'undefined') {
+    ROOT.Response = class Response {
+      constructor(body = null, options = {}) {
+        this._bytes = bytesOf(body);
+        this.status = options.status === undefined ? 200 : options.status;
+        this.statusText = options.statusText || '';
+        this.headers = new ROOT.Headers(options.headers || {});
+        this.url = options.url || '';
+        // No ReadableStream in the bounded QuickJS runtime. Upstream
+        // FileLoader deliberately takes its non-streaming response branch.
+        this.body = undefined;
+      }
+      async arrayBuffer() { return this._bytes.buffer.slice(this._bytes.byteOffset, this._bytes.byteOffset + this._bytes.byteLength); }
+      async text() { return decodeUtf8(this._bytes); }
+      async json() { return JSON.parse(await this.text()); }
+      async blob() { return typeof Blob === 'undefined' ? this._bytes : new Blob([this._bytes], { type: this.headers.get('Content-Type') || '' }); }
+    };
+  }
+  if (typeof ROOT.fetch === 'undefined') {
+    ROOT.fetch = input => {
+      const request = input && input.url !== undefined ? input : new ROOT.Request(input);
+      const runtime = activeRuntime;
+      if (!runtime) return Promise.reject(new Error('three.assetFailure: THREE runtime is not initialized'));
+      if (request.signal && request.signal.aborted) return Promise.reject(request.signal.reason || new Error('request aborted'));
+      return runtime.loadAsset(request.url).then(record => {
+        if (request.signal && request.signal.aborted) throw request.signal.reason || new Error('request aborted');
+        return new ROOT.Response(record.bytes, {
+          status: 200,
+          url: request.url,
+          headers: {
+            'Content-Type': record.mime || 'application/octet-stream',
+            'Content-Length': String(record.bytes.length)
+          }
+        });
+      });
+    };
+  }
+}
 const BASE64 = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/';
 let activeRuntime = null;
 
@@ -206,6 +283,7 @@ class JsrThreeDocument {
     this.activeElement = null;
     this.documentElement = { style: {} };
     this.defaultView = {
+      Math: ROOT.Math,
       get devicePixelRatio() { return runtime.pixelRatio; },
       get innerWidth() { return runtime.width; },
       get innerHeight() { return runtime.height; },
@@ -824,6 +902,7 @@ export class ThreeCompatibilityRuntime {
 export function installThreeRuntime(web) {
   installTextEncoding();
   installAbortController();
+  installOfflineFetch();
   const jsr = ROOT.jsr || (ROOT.jsr = {});
   const previous = jsr.three || {};
   if (activeRuntime && activeRuntime.web === !!web && previous._runtime === activeRuntime) return activeRuntime;

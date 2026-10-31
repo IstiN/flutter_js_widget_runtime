@@ -310,23 +310,30 @@ export class BooleanController extends Controller {
 // renders a hex text input (same shape as the bare numeric controller) and
 // restores the property's original type (number or '#rrggbb' string) on the
 // event path. Arrays/objects stay outside the bounded profile.
+function isThreeColorValue(value) {
+  return !!value && typeof value === 'object' &&
+    typeof value.getHex === 'function' && typeof value.setHex === 'function';
+}
+
+function validColorValue(value) {
+  return (typeof value === 'number' && Number.isInteger(value) && value >= 0 && value <= 0xffffff) ||
+    (typeof value === 'string' && /^#(?:[0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/.test(value)) ||
+    isThreeColorValue(value);
+}
+
 export class ColorController extends Controller {
   constructor(container, object, property) {
-    const value = object[property];
-    const valid = (typeof value === 'number' && Number.isInteger(value) && value >= 0 && value <= 0xffffff) ||
-      (typeof value === 'string' && /^#(?:[0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/.test(value));
-    if (!valid) unsupported(`addColor(${typeof value})`);
+    if (!validColorValue(object[property])) unsupported(`addColor(${typeof object[property]})`);
     super(container, object, property, 'color');
   }
   setValue(value) {
-    const valid = (typeof value === 'number' && Number.isInteger(value) && value >= 0 && value <= 0xffffff) ||
-      (typeof value === 'string' && /^#(?:[0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/.test(value));
-    if (!valid) throw new Error('three.invalid: lil-gui color value must be 0xrrggbb or a #hex string');
+    if (!validColorValue(value)) throw new Error('three.invalid: lil-gui color value must be 0xrrggbb, a #hex string or THREE.Color');
     return super.setValue(value);
   }
 }
 
 function colorDisplay(value) {
+  if (isThreeColorValue(value)) return `#${value.getHex().toString(16).padStart(6, '0')}`;
   return typeof value === 'number' ? `#${value.toString(16).padStart(6, '0')}` : value;
 }
 
@@ -337,7 +344,12 @@ function parseColorEvent(controller, raw) {
   let hex = match[1];
   if (hex.length === 3) hex = hex.split('').map(c => c + c).join('');
   hex = hex.toLowerCase();
-  return typeof controller.getValue() === 'number' ? Number.parseInt(hex, 16) : `#${hex}`;
+  const current = controller.getValue();
+  if (isThreeColorValue(current)) {
+    current.setHex(Number.parseInt(hex, 16));
+    return current;
+  }
+  return typeof current === 'number' ? Number.parseInt(hex, 16) : `#${hex}`;
 }
 
 
@@ -508,6 +520,8 @@ class NativeFolder {
     this._title = String(title).slice(0, 128);
     this._closed = false;
     this._hidden = false;
+    // Bounded DOM parity sink: official modules append stats/label nodes.
+    this.$children = { appendChild() {}, removeChild() {}, children: [] };
   }
 
   add(object, property, ...options) {

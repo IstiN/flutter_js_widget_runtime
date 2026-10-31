@@ -27,9 +27,7 @@ import 'support/widget_logic_helper.dart';
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
   if (!hasQuickjsNativeLib) return;
-  final sink = File('/tmp/three_matrix.jsonl').openWrite(mode: FileMode.append);
 CASES
-  tearDownAll(() async => sink.close());
 }
 '''
 case = '''
@@ -69,7 +67,7 @@ case = '''
     } catch (error) {
       result['error'] = error.toString().substring(0, 300);
     }
-    sink.writeln(jsonEncode(result));
+    File('/tmp/three_matrix.jsonl').writeAsStringSync('${jsonEncode(result)}\\n', mode: FileMode.append, flush: true);
   }, timeout: const Timeout(Duration(seconds: 120)));
 '''
 cases = ''.join(case.replace('ID', widget) for widget in widgets)

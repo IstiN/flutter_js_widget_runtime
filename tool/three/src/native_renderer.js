@@ -1,7 +1,7 @@
 import {
-  ACESFilmicToneMapping, AgXToneMapping, BackSide, BoxGeometry, CineonToneMapping, Color, CubeReflectionMapping, CubeRefractionMapping,
-  CustomToneMapping, DoubleSide, DynamicDrawUsage, EquirectangularReflectionMapping, FrontSide, Frustum, LinearFilter,
-  LinearToneMapping, Matrix4, Mesh, MeshBasicMaterial, MeshLambertMaterial, MeshStandardMaterial,
+  ACESFilmicToneMapping, AgXToneMapping, BackSide, BoxGeometry, BufferGeometry, CineonToneMapping, Color, CubeReflectionMapping, CubeRefractionMapping,
+  CustomToneMapping, DataTexture, DoubleSide, DynamicDrawUsage, EquirectangularReflectionMapping, Float32BufferAttribute, FrontSide, Frustum, LinearFilter,
+  LinearToneMapping, LineBasicMaterial, Matrix4, Mesh, MeshBasicMaterial, MeshLambertMaterial, MeshStandardMaterial,
   MirroredRepeatWrapping, NeutralToneMapping, NearestFilter, NearestMipmapNearestFilter,
   NearestMipmapLinearFilter, NoToneMapping, NormalBlending, CustomBlending, PointsMaterial, HalfFloatType, RedFormat,
   ReinhardToneMapping, RGBAFormat, RepeatWrapping, SRGBColorSpace, UVMapping, UnsignedByteType,
@@ -373,6 +373,229 @@ function validateMaterial(material) {
   }
 }
 
+// Bounded lowerings for the small, fixed shader/line profiles used by the
+// official examples. They produce ordinary R1 geometry/materials rather than
+// pretending to execute arbitrary GLSL. Unrecognised shaders still take the
+// loud ShaderMaterial capability error in validateMaterial().
+function adaptationWarn(material, key, message) {
+  if (material[key]) return;
+  material[key] = true;
+  console.warn(`three: ${message}`);
+}
+
+function adaptedLineMaterial(source, vertexColors) {
+  return new LineBasicMaterial({
+    color: source.color || new Color(0xffffff),
+    opacity: source.opacity === undefined ? 1 : source.opacity,
+    transparent: !!source.transparent,
+    vertexColors,
+    side: source.side,
+    depthTest: source.depthTest,
+    depthWrite: source.depthWrite,
+    blending: source.blending,
+    alphaTest: source.alphaTest || 0,
+    fog: source.fog
+  });
+}
+
+function adaptedAttributeVersion(attribute) {
+  return attribute ? `${attribute.id}:${attributeVersionKey(attribute)}:${token(attribute.array)}` : '-';
+}
+
+function proceduralVertexGeometry(source) {
+  const drawRange = source.drawRange || { start: 0, count: Infinity };
+  const range = { start: drawRange.start, count: drawRange.count };
+  const count = range.count;
+  if (count % 3 !== 0 || count > 4000000) throw new Error('three.invalid: procedural vertex count');
+  const positions = new Float32Array(count * 3);
+  const colors = new Float32Array(count * 3);
+  const bits = new ArrayBuffer(4);
+  const floats = new Float32Array(bits);
+  const uints = new Uint32Array(bits);
+  const floatBits = value => { floats[0] = value; return uints[0]; };
+  const uintFloat = value => { uints[0] = value >>> 0; return floats[0]; };
+  const hash = value => {
+    let x = value >>> 0;
+    x = (x + (x << 10)) >>> 0;
+    x = (x ^ (x >>> 6)) >>> 0;
+    x = (x + (x << 3)) >>> 0;
+    x = (x ^ (x >>> 11)) >>> 0;
+    x = (x + (x << 15)) >>> 0;
+    return x >>> 0;
+  };
+  const random = (lower, delta, x, y) => {
+    let m = hash((floatBits(x) ^ hash(floatBits(y))) >>> 0);
+    m = ((m & 0x007fffff) | 0x3f800000) >>> 0;
+    return lower + delta * (uintFloat(m) - 1);
+  };
+  const vector = (lower, upper, index, out, offset) => {
+    const delta = upper - lower;
+    out[offset] = random(lower, delta, index, 0);
+    out[offset + 1] = random(lower, delta, index, 1);
+    out[offset + 2] = random(lower, delta, index, 2);
+  };
+  const center = new Float32Array(3);
+  const jitter = new Float32Array(3);
+  for (let vertex = 0; vertex < count; vertex++) {
+    const id = range.start + vertex;
+    const triangle = Math.floor(id / 3);
+    vector(-1, 1, triangle, center, 0);
+    vector(-1 / 64, 1 / 64, id, jitter, 0);
+    vector(0.25, 1, triangle, colors, vertex * 3);
+    positions[vertex * 3] = center[0] + jitter[0];
+    positions[vertex * 3 + 1] = center[1] + jitter[1];
+    positions[vertex * 3 + 2] = center[2] + jitter[2];
+  }
+  const geometry = new BufferGeometry();
+  geometry.setAttribute('position', new Float32BufferAttribute(positions, 3));
+  geometry.setAttribute('color', new Float32BufferAttribute(colors, 3));
+  geometry.computeBoundingSphere();
+  return geometry;
+}
+
+function dashedGeometry(source, lineSegments, material) {
+  const position = source.attributes.position;
+  const color = source.attributes.color;
+  const distances = source.attributes.lineDistance;
+  const scale = material.scale === undefined ? 1 : material.scale;
+  const dash = material.dashSize === undefined ? 1 : material.dashSize;
+  const gap = material.gapSize === undefined ? 1 : material.gapSize;
+  if (![scale, dash, gap].every(Number.isFinite) || scale <= 0 || dash < 0 || gap < 0 || dash + gap <= 0) {
+    throw new Error('three.invalid: dashed line scale/dashSize/gapSize');
+  }
+  const range = sourceRange(source, position.count);
+  const indices = sourceIndices(source, position.count).slice(range.start, range.start + range.count);
+  const segmentCount = lineSegments ? Math.floor(indices.length / 2) : indices.length - 1;
+  const positions = [];
+  const colors = [];
+  const period = dash + gap;
+  let cumulative = 0;
+  const append = (a, b, ia, ib, t0, t1) => {
+    for (let c = 0; c < 3; c++) {
+      const av = position.getComponent(ia, c);
+      const bv = position.getComponent(ib, c);
+      positions.push(av + (bv - av) * t0);
+    }
+    for (let c = 0; c < 3; c++) {
+      const av = position.getComponent(ia, c);
+      const bv = position.getComponent(ib, c);
+      positions.push(av + (bv - av) * t1);
+    }
+    if (color) {
+      const components = color.itemSize;
+      for (const t of [t0, t1]) {
+        for (let c = 0; c < components; c++) {
+          const av = color.getComponent(ia, c);
+          const bv = color.getComponent(ib, c);
+          colors.push(av + (bv - av) * t);
+        }
+      }
+    }
+  };
+  for (let segment = 0; segment < segmentCount; segment++) {
+    const ia = indices[lineSegments ? segment * 2 : segment];
+    const ib = indices[lineSegments ? segment * 2 + 1 : segment + 1];
+    const length = Math.hypot(
+      position.getComponent(ib, 0) - position.getComponent(ia, 0),
+      position.getComponent(ib, 1) - position.getComponent(ia, 1),
+      position.getComponent(ib, 2) - position.getComponent(ia, 2)
+    );
+    if (!(length > 0)) continue;
+    const start = distances ? distances.getComponent(ia, 0) * scale :
+      (lineSegments ? 0 : cumulative * scale);
+    const scaledLength = length * scale;
+    const end = start + scaledLength;
+    let cursor = start;
+    let guard = 0;
+    while (cursor < end - 1e-7 && guard++ < 4000000) {
+      const phase = ((cursor % period) + period) % period;
+      const visible = phase <= dash;
+      const boundary = visible ? cursor + dash - phase : cursor + period - phase;
+      const next = Math.min(end, Math.max(cursor + 1e-7, boundary));
+      if (visible) append(ia, ib, ia, ib,
+        (cursor - start) / scaledLength, (next - start) / scaledLength);
+      cursor = next;
+      if (positions.length / 3 > 4000000) throw new Error('three.invalid: dashed line vertex quota');
+    }
+    cumulative += length;
+  }
+  const geometry = new BufferGeometry();
+  geometry.setAttribute('position', new Float32BufferAttribute(positions, 3));
+  if (color) geometry.setAttribute('color', new Float32BufferAttribute(colors, color.itemSize));
+  geometry.computeBoundingSphere();
+  return geometry;
+}
+
+function fatLineGeometry(source) {
+  const start = source.attributes.instanceStart;
+  const end = source.attributes.instanceEnd;
+  if (!start || !end || start.itemSize !== 3 || end.itemSize !== 3) return null;
+  const count = Math.min(start.count, end.count);
+  if (!Number.isInteger(count) || count <= 0 || count > 2000000) throw new Error('three.invalid: fat line segment count');
+  const positions = new Float32Array(count * 6);
+  for (let i = 0; i < count; i++) {
+    for (let c = 0; c < 3; c++) {
+      positions[i * 6 + c] = start.getComponent(i, c);
+      positions[i * 6 + 3 + c] = end.getComponent(i, c);
+    }
+  }
+  const colorStart = source.attributes.instanceColorStart;
+  const colorEnd = source.attributes.instanceColorEnd;
+  let colors = null;
+  if (colorStart && colorEnd && colorStart.itemSize === 3 && colorEnd.itemSize === 3) {
+    colors = new Float32Array(count * 6);
+    for (let i = 0; i < count; i++) {
+      for (let c = 0; c < 3; c++) {
+        colors[i * 6 + c] = colorStart.getComponent(i, c);
+        colors[i * 6 + 3 + c] = colorEnd.getComponent(i, c);
+      }
+    }
+  }
+  const geometry = new BufferGeometry();
+  geometry.setAttribute('position', new Float32BufferAttribute(positions, 3));
+  if (colors) geometry.setAttribute('color', new Float32BufferAttribute(colors, 3));
+  geometry.computeBoundingSphere();
+  return geometry;
+}
+
+function selectiveLineGeometry(source) {
+  const position = source.attributes.position;
+  const sourceColor = source.attributes.vertColor;
+  const visible = source.attributes.visible;
+  const indices = sourceIndices(source, position.count);
+  const positions = [];
+  const colors = [];
+  for (let i = 0; i + 1 < indices.length; i += 2) {
+    const a = indices[i], b = indices[i + 1];
+    if (visible.getComponent(a, 0) <= 0 && visible.getComponent(b, 0) <= 0) continue;
+    for (const index of [a, b]) {
+      for (let c = 0; c < 3; c++) positions.push(position.getComponent(index, c));
+      for (let c = 0; c < 3; c++) colors.push(sourceColor.getComponent(index, c));
+    }
+  }
+  const geometry = new BufferGeometry();
+  geometry.setAttribute('position', new Float32BufferAttribute(positions, 3));
+  geometry.setAttribute('color', new Float32BufferAttribute(colors, 3));
+  geometry.computeBoundingSphere();
+  return geometry;
+}
+
+let sharedPointDisc = null;
+function pointDiscTexture() {
+  if (sharedPointDisc) return sharedPointDisc;
+  const size = 32;
+  const data = new Uint8Array(size * size * 4);
+  for (let y = 0; y < size; y++) for (let x = 0; x < size; x++) {
+    const dx = (x + 0.5) / size - 0.5, dy = (y + 0.5) / size - 0.5;
+    const offset = (y * size + x) * 4;
+    data[offset] = data[offset + 1] = data[offset + 2] = 255;
+    data[offset + 3] = Math.hypot(dx, dy) <= 0.475 ? 255 : 0;
+  }
+  sharedPointDisc = new DataTexture(data, size, size);
+  sharedPointDisc.needsUpdate = true;
+  return sharedPointDisc;
+}
+
 function sideValue(side) {
   if (side === FrontSide) return 0;
   if (side === BackSide) return 1;
@@ -436,6 +659,8 @@ export class JsrWebGLRenderer {
     this._nextGeometryAlias = 0x80000000;
     this._canvasTextures = new Map();
     this._canvasRefreshHandle = null;
+    this._adaptedLineDraws = new WeakMap();
+    this._adaptedShaderDraws = new WeakMap();
     this._lastScene = null;
     this._lastCamera = null;
     this._state = canvas._r1State || (canvas._r1State = {
@@ -1481,6 +1706,191 @@ export class JsrWebGLRenderer {
     cache.valid = true;
   }
 
+  _adaptLineDraw(object) {
+    const source = object.geometry;
+    const material = object.material;
+    if (!source || !material || Array.isArray(material)) return null;
+    const fat = object.isLineSegments2 === true;
+    const dashed = material.isLineDashedMaterial === true || (fat && material.dashed === true);
+    if (!fat && !dashed) return null;
+    const attrs = source.attributes;
+    const signature = fat ? [
+      'fat', adaptedAttributeVersion(attrs.instanceStart), adaptedAttributeVersion(attrs.instanceEnd),
+      adaptedAttributeVersion(attrs.instanceColorStart), adaptedAttributeVersion(attrs.instanceColorEnd),
+      material.color ? `${material.color.r}:${material.color.g}:${material.color.b}` : '-',
+      material.vertexColors, material.dashed, material.dashScale, material.dashSize, material.gapSize,
+      material.opacity, material.transparent, material.version
+    ].join('|') : [
+      'dash', adaptedAttributeVersion(attrs.position), adaptedAttributeVersion(attrs.color),
+      adaptedAttributeVersion(source.index), adaptedAttributeVersion(attrs.lineDistance),
+      source.drawRange.start, source.drawRange.count, material.scale, material.dashSize, material.gapSize,
+      material.color ? `${material.color.r}:${material.color.g}:${material.color.b}` : '-',
+      material.opacity, material.transparent, material.version
+    ].join('|');
+    const previous = this._adaptedLineDraws.get(object);
+    if (previous && previous.source === source && previous.sourceMaterial === material && previous.signature === signature) {
+      return { geometry: previous.geometry, material: previous.material, lineSegments: fat || object.isLineSegments };
+    }
+    let geometry;
+    let adaptedMaterial;
+    if (fat) {
+      geometry = fatLineGeometry(source);
+      if (!geometry) return null;
+      const vertexColors = !!geometry.attributes.color && material.vertexColors !== false;
+      adaptedMaterial = adaptedLineMaterial(material, vertexColors);
+      if (material.dashed === true) {
+        geometry = dashedGeometry(geometry, true, {
+          scale: material.dashScale === undefined ? 1 : material.dashScale,
+          dashSize: material.dashSize === undefined ? 1 : material.dashSize,
+          gapSize: material.gapSize === undefined ? 1 : material.gapSize
+        });
+      }
+      adaptationWarn(material, '_r1FatLineWarned',
+        'R1 lowers Line2/LineSegments2 to native line segments; linewidth and alphaToCoverage are dropped.');
+    } else {
+      geometry = dashedGeometry(source, !!object.isLineSegments, material);
+      adaptedMaterial = adaptedLineMaterial(material, !!source.attributes.color);
+    }
+    if (previous) {
+      if (previous.geometry !== geometry && previous.geometry !== source) previous.geometry.dispose();
+      if (previous.material !== adaptedMaterial) previous.material.dispose();
+    }
+    this._adaptedLineDraws.set(object, { source, sourceMaterial: material, signature, geometry, material: adaptedMaterial });
+    return { geometry, material: adaptedMaterial, lineSegments: fat || object.isLineSegments };
+  }
+
+  _adaptShaderDraw(object) {
+    const source = object.geometry;
+    const material = object.material;
+    if (!source || !material || Array.isArray(material) || !(material.isShaderMaterial || material.isRawShaderMaterial)) return null;
+    const attrs = source.attributes;
+    const uniforms = material.uniforms || {};
+    let kind = null;
+    if (!attrs.position && material.isRawShaderMaterial &&
+        String(material.vertexShader).includes('pseudoRandomVec3') &&
+        String(material.vertexShader).includes('gl_VertexID')) kind = 'procedural';
+    else if (object.isLineSegments && attrs.position && attrs.vertColor && attrs.visible &&
+        String(material.fragmentShader).includes('vVisible')) kind = 'selective';
+    else if (object.isPoints && attrs.position && (attrs.customColor || attrs.size || attrs.scale)) kind = 'points';
+    else if (object.isMesh && attrs.position && attrs.normal && attrs.customColor && attrs.displacement &&
+        uniforms.amplitude && String(material.vertexShader).includes('amplitude')) kind = 'tessellation';
+    if (!kind) return null;
+    const amplitude = kind === 'tessellation' ? Number(uniforms.amplitude.value) : 0;
+    const sizeAttribute = kind === 'points' ? (attrs.size || attrs.scale || null) : null;
+    let meanSize = 1;
+    if (sizeAttribute) {
+      let total = 0;
+      for (let i = 0; i < sizeAttribute.count; i++) {
+        const value = sizeAttribute.getComponent(i, 0);
+        requireFinite(value, 'point size attribute');
+        total += value;
+      }
+      meanSize = sizeAttribute.count ? total / sizeAttribute.count : 1;
+      if (!(meanSize > 0)) meanSize = 0.001;
+    }
+    const uniformColor = uniforms.color && uniforms.color.value;
+    const signature = [
+      kind, adaptedAttributeVersion(attrs.position), adaptedAttributeVersion(attrs.normal),
+      adaptedAttributeVersion(attrs.color), adaptedAttributeVersion(attrs.customColor),
+      adaptedAttributeVersion(attrs.vertColor), adaptedAttributeVersion(attrs.visible),
+      adaptedAttributeVersion(attrs.displacement), adaptedAttributeVersion(sizeAttribute),
+      adaptedAttributeVersion(source.index), source.drawRange.start, source.drawRange.count,
+      amplitude, meanSize, material.version, material.opacity, material.transparent,
+      uniformColor && uniformColor.isColor ? `${uniformColor.r}:${uniformColor.g}:${uniformColor.b}` : '-',
+      uniforms.pointTexture && uniforms.pointTexture.value ? resourceId(uniforms.pointTexture.value) : 0,
+      uniforms.alphaTest ? uniforms.alphaTest.value : 0
+    ].join('|');
+    const previous = this._adaptedShaderDraws.get(object);
+    if (previous && previous.source === source && previous.sourceMaterial === material && previous.signature === signature) {
+      return { geometry: previous.geometry, material: previous.material, lineSegments: kind === 'selective' ? true : undefined };
+    }
+    let geometry;
+    let adaptedMaterial;
+    if (kind === 'procedural') {
+      geometry = proceduralVertexGeometry(source);
+      adaptedMaterial = new MeshBasicMaterial({ vertexColors: true, side: material.side, fog: material.fog });
+      adaptationWarn(material, '_r1ProceduralWarned',
+        'R1 evaluates the bounded gl_VertexID procedural shader into native position/color attributes.');
+    } else if (kind === 'selective') {
+      geometry = selectiveLineGeometry(source);
+      adaptedMaterial = adaptedLineMaterial(material, true);
+      adaptationWarn(material, '_r1SelectiveWarned',
+        'R1 lowers the selective-draw visibility shader to filtered native line segments.');
+    } else if (kind === 'points') {
+      if (attrs.customColor) {
+        geometry = new BufferGeometry();
+        geometry.setAttribute('position', attrs.position);
+        geometry.setAttribute('color', attrs.customColor);
+        geometry.setDrawRange(source.drawRange.start, source.drawRange.count);
+        geometry.boundingSphere = source.boundingSphere;
+      } else geometry = source;
+      let map = uniforms.pointTexture && uniforms.pointTexture.value;
+      let alphaTest = uniforms.alphaTest ? Number(uniforms.alphaTest.value) : 0;
+      if (!map && String(material.fragmentShader).includes('gl_PointCoord')) {
+        map = pointDiscTexture();
+        if (!alphaTest) alphaTest = 0.5;
+      }
+      adaptedMaterial = new PointsMaterial({
+        color: uniformColor && uniformColor.isColor ? uniformColor : new Color(0xffffff),
+        size: meanSize,
+        sizeAttenuation: true,
+        map: map || null,
+        alphaTest,
+        vertexColors: !!(attrs.customColor || attrs.color),
+        transparent: !!material.transparent,
+        opacity: material.opacity,
+        depthTest: material.depthTest,
+        depthWrite: material.depthWrite,
+        blending: material.blending,
+        fog: material.fog
+      });
+      adaptationWarn(material, '_r1PointShaderWarned',
+        'R1 lowers the bounded point shader; per-point sizes are represented by their current mean.');
+    } else {
+      const count = attrs.position.count;
+      if (!previous || previous.kind !== kind || previous.geometry.attributes.position.count !== count) {
+        geometry = new BufferGeometry();
+        geometry.setAttribute('position', new Float32BufferAttribute(new Float32Array(count * 3), 3));
+        geometry.setAttribute('normal', attrs.normal);
+        geometry.setAttribute('color', new Float32BufferAttribute(new Float32Array(count * 3), 3));
+        geometry.setDrawRange(source.drawRange.start, source.drawRange.count);
+      } else geometry = previous.geometry;
+      const positions = geometry.attributes.position;
+      const colors = geometry.attributes.color;
+      for (let i = 0; i < count; i++) {
+        const nx = attrs.normal.getComponent(i, 0);
+        const ny = attrs.normal.getComponent(i, 1);
+        const nz = attrs.normal.getComponent(i, 2);
+        const displacement = attrs.displacement.getComponent(i, 0) * amplitude;
+        for (let c = 0; c < 3; c++) {
+          const normal = c === 0 ? nx : c === 1 ? ny : nz;
+          positions.array[i * 3 + c] = attrs.position.getComponent(i, c) + normal * displacement;
+        }
+        const shade = 0.4 + Math.max(0, (nx + ny + nz) / Math.sqrt(3));
+        for (let c = 0; c < 3; c++) colors.array[i * 3 + c] = attrs.customColor.getComponent(i, c) * shade;
+      }
+      positions._r1DynamicContent = true;
+      colors._r1DynamicContent = true;
+      positions.needsUpdate = true;
+      colors.needsUpdate = true;
+      geometry.computeBoundingSphere();
+      adaptedMaterial = previous && previous.kind === kind ? previous.material :
+        new MeshBasicMaterial({ vertexColors: true, side: material.side, fog: material.fog });
+      adaptationWarn(material, '_r1TessellationWarned',
+        'R1 evaluates the tessellation displacement shader on the CPU and bakes its bounded directional color.');
+    }
+    if (previous) {
+      if (previous.geometry !== geometry && previous.geometry !== source) previous.geometry.dispose();
+      if (previous.material !== adaptedMaterial) previous.material.dispose();
+    }
+    this._adaptedShaderDraws.set(object, { kind, source, sourceMaterial: material, signature, geometry, material: adaptedMaterial });
+    return { geometry, material: adaptedMaterial, lineSegments: kind === 'selective' ? true : undefined };
+  }
+
+  _adaptDrawable(object) {
+    return this._adaptLineDraw(object) || this._adaptShaderDraw(object);
+  }
+
   _ensureNode(object, parentId, commands, drawVisible) {
     const id = resourceId(object);
     const materialVisible = !object.material || object.material.visible !== false;
@@ -1538,18 +1948,36 @@ export class JsrWebGLRenderer {
       if (object.isSkinnedMesh) this._applySkining(object);
       if (object.isBatchedMesh || object.isSprite) unsupported('objectType', object.type);
       if (object.isLineLoop) unsupported('LineLoop');
-      const material = object.material;
+      const adapted = this._adaptDrawable(object);
+      const material = adapted ? adapted.material : object.material;
+      const renderGeometry = adapted ? adapted.geometry : object.geometry;
+      if (adapted) {
+        const adaptedPosition = renderGeometry.attributes.position;
+        if (!adaptedPosition || sourceRange(renderGeometry, adaptedPosition.count).count === 0) {
+          if (!batched) this._removeBatch(id, commands);
+          this._updateNode(object, id, parentId, 0, 0, visible, this._objectKind(object), commands, spriteCenter);
+          return { id, draw: null };
+        }
+      }
       if (!material || (Array.isArray(material) && material.length === 0)) throw new Error('three.invalid: drawable has no material');
       let primitive = 0;
       let mode = 'triangles';
       objectKind = 1;
-      if (object.isPoints) { primitive = 2; mode = 'points'; objectKind = 3; }
-      else if (object.isLine || object.isLineSegments) { primitive = 1; mode = object.isLineSegments ? 'lines' : 'line'; objectKind = 2; }
+      if (adapted && adapted.lineSegments !== undefined) {
+        primitive = 1;
+        mode = adapted.lineSegments ? 'lines' : 'line';
+        objectKind = 2;
+      } else if (object.isPoints) { primitive = 2; mode = 'points'; objectKind = 3; }
+      else if (object.isLine || object.isLineSegments) {
+        primitive = 1;
+        mode = object.isLineSegments ? 'lines' : 'line';
+        objectKind = 2;
+      }
       if (Array.isArray(material) && primitive !== 0) unsupported('multiMaterial', 'R1 material arrays require triangle meshes');
       const materials = Array.isArray(material) ? material : [material];
       const wireframe = primitive === 0 && materials.some(item => item.wireframe);
       if (batched && wireframe) unsupported('wireframeBatch', 'R1 wireframe requires a single-material non-instanced Mesh');
-      const geometry = this._ensureGeometry(object.geometry, primitive, mode, commands, wireframe);
+      const geometry = this._ensureGeometry(renderGeometry, primitive, mode, commands, wireframe);
       if (batched) {
         batch = { geometry, materials };
       } else {
