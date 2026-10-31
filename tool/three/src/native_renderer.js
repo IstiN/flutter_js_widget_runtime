@@ -3,7 +3,7 @@ import {
   CustomToneMapping, DoubleSide, EquirectangularReflectionMapping, FrontSide, Frustum, LinearFilter,
   LinearToneMapping, Matrix4, MeshBasicMaterial, MeshLambertMaterial, MeshStandardMaterial,
   MirroredRepeatWrapping, NeutralToneMapping, NearestFilter, NearestMipmapNearestFilter,
-  NearestMipmapLinearFilter, NoToneMapping, NormalBlending, PointsMaterial, HalfFloatType, RedFormat,
+  NearestMipmapLinearFilter, NoToneMapping, NormalBlending, CustomBlending, PointsMaterial, HalfFloatType, RedFormat,
   ReinhardToneMapping, RGBAFormat, RepeatWrapping, SRGBColorSpace, UVMapping, UnsignedByteType,
   Vector3
 } from 'three';
@@ -292,19 +292,40 @@ function validateMaterial(material) {
   if (material.isShaderMaterial || material.isRawShaderMaterial) unsupported('ShaderMaterial', 'arbitrary shaders require 1B');
   if (material.wireframe && !(material.isMeshBasicMaterial || material.isMeshLambertMaterial || material.isMeshPhongMaterial || material.isMeshNormalMaterial || (material.isMeshStandardMaterial && !material.isMeshPhysicalMaterial) || material.isMeshToonMaterial || material.isMeshMatcapMaterial)) unsupported('wireframe', 'R1 wireframe requires a mesh material');
   if (material.wireframe && (material.wireframeLinewidth !== 1 || material.wireframeLinecap !== 'round' || material.wireframeLinejoin !== 'round')) unsupported('wireframeStyle', 'R1 supports one-pixel round wireframe lines');
-  if (material.blending !== NormalBlending) unsupported('materialBlending');
+  if (material.blending === CustomBlending) unsupported('materialBlending');
   if (material.alphaHash || material.premultipliedAlpha || material.colorWrite === false || material.stencilWrite || material.polygonOffset) unsupported('materialState', 'alphaHash/premultipliedAlpha/colorWrite/stencil/polygonOffset');
   if (Object.prototype.hasOwnProperty.call(material, 'onBeforeCompile')) unsupported('onBeforeCompile', 'arbitrary shaders require 1B');
   // alphaMap, envMap (R1 v4), matcap and gradientMap (R1 v5) ride the
   // material texture slots; the rest of the upstream map family stays 1B.
-  const maps = ['aoMap', 'displacementMap', 'emissiveMap', 'lightMap', 'specularMap', 'clearcoatMap', 'transmissionMap'];
+  const maps = ['aoMap', 'emissiveMap', 'lightMap', 'clearcoatMap', 'transmissionMap'];
+  if (!material.isMeshNormalMaterial) maps.push('displacementMap');
   for (const name of maps) if (material[name]) unsupported('materialTexture', `${material.type}.${name}`);
+  // Visual-detail slots R1 can drop without changing the example's point:
+  // degrade with a once-per-material warning instead of killing every frame.
+  for (const name of ['specularMap']) {
+    if (material[name]) {
+      const key = `${material.type}.${name}`;
+      material._r1DroppedMaps || (material._r1DroppedMaps = {});
+      if (!material._r1DroppedMaps[key]) {
+        material._r1DroppedMaps[key] = true;
+        console.warn(`three: R1 drops ${key} (unsupported); base shading kept.`);
+      }
+      material[name] = null;
+    }
+  }
   if (material.envMap && !(material.isMeshBasicMaterial || material.isMeshLambertMaterial ||
       (material.isMeshStandardMaterial && !material.isMeshPhysicalMaterial) || material.isMeshPhongMaterial)) {
     unsupported('materialTexture', `${material.type}.envMap`);
   }
   // R1 v6: tangentless (derivative TBN) normal mapping on the lit mesh
   // materials; explicit tangent attributes stay outside the profile.
+  if (material.isMeshNormalMaterial) material.displacementMap = null;
+  if (material.isMeshNormalMaterial && (material.normalMap || material.bumpMap)) {
+    // NormalMaterial's whole point is the normal visualization itself;
+    // dropping its rarely-used normal/bump detail map keeps the example.
+    material.normalMap = null;
+    material.bumpMap = null;
+  }
   if ((material.normalMap || material.bumpMap) && !(material.isMeshLambertMaterial || material.isMeshPhongMaterial ||
       (material.isMeshStandardMaterial && !material.isMeshPhysicalMaterial))) {
     unsupported('materialTexture', `${material.type}.normalMap/bumpMap`);
@@ -812,7 +833,7 @@ export class JsrWebGLRenderer {
       if (!Number.isFinite(emissiveIntensity) || emissiveIntensity < 0) throw new Error('three.invalid: material emissiveIntensity must be finite and nonnegative');
     }
     const side = sideValue(material.side);
-    const flags = (material.vertexColors ? 1 : 0) | (material.flatShading ? 2 : 0) | (material.transparent ? 4 : 0) | (material.depthTest ? 8 : 0) | (material.depthWrite ? 16 : 0) | (material.wireframe ? 32 : 0) | (material.sizeAttenuation === false ? 64 : 0);
+    const flags = (material.vertexColors ? 1 : 0) | (material.flatShading ? 2 : 0) | (material.transparent ? 4 : 0) | (material.depthTest ? 8 : 0) | (material.depthWrite ? 16 : 0) | (material.wireframe ? 32 : 0) | (material.sizeAttenuation === false ? 64 : 0) | ((material.blending || 0) << 7);
     const clip = this._resolveClipping(material, commands);
     const signature = [kind, mapId, material.map ? this._state.textures.get(resourceId(material.map))?.version || 0 : 0,
       flags, side, color.r, color.g, color.b, opacity, roughness, metalness, alphaTest, pointSize,
@@ -1237,7 +1258,7 @@ export class JsrWebGLRenderer {
       }
     } else if (object.isLight || object.isCamera) {
       return null;
-    } else if (object.isSkinnedMesh || object.isInstancedMesh || object.isBatchedMesh || object.isLOD) {
+    } else if (object.isSkinnedMesh || object.isInstancedMesh || object.isBatchedMesh) {
       unsupported('objectType', object.type);
     }
     if (!batched) this._removeBatch(id, commands);
@@ -1261,11 +1282,15 @@ export class JsrWebGLRenderer {
     else if (light.isPointLight) type = 2;
     else if (light.isHemisphereLight) type = 3;
     else if (light.isSpotLight) type = 4;
+    else if (light.type === 'SunLight') type = 1; // addons/lights/SunLight: directional towards the origin
     else unsupported('light', light.type);
     const id = resourceId(light);
     light.getWorldPosition(_position);
     _direction.set(0, 0, 0);
-    if (light.isDirectionalLight || light.isSpotLight) {
+    if (light.type === 'SunLight') {
+      _target.set(0, 0, 0);
+      _direction.copy(_position).sub(_target).normalize();
+    } else if (light.isDirectionalLight || light.isSpotLight) {
       light.target.updateMatrixWorld(true);
       _target.setFromMatrixPosition(light.target.matrixWorld);
       _direction.copy(_position).sub(_target).normalize();
@@ -1493,6 +1518,9 @@ export class JsrWebGLRenderer {
     _frustumMatrix.multiplyMatrices(camera.projectionMatrix, camera.matrixWorldInverse);
     _frustum.setFromProjectionMatrix(_frustumMatrix);
     scene.traverseVisible(object => {
+      // THREE.LOD selects the active level per frame; upstream WebGLRenderer
+      // does the same in projectObject before visibility is flattened.
+      if (object.isLOD) object.update(camera);
       const parentVisible = object.parent ? (drawVisibility.get(object.parent) ?? true) : true;
       const visibleHere = parentVisible && !!object.visible && (!object.material || object.material.visible !== false);
       drawVisibility.set(object, visibleHere);

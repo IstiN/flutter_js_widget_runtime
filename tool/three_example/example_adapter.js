@@ -1,6 +1,8 @@
 import { createExampleCanvas2D } from './example_canvas2d.js';
 
 const ROOT = globalThis;
+// Official modules use `self` (window/worker alias) for timers and sizes.
+if (typeof ROOT.self === 'undefined') ROOT.self = ROOT;
 const browserDocument = ROOT.document || null;
 const EXAMPLE = __JSR_THREE_EXAMPLE_ID__;
 const WIDGET_ID = __JSR_THREE_WIDGET_ID__;
@@ -95,6 +97,13 @@ export function useBrowserGui() {
     typeof browserDocument.createElement === 'function' && !!browserDocument.body;
 }
 
+// Controls may be constructed with ANY element (container div, body), not
+// only the main canvas. Give every shim element the document linkage and
+// event surface OrbitControls.connect/disconnect touches.
+if (runtimeDocument && typeof runtimeDocument.addEventListener !== 'function') {
+  eventTarget(runtimeDocument);
+}
+
 const hostRender = JSR.render;
 JSR.render = function(tree) {
   return hostRender.call(this, JSR.three._prepareTree(tree));
@@ -167,6 +176,8 @@ function localElement(tagName) {
     children: [],
     parentNode: null
   });
+  element.ownerDocument = runtimeDocument;
+  element.getRootNode = () => runtimeDocument;
   element.appendChild = function(child) {
     if (child && child.isJsrThreeCanvas && this.tagName === 'DIV') {
       return appendMainCanvas(this, child);

@@ -110,4 +110,21 @@ flutter:
     - widgets/three-materials-cubemap-refraction/
     - widgets/three-geometry-cube/
     - widgets/three-materials-texture-anisotropy/
+    - widgets/three-geometries/
+    - widgets/three-lod/
+    - widgets/three-camera-array/
+    - widgets/three-buffergeometry-drawrange/
+    - widgets/three-geometry-text/
+    - widgets/three-panorama-cube/
+    - widgets/three-points-sprites/
+    - widgets/three-multiple-views/
+    - widgets/three-loader-obj/
+    - widgets/three-materials-channels/
+    - widgets/three-materials-normalmap-object-space/
+    - widgets/three-materials-physical-clearcoat/
+    - widgets/three-geometry-nurbs/
+    - widgets/three-decals/
+    - widgets/three-geometry-text-stroke/
+    - widgets/three-test-memory/
+    - widgets/three-loader-texture-tga/
     - assets/models/

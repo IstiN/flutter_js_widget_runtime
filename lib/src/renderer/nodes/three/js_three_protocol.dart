@@ -397,6 +397,9 @@ final class JsThreeMaterialUpsert extends JsThreeCommand {
   bool get vertexColors => flags & 0x01 != 0;
   bool get flatShading => flags & 0x02 != 0;
   bool get transparent => flags & 0x04 != 0;
+  /// THREE material.blending (0 No, 1 Normal, 2 Additive, 3 Subtractive,
+  /// 4 Multiply; Custom is rejected JS-side), packed into flags bits 7..9.
+  int get blending => (flags >> 7) & 0x07;
   bool get depthTest => flags & 0x08 != 0;
   bool get depthWrite => flags & 0x10 != 0;
   bool get wireframe => flags & 0x20 != 0;
@@ -1000,7 +1003,7 @@ final class JsThreeProtocolDecoder {
     );
     final mapTextureId = body.u32('map texture id');
     final flags = body.u32('material flags');
-    if (flags & ~0x7f != 0) body.fail('unknown material flag');
+    if (flags & ~0x3ff != 0) body.fail('unknown material flag'); // bits 7..9: THREE blending
     _validateMaterialWireframeFlag(body, flags, kind);
     final side = body.enumValue(
       JsThreeSide.values,

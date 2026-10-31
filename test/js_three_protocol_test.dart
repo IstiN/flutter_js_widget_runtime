@@ -968,6 +968,16 @@ void main() {
     expect(material.opacity, closeTo(0.8, 1e-6));
   });
 
+  test('decodes THREE blending from material flags bits 7..9', () {
+    for (final mode in [0, 1, 2, 3, 4]) {
+      final body = _material();
+      setU32(body, 16, mode << 7);
+      final commands = _decoder.decodeR1(_r1([(3, body)])).commands;
+      final material = commands[0] as JsThreeMaterialUpsert;
+      expect(material.blending, mode, reason: 'blending mode $mode');
+    }
+  });
+
   test('decodes Phong scalars and optional unique-edge wire indices', () {    final commands = _decoder
         .decodeR1(
           _r1([
@@ -1595,7 +1605,7 @@ void main() {
         (3, _material(), 0, 0),
         (3, _material(), 4, 0),
         (3, _material(), 8, 10),
-        (3, _material(), 16, 128),
+        (3, _material(), 16, 1024), // bits 7..9 are THREE blending; bit 10 stays invalid
         (3, _material(), 20, 3),
         (3, _material(), 52, 0),
         (4, _node(), 0, 0),

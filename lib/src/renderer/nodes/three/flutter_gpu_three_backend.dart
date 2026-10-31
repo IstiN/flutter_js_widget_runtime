@@ -319,6 +319,67 @@ const _threeDepthCompare = <bool, gpu.CompareFunction>{
   false: gpu.CompareFunction.always,
 };
 
+bool _threeBlendEnable(JsThreeMaterialUpsert material) {
+  // THREE NoBlending=0 / Normal=1: opaque normal materials keep blending
+  // disabled; every other mode is a real blend request.
+  if (material.blending == 0) return false;
+  if (material.blending == 1) return material.transparent;
+  return true;
+}
+
+final List<gpu.ColorBlendEquation> _threeBlendEquations = [
+  // 0 NoBlending / 1 NormalBlending (index 0 is unused when disabled).
+  ..._threeNormalBlendEquationPair,
+  // 2 AdditiveBlending: SrcAlpha, One.
+  ..._threeAdditiveBlendEquationPair,
+  // 3 SubtractiveBlending: Zero, OneMinusSrcColor.
+  ..._threeSubtractiveBlendEquationPair,
+  // 4 MultiplyBlending: Zero, SrcColor.
+  ..._threeMultiplyBlendEquationPair,
+];
+
+final _threeNormalBlendEquationPair = [
+  gpu.ColorBlendEquation(
+    sourceColorBlendFactor: gpu.BlendFactor.sourceAlpha,
+    destinationColorBlendFactor: gpu.BlendFactor.oneMinusSourceAlpha,
+    sourceAlphaBlendFactor: gpu.BlendFactor.one,
+    destinationAlphaBlendFactor: gpu.BlendFactor.oneMinusSourceAlpha,
+  ),
+  gpu.ColorBlendEquation(
+    sourceColorBlendFactor: gpu.BlendFactor.sourceAlpha,
+    destinationColorBlendFactor: gpu.BlendFactor.oneMinusSourceAlpha,
+    sourceAlphaBlendFactor: gpu.BlendFactor.one,
+    destinationAlphaBlendFactor: gpu.BlendFactor.oneMinusSourceAlpha,
+  ),
+];
+final _threeAdditiveBlendEquationPair = [
+  gpu.ColorBlendEquation(
+    sourceColorBlendFactor: gpu.BlendFactor.sourceAlpha,
+    destinationColorBlendFactor: gpu.BlendFactor.one,
+    sourceAlphaBlendFactor: gpu.BlendFactor.one,
+    destinationAlphaBlendFactor: gpu.BlendFactor.one,
+  ),
+];
+final _threeSubtractiveBlendEquationPair = [
+  gpu.ColorBlendEquation(
+    sourceColorBlendFactor: gpu.BlendFactor.zero,
+    destinationColorBlendFactor: gpu.BlendFactor.oneMinusSourceColor,
+    sourceAlphaBlendFactor: gpu.BlendFactor.zero,
+    destinationAlphaBlendFactor: gpu.BlendFactor.oneMinusSourceAlpha,
+  ),
+];
+final _threeMultiplyBlendEquationPair = [
+  gpu.ColorBlendEquation(
+    sourceColorBlendFactor: gpu.BlendFactor.zero,
+    destinationColorBlendFactor: gpu.BlendFactor.sourceColor,
+    sourceAlphaBlendFactor: gpu.BlendFactor.zero,
+    destinationAlphaBlendFactor: gpu.BlendFactor.sourceAlpha,
+  ),
+];
+
+gpu.ColorBlendEquation _threeBlendEquation(JsThreeMaterialUpsert material) =>
+    _threeBlendEquations[material.blending <= 4 ? material.blending : 1];
+
 gpu.CullMode _threeCull(ThreeDrawItem draw) {
   if (draw.primitive != ThreeDrawPrimitive.triangles) return gpu.CullMode.none;
   return _threeCullModes[draw.material.side]!;
@@ -1106,7 +1167,8 @@ final class _ThreeFrameEncoder {
       ..setCullMode(_threeCull(draw))
       ..setDepthCompareOperation(_threeDepthCompare[draw.material.depthTest]!)
       ..setDepthWriteEnable(draw.material.depthWrite)
-      ..setColorBlendEnable(draw.material.transparent)
+      ..setColorBlendEnable(_threeBlendEnable(draw.material))
+      ..setColorBlendEquation(_threeBlendEquation(draw.material))
       ..bindVertexBuffer(instances, slot: 1);
     _bindThreeVertices(pass, geometry, draw);
     _bindThreeIndices(pass, geometry, draw);

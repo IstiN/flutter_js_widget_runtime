@@ -1,6 +1,50 @@
 import { assetFailure, unsupported } from './errors.js';
 
 const ROOT = typeof globalThis !== 'undefined' ? globalThis : {};
+
+// three r186 FileLoader constructs an AbortController eagerly. QuickJS has
+// none; a minimal spec-shaped shim keeps upstream loaders working (abort
+// still notifies listeners and rejects through the loader's own handling).
+function installAbortController() {
+  if (typeof ROOT.AbortController === 'function') return;
+  class AbortSignal {
+    constructor() {
+      this.aborted = false;
+      this.reason = undefined;
+      this.onabort = null;
+      this._listeners = [];
+    }
+    addEventListener(type, listener) {
+      if (type === 'abort' && listener) this._listeners.push(listener);
+    }
+    removeEventListener(type, listener) {
+      if (type !== 'abort') return;
+      const index = this._listeners.indexOf(listener);
+      if (index >= 0) this._listeners.splice(index, 1);
+    }
+    throwIfAborted() {
+      if (this.aborted) throw this.reason;
+    }
+    _fire(reason) {
+      this.aborted = true;
+      this.reason = reason;
+      const event = { type: 'abort', target: this };
+      if (typeof this.onabort === 'function') this.onabort(event);
+      for (const listener of this._listeners.splice(0)) {
+        if (typeof listener === 'function') listener(event);
+        else if (listener && listener.handleEvent) listener.handleEvent(event);
+      }
+    }
+  }
+  class AbortController {
+    constructor() { this.signal = new AbortSignal(); }
+    abort(reason) {
+      if (!this.signal.aborted) this.signal._fire(reason);
+    }
+  }
+  ROOT.AbortController = AbortController;
+  ROOT.AbortSignal = AbortSignal;
+}
 const BASE64 = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/';
 let activeRuntime = null;
 
@@ -779,6 +823,7 @@ export class ThreeCompatibilityRuntime {
 
 export function installThreeRuntime(web) {
   installTextEncoding();
+  installAbortController();
   const jsr = ROOT.jsr || (ROOT.jsr = {});
   const previous = jsr.three || {};
   if (activeRuntime && activeRuntime.web === !!web && previous._runtime === activeRuntime) return activeRuntime;

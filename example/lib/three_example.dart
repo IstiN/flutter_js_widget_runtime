@@ -318,7 +318,112 @@ enum ThreeExampleSelection {
     label: 'Texture Filters',
     widgetId: 'three-materials-texture-filters',
     assetPath: 'widgets/three-materials-texture-filters/widget.js',
-  );
+  ),
+
+  geometries(
+    exampleId: 'webgl_geometries',
+    label: 'Geometries',
+    widgetId: 'three-geometries',
+    assetPath: 'widgets/three-geometries/widget.js',
+  ),
+  lod(
+    exampleId: 'webgl_lod',
+    label: 'LOD',
+    widgetId: 'three-lod',
+    assetPath: 'widgets/three-lod/widget.js',
+  ),
+  cameraArray(
+    exampleId: 'webgl_camera_array',
+    label: 'Camera Array',
+    widgetId: 'three-camera-array',
+    assetPath: 'widgets/three-camera-array/widget.js',
+  ),
+  bufferGeometryDrawRange(
+    exampleId: 'webgl_buffergeometry_drawrange',
+    label: 'Draw Range',
+    widgetId: 'three-buffergeometry-drawrange',
+    assetPath: 'widgets/three-buffergeometry-drawrange/widget.js',
+  ),
+  geometryText(
+    exampleId: 'webgl_geometry_text',
+    label: 'Geometry Text',
+    widgetId: 'three-geometry-text',
+    assetPath: 'widgets/three-geometry-text/widget.js',
+  ),
+  panoramaCube(
+    exampleId: 'webgl_panorama_cube',
+    label: 'Panorama Cube',
+    widgetId: 'three-panorama-cube',
+    assetPath: 'widgets/three-panorama-cube/widget.js',
+  ),
+  pointsSprites(
+    exampleId: 'webgl_points_sprites',
+    label: 'Points Sprites',
+    widgetId: 'three-points-sprites',
+    assetPath: 'widgets/three-points-sprites/widget.js',
+  ),
+  multipleViews(
+    exampleId: 'webgl_multiple_views',
+    label: 'Multiple Views',
+    widgetId: 'three-multiple-views',
+    assetPath: 'widgets/three-multiple-views/widget.js',
+  ),
+  loaderObj(
+    exampleId: 'webgl_loader_obj',
+    label: 'OBJ Loader',
+    widgetId: 'three-loader-obj',
+    assetPath: 'widgets/three-loader-obj/widget.js',
+  ),
+  materialsChannels(
+    exampleId: 'webgl_materials_channels',
+    label: 'Materials Channels',
+    widgetId: 'three-materials-channels',
+    assetPath: 'widgets/three-materials-channels/widget.js',
+  ),
+  materialsNormalmapObjectSpace(
+    exampleId: 'webgl_materials_normalmap_object_space',
+    label: 'Normal Map Object Space',
+    widgetId: 'three-materials-normalmap-object-space',
+    assetPath: 'widgets/three-materials-normalmap-object-space/widget.js',
+  ),
+  materialsPhysicalClearcoat(
+    exampleId: 'webgl_materials_physical_clearcoat',
+    label: 'Physical Clearcoat',
+    widgetId: 'three-materials-physical-clearcoat',
+    assetPath: 'widgets/three-materials-physical-clearcoat/widget.js',
+  ),
+  geometryNurbs(
+    exampleId: 'webgl_geometry_nurbs',
+    label: 'NURBS',
+    widgetId: 'three-geometry-nurbs',
+    assetPath: 'widgets/three-geometry-nurbs/widget.js',
+  ),
+  decals(
+    exampleId: 'webgl_decals',
+    label: 'Decals',
+    widgetId: 'three-decals',
+    assetPath: 'widgets/three-decals/widget.js',
+  ),
+  geometryTextStroke(
+    exampleId: 'webgl_geometry_text_stroke',
+    label: 'Text Stroke',
+    widgetId: 'three-geometry-text-stroke',
+    assetPath: 'widgets/three-geometry-text-stroke/widget.js',
+  ),
+  testMemory(
+    exampleId: 'webgl_test_memory',
+    label: 'Test Memory',
+    widgetId: 'three-test-memory',
+    assetPath: 'widgets/three-test-memory/widget.js',
+  ),
+  loaderTextureTga(
+    exampleId: 'webgl_loader_texture_tga',
+    label: 'TGA Texture',
+    widgetId: 'three-loader-texture-tga',
+    assetPath: 'widgets/three-loader-texture-tga/widget.js',
+  ),
+
+  ;
 
   const ThreeExampleSelection({
     required this.exampleId,
@@ -347,6 +452,23 @@ enum ThreeExampleSelection {
   /// lightsHemisphere and interactivePoints render a ShaderMaterial
   /// (skydome / point sprites) that native R1 does not provide by design.
   static final List<ThreeExampleSelection> sidebarOrder = [
+    geometries,
+    lod,
+    cameraArray,
+    bufferGeometryDrawRange,
+    geometryText,
+    panoramaCube,
+    pointsSprites,
+    multipleViews,
+    loaderObj,
+    materialsChannels,
+    materialsNormalmapObjectSpace,
+    materialsPhysicalClearcoat,
+    geometryNurbs,
+    decals,
+    geometryTextStroke,
+    testMemory,
+    loaderTextureTga,
     clipping,
     clippingIntersection,
     lightsSpotlights,
