@@ -80,6 +80,17 @@ Uint8List _texture(int id, int version, {int value = 1}) {
   return out;
 }
 
+Uint8List _target(int id, int version, {int width = 64}) {
+  final out = Uint8List(28);
+  _u32(out, 0, id);
+  _u32(out, 4, version);
+  _u32(out, 8, width);
+  _u32(out, 12, 64);
+  _u32(out, 16, id);
+  _u32(out, 20, 256);
+  return out;
+}
+
 Uint8List _material(
   int id,
   int version, {
@@ -324,22 +335,18 @@ void main() {
   test('HemisphereLight edits replace immutable state and shadow revision', () {
     final store = JsThreeStateStore();
     store.apply(
-      _envelope(
-        1,
-        [
-          (
-            7,
-            _light(
-              4,
-              type: JsThreeLightType.hemisphere,
-              intensity: 2,
-              sky: 0.25,
-              ground: 0.125,
-            ),
+      _envelope(1, [
+        (
+          7,
+          _light(
+            4,
+            type: JsThreeLightType.hemisphere,
+            intensity: 2,
+            sky: 0.25,
+            ground: 0.125,
           ),
-        ],
-        version: 2,
-      ),
+        ),
+      ], version: 2),
     );
     final state = store.surface('engine', 'surface')!;
     final original = state.lights[4]!;
@@ -350,23 +357,19 @@ void main() {
     expect(state.contentRevision, 1);
 
     final changed = store.apply(
-      _envelope(
-        2,
-        [
-          (
-            7,
-            _light(
-              4,
-              type: JsThreeLightType.hemisphere,
-              intensity: 3,
-              sky: 0.75,
-              ground: 0.5,
-              direction: 0.25,
-            ),
+      _envelope(2, [
+        (
+          7,
+          _light(
+            4,
+            type: JsThreeLightType.hemisphere,
+            intensity: 3,
+            sky: 0.75,
+            ground: 0.5,
+            direction: 0.25,
           ),
-        ],
-        version: 2,
-      ),
+        ),
+      ], version: 2),
     );
     final current = state.lights[4]!;
     expect(changed.changedLights, hasLength(1));
@@ -690,6 +693,52 @@ void main() {
     store.apply(_envelope(6, [(6, _camera(9))]));
     expect(state.contentRevision, 3);
   });
+
+  test(
+    'render targets resize, dispose, and enforce their quota atomically',
+    () {
+      final store = JsThreeStateStore();
+      store.apply(_envelope(1, [(14, _target(2, 1))], version: 6));
+      final state = store.surface('engine', 'surface')!;
+      expect(state.renderTargets[2]!.width, 64);
+      final unchanged = store.apply(
+        _envelope(2, [(14, _target(2, 1))], version: 6),
+      );
+      expect(unchanged.unchangedUploadCount, 1);
+      store.apply(_envelope(3, [(14, _target(2, 2, width: 128))], version: 6));
+      expect(state.renderTargets[2]!.width, 128);
+      store.apply(_envelope(4, [(9, _dispose(2, 7))], version: 6));
+      expect(state.renderTargets, isEmpty);
+
+      final quotaStore = JsThreeStateStore();
+      _bad(
+        () => quotaStore.apply(
+          _envelope(1, [
+            for (var id = 1; id <= 17; id++) (14, _target(id, 1)),
+          ], version: 6),
+        ),
+      );
+      expect(quotaStore.surface('engine', 'surface'), isNull);
+      quotaStore.apply(
+        _envelope(1, [
+          for (var id = 1; id <= 16; id++) (14, _target(id, 1)),
+        ], version: 6),
+      );
+      final quotaState = quotaStore.surface('engine', 'surface')!;
+      _bad(
+        () =>
+            quotaStore.apply(_envelope(2, [(14, _target(17, 1))], version: 6)),
+      );
+      expect(quotaState.renderTargets, hasLength(16));
+      expect(quotaState.lastSequence, 1);
+      quotaStore.apply(
+        _envelope(2, [(9, _dispose(16, 7)), (14, _target(17, 1))], version: 6),
+      );
+      expect(quotaState.renderTargets, hasLength(16));
+      expect(quotaState.renderTargets.containsKey(16), isFalse);
+      expect(quotaState.renderTargets.containsKey(17), isTrue);
+    },
+  );
 
   test(
     'dispose surface clears drawing state and accepts only later disposal work',

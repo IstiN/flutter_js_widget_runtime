@@ -8,15 +8,43 @@ import 'package:js_widget_runtime/src/renderer/nodes/three/three_draw_plan.dart'
 
 import 'support/three_protocol_bytes.dart';
 
-JsThreeCommand _decode(int opcode, Uint8List body) {
+JsThreeCommand _decode(int opcode, Uint8List body, {int version = 1}) {
   final bytes = Uint8List(20 + body.length);
   bytes.setAll(0, [0x4a, 0x53, 0x52, 0x31]);
-  setU16(bytes, 4, 1);
+  setU16(bytes, 4, version);
   setU32(bytes, 8, 1);
   bytes[12] = opcode;
   setU32(bytes, 16, body.length);
   bytes.setAll(20, body);
   return JsThreeProtocolDecoder().decodeR1(bytes).commands.single;
+}
+
+JsThreeSubmitFrame _frameWithRectangles({
+  bool offscreen = false,
+  List<double> viewport = const [0, 0, 320, 360],
+  List<double>? scissor,
+  bool scissorTest = true,
+}) {
+  final body = Uint8List(244);
+  setU32(body, 0, 1);
+  setU32(body, 4, 1);
+  setF32(body, 24, 1);
+  setF32(body, 100, 1);
+  for (final index in [0, 5, 10, 15]) {
+    setF32(body, 104 + index * 4, 1);
+  }
+  setU32(body, 184, 0x4658534a);
+  setU32(body, 188, 1);
+  setU32(body, 192, offscreen ? 2 : 0);
+  setU32(body, 196, offscreen ? 640 : 0);
+  setU32(body, 200, offscreen ? 360 : 0);
+  final scissors = scissor ?? viewport;
+  for (var index = 0; index < 4; index++) {
+    setF32(body, 204 + index * 4, viewport[index]);
+    setF32(body, 220 + index * 4, scissors[index]);
+  }
+  setU32(body, 236, 11 | (scissorTest ? 4 : 0));
+  return _decode(8, body, version: 6) as JsThreeSubmitFrame;
 }
 
 ThreeShadowCacheKey _shadowKey({
@@ -403,8 +431,8 @@ void main() {
       final lambert = debugThreeMaterialUniform(
         _draw(kind: JsThreeMaterialKind.meshLambert),
       );
-      expect(phong.lengthInBytes, 224);
-      expect(lambert.lengthInBytes, 224);
+      expect(phong.lengthInBytes, 336);
+      expect(lambert.lengthInBytes, 336);
       expect(phong.getFloat32(28, Endian.little), 5);
       expect(lambert.getFloat32(28, Endian.little), 1);
       expect(phong.getFloat32(48, Endian.little), 0.25);
@@ -422,11 +450,11 @@ void main() {
     },
   );
 
-  test('Normal is distinct and emissive edits reach the 224-byte GPU ABI', () {
+  test('Normal is distinct and emissive edits reach the 336-byte GPU ABI', () {
     final normal = debugThreeMaterialUniform(
       _draw(kind: JsThreeMaterialKind.meshNormal, side: JsThreeSide.double),
     );
-    expect(normal.lengthInBytes, 224);
+    expect(normal.lengthInBytes, 336);
     expect(normal.getFloat32(28, Endian.little), 6);
     expect(normal.getFloat32(64, Endian.little), 0);
     expect(normal.getFloat32(76, Endian.little), 1);
@@ -510,6 +538,34 @@ void main() {
     expect(frame.culledNodeIds, isEmpty);
     expect(frame.culledShadowNodeIds, isEmpty);
     expect(ThreeShadowCacheKey.fromFrame(frame, 99).contentRevision, 7);
+  });
+
+  test('pass rectangles scale once and convert THREE bottom-left Y', () {
+    final mainLeft = _frameWithRectangles();
+    final leftViewport = debugThreePassViewport(mainLeft, 1280, 720, 2);
+    expect((leftViewport.x, leftViewport.y), (0, 0));
+    expect((leftViewport.width, leftViewport.height), (640, 720));
+    final mainRight = _frameWithRectangles(viewport: [320, 0, 320, 360]);
+    final rightViewport = debugThreePassViewport(mainRight, 1280, 720, 2);
+    expect((rightViewport.x, rightViewport.y), (640, 0));
+    expect((rightViewport.width, rightViewport.height), (640, 720));
+    final scissor = debugThreePassScissor(mainRight, 1280, 720, 2)!;
+    expect((scissor.x, scissor.y), (640, 0));
+    expect((scissor.width, scissor.height), (640, 720));
+
+    final offscreen = _frameWithRectangles(offscreen: true);
+    final targetViewport = debugThreePassViewport(offscreen, 640, 360, 2);
+    expect((targetViewport.x, targetViewport.y), (0, 0));
+    expect((targetViewport.width, targetViewport.height), (320, 360));
+
+    final bottomLeft = _frameWithRectangles(
+      viewport: [10, 20, 300, 200],
+      scissorTest: false,
+    );
+    final converted = debugThreePassViewport(bottomLeft, 1280, 720, 2);
+    expect((converted.x, converted.y), (20, 280));
+    expect((converted.width, converted.height), (600, 400));
+    expect(debugThreePassScissor(bottomLeft, 1280, 720, 2), isNull);
   });
 
   test('uniform payloads are padded to the platform alignment boundary', () {

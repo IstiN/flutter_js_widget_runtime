@@ -58,6 +58,12 @@ void _bindThreeDrawUniforms(
   );
   final binding = backend._textureBinding(draw.material.mapTextureId);
   pass.bindTexture(slots.map, binding.texture, sampler: binding.sampler());
+  final rightBinding = backend._textureBinding(draw.material.mapRightTextureId);
+  pass.bindTexture(
+    slots.mapRight,
+    rightBinding.texture,
+    sampler: rightBinding.sampler(),
+  );
   final alphaBinding = backend._textureBinding(draw.material.alphaMapTextureId);
   pass.bindTexture(
     slots.alphaMap,
@@ -92,9 +98,7 @@ void _bindThreeDrawUniforms(
     normalBinding.texture,
     sampler: normalBinding.sampler(),
   );
-  final bumpBinding = backend._textureBinding(
-    draw.material.bumpMapTextureId,
-  );
+  final bumpBinding = backend._textureBinding(draw.material.bumpMapTextureId);
   pass.bindTexture(
     slots.bumpMap,
     bumpBinding.texture,
@@ -239,7 +243,7 @@ ByteData _threeFrameUniform(ThreeDrawPlan plan, {bool shadowEnabled = true}) {
     frame.fogFar,
     frame.fogMode.index.toDouble(),
     frame.hasSpotShadow ? 1 : 0,
-    0,
+    frame.renderTargetId == 0 ? 0 : 1,
   ]);
   final shadowActive = _threeShadowActive(shadowEnabled, frame);
   _writeFloats(data, 80, [
@@ -352,12 +356,7 @@ ByteData _threeLightsUniform(ThreeDrawPlan plan) {
       light.worldDirection[2],
       cosInner,
     ]);
-    _writeFloats(data, base + 192, [
-      light.spotDecay,
-      light.spotDistance,
-      0,
-      0,
-    ]);
+    _writeFloats(data, base + 192, [light.spotDecay, light.spotDistance, 0, 0]);
   }
   return data;
 }
@@ -407,7 +406,7 @@ ByteData _threeMaterialUniform(ThreeDrawItem draw, [ThreeDrawPlan? plan]) {
   // column-major 3x3 UV transforms padded to one vec4 per column — plus
   // the v5 tail: matcap/gradient flags with the cube atlas dimensions
   // (textureSize() crashes the bundled spirv-cross, so they ride here).
-  final data = ByteData(224);
+  final data = ByteData(336);
   _writeFloats(
     data,
     0,
@@ -472,6 +471,9 @@ ByteData _threeMaterialUniform(ThreeDrawItem draw, [ThreeDrawPlan? plan]) {
     // w (R1 v6): bump-map height scale.
     material.bumpScale,
   ]);
+  _writeFloats(data, 224, [material.mapRightTextureId.toDouble(), 0, 0, 0]);
+  _writeFloats(data, 240, material.duboisLeftMatrix);
+  _writeFloats(data, 288, material.duboisRightMatrix);
   return data;
 }
 

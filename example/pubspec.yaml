@@ -134,4 +134,6 @@ flutter:
     - widgets/three-animation-multiple/
     - widgets/three-animation-skinning-blending/
     - widgets/three-animation-skinning-morph/
+    - widgets/three-webaudio-timing/
+    - widgets/three-webaudio-orientation/
     - assets/models/

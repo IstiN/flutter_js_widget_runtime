@@ -21,6 +21,7 @@ layout(location = 5) in vec4 shadowPosition;
 out vec4 outColor;
 
 uniform sampler2D mapTexture;
+uniform sampler2D mapRightTexture;
 uniform sampler2D shadowMapTexture;
 uniform sampler2D alphaMapTexture;
 uniform sampler2D envMapTexture;
@@ -95,6 +96,10 @@ uniform MaterialInfo {
   vec4 matcapGradientCube;
   // x = cube atlas height in texels; yzw reserved.
   vec4 atlasParams;
+  // Recognized Dubois composite: right texture presence and two std140 mat3s.
+  vec4 mapRightHas;
+  mat3 duboisLeft;
+  mat3 duboisRight;
 } material_info;
 
 float distributionGgx(vec3 n, vec3 h, float roughness) {
@@ -458,7 +463,20 @@ void main() {
         ? texture(envMapTexture, cubeAtlasUv(bgDir)).rgb
         : texture(envMapTexture, equirectUv(bgDir)).rgb;
     bgColor *= frame_info.cameraPositionExposure.w;
-    outColor = vec4(linearToSrgb(applyToneMapping(bgColor)), 1.0);
+    bgColor = applyToneMapping(bgColor);
+    if (frame_info.fogFarModeReserved.w < 0.5) bgColor = linearToSrgb(bgColor);
+    outColor = vec4(bgColor, 1.0);
+    return;
+  }
+  if (kind == 11) {
+    vec4 left = texture(mapTexture, transformedMapUv(textureUv));
+    vec4 right = texture(mapRightTexture, transformedAlphaMapUv(textureUv));
+    vec3 composite = clamp(material_info.duboisLeft * left.rgb +
+                           material_info.duboisRight * right.rgb, 0.0, 1.0);
+    composite *= frame_info.cameraPositionExposure.w;
+    composite = applyToneMapping(composite);
+    if (frame_info.fogFarModeReserved.w < 0.5) composite = linearToSrgb(composite);
+    outColor = vec4(composite, max(left.a, right.a));
     return;
   }
   if (kind == 6) {
@@ -756,6 +774,6 @@ void main() {
                                 viewDepth * viewDepth);
     color = mix(color, frame_info.fogColorNear.rgb, fogFactor);
   }
-  color = linearToSrgb(color);
+  if (frame_info.fogFarModeReserved.w < 0.5) color = linearToSrgb(color);
   outColor = vec4(color, albedo.a);
 }

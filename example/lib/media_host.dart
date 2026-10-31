@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:convert';
 
 import 'package:audioplayers/audioplayers.dart';
 import 'package:flutter/widgets.dart';
@@ -41,9 +42,7 @@ class VideoPlayerJsController extends JsVideoController {
     });
     // Init failures never reach the value listener — observe them here so
     // the renderer's `onError` event can surface them.
-    unawaited(
-      _initFuture.then((_) {}, onError: _emitError),
-    );
+    unawaited(_initFuture.then((_) {}, onError: _emitError));
   }
 
   late final VideoPlayerController _controller;
@@ -120,28 +119,27 @@ class VideoPlayerJsController extends JsVideoController {
     BoxFit fit = BoxFit.contain,
     double? width,
     double? height,
-  }) =>
-      FutureBuilder<void>(
-        future: _initFuture,
-        builder: (context, snap) {
-          if (snap.connectionState != ConnectionState.done) {
-            return const SizedBox.expand();
-          }
-          return SizedBox(
-            width: width,
-            height: height,
-            child: FittedBox(
-              fit: fit,
-              clipBehavior: Clip.hardEdge,
-              child: SizedBox(
-                width: _controller.value.size.width,
-                height: _controller.value.size.height,
-                child: VideoPlayer(_controller),
-              ),
-            ),
-          );
-        },
+  }) => FutureBuilder<void>(
+    future: _initFuture,
+    builder: (context, snap) {
+      if (snap.connectionState != ConnectionState.done) {
+        return const SizedBox.expand();
+      }
+      return SizedBox(
+        width: width,
+        height: height,
+        child: FittedBox(
+          fit: fit,
+          clipBehavior: Clip.hardEdge,
+          child: SizedBox(
+            width: _controller.value.size.width,
+            height: _controller.value.size.height,
+            child: VideoPlayer(_controller),
+          ),
+        ),
       );
+    },
+  );
 
   @override
   Future<void> dispose() async {
@@ -157,20 +155,25 @@ class VideoPlayerJsController extends JsVideoController {
 
 /// Adapts an `audioplayers` [AudioPlayer] to [JsAudioController]; the
 /// plugin already exposes the needed streams.
-class AudioPlayersJsController extends JsAudioController {
+class AudioPlayersJsController extends JsAudioController
+    implements JsThreeAudioEnhancedController {
   AudioPlayersJsController(String src) {
     _player = AudioPlayer();
-    _source = src.startsWith('http') ? UrlSource(src) : AssetSource(src);
+    _source = _audioSource(src);
   }
 
   late final AudioPlayer _player;
   late final Source _source;
+  Future<void>? _sourceFuture;
   bool _started = false;
+
+  Future<void> _ensureSource() => _sourceFuture ??= _player.setSource(_source);
 
   Future<void> _ensureStarted() async {
     if (_started) return;
+    await _ensureSource();
+    await _player.resume();
     _started = true;
-    await _player.play(_source);
   }
 
   @override
@@ -193,7 +196,10 @@ class AudioPlayersJsController extends JsAudioController {
   Future<void> pause() => _player.pause();
 
   @override
-  Future<void> seek(Duration position) => _player.seek(position);
+  Future<void> seek(Duration position) async {
+    await _ensureSource();
+    await _player.seek(position);
+  }
 
   @override
   Future<void> setVolume(double volume) =>
@@ -204,5 +210,26 @@ class AudioPlayersJsController extends JsAudioController {
       _player.setReleaseMode(loop ? ReleaseMode.loop : ReleaseMode.release);
 
   @override
+  Future<void> setPlaybackRate(double playbackRate) =>
+      _player.setPlaybackRate(playbackRate);
+
+  @override
+  Future<void> setBalance(double balance) => _player.setBalance(balance);
+
+  @override
   Future<void> dispose() => _player.dispose();
+}
+
+Source _audioSource(String src) {
+  if (src.startsWith('http')) return UrlSource(src);
+  if (!src.startsWith('data:audio/')) return AssetSource(src);
+  final comma = src.indexOf(',');
+  if (comma < 0 || !src.substring(0, comma).endsWith(';base64')) {
+    throw const FormatException('Invalid base64 audio data URI');
+  }
+  final mimeType = src.substring(5, src.indexOf(';'));
+  return BytesSource(
+    base64Decode(src.substring(comma + 1)),
+    mimeType: mimeType,
+  );
 }

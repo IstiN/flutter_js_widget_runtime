@@ -2582,6 +2582,79 @@ webgl_geometry_shapes: {
           }
     ]
   },
+  webaudio_timing: {
+    id: 'three-webaudio-timing',
+    directory: 'three-webaudio-timing',
+    name: 'WebAudio Timing — three.js r186',
+    description: 'Unmodified official webaudio_timing module with native positional audio through the host media transport.',
+    icon: '🔊',
+    expected: {
+      html: 'b3298dbf44287b005aedac56232277e0d6e2f3a9d7b4f4fe024608973d4c0b2c',
+      module: '607363f6bfcab9453bc87e2aa41248617c7777927ac491a0a7853bef71536e61'
+    },
+    assets: [
+      { url: 'sounds/ping_pong.mp3', output: 'ping_pong.mp3', mime: 'audio/mpeg', diagnostic: 'audioClip', sha256: '51597e0d2fdd9bdb5658452adaf125596f05d07d9eab430994511e3039ea9cf2' }
+    ]
+  },
+  webaudio_orientation: {
+    id: 'three-webaudio-orientation',
+    directory: 'three-webaudio-orientation',
+    name: 'WebAudio Orientation — three.js r186',
+    description: 'Unmodified official webaudio_orientation module with native media-element spatialization and directional cones.',
+    icon: '🎧',
+    expected: {
+      html: '9b1b06b97cba0a75a6bcdade25dd8216ec04ff1f6e6442d9a813b17e9c10644a',
+      module: '22f20767ba8d5e54cc00cd934b76aae786899007613e5ceb03c955f047cbedf9'
+    },
+    assets: [
+      { url: 'sounds/376737_Skullbeatz___Bad_Cat_Maste.mp3', output: 'skullbeatz.mp3', mime: 'audio/mpeg', diagnostic: 'audioClip', sha256: 'd7263cf4c686eb0a70fb08d4015e88fbe0a0b464050e5ad40c1c9d0cbec07d3e' },
+      { url: 'models/gltf/BoomBox.glb', output: 'BoomBox.glb', mime: 'model/gltf-binary', externalizeImages: true, sha256: '3f14d6608669b1ae77485a53686925e987b8d86c8fc81095f69c028c3e3ae81e' },
+      { rawRgba: true, url: 'textures/cube/SwedishRoyalCastle/px.jpg', output: 'castle-px.jpg', mime: 'image/jpeg', sha256: '10a786132bc7eef6b142bd0d4b00ea94ffc1a1bfccfb1a6ec0baedf966d80734' },
+      { rawRgba: true, url: 'textures/cube/SwedishRoyalCastle/nx.jpg', output: 'castle-nx.jpg', mime: 'image/jpeg', sha256: '53a8d90cea6bab188d462c44676b84e5993424e465785c93829d810bbf7c5076' },
+      { rawRgba: true, url: 'textures/cube/SwedishRoyalCastle/py.jpg', output: 'castle-py.jpg', mime: 'image/jpeg', sha256: '8b88f7f9af85fa5b442f28fb27532e534a197aba68ae60548bf4b3750f0d50f0' },
+      { rawRgba: true, url: 'textures/cube/SwedishRoyalCastle/ny.jpg', output: 'castle-ny.jpg', mime: 'image/jpeg', sha256: '17953cc33b9fec703c286266d4aca6033d758edd17ba0384fb3ebd7630085fd4' },
+      { rawRgba: true, url: 'textures/cube/SwedishRoyalCastle/pz.jpg', output: 'castle-pz.jpg', mime: 'image/jpeg', sha256: 'cc9252ba994a79c320ac4aed03aac9000f810c1358179e70a69b598d56e129db' },
+      { rawRgba: true, url: 'textures/cube/SwedishRoyalCastle/nz.jpg', output: 'castle-nz.jpg', mime: 'image/jpeg', sha256: '10149242ae21ba4c00663a0673f01a6722da63f201511fdc01941930d800ccff' }
+    ],
+    // BoomBox packs occlusion and emissive textures, which have no R1 lanes.
+    // Keep base color, normal and metallic/roughness detail with a loud peel.
+    facadeWraps: {
+      MeshStandardMaterial: `Base => {
+        let warned = false;
+        return class extends Base {
+          constructor(params) {
+            if (params && (params.aoMap || params.emissiveMap)) {
+              const peeled = Object.assign({}, params);
+              delete peeled.aoMap;
+              if (peeled.emissiveMap) {
+                delete peeled.emissiveMap;
+                delete peeled.emissive;
+              }
+              if (!warned) {
+                warned = true;
+                console.warn('three-webaudio-orientation: R1 drops BoomBox aoMap/emissiveMap; PBR base and normal detail retained.');
+              }
+              super(peeled);
+            } else super(params);
+          }
+        };
+      }`,
+      Line: `Base => {
+        let warned = false;
+        return class extends Base {
+          constructor(geometry, material) {
+            if (Array.isArray(material)) {
+              if (!warned) {
+                warned = true;
+                console.warn('three-webaudio-orientation: R1 renders the directional helper with its inner-cone color; line material groups dropped.');
+              }
+              super(geometry, material[1] || material[0]);
+            } else super(geometry, material);
+          }
+        };
+      }`
+    }
+  },
 });
 const slash = value => value.split(path.sep).join('/');
 const sha = bytes => createHash('sha256').update(bytes).digest('hex');
@@ -2726,6 +2799,46 @@ function extractInlineScripts(html) {
   return scripts;
 }
 
+function htmlAttribute(tag, name) {
+  const expression = new RegExp(`\\s${name}\\s*=\\s*(?:"([^"]*)"|'([^']*)'|([^\\s>]+))`, 'i');
+  const match = tag.match(expression);
+  return match ? (match[1] || match[2] || match[3] || '') : null;
+}
+
+// Media-element audio stays HTML-declared even though the native adapter has
+// no DOM. Extract only the bounded id/source/loop metadata; encoded bytes are
+// still pinned and registered through the ordinary asset lane.
+function extractAudioElements(html) {
+  const text = html.toString('latin1');
+  const elements = {};
+  const opening = /<audio\b[^>]*>/gi;
+  let match;
+  while ((match = opening.exec(text))) {
+    const close = /<\/audio\s*>/gi;
+    close.lastIndex = opening.lastIndex;
+    const end = close.exec(text);
+    if (!end) throw new Error(`Unclosed audio element at byte ${match.index}`);
+    const id = htmlAttribute(match[0], 'id');
+    const body = text.slice(opening.lastIndex, end.index);
+    const sources = [];
+    const sourceOpening = /<source\b[^>]*>/gi;
+    let sourceMatch;
+    while ((sourceMatch = sourceOpening.exec(body))) {
+      const url = htmlAttribute(sourceMatch[0], 'src');
+      if (url) sources.push({ url, mime: htmlAttribute(sourceMatch[0], 'type') || '' });
+    }
+    const selected = sources.find(source => /mpeg|mp3/i.test(source.mime) || /\.mp3(?:$|[?#])/i.test(source.url)) || sources[0];
+    if (id && selected) {
+      elements[id] = {
+        id, url: selected.url, mime: selected.mime || 'application/octet-stream',
+        loop: /(?:^|\s)loop(?:\s|=|>|$)/i.test(match[0])
+      };
+    }
+    opening.lastIndex = end.index + end[0].length;
+  }
+  return elements;
+}
+
 function extractOfficial(html) {
   // latin1 gives a one-byte-to-one-character view, so all Buffer offsets and
   // the extracted official bytes remain exact even if the HTML gains UTF-8.
@@ -2764,7 +2877,8 @@ function extractOfficial(html) {
     importmapBytes: importmaps[0].bytes,
     importmap,
     moduleBytes: modules[0].bytes,
-    inlineScripts: extractInlineScripts(html)
+    inlineScripts: extractInlineScripts(html),
+    audioElements: extractAudioElements(html)
   };
 }
 
@@ -3022,23 +3136,34 @@ async function externalizeGlbImages(bytes, definition) {
         start < 0 || view.byteLength < 1 || start + view.byteLength > binary.length) {
       throw new Error(`${definition.url}: image ${index} exceeds the GLB binary chunk`);
     }
-    const extension = image.mimeType === 'image/png' ? 'png' : 'jpg';
+    let embedded = binary.subarray(start, start + view.byteLength);
+    let mime = image.mimeType;
+    if (mime === 'image/webp') {
+      const stamp = `${process.pid}-${index}`;
+      const tmpIn = path.join(process.env.TMPDIR || '/tmp', `jsr-glb-${stamp}.webp`);
+      const tmpPng = path.join(process.env.TMPDIR || '/tmp', `jsr-glb-${stamp}.png`);
+      await writeFile(tmpIn, embedded);
+      execFileSync('sips', ['-s', 'format', 'png', tmpIn, '--out', tmpPng], { stdio: 'pipe' });
+      embedded = await readFile(tmpPng);
+      mime = 'image/png';
+    }
+    const extension = mime === 'image/png' ? 'png' : 'jpg';
     const name = path.basename(image.name || `embedded-${index}.${extension}`);
     if (!name || usedNames.has(name)) throw new Error(`${definition.url}: duplicate embedded image name ${name}`);
     usedNames.add(name);
     const url = path.posix.join(path.posix.dirname(definition.url), name);
-    const embedded = binary.subarray(start, start + view.byteLength);
-    const dimensions = image.mimeType === 'image/png'
+    const dimensions = mime === 'image/png'
       ? pngDimensions(embedded, url)
-      : image.mimeType === 'image/jpeg'
+      : mime === 'image/jpeg'
         ? jpegDimensions(embedded, url)
-        : (() => { throw new Error(`${url}: unsupported embedded image MIME ${image.mimeType}`); })();
+        : (() => { throw new Error(`${url}: unsupported embedded image MIME ${mime}`); })();
     images.push({
       url, output: name, bytes: embedded,
       width: dimensions.width, height: dimensions.height,
-      mime: image.mimeType
+      mime
     });
     delete image.bufferView;
+    image.mimeType = mime;
     image.uri = name;
   }
   if (images.length === 0) throw new Error(`${definition.url}: no bufferView images found`);
@@ -3153,9 +3278,9 @@ async function prepareAssets(source, definitions) {
       assets.push({ ...definition, bytes });
       continue;
     }
-    else if (definition.mime === 'application/octet-stream') {
-      // Raw model payloads (PLY/OBJ and friends): the sha256 pin above is
-      // the only integrity gate; loaders parse at runtime.
+    else if (definition.mime === 'application/octet-stream' || definition.mime.startsWith('audio/')) {
+      // Raw model payloads and encoded audio: the sha256 pin above is the
+      // integrity gate; model loaders parse bytes and audio goes to the host.
       assets.push({ ...definition, bytes });
       continue;
     }
@@ -3253,7 +3378,8 @@ async function main() {
       __JSR_THREE_EXAMPLE_ID__: JSON.stringify(options.example),
       __JSR_THREE_WIDGET_ID__: JSON.stringify(definition.id),
       __JSR_THREE_EXAMPLE_ASSETS_JSON__: JSON.stringify(JSON.stringify(adapterAssets)),
-      __JSR_THREE_EXAMPLE_SCRIPTS_JSON__: JSON.stringify(JSON.stringify(extracted.inlineScripts))
+      __JSR_THREE_EXAMPLE_SCRIPTS_JSON__: JSON.stringify(JSON.stringify(extracted.inlineScripts)),
+      __JSR_THREE_EXAMPLE_AUDIO_JSON__: JSON.stringify(JSON.stringify(extracted.audioElements))
     }
   });
   if (result.outputFiles.length !== 1) throw new Error(`Expected one widget output, got ${result.outputFiles.length}`);

@@ -1,0 +1,13 @@
+{
+  "id": "three-webaudio-timing",
+  "name": "WebAudio Timing — three.js r186",
+  "description": "Unmodified official webaudio_timing module with native positional audio through the host media transport.",
+  "version": "0.1.0",
+  "icon": "🔊",
+  "allowedCommands": [],
+  "network": false,
+  "widget": {
+    "entry": "widget.js",
+    "interactive": true
+  }
+}

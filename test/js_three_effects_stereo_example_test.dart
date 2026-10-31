@@ -39,8 +39,9 @@ void main() {
     expect(spheres, isNotEmpty);
     expect(spheres.length, lessThanOrEqualTo(500));
     expect(
-      plan.draws
-          .where((draw) => draw.material.kind == JsThreeMaterialKind.background),
+      plan.draws.where(
+        (draw) => draw.material.kind == JsThreeMaterialKind.background,
+      ),
       hasLength(1),
     );
 
@@ -51,12 +52,36 @@ void main() {
       expect(texture.encoding, JsThreeTextureEncoding.rawRgba8);
       expect(texture.data.length, texture.width * texture.height * 24);
     }
-    final logs = harness.backend.peekLogs().map((entry) => entry['msg']).join('\n');
+    final logs = harness.backend
+        .peekLogs()
+        .map((entry) => entry['msg'])
+        .join('\n');
     expect(logs, isNot(contains('textureType')));
     expect(logs, isNot(contains('RAF tick error')));
 
-    // Eye-specific setViewport/setScissor rectangles remain a separate
-    // native gap and intentionally are not asserted by this example test.
+    final submitted = harness.surface!.lastSubmittedFrames;
+    final eyes = submitted.sublist(submitted.length - 2);
+    expect(eyes, hasLength(2));
+    expect(eyes[0].renderTargetId, 0);
+    expect(eyes[1].renderTargetId, 0);
+    expect((eyes[0].viewportX, eyes[0].viewportY), (0.0, 0.0));
+    expect(eyes[1].viewportX, eyes[0].viewportWidth);
+    expect(eyes[1].viewportY, 0.0);
+    expect(eyes[0].viewportWidth, greaterThan(0));
+    expect(eyes[1].viewportWidth, eyes[0].viewportWidth);
+    expect(eyes[0].viewportHeight, eyes[1].viewportHeight);
+    for (final eye in eyes) {
+      expect(eye.hasViewport, isTrue);
+      expect(eye.scissorTest, isTrue);
+      expect(
+        [eye.scissorX, eye.scissorY, eye.scissorWidth, eye.scissorHeight],
+        [eye.viewportX, eye.viewportY, eye.viewportWidth, eye.viewportHeight],
+      );
+    }
+    expect(eyes[0].clearColor, isTrue);
+    expect(eyes[0].clearDepth, isTrue);
+    expect(eyes[1].clearColor, isFalse);
+    expect(eyes[1].clearDepth, isFalse);
     await harness.dispose(tester);
   }, timeout: const Timeout(Duration(seconds: 180)));
 }

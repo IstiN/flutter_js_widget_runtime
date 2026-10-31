@@ -200,6 +200,13 @@ function localElement(tagName) {
     child.parentNode = null;
     return child;
   };
+  element.remove = function() {
+    if (this.parentNode && typeof this.parentNode.removeChild === 'function') this.parentNode.removeChild(this);
+  };
+  element.click = function() {
+    this.__jsrClicked = true;
+    this.dispatchEvent({ type: 'click' });
+  };
   return element;
 }
 
@@ -406,13 +413,49 @@ runtimeDocument.body = body;
 
 const info = localElement('div');
 info.id = 'info';
+
+function localAudioElement(record) {
+  const element = eventTarget({
+    __jsrThreeExampleLocal: true,
+    tagName: 'AUDIO', id: record.id || '', style: {}, children: [], parentNode: null,
+    loop: !!record.loop, preload: 'auto', currentTime: 0, volume: 1, muted: false,
+    paused: true, _jsrMediaPlaying: false,
+    _jsrAudioLoad: () => JSR.three.loadAsset(record.url)
+  });
+  element.play = function() {
+    this._jsrMediaPlaying = true;
+    this.paused = false;
+    return typeof this._jsrNativePlay === 'function'
+      ? Promise.resolve(this._jsrNativePlay())
+      : Promise.resolve();
+  };
+  element.pause = function() {
+    this._jsrMediaPlaying = false;
+    this.paused = true;
+    if (typeof this._jsrNativePause === 'function') this._jsrNativePause();
+  };
+  element.remove = function() {};
+  return element;
+}
+
+if (typeof ROOT.Audio !== 'function') {
+  ROOT.Audio = function(source) {
+    return localAudioElement({ url: String(source || ''), mime: 'audio/mpeg', loop: false });
+  };
+}
+
 // Inline shader sources the official HTML carried in id'd script blocks
 // (`<script id="vertexShader" type="x-shader/x-vertex">…</script>`).
 const INLINE_SCRIPTS = JSON.parse(__JSR_THREE_EXAMPLE_SCRIPTS_JSON__);
+const AUDIO_ELEMENTS = JSON.parse(__JSR_THREE_EXAMPLE_AUDIO_JSON__);
 const localElementsById = new Map();
 runtimeDocument.getElementById = function(id) {
   if (id === 'container') return container;
   if (id === 'info') return info;
+  if (Object.prototype.hasOwnProperty.call(AUDIO_ELEMENTS, id)) {
+    if (!localElementsById.has(id)) localElementsById.set(id, localAudioElement(AUDIO_ELEMENTS[id]));
+    return localElementsById.get(id);
+  }
   if (Object.prototype.hasOwnProperty.call(INLINE_SCRIPTS, id)) {
     return { id: id, textContent: INLINE_SCRIPTS[id] };
   }
@@ -447,6 +490,15 @@ runtimeDocument.querySelector = function(selector) {
 // mousemove compatibility lane.
 for (const type of ['pointerdown', 'pointermove', 'pointerup', 'pointercancel']) {
   runtimeDocument.addEventListener(type, event => {
+    if (type === 'pointerdown') {
+      const startButton = localElementsById.get('startButton');
+      if (startButton && !startButton.__jsrClicked) startButton.click();
+      if (typeof JSR.three._resumeAudio === 'function') {
+        Promise.resolve(JSR.three._resumeAudio()).catch(error => {
+          if (typeof console !== 'undefined' && console.error) console.error(error);
+        });
+      }
+    }
     const normalized = Object.assign({}, event, {
       clientX: event.clientX === undefined ? event.pageX : event.clientX,
       clientY: event.clientY === undefined ? event.pageY : event.clientY

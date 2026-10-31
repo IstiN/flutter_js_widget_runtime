@@ -333,6 +333,7 @@ class FlutterGpuThreeSurface extends JsThreeSurface {
   double _decodeMs = 0;
   double _frameMs = 0;
   String? lastError;
+  List<JsThreeSubmitFrame> lastSubmittedFrames = const <JsThreeSubmitFrame>[];
 
   JsThreeSurfaceState? get state => _store.surface(engineId, surfaceId);
 
@@ -348,6 +349,16 @@ class FlutterGpuThreeSurface extends JsThreeSurface {
   void _apply(JsThreeDecodedR1 decoded) {
     final watch = Stopwatch()..start();
     final result = _store.applyDecoded(decoded);
+    final submitted = result.changes.whereType<JsThreeSubmitFrame>();
+    lastSubmittedFrames = <JsThreeSubmitFrame>[
+      ...lastSubmittedFrames,
+      ...submitted,
+    ];
+    if (lastSubmittedFrames.length > 32) {
+      lastSubmittedFrames = lastSubmittedFrames.sublist(
+        lastSubmittedFrames.length - 32,
+      );
+    }
     _decodeMs = watch.elapsedMicroseconds / 1000;
     if (result.surfaceDisposed) {
       _retired = true;

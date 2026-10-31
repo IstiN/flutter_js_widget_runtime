@@ -1,0 +1,13 @@
+{
+  "id": "three-webaudio-orientation",
+  "name": "WebAudio Orientation — three.js r186",
+  "description": "Unmodified official webaudio_orientation module with native media-element spatialization and directional cones.",
+  "version": "0.1.0",
+  "icon": "🎧",
+  "allowedCommands": [],
+  "network": false,
+  "widget": {
+    "entry": "widget.js",
+    "interactive": true
+  }
+}

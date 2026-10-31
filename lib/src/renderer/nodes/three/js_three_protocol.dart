@@ -36,7 +36,8 @@ enum JsThreeMaterialKind {
   shadow(7),
   meshTon(8),
   meshMatcap(9),
-  background(10);
+  background(10),
+  anaglyph(11);
 
   const JsThreeMaterialKind(this.wireValue);
   final int wireValue;
@@ -125,8 +126,9 @@ const List<double> _threeIdentityUvMatrixRows = <double>[
   0, 0, 1,
 ];
 
-final Float32List _threeIdentityUvMatrix =
-    Float32List.fromList(_threeIdentityUvMatrixRows).asUnmodifiableView();
+final Float32List _threeIdentityUvMatrix = Float32List.fromList(
+  _threeIdentityUvMatrixRows,
+).asUnmodifiableView();
 
 /// Wireframe only applies to mesh material kinds (R1 v5 adds ton/matcap to
 /// the allowed set alongside the v3 mesh kinds).
@@ -156,7 +158,8 @@ enum JsThreeResourceKind {
   material(3),
   node(4),
   light(5),
-  camera(6);
+  camera(6),
+  renderTarget(7);
 
   const JsThreeResourceKind(this.wireValue);
   final int wireValue;
@@ -279,12 +282,40 @@ final class JsThreeTextureUpsert extends JsThreeCommand {
   bool get isEncoded => encoding != JsThreeTextureEncoding.rawRgba8;
 }
 
-final class JsThreeMaterialUpsert extends JsThreeCommand {
+final class JsThreeRenderTargetUpsert extends JsThreeCommand {
+  JsThreeRenderTargetUpsert({
+    required this.targetId,
+    required this.version,
+    required this.width,
+    required this.height,
+    required this.textureId,
+    required this.flags,
+  }) : super._(14);
+
+  final int targetId;
+  final int version;
+  final int width;
+  final int height;
+  final int textureId;
+  final int flags;
+
+  bool get nearestMag => flags & 1 != 0;
+  bool get nearestMin => flags & 2 != 0;
+  bool get repeatU => flags & 4 != 0;
+  bool get repeatV => flags & 8 != 0;
+  bool get srgb => flags & 16 != 0;
+  bool get flipY => flags & 32 != 0;
+  bool get generateMipmaps => flags & 64 != 0;
+  bool get hasDepth => flags & 256 != 0;
+}
+
+class JsThreeMaterialUpsert extends JsThreeCommand {
   const JsThreeMaterialUpsert._({
     required this.materialId,
     required this.version,
     required this.kind,
     required this.mapTextureId,
+    this.mapRightTextureId = 0,
     required this.flags,
     required this.side,
     required this.colorR,
@@ -310,6 +341,8 @@ final class JsThreeMaterialUpsert extends JsThreeCommand {
     required this.envMapIntensity,
     required this.mapUvMatrix,
     required this.alphaMapUvMatrix,
+    required this.duboisLeftMatrix,
+    required this.duboisRightMatrix,
     required this.matcapTextureId,
     required this.gradientMapTextureId,
     required this.spriteRotation,
@@ -326,6 +359,9 @@ final class JsThreeMaterialUpsert extends JsThreeCommand {
   final int version;
   final JsThreeMaterialKind kind;
   final int mapTextureId;
+
+  /// Second eye texture for the recognized Dubois anaglyph composite.
+  final int mapRightTextureId;
   final int flags;
   final JsThreeSide side;
   final double colorR;
@@ -367,6 +403,10 @@ final class JsThreeMaterialUpsert extends JsThreeCommand {
   /// Same composition for [alphaMapTextureId] (R1 v4).
   final Float32List alphaMapUvMatrix;
 
+  /// Column-major Dubois 3x3 matrices (std140 padded columns).
+  final Float32List duboisLeftMatrix;
+  final Float32List duboisRightMatrix;
+
   /// Matcap texture (R1 v5), sampled by view-space normal UV; zero unset.
   final int matcapTextureId;
 
@@ -398,6 +438,7 @@ final class JsThreeMaterialUpsert extends JsThreeCommand {
   bool get vertexColors => flags & 0x01 != 0;
   bool get flatShading => flags & 0x02 != 0;
   bool get transparent => flags & 0x04 != 0;
+
   /// THREE material.blending (0 No, 1 Normal, 2 Additive, 3 Subtractive,
   /// 4 Multiply; Custom is rejected JS-side), packed into flags bits 7..9.
   int get blending => (flags >> 7) & 0x07;
@@ -537,6 +578,18 @@ final class JsThreeSubmitFrame extends JsThreeCommand {
     this.pointShadowLightY = 0,
     this.pointShadowLightZ = 0,
     this.pointShadowFar = 0,
+    this.renderTargetId = 0,
+    this.targetWidth = 0,
+    this.targetHeight = 0,
+    this.viewportX = 0,
+    this.viewportY = 0,
+    this.viewportWidth = 0,
+    this.viewportHeight = 0,
+    this.scissorX = 0,
+    this.scissorY = 0,
+    this.scissorWidth = 0,
+    this.scissorHeight = 0,
+    this.frameFlags = 3,
   }) : super._(8);
 
   final int sceneId;
@@ -586,8 +639,29 @@ final class JsThreeSubmitFrame extends JsThreeCommand {
   /// shadow pass maps light-space distance into [0, 1] with this far plane.
   final double pointShadowFar;
 
-  bool get hasSpotShadow => shadowLightType == JsThreeShadowLightType.spot.wireValue;
-  bool get hasPointShadowMap => shadowLightType == JsThreeShadowLightType.point.wireValue;
+  /// Optional R1 v6 frame trailer. Zero selects the default framebuffer.
+  final int renderTargetId;
+  final int targetWidth;
+  final int targetHeight;
+  final double viewportX;
+  final double viewportY;
+  final double viewportWidth;
+  final double viewportHeight;
+  final double scissorX;
+  final double scissorY;
+  final double scissorWidth;
+  final double scissorHeight;
+  final int frameFlags;
+
+  bool get clearColor => frameFlags & 1 != 0;
+  bool get clearDepth => frameFlags & 2 != 0;
+  bool get scissorTest => frameFlags & 4 != 0;
+  bool get hasViewport => frameFlags & 8 != 0;
+
+  bool get hasSpotShadow =>
+      shadowLightType == JsThreeShadowLightType.spot.wireValue;
+  bool get hasPointShadowMap =>
+      shadowLightType == JsThreeShadowLightType.point.wireValue;
 
   /// Manual THREE shadow revision; null follows global scene content changes.
   final int? shadowContentRevision;
@@ -708,6 +782,9 @@ final class JsThreeProtocolDecoder {
   static const int maxDrawBatchPartCount = 65536;
   static const int maxDrawBatchInstanceCount = 1000000;
   static const int maxClippingPlaneCount = 16;
+  static const int maxRenderTargetSize = 8192;
+  static const int maxRenderTargetPixels = 16 * 1024 * 1024;
+  static const int maxRenderTargetCount = 16;
 
   final int maxEnvelopeBytes;
 
@@ -995,7 +1072,33 @@ final class JsThreeProtocolDecoder {
     );
   }
 
-  JsThreeMaterialUpsert _material(_Reader body, int streamVersion) {    final id = body.nonzeroId('material id');
+  JsThreeRenderTargetUpsert _renderTarget(_Reader body, int streamVersion) {
+    if (streamVersion < 6) body.fail('render targets require R1 version 6');
+    final targetId = body.nonzeroId('render target id');
+    final version = body.nonzeroVersion();
+    final width = body.u32('render target width');
+    final height = body.u32('render target height');
+    final textureId = body.nonzeroId('render target texture id');
+    final flags = body.u32('render target flags');
+    if (body.u32('render target reserved') != 0) {
+      body.fail('render target reserved must be zero');
+    }
+    _validateTargetDimensions(body, width, height);
+    if (flags & ~0x17f != 0 || flags & 0x70 != 0) {
+      body.fail('invalid bounded render target flags');
+    }
+    return JsThreeRenderTargetUpsert(
+      targetId: targetId,
+      version: version,
+      width: width,
+      height: height,
+      textureId: textureId,
+      flags: flags,
+    );
+  }
+
+  JsThreeMaterialUpsert _material(_Reader body, int streamVersion) {
+    final id = body.nonzeroId('material id');
     final version = body.nonzeroVersion();
     final kind = body.enumValue(
       JsThreeMaterialKind.values,
@@ -1004,7 +1107,8 @@ final class JsThreeProtocolDecoder {
     );
     final mapTextureId = body.u32('map texture id');
     final flags = body.u32('material flags');
-    if (flags & ~0x3ff != 0) body.fail('unknown material flag'); // bits 7..9: THREE blending
+    if (flags & ~0x3ff != 0)
+      body.fail('unknown material flag'); // bits 7..9: THREE blending
     _validateMaterialWireframeFlag(body, flags, kind);
     final side = body.enumValue(
       JsThreeSide.values,
@@ -1020,22 +1124,20 @@ final class JsThreeProtocolDecoder {
     final alphaTest = body.unitFloat('material alpha test');
     final pointSize = body.finiteFloat('point size');
     if (pointSize <= 0) body.fail('point size must be positive');
-    var clipId = 0;
-    var clipFlags = 0;
-    if (streamVersion >= 3) {
-      clipId = body.u32('material clip id');
-      clipFlags = body.u32('material clip flags');
-      if (clipFlags & ~3 != 0) body.fail('unknown material clip flag');
-    }
+    final clip = streamVersion >= 3
+        ? _materialClipTail(body)
+        : (clipId: 0, clipFlags: 0);
+    final clipId = clip.clipId;
+    final clipFlags = clip.clipFlags;
     final slots = switch (streamVersion) {
       >= 4 => _materialTextureSlotTail(body),
       _ => (
-          alphaMapTextureId: 0,
-          envMapTextureId: 0,
-          envMapIntensity: 1.0,
-          mapUvMatrix: _threeIdentityUvMatrix,
-          alphaMapUvMatrix: _threeIdentityUvMatrix,
-        ),
+        alphaMapTextureId: 0,
+        envMapTextureId: 0,
+        envMapIntensity: 1.0,
+        mapUvMatrix: _threeIdentityUvMatrix,
+        alphaMapUvMatrix: _threeIdentityUvMatrix,
+      ),
     };
     final v5 = switch (streamVersion) {
       >= 5 => _materialV5Tail(body, kind),
@@ -1044,22 +1146,31 @@ final class JsThreeProtocolDecoder {
     final v6 = switch (streamVersion) {
       >= 6 => _materialV6Tail(body, kind),
       _ => (
-          normalMapTextureId: 0,
-          normalScaleX: 1.0,
-          normalScaleY: 1.0,
-          bumpMapTextureId: 0,
-          bumpScale: 1.0,
-          roughnessMapTextureId: 0,
-          metalnessMapTextureId: 0,
-        ),
+        normalMapTextureId: 0,
+        normalScaleX: 1.0,
+        normalScaleY: 1.0,
+        bumpMapTextureId: 0,
+        bumpScale: 1.0,
+        roughnessMapTextureId: 0,
+        metalnessMapTextureId: 0,
+      ),
     };
     final phong = _phongMaterial(body, kind);
     final emissive = _emissiveMaterial(body, kind);
+    final dubois = switch (streamVersion) {
+      >= 6 => _materialDuboisTail(body, kind, mapTextureId),
+      _ => (
+        mapRightTextureId: 0,
+        left: Float32List(12).asUnmodifiableView(),
+        right: Float32List(12).asUnmodifiableView(),
+      ),
+    };
     return JsThreeMaterialUpsert._(
       materialId: id,
       version: version,
       kind: kind,
       mapTextureId: mapTextureId,
+      mapRightTextureId: dubois.mapRightTextureId,
       flags: flags,
       side: side,
       colorR: colorR,
@@ -1085,6 +1196,8 @@ final class JsThreeProtocolDecoder {
       envMapIntensity: slots.envMapIntensity,
       mapUvMatrix: slots.mapUvMatrix,
       alphaMapUvMatrix: slots.alphaMapUvMatrix,
+      duboisLeftMatrix: dubois.left,
+      duboisRightMatrix: dubois.right,
       matcapTextureId: v5.matcapTextureId,
       gradientMapTextureId: v5.gradientMapTextureId,
       spriteRotation: v5.spriteRotation,
@@ -1098,6 +1211,43 @@ final class JsThreeProtocolDecoder {
     );
   }
 
+  ({int clipId, int clipFlags}) _materialClipTail(_Reader body) {
+    final clipId = body.u32('material clip id');
+    final clipFlags = body.u32('material clip flags');
+    if (clipFlags & ~3 != 0) body.fail('unknown material clip flag');
+    return (clipId: clipId, clipFlags: clipFlags);
+  }
+
+  ({int mapRightTextureId, Float32List left, Float32List right})
+  _materialDuboisTail(_Reader body, JsThreeMaterialKind kind, int mapId) {
+    final mapRightTextureId = body.u32('anaglyph right texture id');
+    for (var index = 0; index < 3; index++) {
+      if (body.u32('anaglyph texture reserved') != 0) {
+        body.fail('anaglyph texture reserved fields must be zero');
+      }
+    }
+    final left = body.float32List(12, 'Dubois left matrix');
+    final right = body.float32List(12, 'Dubois right matrix');
+    _validateDuboisPadding(body, left);
+    _validateDuboisPadding(body, right);
+    if (kind == JsThreeMaterialKind.anaglyph) {
+      if (mapId == 0 || mapRightTextureId == 0) {
+        body.fail('anaglyph requires left and right textures');
+      }
+    } else if (mapRightTextureId != 0 ||
+        left.any((value) => value != 0) ||
+        right.any((value) => value != 0)) {
+      body.fail('Dubois payload requires an anaglyph material');
+    }
+    return (mapRightTextureId: mapRightTextureId, left: left, right: right);
+  }
+
+  void _validateDuboisPadding(_Reader body, Float32List matrix) {
+    if (matrix[3] != 0 || matrix[7] != 0 || matrix[11] != 0) {
+      body.fail('Dubois matrix padding must be zero');
+    }
+  }
+
   /// Decodes the R1 v6 material tail: tangentless normal-map texture id and
   /// the per-axis normal scale (only lit mesh materials may carry one).
   ({
@@ -1108,7 +1258,8 @@ final class JsThreeProtocolDecoder {
     double bumpScale,
     int roughnessMapTextureId,
     int metalnessMapTextureId,
-  }) _materialV6Tail(_Reader body, JsThreeMaterialKind kind) {
+  })
+  _materialV6Tail(_Reader body, JsThreeMaterialKind kind) {
     final normalMapTextureId = body.u32('material normal map texture id');
     final normalScaleX = body.finiteFloat('material normal scale x');
     final normalScaleY = body.finiteFloat('material normal scale y');
@@ -1139,11 +1290,8 @@ final class JsThreeProtocolDecoder {
 
   /// Decodes the R1 v5 material tail: matcap + gradient-map texture ids and
   /// the SpriteMaterial rotation (radians; zero for non-sprite materials).
-  ({
-    int matcapTextureId,
-    int gradientMapTextureId,
-    double spriteRotation,
-  }) _materialV5Tail(_Reader body, JsThreeMaterialKind kind) {
+  ({int matcapTextureId, int gradientMapTextureId, double spriteRotation})
+  _materialV5Tail(_Reader body, JsThreeMaterialKind kind) {
     final matcapTextureId = body.u32('material matcap texture id');
     final gradientMapTextureId = body.u32('material gradient map texture id');
     final spriteRotation = body.finiteFloat('material sprite rotation');
@@ -1175,7 +1323,10 @@ final class JsThreeProtocolDecoder {
     if (kind != JsThreeMaterialKind.meshPhong) {
       return (r: 0.0, g: 0.0, b: 0.0, shininess: 0.0);
     }
-    if (body.remaining != 16 && body.remaining != 32) {
+    if (body.remaining != 16 &&
+        body.remaining != 32 &&
+        body.remaining != 128 &&
+        body.remaining != 144) {
       body.fail('Phong material requires specular RGB and shininess');
     }
     final r = body.finiteFloat('material specular red');
@@ -1190,7 +1341,7 @@ final class JsThreeProtocolDecoder {
     _Reader body,
     JsThreeMaterialKind kind,
   ) {
-    if (body.remaining == 0) {
+    if (body.remaining == 0 || body.remaining == 112) {
       return (r: 0.0, g: 0.0, b: 0.0, intensity: 1.0);
     }
     if (kind != JsThreeMaterialKind.meshLambert &&
@@ -1199,7 +1350,7 @@ final class JsThreeProtocolDecoder {
         kind != JsThreeMaterialKind.meshTon) {
       body.fail('emissive payload requires a lit mesh material');
     }
-    if (body.remaining != 16) {
+    if (body.remaining != 16 && body.remaining != 128) {
       body.fail('emissive payload requires RGB and intensity');
     }
     final r = body.finiteFloat('material emissive red');
@@ -1240,7 +1391,8 @@ final class JsThreeProtocolDecoder {
         body.fail('sprite center requires a sprite node');
       }
     }
-    if (kind == JsThreeObjectKind.sprite && (geometryId == 0 || materialId == 0)) {
+    if (kind == JsThreeObjectKind.sprite &&
+        (geometryId == 0 || materialId == 0)) {
       body.fail('sprite node requires geometry and material ids');
     }
     return JsThreeNodeUpsert._(
@@ -1423,12 +1575,7 @@ final class JsThreeProtocolDecoder {
     if (distance < 0 || decay < 0) {
       body.fail('spot light distance/decay must be nonnegative');
     }
-    return (
-      angle: angle,
-      penumbra: penumbra,
-      distance: distance,
-      decay: decay,
-    );
+    return (angle: angle, penumbra: penumbra, distance: distance, decay: decay);
   }
 
   JsThreeSubmitFrame _frame(_Reader body, int version) {
@@ -1482,6 +1629,9 @@ final class JsThreeProtocolDecoder {
     final shadowContentRevision = body.remaining == 0
         ? null
         : body.u32('shadow content revision');
+    final target = body.remaining == 0
+        ? _legacyFrameTarget
+        : _frameTargetTail(body, version);
     return JsThreeSubmitFrame._(
       sceneId: sceneId,
       cameraId: cameraId,
@@ -1514,7 +1664,112 @@ final class JsThreeProtocolDecoder {
       pointShadowLightY: pointShadow.lightY,
       pointShadowLightZ: pointShadow.lightZ,
       pointShadowFar: pointShadow.far,
+      renderTargetId: target.targetId,
+      targetWidth: target.width,
+      targetHeight: target.height,
+      viewportX: target.viewportX,
+      viewportY: target.viewportY,
+      viewportWidth: target.viewportWidth,
+      viewportHeight: target.viewportHeight,
+      scissorX: target.scissorX,
+      scissorY: target.scissorY,
+      scissorWidth: target.scissorWidth,
+      scissorHeight: target.scissorHeight,
+      frameFlags: target.flags,
     );
+  }
+
+  static const _FrameTarget _legacyFrameTarget = _FrameTarget(
+    targetId: 0,
+    width: 0,
+    height: 0,
+    viewportX: 0,
+    viewportY: 0,
+    viewportWidth: 0,
+    viewportHeight: 0,
+    scissorX: 0,
+    scissorY: 0,
+    scissorWidth: 0,
+    scissorHeight: 0,
+    flags: 3,
+  );
+
+  _FrameTarget _frameTargetTail(_Reader body, int streamVersion) {
+    if (streamVersion < 6 || body.remaining != 60) {
+      body.fail('invalid frame target trailer');
+    }
+    if (body.u32('frame target magic') != 0x4658534a) {
+      body.fail('invalid frame target magic');
+    }
+    if (body.u32('frame target version') != 1) {
+      body.fail('unsupported frame target version');
+    }
+    final targetId = body.u32('frame render target id');
+    final width = body.u32('frame target width');
+    final height = body.u32('frame target height');
+    final viewport = _frameRect(body, 'viewport');
+    final scissor = _frameRect(body, 'scissor');
+    final flags = body.u32('frame target flags');
+    if (flags & ~0x0f != 0 || flags & 8 == 0) {
+      body.fail('invalid frame target flags');
+    }
+    if (body.u32('frame target reserved') != 0) {
+      body.fail('frame target reserved must be zero');
+    }
+    _validateFrameTargetDimensions(body, targetId, width, height);
+    return _FrameTarget(
+      targetId: targetId,
+      width: width,
+      height: height,
+      viewportX: viewport.x,
+      viewportY: viewport.y,
+      viewportWidth: viewport.width,
+      viewportHeight: viewport.height,
+      scissorX: scissor.x,
+      scissorY: scissor.y,
+      scissorWidth: scissor.width,
+      scissorHeight: scissor.height,
+      flags: flags,
+    );
+  }
+
+  ({double x, double y, double width, double height}) _frameRect(
+    _Reader body,
+    String label,
+  ) {
+    final x = body.finiteFloat('$label x');
+    final y = body.finiteFloat('$label y');
+    final width = body.finiteFloat('$label width');
+    final height = body.finiteFloat('$label height');
+    if (x < 0 || y < 0 || width < 0 || height < 0) {
+      body.fail('$label must be a nonnegative rectangle');
+    }
+    return (x: x, y: y, width: width, height: height);
+  }
+
+  void _validateFrameTargetDimensions(
+    _Reader body,
+    int targetId,
+    int width,
+    int height,
+  ) {
+    if (targetId == 0) {
+      if (width != 0 || height != 0) {
+        body.fail('main frame target dimensions must be zero');
+      }
+      return;
+    }
+    _validateTargetDimensions(body, width, height);
+  }
+
+  void _validateTargetDimensions(_Reader body, int width, int height) {
+    if (width == 0 ||
+        height == 0 ||
+        width > JsThreeProtocolDecoder.maxRenderTargetSize ||
+        height > JsThreeProtocolDecoder.maxRenderTargetSize ||
+        width * height > JsThreeProtocolDecoder.maxRenderTargetPixels) {
+      body.fail('render target dimensions exceed the bounded 2D budget');
+    }
   }
 
   static const ({
@@ -1523,13 +1778,8 @@ final class JsThreeProtocolDecoder {
     double lightY,
     double lightZ,
     double far,
-  }) _noPointShadow = (
-    hasPointShadow: 0,
-    lightX: 0,
-    lightY: 0,
-    lightZ: 0,
-    far: 0,
-  );
+  })
+  _noPointShadow = (hasPointShadow: 0, lightX: 0, lightY: 0, lightZ: 0, far: 0);
 
   static void _validateShadowMapDimensions(
     _Reader body,
@@ -1567,7 +1817,8 @@ final class JsThreeProtocolDecoder {
     double lightY,
     double lightZ,
     double far,
-  }) _framePointShadowTail(_Reader body) {
+  })
+  _framePointShadowTail(_Reader body) {
     final hasPointShadow = body.u32('point shadow flag');
     if (hasPointShadow != 0 && hasPointShadow != 1) {
       body.fail('point shadow flag must be 0 or 1');
@@ -1638,7 +1889,8 @@ final class JsThreeProtocolDecoder {
     double envMapIntensity,
     Float32List mapUvMatrix,
     Float32List alphaMapUvMatrix,
-  }) _materialTextureSlotTail(_Reader body) {
+  })
+  _materialTextureSlotTail(_Reader body) {
     final alphaMapTextureId = body.u32('material alpha map texture id');
     final envMapTextureId = body.u32('material env map texture id');
     final envMapIntensity = body.finiteFloat('material env map intensity');
@@ -1732,6 +1984,7 @@ extension _JsThreeR1CommandDecoder on JsThreeProtocolDecoder {
     if (opcode == 4) return _node(body, version);
     if (opcode == 8) return _frame(body, version);
     if (opcode == 13) return _clipping(body, version);
+    if (opcode == 14) return _renderTarget(body, version);
     final decode = _r1CommandDecoders[opcode];
     if (decode == null) body.fail('unknown R1 opcode $opcode');
     return decode(this, body);
@@ -1742,8 +1995,7 @@ extension _JsThreeR1CommandDecoder on JsThreeProtocolDecoder {
     final id = body.nonzeroId('clipping id');
     final clipVersion = body.nonzeroVersion();
     final count = body.u32('clipping plane count');
-    if (count == 0 ||
-        count > JsThreeProtocolDecoder.maxClippingPlaneCount) {
+    if (count == 0 || count > JsThreeProtocolDecoder.maxClippingPlaneCount) {
       body.fail(
         'clipping plane count outside'
         ' 1..${JsThreeProtocolDecoder.maxClippingPlaneCount}',
@@ -1789,6 +2041,36 @@ final class _T1Header {
   final int flags;
   final int totalBytes;
   final int reserved;
+}
+
+final class _FrameTarget {
+  const _FrameTarget({
+    required this.targetId,
+    required this.width,
+    required this.height,
+    required this.viewportX,
+    required this.viewportY,
+    required this.viewportWidth,
+    required this.viewportHeight,
+    required this.scissorX,
+    required this.scissorY,
+    required this.scissorWidth,
+    required this.scissorHeight,
+    required this.flags,
+  });
+
+  final int targetId;
+  final int width;
+  final int height;
+  final double viewportX;
+  final double viewportY;
+  final double viewportWidth;
+  final double viewportHeight;
+  final double scissorX;
+  final double scissorY;
+  final double scissorWidth;
+  final double scissorHeight;
+  final int flags;
 }
 
 final class _GeometryHeader {

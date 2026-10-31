@@ -26,6 +26,8 @@ final class ThreeQuickjsExampleHarness {
     required String widgetId,
     required String instanceId,
     bool useIsolate = false,
+    Future<Object?> Function(String name, Map<String, dynamic> args)?
+    onHostCall,
   }) async {
     final sources = await tester.runAsync(
       () async => (
@@ -41,6 +43,7 @@ final class ThreeQuickjsExampleHarness {
       widgetId: widgetId,
       instanceId: instanceId,
       useIsolate: useIsolate,
+      onHostCall: onHostCall,
       tester: tester,
     );
   }
@@ -69,6 +72,8 @@ final class ThreeQuickjsExampleHarness {
     required String instanceId,
     required WidgetTester tester,
     bool useIsolate = false,
+    Future<Object?> Function(String name, Map<String, dynamic> args)?
+    onHostCall,
   }) async {
     final host = createFlutterGpuThreeHost();
     final renderTrees = <Map<String, dynamic>>[];
@@ -78,7 +83,7 @@ final class ThreeQuickjsExampleHarness {
       host: host,
       threeSource: threeSource,
       onRender: renderTrees.add,
-    );
+    ).copyWith(onHostCall: onHostCall);
     final backend = useIsolate
         ? createQuickjsIsolateWidgetEngineBackend(config)
         : QuickjsWidgetEngineBackend(config: config);

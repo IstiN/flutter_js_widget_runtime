@@ -70,6 +70,10 @@ export 'src/renderer/nodes/js_voxel_node.dart'
 export 'src/renderer/media/js_media_controller.dart'
     show JsMediaController, JsVideoController, JsAudioController;
 export 'src/renderer/media/js_media_host.dart' show JsMediaHost;
+export 'src/renderer/nodes/three/audio/js_three_audio_controller.dart'
+    show JsThreeAudioEnhancedController;
+export 'src/renderer/nodes/three/audio/js_three_audio_host.dart'
+    show JsThreeAudioHost, JsThreeAudioChannelHandler;
 export 'src/renderer/webview/js_web_view_host.dart' show JsWebViewHost;
 export 'src/renderer/media/web_media_host.dart'
     show createWebMediaHost, WebMediaHost;

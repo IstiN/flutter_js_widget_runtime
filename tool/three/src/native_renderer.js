@@ -1,11 +1,11 @@
 import {
   ACESFilmicToneMapping, AgXToneMapping, BackSide, BoxGeometry, BufferGeometry, CineonToneMapping, Color, CubeReflectionMapping, CubeRefractionMapping,
-  CustomToneMapping, DataTexture, DoubleSide, DynamicDrawUsage, EquirectangularReflectionMapping, Float32BufferAttribute, FrontSide, Frustum, LinearFilter,
+  ClampToEdgeWrapping, CustomToneMapping, DataTexture, DoubleSide, DynamicDrawUsage, EquirectangularReflectionMapping, Float32BufferAttribute, FrontSide, Frustum, LinearFilter,
   LinearToneMapping, LineBasicMaterial, Matrix4, Mesh, MeshBasicMaterial, MeshLambertMaterial, MeshStandardMaterial,
   MirroredRepeatWrapping, NeutralToneMapping, NearestFilter, NearestMipmapNearestFilter,
   NearestMipmapLinearFilter, NoToneMapping, NormalBlending, CustomBlending, PointsMaterial, HalfFloatType, RedFormat,
   ReinhardToneMapping, RGBAFormat, RepeatWrapping, SRGBColorSpace, UVMapping, UnsignedByteType,
-  Vector3
+  Vector3, Vector4
 } from 'three';
 import { unsupported, requireFinite } from './errors.js';
 import { getThreeRuntime } from './runtime.js';
@@ -13,7 +13,7 @@ import { isNativeCanvas2D } from './native_canvas2d.js';
 import {
   OPCODE, NO_SHADOW, cameraCommand, clippingCommand, command, disposeResourceCommand, disposeSurfaceCommand,
   drawBatchCommand, encodeEnvelope, frameCommand, geometryCommand, lightCommand,
-  materialCommand, nodeCommand, removeBatchCommand, removeNodeCommand, resourceId,
+  materialCommand, nodeCommand, removeBatchCommand, removeNodeCommand, renderTargetCommand, resourceId,
   textureCommand
 } from './r1.js';
 
@@ -23,8 +23,11 @@ const ATTR_NAMES = ['position', 'normal', 'uv', 'color'];
 const TONE_MAPPINGS = new Set([NoToneMapping, LinearToneMapping, ReinhardToneMapping,
   CineonToneMapping, ACESFilmicToneMapping, CustomToneMapping, AgXToneMapping, NeutralToneMapping]);
 const MAX_INSTANCES = 1000000;
+const MAX_RENDER_TARGETS = 16;
+const MAX_RENDER_TARGET_PIXELS = 16 * 1024 * 1024;
+const FRAME_TARGET_FLAGS = Object.freeze({ clearColor: 1, clearDepth: 2, scissor: 4, viewport: 8 });
 const MAX_BATCH_PARTS = 1024;
-const RESOURCE_KIND = { geometry: 1, texture: 2, material: 3, node: 4, light: 5, camera: 6 };
+const RESOURCE_KIND = { geometry: 1, texture: 2, material: 3, node: 4, light: 5, camera: 6, renderTarget: 7 };
 const ZERO = new Vector3();
 const UP = new Vector3(0, 1, 0);
 const _position = new Vector3();
@@ -271,7 +274,9 @@ function uvTransformElements(texture) {
   const elements = texture.matrix && texture.matrix.elements;
   if (!Array.isArray(elements) || elements.length !== 9) unsupported('textureTransform', 'uv transform requires a 3x3 matrix');
   for (let i = 0; i < 9; i++) requireFinite(elements[i], 'uv transform matrix');
-  return elements;
+  if (!texture.isRenderTargetTexture) return elements;
+  const e = elements;
+  return [e[0], -e[1], e[2], e[3], -e[4], e[5], e[6], 1 - e[7], e[8]];
 }
 
 function materialKind(material) {
@@ -297,6 +302,110 @@ function supportsEmissive(material) {
   return material.isMeshLambertMaterial || material.isMeshPhongMaterial ||
     (material.isMeshStandardMaterial) ||
     material.isMeshToonMaterial;
+}
+
+function sourceTokens(source) { return String(source || '').replace(/\s+/g, ''); }
+
+function shaderTokens(material) {
+  return `${sourceTokens(material.fragmentShader)} ${sourceTokens(material.vertexShader)}`;
+}
+
+const RTT_VERTEX = 'varyingvec2vUv;voidmain(){vUv=uv;gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.0);}';
+const RTT_SCREEN_FRAGMENT = 'varyingvec2vUv;uniformsampler2DtDiffuse;voidmain(){gl_FragColor=texture2D(tDiffuse,vUv);#include<colorspace_fragment>}';
+const RTT_PROCEDURAL_FRAGMENT = 'varyingvec2vUv;uniformfloattime;voidmain(){floatr=vUv.x;if(vUv.y<0.5)r=0.0;floatg=vUv.y;if(vUv.x<0.5)g=0.0;gl_FragColor=vec4(r,g,time,1.0);}';
+const ANAGLYPH_VERTEX = 'varyingvec2vUv;voidmain(){vUv=vec2(uv.x,uv.y);gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.0);}';
+const ANAGLYPH_FRAGMENT = 'uniformsampler2DmapLeft;uniformsampler2DmapRight;varyingvec2vUv;uniformmat3colorMatrixLeft;uniformmat3colorMatrixRight;voidmain(){vec2uv=vUv;vec4colorL=texture2D(mapLeft,uv);vec4colorR=texture2D(mapRight,uv);vec3color=clamp(colorMatrixLeft*colorL.rgb+colorMatrixRight*colorR.rgb,0.,1.);gl_FragColor=vec4(color.r,color.g,color.b,max(colorL.a,colorR.a));#include<tonemapping_fragment>#include<colorspace_fragment>}';
+
+function boundedShaderSignature(material) {
+  const uniforms = material.uniforms || {};
+  const textureIds = ['mapLeft', 'mapRight', 'tDiffuse'].map(name =>
+    uniforms[name]?.value ? resourceId(uniforms[name].value) : 0);
+  const matrices = ['colorMatrixLeft', 'colorMatrixRight'].map(name =>
+    uniforms[name]?.value?.elements?.join(',') || '');
+  return [material.version, shaderTokens(material), ...textureIds, ...matrices].join('|');
+}
+
+function copyShaderFlags(source, target) {
+  target.side = source.side;
+  target.depthTest = source.depthTest;
+  target.depthWrite = source.depthWrite;
+  target.transparent = source.transparent;
+  target.opacity = source.opacity;
+  target.alphaTest = source.alphaTest;
+  target.blending = source.blending;
+  target.toneMapped = source.toneMapped;
+  target.fog = source.fog;
+  return target;
+}
+
+function proceduralRttGeometry(geometry, time) {
+  const position = geometry.attributes.position;
+  const uv = geometry.attributes.uv;
+  if (!position || !uv || position.itemSize !== 3 || uv.itemSize !== 2) return null;
+  let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+  for (let i = 0; i < position.count; i++) {
+    minX = Math.min(minX, position.getX(i)); maxX = Math.max(maxX, position.getX(i));
+    minY = Math.min(minY, position.getY(i)); maxY = Math.max(maxY, position.getY(i));
+  }
+  if (![minX, minY, maxX, maxY].every(Number.isFinite)) return null;
+  const positions = [], normals = [], uvs = [], colors = [];
+  const vertices = [[0, 0], [1, 0], [1, 1], [0, 0], [1, 1], [0, 1]];
+  for (let y = 0; y < 2; y++) {
+    for (let x = 0; x < 2; x++) {
+      for (const [dx, dy] of vertices) {
+        const u = (x + dx) / 2, v = (y + dy) / 2;
+        positions.push(minX + (maxX - minX) * u, minY + (maxY - minY) * v, 0);
+        normals.push(0, 0, 1); uvs.push(u, v);
+        colors.push(v < 0.5 ? u : 0, u < 0.5 ? v : 0, time);
+      }
+    }
+  }
+  const result = new BufferGeometry();
+  result.setAttribute('position', new Float32BufferAttribute(positions, 3));
+  result.setAttribute('normal', new Float32BufferAttribute(normals, 3));
+  result.setAttribute('uv', new Float32BufferAttribute(uvs, 2));
+  result.setAttribute('color', new Float32BufferAttribute(colors, 3));
+  result.computeBoundingSphere();
+  result._r1ProceduralTime = time;
+  return result;
+}
+
+function refreshProceduralRtt(geometry, time) {
+  if (time === undefined) return;
+  const color = geometry.attributes.color;
+  for (let i = 0; i < color.count; i++) color.setZ(i, time);
+  color.needsUpdate = true;
+}
+
+function adaptedShaderDraw(object) {
+  const source = object.material;
+  const uniforms = source.uniforms || {};
+  const vertex = sourceTokens(source.vertexShader);
+  const fragment = sourceTokens(source.fragmentShader);
+  if (uniforms.mapLeft?.value && uniforms.mapRight?.value &&
+    uniforms.colorMatrixLeft?.value?.elements && uniforms.colorMatrixRight?.value?.elements &&
+    vertex === ANAGLYPH_VERTEX && fragment === ANAGLYPH_FRAGMENT) {
+    const material = copyShaderFlags(source, new MeshBasicMaterial({ map: uniforms.mapLeft.value }));
+    material._r1NativeKind = 'anaglyph';
+    material._r1Anaglyph = {
+      right: uniforms.mapRight.value,
+      left: uniforms.colorMatrixLeft.value.elements,
+      rightMatrix: uniforms.colorMatrixRight.value.elements
+    };
+    return { material, geometry: object.geometry };
+  }
+  if (uniforms.tDiffuse?.value && vertex === RTT_VERTEX && fragment === RTT_SCREEN_FRAGMENT) {
+    const material = copyShaderFlags(source, new MeshBasicMaterial({ map: uniforms.tDiffuse.value }));
+    return { material, geometry: object.geometry };
+  }
+  if (uniforms.time && vertex === RTT_VERTEX && fragment === RTT_PROCEDURAL_FRAGMENT) {
+    const material = copyShaderFlags(source, new MeshBasicMaterial({ vertexColors: true }));
+    const geometry = proceduralRttGeometry(object.geometry, uniforms.time.value);
+    if (!geometry) return null;
+    material._r1ProceduralTime = uniforms.time;
+    return { material, geometry };
+  }
+  return null;
 }
 
 function validateMaterial(material) {
@@ -653,6 +762,13 @@ export class JsrWebGLRenderer {
     this._animationHandle = null;
     this._pendingDisposals = [];
     this._resources = new Map();
+    this._renderTargets = new Map();
+    this._renderTargetDisposers = new Map();
+    this._renderTarget = null;
+    this._clearFlags = 0;
+    this._viewport = { x: 0, y: 0, z: this._width, w: this._height };
+    this._scissor = { x: 0, y: 0, z: this._width, w: this._height };
+    this._scissorTest = false;
     this._geometryModes = new Map();
     this._geometryResourceKeys = new Map();
     this._geometryResourceOwners = new Map();
@@ -667,7 +783,7 @@ export class JsrWebGLRenderer {
       sequence: 0,
       geometries: new Map(), textures: new Map(), materials: new Map(),
       nodes: new Map(), batches: new Map(), lights: new Map(), cameras: new Map(),
-      clippings: new Map()
+      clippings: new Map(), renderTargets: new Map()
     });
   }
 
@@ -690,6 +806,7 @@ export class JsrWebGLRenderer {
     this._width = width;
     this._height = height;
     this.domElement._setSize(width, height, this._pixelRatio, updateStyle);
+    this._viewport = { x: 0, y: 0, z: width, w: height };
   }
 
   setClearColor(color, alpha = 1) {
@@ -703,14 +820,30 @@ export class JsrWebGLRenderer {
     this._clearAlpha = alpha;
   }
 
-  setViewport() { /* R1 presents the whole surface; retained as an API-compatible no-op. */ }
-  setScissor() { /* R1 presents the whole surface; retained as an API-compatible no-op. */ }
-  setScissorTest() { /* R1 presents the whole surface; retained as an API-compatible no-op. */ }
-  setRenderTarget(target) { if (target !== null && target !== undefined) unsupported('renderTarget', 'R1 renders only the attached surface'); }
-  getRenderTarget() { return null; }
-  clear() { /* Resource/frame commands, rather than GL clear calls, define native presentation. */ }
-  clearDepth() { /* Each R1 frame carries its own depth attachment; retained as an API-compatible no-op (webgl_sprites calls it between its two per-tick renders). */ }
-  clearColor() { /* See clear(): the frame background defines presentation. */ }
+  _rectangle(x, y, width, height) {
+    const rect = x?.isVector4 ? { x: x.x, y: x.y, z: x.z, w: x.w } : { x, y, z: width, w: height };
+    for (const value of [rect.x, rect.y, rect.z, rect.w]) requireFinite(value, 'renderer rectangle');
+    if (rect.x < 0 || rect.y < 0 || rect.z < 0 || rect.w < 0) unsupported('renderRect', 'R1 rectangles must be nonnegative');
+    return rect;
+  }
+
+  setViewport(x, y, width, height) { this._viewport = this._rectangle(x, y, width, height); }
+  getViewport(target) { return target.copy(new Vector4(this._viewport.x, this._viewport.y, this._viewport.z, this._viewport.w)); }
+  setScissor(x, y, width, height) { this._scissor = this._rectangle(x, y, width, height); }
+  getScissor(target) { return target.copy(new Vector4(this._scissor.x, this._scissor.y, this._scissor.z, this._scissor.w)); }
+  setScissorTest(value) { this._scissorTest = !!value; }
+  getScissorTest() { return this._scissorTest; }
+  setRenderTarget(target) {
+    this._renderTarget = target || null;
+    if (this._renderTarget) this._validateRenderTarget(this._renderTarget);
+  }
+  getRenderTarget() { return this._renderTarget; }
+  clear(color = true, depth = true) {
+    if (color) this._clearFlags |= FRAME_TARGET_FLAGS.clearColor;
+    if (depth) this._clearFlags |= FRAME_TARGET_FLAGS.clearDepth;
+  }
+  clearDepth() { this.clear(false, true); }
+  clearColor() { this.clear(true, false); }
 
   setAnimationLoop(callback) {
     if (callback !== null && typeof callback !== 'function') throw new TypeError('three.invalid: animation loop callback');
@@ -892,8 +1025,84 @@ export class JsrWebGLRenderer {
     return isNativeCanvas2D(canvas) ? canvas : null;
   }
 
+  _validateRenderTarget(target) {
+    const texture = target?.texture;
+    if (!target?.isRenderTarget || !texture || target.isWebGLCubeRenderTarget || target.depth !== 1 ||
+      target.textures?.length !== 1 || target.samples !== 0 || target.stencilBuffer || target.depthTexture) {
+      unsupported('renderTarget', 'R1 supports one 2D RGBA8 target with optional depth');
+    }
+    if (texture.format !== RGBAFormat || texture.type !== UnsignedByteType || texture.generateMipmaps ||
+      texture.flipY || texture.colorSpace === SRGBColorSpace || texture.mapping !== UVMapping) {
+      unsupported('renderTargetTexture', 'R1 targets require linear, non-mipmapped RGBA8 textures');
+    }
+    if (![NearestFilter, LinearFilter].includes(texture.magFilter) ||
+      ![NearestFilter, LinearFilter].includes(texture.minFilter)) {
+      unsupported('renderTargetFilter', 'R1 target sampling supports nearest/linear only');
+    }
+    const pixels = target.width * target.height;
+    if (!Number.isInteger(target.width) || !Number.isInteger(target.height) || target.width <= 0 || target.height <= 0 ||
+      target.width > 8192 || target.height > 8192 || pixels > MAX_RENDER_TARGET_PIXELS) {
+      unsupported('renderTargetSize', 'R1 target exceeds the bounded 2D budget');
+    }
+  }
+
+  _renderTargetFlags(target) {
+    const texture = target.texture;
+    return (texture.magFilter === NearestFilter ? 1 : 0) |
+      (texture.minFilter === NearestFilter ? 2 : 0) |
+      (texture.wrapS !== ClampToEdgeWrapping ? 4 : 0) |
+      (texture.wrapT !== ClampToEdgeWrapping ? 8 : 0) |
+      (target.depthBuffer ? 256 : 0);
+  }
+
+  _trackRenderTarget(target) {
+    this._validateRenderTarget(target);
+    target.texture.renderTarget = target;
+    const id = resourceId(target.texture);
+    if (this._renderTargets.has(id)) return id;
+    if (this._renderTargets.size >= MAX_RENDER_TARGETS) unsupported('renderTargetLimit', 'R1 supports at most 16 live targets');
+    const record = { id, version: Math.max(1, target.version || 1), signature: null, target };
+    const dispose = () => {
+      if (!this._renderTargets.has(id)) return;
+      this._mapDelete(this._renderTargets, id);
+      this._mapDelete(this._state.renderTargets, id);
+      this._renderTargetDisposers.delete(id);
+      target.removeEventListener('dispose', dispose);
+      target.texture.removeEventListener('dispose', dispose);
+      this._queueDisposal(disposeResourceCommand(id, 7));
+    };
+    target.addEventListener('dispose', dispose);
+    target.texture.addEventListener('dispose', dispose);
+    this._renderTargetDisposers.set(id, dispose);
+    this._mapSet(this._renderTargets, id, record);
+    this._mapSet(this._state.renderTargets, id, record);
+    return id;
+  }
+
+  _ensureRenderTarget(target, commands) {
+    const id = this._trackRenderTarget(target);
+    const record = this._renderTargets.get(id);
+    const flags = this._renderTargetFlags(target);
+    const signature = [target.width, target.height, resourceId(target.texture), flags].join(':');
+    if (record.signature !== signature) {
+      if (record.signature !== null) record.version++;
+      record.signature = signature;
+      commands.push(renderTargetCommand(id, record.version, target.width, target.height, resourceId(target.texture), flags));
+    }
+    return id;
+  }
+
+  _ensureRenderTargetTexture(texture, commands) {
+    const target = texture.renderTarget;
+    if (!target) unsupported('renderTargetAssociation', 'R1 target texture has no owning target');
+    if (this._renderTarget === target) unsupported('renderTargetFeedback', 'R1 cannot sample its active color target');
+    this._ensureRenderTarget(target, commands);
+    return resourceId(texture);
+  }
+
   _ensureTexture(texture, commands, role = 'map') {
     if (!texture) return 0;
+    if (texture.isRenderTargetTexture) return this._ensureRenderTargetTexture(texture, commands);
     if (!texture.isTexture) unsupported('texture', 'material map is not a THREE.Texture');
     if (!texture.isCubeTexture && (texture.isDataArrayTexture || texture.isData3DTexture || texture.isCompressedTexture || texture.isVideoTexture || texture.isFramebufferTexture || texture.isDepthTexture || texture.isExternalTexture)) unsupported('textureType', texture.type);
     if (texture.isCubeTexture && role !== 'envMap') unsupported('textureMapping', `R1 ${role} requires a plain 2D texture`);
@@ -1010,6 +1219,7 @@ export class JsrWebGLRenderer {
   // would blend across the atlas seams, so the mipmap bit is dropped.
   _ensureCubeTexture(texture, commands) {
     const faces = texture.image;
+    if (Array.isArray(faces) && faces.length === 0) return 0;
     if (!Array.isArray(faces) || faces.length !== 6) unsupported('textureType', 'R1 cube textures require exactly six faces');
     const id = resourceId(texture);
     const frameCached = this._frameTextures.get(id);
@@ -1055,13 +1265,15 @@ export class JsrWebGLRenderer {
       material.envMap = this._sceneEnvironment;
       material._r1EnvFromScene = true;
     }
-    const kind = materialKind(material);
+    const kind = material._r1NativeKind === 'anaglyph' ? 11 : materialKind(material);
     validateMaterial(material);
     const id = resourceId(material);
     const frameCached = this._frameMaterials.get(id);
     if (frameCached !== undefined) return frameCached;
     this._listen(material, 'materials', this._state.materials, id);
     const mapId = this._ensureTexture(material.map || null, commands);
+    const anaglyph = material._r1Anaglyph || null;
+    const mapRightId = kind === 11 ? this._ensureTexture(anaglyph.right, commands) : 0;
     const alphaMapId = this._ensureTexture(material.alphaMap || null, commands);
     const envMapId = this._ensureTexture(material.envMap || null, commands, 'envMap');
     const matcapId = material.isMeshMatcapMaterial ? this._ensureTexture(material.matcap || null, commands, 'matcap') : (material.matcap ? unsupported('materialTexture', `${material.type}.matcap`) : 0);
@@ -1076,7 +1288,7 @@ export class JsrWebGLRenderer {
     const spriteRotation = material.isSpriteMaterial ? material.rotation : 0;
     if (spriteRotation && !Number.isFinite(spriteRotation)) throw new Error('three.invalid: material sprite rotation must be finite');
     const mapUvMatrix = uvTransformElements(material.map || null);
-    const alphaMapUvMatrix = uvTransformElements(material.alphaMap || null);
+    const alphaMapUvMatrix = uvTransformElements(kind === 11 ? anaglyph.right : (material.alphaMap || null));
     // Lambert/Phong have no envMapIntensity (they use reflectivity): default 1.
     const envMapIntensity = material.envMap && material.envMapIntensity !== undefined ? material.envMapIntensity : 1;
     if (!Number.isFinite(envMapIntensity) || envMapIntensity < 0) throw new Error('three.invalid: material envMapIntensity must be finite and nonnegative');
@@ -1109,13 +1321,15 @@ export class JsrWebGLRenderer {
       emissive ? emissive.r : 0, emissive ? emissive.g : 0, emissive ? emissive.b : 0, emissiveIntensity, material.version,
       clip.signature, clip.flags, alphaMapId, envMapId, envMapIntensity,
       mapUvMatrix ? mapUvMatrix.join(',') : 'I', alphaMapUvMatrix ? alphaMapUvMatrix.join(',') : 'I',
-      matcapId, gradientMapId, spriteRotation, normalMapId, normalScaleX, normalScaleY, bumpMapId, bumpScale, roughnessMapId, metalnessMapId].join('|');
+      matcapId, gradientMapId, spriteRotation, normalMapId, normalScaleX, normalScaleY, bumpMapId, bumpScale, roughnessMapId, metalnessMapId,
+      mapRightId, anaglyph ? anaglyph.left.join(',') : '', anaglyph ? anaglyph.rightMatrix.join(',') : ''].join('|');
     const changed = this._nextVersion(this._state.materials, id, signature);
     if (changed) {
       commands.push(materialCommand(id, changed.version, kind, mapId, flags, side, color, opacity, roughness, metalness, alphaTest, pointSize, specular, shininess, emissive, emissiveIntensity, clip.id, clip.flags,
         { alphaMapId, envMapId, envMapIntensity, mapUvMatrix, alphaMapUvMatrix },
         { matcapId, gradientMapId, rotation: spriteRotation },
-        { normalMapId, normalScaleX, normalScaleY, bumpMapId, bumpScale, roughnessMapId, metalnessMapId }));
+        { normalMapId, normalScaleX, normalScaleY, bumpMapId, bumpScale, roughnessMapId, metalnessMapId },
+        kind === 11 ? { rightId: mapRightId, left: anaglyph.left, right: anaglyph.rightMatrix } : null));
       this._mapSet(this._state.materials, id, { signature, version: changed.version, object: material });
     }
     this._frameMaterials.set(id, id);
@@ -1774,7 +1988,25 @@ export class JsrWebGLRenderer {
     else if (object.isPoints && attrs.position && (attrs.customColor || attrs.size || attrs.scale)) kind = 'points';
     else if (object.isMesh && attrs.position && attrs.normal && attrs.customColor && attrs.displacement &&
         uniforms.amplitude && String(material.vertexShader).includes('amplitude')) kind = 'tessellation';
-    if (!kind) return null;
+    if (!kind) {
+      const signature = boundedShaderSignature(material);
+      const previous = this._adaptedShaderDraws.get(object);
+      if (previous && previous.kind === 'bounded' && previous.source === source &&
+          previous.sourceMaterial === material && previous.signature === signature) {
+        return { geometry: previous.geometry, material: previous.material };
+      }
+      const adapted = adaptedShaderDraw(object);
+      if (!adapted) return null;
+      if (previous && previous.kind === 'bounded') {
+        if (previous.geometry !== source) previous.geometry.dispose();
+        previous.material.dispose();
+      }
+      this._adaptedShaderDraws.set(object, {
+        kind: 'bounded', source, sourceMaterial: material, signature,
+        material: adapted.material, geometry: adapted.geometry
+      });
+      return adapted;
+    }
     const amplitude = kind === 'tessellation' ? Number(uniforms.amplitude.value) : 0;
     const sizeAttribute = kind === 'points' ? (attrs.size || attrs.scale || null) : null;
     let meanSize = 1;
@@ -1951,6 +2183,7 @@ export class JsrWebGLRenderer {
       const adapted = this._adaptDrawable(object);
       const material = adapted ? adapted.material : object.material;
       const renderGeometry = adapted ? adapted.geometry : object.geometry;
+      if (material._r1ProceduralTime) refreshProceduralRtt(renderGeometry, material._r1ProceduralTime.value);
       if (adapted) {
         const adaptedPosition = renderGeometry.attributes.position;
         if (!adaptedPosition || sourceRange(renderGeometry, adaptedPosition.count).count === 0) {
@@ -2226,6 +2459,27 @@ export class JsrWebGLRenderer {
     this._state.sequence = sequence;
   }
 
+  _frameTargetSpec(commands) {
+    const target = this._renderTarget;
+    const targetId = target ? this._ensureRenderTarget(target, commands) : 0;
+    const viewportRect = target ? target.viewport : this._viewport;
+    const scissorRect = target ? target.scissor : this._scissor;
+    const viewport = this._rectangle(viewportRect.x, viewportRect.y, viewportRect.z, viewportRect.w);
+    const scissor = this._rectangle(scissorRect.x, scissorRect.y, scissorRect.z, scissorRect.w);
+    const scissorTest = target ? target.scissorTest : this._scissorTest;
+    let flags = FRAME_TARGET_FLAGS.viewport | (scissorTest ? FRAME_TARGET_FLAGS.scissor : 0) | this._clearFlags;
+    if (this.autoClear && this.autoClearColor) flags |= FRAME_TARGET_FLAGS.clearColor;
+    if (this.autoClear && this.autoClearDepth) flags |= FRAME_TARGET_FLAGS.clearDepth;
+    return {
+      targetId,
+      width: target ? target.width : 0,
+      height: target ? target.height : 0,
+      viewport,
+      scissor,
+      flags
+    };
+  }
+
   render(scene, camera) {
     const previousPending = this._pendingDisposals.slice();
     const previousSequence = this._state.sequence;
@@ -2258,7 +2512,7 @@ export class JsrWebGLRenderer {
   _render(scene, camera) {
     if (this._disposed) throw new Error('three.surface: renderer is disposed');
     if (this.domElement.disposed) throw new Error('three.surface: canvas is disposed');
-    if (!scene || !scene.isScene) throw new Error('three.invalid: render requires a Scene');
+    if (!scene || !scene.isObject3D) throw new Error('three.invalid: render requires an Object3D');
     if (this.outputColorSpace !== SRGBColorSpace) unsupported('outputColorSpace', 'native R1 requires SRGBColorSpace');
     if (!TONE_MAPPINGS.has(this.toneMapping)) unsupported('toneMapping', `${this.toneMapping} is not an upstream tone mapping constant`);
     if (this.xr.enabled) unsupported('xr');
@@ -2409,8 +2663,9 @@ export class JsrWebGLRenderer {
     if (shadowLight && shadowLight.isPointLight && shadow !== NO_SHADOW && !pointShadow) {
       throw new Error('three.invalid: point light shadow matrix is required');
     }
-    commands.push(frameCommand(resourceId(scene), cameraId, background, this.toneMappingExposure, fog, shadow, culledNodeIds, culledShadowNodeIds, shadowLightType, this.toneMapping, pointShadow));
+    commands.push(frameCommand(resourceId(scene), cameraId, background, this.toneMappingExposure, fog, shadow, culledNodeIds, culledShadowNodeIds, shadowLightType, this.toneMapping, pointShadow, this._frameTargetSpec(commands)));
     this._emit(commands);
+    this._clearFlags = 0;
     this._lastScene = scene;
     this._lastCamera = camera;
     for (const object of retiredNodes) this._unlisten(object);
@@ -2440,6 +2695,7 @@ export class JsrWebGLRenderer {
     for (const [id] of this._state.batches) commands.push(removeBatchCommand(id));
     for (const [id] of this._state.geometries) dispose(id, RESOURCE_KIND.geometry);
     for (const [id] of this._state.textures) dispose(id, RESOURCE_KIND.texture);
+    for (const [id] of this._state.renderTargets) dispose(id, RESOURCE_KIND.renderTarget);
     for (const [id] of this._state.materials) dispose(id, RESOURCE_KIND.material);
     for (const [id] of this._state.nodes) dispose(id, RESOURCE_KIND.node);
     for (const [id] of this._state.lights) dispose(id, RESOURCE_KIND.light);
@@ -2449,6 +2705,14 @@ export class JsrWebGLRenderer {
       this._unlistenAll();
       this._state.geometries.clear(); this._state.textures.clear(); this._state.materials.clear();
       this._state.nodes.clear(); this._state.batches.clear(); this._state.lights.clear(); this._state.cameras.clear();
+      this._state.renderTargets.clear();
+      for (const [id, record] of this._renderTargets) {
+        const disposeTarget = this._renderTargetDisposers.get(id);
+        record.target.removeEventListener('dispose', disposeTarget);
+        record.target.texture.removeEventListener('dispose', disposeTarget);
+      }
+      this._renderTargetDisposers.clear();
+      this._renderTargets.clear();
       this.domElement.dispose();
       if (this.domElement.renderer === this) this.domElement.renderer = null;
     }

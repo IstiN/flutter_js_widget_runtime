@@ -100,6 +100,7 @@ final class ThreeDrawPlan {
     required this.spotLights,
     required this.clippings,
     required this.textures,
+    required this.renderTargets,
     required this.diagnostics,
   });
 
@@ -116,6 +117,7 @@ final class ThreeDrawPlan {
 
   /// Texture upserts snapshot (cube atlas lookup for material uniforms).
   final Map<int, JsThreeTextureUpsert> textures;
+  final Map<int, JsThreeRenderTargetUpsert> renderTargets;
   final ThreeDrawPlanDiagnostics diagnostics;
 
   Iterable<ThreeDrawItem> get draws sync* {
@@ -256,6 +258,7 @@ const _meshMaterialKinds = {
   JsThreeMaterialKind.meshMatcap,
   JsThreeMaterialKind.shadow,
   JsThreeMaterialKind.background,
+  JsThreeMaterialKind.anaglyph,
 };
 
 const _autoInstanceMaterialKinds = {
@@ -460,6 +463,7 @@ final class ThreeDrawPlanner {
       spotLights: List.unmodifiable(lights.spots),
       clippings: Map.unmodifiable(state.clippings),
       textures: Map.unmodifiable(state.textures),
+      renderTargets: Map.unmodifiable(state.renderTargets),
       diagnostics: diagnostics,
     );
   }
@@ -581,6 +585,7 @@ final class ThreeDrawPlanner {
     spotLights: const [],
     clippings: const {},
     textures: const {},
+    renderTargets: const {},
     diagnostics: diagnostics,
   );
 
@@ -923,8 +928,11 @@ final class ThreeDrawPlanner {
       ('bumpMap', material.bumpMapTextureId),
       ('roughnessMap', material.roughnessMapTextureId),
       ('metalnessMap', material.metalnessMapTextureId),
+      ('mapRight', material.mapRightTextureId),
     ]) {
-      if (id != 0 && !context.state.textures.containsKey(id)) {
+      if (id != 0 &&
+          !context.state.textures.containsKey(id) &&
+          !context.state.renderTargets.containsKey(id)) {
         context.diagnostics.missingResourceCount++;
         context.diagnostics.warn(
           'material ${material.materialId} $label $id is '

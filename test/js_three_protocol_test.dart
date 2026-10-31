@@ -186,7 +186,6 @@ Uint8List _material({
   return out;
 }
 
-
 /// R1 v4 frame body: the v3 layout with the tone-mapping u32 + FogExp2
 /// density f32 tail inserted right after fogFar (offsets 52/56) and a
 /// shadow content revision u32 at the end (matches frameCommand in
@@ -265,8 +264,7 @@ Uint8List _materialV4({
   setU32(out, 68, envMapId);
   setF32(out, 72, envMapIntensity);
   final map = mapUv ?? [for (var i = 0; i < 9; i++) i % 4 == 0 ? 1 : 0];
-  final alpha =
-      alphaMapUv ?? [for (var i = 0; i < 9; i++) i % 4 == 0 ? 1 : 0];
+  final alpha = alphaMapUv ?? [for (var i = 0; i < 9; i++) i % 4 == 0 ? 1 : 0];
   for (var i = 0; i < 9; i++) {
     setF32(out, 76 + i * 4, map[i]);
     setF32(out, 112 + i * 4, alpha[i]);
@@ -277,6 +275,82 @@ Uint8List _materialV4({
     setF32(out, 156, 0.5);
     setF32(out, 160, 64);
   }
+  return out;
+}
+
+Uint8List _materialV6({
+  JsThreeMaterialKind kind = JsThreeMaterialKind.meshStandard,
+  bool emissive = false,
+  bool anaglyph = false,
+}) {
+  final legacy = _material(kind: kind);
+  final phong = kind == JsThreeMaterialKind.meshPhong;
+  final out = Uint8List(304 + (phong ? 16 : 0) + (emissive ? 16 : 0));
+  out.setAll(0, legacy.sublist(0, 56));
+  var offset = 56;
+  offset += 8; // v3 clip id + flags
+  offset += 8; // v4 alpha/env ids
+  setF32(out, offset, 1); // env intensity
+  offset += 4;
+  for (var matrix = 0; matrix < 2; matrix++) {
+    for (var index = 0; index < 9; index++) {
+      setF32(out, offset, index % 4 == 0 ? 1 : 0);
+      offset += 4;
+    }
+  }
+  offset += 16; // v5 matcap/gradient/rotation/reserved
+  offset += 4; // normal map id
+  setF32(out, offset, 1);
+  setF32(out, offset + 4, 1);
+  offset += 8;
+  offset += 4; // bump map id
+  setF32(out, offset, 1);
+  offset += 12; // bump scale + roughness/metalness ids
+  if (phong) {
+    out.setAll(offset, legacy.sublist(56, 72));
+    offset += 16;
+  }
+  if (emissive) {
+    for (final value in [0.125, 0.25, 0.5, 2.0]) {
+      setF32(out, offset, value);
+      offset += 4;
+    }
+  }
+  setU32(out, offset, anaglyph ? 9 : 0);
+  offset += 16; // right id + three reserved fields
+  for (var matrix = 0; matrix < 2; matrix++) {
+    for (var column = 0; column < 3; column++) {
+      for (var row = 0; row < 3; row++) {
+        setF32(
+          out,
+          offset,
+          anaglyph ? (matrix * 9 + column * 3 + row + 1) / 10 : 0,
+        );
+        offset += 4;
+      }
+      setF32(out, offset, 0);
+      offset += 4;
+    }
+  }
+  expect(offset, out.length);
+  return out;
+}
+
+Uint8List _renderTarget({
+  int id = 2,
+  int version = 1,
+  int width = 640,
+  int height = 360,
+  int textureId = 2,
+  int flags = 256,
+}) {
+  final out = Uint8List(28);
+  setU32(out, 0, id);
+  setU32(out, 4, version);
+  setU32(out, 8, width);
+  setU32(out, 12, height);
+  setU32(out, 16, textureId);
+  setU32(out, 20, flags);
   return out;
 }
 
@@ -519,12 +593,47 @@ Uint8List _frameV5Point({
   return out;
 }
 
+Uint8List _frameV6Target({
+  int targetId = 2,
+  int width = 640,
+  int height = 360,
+  int flags = 15,
+}) {
+  final v5 = _frameV5Point(flag: 0, x: 0, y: 0, z: 0, far: 0, lightType: 0);
+  final out = Uint8List(v5.length + 72);
+  out.setAll(0, v5);
+  var offset = v5.length;
+  offset += 12; // empty culled lists + automatic shadow revision marker
+  setU32(out, offset, 0x4658534a);
+  setU32(out, offset + 4, 1);
+  setU32(out, offset + 8, targetId);
+  setU32(out, offset + 12, width);
+  setU32(out, offset + 16, height);
+  final rectangles = targetId == 0
+      ? [0.0, 0.0, 320.0, 360.0, 0.0, 0.0, 320.0, 360.0]
+      : [
+          0.0,
+          0.0,
+          width.toDouble(),
+          height.toDouble(),
+          0.0,
+          0.0,
+          width.toDouble(),
+          height.toDouble(),
+        ];
+  for (var index = 0; index < rectangles.length; index++) {
+    setF32(out, offset + 20 + index * 4, rectangles[index]);
+  }
+  setU32(out, offset + 52, flags);
+  setU32(out, offset + 56, 0);
+  return out;
+}
+
 void _bad(void Function() action) {
   expect(action, throwsA(isA<JsThreeProtocolException>()));
 }
 
 void main() {
-
   test('decodes the R1 v4 frame tone mapping + FogExp2 tail', () {
     final decoded = _decoder.decodeR1(_r1([(8, _frameV4())], version: 4));
     final frame = decoded.commands.whereType<JsThreeSubmitFrame>().single;
@@ -542,10 +651,9 @@ void main() {
 
   test('v3 streams still decode with v4-default tone/fog fields', () {
     final decoded = _decoder.decodeR1(
-      _r1(
-        [(8, _frame(shadowLightType: 1, shadowWidth: 1024, shadowHeight: 1024))],
-        version: 3,
-      ),
+      _r1([
+        (8, _frame(shadowLightType: 1, shadowWidth: 1024, shadowHeight: 1024)),
+      ], version: 3),
     );
     final frame = decoded.commands.whereType<JsThreeSubmitFrame>().single;
     expect(frame.toneMapping, JsThreeToneMapping.none);
@@ -570,10 +678,7 @@ void main() {
       () => _decoder.decodeR1(
         // linear fog (mode 1) with a nonzero density
         _r1([
-          (
-            8,
-            _frameVariant(_frameVariant(_frameV4(), 28, 1), 56, 0.5),
-          ),
+          (8, _frameVariant(_frameVariant(_frameV4(), 28, 1), 56, 0.5)),
         ], version: 4),
       ),
     );
@@ -585,9 +690,7 @@ void main() {
   });
 
   test('decodes the R1 v5 point-shadow frame tail', () {
-    final decoded = _decoder.decodeR1(
-      _r1([(8, _frameV5Point())], version: 5),
-    );
+    final decoded = _decoder.decodeR1(_r1([(8, _frameV5Point())], version: 5));
     final frame = decoded.commands.whereType<JsThreeSubmitFrame>().single;
     expect(frame.hasPointShadow, 1);
     expect(frame.pointShadowLightX, 1.5);
@@ -601,11 +704,8 @@ void main() {
     expect(frame.fogMode, JsThreeFogMode.exp2);
   });
 
-  test('v4 streams decode with v5-default (inactive) point-shadow fields',
-      () {
-    final decoded = _decoder.decodeR1(
-      _r1([(8, _frameV4())], version: 4),
-    );
+  test('v4 streams decode with v5-default (inactive) point-shadow fields', () {
+    final decoded = _decoder.decodeR1(_r1([(8, _frameV4())], version: 4));
     final frame = decoded.commands.whereType<JsThreeSubmitFrame>().single;
     expect(frame.hasPointShadow, 0);
     expect(frame.pointShadowLightX, 0);
@@ -624,21 +724,16 @@ void main() {
   test('validates the R1 v5 point-shadow tail ranges', () {
     // flag must be 0 or 1.
     _bad(
-      () => _decoder.decodeR1(
-        _r1([(8, _frameV5Point(flag: 2))], version: 5),
-      ),
+      () => _decoder.decodeR1(_r1([(8, _frameV5Point(flag: 2))], version: 5)),
     );
     // reserved field must stay zero.
     _bad(
-      () => _decoder.decodeR1(
-        _r1([(8, _frameV5Point(reserved: 1))], version: 5),
-      ),
+      () =>
+          _decoder.decodeR1(_r1([(8, _frameV5Point(reserved: 1))], version: 5)),
     );
     // active shadow needs a positive far plane.
     _bad(
-      () => _decoder.decodeR1(
-        _r1([(8, _frameV5Point(far: 0))], version: 5),
-      ),
+      () => _decoder.decodeR1(_r1([(8, _frameV5Point(far: 0))], version: 5)),
     );
     // the point-shadow fields require a point shadow light type.
     _bad(
@@ -649,40 +744,32 @@ void main() {
     // a point shadow light requires the point-shadow fields.
     _bad(
       () => _decoder.decodeR1(
-        _r1(
-          [
-            (
-              8,
-              _frameV5Point(
-                flag: 0,
-                lightType: JsThreeShadowLightType.point.wireValue,
-              ),
+        _r1([
+          (
+            8,
+            _frameV5Point(
+              flag: 0,
+              lightType: JsThreeShadowLightType.point.wireValue,
             ),
-          ],
-          version: 5,
-        ),
+          ),
+        ], version: 5),
       ),
     );
   });
 
   test('decodes the R1 v4 material texture-slot tail', () {
     final decoded = _decoder.decodeR1(
-      _r1(
-        [
-          (
-            3,
-            _materialV4(
-              mapUv: [0.008, 0, 0, 0, 0.008, 0, 0.5, 0.25, 1],
-              alphaMapUv: [2, 0, 0, 0, 2, 0, 0, 0, 1],
-            ),
+      _r1([
+        (
+          3,
+          _materialV4(
+            mapUv: [0.008, 0, 0, 0, 0.008, 0, 0.5, 0.25, 1],
+            alphaMapUv: [2, 0, 0, 0, 2, 0, 0, 0, 1],
           ),
-        ],
-        version: 4,
-      ),
+        ),
+      ], version: 4),
     );
-    final material = decoded.commands
-        .whereType<JsThreeMaterialUpsert>()
-        .single;
+    final material = decoded.commands.whereType<JsThreeMaterialUpsert>().single;
     expect(material.mapTextureId, 11);
     expect(material.alphaMapTextureId, 12);
     expect(material.hasAlphaMap, isTrue);
@@ -696,9 +783,11 @@ void main() {
     expect(material.mapUvMatrix[7], 0.25);
     expect(material.alphaMapUvMatrix[0], 2);
     // v3 materials decode with the identity/default slot tail.
-    final legacy = _decoder.decodeR1(
-      _r1([(3, _material())]),
-    ).commands.whereType<JsThreeMaterialUpsert>().single;
+    final legacy = _decoder
+        .decodeR1(_r1([(3, _material())]))
+        .commands
+        .whereType<JsThreeMaterialUpsert>()
+        .single;
     expect(legacy.alphaMapTextureId, 0);
     expect(legacy.hasAlphaMap, isFalse);
     expect(legacy.envMapTextureId, 0);
@@ -708,16 +797,8 @@ void main() {
     expect(legacy.mapUvMatrix[1], 0);
     // Negative envMapIntensity is rejected.
     _bad(
-      () => _decoder.decodeR1(
-        _r1(
-          [
-            (
-              3,
-              _frameVariant(_materialV4(), 72, -0.5),
-            ),
-          ],
-        ),
-      ),
+      () =>
+          _decoder.decodeR1(_r1([(3, _frameVariant(_materialV4(), 72, -0.5))])),
     );
   });
 
@@ -956,11 +1037,7 @@ void main() {
 
   test('decodes the ShadowMaterial kind with its color/opacity payload', () {
     final commands = _decoder
-        .decodeR1(
-          _r1([
-            (3, _material(kind: JsThreeMaterialKind.shadow)),
-          ]),
-        )
+        .decodeR1(_r1([(3, _material(kind: JsThreeMaterialKind.shadow))]))
         .commands;
     final material = commands[0] as JsThreeMaterialUpsert;
     expect(material.kind, JsThreeMaterialKind.shadow);
@@ -978,7 +1055,8 @@ void main() {
     }
   });
 
-  test('decodes Phong scalars and optional unique-edge wire indices', () {    final commands = _decoder
+  test('decodes Phong scalars and optional unique-edge wire indices', () {
+    final commands = _decoder
         .decodeR1(
           _r1([
             (
@@ -1278,12 +1356,13 @@ void main() {
   // versioned tail — every stream version v3..v5 decodes the same payload,
   // and older-looking streams without the flag stay color-neutral (the
   // material color wins, byte-identical goldens depend on it).
-  test('instance colors decode identically on v3/v4/v5 and stay neutral without the flag', () {
-    List<double> colorsAt(int version) {
-      final commands = _decoder
-          .decodeR1(
-            _r1(
-              [
+  test(
+    'instance colors decode identically on v3/v4/v5 and stay neutral without the flag',
+    () {
+      List<double> colorsAt(int version) {
+        final commands = _decoder
+            .decodeR1(
+              _r1([
                 (
                   11,
                   _drawBatch(
@@ -1293,43 +1372,42 @@ void main() {
                     colors: const [0.75, 0.5, 0.25, 0.125, 0.1, 0.2],
                   ),
                 ),
-              ],
-              version: version,
-            ),
-          )
-          .commands;
-      final batch = commands.single as JsThreeDrawBatchUpsert;
-      return batch.instanceColors.toList();
-    }
-
-    const expected = [0.75, 0.5, 0.25, 0.125, 0.1, 0.2];
-    for (final version in [3, 4, 5]) {
-      final colors = colorsAt(version);
-      for (var index = 0; index < expected.length; index++) {
-        expect(colors[index], closeTo(expected[index], 1e-6), reason: 'v$version');
+              ], version: version),
+            )
+            .commands;
+        final batch = commands.single as JsThreeDrawBatchUpsert;
+        return batch.instanceColors.toList();
       }
-    }
 
-    for (final version in [3, 4, 5]) {
-      final neutral = _decoder
-          .decodeR1(
-            _r1(
-              [
-                (
-                  11,
-                  _drawBatch(instanceCount: 2, flags: 1),
-                ),
-              ],
-              version: version,
-            ),
-          )
-          .commands
-          .single as JsThreeDrawBatchUpsert;
-      expect(neutral.instanced, isTrue, reason: 'v$version');
-      expect(neutral.hasInstanceColors, isFalse, reason: 'v$version');
-      expect(neutral.instanceColors, isEmpty, reason: 'v$version');
-    }
-  });
+      const expected = [0.75, 0.5, 0.25, 0.125, 0.1, 0.2];
+      for (final version in [3, 4, 5]) {
+        final colors = colorsAt(version);
+        for (var index = 0; index < expected.length; index++) {
+          expect(
+            colors[index],
+            closeTo(expected[index], 1e-6),
+            reason: 'v$version',
+          );
+        }
+      }
+
+      for (final version in [3, 4, 5]) {
+        final neutral =
+            _decoder
+                    .decodeR1(
+                      _r1([
+                        (11, _drawBatch(instanceCount: 2, flags: 1)),
+                      ], version: version),
+                    )
+                    .commands
+                    .single
+                as JsThreeDrawBatchUpsert;
+        expect(neutral.instanced, isTrue, reason: 'v$version');
+        expect(neutral.hasInstanceColors, isFalse, reason: 'v$version');
+        expect(neutral.instanceColors, isEmpty, reason: 'v$version');
+      }
+    },
+  );
 
   test('DRAW_BATCH and REMOVE_BATCH reject malformed bounded bodies', () {
     final mutations = <void Function(Uint8List)>[
@@ -1598,14 +1676,122 @@ void main() {
     },
   );
 
+  test('round-trips the 128-byte emissive-plus-Dubois v6 material layout', () {
+    final decoded = _decoder.decodeR1(
+      _r1([(3, _materialV6(emissive: true))], version: 6),
+    );
+    final material = decoded.commands.whereType<JsThreeMaterialUpsert>().single;
+    expect(material.emissiveR, closeTo(0.125, 1e-6));
+    expect(material.emissiveG, closeTo(0.25, 1e-6));
+    expect(material.emissiveB, closeTo(0.5, 1e-6));
+    expect(material.emissiveIntensity, 2);
+    expect(material.mapRightTextureId, 0);
+    expect(material.duboisLeftMatrix.every((value) => value == 0), isTrue);
+  });
+
+  test('decodes the bounded v6 Dubois anaglyph material', () {
+    final decoded = _decoder.decodeR1(
+      _r1([
+        (3, _materialV6(kind: JsThreeMaterialKind.anaglyph, anaglyph: true)),
+      ], version: 6),
+    );
+    final material = decoded.commands.whereType<JsThreeMaterialUpsert>().single;
+    expect(material.kind, JsThreeMaterialKind.anaglyph);
+    expect(material.mapTextureId, 2);
+    expect(material.mapRightTextureId, 9);
+    expect(material.duboisLeftMatrix[0], closeTo(0.1, 1e-6));
+    expect(material.duboisLeftMatrix[1], closeTo(0.2, 1e-6));
+    expect(material.duboisLeftMatrix[2], closeTo(0.3, 1e-6));
+    expect(material.duboisLeftMatrix[3], 0);
+    expect(material.duboisRightMatrix[0], 1);
+    expect(material.duboisRightMatrix[1], closeTo(1.1, 1e-6));
+    expect(material.duboisRightMatrix[2], closeTo(1.2, 1e-6));
+    expect(material.duboisRightMatrix[3], 0);
+  });
+
+  test('decodes target upserts and per-pass target rectangles on v6', () {
+    final decoded = _decoder.decodeR1(
+      _r1([
+        (14, _renderTarget(flags: 256 | 1 | 2)),
+        (8, _frameV6Target()),
+      ], version: 6),
+    );
+    final target = decoded.commands
+        .whereType<JsThreeRenderTargetUpsert>()
+        .single;
+    expect(target.targetId, 2);
+    expect(target.textureId, 2);
+    expect((target.width, target.height), (640, 360));
+    expect(target.hasDepth, isTrue);
+    expect(target.nearestMag && target.nearestMin, isTrue);
+    final frame = decoded.commands.whereType<JsThreeSubmitFrame>().single;
+    expect(frame.renderTargetId, 2);
+    expect((frame.targetWidth, frame.targetHeight), (640, 360));
+    expect(
+      [
+        frame.viewportX,
+        frame.viewportY,
+        frame.viewportWidth,
+        frame.viewportHeight,
+      ],
+      [0.0, 0.0, 640.0, 360.0],
+    );
+    expect(frame.clearColor && frame.clearDepth, isTrue);
+    expect(frame.scissorTest && frame.hasViewport, isTrue);
+  });
+
+  test('v5 frames retain legacy target and viewport defaults', () {
+    final decoded = _decoder.decodeR1(
+      _r1([
+        (8, _frameV5Point(flag: 0, x: 0, y: 0, z: 0, far: 0, lightType: 0)),
+      ], version: 5),
+    );
+    final frame = decoded.commands.whereType<JsThreeSubmitFrame>().single;
+    expect(frame.renderTargetId, 0);
+    expect(frame.hasViewport, isFalse);
+    expect(frame.scissorTest, isFalse);
+    expect(frame.clearColor && frame.clearDepth, isTrue);
+  });
+
+  test('rejects malformed target and frame-target extensions', () {
+    _bad(() => _decoder.decodeR1(_r1([(14, _renderTarget())], version: 5)));
+    for (final body in [
+      _renderTarget(width: 0),
+      _renderTarget(flags: 16),
+      _renderTarget(flags: 0x80000000),
+    ]) {
+      _bad(() => _decoder.decodeR1(_r1([(14, body)], version: 6)));
+    }
+    final reservedTarget = _renderTarget();
+    setU32(reservedTarget, 24, 1);
+    _bad(() => _decoder.decodeR1(_r1([(14, reservedTarget)], version: 6)));
+    final badMagic = _frameV6Target();
+    setU32(badMagic, 184, 0);
+    _bad(() => _decoder.decodeR1(_r1([(8, badMagic)], version: 6)));
+    final badRect = _frameV6Target();
+    setF32(badRect, 204, -1);
+    _bad(() => _decoder.decodeR1(_r1([(8, badRect)], version: 6)));
+    final badFlags = _frameV6Target(flags: 7);
+    _bad(() => _decoder.decodeR1(_r1([(8, badFlags)], version: 6)));
+    final reservedFrame = _frameV6Target();
+    setU32(reservedFrame, 240, 1);
+    _bad(() => _decoder.decodeR1(_r1([(8, reservedFrame)], version: 6)));
+    _bad(() => _decoder.decodeR1(_r1([(8, _frameV6Target())], version: 5)));
+  });
+
   test(
     'scalar bodies reject unknown kinds, flags, zero IDs, and invalid ranges',
     () {
       final cases = <(int, Uint8List, int, int)>[
         (3, _material(), 0, 0),
         (3, _material(), 4, 0),
-        (3, _material(), 8, 11),
-        (3, _material(), 16, 1024), // bits 7..9 are THREE blending; bit 10 stays invalid
+        (3, _material(), 8, 12),
+        (
+          3,
+          _material(),
+          16,
+          1024,
+        ), // bits 7..9 are THREE blending; bit 10 stays invalid
         (3, _material(), 20, 3),
         (3, _material(), 52, 0),
         (4, _node(), 0, 0),
@@ -1619,7 +1805,7 @@ void main() {
         (8, _frame(), 4, 0),
         (9, _disposal(), 0, 0),
         (9, _disposal(), 4, 0),
-        (9, _disposal(), 4, 7),
+        (9, _disposal(), 4, 8),
       ];
       for (final (opcode, original, offset, value) in cases) {
         final body = Uint8List.fromList(original);
@@ -1759,12 +1945,7 @@ void main() {
 
     Uint8List clipping({int id = 11, int version = 1, int count = 1}) {
       final planes = <double>[
-        for (var index = 0; index < count; index++) ...[
-          0,
-          -1,
-          0,
-          0.8 - index,
-        ],
+        for (var index = 0; index < count; index++) ...[0, -1, 0, 0.8 - index],
       ];
       final out = Uint8List(12 + planes.length * 4);
       setU32(out, 0, id);
@@ -1789,33 +1970,26 @@ void main() {
 
       _bad(() => _decoder.decodeR1(_r1([(7, spotLight())], version: 2)));
       _bad(
-        () => _decoder.decodeR1(
-          _r1([(7, spotLight(angle: 0))], version: 3),
-        ),
+        () => _decoder.decodeR1(_r1([(7, spotLight(angle: 0))], version: 3)),
       );
       _bad(
-        () => _decoder.decodeR1(
-          _r1([(7, spotLight(angle: 3.1416))], version: 3),
-        ),
+        () =>
+            _decoder.decodeR1(_r1([(7, spotLight(angle: 3.1416))], version: 3)),
       );
       _bad(
-        () => _decoder.decodeR1(
-          _r1([(7, spotLight(penumbra: 8.5))], version: 3),
-        ),
+        () =>
+            _decoder.decodeR1(_r1([(7, spotLight(penumbra: 8.5))], version: 3)),
       );
       // Upstream tweens penumbra above 1 (webgl_lights_spotlights); the
       // accepted band is [0, 8].
       final overOne = _decoder
           .decodeR1(_r1([(7, spotLight(penumbra: 1.5))], version: 3))
           .commands;
-      final overOneLight = overOne
-          .whereType<JsThreeLightUpsert>()
-          .single;
+      final overOneLight = overOne.whereType<JsThreeLightUpsert>().single;
       expect(overOneLight.spotPenumbra, 1.5);
       _bad(
-        () => _decoder.decodeR1(
-          _r1([(7, spotLight(distance: -1))], version: 3),
-        ),
+        () =>
+            _decoder.decodeR1(_r1([(7, spotLight(distance: -1))], version: 3)),
       );
     });
 
@@ -1831,9 +2005,7 @@ void main() {
       expect(material.shininess, 100);
 
       final badFlags = Uint8List.fromList(clippedMaterial(clipFlags: 4));
-      _bad(
-        () => _decoder.decodeR1(_r1([(3, badFlags)], version: 3)),
-      );
+      _bad(() => _decoder.decodeR1(_r1([(3, badFlags)], version: 3)));
     });
 
     test('clipping command decodes normalized planes and bounds counts', () {
@@ -1848,34 +2020,27 @@ void main() {
 
       _bad(() => _decoder.decodeR1(_r1([(13, clipping())], version: 2)));
       _bad(
-        () => _decoder.decodeR1(
-          _r1([(13, clipping(count: 17))], version: 3),
-        ),
+        () => _decoder.decodeR1(_r1([(13, clipping(count: 17))], version: 3)),
       );
       final zeroNormal = clipping();
       setF32(zeroNormal, 12, 0);
       setF32(zeroNormal, 16, 0);
-      _bad(
-        () => _decoder.decodeR1(_r1([(13, zeroNormal)], version: 3)),
-      );
+      _bad(() => _decoder.decodeR1(_r1([(13, zeroNormal)], version: 3)));
     });
 
     test('frame names its shadow light owner and rejects mismatches', () {
       final stream = _decoder.decodeR1(
-        _r1(
-          [
-            (
-              8,
-              _frame(
-                shadowWidth: 1024,
-                shadowHeight: 1024,
-                shadowLightType: 2,
-                culledNodeIds: [4],
-              ),
+        _r1([
+          (
+            8,
+            _frame(
+              shadowWidth: 1024,
+              shadowHeight: 1024,
+              shadowLightType: 2,
+              culledNodeIds: [4],
             ),
-          ],
-          version: 3,
-        ),
+          ),
+        ], version: 3),
       );
       final frame = stream.commands.single as JsThreeSubmitFrame;
       expect(frame.hasSpotShadow, isTrue);
@@ -1883,15 +2048,12 @@ void main() {
 
       _bad(
         () => _decoder.decodeR1(
-          _r1(
-            [
-              (
-                8,
-                _frame(shadowWidth: 1024, shadowHeight: 1024, shadowLightType: 3),
-              ),
-            ],
-            version: 3,
-          ),
+          _r1([
+            (
+              8,
+              _frame(shadowWidth: 1024, shadowHeight: 1024, shadowLightType: 3),
+            ),
+          ], version: 3),
         ),
       );
       _bad(

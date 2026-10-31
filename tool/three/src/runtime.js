@@ -1,4 +1,5 @@
 import { assetFailure, unsupported } from './errors.js';
+import { installNativeAudio } from './native_audio.js';
 
 const ROOT = typeof globalThis !== 'undefined' ? globalThis : {};
 
@@ -891,6 +892,9 @@ export class ThreeCompatibilityRuntime {
       _frameControl: message => runtime._frameControl(message),
       _dispatchEvent: (canvasId, event) => runtime._dispatchEvent(canvasId, event),
       _setViewport: (width, height, ratio) => runtime._setViewport(width, height, ratio),
+      _resumeAudio: () => runtime._nativeAudioContext && runtime._nativeAudioContext.hasAudioGraph
+        ? runtime._nativeAudioContext.resume()
+        : Promise.resolve(),
       engineId: runtime.engineId,
       devicePixelRatio: runtime.pixelRatio
     });
@@ -907,6 +911,7 @@ export function installThreeRuntime(web) {
   const previous = jsr.three || {};
   if (activeRuntime && activeRuntime.web === !!web && previous._runtime === activeRuntime) return activeRuntime;
   activeRuntime = new ThreeCompatibilityRuntime(jsr, !!web, previous);
+  if (!web) installNativeAudio(activeRuntime);
   jsr.three = activeRuntime.install(previous);
   if (typeof jsr.render === 'function' && !jsr.render.__jsrThreeRenderWrapper) {
     const originalRender = jsr.render;

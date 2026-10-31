@@ -1,6 +1,8 @@
 import 'dart:io';
 
 const _examples = <String>{
+  'webaudio_timing',
+  'webaudio_orientation',
   'webgl_interactive_raycasting_points',
   'webgl_interactive_cubes',
   'webgl_interactive_cubes_ortho',

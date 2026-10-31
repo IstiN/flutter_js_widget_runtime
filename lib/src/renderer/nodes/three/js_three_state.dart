@@ -119,10 +119,12 @@ final class JsThreeSurfaceState {
   JsThreeSurfaceState._(this.key);
 
   static const int maxPendingFrames = 2;
+  static const int maxPendingTargetFrames = 32;
 
   final JsThreeSurfaceKey key;
   final Map<int, JsThreeGeometryUpsert> _geometries = {};
   final Map<int, JsThreeTextureUpsert> _textures = {};
+  final Map<int, JsThreeRenderTargetUpsert> _renderTargets = {};
   final Map<int, JsThreeMaterialUpsert> _materials = {};
   final Map<int, JsThreeNodeUpsert> _nodes = {};
   final Map<int, JsThreeDrawBatchUpsert> _batches = {};
@@ -143,6 +145,8 @@ final class JsThreeSurfaceState {
   Map<int, JsThreeGeometryUpsert> get geometries =>
       UnmodifiableMapView(_geometries);
   Map<int, JsThreeTextureUpsert> get textures => UnmodifiableMapView(_textures);
+  Map<int, JsThreeRenderTargetUpsert> get renderTargets =>
+      UnmodifiableMapView(_renderTargets);
   Map<int, JsThreeMaterialUpsert> get materials =>
       UnmodifiableMapView(_materials);
   Map<int, JsThreeNodeUpsert> get nodes => UnmodifiableMapView(_nodes);
@@ -204,6 +208,7 @@ final class JsThreeSurfaceState {
 
 extension _JsThreeSurfaceStateOperations on JsThreeSurfaceState {
   void _validateApplication(JsThreeR1Stream stream) {
+    _validateTargetQuota(stream);
     if (!_disposed) return;
     for (final command in stream.commands) {
       final isDisposal =
@@ -215,6 +220,27 @@ extension _JsThreeSurfaceStateOperations on JsThreeSurfaceState {
         throw const JsThreeProtocolException(
           'a disposed surface accepts only idempotent disposal commands',
         );
+      }
+    }
+  }
+
+  void _validateTargetQuota(JsThreeR1Stream stream) {
+    final targetIds = _renderTargets.keys.toSet();
+    for (final command in stream.commands) {
+      switch (command) {
+        case final JsThreeRenderTargetUpsert value:
+          targetIds.add(value.targetId);
+        case final JsThreeDisposeResource value:
+          if (value.resourceKind == JsThreeResourceKind.renderTarget) {
+            targetIds.remove(value.resourceId);
+          }
+        case JsThreeDisposeSurface _:
+          targetIds.clear();
+        default:
+          break;
+      }
+      if (targetIds.length > JsThreeProtocolDecoder.maxRenderTargetCount) {
+        throw const JsThreeProtocolException('render target count exceeds 16');
       }
     }
   }
@@ -286,6 +312,16 @@ extension _JsThreeSurfaceStateOperations on JsThreeSurfaceState {
     }
   }
 
+  void _upsertRenderTarget(JsThreeRenderTargetUpsert value, _ApplyBatch batch) {
+    final current = _renderTargets[value.targetId];
+    if (current != null && value.version <= current.version) {
+      batch.unchanged++;
+      return;
+    }
+    _renderTargets[value.targetId] = value;
+    batch.changes.add(value);
+  }
+
   void _upsertNode(JsThreeNodeUpsert value, _ApplyBatch batch) {
     final previous = _nodes[value.nodeId];
     if (_castsShadow(value) || (previous != null && _castsShadow(previous))) {
@@ -310,6 +346,8 @@ extension _JsThreeSurfaceStateOperations on JsThreeSurfaceState {
         _recordUpload(_upsertBatch(value), value, batch);
       case final JsThreeClippingUpsert value:
         _recordUpload(_upsertClipping(value), value, batch);
+      case final JsThreeRenderTargetUpsert value:
+        _upsertRenderTarget(value, batch);
       default:
         return false;
     }
@@ -393,6 +431,7 @@ extension _JsThreeSurfaceStateOperations on JsThreeSurfaceState {
         _removeResource(_nodes, id) + _removeResource(_batches, id),
       JsThreeResourceKind.light => _removeResource(_lights, id),
       JsThreeResourceKind.camera => _removeResource(_cameras, id),
+      JsThreeResourceKind.renderTarget => _removeResource(_renderTargets, id),
     };
     _disposedResourceCount += removedCount;
     return removedCount != 0;
@@ -408,6 +447,19 @@ extension _JsThreeSurfaceStateOperations on JsThreeSurfaceState {
       _pendingFrames.add(frame);
       return false;
     }
+    final targetWork =
+        frame.renderTargetId != 0 ||
+        _pendingFrames.any((pending) => pending.renderTargetId != 0);
+    if (targetWork &&
+        _pendingFrames.length < JsThreeSurfaceState.maxPendingTargetFrames) {
+      _pendingFrames.add(frame);
+      return false;
+    }
+    if (targetWork) {
+      _pendingFrames.removeAt(1);
+      _pendingFrames.add(frame);
+      return true;
+    }
     // Keep the oldest (potentially in-flight) frame and replace only the
     // newest pending presentation. Every resource command remains effective.
     _pendingFrames[JsThreeSurfaceState.maxPendingFrames - 1] = frame;
@@ -419,6 +471,7 @@ extension _JsThreeSurfaceStateOperations on JsThreeSurfaceState {
       _disposedResourceCount +=
           _geometries.length +
           _textures.length +
+          _renderTargets.length +
           _materials.length +
           _nodes.length +
           _batches.length +
@@ -429,6 +482,7 @@ extension _JsThreeSurfaceStateOperations on JsThreeSurfaceState {
     }
     _geometries.clear();
     _textures.clear();
+    _renderTargets.clear();
     _materials.clear();
     _nodes.clear();
     _batches.clear();

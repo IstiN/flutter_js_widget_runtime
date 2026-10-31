@@ -123,6 +123,42 @@ void _synchronizeThreeBatch(
   }
 }
 
+gpu.Texture? _createThreeTargetDepth(
+  gpu.GpuContext context,
+  JsThreeRenderTargetUpsert source,
+  gpu.PixelFormat format,
+) {
+  if (!source.hasDepth) return null;
+  return context.createTexture(
+    gpu.StorageMode.devicePrivate,
+    source.width,
+    source.height,
+    format: format,
+    enableShaderReadUsage: false,
+  );
+}
+
+void _synchronizeThreeRenderTarget(
+  FlutterGpuThreeBackend backend,
+  JsThreeRenderTargetUpsert source,
+) {
+  final key = backend._key(source.targetId);
+  final cached = backend._renderTargets[key];
+  if (cached != null && identical(cached.source, source)) return;
+  final context = backend._context;
+  final depthFormat = _validateThreeTargetFormats(context);
+  final color = context.createTexture(
+    gpu.StorageMode.devicePrivate,
+    source.width,
+    source.height,
+    format: gpu.PixelFormat.r8g8b8a8UNormInt,
+    enableRenderTargetUsage: true,
+    enableShaderReadUsage: true,
+  );
+  final depth = _createThreeTargetDepth(context, source, depthFormat);
+  backend._renderTargets[key] = _GpuRenderTarget(source, color, depth);
+}
+
 List<Future<void>> _threeTextureFutures(
   FlutterGpuThreeBackend backend,
   JsThreeSurfaceState state,

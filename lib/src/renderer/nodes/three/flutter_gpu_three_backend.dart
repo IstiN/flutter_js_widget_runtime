@@ -460,7 +460,7 @@ void _ensureThreeTargets(
   final depthFormat = _validateThreeTargetFormats(backend._context);
   _resizeThreeImageSurface(backend, width, height);
   backend._depthTexture = backend._context.createTexture(
-    gpu.StorageMode.deviceTransient,
+    gpu.StorageMode.devicePrivate,
     width,
     height,
     format: depthFormat,
@@ -557,10 +557,16 @@ bool _ensureThreePointShadowTargets(
   if (_threePointShadowTargetsMatch(backend, width, height)) return true;
   if (!_threeShadowFormatSupported(backend._context)) return false;
   final context = backend._context;
-  final (frontColor, frontDepth) =
-      _createThreePointShadowFace(context, width, height);
-  final (backColor, backDepth) =
-      _createThreePointShadowFace(context, width, height);
+  final (frontColor, frontDepth) = _createThreePointShadowFace(
+    context,
+    width,
+    height,
+  );
+  final (backColor, backDepth) = _createThreePointShadowFace(
+    context,
+    width,
+    height,
+  );
   backend._pointShadowFrontColorTexture = frontColor;
   backend._pointShadowFrontDepthTexture = frontDepth;
   backend._pointShadowBackColorTexture = backColor;
@@ -570,34 +576,92 @@ bool _ensureThreePointShadowTargets(
   return true;
 }
 
-gpu.RenderPass _createThreeRenderPass(
-  FlutterGpuThreeBackend backend,
-  ThreeDrawPlan plan,
-  gpu.GpuImageSurfaceFrame surfaceFrame,
-  gpu.CommandBuffer command, {
-  bool preserveColor = false,
-}) {
-  final background = plan.background;
-  final pass = command.createRenderPass(
-    gpu.RenderTarget.singleColor(
-      gpu.ColorAttachment(
-        texture: surfaceFrame.colorTexture,
-        loadAction: preserveColor ? gpu.LoadAction.load : gpu.LoadAction.clear,
-        clearValue: vm.Vector4(
-          _linearToSrgbUnit(background.r),
-          _linearToSrgbUnit(background.g),
-          _linearToSrgbUnit(background.b),
-          background.a,
-        ),
-      ),
-      depthStencilAttachment: gpu.DepthStencilAttachment(
-        texture: backend._depthTexture!,
-        depthClearValue: 1,
-      ),
-    ),
+({int x, int y, int width, int height}) _threePassRectangle(
+  JsThreeSubmitFrame frame,
+  bool scissor,
+  int attachmentWidth,
+  int attachmentHeight,
+  double pixelRatio,
+) {
+  if (!scissor && !frame.hasViewport) {
+    return (x: 0, y: 0, width: attachmentWidth, height: attachmentHeight);
+  }
+  final scale = frame.renderTargetId == 0 ? pixelRatio : 1.0;
+  final x = ((scissor ? frame.scissorX : frame.viewportX) * scale).round();
+  final y = ((scissor ? frame.scissorY : frame.viewportY) * scale).round();
+  final width = ((scissor ? frame.scissorWidth : frame.viewportWidth) * scale)
+      .round();
+  final height =
+      ((scissor ? frame.scissorHeight : frame.viewportHeight) * scale).round();
+  final left = x.clamp(0, attachmentWidth);
+  final top = (attachmentHeight - y - height).clamp(0, attachmentHeight);
+  return (
+    x: left,
+    y: top,
+    width: width.clamp(0, attachmentWidth - left),
+    height: height.clamp(0, attachmentHeight - top),
   );
+}
+
+gpu.Viewport _threePassViewport(
+  JsThreeSubmitFrame frame,
+  int width,
+  int height,
+  double pixelRatio,
+) {
+  final rect = _threePassRectangle(frame, false, width, height, pixelRatio);
+  return gpu.Viewport(
+    x: rect.x,
+    y: rect.y,
+    width: rect.width,
+    height: rect.height,
+  );
+}
+
+gpu.Scissor? _threePassScissor(
+  JsThreeSubmitFrame frame,
+  int width,
+  int height,
+  double pixelRatio,
+) {
+  if (!frame.scissorTest) return null;
+  final rect = _threePassRectangle(frame, true, width, height, pixelRatio);
+  return gpu.Scissor(
+    x: rect.x,
+    y: rect.y,
+    width: rect.width,
+    height: rect.height,
+  );
+}
+
+@visibleForTesting
+gpu.Viewport debugThreePassViewport(
+  JsThreeSubmitFrame frame,
+  int width,
+  int height,
+  double pixelRatio,
+) => _threePassViewport(frame, width, height, pixelRatio);
+
+@visibleForTesting
+gpu.Scissor? debugThreePassScissor(
+  JsThreeSubmitFrame frame,
+  int width,
+  int height,
+  double pixelRatio,
+) => _threePassScissor(frame, width, height, pixelRatio);
+
+gpu.RenderPass _configureThreePass(
+  gpu.RenderPass pass,
+  ThreeDrawPlan plan,
+  int width,
+  int height,
+  double pixelRatio,
+) {
+  final frame = plan.frame!;
+  pass.setViewport(_threePassViewport(frame, width, height, pixelRatio));
+  final scissor = _threePassScissor(frame, width, height, pixelRatio);
+  if (scissor != null) pass.setScissor(scissor);
   return pass
-    ..setViewport(gpu.Viewport(width: backend._width, height: backend._height))
     ..setWindingOrder(gpu.WindingOrder.counterClockwise)
     ..setColorBlendEquation(
       gpu.ColorBlendEquation(
@@ -607,6 +671,93 @@ gpu.RenderPass _createThreeRenderPass(
         destinationAlphaBlendFactor: gpu.BlendFactor.oneMinusSourceAlpha,
       ),
     );
+}
+
+double _threeClearChannel(double value, bool offscreen) =>
+    offscreen ? value : _linearToSrgbUnit(value);
+
+vm.Vector4 _threeClearValue(ThreeDrawPlan plan) {
+  final background = plan.background;
+  final offscreen = plan.frame!.renderTargetId != 0;
+  return vm.Vector4(
+    _threeClearChannel(background.r, offscreen),
+    _threeClearChannel(background.g, offscreen),
+    _threeClearChannel(background.b, offscreen),
+    background.a,
+  );
+}
+
+gpu.DepthStencilAttachment _threeDepthAttachment(
+  gpu.Texture texture,
+  bool clear,
+) => gpu.DepthStencilAttachment(
+  texture: texture,
+  depthLoadAction: clear ? gpu.LoadAction.clear : gpu.LoadAction.load,
+  depthStoreAction: gpu.StoreAction.store,
+  depthClearValue: 1,
+);
+
+gpu.RenderPass _createThreeRenderPass(
+  FlutterGpuThreeBackend backend,
+  ThreeDrawPlan plan,
+  gpu.GpuImageSurfaceFrame surfaceFrame,
+  gpu.CommandBuffer command,
+  double pixelRatio,
+) {
+  final frame = plan.frame!;
+  final pass = command.createRenderPass(
+    gpu.RenderTarget.singleColor(
+      gpu.ColorAttachment(
+        texture: surfaceFrame.colorTexture,
+        loadAction: frame.clearColor
+            ? gpu.LoadAction.clear
+            : gpu.LoadAction.load,
+        clearValue: _threeClearValue(plan),
+      ),
+      depthStencilAttachment: _threeDepthAttachment(
+        backend._depthTexture!,
+        frame.clearDepth,
+      ),
+    ),
+  );
+  return _configureThreePass(
+    pass,
+    plan,
+    backend._width,
+    backend._height,
+    pixelRatio,
+  );
+}
+
+gpu.RenderPass _createThreeTargetPass(
+  ThreeDrawPlan plan,
+  _GpuRenderTarget target,
+  gpu.CommandBuffer command,
+  double pixelRatio,
+) {
+  final frame = plan.frame!;
+  final depth = target.depth;
+  final pass = command.createRenderPass(
+    gpu.RenderTarget.singleColor(
+      gpu.ColorAttachment(
+        texture: target.color,
+        loadAction: frame.clearColor
+            ? gpu.LoadAction.clear
+            : gpu.LoadAction.load,
+        clearValue: _threeClearValue(plan),
+      ),
+      depthStencilAttachment: depth == null
+          ? null
+          : _threeDepthAttachment(depth, frame.clearDepth),
+    ),
+  );
+  return _configureThreePass(
+    pass,
+    plan,
+    target.source.width,
+    target.source.height,
+    pixelRatio,
+  );
 }
 
 void _submitThreeFrame(
@@ -735,6 +886,7 @@ final class _ThreeUniformSlots {
     this.bumpMap,
     this.roughnessMap,
     this.metalnessMap,
+    this.mapRight,
   );
 
   final gpu.UniformSlot frame;
@@ -754,6 +906,7 @@ final class _ThreeUniformSlots {
   final gpu.UniformSlot bumpMap;
   final gpu.UniformSlot roughnessMap;
   final gpu.UniformSlot metalnessMap;
+  final gpu.UniformSlot mapRight;
 }
 
 _GpuGeometry? _threeGeometryForDraw(
@@ -793,9 +946,7 @@ final class _ThreeFrameEncoder {
     );
     pass.bindTexture(
       slots.pointShadowBack,
-      active
-          ? backend._pointShadowBackColorTexture!
-          : backend._fallbackTexture,
+      active ? backend._pointShadowBackColorTexture! : backend._fallbackTexture,
     );
   }
 
@@ -821,6 +972,7 @@ final class _ThreeFrameEncoder {
       backend._fragmentShader.getUniformSlot('bumpMapTexture'),
       backend._fragmentShader.getUniformSlot('roughnessMapTexture'),
       backend._fragmentShader.getUniformSlot('metalnessMapTexture'),
+      backend._fragmentShader.getUniformSlot('mapRightTexture'),
     );
     final frameUniform = _bindThreeUniform(
       backend,
@@ -953,11 +1105,15 @@ final class _ThreeFrameEncoder {
     _configureShadowPass(pass, backend._pointShadowPipeline!, frame);
     pass.setCullMode(gpu.CullMode.none);
     final vertexSlot = backend._vertexShader.getUniformSlot('VertexInfo');
-    final materialSlot = backend._pointShadowFragmentShader!
-        .getUniformSlot('MaterialInfo');
-    final clippingSlot = _shadowClippingSlot(backend._pointShadowFragmentShader);
-    final alphaMapSlot = backend._pointShadowFragmentShader!
-        .getUniformSlot('alphaMapTexture');
+    final materialSlot = backend._pointShadowFragmentShader!.getUniformSlot(
+      'MaterialInfo',
+    );
+    final clippingSlot = _shadowClippingSlot(
+      backend._pointShadowFragmentShader,
+    );
+    final alphaMapSlot = backend._pointShadowFragmentShader!.getUniformSlot(
+      'alphaMapTexture',
+    );
     return _recordPointShadowFaceDraws(
       pass,
       frame,
@@ -1008,7 +1164,9 @@ final class _ThreeFrameEncoder {
       _threeMaterialUniform(draw, plan),
     );
     _bindShadowClipping(backend, pass, clippingSlot, plan, draw.material);
-    final alphaBinding = backend._textureBinding(draw.material.alphaMapTextureId);
+    final alphaBinding = backend._textureBinding(
+      draw.material.alphaMapTextureId,
+    );
     pass.bindTexture(
       alphaMapSlot,
       alphaBinding.texture,
@@ -1138,7 +1296,9 @@ final class _ThreeFrameEncoder {
     _bindShadowClipping(backend, pass, clippingSlot, plan, draw.material);
     _drawThreeGeometry(pass, draw, geometry);
     return 1;
-  }  int _recordDraw(
+  }
+
+  int _recordDraw(
     gpu.RenderPass pass,
     _ThreeUniformSlots slots,
     ThreeDrawItem draw,
@@ -1361,14 +1521,14 @@ final class ThreeShadowCacheKey {
   /// Field list for structural equality (keeps == complexity at bay; the
   /// matrix rides as its identity-free element hash).
   List<Object?> get _keyFields => [
-        contentRevision,
-        width,
-        height,
-        bias,
-        normalBias,
-        pointFar,
-        Object.hashAll(matrix),
-      ];
+    contentRevision,
+    width,
+    height,
+    bias,
+    normalBias,
+    pointFar,
+    Object.hashAll(matrix),
+  ];
 
   @override
   bool operator ==(Object other) =>
@@ -1454,6 +1614,7 @@ final class FlutterGpuThreeBackend {
   final gpu.Shader? _pointShadowFragmentShader;
   final Map<_ThreeResourceKey, _GpuGeometry> _geometries = {};
   final Map<_ThreeResourceKey, _GpuTexture> _textures = {};
+  final Map<_ThreeResourceKey, _GpuRenderTarget> _renderTargets = {};
   final Map<_ThreeResourceKey, _GpuBatch> _batches = {};
   final Map<_ThreeAutoInstanceKey, _GpuAutoInstanceBatch> _autoInstanceBatches =
       {};
@@ -1584,6 +1745,7 @@ final class FlutterGpuThreeBackend {
     'textureFailures': _textureFailureCount,
     'textureEvictions': _textureEvictionCount,
     'cachedTextures': _textures.length,
+    'cachedRenderTargets': _renderTargets.length,
     'staleTextureUploads': _staleTextureUploadCount,
     'pendingTextureDecodes': _pendingTextureDecodes,
     'mipmapFallbacks': _mipmapFallbackCount,
@@ -1694,6 +1856,7 @@ final class FlutterGpuThreeBackend {
     _synchronizeGeometries(state);
     _synchronizeBatches(state);
     await _synchronizeTextures(state);
+    _synchronizeRenderTargets(state);
     _checkDisposed();
     _assertThreePlansRenderable(plans);
     await _waitForPresentationSlot();
@@ -1740,6 +1903,17 @@ final class FlutterGpuThreeBackend {
       onRemove: () => _textureEvictionCount++,
     );
     return _awaitThreeTextures(_threeTextureFutures(this, state));
+  }
+
+  void _synchronizeRenderTargets(JsThreeSurfaceState state) {
+    _reconcileThreeRemoved(
+      _renderTargets,
+      state.renderTargets.keys,
+      onRemove: () {},
+    );
+    for (final source in state.renderTargets.values) {
+      _synchronizeThreeRenderTarget(this, source);
+    }
   }
 
   Future<void> _runTextureUpload(
@@ -1812,15 +1986,11 @@ final class FlutterGpuThreeBackend {
     _cacheShadow(frame, contentRevision);
   }
 
-  /// Records one composed pass. Later passes LOAD the color written by
-  /// earlier passes (upstream autoClear=false composition); depth is cleared
-  /// per pass, matching the clearDepth() call between per-tick renders.
-  /// Each pass gets its own command buffer: Metal forbids a second open
-  /// render encoder on a buffer that is already encoding.
+  /// Records one composed default-framebuffer pass. Every pass uses its own
+  /// command buffer because Metal forbids concurrent open render encoders.
   ({gpu.CommandBuffer command, int draws}) _recordThreePass(
     ThreeDrawPlan plan,
     gpu.GpuImageSurfaceFrame surfaceFrame, {
-    required bool preserveColor,
     required bool submitAfter,
     required double pointSizeScale,
     required double viewportHeight,
@@ -1841,10 +2011,103 @@ final class FlutterGpuThreeBackend {
       plan,
       surfaceFrame,
       command,
-      preserveColor: preserveColor,
+      pointSizeScale,
     );
     final draws = encoder.record(pass);
     if (submitAfter) _submitThreeFrame(this, command);
+    return (command: command, draws: draws);
+  }
+
+  bool _targetDimensionsMatch(
+    _GpuRenderTarget target,
+    JsThreeSubmitFrame frame,
+  ) =>
+      target.source.width == frame.targetWidth &&
+      target.source.height == frame.targetHeight;
+
+  _GpuRenderTarget _targetForFrame(JsThreeSubmitFrame frame) {
+    final target = _renderTargets[_key(frame.renderTargetId)];
+    if (target == null || !_targetDimensionsMatch(target, frame)) {
+      throw const FlutterGpuThreeException(
+        'renderTarget',
+        'frame target is missing or has stale dimensions',
+      );
+    }
+    return target;
+  }
+
+  bool _materialSamplesTarget(JsThreeMaterialUpsert material, int textureId) =>
+      material.mapTextureId == textureId ||
+      material.mapRightTextureId == textureId;
+
+  void _checkTargetFeedback(ThreeDrawPlan plan, int textureId) {
+    for (final draw in plan.draws) {
+      if (_materialSamplesTarget(draw.material, textureId)) {
+        throw const FlutterGpuThreeException(
+          'renderTargetFeedback',
+          'a pass cannot sample its active color target',
+        );
+      }
+    }
+  }
+
+  int _recordTargetPass(
+    ThreeDrawPlan plan,
+    double pointSizeScale,
+    int contentRevision,
+  ) {
+    final frame = plan.frame!;
+    final target = _targetForFrame(frame);
+    _checkTargetFeedback(plan, target.source.textureId);
+    _shadowFrameActive = false;
+    final encoder = _ThreeFrameEncoder(
+      this,
+      plan,
+      pointSizeScale,
+      target.source.height.toDouble(),
+    );
+    _prepareThreeAutoInstanceCache(this, plan);
+    _recordShadow(encoder, frame, contentRevision);
+    final command = _context.createCommandBuffer();
+    final pass = _createThreeTargetPass(plan, target, command, pointSizeScale);
+    final draws = encoder.record(pass);
+    _submitThreeFrame(this, command);
+    return draws;
+  }
+
+  int _recordTargetPasses(
+    List<ThreeDrawPlan> plans,
+    double pointSizeScale,
+    int contentRevision,
+  ) {
+    var draws = 0;
+    for (final plan in plans.where((plan) => plan.frame!.renderTargetId != 0)) {
+      draws += _recordTargetPass(plan, pointSizeScale, contentRevision);
+    }
+    return draws;
+  }
+
+  ({gpu.CommandBuffer? command, int draws}) _recordMainPasses(
+    List<ThreeDrawPlan> plans,
+    gpu.GpuImageSurfaceFrame surfaceFrame,
+    double pointSizeScale,
+    double viewportHeight,
+    int contentRevision,
+  ) {
+    gpu.CommandBuffer? command;
+    var draws = 0;
+    for (var index = 0; index < plans.length; index++) {
+      final result = _recordThreePass(
+        plans[index],
+        surfaceFrame,
+        submitAfter: index < plans.length - 1,
+        pointSizeScale: pointSizeScale,
+        viewportHeight: viewportHeight,
+        contentRevision: contentRevision,
+      );
+      command = result.command;
+      draws += result.draws;
+    }
     return (command: command, draws: draws);
   }
 
@@ -1854,41 +2117,69 @@ final class FlutterGpuThreeBackend {
     double viewportHeight,
     int contentRevision,
   ) {
-    final surface = _imageSurface!;
-    final surfaceFrame = surface.acquireNextFrame();
-    gpu.CommandBuffer? command;
-    var presented = false;
+    var recordedDraws = 0;
     try {
-      var recordedDraws = 0;
-      for (var index = 0; index < plans.length; index++) {
-        final result = _recordThreePass(
-          plans[index],
+      recordedDraws += _recordTargetPasses(
+        plans,
+        pointSizeScale,
+        contentRevision,
+      );
+      final mainPlans = plans
+          .where((plan) => plan.frame!.renderTargetId == 0)
+          .toList();
+      if (mainPlans.isEmpty) {
+        throw const FlutterGpuThreeException(
+          'presentation',
+          'an offscreen-only batch has no surface frame to present',
+        );
+      }
+      final surface = _imageSurface!;
+      final surfaceFrame = surface.acquireNextFrame();
+      gpu.CommandBuffer? command;
+      var presented = false;
+      try {
+        final result = _recordMainPasses(
+          mainPlans,
           surfaceFrame,
-          preserveColor: index > 0,
-          submitAfter: index < plans.length - 1,
-          pointSizeScale: pointSizeScale,
-          viewportHeight: viewportHeight,
-          contentRevision: contentRevision,
+          pointSizeScale,
+          viewportHeight,
+          contentRevision,
         );
         command = result.command;
-        recordedDraws = result.draws;
+        recordedDraws += result.draws;
+        final lastCommand = command!;
+        surfaceFrame.present(lastCommand);
+        presented = true;
+        _submitThreeFrame(this, lastCommand);
+        return _finishThreeFrame(this, surface, recordedDraws);
+      } catch (error) {
+        _failThreePresentation(this, surfaceFrame, command, presented, error);
+        rethrow;
       }
-      final lastCommand = command!;
-      surfaceFrame.present(lastCommand);
-      presented = true;
-      _submitThreeFrame(this, lastCommand);
-      return _finishThreeFrame(this, surface, recordedDraws);
-    } catch (error) {
-      _failThreePresentation(this, surfaceFrame, command, presented, error);
-      rethrow;
     } finally {
       _uniformOffset = 0;
       _hostBuffer.reset();
     }
   }
 
+  _TextureBinding? _targetTextureBinding(int id) {
+    for (final target in _renderTargets.values) {
+      if (target.source.textureId == id) {
+        return _TextureBinding(
+          target.color,
+          null,
+          1,
+          _threeRenderTargetSampler(target.source),
+        );
+      }
+    }
+    return null;
+  }
+
   _TextureBinding _textureBinding(int id) {
     if (id == 0) return _TextureBinding(_fallbackTexture, null, 1);
+    final target = _targetTextureBinding(id);
+    if (target != null) return target;
     return _resolveThreeTextureBinding(this, id, _textures[_key(id)]);
   }
 
@@ -1911,6 +2202,7 @@ final class FlutterGpuThreeBackend {
     _disposed = true;
     _geometries.clear();
     _textures.clear();
+    _renderTargets.clear();
     _batches.clear();
     _autoInstanceBatches.clear();
     _depthTexture = null;

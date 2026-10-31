@@ -18,7 +18,8 @@ export const OPCODE = Object.freeze({
   DISPOSE_SURFACE: 10,
   DRAW_BATCH: 11,
   REMOVE_BATCH: 12,
-  CLIPPING: 13
+  CLIPPING: 13,
+  RENDER_TARGET: 14
 });
 
 export const NODE_SHADOW_FLAGS = Object.freeze({ cast: 1, receive: 2 });
@@ -156,7 +157,19 @@ export const TEXTURE_FLAG_CUBE = 0x80;
 
 export const MATERIAL_CLIP_FLAGS = Object.freeze({ intersection: 1, shadows: 2 });
 
-export function materialCommand(id, version, kind, mapId, flags, side, color, opacity, roughness, metalness, alphaTest, pointSize, specular = null, shininess = 0, emissive = null, emissiveIntensity = 1, clipId = 0, clipFlags = 0, textureSlots = null, v5Slots = null, v6Slots = null) {
+export function renderTargetCommand(id, version, width, height, textureId, flags) {
+  const body = new ByteWriter(28);
+  body.u32(checkedU32(id, 'renderTarget.id'));
+  body.u32(checkedU32(version, 'renderTarget.version'));
+  body.u32(checkedU32(width, 'renderTarget.width'));
+  body.u32(checkedU32(height, 'renderTarget.height'));
+  body.u32(checkedU32(textureId, 'renderTarget.textureId'));
+  body.u32(checkedU32(flags, 'renderTarget.flags'));
+  body.u32(0);
+  return command(OPCODE.RENDER_TARGET, body.finish());
+}
+
+export function materialCommand(id, version, kind, mapId, flags, side, color, opacity, roughness, metalness, alphaTest, pointSize, specular = null, shininess = 0, emissive = null, emissiveIntensity = 1, clipId = 0, clipFlags = 0, textureSlots = null, v5Slots = null, v6Slots = null, dubois = null) {
   if ((kind === 5) !== (specular !== null)) throw new Error('three.invalid: Phong material requires exactly one specular payload');
   if (emissive !== null && kind !== 1 && kind !== 2 && kind !== 5 && kind !== 8) throw new Error('three.invalid: emissive payload requires a lit mesh material');
   if (!Number.isInteger(clipId) || clipId < 0) throw new Error('three.invalid: material clip id');
@@ -226,7 +239,23 @@ export function materialCommand(id, version, kind, mapId, flags, side, color, op
     body.f32(emissive.b);
     body.f32(emissiveIntensity);
   }
+  body.u32(dubois ? checkedU32(dubois.rightId, 'anaglyph.rightId') : 0);
+  body.u32(0); body.u32(0); body.u32(0);
+  writeDuboisMatrix(body, dubois?.left);
+  writeDuboisMatrix(body, dubois?.right);
   return command(OPCODE.MATERIAL, body.finish());
+}
+
+function writeDuboisMatrix(body, matrix) {
+  if (matrix && matrix.length !== 9) throw new Error('three.invalid: Dubois matrix requires nine floats');
+  for (let column = 0; column < 3; column++) {
+    for (let row = 0; row < 3; row++) {
+      const value = matrix ? matrix[column * 3 + row] : 0;
+      if (!Number.isFinite(value)) throw new Error('three.invalid: Dubois matrix must be finite');
+      body.f32(value);
+    }
+    body.f32(0);
+  }
 }
 
 export function nodeCommand(id, parentId, geometryId, materialId, visible, objectKind, matrixWorld, shadows = {}, spriteCenter = null) {
@@ -385,11 +414,12 @@ export function clippingCommand(id, version, planes) {
   return command(OPCODE.CLIPPING, body.finish());
 }
 
-export function frameCommand(sceneId, cameraId, background, exposure, fog, shadow = NO_SHADOW, culledNodeIds = [], culledShadowNodeIds = [], shadowLightType = 0, toneMapping = 0, pointShadow = null) {
+export function frameCommand(sceneId, cameraId, background, exposure, fog, shadow = NO_SHADOW, culledNodeIds = [], culledShadowNodeIds = [], shadowLightType = 0, toneMapping = 0, pointShadow = null, frameTarget = null) {
   const hasContentRevision = shadow.contentRevision !== undefined;
-  const hasOptionalIds = culledNodeIds.length || culledShadowNodeIds.length || hasContentRevision;
+  const hasFrameTarget = frameTarget !== null;
+  const hasOptionalIds = culledNodeIds.length || culledShadowNodeIds.length || hasContentRevision || hasFrameTarget;
   const optionalLength = (hasOptionalIds ? 4 + culledNodeIds.length * 4 : 0) +
-    (culledShadowNodeIds.length || hasContentRevision ? 4 + culledShadowNodeIds.length * 4 : 0) +
+    (culledShadowNodeIds.length || hasContentRevision || hasFrameTarget ? 4 + culledShadowNodeIds.length * 4 : 0) +
     (hasContentRevision ? 4 : 0);
   // v3: fixed trailing u32 naming which light owns the shadow map
   // (0 none, 1 directional, 2 spot, 3 point) so shading can scope it.
@@ -431,12 +461,29 @@ export function frameCommand(sceneId, cameraId, background, exposure, fog, shado
     body.u32(culledNodeIds.length);
     for (const id of culledNodeIds) body.u32(id);
   }
-  if (culledShadowNodeIds.length || hasContentRevision) {
+  if (culledShadowNodeIds.length || hasContentRevision || hasFrameTarget) {
     body.u32(culledShadowNodeIds.length);
     for (const id of culledShadowNodeIds) body.u32(id);
   }
   if (hasContentRevision) body.u32(shadow.contentRevision);
+  else if (hasFrameTarget) body.u32(0);
+  if (hasFrameTarget) writeFrameTarget(body, frameTarget);
   return command(OPCODE.FRAME, body.finish());
+}
+
+function writeFrameTarget(body, target) {
+  body.u32(0x4658534a); // JSXF
+  body.u32(1);
+  body.u32(checkedU32(target.targetId, 'frame.targetId'));
+  body.u32(checkedU32(target.width, 'frame.targetWidth'));
+  body.u32(checkedU32(target.height, 'frame.targetHeight'));
+  for (const value of [target.viewport.x, target.viewport.y, target.viewport.z, target.viewport.w,
+    target.scissor.x, target.scissor.y, target.scissor.z, target.scissor.w]) {
+    if (!Number.isFinite(value)) throw new Error('three.invalid: frame rectangle must be finite');
+    body.f32(value);
+  }
+  body.u32(checkedU32(target.flags, 'frame.flags'));
+  body.u32(0);
 }
 
 export function disposeResourceCommand(id, kind) {

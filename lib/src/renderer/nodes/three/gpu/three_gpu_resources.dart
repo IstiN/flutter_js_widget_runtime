@@ -115,17 +115,42 @@ final class _DecodedPixels {
 }
 
 final class _TextureBinding {
-  const _TextureBinding(this.texture, this.source, this.mipCount);
+  const _TextureBinding(
+    this.texture,
+    this.source,
+    this.mipCount, [
+    this.options,
+  ]);
   final gpu.Texture texture;
   final JsThreeTextureUpsert? source;
   final int mipCount;
+  final gpu.SamplerOptions? options;
 
   gpu.SamplerOptions sampler() {
+    final override = options;
+    if (override != null) return override;
     final source = this.source;
     if (source == null) return gpu.SamplerOptions();
     return _threeSampler(source, mipCount);
   }
 }
+
+final class _GpuRenderTarget {
+  const _GpuRenderTarget(this.source, this.color, this.depth);
+  final JsThreeRenderTargetUpsert source;
+  final gpu.Texture color;
+  final gpu.Texture? depth;
+}
+
+gpu.SamplerOptions _threeRenderTargetSampler(
+  JsThreeRenderTargetUpsert source,
+) => gpu.SamplerOptions(
+  minFilter: _threeMinMagFilters[source.nearestMin]!,
+  magFilter: _threeMinMagFilters[source.nearestMag]!,
+  mipFilter: gpu.MipFilter.nearest,
+  widthAddressMode: _threeAddressModes[source.repeatU]!,
+  heightAddressMode: _threeAddressModes[source.repeatV]!,
+);
 
 void _writeFloats(ByteData data, int offset, List<double> values) {
   _validateThreeUniformWrite(data, offset, values);
