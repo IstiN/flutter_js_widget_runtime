@@ -504,8 +504,8 @@
   },
   "inputs": {
     "assets/three/three.native.js": {
-      "bytes": 725143,
-      "sha256": "30a823006974c92ee6a3c7b6c08fefd94018468600b0349aec0f1b818c743426"
+      "bytes": 729395,
+      "sha256": "fac454c7680a7d75270a41f8dbd42076c94aad607ece3f37fcd12556954b57b4"
     },
     "assets/three/three.web.js": {
       "bytes": 835134,
@@ -532,8 +532,16 @@
       "sha256": "b1632a703206c3d830de9fcbe515696770d04b71a15ee6b50afa6d2c3298c86f"
     },
     "source/examples/models/gltf/Nefertiti/Nefertiti.glb": {
-      "bytes": 1233240,
-      "sha256": "d8c00c742b59137695245eefeef0e217d6e33c64eeaeb1904ff39f6b31542639"
+      "bytes": 1233272,
+      "sha256": "f97b4c631d633fcbe780b95b1778f5d15518204c5170dd472340596192b4741b"
+    },
+    "source/examples/models/gltf/Nefertiti/material0_basecolor.jpg": {
+      "bytes": 291043,
+      "sha256": "f62033e15cac876a1aa6fc4932704073c5268c63e6852b07b0ab5650c6776507"
+    },
+    "source/examples/models/gltf/Nefertiti/material0_normal.jpg": {
+      "bytes": 277056,
+      "sha256": "b41d78cc24520045f29a25251a3dc8260a2a3f10908a407f0f4c6ab6a9942491"
     },
     "source/examples/webgl_materials_normalmap_object_space.html": {
       "bytes": 3470,
@@ -548,20 +556,20 @@
       "sha256": "5fb8a476137d36328693c1d75c0754075b673f0f18acdfeafe12c6b4426cf57f"
     },
     "tool/three_example/example_adapter.js": {
-      "bytes": 14048,
-      "sha256": "261e6a04cba2e8e727062af9a8a3cedba03980bd955a0a3437ef87dd795a5748"
+      "bytes": 14550,
+      "sha256": "bd270a4cc40d715daff1dfdea195ade30be968514d6774fbe4ea03b0baefbaf9"
     },
     "tool/three_example/example_canvas2d.js": {
-      "bytes": 12266,
-      "sha256": "ac6cb1bda5630c44d9a8475356a93e0559f8816cc8c54aafe0957206050bd201"
+      "bytes": 12314,
+      "sha256": "f44f052a653ea254ae30b04cbeda1ed2476dd455bcd1055970970980ec94c53f"
     },
     "tool/three_example/lil_gui_adapter.js": {
       "bytes": 28485,
       "sha256": "de03987c75754c821c3e511a5edc819a1054ed73d95d09b7d65ec3dd69e0fa40"
     },
     "tool/three_example/prepare.mjs": {
-      "bytes": 118368,
-      "sha256": "6fe98eabbe5ce88d3494f73148415a2a9ab1d706c94a699d3491037e2cfc583a"
+      "bytes": 136493,
+      "sha256": "d8fa7555a2613afcf8e4275dede9b94b13bd4679a98e6643cbb1cd135d5eb15f"
     },
     "tool/three_example/stats_adapter.js": {
       "bytes": 2107,
@@ -570,8 +578,8 @@
   },
   "outputs": {
     "Nefertiti.glb": {
-      "bytes": 1233240,
-      "sha256": "d8c00c742b59137695245eefeef0e217d6e33c64eeaeb1904ff39f6b31542639"
+      "bytes": 1233272,
+      "sha256": "f97b4c631d633fcbe780b95b1778f5d15518204c5170dd472340596192b4741b"
     },
     "THREE_LICENSE": {
       "bytes": 1081,
@@ -580,6 +588,14 @@
     "manifest.json": {
       "bytes": 393,
       "sha256": "6046bbcd94c7e2298ee93a00cd067b0a2c7737ecafd692b19a6ed36fe3c71b58"
+    },
+    "material0_basecolor.jpg": {
+      "bytes": 291043,
+      "sha256": "f62033e15cac876a1aa6fc4932704073c5268c63e6852b07b0ab5650c6776507"
+    },
+    "material0_normal.jpg": {
+      "bytes": 277056,
+      "sha256": "b41d78cc24520045f29a25251a3dc8260a2a3f10908a407f0f4c6ab6a9942491"
     },
     "official_module.js": {
       "bytes": 2272,
@@ -590,8 +606,8 @@
       "sha256": "45c84138ac446bb204a0ab7cac31ad67a55bb004a45874d6b980a7b73420c5ec"
     },
     "widget.js": {
-      "bytes": 1732934,
-      "sha256": "164cf6774a552af6a9278ff586767486c0ba5f06221fdf05b9f0b65dc0bb336d"
+      "bytes": 2490858,
+      "sha256": "23390e1a7ce4f2bc0deb6fa5268550808b0259dd66cd83ecd197f401f451ee53"
     }
   }
 }

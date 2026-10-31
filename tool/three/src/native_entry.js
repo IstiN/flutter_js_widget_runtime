@@ -9,7 +9,7 @@ installNativeRaycastBVH(Mesh);
 export * from 'three';
 export { getNativeRaycastDiagnostics } from './native_raycast_bvh.js';
 export { JsrWebGLRenderer as WebGLRenderer } from './native_renderer.js';
-export { JsrTextureLoader as TextureLoader, JsrFileLoader as FileLoader } from './native_loaders.js';
+export { JsrTextureLoader as TextureLoader, JsrFileLoader as FileLoader, JsrImageLoader as ImageLoader } from './native_loaders.js';
 export { JsrDataTextureLoader as DataTextureLoader } from './native_loaders.js';
 export { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 export { ThreeCompatibilityRuntime, JsrThreeCanvas } from './runtime.js';

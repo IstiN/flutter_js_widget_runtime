@@ -1240,7 +1240,13 @@ webgl_geometry_shapes: {
       html: '5f6d3a380d650a9c0a50d9603c34be4506a6e96fa1396f47a745f16462622b73',
       module: 'b5f19392d16881d8fd99cf2aa2eb77d4af1d6bb647fca3627f80a8b77c23a4e7'
     },
-    assets: []
+    assets: [{
+      url: 'textures/uv_grid_opengl.jpg',
+      output: 'uv_grid_opengl.jpg',
+      mime: 'image/jpeg',
+      sha256: '909d9a1eb2a5d5de9d221a5e8de4e9119d409decddf522d48896bd51523d354d',
+      diagnostic: 'uvGrid'
+    }]
   },
   webgl_geometry_terrain: {
     id: 'three-geometry-terrain',
@@ -1692,30 +1698,35 @@ webgl_geometry_shapes: {
           {
                 "url": "textures/sprites/snowflake1.png",
                 "mime": "image/png",
+                "rawRgba": true,
                 "output": "snowflake1.png",
                 "sha256": "7b0c12c16b37b0d03e73009da109e97cdfdd1f40f047fd025c80954a8422d220"
           },
           {
                 "url": "textures/sprites/snowflake2.png",
                 "mime": "image/png",
+                "rawRgba": true,
                 "output": "snowflake2.png",
                 "sha256": "0396d0c5f997fc830cecd62d6e554611e7ee747906413d19cfc94e4e2900161e"
           },
           {
                 "url": "textures/sprites/snowflake3.png",
                 "mime": "image/png",
+                "rawRgba": true,
                 "output": "snowflake3.png",
                 "sha256": "57d673741e314cbb727a9eebf545397a8fac6dc8156bf9489adcf3fa1a877065"
           },
           {
                 "url": "textures/sprites/snowflake4.png",
                 "mime": "image/png",
+                "rawRgba": true,
                 "output": "snowflake4.png",
                 "sha256": "4f0b530617e0dae36ff8ca955d0567327001df407875668a1b6822e99913dd8f"
           },
           {
                 "url": "textures/sprites/snowflake5.png",
                 "mime": "image/png",
+                "rawRgba": true,
                 "output": "snowflake5.png",
                 "sha256": "af708f228db2fce1dcc1c85bf80e83c077821ecf20db6fa8cd655a8929ad1ec6"
           }
@@ -1903,6 +1914,7 @@ webgl_geometry_shapes: {
           {
                 "url": "models/gltf/Nefertiti/Nefertiti.glb",
                 "mime": "model/gltf-binary",
+                "externalizeImages": true,
                 "output": "Nefertiti.glb",
                 "sha256": "d8c00c742b59137695245eefeef0e217d6e33c64eeaeb1904ff39f6b31542639"
           }
@@ -2125,6 +2137,20 @@ webgl_geometry_shapes: {
     expected: {
       html: '0138e63d35c7be980c5e94f57ba9999d624c5ad056e22fb7c48d747aa0d1a3c4',
       module: '3709e5a920ecd1933e4fb854cd981a0b50c6e2f0f8f572b324ba102860d1ecf0'
+    },
+    // This example disposes each CanvasTexture in the same RAF tick that
+    // first renders it. Force the bounded example canvas into its synchronous
+    // local-RGBA lane before the native renderer can await Flutter readback;
+    // otherwise every texture is disposed before it can ever be adopted.
+    facadeWraps: {
+      CanvasTexture: `Base => class extends Base {
+        constructor(canvas, ...args) {
+          if (canvas && canvas.isJsrThreeExampleLocal) {
+            canvas.getContext('2d').getImageData(0, 0, 1, 1);
+          }
+          super(canvas, ...args);
+        }
+      }`
     },
     assets: []
   },
@@ -2778,6 +2804,89 @@ function bmpToRgba(bytes, url) {
   return { bytes: out, width, height };
 }
 
+async function imageToRgba(bytes, url, stamp) {
+  const tmpIn = path.join(process.env.TMPDIR || '/tmp', `jsr-rgba-${stamp}-src`);
+  const tmpBmp = path.join(process.env.TMPDIR || '/tmp', `jsr-rgba-${stamp}.bmp`);
+  await writeFile(tmpIn, bytes);
+  execFileSync('sips', ['-s', 'format', 'bmp', tmpIn, '--out', tmpBmp], { stdio: 'pipe' });
+  return bmpToRgba(await readFile(tmpBmp), url);
+}
+
+// QuickJS has no DOM Blob/object-URL implementation. GLTFLoader therefore
+// cannot consume images embedded as bufferViews: its stock path constructs a
+// Blob before calling TextureLoader. For explicitly opted-in pinned GLBs,
+// externalize those images at prepare time in their original encoded format
+// and rewrite only the generated GLB JSON to relative URIs. The original GLB
+// is still sha256-verified before this transformation; official module bytes
+// are untouched.
+async function externalizeGlbImages(bytes, definition) {
+  if (bytes.length < 20 || bytes.toString('latin1', 0, 4) !== 'glTF') {
+    throw new Error(`${definition.url} is not a binary glTF asset`);
+  }
+  let offset = 12;
+  let json = null;
+  let binary = null;
+  const trailingChunks = [];
+  while (offset + 8 <= bytes.length) {
+    const length = bytes.readUInt32LE(offset);
+    const type = bytes.readUInt32LE(offset + 4);
+    const end = offset + 8 + length;
+    if (end > bytes.length) throw new Error(`${definition.url}: truncated GLB chunk`);
+    if (type === 0x4e4f534a) json = JSON.parse(bytes.toString('utf8', offset + 8, end));
+    else {
+      if (type === 0x004e4942 && !binary) binary = bytes.subarray(offset + 8, end);
+      trailingChunks.push(bytes.subarray(offset, end));
+    }
+    offset = end;
+  }
+  if (!json || !binary || !Array.isArray(json.images)) {
+    throw new Error(`${definition.url}: no embedded GLB images to externalize`);
+  }
+  const images = [];
+  const usedNames = new Set();
+  for (let index = 0; index < json.images.length; index++) {
+    const image = json.images[index];
+    if (image.bufferView === undefined) continue;
+    const view = json.bufferViews && json.bufferViews[image.bufferView];
+    if (!view) throw new Error(`${definition.url}: image ${index} has an invalid bufferView`);
+    const start = view.byteOffset || 0;
+    if (!Number.isInteger(start) || !Number.isInteger(view.byteLength) ||
+        start < 0 || view.byteLength < 1 || start + view.byteLength > binary.length) {
+      throw new Error(`${definition.url}: image ${index} exceeds the GLB binary chunk`);
+    }
+    const extension = image.mimeType === 'image/png' ? 'png' : 'jpg';
+    const name = path.basename(image.name || `embedded-${index}.${extension}`);
+    if (!name || usedNames.has(name)) throw new Error(`${definition.url}: duplicate embedded image name ${name}`);
+    usedNames.add(name);
+    const url = path.posix.join(path.posix.dirname(definition.url), name);
+    const embedded = binary.subarray(start, start + view.byteLength);
+    const dimensions = image.mimeType === 'image/png'
+      ? pngDimensions(embedded, url)
+      : image.mimeType === 'image/jpeg'
+        ? jpegDimensions(embedded, url)
+        : (() => { throw new Error(`${url}: unsupported embedded image MIME ${image.mimeType}`); })();
+    images.push({
+      url, output: name, bytes: embedded,
+      width: dimensions.width, height: dimensions.height,
+      mime: image.mimeType
+    });
+    delete image.bufferView;
+    image.uri = name;
+  }
+  if (images.length === 0) throw new Error(`${definition.url}: no bufferView images found`);
+  const jsonText = Buffer.from(JSON.stringify(json), 'utf8');
+  const jsonLength = (jsonText.length + 3) & ~3;
+  const jsonChunk = Buffer.alloc(8 + jsonLength, 0x20);
+  jsonChunk.writeUInt32LE(jsonLength, 0);
+  jsonChunk.writeUInt32LE(0x4e4f534a, 4);
+  jsonText.copy(jsonChunk, 8);
+  const body = Buffer.concat([jsonChunk, ...trailingChunks]);
+  const header = Buffer.alloc(12);
+  bytes.copy(header, 0, 0, 12);
+  header.writeUInt32LE(header.length + body.length, 8);
+  return { bytes: Buffer.concat([header, body]), images };
+}
+
 function rgbeToRgba(bytes, url) {
   let offset = 0;
   const readLine = () => {
@@ -2854,12 +2963,7 @@ async function prepareAssets(source, definitions) {
       continue;
     }
     if (definition.rawRgba) {
-      const stamp = `${process.pid}-${assets.length}`;
-      const tmpIn = path.join(process.env.TMPDIR || '/tmp', `jsr-rgba-${stamp}-src`);
-      const tmpBmp = path.join(process.env.TMPDIR || '/tmp', `jsr-rgba-${stamp}.bmp`);
-      await writeFile(tmpIn, bytes);
-      execFileSync('sips', ['-s', 'format', 'bmp', tmpIn, '--out', tmpBmp], { stdio: 'pipe' });
-      const decoded = bmpToRgba(await readFile(tmpBmp), definition.url);
+      const decoded = await imageToRgba(bytes, definition.url, `${process.pid}-${assets.length}`);
       assets.push({ ...definition, bytes: decoded.bytes, width: decoded.width, height: decoded.height, mime: 'application/x-rgba' });
       continue;
     }
@@ -2872,6 +2976,11 @@ async function prepareAssets(source, definitions) {
       // ('glTF' in ASCII) instead so corrupted files fail at prepare time.
       if (bytes.length < 20 || bytes.toString('latin1', 0, 4) !== 'glTF') {
         throw new Error(`${definition.url} is not a binary glTF asset`);
+      }
+      if (definition.externalizeImages) {
+        const externalized = await externalizeGlbImages(bytes, definition);
+        bytes = externalized.bytes;
+        assets.push(...externalized.images);
       }
       assets.push({ ...definition, bytes });
       continue;

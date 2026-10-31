@@ -504,12 +504,12 @@
   },
   "inputs": {
     "assets/three/three.native.js": {
-      "bytes": 724399,
-      "sha256": "f5274a4cb428b18491b082eed0d416d90dc36ea7a84a129f752dec1b9ee5596b"
+      "bytes": 729395,
+      "sha256": "fac454c7680a7d75270a41f8dbd42076c94aad607ece3f37fcd12556954b57b4"
     },
     "assets/three/three.web.js": {
-      "bytes": 834390,
-      "sha256": "e4e059b5c360606fb4ed721f2d686821b0b840119a3939535160b279c5deea6b"
+      "bytes": 835134,
+      "sha256": "9fc36cb776a1a4a8c0ef3e2e7fdefa7943967d4e525014b339f9e7417edc625a"
     },
     "source/LICENSE": {
       "bytes": 1081,
@@ -522,6 +522,10 @@
     "source/examples/jsm/geometries/ParametricGeometry.js": {
       "bytes": 3808,
       "sha256": "f25b69d9f8a5a7f8e206bb151875609349dabaf9bd81830779033ed2521e8a7a"
+    },
+    "source/examples/textures/uv_grid_opengl.jpg": {
+      "bytes": 549505,
+      "sha256": "909d9a1eb2a5d5de9d221a5e8de4e9119d409decddf522d48896bd51523d354d"
     },
     "source/examples/webgl_geometries.html": {
       "bytes": 5947,
@@ -536,20 +540,20 @@
       "sha256": "5fb8a476137d36328693c1d75c0754075b673f0f18acdfeafe12c6b4426cf57f"
     },
     "tool/three_example/example_adapter.js": {
-      "bytes": 14048,
-      "sha256": "261e6a04cba2e8e727062af9a8a3cedba03980bd955a0a3437ef87dd795a5748"
+      "bytes": 14550,
+      "sha256": "bd270a4cc40d715daff1dfdea195ade30be968514d6774fbe4ea03b0baefbaf9"
     },
     "tool/three_example/example_canvas2d.js": {
-      "bytes": 12266,
-      "sha256": "ac6cb1bda5630c44d9a8475356a93e0559f8816cc8c54aafe0957206050bd201"
+      "bytes": 12314,
+      "sha256": "f44f052a653ea254ae30b04cbeda1ed2476dd455bcd1055970970980ec94c53f"
     },
     "tool/three_example/lil_gui_adapter.js": {
       "bytes": 28485,
       "sha256": "de03987c75754c821c3e511a5edc819a1054ed73d95d09b7d65ec3dd69e0fa40"
     },
     "tool/three_example/prepare.mjs": {
-      "bytes": 97048,
-      "sha256": "916f8f2e1bdfcd6ec98f14286260c3c3d5c687554751519ffcdfa4f31f942fd6"
+      "bytes": 136493,
+      "sha256": "d8fa7555a2613afcf8e4275dede9b94b13bd4679a98e6643cbb1cd135d5eb15f"
     },
     "tool/three_example/stats_adapter.js": {
       "bytes": 2107,
@@ -573,9 +577,13 @@
       "bytes": 5947,
       "sha256": "5f6d3a380d650a9c0a50d9603c34be4506a6e96fa1396f47a745f16462622b73"
     },
+    "uv_grid_opengl.jpg": {
+      "bytes": 549505,
+      "sha256": "909d9a1eb2a5d5de9d221a5e8de4e9119d409decddf522d48896bd51523d354d"
+    },
     "widget.js": {
-      "bytes": 27619,
-      "sha256": "35a818a07f58949980fe4282793bb5380da3322f13ddb4413294f9947945af57"
+      "bytes": 760585,
+      "sha256": "3e2d88b66798f53f4ebe911b826d2ced1383c0092479c3a238544d193569b496"
     }
   }
 }

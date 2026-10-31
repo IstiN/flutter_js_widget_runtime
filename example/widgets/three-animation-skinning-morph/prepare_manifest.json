@@ -504,12 +504,12 @@
   },
   "inputs": {
     "assets/three/three.native.js": {
-      "bytes": 724399,
-      "sha256": "f5274a4cb428b18491b082eed0d416d90dc36ea7a84a129f752dec1b9ee5596b"
+      "bytes": 729395,
+      "sha256": "fac454c7680a7d75270a41f8dbd42076c94aad607ece3f37fcd12556954b57b4"
     },
     "assets/three/three.web.js": {
-      "bytes": 834390,
-      "sha256": "e4e059b5c360606fb4ed721f2d686821b0b840119a3939535160b279c5deea6b"
+      "bytes": 835134,
+      "sha256": "9fc36cb776a1a4a8c0ef3e2e7fdefa7943967d4e525014b339f9e7417edc625a"
     },
     "source/LICENSE": {
       "bytes": 1081,
@@ -548,20 +548,20 @@
       "sha256": "5fb8a476137d36328693c1d75c0754075b673f0f18acdfeafe12c6b4426cf57f"
     },
     "tool/three_example/example_adapter.js": {
-      "bytes": 14048,
-      "sha256": "261e6a04cba2e8e727062af9a8a3cedba03980bd955a0a3437ef87dd795a5748"
+      "bytes": 14550,
+      "sha256": "bd270a4cc40d715daff1dfdea195ade30be968514d6774fbe4ea03b0baefbaf9"
     },
     "tool/three_example/example_canvas2d.js": {
-      "bytes": 12266,
-      "sha256": "ac6cb1bda5630c44d9a8475356a93e0559f8816cc8c54aafe0957206050bd201"
+      "bytes": 12314,
+      "sha256": "f44f052a653ea254ae30b04cbeda1ed2476dd455bcd1055970970980ec94c53f"
     },
     "tool/three_example/lil_gui_adapter.js": {
       "bytes": 28485,
       "sha256": "de03987c75754c821c3e511a5edc819a1054ed73d95d09b7d65ec3dd69e0fa40"
     },
     "tool/three_example/prepare.mjs": {
-      "bytes": 97048,
-      "sha256": "916f8f2e1bdfcd6ec98f14286260c3c3d5c687554751519ffcdfa4f31f942fd6"
+      "bytes": 132326,
+      "sha256": "b2ebb47298cf19f77c8fc996a79e254b78c485abcc62f60aedb030da857508f1"
     },
     "tool/three_example/stats_adapter.js": {
       "bytes": 2107,
@@ -590,8 +590,8 @@
       "sha256": "f91f205125aba93ca5c248415c96f68366a410e68a41b0aa601e8cb89de46e1a"
     },
     "widget.js": {
-      "bytes": 733008,
-      "sha256": "5ca5b4bfc1b700c9c5e9c08464c9d8464d1d451321485f125c5fd517aa1a66e0"
+      "bytes": 733167,
+      "sha256": "f0aba4b7fc324b379e71b91bb5a780b80574d08f7241e66c482db2e09303c1c3"
     }
   }
 }

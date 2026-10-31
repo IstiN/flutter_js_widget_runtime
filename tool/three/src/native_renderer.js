@@ -1,6 +1,6 @@
 import {
   ACESFilmicToneMapping, AgXToneMapping, BackSide, BoxGeometry, CineonToneMapping, Color, CubeReflectionMapping, CubeRefractionMapping,
-  CustomToneMapping, DoubleSide, EquirectangularReflectionMapping, FrontSide, Frustum, LinearFilter,
+  CustomToneMapping, DoubleSide, DynamicDrawUsage, EquirectangularReflectionMapping, FrontSide, Frustum, LinearFilter,
   LinearToneMapping, Matrix4, Mesh, MeshBasicMaterial, MeshLambertMaterial, MeshStandardMaterial,
   MirroredRepeatWrapping, NeutralToneMapping, NearestFilter, NearestMipmapNearestFilter,
   NearestMipmapLinearFilter, NoToneMapping, NormalBlending, CustomBlending, PointsMaterial, HalfFloatType, RedFormat,
@@ -87,6 +87,15 @@ function attributeContentHash(array) {
   return hash >>> 0;
 }
 
+// DynamicDrawUsage is an explicit upstream hint that a version bump normally
+// represents new pixels/vertices, not a helper rewriting identical content.
+// CPU morph/skinning sets the private flag for the same reason. Hashing those
+// arrays twice per frame (once to disprove reuse, once to rebuild the cache)
+// is pure QuickJS overhead and is especially costly for draw-range buffers.
+function volatileAttribute(attribute) {
+  return !!attribute && (attribute._r1DynamicContent === true || attribute.usage === DynamicDrawUsage);
+}
+
 function geometrySignature(geometry, primitive, mode) {
   const attributes = ATTR_NAMES.map(name => attributeSignature(geometry.attributes[name])).join('|');
   const index = geometry.index;
@@ -124,44 +133,45 @@ function normalizedAttributeScale(array) {
   return 0;
 }
 
-function attributeFloats(attribute, vertexCount, components, name) {
+function attributeFloats(attribute, vertexCount, components, name, vertexOffset = 0) {
   if (!attribute) return null;
   if (typeof attribute.getComponent !== 'function' || attribute.isGLBufferAttribute) unsupported('rawGLAttribute', name);
-  if (attribute.itemSize !== components || attribute.count !== vertexCount) throw new Error(`three.invalid: ${name} attribute must have ${components} components per vertex`);
+  if (attribute.itemSize !== components || attribute.count < vertexOffset + vertexCount) throw new Error(`three.invalid: ${name} attribute must have ${components} components per vertex`);
   const total = vertexCount * components;
   const values = new Float32Array(total);
   const array = attribute.array;
+  const componentOffset = vertexOffset * components;
   // Fast path: a plain (non-interleaved) typed array is read by direct
   // indexing. Calling attribute.getComponent per component costs ~13.5M
   // QuickJS calls on the 500k-triangle integer-buffergeometry example and
   // dominated its load time; integer arrays are always finite, so the
   // strict finite check is only needed for float input.
-  if (array && !attribute.isInterleavedBufferAttribute && array.length >= total) {
+  if (array && !attribute.isInterleavedBufferAttribute && array.length >= componentOffset + total) {
     if (attribute.normalized) {
       const scale = normalizedAttributeScale(array);
       if (scale) {
         const signed = array instanceof Int8Array || array instanceof Int16Array || array instanceof Int32Array;
         for (let i = 0; i < total; i++) {
-          const value = array[i] * scale;
+          const value = array[componentOffset + i] * scale;
           values[i] = signed ? Math.max(value, -1) : value;
         }
         return values;
       }
     } else if (array instanceof Float32Array || array instanceof Float64Array) {
       for (let i = 0; i < total; i++) {
-        const value = array[i];
+        const value = array[componentOffset + i];
         requireFinite(value, `${name} attribute`);
         values[i] = value;
       }
       return values;
     } else {
-      for (let i = 0; i < total; i++) values[i] = array[i];
+      for (let i = 0; i < total; i++) values[i] = array[componentOffset + i];
       return values;
     }
   }
   for (let i = 0; i < vertexCount; i++) {
     for (let c = 0; c < components; c++) {
-      const value = attribute.getComponent(i, c);
+      const value = attribute.getComponent(vertexOffset + i, c);
       requireFinite(value, `${name} attribute`);
       values[i * components + c] = value;
     }
@@ -300,7 +310,14 @@ function validateMaterial(material) {
   if (material.wireframe && !(material.isMeshBasicMaterial || material.isMeshLambertMaterial || material.isMeshPhongMaterial || material.isMeshNormalMaterial || (material.isMeshStandardMaterial) || material.isMeshToonMaterial || material.isMeshMatcapMaterial)) unsupported('wireframe', 'R1 wireframe requires a mesh material');
   if (material.wireframe && (material.wireframeLinewidth !== 1 || material.wireframeLinecap !== 'round' || material.wireframeLinejoin !== 'round')) unsupported('wireframeStyle', 'R1 supports one-pixel round wireframe lines');
   if (material.blending === CustomBlending) unsupported('materialBlending');
-  if (material.alphaHash || material.premultipliedAlpha || material.colorWrite === false || material.stencilWrite || material.polygonOffset) unsupported('materialState', 'alphaHash/premultipliedAlpha/colorWrite/stencil/polygonOffset');
+  if (material.alphaHash || material.premultipliedAlpha || material.colorWrite === false || material.stencilWrite) unsupported('materialState', 'alphaHash/premultipliedAlpha/colorWrite/stencil');
+  if (material.polygonOffset && !material._r1PolygonOffsetWarned) {
+    // DecalGeometry enables polygon offset after the click. R1 has no factor/
+    // units depth-state lane; keep drawing the decal with the base depth state
+    // instead of rejecting every subsequent animation frame.
+    material._r1PolygonOffsetWarned = true;
+    console.warn('three: R1 drops material.polygonOffset (depth bias stays disabled).');
+  }
   if (Object.prototype.hasOwnProperty.call(material, 'onBeforeCompile')) unsupported('onBeforeCompile', 'arbitrary shaders require 1B');
   // alphaMap, envMap (R1 v4), matcap and gradientMap (R1 v5) ride the
   // material texture slots; the rest of the upstream map family stays 1B.
@@ -392,6 +409,7 @@ export class JsrWebGLRenderer {
     this.localClippingEnabled = false;
     this.shadowMap = { enabled: false, autoUpdate: true, needsUpdate: false };
     this._manualShadowRevision = 0;
+    this._autoShadowRevision = 0;
     this._shadowCullingKey = null;
     this._cachedCulledShadowNodeIds = [];
     this.xr = { enabled: false };
@@ -944,7 +962,7 @@ export class JsrWebGLRenderer {
         const attribute = geometry.attributes[names[i]];
         const version = attributeVersionKey(attribute);
         if (version !== cache.versions[i]) {
-          if (attribute && attributeContentHash(attribute.array) === cache.hashes[i]) {
+          if (attribute && !volatileAttribute(attribute) && attributeContentHash(attribute.array) === cache.hashes[i]) {
             cache.versions[i] = version;
             refreshed = true;
           } else {
@@ -957,7 +975,7 @@ export class JsrWebGLRenderer {
         const index = geometry.index;
         const indexVersion = index ? index.version : -1;
         if (indexVersion !== cache.versions[4]) {
-          if (index && attributeContentHash(index.array) === cache.hashes[4]) {
+          if (index && !volatileAttribute(index) && attributeContentHash(index.array) === cache.hashes[4]) {
             cache.versions[4] = indexVersion;
             refreshed = true;
           } else {
@@ -973,16 +991,28 @@ export class JsrWebGLRenderer {
       const attribute = geometry.attributes[ATTR_NAMES[i]];
       if (attribute) {
         versions[i] = attributeVersionKey(attribute);
-        hashes[i] = attributeContentHash(attribute.array);
+        hashes[i] = volatileAttribute(attribute) ? 0 : attributeContentHash(attribute.array);
       }
     }
     if (geometry.index) {
       versions[4] = geometry.index.version;
-      hashes[4] = attributeContentHash(geometry.index.array);
+      hashes[4] = volatileAttribute(geometry.index) ? 0 : attributeContentHash(geometry.index.array);
     }
     const sig = `${geometrySignature(geometry, primitive, mode)};wire:${includeWire ? 1 : 0}`;
     store.set(geometry, { primitive, mode, wire: includeWire ? 1 : 0, rangeStart: range.start, rangeCount: range.count, versions, hashes, sig });
     return sig;
+  }
+
+  _uploadAttribute(upload, slot, attribute, vertexCount, components, name, vertexOffset) {
+    const entries = upload.attributes || (upload.attributes = []);
+    const old = entries[slot];
+    if (old && old.attribute === attribute && old.array === (attribute ? attribute.array : null) &&
+        old.version === attributeVersionKey(attribute) && old.vertexCount === vertexCount &&
+        old.components === components && old.vertexOffset === vertexOffset) return old.values;
+    const values = attributeFloats(attribute, vertexCount, components, name, vertexOffset);
+    entries[slot] = { attribute, array: attribute ? attribute.array : null,
+      version: attributeVersionKey(attribute), vertexCount, components, vertexOffset, values };
+    return values;
   }
 
   _ensureGeometry(geometry, primitive, mode, commands, wireframe = false) {    if (!geometry || !geometry.isBufferGeometry) unsupported('geometry', 'only BufferGeometry is supported');
@@ -991,11 +1021,23 @@ export class JsrWebGLRenderer {
 
     const position = geometry.attributes.position;
     if (!position) throw new Error('three.invalid: position attribute is required');
-    const vertexCount = position.count;
-    if (!Number.isInteger(vertexCount) || vertexCount <= 0 || vertexCount > 4000000) throw new Error('three.invalid: vertexCount');
+    const sourceVertexCount = position.count;
+    if (!Number.isInteger(sourceVertexCount) || sourceVertexCount <= 0 || sourceVertexCount > 4000000) throw new Error('three.invalid: vertexCount');
     const id = this._geometryResourceId(geometry, primitive, mode);
     const old = this._state.geometries.get(id);
     const includeWire = primitive === 0 && (wireframe || (old && old.hasWireIndices));
+    const range = sourceRange(geometry, sourceVertexCount);
+    // A non-indexed draw range is a contiguous vertex window. Upload only
+    // that window instead of the full capacity backing store (the official
+    // draw-range example allocates 250k line vertices but uses only a few
+    // hundred). Group offsets remain relative to the original range below.
+    const sliceRange = !geometry.index && !includeWire && mode !== 'line' && range.count > 0 &&
+      (range.start !== 0 || range.count !== sourceVertexCount);
+    const vertexOffset = sliceRange ? range.start : 0;
+    const vertexCount = sliceRange ? range.count : sourceVertexCount;
+    if (sliceRange && ((primitive === 0 && vertexCount % 3 !== 0) || (primitive === 1 && vertexCount % 2 !== 0))) {
+      throw new Error('three.invalid: primitive draw-range vertex count is not aligned');
+    }
     const frameCached = this._frameGeometries.get(id);
     if (frameCached && (!wireframe || frameCached.hasWireIndices)) return frameCached;
     this._listen(geometry, 'geometries', this._state.geometries, id);
@@ -1012,20 +1054,39 @@ export class JsrWebGLRenderer {
       this._frameGeometries.set(id, result);
       return result;
     }
+    const uploadStore = this._geometryUploadCache || (this._geometryUploadCache = new Map());
+    let upload = uploadStore.get(geometry);
+    if (!upload || upload.primitive !== primitive || upload.mode !== mode ||
+        upload.rangeStart !== range.start || upload.rangeCount !== range.count) {
+      upload = { primitive, mode, rangeStart: range.start, rangeCount: range.count };
+      uploadStore.set(geometry, upload);
+    }
+    const color = geometry.attributes.color;
     const attributes = {
-      position: attributeFloats(position, vertexCount, 3, 'position'),
-      normal: attributeFloats(geometry.attributes.normal, vertexCount, 3, 'normal'),
-      uv: attributeFloats(geometry.attributes.uv, vertexCount, 2, 'uv'),
-      color: geometry.attributes.color ? attributeFloats(geometry.attributes.color, vertexCount, geometry.attributes.color.itemSize, 'color') : null
+      position: this._uploadAttribute(upload, 0, position, vertexCount, 3, 'position', vertexOffset),
+      normal: this._uploadAttribute(upload, 1, geometry.attributes.normal, vertexCount, 3, 'normal', vertexOffset),
+      uv: this._uploadAttribute(upload, 2, geometry.attributes.uv, vertexCount, 2, 'uv', vertexOffset),
+      color: color ? this._uploadAttribute(upload, 3, color, vertexCount, color.itemSize, 'color', vertexOffset) : null
     };
-    if (geometry.attributes.color && geometry.attributes.color.itemSize !== 3 && geometry.attributes.color.itemSize !== 4) throw new Error('three.invalid: color attribute must have 3 or 4 components');
-    const indices = prepareIndices(geometry, primitive, mode, vertexCount);
-    const wireIndices = includeWire ? prepareWireIndices(geometry, vertexCount) : null;
+    if (color && color.itemSize !== 3 && color.itemSize !== 4) throw new Error('three.invalid: color attribute must have 3 or 4 components');
+    const index = geometry.index;
+    let indices = null;
+    if (!sliceRange) {
+      const reusable = upload.indices && upload.index === index &&
+        upload.indexArray === (index ? index.array : null) &&
+        upload.indexVersion === attributeVersionKey(index);
+      if (reusable) indices = upload.indices;
+      else {
+        indices = prepareIndices(geometry, primitive, mode, sourceVertexCount);
+        upload.index = index; upload.indexArray = index ? index.array : null;
+        upload.indexVersion = attributeVersionKey(index); upload.indices = indices;
+      }
+    }
+    const wireIndices = includeWire ? prepareWireIndices(geometry, sourceVertexCount) : null;
     const indexCount = indices ? indices.length : 0;
     if (indexCount > 12000000) throw new Error('three.invalid: indexCount');
     commands.push(geometryCommand(id, changed.version, primitive, vertexCount, attributes, indices, wireIndices));
     const drawCount = indices ? indexCount : vertexCount;
-    const range = sourceRange(geometry, vertexCount);
     const cached = {
       signature, version: changed.version, object: geometry, drawCount,
       indexed: !!indices, rangeStart: range.start, rangeCount: range.count, sourceCount: range.available,
@@ -1236,6 +1297,19 @@ export class JsrWebGLRenderer {
     }
     const base = geometry._r1MorphBase;
     const key = influences.join(',');
+    // Cloned meshes commonly share both geometry and an AnimationObjectGroup
+    // (601 horses / 25 distinct influence sets in shadowmap_performance).
+    // Only the first shared-geometry submission is uploaded per frame, so
+    // recomputing a previously seen influence set cannot affect the frame.
+    // Dedup those CPU blends while retaining the existing first-mesh R1
+    // shared-geometry semantics.
+    const frameMorphs = this._frameMorphKeys;
+    if (frameMorphs) {
+      let keys = frameMorphs.get(geometry);
+      if (!keys) { keys = new Set(); frameMorphs.set(geometry, keys); }
+      if (keys.has(key)) return;
+      keys.add(key);
+    }
 
     if (base.key === key) return;
     base.key = key;
@@ -1257,6 +1331,7 @@ export class JsrWebGLRenderer {
         }
         out[i] = value;
       }
+      attribute._r1DynamicContent = true;
       attribute.version++;
     };
     if (morphPositions && morphPositions.length) blend('position', morphPositions, base.position);
@@ -1281,6 +1356,30 @@ export class JsrWebGLRenderer {
       };
     }
     const base = geometry._r1SkinBase;
+    const boneCount = skeleton.bones.length;
+    const boneMatrices = skeleton.boneMatrices;
+    const skinIndex = geometry.attributes.skinIndex;
+    const skinWeight = geometry.attributes.skinWeight;
+    const morphKey = geometry._r1MorphBase ? geometry._r1MorphBase.key : '';
+    let cache = object._r1SkinCache;
+    if (!cache || cache.boneMatrices.length !== boneCount * 16) {
+      cache = { boneMatrices: new Float32Array(boneCount * 16), valid: false };
+      object._r1SkinCache = cache;
+    }
+    let unchanged = cache.valid && cache.geometry === geometry &&
+      cache.skinIndex === skinIndex && cache.skinIndexArray === skinIndex.array &&
+      cache.skinWeight === skinWeight && cache.skinWeightArray === skinWeight.array &&
+      cache.skinIndexVersion === skinIndex.version && cache.skinWeightVersion === skinWeight.version &&
+      cache.morphKey === morphKey && cachedMatrixEquals(cache.bindMatrix, object.bindMatrix) &&
+      cachedMatrixEquals(cache.bindMatrixInverse, object.bindMatrixInverse);
+    if (unchanged) {
+      for (let i = 0; i < boneMatrices.length; i++) {
+        if (cache.boneMatrices[i] !== boneMatrices[i]) { unchanged = false; break; }
+      }
+    }
+    // Paused mixers and duplicate render() calls still invoke skeleton.update,
+    // but identical bone/bind state must not re-skin and re-upload every vertex.
+    if (unchanged) return;
     const readAccessor = (attribute) => {
       const interleaved = !!attribute.isInterleavedBufferAttribute;
       let scale = 1;
@@ -1300,9 +1399,30 @@ export class JsrWebGLRenderer {
         scale
       };
     };
-    const si = readAccessor(geometry.attributes.skinIndex);
-    const sw = readAccessor(geometry.attributes.skinWeight);
-    const boneCount = skeleton.bones.length;
+    let skin = base.skin;
+    if (!skin || skin.index !== skinIndex || skin.weight !== skinWeight ||
+        skin.indexArray !== skinIndex.array || skin.weightArray !== skinWeight.array ||
+        skin.indexVersion !== skinIndex.version || skin.weightVersion !== skinWeight.version) {
+      const si = readAccessor(skinIndex);
+      const sw = readAccessor(skinWeight);
+      const indices = new Int32Array(position.count * 4);
+      const weights = new Float32Array(position.count * 4);
+      for (let v = 0, offset = 0; v < position.count; v++, offset += 4) {
+        const indexOffset = v * si.stride + si.offset;
+        const weightOffset = v * sw.stride + sw.offset;
+        for (let k = 0; k < 4; k++) {
+          indices[offset + k] = si.array[indexOffset + k] * 16;
+          weights[offset + k] = sw.array[weightOffset + k] * sw.scale;
+        }
+      }
+      skin = { index: skinIndex, weight: skinWeight,
+        indexArray: skinIndex.array, weightArray: skinWeight.array,
+        indexVersion: skinIndex.version, weightVersion: skinWeight.version,
+        indices, weights };
+      base.skin = skin;
+    }
+    const indices = skin.indices;
+    const weights = skin.weights;
     if (!this._r1SkinMatrices || this._r1SkinMatrices.length < boneCount * 16) {
       this._r1SkinMatrices = new Float32Array(boneCount * 16);
     }
@@ -1320,17 +1440,16 @@ export class JsrWebGLRenderer {
     const normal = geometry.attributes.normal;
     const baseNormal = base.normal;
     const outNormal = normal ? normal.array : null;
-    for (let v = 0; v < position.count; v++) {
-      const p3 = v * 3, w4 = v * 4;
+    for (let v = 0, p3 = 0, w4 = 0; v < position.count; v++, p3 += 3, w4 += 4) {
       const x = basePos[p3], y = basePos[p3 + 1], z = basePos[p3 + 2];
       const nx = baseNormal ? baseNormal[p3] : 0;
       const ny = baseNormal ? baseNormal[p3 + 1] : 0;
       const nz = baseNormal ? baseNormal[p3 + 2] : 0;
       let ox = 0, oy = 0, oz = 0, onx = 0, ony = 0, onz = 0;
       for (let k = 0; k < 4; k++) {
-        const w = sw.array[v * sw.stride + sw.offset + k] * sw.scale;
+        const w = weights[w4 + k];
         if (w === 0) continue;
-        const m = si.array[v * si.stride + si.offset + k] * 16;
+        const m = indices[w4 + k];
         ox += w * (B[m] * x + B[m + 4] * y + B[m + 8] * z + B[m + 12]);
         oy += w * (B[m + 1] * x + B[m + 5] * y + B[m + 9] * z + B[m + 13]);
         oz += w * (B[m + 2] * x + B[m + 6] * y + B[m + 10] * z + B[m + 14]);
@@ -1348,8 +1467,18 @@ export class JsrWebGLRenderer {
         outNormal[p3 + 2] = onz / length;
       }
     }
+    position._r1DynamicContent = true;
     position.version++;
-    if (normal) normal.version++;
+    if (normal) { normal._r1DynamicContent = true; normal.version++; }
+    cache.geometry = geometry;
+    cache.skinIndex = skinIndex; cache.skinIndexArray = skinIndex.array;
+    cache.skinWeight = skinWeight; cache.skinWeightArray = skinWeight.array;
+    cache.skinIndexVersion = skinIndex.version; cache.skinWeightVersion = skinWeight.version;
+    cache.morphKey = morphKey;
+    cache.bindMatrix = object.bindMatrix.elements.slice();
+    cache.bindMatrixInverse = object.bindMatrixInverse.elements.slice();
+    cache.boneMatrices.set(boneMatrices);
+    cache.valid = true;
   }
 
   _ensureNode(object, parentId, commands, drawVisible) {
@@ -1398,6 +1527,13 @@ export class JsrWebGLRenderer {
       objectKind = 4;
       draw = { primitive: 0, count: geometry.drawCount };
     } else if (object.isMesh || object.isLine || object.isLineSegments || object.isPoints) {
+      const sourceGeometry = object.geometry;
+      const sourcePosition = sourceGeometry && sourceGeometry.attributes.position;
+      if (sourcePosition && sourceRange(sourceGeometry, sourcePosition.count).count === 0) {
+        if (!batched) this._removeBatch(id, commands);
+        this._updateNode(object, id, parentId, 0, 0, visible, this._objectKind(object), commands, spriteCenter);
+        return { id, draw: null };
+      }
       this._applyMorphTargets(object);
       if (object.isSkinnedMesh) this._applySkining(object);
       if (object.isBatchedMesh || object.isSprite) unsupported('objectType', object.type);
@@ -1550,23 +1686,49 @@ export class JsrWebGLRenderer {
     return { mode: 1, color: fog.color, near: fog.near, far: fog.far, density: 0 };
   }
 
-  _shadow(scene, light) {
+  _shadow(scene, light, viewCamera) {
     if (!this.shadowMap.enabled) return NO_SHADOW;
     if (!light || !light.shadow || !light.shadow.camera || !light.shadow.mapSize) return NO_SHADOW;
     const shadow = light.shadow;
     const width = Math.floor(shadow.mapSize.x);
     const height = Math.floor(shadow.mapSize.y);
     if (light.isPointLight) return this._pointShadow(light, shadow, width, height);
+    if (light.isSunLight) {
+      // SunLight is not a DirectionalLight and has no target. Its addon
+      // shadow computes two CSM cascades; R1 has one map, so use the first
+      // (near) cascade rather than silently dropping the shadow altogether.
+      shadow.updateMatrices(light, viewCamera);
+      if (!light._r1SunShadowWarned) {
+        light._r1SunShadowWarned = true;
+        console.warn('three: R1 uses the first SunLight shadow cascade (second cascade dropped).');
+      }
+      const cascadeCamera = shadow.getCamera(0);
+      // getMatrix(0) targets a two-tile WebGPU atlas. Rebuild the same
+      // cascade transform without a viewport so it covers R1's one full map.
+      const matrix = shadow._r1SingleMatrix || (shadow._r1SingleMatrix = new Matrix4());
+      const frustum = shadow._r1SingleFrustum || (shadow._r1SingleFrustum = new Frustum());
+      shadow._updateMatrix(cascadeCamera, matrix, frustum);
+      return this._directionalShadowMetadata(shadow, width, height, matrix, cascadeCamera);
+    }
     light.target.updateMatrixWorld(true);
     shadow.camera.updateProjectionMatrix();
     shadow.updateMatrices(light);
     return this._directionalShadowMetadata(shadow, width, height);
   }
 
+  _shadowContentRevision(manual) {
+    if (manual) return this._manualShadowRevision;
+    if (this._shadowContentChanged) {
+      this._autoShadowRevision = (this._autoShadowRevision + 1) >>> 0;
+      if (this._autoShadowRevision === 0) this._autoShadowRevision = 1;
+    }
+    return this._autoShadowRevision;
+  }
+
   // Shared bias/normalBias/radius/manual-revision state for the projected
   // (directional + spot) shadow lane; camera stays set so the renderer can
   // frustum-cull shadow casters.
-  _directionalShadowMetadata(shadow, width, height) {
+  _directionalShadowMetadata(shadow, width, height, matrix = shadow.matrix, camera = shadow.camera) {
     const manual = this.shadowMap.autoUpdate === false;
     if (manual && this.shadowMap.needsUpdate === true) {
       this._manualShadowRevision = (this._manualShadowRevision + 1) >>> 0;
@@ -1576,14 +1738,14 @@ export class JsrWebGLRenderer {
     let refreshCulling = true;
     if (manual) {
       const key = this._manualShadowRevision + '|' + width + '|' + height + '|' +
-        shadow.bias + '|' + shadow.normalBias + '|' + shadow.matrix.elements.join(',');
+        shadow.bias + '|' + shadow.normalBias + '|' + matrix.elements.join(',');
       refreshCulling = key !== this._shadowCullingKey;
       this._shadowCullingKey = key;
     }
     return {
       width, height, bias: shadow.bias, normalBias: shadow.normalBias,
-      radius: shadow.radius, matrix: shadow.matrix, camera: shadow.camera,
-      contentRevision: manual ? this._manualShadowRevision : undefined,
+      radius: shadow.radius, matrix, camera,
+      contentRevision: this._shadowContentRevision(manual),
       refreshCulling
     };
   }
@@ -1622,7 +1784,7 @@ export class JsrWebGLRenderer {
     return {
       width, height, bias: shadow.bias, normalBias: shadow.normalBias,
       radius: shadow.radius, matrix: view, camera: null,
-      contentRevision: manual ? this._manualShadowRevision : undefined,
+      contentRevision: this._shadowContentRevision(manual),
       refreshCulling: false,
       pointShadow: { active: 1, x: _position.x, y: _position.y, z: _position.z, far }
     };
@@ -1686,6 +1848,7 @@ export class JsrWebGLRenderer {
     this._frameGeometries = new Map();
     this._frameMaterials = new Map();
     this._frameTextures = new Map();
+    this._frameMorphKeys = new Map();
     const commands = [];
     const pending = this._pendingDisposals.splice(0);
     for (const item of pending) {
@@ -1728,7 +1891,7 @@ export class JsrWebGLRenderer {
           if (lightEntry) lightEntry.sceneId = renderedSceneId;
         }
         if (!shadowLight && object.visible && object.castShadow &&
-            (object.isDirectionalLight || object.isSpotLight || object.isPointLight)) {
+            (object.isDirectionalLight || object.isSpotLight || object.isPointLight || object.isSunLight)) {
           shadowLight = object;
         }
         parents.set(object, parents.get(object.parent) || 0);
@@ -1786,7 +1949,15 @@ export class JsrWebGLRenderer {
     const cameraId = this._ensureCamera(camera, commands);
     const background = this._background(scene);
     const fog = this._fog(scene);
-    const shadow = this._shadow(scene, shadowLight);
+    // Camera-only renders sample the existing shadow map; scene resource or
+    // light changes advance one revision per submitted frame. This replaces
+    // the host's broad contentRevision fallback, which also changed for
+    // camera upserts and forced needless shadow redraws.
+    this._shadowContentChanged = false;
+    for (const item of commands) {
+      if (item.opcode !== OPCODE.CAMERA) { this._shadowContentChanged = true; break; }
+    }
+    const shadow = this._shadow(scene, shadowLight, camera);
     const culledShadowNodeIds = shadow.camera && shadow.refreshCulling === false
       ? this._cachedCulledShadowNodeIds : [];
     if (shadow.camera && shadow.refreshCulling !== false) {

@@ -129,12 +129,37 @@ class FlutterGpuThreeHost implements JsThreeHost {
         'three.canvas2d engine id does not match the bridge-bound engine',
       );
     }
+    if (parsed.decodeImage) return _decodeCanvas2dImage(parsed);
     final key = JsThreeSurfaceKey(parsed.engineId, parsed.surfaceId);
     if (parsed.dispose) return _disposeCanvas2dRequest(key, parsed);
     final surfaces = _canvas2d.putIfAbsent(key, () => {});
     final state = _canvas2dState(key, parsed, surfaces);
     _validateCanvas2dRequest(state, parsed);
     return _rasterizeCanvas2dRequest(key, state, parsed);
+  }
+
+  Future<JsThreeCanvas2DResult> _decodeCanvas2dImage(
+    JsThreeCanvas2DRequest parsed,
+  ) async {
+    if (_canvas2dInFlight >= maxCanvas2dInFlight) {
+      throw StateError('three.canvas2d: image decode quota exceeded');
+    }
+    _canvas2dInFlight++;
+    try {
+      final decoded = await decodeJsThreeCanvas2DImage(parsed.encodedImage!);
+      return JsThreeCanvas2DResult(
+        engineId: parsed.engineId,
+        surfaceId: parsed.surfaceId,
+        canvasId: parsed.canvasId,
+        generation: parsed.generation,
+        requestId: parsed.requestId,
+        width: decoded.width,
+        height: decoded.height,
+        data: decoded.data,
+      );
+    } finally {
+      _canvas2dInFlight--;
+    }
   }
 
   Future<JsThreeCanvas2DResult> _disposeCanvas2dRequest(
@@ -487,7 +512,11 @@ _ThreeRenderRequest? _nextThreeRenderRequest(FlutterGpuThreeSurface surface) {
 _ThreeRenderRequest? _createThreeRenderRequest(FlutterGpuThreeSurface surface) {
   final current = surface.state;
   if (current == null || current.pendingFrameCount == 0) return null;
-  return _threeRequestForFrames(surface, current, _drainThreePendingFrames(current));
+  return _threeRequestForFrames(
+    surface,
+    current,
+    _drainThreePendingFrames(current),
+  );
 }
 
 /// Drains every render() submitted during the same JS tick so they present

@@ -21,6 +21,7 @@ final class JsThreeCanvas2DRequest {
     required this.height,
     required this.commands,
     required this.dispose,
+    required this.encodedImage,
   });
 
   final String engineId;
@@ -32,6 +33,13 @@ final class JsThreeCanvas2DRequest {
   final int height;
   final List<JsThreeCanvas2DFillRect> commands;
   final bool dispose;
+
+  /// Encoded PNG/JPEG bytes for the bounded image-decode action. This rides
+  /// the existing authenticated canvas2d host lane so ImageLoader can expose
+  /// raw pixels without adding a second bridge capability.
+  final Uint8List? encodedImage;
+
+  bool get decodeImage => encodedImage != null;
 }
 
 final class JsThreeCanvas2DFillRect {
@@ -95,25 +103,45 @@ JsThreeCanvas2DRequest parseJsThreeCanvas2DRequest(
   Map<String, dynamic> source,
 ) {
   final action = source['action'] ?? 'rasterize';
-  if (action != 'rasterize' && action != 'dispose') {
+  if (action != 'rasterize' && action != 'dispose' && action != 'decodeImage') {
     throw const FormatException('three.canvas2d: unknown action');
   }
   final dispose = action == 'dispose';
-  final width = _integer(source, 'width', 0, jsThreeCanvas2DMaxDimension);
-  final height = _integer(source, 'height', 0, jsThreeCanvas2DMaxDimension);
-  if (!dispose && (width == 0 || height == 0)) {
+  final decode = action == 'decodeImage';
+  final width = decode
+      ? 0
+      : _integer(source, 'width', 0, jsThreeCanvas2DMaxDimension);
+  final height = decode
+      ? 0
+      : _integer(source, 'height', 0, jsThreeCanvas2DMaxDimension);
+  if (!dispose && !decode && (width == 0 || height == 0)) {
     throw const FormatException('three.canvas2d: dimensions must be nonzero');
   }
   if (width * height > jsThreeCanvas2DMaxPixels) {
     throw const FormatException('three.canvas2d: pixel quota exceeded');
   }
-  final rawCommands = source['commands'];
+  final rawCommands = decode ? const <dynamic>[] : source['commands'];
   if (rawCommands is! List || rawCommands.length > jsThreeCanvas2DMaxCommands) {
     throw const FormatException('three.canvas2d: invalid command list');
   }
-  final commands = dispose
+  final commands = dispose || decode
       ? const <JsThreeCanvas2DFillRect>[]
       : rawCommands.map(_parseCommand).toList(growable: false);
+  Uint8List? encodedImage;
+  if (decode) {
+    final encoded = source['data'];
+    if (encoded is! String || encoded.isEmpty || encoded.length > 89478488) {
+      throw const FormatException('three.canvas2d: invalid encoded image');
+    }
+    try {
+      encodedImage = base64Decode(encoded);
+    } on FormatException {
+      throw const FormatException('three.canvas2d: invalid encoded image');
+    }
+    if (encodedImage.lengthInBytes > 64 * 1024 * 1024) {
+      throw const FormatException('three.canvas2d: image byte quota exceeded');
+    }
+  }
   return JsThreeCanvas2DRequest(
     engineId: _identity(source, 'engineId'),
     surfaceId: _identity(source, 'surfaceId'),
@@ -124,6 +152,7 @@ JsThreeCanvas2DRequest parseJsThreeCanvas2DRequest(
     height: height,
     commands: commands,
     dispose: dispose,
+    encodedImage: encodedImage,
   );
 }
 
@@ -344,5 +373,39 @@ Future<Uint8List> rasterizeJsThreeCanvas2D(
     }
   } finally {
     picture.dispose();
+  }
+}
+
+Future<({int width, int height, Uint8List data})> decodeJsThreeCanvas2DImage(
+  Uint8List encoded,
+) async {
+  final codec = await ui.instantiateImageCodec(encoded);
+  ui.Image? image;
+  try {
+    final frame = await codec.getNextFrame();
+    image = frame.image;
+    final width = image.width;
+    final height = image.height;
+    if (width <= 0 ||
+        height <= 0 ||
+        width > 16384 ||
+        height > 16384 ||
+        width * height > jsThreeCanvas2DMaxPixels) {
+      throw StateError('three.canvas2d: decoded image dimensions exceed quota');
+    }
+    final bytes = await image.toByteData(format: ui.ImageByteFormat.rawRgba);
+    if (bytes == null || bytes.lengthInBytes != width * height * 4) {
+      throw StateError('three.canvas2d: Flutter returned invalid image RGBA');
+    }
+    return (
+      width: width,
+      height: height,
+      data: Uint8List.fromList(
+        bytes.buffer.asUint8List(bytes.offsetInBytes, bytes.lengthInBytes),
+      ),
+    );
+  } finally {
+    image?.dispose();
+    codec.dispose();
   }
 }

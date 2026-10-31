@@ -346,17 +346,27 @@ runtimeDocument.getElementById = function(id) {
   return localElementsById.get(id);
 };
 
-// The host normalizes mouse and touch movement to document pointer events.
-// Mirror them to body listeners and to legacy mousemove listeners locally.
-runtimeDocument.addEventListener('pointermove', event => {
-  const normalized = Object.assign({}, event, {
-    clientX: event.clientX === undefined ? event.pageX : event.clientX,
-    clientY: event.clientY === undefined ? event.pageY : event.clientY
+// The host dispatches pointer events to the canvas and document. Browser
+// events also bubble through the canvas' actual ancestors; official drag
+// examples commonly listen for pointerdown on a dynamically-created
+// container, then track move/up on the document. Reproduce that path for the
+// complete pointer gesture, not just movement, and retain the legacy
+// mousemove compatibility lane.
+for (const type of ['pointerdown', 'pointermove', 'pointerup', 'pointercancel']) {
+  runtimeDocument.addEventListener(type, event => {
+    const normalized = Object.assign({}, event, {
+      clientX: event.clientX === undefined ? event.pageX : event.clientX,
+      clientY: event.clientY === undefined ? event.pageY : event.clientY
+    });
+    for (let parent = canvas.parentNode; parent; parent = parent.parentNode) {
+      if (parent === runtimeDocument || typeof parent.dispatchEvent !== 'function') break;
+      parent.dispatchEvent(Object.assign({}, normalized));
+    }
+    if (type === 'pointermove') {
+      runtimeDocument.dispatchEvent(Object.assign({}, normalized, { type: 'mousemove' }));
+    }
   });
-  container.dispatchEvent(Object.assign({}, normalized));
-  body.dispatchEvent(Object.assign({}, normalized));
-  runtimeDocument.dispatchEvent(Object.assign({}, normalized, { type: 'mousemove' }));
-});
+}
 
 ROOT.document = runtimeDocument;
 ROOT.window = runtimeDocument.defaultView;

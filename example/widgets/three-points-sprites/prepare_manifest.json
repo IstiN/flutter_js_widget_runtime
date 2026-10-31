@@ -504,12 +504,12 @@
   },
   "inputs": {
     "assets/three/three.native.js": {
-      "bytes": 724399,
-      "sha256": "f5274a4cb428b18491b082eed0d416d90dc36ea7a84a129f752dec1b9ee5596b"
+      "bytes": 729395,
+      "sha256": "fac454c7680a7d75270a41f8dbd42076c94aad607ece3f37fcd12556954b57b4"
     },
     "assets/three/three.web.js": {
-      "bytes": 834390,
-      "sha256": "e4e059b5c360606fb4ed721f2d686821b0b840119a3939535160b279c5deea6b"
+      "bytes": 835134,
+      "sha256": "9fc36cb776a1a4a8c0ef3e2e7fdefa7943967d4e525014b339f9e7417edc625a"
     },
     "source/LICENSE": {
       "bytes": 1081,
@@ -520,24 +520,24 @@
       "sha256": "5e31e7fc4d3a1268550b948463eabe06c7a6c03c158ccb99c78616d2c9682518"
     },
     "source/examples/textures/sprites/snowflake1.png": {
-      "bytes": 490,
-      "sha256": "7b0c12c16b37b0d03e73009da109e97cdfdd1f40f047fd025c80954a8422d220"
+      "bytes": 4096,
+      "sha256": "ef81fcd802a5accf4746b229b25d80e9d12eae6f59c455acdb69ac878d73efca"
     },
     "source/examples/textures/sprites/snowflake2.png": {
-      "bytes": 701,
-      "sha256": "0396d0c5f997fc830cecd62d6e554611e7ee747906413d19cfc94e4e2900161e"
+      "bytes": 4096,
+      "sha256": "b3f009ff2825e35595397dc3c969a24de2cfda7f64089bcf3198e43d03f93cf7"
     },
     "source/examples/textures/sprites/snowflake3.png": {
-      "bytes": 738,
-      "sha256": "57d673741e314cbb727a9eebf545397a8fac6dc8156bf9489adcf3fa1a877065"
+      "bytes": 4096,
+      "sha256": "a420e566eacb53c28faa88138ec9636c8f023377e05c9f3346782addcb63c2ff"
     },
     "source/examples/textures/sprites/snowflake4.png": {
-      "bytes": 466,
-      "sha256": "4f0b530617e0dae36ff8ca955d0567327001df407875668a1b6822e99913dd8f"
+      "bytes": 4096,
+      "sha256": "eb4fc89186c75cd6943acd1973383cc8c904a8e5da45bf7e1c5b231f280f4881"
     },
     "source/examples/textures/sprites/snowflake5.png": {
-      "bytes": 565,
-      "sha256": "af708f228db2fce1dcc1c85bf80e83c077821ecf20db6fa8cd655a8929ad1ec6"
+      "bytes": 4096,
+      "sha256": "d42807cd7536fc4499146c5a27784aa666e0687d50d0b7a687b533535331a4ca"
     },
     "source/examples/webgl_points_sprites.html": {
       "bytes": 5767,
@@ -552,20 +552,20 @@
       "sha256": "5fb8a476137d36328693c1d75c0754075b673f0f18acdfeafe12c6b4426cf57f"
     },
     "tool/three_example/example_adapter.js": {
-      "bytes": 14048,
-      "sha256": "261e6a04cba2e8e727062af9a8a3cedba03980bd955a0a3437ef87dd795a5748"
+      "bytes": 14550,
+      "sha256": "bd270a4cc40d715daff1dfdea195ade30be968514d6774fbe4ea03b0baefbaf9"
     },
     "tool/three_example/example_canvas2d.js": {
-      "bytes": 12266,
-      "sha256": "ac6cb1bda5630c44d9a8475356a93e0559f8816cc8c54aafe0957206050bd201"
+      "bytes": 12314,
+      "sha256": "f44f052a653ea254ae30b04cbeda1ed2476dd455bcd1055970970980ec94c53f"
     },
     "tool/three_example/lil_gui_adapter.js": {
       "bytes": 28485,
       "sha256": "de03987c75754c821c3e511a5edc819a1054ed73d95d09b7d65ec3dd69e0fa40"
     },
     "tool/three_example/prepare.mjs": {
-      "bytes": 97048,
-      "sha256": "916f8f2e1bdfcd6ec98f14286260c3c3d5c687554751519ffcdfa4f31f942fd6"
+      "bytes": 136493,
+      "sha256": "d8fa7555a2613afcf8e4275dede9b94b13bd4679a98e6643cbb1cd135d5eb15f"
     },
     "tool/three_example/stats_adapter.js": {
       "bytes": 2107,
@@ -590,28 +590,28 @@
       "sha256": "5b3ebd2e90db97b173fbd86e831aa5dd533e53cd7e86f8cb0ea971597e28a5de"
     },
     "snowflake1.png": {
-      "bytes": 490,
-      "sha256": "7b0c12c16b37b0d03e73009da109e97cdfdd1f40f047fd025c80954a8422d220"
+      "bytes": 4096,
+      "sha256": "ef81fcd802a5accf4746b229b25d80e9d12eae6f59c455acdb69ac878d73efca"
     },
     "snowflake2.png": {
-      "bytes": 701,
-      "sha256": "0396d0c5f997fc830cecd62d6e554611e7ee747906413d19cfc94e4e2900161e"
+      "bytes": 4096,
+      "sha256": "b3f009ff2825e35595397dc3c969a24de2cfda7f64089bcf3198e43d03f93cf7"
     },
     "snowflake3.png": {
-      "bytes": 738,
-      "sha256": "57d673741e314cbb727a9eebf545397a8fac6dc8156bf9489adcf3fa1a877065"
+      "bytes": 4096,
+      "sha256": "a420e566eacb53c28faa88138ec9636c8f023377e05c9f3346782addcb63c2ff"
     },
     "snowflake4.png": {
-      "bytes": 466,
-      "sha256": "4f0b530617e0dae36ff8ca955d0567327001df407875668a1b6822e99913dd8f"
+      "bytes": 4096,
+      "sha256": "eb4fc89186c75cd6943acd1973383cc8c904a8e5da45bf7e1c5b231f280f4881"
     },
     "snowflake5.png": {
-      "bytes": 565,
-      "sha256": "af708f228db2fce1dcc1c85bf80e83c077821ecf20db6fa8cd655a8929ad1ec6"
+      "bytes": 4096,
+      "sha256": "d42807cd7536fc4499146c5a27784aa666e0687d50d0b7a687b533535331a4ca"
     },
     "widget.js": {
-      "bytes": 73574,
-      "sha256": "b951bf4a173f611fc266f27694103fda443d08dd4738a99d529f10958b699657"
+      "bytes": 97147,
+      "sha256": "d78ee50e3644a939531f85ee4177e1a22e3ebcaf3835866e0e798d3de28dffbd"
     }
   }
 }

@@ -200,33 +200,50 @@ List<ThreeDrawItem> _autoInstanceOpaqueDraws(
   List<ThreeDrawItem> draws,
   Set<int> culledShadowNodeIds,
 ) {
-  final result = <ThreeDrawItem>[];
-  var run = <ThreeDrawItem>[];
-  void flush() {
-    if (run.length == 1) {
-      result.add(run.single);
-    } else if (run.isNotEmpty) {
-      result.add(_autoInstanceDraw(run));
-    }
-    run = <ThreeDrawItem>[];
-  }
-
+  // Opaque order need not preserve material-id adjacency. Cloned materials
+  // (the 601 shadow-performance horses) have distinct ids and alternating
+  // frustum results, so adjacent-only runs fragmented into hundreds of draw
+  // calls. Group every compatible opaque run, placing it at its first draw's
+  // position; transparent ordering is deliberately untouched.
+  final entries = <Object>[];
+  final runs = <List<ThreeDrawItem>>[];
+  final runsByGeometry = <JsThreeGeometryUpsert, List<int>>{};
   for (final draw in draws) {
-    if (_eligibleAutoInstanceDraw(draw) &&
-        (run.isEmpty ||
-            _sameAutoInstanceState(run.first, draw, culledShadowNodeIds))) {
-      run.add(draw);
-    } else {
-      flush();
-      if (_eligibleAutoInstanceDraw(draw)) {
-        run.add(draw);
-      } else {
-        result.add(draw);
+    if (!_eligibleAutoInstanceDraw(draw)) {
+      entries.add(draw);
+      continue;
+    }
+    final candidates = runsByGeometry[draw.geometry] ??= <int>[];
+    var matchingRun = -1;
+    for (final index in candidates) {
+      if (_sameAutoInstanceState(
+        runs[index].first,
+        draw,
+        culledShadowNodeIds,
+      )) {
+        matchingRun = index;
+        break;
       }
     }
+    if (matchingRun >= 0) {
+      runs[matchingRun].add(draw);
+      continue;
+    }
+    final run = <ThreeDrawItem>[draw];
+    final index = runs.length;
+    runs.add(run);
+    candidates.add(index);
+    entries.add(run);
   }
-  flush();
-  return result;
+  return [
+    for (final entry in entries)
+      if (entry is ThreeDrawItem)
+        entry
+      else if ((entry as List<ThreeDrawItem>).length == 1)
+        entry.single
+      else
+        _autoInstanceDraw(entry),
+  ];
 }
 
 const _meshMaterialKinds = {
@@ -294,7 +311,10 @@ bool _sameAutoInstanceMaterialSurface(
 /// R1 v4 texture-slot tail: alpha/env ids, envMapIntensity and both
 /// per-map UV matrices must match for auto-instanced runs to merge.
 /// The v5 tail adds the matcap/gradient-map ids.
-bool _sameMaterialTextureSlots(JsThreeMaterialUpsert x, JsThreeMaterialUpsert y) {
+bool _sameMaterialTextureSlots(
+  JsThreeMaterialUpsert x,
+  JsThreeMaterialUpsert y,
+) {
   return x.alphaMapTextureId == y.alphaMapTextureId &&
       x.envMapTextureId == y.envMapTextureId &&
       x.envMapIntensity == y.envMapIntensity &&

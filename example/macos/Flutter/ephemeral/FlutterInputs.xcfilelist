@@ -2254,7 +2254,7 @@
 /Users/Uladzimir_Klyshevich/git/flutter_js_widget_runtime/assets/three/three.native.js
 /Users/Uladzimir_Klyshevich/git/flutter_js_widget_runtime/assets/three/three.web.js
 /Users/Uladzimir_Klyshevich/git/flutter_js_widget_runtime/assets/three/three_r1.shaderbundle
-/Users/Uladzimir_Klyshevich/git/flutter_js_widget_runtime/example/DOES_NOT_EXIST_RERUN_FOR_WILDCARD798389354
+/Users/Uladzimir_Klyshevich/git/flutter_js_widget_runtime/example/DOES_NOT_EXIST_RERUN_FOR_WILDCARD531870402
 /Users/Uladzimir_Klyshevich/git/flutter_js_widget_runtime/example/assets/models/DamagedHelmet.glb
 /Users/Uladzimir_Klyshevich/git/flutter_js_widget_runtime/example/assets/models/coach_anny.LICENSE.txt
 /Users/Uladzimir_Klyshevich/git/flutter_js_widget_runtime/example/assets/models/coach_anny.glb
@@ -2480,6 +2480,7 @@
 /Users/Uladzimir_Klyshevich/git/flutter_js_widget_runtime/example/widgets/three-geometries/official_module.js
 /Users/Uladzimir_Klyshevich/git/flutter_js_widget_runtime/example/widgets/three-geometries/original.html
 /Users/Uladzimir_Klyshevich/git/flutter_js_widget_runtime/example/widgets/three-geometries/prepare_manifest.json
+/Users/Uladzimir_Klyshevich/git/flutter_js_widget_runtime/example/widgets/three-geometries/uv_grid_opengl.jpg
 /Users/Uladzimir_Klyshevich/git/flutter_js_widget_runtime/example/widgets/three-geometries/widget.js
 /Users/Uladzimir_Klyshevich/git/flutter_js_widget_runtime/example/widgets/three-geometry-colors/THREE_LICENSE
 /Users/Uladzimir_Klyshevich/git/flutter_js_widget_runtime/example/widgets/three-geometry-colors/manifest.json
@@ -2758,6 +2759,7 @@
 /Users/Uladzimir_Klyshevich/git/flutter_js_widget_runtime/example/widgets/three-materials-cubemap-refraction/official_module.js
 /Users/Uladzimir_Klyshevich/git/flutter_js_widget_runtime/example/widgets/three-materials-cubemap-refraction/original.html
 /Users/Uladzimir_Klyshevich/git/flutter_js_widget_runtime/example/widgets/three-materials-cubemap-refraction/prepare_manifest.json
+/Users/Uladzimir_Klyshevich/git/flutter_js_widget_runtime/example/widgets/three-materials-cubemap-refraction/undefined
 /Users/Uladzimir_Klyshevich/git/flutter_js_widget_runtime/example/widgets/three-materials-cubemap-refraction/widget.js
 /Users/Uladzimir_Klyshevich/git/flutter_js_widget_runtime/example/widgets/three-materials-displacementmap/THREE_LICENSE
 /Users/Uladzimir_Klyshevich/git/flutter_js_widget_runtime/example/widgets/three-materials-displacementmap/ao.jpg
@@ -2788,6 +2790,8 @@
 /Users/Uladzimir_Klyshevich/git/flutter_js_widget_runtime/example/widgets/three-materials-normalmap-object-space/Nefertiti.glb
 /Users/Uladzimir_Klyshevich/git/flutter_js_widget_runtime/example/widgets/three-materials-normalmap-object-space/THREE_LICENSE
 /Users/Uladzimir_Klyshevich/git/flutter_js_widget_runtime/example/widgets/three-materials-normalmap-object-space/manifest.json
+/Users/Uladzimir_Klyshevich/git/flutter_js_widget_runtime/example/widgets/three-materials-normalmap-object-space/material0_basecolor.jpg
+/Users/Uladzimir_Klyshevich/git/flutter_js_widget_runtime/example/widgets/three-materials-normalmap-object-space/material0_normal.jpg
 /Users/Uladzimir_Klyshevich/git/flutter_js_widget_runtime/example/widgets/three-materials-normalmap-object-space/official_module.js
 /Users/Uladzimir_Klyshevich/git/flutter_js_widget_runtime/example/widgets/three-materials-normalmap-object-space/original.html
 /Users/Uladzimir_Klyshevich/git/flutter_js_widget_runtime/example/widgets/three-materials-normalmap-object-space/prepare_manifest.json
