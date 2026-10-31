@@ -27,10 +27,10 @@
       "tool/three/src/errors.js": "a816e842488f759d202f284ff64e1f237c6d4474cdfcdcf1cf707e4a5506c887",
       "tool/three/src/native_audio.js": "6c4cb5e303a6a76af503df646a99114a2c740cd49ea03f5035f1233258e860ba",
       "tool/three/src/native_canvas2d.js": "c8a7cda446ee4cc47c81fd87fa829cd94e67faa5c53de12e3be8cf7a95ba810c",
-      "tool/three/src/native_entry.js": "b76552a1f3a1bc19661bce639be8bedfb2678f2c09d580e50ad152b95ace7e3d",
-      "tool/three/src/native_loaders.js": "7d1c01f11d146a02d14e0093c5f27ed8635d5476edf6be08975888c6cdc3d92c",
+      "tool/three/src/native_entry.js": "9f473de98542699e8d8fe6a43923cf65e3baf44974dc9387e48ad4de9210e067",
+      "tool/three/src/native_loaders.js": "4982baa39b981878f8e96545791c97d8bacf6c52d16e55906fa1e0e1391073da",
       "tool/three/src/native_raycast_bvh.js": "9aada0445e0fb5d1cba38ea8e801588d8b496cce8531f57ab9c60e61d7049384",
-      "tool/three/src/native_renderer.js": "1a4c983a76e5f5411786592abc0a2958e783cbf58d3795565970b59a1d6e1fbf",
+      "tool/three/src/native_renderer.js": "a5fd064a41e917657420931cd0fd8744340b0ab762fc1116f43828adda51880e",
       "tool/three/src/native_three_shim.js": "3f29d9215d19ec495af2e3aab9ac785429a471e4867fe3fbd4784f38515ea096",
       "tool/three/src/r1.js": "a833767c30a7fa7c56f29af6557bde6acce87b45d49b8d3ab23a6702cb6a90e8",
       "tool/three/src/runtime.js": "ecd609a6c15b50aa7472b2269453ecb060279d035065ec9650db57e24a02e46d",
@@ -45,16 +45,16 @@
   },
   "outputs": {
     "jsr_three_native.js": {
-      "bytes": 796569,
-      "sha256": "ad3ac711116cb8bfe7dd4d938f698ca4423d8ccd695b1432de254612a93d8225"
+      "bytes": 802221,
+      "sha256": "5ceff19eb7edf2372554d7ee460222cc64edea253a4781bf6271a69d2a658a4c"
     },
     "jsr_three_web.js": {
       "bytes": 855325,
       "sha256": "973b78155b07710ece2f22e803cb25a8cb08da4f62b5f825dc676715f5859311"
     },
     "three.native.js": {
-      "bytes": 796569,
-      "sha256": "ad3ac711116cb8bfe7dd4d938f698ca4423d8ccd695b1432de254612a93d8225"
+      "bytes": 802221,
+      "sha256": "5ceff19eb7edf2372554d7ee460222cc64edea253a4781bf6271a69d2a658a4c"
     },
     "three.web.js": {
       "bytes": 855325,

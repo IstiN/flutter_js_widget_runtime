@@ -6,6 +6,7 @@ import { createRequire } from 'node:module';
 import { fileURLToPath } from 'node:url';
 import { helperFastPathPlugin } from './helper_fast_path_plugin.mjs';
 import { assetDependencyAlias, assetOutputName, discoverAssets } from './asset_discovery.mjs';
+import { decodeColladaAsset, decodeDracoAsset, decodeGlbAsset, decodeKtx2Asset, decodeVrmlAsset } from './asset_decode.mjs';
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.resolve(HERE, '../..');
@@ -3179,6 +3180,9 @@ webgl_geometry_shapes: {
       html: '37fde3f49f1f8efe06fcd045cb8ec18803ad19a4f6db4747fcca7b3f1029d677',
       module: '3dc1a5727a379a841284abc0a8eeff7817a036ada3b6b315396e2c960982e1de'
     },
+    addonShims: {
+      'three/addons/loaders/3DMLoader.js': rhino3dmLoaderShim()
+    },
     discoverAssets: true,
     assets: []
   },
@@ -3279,8 +3283,16 @@ webgl_geometry_shapes: {
       html: '4039717283dcf1e15d6dd38f407f2c651d583c23d0e021b19b8fa06667092a26',
       module: '47825636c4797a252f79e958861d851936314325b99a11bc1034869b7fe32812'
     },
+    addonShims: {
+      'three/addons/loaders/ColladaLoader.js': preparedColladaLoaderShim()
+    },
     discoverAssets: true,
-    assets: []
+    assets: [{
+      url: 'models/collada/abb_irb52_7_120.dae',
+      output: 'models__collada__abb_irb52_7_120.dae',
+      mime: 'application/xml', prepareCollada: true,
+      sha256: 'd016d827423984a2b8f3d0052074304d4ae3f0b0e69663c3c7d9a9523b6317d6'
+    }]
   },
   webgl_loader_collada_skinning: {
     id: 'three-loader-collada-skinning',
@@ -3885,8 +3897,16 @@ webgl_geometry_shapes: {
       html: 'c4a15cd7ecfee7ef26ffa057cc73151ec2458a95c2e6b342fd8e5f5cbcec4622',
       module: 'd3497f62f015a8dabf80bb6e779f150eda71144e88ce9ea606c671bf5896b915'
     },
+    addonShims: {
+      'three/addons/loaders/KTX2Loader.js': remoteHdrKtx2LoaderShim()
+    },
     discoverAssets: true,
-    assets: []
+    assets: [{
+      url: 'textures/equirectangular/blouberg_sunrise_2_1k.hdr',
+      output: 'blouberg_sunrise_2_1k.hdr.rgba',
+      mime: 'image/vnd.radiance', hdrRgba: true,
+      sha256: '1cb809a131ff3cb7df94b639d5967fc6fc08ecd25b6c43930af3b5d99f1d8855'
+    }]
   },
   webgl_materials_envmaps_groundprojected: {
     id: 'three-materials-envmaps-groundprojected',
@@ -4481,6 +4501,9 @@ webgl_geometry_shapes: {
       html: 'c358f3cc7c563e469dc11be2d7dbb0579f100e5d2ff860b439ac8e8c524c8349',
       module: '2c2eeadc5d5e10c9cae9df9db7048f740addfaf21ff6685167ccc24861ee0a39'
     },
+    addonShims: {
+      'three/addons/postprocessing/SSRPass.js': ssrPassThroughShim()
+    },
     discoverAssets: true,
     assets: []
   },
@@ -4714,6 +4737,7 @@ webgl_geometry_shapes: {
       html: '33f541b5d3187752ed863fbefc746ef5c15fb9ab3daba33b6c8bce3f8eff5f7d',
       module: 'ec13c2c8448fa7ecd702665424f42ffa7a68e9afe9d97d4b3f05f5dea7a0ee7e'
     },
+    discoverAssets: true,
     assets: []
   },
   webgl_shadowmap_viewer: {
@@ -5290,6 +5314,9 @@ function localOnlyPlugin({ source, facadeSource = null, officialBytes = null, fi
         return { path: path.join(HERE, 'lil_gui_adapter.js') };
       });
       build.onResolve({ filter: /^three\/addons\// }, args => {
+        if (final && args.path === 'three/addons/loaders/VRMLLoader.js' && shimNames.includes(args.path)) {
+          return { path: path.join(HERE, 'vrml_loader_adapter.js') };
+        }
         if (final && shimNames.includes(args.path)) {
           return { path: args.path, namespace: 'jsr-addon-shim' };
         }
@@ -5506,18 +5533,18 @@ async function externalizeGlbImages(bytes, definition) {
     }
     let embedded = binary.subarray(start, start + view.byteLength);
     let mime = image.mimeType;
-    if (mime === 'image/webp') {
+    if (mime === 'image/webp' || mime === 'image/avif') {
       const stamp = `${process.pid}-${index}`;
-      const tmpIn = path.join(process.env.TMPDIR || '/tmp', `jsr-glb-${stamp}.webp`);
+      const inputExtension = mime === 'image/webp' ? 'webp' : 'avif';
+      const tmpIn = path.join(process.env.TMPDIR || '/tmp', `jsr-glb-${stamp}.${inputExtension}`);
       const tmpPng = path.join(process.env.TMPDIR || '/tmp', `jsr-glb-${stamp}.png`);
       await writeFile(tmpIn, embedded);
       execFileSync('sips', ['-s', 'format', 'png', tmpIn, '--out', tmpPng], { stdio: 'pipe' });
       embedded = await readFile(tmpPng);
       mime = 'image/png';
     }
-    // Compressed embedded images stay in their original bufferViews. They are
-    // loader-specific payloads, not browser Image sources, and are re-triaged
-    // by the native compressed-texture path after the model bytes are pinned.
+    // Basis images have already become PNG bufferViews in decodeGlbAsset.
+    // Any remaining non-browser payload is left embedded and fails loudly.
     if (mime !== 'image/png' && mime !== 'image/jpeg') continue;
     const extension = mime === 'image/png' ? 'png' : 'jpg';
     const name = path.basename(image.name || `embedded-${index}.${extension}`);
@@ -5538,6 +5565,20 @@ async function externalizeGlbImages(bytes, definition) {
     delete image.bufferView;
     image.mimeType = mime;
     image.uri = name;
+  }
+  for (const texture of json.textures || []) {
+    for (const extensionName of ['EXT_texture_webp', 'EXT_texture_avif']) {
+      const extension = texture.extensions && texture.extensions[extensionName];
+      if (!extension) continue;
+      texture.source = extension.source;
+      delete texture.extensions[extensionName];
+      if (Object.keys(texture.extensions).length === 0) delete texture.extensions;
+    }
+  }
+  for (const key of ['extensionsUsed', 'extensionsRequired']) {
+    if (!json[key]) continue;
+    json[key] = json[key].filter(name => name !== 'EXT_texture_webp' && name !== 'EXT_texture_avif');
+    if (json[key].length === 0) delete json[key];
   }
   if (images.length === 0) {
     if (definition.discovered) return { bytes, images };
@@ -5620,8 +5661,217 @@ export class ${name} extends TextureLoader {
 }`;
 }
 
+function ssrPassThroughShim() {
+  return `import { Pass } from 'three/addons/postprocessing/Pass.js';
+export class SSRPass extends Pass {
+  constructor({ renderer, scene, camera, width = 512, height = 512, selects = null, bouncing = false, groundReflector = null }) {
+    super();
+    this.renderer = renderer; this.scene = scene; this.camera = camera;
+    this.width = width; this.height = height; this.selects = selects;
+    this.bouncing = bouncing; this.groundReflector = groundReflector;
+    this.resolutionScale = 1; this.thickness = 0.018; this.infiniteThick = false;
+    this.fresnel = true; this.distanceAttenuation = true; this.maxDistance = 0.1;
+    this.opacity = 1; this.blur = true; this.output = SSRPass.OUTPUT.Default;
+    this.needsSwap = false;
+    console.warn('three: R1 omits SSR and reflector shader passes; rendering the real beauty scene through the bounded pass-through.');
+  }
+  setSize(width, height) { this.width = width; this.height = height; }
+  dispose() {}
+  render(renderer, _writeBuffer, readBuffer) {
+    if (this.groundReflector) this.groundReflector.visible = false;
+    renderer.setRenderTarget(this.renderToScreen ? null : readBuffer);
+    renderer.render(this.scene, this.camera);
+  }
+}
+SSRPass.OUTPUT = { Default: 0, SSR: 1, Beauty: 3, Depth: 4, Normal: 5, Metalness: 7 };
+`;
+}
+
+function remoteHdrKtx2LoaderShim() {
+  return `import { EquirectangularReflectionMapping, TextureLoader } from 'three';
+export class KTX2Loader extends TextureLoader {
+  detectSupport() { return this; }
+  load(_url, onLoad, onProgress, onError) {
+    if (!this._warned) {
+      this._warned = true;
+      console.warn('three: remote needle.tools PMREM KTX2 is unavailable offline; using the pinned blouberg_sunrise HDR with a warned equirectangular/8-bit degrade.');
+    }
+    return super.load('textures/equirectangular/blouberg_sunrise_2_1k.hdr', texture => {
+      if (onLoad) onLoad(texture);
+      // The official callback selects CubeUV. Reset after that callback so the
+      // native bounded environment sampler sees its supported equirect map.
+      Promise.resolve().then(() => {
+        texture.mapping = EquirectangularReflectionMapping;
+        texture.needsUpdate = true;
+      });
+    }, onProgress, onError);
+  }
+}`;
+}
+
+function preparedColladaLoaderShim() {
+  return `import { FileLoader, GLTFLoader, Loader } from 'three';
+export class ColladaLoader extends Loader {
+  load(url, onLoad, onProgress, onError) {
+    const loader = new FileLoader(this.manager);
+    loader.setPath(this.path).setRequestHeader(this.requestHeader).setResponseType('arraybuffer');
+    loader.load(url, buffer => {
+      new GLTFLoader(this.manager).parse(buffer, '', gltf => {
+        const warning = 'collada-kinematics uses a prepare-exported static robot; runtime joint tweening is omitted to bound the QuickJS boot path';
+        console.warn('three: ' + warning);
+        gltf.scene.userData.warnings = [warning];
+        onLoad({
+          scene: gltf.scene,
+          animations: [],
+          kinematics: {
+            joints: {},
+            getJointValue() { return undefined; },
+            setJointValue() { /* explicit static-kinematics degrade */ }
+          }
+        });
+      }, onError);
+    }, onProgress, onError);
+  }
+}`;
+}
+
+function rhino3dmLoaderShim() {
+  return `import { BoxGeometry, FileLoader, Group, Loader, Mesh, MeshStandardMaterial } from 'three';
+export class Rhino3dmLoader extends Loader {
+  setLibraryPath() { return this; }
+  setWorkerLimit() { return this; }
+  setSubdivisionLevel() { return this; }
+  load(url, onLoad, onProgress, onError) {
+    const loader = new FileLoader(this.manager);
+    loader.setPath(this.path).setRequestHeader(this.requestHeader).setResponseType('arraybuffer');
+    loader.load(url, () => {
+      console.warn('three: rhino3dm 8.32.1 is absent from the pinned r186 tree; Rhino_Logo.3dm is represented by an explicit bounded placeholder, not parsed geometry.');
+      const group = new Group();
+      group.name = 'Rhino 3DM decoder-unavailable placeholder';
+      const material = new MeshStandardMaterial({ color: 0x4b9b75, roughness: 0.55 });
+      const sizes = [[18, 4, 5], [5, 12, 5], [12, 3, 5]];
+      const positions = [[0, 0, 2.5], [-6, 7, 2.5], [3, 12, 2.5]];
+      for (let index = 0; index < sizes.length; index++) {
+        const mesh = new Mesh(new BoxGeometry(...sizes[index]), material);
+        mesh.position.set(...positions[index]);
+        group.add(mesh);
+      }
+      group.userData.layers = [];
+      group.userData.warnings = ['rhino3dm decoder unavailable; bounded placeholder'];
+      onLoad(group);
+    }, onProgress, onError);
+  }
+}`;
+}
+
+function dracoLoaderShim() {
+  return `import { BufferAttribute, BufferGeometry, FileLoader, Loader } from 'three';
+export const DRACO_GLTF_CONFIG = { js: '', wasm: '' };
+function parsePrepared(buffer) {
+  const bytes = new Uint8Array(buffer);
+  if (bytes.length < 12 || String.fromCharCode(...bytes.subarray(0, 8)) !== 'JSRDRC1\\0') {
+    throw new Error('three.prepare: expected JSRDRC1 geometry bytes');
+  }
+  const headerLength = new DataView(buffer).getUint32(8, true);
+  if (headerLength > 65536 || 12 + headerLength > bytes.length) throw new Error('three.prepare: invalid JSRDRC1 header');
+  const header = JSON.parse(new TextDecoder().decode(bytes.subarray(12, 12 + headerLength)));
+  const start = 12 + ((headerLength + 3) & ~3);
+  const types = { Float32Array, Uint32Array, Uint16Array, Uint8Array, Int32Array, Int16Array, Int8Array };
+  const geometry = new BufferGeometry();
+  const read = descriptor => {
+    const Type = types[descriptor.type];
+    const offset = start + descriptor.offset;
+    if (!Type || descriptor.byteLength % Type.BYTES_PER_ELEMENT || offset + descriptor.byteLength > bytes.length) {
+      throw new Error('three.prepare: invalid JSRDRC1 array descriptor');
+    }
+    return new Type(buffer, offset, descriptor.byteLength / Type.BYTES_PER_ELEMENT);
+  };
+  for (const [name, descriptor] of Object.entries(header.attributes)) {
+    geometry.setAttribute(name, new BufferAttribute(read(descriptor), descriptor.itemSize));
+  }
+  if (header.index) geometry.setIndex(new BufferAttribute(read(header.index), 1));
+  return geometry;
+}
+export class DRACOLoader extends Loader {
+  setDecoderPath() { return this; }
+  setDecoderConfig() { return this; }
+  setWorkerLimit() { return this; }
+  preload() { return this; }
+  dispose() { return this; }
+  decodeDracoFile() { throw new Error('three.prepare: residual Draco geometry reached the runtime'); }
+  load(url, onLoad, onProgress, onError) {
+    const loader = new FileLoader(this.manager);
+    loader.setPath(this.path).setRequestHeader(this.requestHeader).setResponseType('arraybuffer');
+    loader.load(url, buffer => {
+      try { onLoad(parsePrepared(buffer)); }
+      catch (error) { if (onError) onError(error); else console.error(error); }
+    }, onProgress, onError);
+  }
+  parse(data, onLoad) { onLoad(parsePrepared(data)); }
+}`;
+}
+
+function ktx2LoaderShim() {
+  return `import { DataArrayTexture, DataTexture, FileLoader, LinearFilter, LinearSRGBColorSpace, Loader, RGBAFormat, SRGBColorSpace, UnsignedByteType } from 'three';
+export class KTX2Loader extends Loader {
+  detectSupport() { return this; }
+  setTranscoderPath() { return this; }
+  setWorkerLimit() { return this; }
+  init() { return Promise.resolve(this); }
+  dispose() { return this; }
+  load(url, onLoad, onProgress, onError) {
+    const loader = new FileLoader(this.manager);
+    loader.setPath(this.path).setRequestHeader(this.requestHeader).setResponseType('arraybuffer');
+    loader.load(url, buffer => {
+      try {
+        const bytes = new Uint8Array(buffer);
+        const magic = 'JSRKTEX2\\0';
+        if (bytes.length < 13 || String.fromCharCode(...bytes.subarray(0, 9)) !== magic) {
+          throw new Error(url + ': expected prepare-decoded JSRKTEX2 bytes');
+        }
+        const view = new DataView(buffer);
+        const headerLength = view.getUint32(9, true);
+        if (headerLength > 4096 || 13 + headerLength > bytes.length) throw new Error(url + ': invalid JSRKTEX2 header');
+        const header = JSON.parse(new TextDecoder().decode(bytes.subarray(13, 13 + headerLength)));
+        if (header.error) throw new Error(header.error);
+        const data = bytes.subarray(13 + headerLength);
+        const expected = header.width * header.height * header.depth * 4;
+        if (!header.width || !header.height || !header.depth || data.length !== expected) {
+          throw new Error(url + ': invalid prepare-decoded RGBA dimensions');
+        }
+        const texture = header.depth > 1
+          ? new DataArrayTexture(data, header.width, header.height, header.depth)
+          : new DataTexture(data, header.width, header.height);
+        texture.format = RGBAFormat;
+        texture.type = UnsignedByteType;
+        texture.colorSpace = header.colorSpace === 'srgb' ? SRGBColorSpace : LinearSRGBColorSpace;
+        texture.minFilter = LinearFilter;
+        texture.magFilter = LinearFilter;
+        texture.generateMipmaps = false;
+        if (header.depth > 1) texture.mipmaps = [{ data, width: header.width, height: header.height, depth: header.depth }];
+        texture.needsUpdate = true;
+        onLoad(texture);
+      } catch (error) { if (onError) onError(error); else console.error(error); }
+    }, onProgress, onError);
+  }
+}`;
+}
+
+function vrmlLoaderShim() {
+  return "export { VRMLoader } from './vrml_loader_adapter.js';";
+}
+
 function automaticAssetAddonShims(definitions) {
   const shims = {};
+  if (definitions.some(definition => definition.prepareDraco || definition.predecodeGlb)) {
+    shims['three/addons/loaders/DRACOLoader.js'] = dracoLoaderShim();
+  }
+  if (definitions.some(definition => definition.prepareKtx2 || definition.predecodeGlb)) {
+    shims['three/addons/loaders/KTX2Loader.js'] = ktx2LoaderShim();
+  }
+  if (definitions.some(definition => definition.prepareVrml)) {
+    shims['three/addons/loaders/VRMLLoader.js'] = vrmlLoaderShim();
+  }
   if (definitions.some(definition => definition.hdrRgba)) {
     shims['three/addons/loaders/HDRLoader.js'] = hdrTextureLoaderShim('HDRLoader');
     shims['three/addons/loaders/RGBELoader.js'] = hdrTextureLoaderShim('RGBELoader');
@@ -5642,6 +5892,30 @@ async function prepareAssets(source, definitions) {
     let bytes = await readFile(path.join(source, 'examples', definition.url));
     if (sha(bytes) !== definition.sha256) throw new Error(`${definition.url} differs from the pinned r186 bytes`);
     definition = { ...definition, sourceRecord: record(bytes) };
+    if (definition.prepareCollada) {
+      bytes = await decodeColladaAsset(source, bytes, definition.url);
+      assets.push({ ...definition, bytes, mime: 'model/gltf-binary' });
+      continue;
+    }
+    if (definition.prepareDraco) {
+      bytes = await decodeDracoAsset(source, bytes, definition.url);
+      assets.push({ ...definition, bytes, mime: 'application/x-jsr-draco-geometry' });
+      continue;
+    }
+    if (definition.prepareKtx2) {
+      bytes = await decodeKtx2Asset(source, bytes, definition.url);
+      assets.push({ ...definition, bytes, mime: 'application/x-jsr-ktx2-rgba' });
+      continue;
+    }
+    if (definition.prepareVrml) {
+      bytes = await decodeVrmlAsset(source, bytes, definition.url);
+      assets.push({ ...definition, bytes, mime: 'application/json' });
+      continue;
+    }
+    if (definition.predecodeGlb) {
+      if (definition.mime !== 'model/gltf-binary') throw new Error(`${definition.url}: predecodeGlb expects a GLB`);
+      bytes = await decodeGlbAsset(source, bytes, definition.url);
+    }
     if (definition.convertToPng) {
       if (definition.mime !== 'image/gif') throw new Error(`${definition.url}: convertToPng expects a GIF asset`);
       // R1 decodes PNG/JPEG only: transcode the pinned GIF at prepare time
@@ -5838,7 +6112,7 @@ async function main() {
     const label = `source/examples/${asset.url}`;
     if (!inputs[label]) inputs[label] = asset.sourceRecord || record(asset.bytes);
   }
-  for (const file of ['prepare.mjs', 'asset_discovery.mjs', 'example_adapter.js', 'example_canvas2d.js', 'lil_gui_adapter.js', 'stats_adapter.js']) {
+  for (const file of ['prepare.mjs', 'asset_discovery.mjs', 'asset_decode.mjs', 'example_adapter.js', 'example_canvas2d.js', 'lil_gui_adapter.js', 'stats_adapter.js']) {
     await addInput(`tool/three_example/${file}`, await readFile(path.join(HERE, file)));
   }
   for (const file of ['source-pin.json', 'src/native_entry.js']) {

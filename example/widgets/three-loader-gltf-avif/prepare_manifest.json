@@ -51,6 +51,7 @@
       "diagnostic": "auto:models/gltf/AVIFTest/forest_house.glb",
       "sha256": "d7e567c978c1b266744e20f8418f29e90591e38a2bd6fdb5220c3b9eed91a137",
       "discovered": true,
+      "predecodeGlb": true,
       "externalizeImages": true
     }
   ],
@@ -516,8 +517,8 @@
   },
   "inputs": {
     "assets/three/three.native.js": {
-      "bytes": 794350,
-      "sha256": "b0a22173ef8aedbe8821fb1c720b05acd177bb46820b37c2a1d2ca4ea7ea576d"
+      "bytes": 802480,
+      "sha256": "0fdb775c08273838d0099f54c2eb1fa56829de53795fd7324eccea68702beff5"
     },
     "assets/three/three.web.js": {
       "bytes": 855325,
@@ -531,10 +532,6 @@
       "bytes": 40755,
       "sha256": "3d79d07ecb686b4e5d93232eedab255331c1beef711e13164eaa1f68655a5f2b"
     },
-    "source/examples/jsm/loaders/DRACOLoader.js": {
-      "bytes": 19030,
-      "sha256": "fdafdf4aa11bbc65d89adb338efd844bedf94073702f9049240ff1f1ea48ad5f"
-    },
     "source/examples/jsm/loaders/GLTFLoader.js": {
       "bytes": 117570,
       "sha256": "131c0f78c01d19368ae495caa65b3adaa10487810a36a05bb5901b769a35ac16"
@@ -546,6 +543,54 @@
     "source/examples/jsm/utils/SkeletonUtils.js": {
       "bytes": 11535,
       "sha256": "b1632a703206c3d830de9fcbe515696770d04b71a15ee6b50afa6d2c3298c86f"
+    },
+    "source/examples/models/gltf/AVIFTest/Image_0": {
+      "bytes": 282399,
+      "sha256": "5198c3ef7ccd187a9e4b5db33b482a8175daac42b3574ba6bc22184bf6548c4b"
+    },
+    "source/examples/models/gltf/AVIFTest/Image_1": {
+      "bytes": 446374,
+      "sha256": "5021a8e3adfaf26dc454633e61f94773150890772904a6d344b59f7bf2dce6a5"
+    },
+    "source/examples/models/gltf/AVIFTest/Image_10": {
+      "bytes": 280043,
+      "sha256": "d2e025ff49c2397b4c50ef8e7f27e7bf5f57fa8172d9a8fa1fb37c0455f3ead0"
+    },
+    "source/examples/models/gltf/AVIFTest/Image_11": {
+      "bytes": 556282,
+      "sha256": "34017903f65884c7f4f850f6927a5fe33ba9abe707b065c6f79d57e150d63885"
+    },
+    "source/examples/models/gltf/AVIFTest/Image_2": {
+      "bytes": 411535,
+      "sha256": "1b7d51ea50290c27b77ae62faaaea2ecdee1a61b694e42da4bc91b3b3949ab34"
+    },
+    "source/examples/models/gltf/AVIFTest/Image_3": {
+      "bytes": 546760,
+      "sha256": "aa9d1df3cbca44a8060855195c04870d20ef086c3567f30b81ec60fdd89b34c6"
+    },
+    "source/examples/models/gltf/AVIFTest/Image_4": {
+      "bytes": 237200,
+      "sha256": "a6b5fbf1179000d9573c9d1b13993e335dbf984999c65d09d11b6e6ddf0a0f87"
+    },
+    "source/examples/models/gltf/AVIFTest/Image_5": {
+      "bytes": 387470,
+      "sha256": "3f92fcff9b73d3d9b7964943f1b91996e1d644ee41194a7a55186bae629ee049"
+    },
+    "source/examples/models/gltf/AVIFTest/Image_6": {
+      "bytes": 558566,
+      "sha256": "55254476db3d32716525ce2f3d34a4fd06c76bb62a42094a78af05e1b7b49651"
+    },
+    "source/examples/models/gltf/AVIFTest/Image_7": {
+      "bytes": 492690,
+      "sha256": "b606b9ef9e142ccd0eedad46c02cfa090df9d007a1e0ea3a151c4072236da60a"
+    },
+    "source/examples/models/gltf/AVIFTest/Image_8": {
+      "bytes": 491316,
+      "sha256": "48b9736e5834311bde783b67e099d5547c228e1886ae72228d9250dbee3f927a"
+    },
+    "source/examples/models/gltf/AVIFTest/Image_9": {
+      "bytes": 347631,
+      "sha256": "e5c9687eb67af29a194302585b0688837b4efddc7db7c18370d72ef28ee640c3"
     },
     "source/examples/models/gltf/AVIFTest/forest_house.glb": {
       "bytes": 303984,
@@ -560,32 +605,40 @@
       "sha256": "29492424209a17a723b3b0c8e9c83995697a4c466840d1b33ba6f6ff2b7542a4"
     },
     "tool/three/src/native_entry.js": {
-      "bytes": 1951,
-      "sha256": "7852c54a706c19e98978c884aa9cd9bfd8d040a2d304c8e6d8cf973dd3554eaf"
+      "bytes": 6604,
+      "sha256": "b353f638cf45a43da99f2a88f4685c5bd0d25c8fbf65e9496844a76d412f861e"
+    },
+    "tool/three_example/asset_decode.mjs": {
+      "bytes": 26590,
+      "sha256": "3ff4cdc95457c7e604a91fd0c8711a0d493b0fed37dead02050e3ad7c1fb4955"
     },
     "tool/three_example/asset_discovery.mjs": {
-      "bytes": 11580,
-      "sha256": "61df540ad93d367d071167057ad68a74c4526b7493ac1748a2b750e4c26ae0ea"
+      "bytes": 12417,
+      "sha256": "65acc770c76fdfaa04b64d18787cb7a49893c2b20ea517b5612b7b419af0abe7"
     },
     "tool/three_example/example_adapter.js": {
-      "bytes": 36310,
-      "sha256": "d4b30ea893767085c461138a82c7d1644c3311ad8e1a734712ad0c2be5ad0011"
+      "bytes": 36611,
+      "sha256": "6331eb4f2586d1c5255cfbfc6d85e96c5fea75de19882296f7f11be4cf4c7b05"
     },
     "tool/three_example/example_canvas2d.js": {
       "bytes": 20988,
       "sha256": "ae6143c0400efcb2b9ca05c69416ea13519aa5c94a8e7d2e75ffe767ef4c8fba"
     },
     "tool/three_example/lil_gui_adapter.js": {
-      "bytes": 28916,
-      "sha256": "dc11346394f41bb4f385738d3afa6aa75e695ac80fe3be3a5fbf4201686376bf"
+      "bytes": 29874,
+      "sha256": "45668e5bc4d27e8cb7dc28855087f6a5fa04ccc1b1a2d5adb08a31cde39c90bb"
     },
     "tool/three_example/prepare.mjs": {
-      "bytes": 252302,
-      "sha256": "e6f9fd556a40a617de3f0a8d75c6d76b21a2020d19e988e7b657f6034a647845"
+      "bytes": 262210,
+      "sha256": "34f9a20b5e2523836dd885ff07fea8ae4db1b1ec9be29375ce8a19e96be31f07"
     },
     "tool/three_example/stats_adapter.js": {
       "bytes": 2107,
       "sha256": "98defe8785b259fdf70182c7d4a0a8e8e39ff8be901c3a9f93cd991240784086"
+    },
+    "tool/three_example/vendor/xml_dom.js": {
+      "bytes": 15539,
+      "sha256": "4de33465eee57c254cb20293e87d69b903a897913c8caaee4f61c006589c4f67"
     }
   },
   "outputs": {
@@ -597,9 +650,57 @@
       "bytes": 358,
       "sha256": "3981ebb4fb1e3267041dd0595af4893b8145c1eeefd27788ed23392d48234001"
     },
+    "models__gltf__AVIFTest__Image_0": {
+      "bytes": 282399,
+      "sha256": "5198c3ef7ccd187a9e4b5db33b482a8175daac42b3574ba6bc22184bf6548c4b"
+    },
+    "models__gltf__AVIFTest__Image_1": {
+      "bytes": 446374,
+      "sha256": "5021a8e3adfaf26dc454633e61f94773150890772904a6d344b59f7bf2dce6a5"
+    },
+    "models__gltf__AVIFTest__Image_10": {
+      "bytes": 280043,
+      "sha256": "d2e025ff49c2397b4c50ef8e7f27e7bf5f57fa8172d9a8fa1fb37c0455f3ead0"
+    },
+    "models__gltf__AVIFTest__Image_11": {
+      "bytes": 556282,
+      "sha256": "34017903f65884c7f4f850f6927a5fe33ba9abe707b065c6f79d57e150d63885"
+    },
+    "models__gltf__AVIFTest__Image_2": {
+      "bytes": 411535,
+      "sha256": "1b7d51ea50290c27b77ae62faaaea2ecdee1a61b694e42da4bc91b3b3949ab34"
+    },
+    "models__gltf__AVIFTest__Image_3": {
+      "bytes": 546760,
+      "sha256": "aa9d1df3cbca44a8060855195c04870d20ef086c3567f30b81ec60fdd89b34c6"
+    },
+    "models__gltf__AVIFTest__Image_4": {
+      "bytes": 237200,
+      "sha256": "a6b5fbf1179000d9573c9d1b13993e335dbf984999c65d09d11b6e6ddf0a0f87"
+    },
+    "models__gltf__AVIFTest__Image_5": {
+      "bytes": 387470,
+      "sha256": "3f92fcff9b73d3d9b7964943f1b91996e1d644ee41194a7a55186bae629ee049"
+    },
+    "models__gltf__AVIFTest__Image_6": {
+      "bytes": 558566,
+      "sha256": "55254476db3d32716525ce2f3d34a4fd06c76bb62a42094a78af05e1b7b49651"
+    },
+    "models__gltf__AVIFTest__Image_7": {
+      "bytes": 492690,
+      "sha256": "b606b9ef9e142ccd0eedad46c02cfa090df9d007a1e0ea3a151c4072236da60a"
+    },
+    "models__gltf__AVIFTest__Image_8": {
+      "bytes": 491316,
+      "sha256": "48b9736e5834311bde783b67e099d5547c228e1886ae72228d9250dbee3f927a"
+    },
+    "models__gltf__AVIFTest__Image_9": {
+      "bytes": 347631,
+      "sha256": "e5c9687eb67af29a194302585b0688837b4efddc7db7c18370d72ef28ee640c3"
+    },
     "models__gltf__AVIFTest__forest_house.glb": {
-      "bytes": 303984,
-      "sha256": "d7e567c978c1b266744e20f8418f29e90591e38a2bd6fdb5220c3b9eed91a137"
+      "bytes": 753296,
+      "sha256": "3cd005a366569447bb0828dee610e374fdae84272b11c0a04a28a9c1d37f7f25"
     },
     "official_module.js": {
       "bytes": 1699,
@@ -610,8 +711,8 @@
       "sha256": "f6b3e0d31c97a7e78333ea7255ca249f112f82e56704ab7680f98a772f6b3f61"
     },
     "widget.js": {
-      "bytes": 517270,
-      "sha256": "e7b4944288b207472d697c2c661d6789c375d858303f86172265374a46272bbb"
+      "bytes": 14557013,
+      "sha256": "5b4d6b406282ab56fe61188cf07fb888382f780ed586e84c68649be6fe54a2d2"
     }
   }
 }

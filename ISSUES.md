@@ -332,22 +332,27 @@ from representative per-example logs.
   The remaining 49 are asset-complete except for the two explicitly unavailable
   externals below; they are re-triaged rather than left in the silent asset bucket:
 
-  - **Draco / Basis / KTX2 decoder-transcoder paths (18)**:
+  - **Draco / Basis / KTX2 decoder-transcoder paths (18; all 18 render)**:
     three-animation-keyframes, three-animation-skinning-ik, three-gpgpu-water,
     three-loader-draco, three-loader-gltf-avif, three-loader-gltf-compressed,
     three-loader-gltf-transmission, three-loader-texture-ktx2, three-materials-car,
     three-materials-envmaps-fasthdr, three-materials-envmaps-groundprojected,
     three-morphtargets-face, three-postprocessing-gtao, three-postprocessing-ssr,
     three-random-uv, three-texture2darray-compressed,
-    three-texture2darray-layerupdate, three-tonemapping. Their pinned models
-    advertise KHR_draco_mesh_compression / KHR_texture_basisu or the official
-    module awaits the Draco/Basis worker transcoder; they stop before first render.
-  - **XML / model parser paths (5)**: three-loader-3mf, three-loader-collada,
-    three-loader-collada-kinematics, three-loader-kmz, three-loader-vrml. 3MF,
-    Collada and KMZ report `ReferenceError: 'DOMParser' is not defined`; VRML
-    reports `InternalError: stack overflow`; collada-kinematics hangs during boot
-    after its pinned DAE is supplied.
-  - **R1 material / target / PMREM capabilities (17)**:
+    three-texture2darray-layerupdate, three-tonemapping. Prepare now uses the
+    pinned official Draco asm.js, Basis transcoder and meshopt decoder to emit
+    deterministic uncompressed GLB/geometry or bounded RGBA textures. Runtime
+    loader facades consume those bytes without workers/WASM fetches; source and
+    generated outputs remain sha256-pinned. SSR's later unqualified `innerWidth`
+    facade gap is also fixed and its warned beauty-pass fallback renders.
+  - **XML / model parser paths (5; all 5 render)**: three-loader-3mf,
+    three-loader-collada, three-loader-collada-kinematics, three-loader-kmz and
+    three-loader-vrml. A bounded vendored DOMParser covers the loaders' XML
+    selector/attribute/text profile. VRML is parsed by the pinned official
+    Chevrotain loader at prepare and reconstructed from bounded Object3D JSON;
+    collada-kinematics uses an explicitly warned prepare-exported static robot
+    (joint tweening omitted) to bound the former boot hang.
+  - **R1 material / target / PMREM capabilities (17; all 17 render in the R1 capability resolution below)**:
     three-custom-attributes-lines (incompatible node object/geometry/material),
     three-loader-gltf-iridescence and three-loader-gltf-sheen (unsupported aoMap),
     three-materials-cubemap-dynamic (undefined CubeCamera coordinateSystem),
@@ -360,16 +365,36 @@ from representative per-example logs.
     three-pmrem-equirectangular, three-pmrem-test, three-postprocessing-3dlut
     (raw-LUT canvas ingestion plus unsupported aoMap),
     three-rendertarget-texture2darray (one-2D-target-per-pass limit).
-  - **Silent native / DOM / planner paths after pins (7)**:
-    three-animation-skinning-additive-blending (`classList` of undefined),
-    three-lightprobe, three-lightprobe-cubecamera, three-loader-gltf-anisotropy,
-    three-loader-usdz, three-performance, three-test-wide-gamut. These now have
-    pinned bytes but still produce no native draw (or no submitted frame) without
-    a residual host-asset-loader error.
-  - **Still unavailable external inputs (2)**: three-loader-3dm needs the remote
-    `rhino3dm@8.32.1/rhino3dm.js` runtime; three-loader-ldraw references
-    `models/ldraw/officialLibrary/models/car.ldr_Packed.mpd`, which is absent from
-    the official r186 source tree.
+  - **Silent native / DOM / planner paths after pins (7; all 7 render)**:
+    three-animation-skinning-additive-blending, three-lightprobe,
+    three-lightprobe-cubecamera, three-loader-gltf-anisotropy, three-loader-usdz,
+    three-performance and three-test-wide-gamut. The GUI `$children`/classList,
+    bounded Blob/object-URL image and sequential loader-lifetime/matchMedia
+    handoffs are resolved; the other four are covered by the R1 resolution below.
+  - **Formerly unavailable external inputs (2; resolved/degraded explicitly)**:
+    three-loader-ldraw now pins and renders the official packed
+    `models/ldraw/officialLibrary/models/car.ldr_Packed.mpd` (186 draws). The
+    r186 tree has no rhino3dm runtime, so three-loader-3dm renders a bounded
+    placeholder with an explicit `rhino3dm decoder unavailable` warning; it is
+    not counted as parsed Rhino content.
+
+  Decoder/parser verification: all 26 targeted examples mount and produce draw
+  plans (25 official-content scenes plus the warned 3DM placeholder). Including
+  the additive-blending, USDZ Blob/object-URL and wide-gamut handoffs, the final
+  29-case subset has 29/29 mounted with real draws (743 draws total).
+  Consolidated structured evidence: `/tmp/decoder_final_29_matrix.jsonl`;
+  provenance: `/tmp/decoder_final_matrix.jsonl`, the final SSR/wide-gamut rerun in
+  `/tmp/decoder_remaining_final_matrix.jsonl`, and the post-canonicalization
+  VRML/kinematics rerun in `/tmp/decoder_determinism_final_matrix.jsonl`.
+  Repeated VRML and Collada-kinematics prepares are byte-identical (including
+  canonicalized Object3D UUID references). Representative counts include
+  VRML 218 draws, LDraw 186, animation-keyframes 72 and Draco 2.
+  `node tool/three_example/test/asset_discovery_test.mjs` passes with
+  deterministic pins plus XML selector/namespace/entity checks. Bounded warned
+  degrades remain for VRML elevationGrid1 (serialized scene over 2,000,000
+  bytes), alternate raw BC/ASTC/ETC KTX2 variants without a prepare decoder,
+  SSR/reflector shader math, collada-kinematics joint tweening and the 3DM
+  placeholder; none is a silent empty-scene fallback.
 
 - **unsupported ShaderMaterial (7)**
   three-buffergeometry-attributes-integer, three-custom-attributes, three-lightprobes-sponza,
@@ -501,8 +526,54 @@ Regression coverage: `js_three_bounded_shader_render_test.dart`,
 `js_three_camera_logarithmicdepthbuffer_example_test.dart` (28 tests, all pass).
 Analyzer is clean for the changed tests. No protocol fixtures required changes.
 
-Residual asset handoff: three-shadowmap-progressive now renders its native scene
-and has no RAF cascade, but still logs a missing
-`models/gltf/ShadowmappableMesh.glb` host asset. Add that pin in the asset wave;
-its dedicated test deliberately checks the native RAF invariant separately from
-this external model failure.
+Resolved asset handoff: three-shadowmap-progressive now pins
+`models/gltf/ShadowmappableMesh.glb` and completes the decoder matrix with 18
+submitted frames and three native draws. Its remaining directional-light-cap
+message is an explicit native planner warning, not a missing-asset failure.
+
+### R1 capability and silent-path resolution (2026-10-31)
+
+The 24-case R1/silent subset now has 24 examples submitting real native draws,
+with zero RAF tick errors and zero JS error lines in
+`/tmp/r1_wave_final_native.log` (structured results:
+`/tmp/r1_wave_final_native.jsonl`):
+
+- PMREM/cube environment (6): materials-cubemap-dynamic, materials-envmaps-exr,
+  materials-envmaps-hdr, pmrem-cubemap, pmrem-equirectangular and pmrem-test.
+- Mip levels and render-to-mip targets (3): materials-cubemap-mipmaps,
+  materials-cubemap-render-to-mipmaps and materials-texture-manualmipmap.
+- Geometry/material peels (5): custom-attributes-lines, modifier-curve,
+  modifier-curve-instanced, loader-gltf-iridescence and loader-gltf-sheen.
+- Targets/postprocessing (3): multiple-rendertargets, postprocessing-3dlut and
+  rendertarget-texture2darray.
+- Recovered silent paths (4): lightprobe, lightprobe-cubecamera,
+  loader-gltf-anisotropy and performance.
+- Cross-file handoffs confirmed (3): animation-skinning-additive-blending now
+  renders three draws after the GUI classList facade fix; loader-usdz renders
+  two draws after its embedded Blob/object-URL image lane was supplied;
+  test-wide-gamut renders a textured background with two texture uploads after
+  the loader-lifetime and matchMedia facade fixes.
+
+These are bounded R1 paths, not claims of full upstream parity. PMREM samples
+source equirect/cube pixels without CubeUV prefiltering; custom mipmaps retain
+level 0; cube targets use warned 2D passes; MRT retains attachment 0; array
+targets retain one layer. Decoded RGBA TextureLoader images now expose the
+local canvas pixel association, so 3DLUT strip conversion completes without
+callback errors; its postprocess still uses the existing explicitly warned
+bounded texture pass. Iridescence/sheen/anisotropy retain standard PBR with named
+physical-only lobes dropped. LightProbe evaluates its SH helper on the CPU and
+uses band-0 ambient lighting. LineLoop, custom line displacement and dynamic
+line attributes use real native line draws.
+
+Resolved cross-file blocker:
+
+- test-wide-gamut: each loader now retains its original pre-canvas association
+  across sequential `loadAsync` calls instead of acquiring a later main-canvas
+  generation; explicit `setCanvas()` still starts a new guarded association.
+  The adapter also supplies bounded viewport aliases and a no-op matchMedia
+  listener facade. Final matrix: 34 submitted frames, one background draw and
+  two texture uploads (`/tmp/decoder_remaining_final_matrix.jsonl`).
+Regression coverage: `js_three_r1_capability_examples_test.dart` (21/21 pass;
+`/tmp/r1_contract5.log`), using the shared three_example_render_contract health
+assertions plus explicit zero-RAF and degradation-warning checks. Analyzer is
+clean; no protocol or production Dart changes were needed.

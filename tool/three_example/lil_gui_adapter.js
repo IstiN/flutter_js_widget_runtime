@@ -224,6 +224,14 @@ export class Controller {
       throw new Error('three.invalid: lil-gui controller quota exceeded');
     }
     this.container = container;
+    // Upstream controller/folder styling also touches the returned facade's
+    // DOM node (and folder $children.domElement). Keep those operations on a
+    // bounded no-op sink while the host renders the actual native controls.
+    this.domElement = {
+      style: {},
+      classList: { add() {}, remove() {}, toggle() {} },
+      setAttribute() {}, appendChild() {}, removeChild() {}, remove() {}
+    };
     this.root = container.root !== undefined ? container.root : container;
     this.object = object;
     this.property = property;
@@ -520,8 +528,21 @@ class NativeFolder {
     this._title = String(title).slice(0, 128);
     this._closed = false;
     this._hidden = false;
-    // Bounded DOM parity sink: official modules append stats/label nodes.
-    this.$children = { appendChild() {}, removeChild() {}, children: [] };
+    // Bounded DOM parity sink: official modules append stats/label nodes and
+    // upstream folder styling reaches $children.domElement.classList.
+    this.domElement = {
+      style: {},
+      classList: { add() {}, remove() {}, toggle() {} },
+      setAttribute() {}, appendChild() {}, removeChild() {}, remove() {}
+    };
+    this.$children = {
+      appendChild() {}, removeChild() {}, children: [],
+      domElement: {
+        style: {},
+        classList: { add() {}, remove() {}, toggle() {} },
+        setAttribute() {}, appendChild() {}, removeChild() {}, remove() {}
+      }
+    };
   }
 
   add(object, property, ...options) {
@@ -623,6 +644,7 @@ class NativeGUI {
     this.JSR = globalThis.jsr;
     this.controllers = [];
     this.folders = [];
+    this.$children = { domElement: this.domElement, appendChild() {}, removeChild() {}, children: [] };
     this._title = options.title === undefined ? 'Controls' : String(options.title).slice(0, 128);
     this._closed = false;
     this._hidden = false;

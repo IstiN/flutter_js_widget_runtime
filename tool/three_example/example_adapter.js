@@ -1,6 +1,8 @@
 import { createExampleCanvas2D } from './example_canvas2d.js';
+import { JsrDOMParser } from './vendor/xml_dom.js';
 
 const ROOT = globalThis;
+if (typeof ROOT.DOMParser === 'undefined') ROOT.DOMParser = JsrDOMParser;
 // Official modules use `self` (window/worker alias) for timers and sizes.
 if (typeof ROOT.self === 'undefined') ROOT.self = ROOT;
 const browserDocument = ROOT.document || null;
@@ -19,6 +21,63 @@ if (typeof JSR.render !== 'function' || typeof JSR.exportState !== 'function') {
   throw new Error(`${WIDGET_ID}: jsr.render and jsr.exportState are required`);
 }
 
+// USDComposer and similar embedded-media loaders use the browser Blob ->
+// object URL -> Image pipeline. QuickJS has no browser Blob implementation,
+// so provide a bounded byte-owning facade and register each URL in the same
+// local asset lane used by every other prepared texture. Revocation drops the
+// URL handle only after the upstream image onload callback has completed.
+if (typeof ROOT.Blob === 'undefined') {
+  const MAX_BLOB_BYTES = 64 * 1024 * 1024;
+  const MAX_BLOB_PARTS = 1024;
+  const MAX_OBJECT_URLS = 64;
+  const objectUrls = new Map();
+  let nextObjectUrl = 0;
+  ROOT.Blob = class JsrExampleBlob {
+    constructor(parts = [], options = {}) {
+      if (!Array.isArray(parts) && !(parts && typeof parts[Symbol.iterator] === 'function')) {
+        throw new TypeError('three.invalid: Blob parts must be iterable');
+      }
+      const chunks = [];
+      let size = 0;
+      let count = 0;
+      for (const part of parts) {
+        if (++count > MAX_BLOB_PARTS) throw new Error('three.invalid: Blob part quota exceeded');
+        let bytes;
+        if (part instanceof ROOT.Blob) bytes = part._bytes;
+        else if (part instanceof Uint8Array) bytes = part;
+        else if (part instanceof ArrayBuffer) bytes = new Uint8Array(part);
+        else if (ArrayBuffer.isView(part)) bytes = new Uint8Array(part.buffer, part.byteOffset, part.byteLength);
+        else bytes = new TextEncoder().encode(String(part));
+        size += bytes.byteLength;
+        if (size > MAX_BLOB_BYTES) throw new Error('three.invalid: Blob exceeds 64 MiB');
+        chunks.push(new Uint8Array(bytes));
+      }
+      this._bytes = new Uint8Array(size);
+      let offset = 0;
+      for (const chunk of chunks) { this._bytes.set(chunk, offset); offset += chunk.byteLength; }
+      this.size = size;
+      this.type = String(options && options.type || '').slice(0, 128).toLowerCase();
+    }
+    arrayBuffer() { return Promise.resolve(this._bytes.buffer.slice(this._bytes.byteOffset, this._bytes.byteOffset + this._bytes.byteLength)); }
+    text() { return Promise.resolve(new TextDecoder().decode(this._bytes)); }
+  };
+  const objectUrlApi = ROOT.URL || class JsrExampleURL {};
+  objectUrlApi.createObjectURL = function(blob) {
+    if (!(blob instanceof ROOT.Blob)) throw new TypeError('three.invalid: createObjectURL expects a Blob');
+    if (objectUrls.size >= MAX_OBJECT_URLS) throw new Error('three.invalid: object URL quota exceeded');
+    const url = `blob:jsr-example-${++nextObjectUrl}`;
+    objectUrls.set(url, blob);
+    JSR.three.registerAsset(url, { data: blob._bytes, mime: blob.type });
+    return url;
+  };
+  objectUrlApi.revokeObjectURL = function(url) { objectUrls.delete(String(url)); };
+  ROOT.URL = objectUrlApi;
+  if (browserDocument && browserDocument.defaultView) {
+    browserDocument.defaultView.Blob = ROOT.Blob;
+    browserDocument.defaultView.URL = ROOT.URL;
+  }
+}
+
 const canvas = JSR.three.createCanvas('main');
 const runtimeDocument = canvas.ownerDocument;
 canvas.getRootNode = () => runtimeDocument;
@@ -34,6 +93,30 @@ canvas.dispatchEvent = function(event) {
 };
 if (!runtimeDocument || !runtimeDocument.defaultView) {
   throw new Error(`${WIDGET_ID}: the JSR runtime document facade is unavailable`);
+}
+const runtimeWindow = runtimeDocument.defaultView;
+// Browser scripts occasionally use the global viewport aliases (SSR's
+// EffectComposer options) instead of window.innerWidth/innerHeight.
+for (const dimension of ['innerWidth', 'innerHeight']) {
+  if (typeof ROOT[dimension] === 'undefined') {
+    Object.defineProperty(ROOT, dimension, {
+      configurable: true,
+      get() { return runtimeWindow[dimension]; }
+    });
+  }
+}
+// Wide-gamut and similar feature probes only need a bounded media-query
+// facade. R1 remains sRGB; no host display-gamut or change-event claim is made.
+if (typeof runtimeWindow.matchMedia !== 'function') {
+  runtimeWindow.matchMedia = query => ({
+    media: String(query), matches: false, onchange: null,
+    addEventListener() {}, removeEventListener() {},
+    addListener() {}, removeListener() {}, dispatchEvent() { return false; }
+  });
+}
+if (typeof ROOT.matchMedia !== 'function') ROOT.matchMedia = runtimeWindow.matchMedia;
+if (typeof runtimeDocument.defaultView.DOMParser === 'undefined') {
+  runtimeDocument.defaultView.DOMParser = JsrDOMParser;
 }
 
 let renderer = null;
@@ -799,7 +882,7 @@ function installNativeExampleCompat() {
   };
   const adaptMediaShaders = scene => {
     if (EXAMPLE !== 'webaudio_visualizer' && EXAMPLE !== 'webgl_video_kinect' &&
-        EXAMPLE !== 'webgl_test_memory2') return;
+        EXAMPLE !== 'webgl_test_memory2' && EXAMPLE !== 'webgl_loader_ldraw') return;
     if (!scene || typeof scene.traverse !== 'function') return;
     scene.traverse(object => {
       const source = object.material;
@@ -811,12 +894,14 @@ function installNativeExampleCompat() {
             color: 0x60a5fa, size: 2, sizeAttenuation: false,
             transparent: true, opacity: 0.8, depthWrite: false
           })
-          : new three.MeshBasicMaterial({ color: 0x2563eb });
+          : (object.isLine || object.isLineSegments)
+            ? new three.LineBasicMaterial({ color: 0x334155, transparent: true, opacity: 0.7 })
+            : new three.MeshBasicMaterial({ color: 0x2563eb });
         shaderFallbacks.set(source, fallback);
         mediaDiagnostics.shaderFallbacks++;
         warnCompat(
           `shader-fallback-${EXAMPLE}`,
-          `three: ${EXAMPLE} arbitrary shader is unavailable on R1; rendering its native ${object.isPoints ? 'point-cloud' : 'mesh'} fallback with an explicit static color.`
+          `three: ${EXAMPLE} arbitrary shader is unavailable on R1; rendering its native ${object.isPoints ? 'point-cloud' : (object.isLine || object.isLineSegments) ? 'line' : 'mesh'} fallback with an explicit static color.`
         );
       }
       object.material = fallback;
@@ -839,6 +924,19 @@ function installNativeExampleCompat() {
     if (!renderer) {
       renderer = this;
       publishDiagnostics();
+    }
+    if (EXAMPLE === 'webgl_materials_envmaps_groundprojected' && scene && scene.environment) {
+      // GroundedSkybox uses its equirect environment as a plain mesh map,
+      // which is not a native R1 texture role. Keep the real HDR environment
+      // and car, with an explicit background-only ground-projection degrade.
+      for (const child of scene.children || []) {
+        if (child.isMesh && child.material && child.material.map === scene.environment) child.visible = false;
+      }
+      scene.background = scene.environment;
+      warnCompat(
+        'ground-projection',
+        'three: R1 renders the ground-projected example with its real equirect HDR background; the projected skybox mesh is omitted.'
+      );
     }
     degradeSceneVideos(scene);
     adaptMediaShaders(scene);
@@ -880,7 +978,8 @@ function installNativeExampleCompat() {
     }
     return nativeSetRenderTarget.call(this, target);
   };
-  if (EXAMPLE === 'webgl_multiple_elements' || EXAMPLE === 'webgl_multiple_elements_text') {
+  if (EXAMPLE === 'webgl_multiple_elements' || EXAMPLE === 'webgl_multiple_elements_text' ||
+      EXAMPLE === 'webgl_loader_texture_ktx2') {
     const nativeSetViewport = prototype.setViewport;
     const nativeSetScissor = prototype.setScissor;
     const clip = (canvas, x, y, width, height) => {

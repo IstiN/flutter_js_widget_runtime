@@ -777,14 +777,13 @@ function validateMaterial(material) {
     adaptationWarn(material, '_r1OnBeforeCompileWarned',
       'R1 does not execute material.onBeforeCompile; the unmodified native material is rendered.');
   }
-  // alphaMap, envMap (R1 v4), matcap and gradientMap (R1 v5) ride the
-  // material texture slots; the rest of the upstream map family stays 1B.
-  const maps = ['aoMap', 'emissiveMap', 'clearcoatMap', 'transmissionMap'];
-  if (!material.isMeshNormalMaterial) maps.push('displacementMap');
-  for (const name of maps) if (material[name]) unsupported('materialTexture', `${material.type}.${name}`);
-  // Visual-detail slots R1 can drop without changing the example's point:
-  // degrade with a once-per-material warning instead of killing every frame.
-  for (const name of ['specularMap', 'lightMap']) {
+  // Detail slots without a native texture binding are peeled once, while the
+  // base color/PBR/normal detail remains visible. In particular aoMap is an
+  // optional glTF occlusion input, not a reason to discard the entire model.
+  const droppedMaps = ['specularMap', 'lightMap', 'aoMap', 'emissiveMap',
+    'clearcoatMap', 'transmissionMap'];
+  if (!material.isMeshNormalMaterial) droppedMaps.push('displacementMap');
+  for (const name of droppedMaps) {
     if (material[name]) {
       const key = `${material.type}.${name}`;
       material._r1DroppedMaps || (material._r1DroppedMaps = {});
@@ -907,6 +906,51 @@ function proceduralVertexGeometry(source) {
   const geometry = new BufferGeometry();
   geometry.setAttribute('position', new Float32BufferAttribute(positions, 3));
   geometry.setAttribute('color', new Float32BufferAttribute(colors, 3));
+  geometry.computeBoundingSphere();
+  return geometry;
+}
+
+function writeLightProbeColor(coefficients, x, y, z, intensity, output, offset) {
+  for (let c = 0; c < 3; c++) {
+    const component = vector => c === 0 ? vector.x : c === 1 ? vector.y : vector.z;
+    let value = component(coefficients[0]) * 0.886227;
+    value += component(coefficients[1]) * 2 * 0.511664 * y;
+    value += component(coefficients[2]) * 2 * 0.511664 * z;
+    value += component(coefficients[3]) * 2 * 0.511664 * x;
+    value += component(coefficients[4]) * 2 * 0.429043 * x * y;
+    value += component(coefficients[5]) * 2 * 0.429043 * y * z;
+    value += component(coefficients[6]) * (0.743125 * z * z - 0.247708);
+    value += component(coefficients[7]) * 2 * 0.429043 * x * z;
+    value += component(coefficients[8]) * 0.429043 * (x * x - y * y);
+    value *= intensity / Math.PI;
+    requireFinite(value, 'light probe coefficient');
+    output[offset + c] = value;
+  }
+}
+
+function lineLoopGeometry(source) {
+  const position = source.attributes.position;
+  if (!position) return null;
+  const indices = sourceIndices(source, position.count);
+  if (indices.length < 2) return null;
+  if (indices.length > 2000000) throw new Error('three.invalid: LineLoop vertex quota');
+  const color = source.attributes.color;
+  const positions = new Float32Array(indices.length * 6);
+  const colors = color ? new Float32Array(indices.length * 6) : null;
+  for (let i = 0; i < indices.length; i++) {
+    const a = indices[i], b = indices[(i + 1) % indices.length];
+    for (let c = 0; c < 3; c++) {
+      positions[i * 6 + c] = position.getComponent(a, c);
+      positions[i * 6 + 3 + c] = position.getComponent(b, c);
+      if (color) {
+        colors[i * 6 + c] = color.getComponent(a, c);
+        colors[i * 6 + 3 + c] = color.getComponent(b, c);
+      }
+    }
+  }
+  const geometry = new BufferGeometry();
+  geometry.setAttribute('position', new Float32BufferAttribute(positions, 3));
+  if (colors) geometry.setAttribute('color', new Float32BufferAttribute(colors, 3));
   geometry.computeBoundingSphere();
   return geometry;
 }
@@ -1328,6 +1372,10 @@ export class JsrWebGLRenderer {
   }
   setRenderTarget(target, activeCubeFace = 0, activeMipmapLevel = 0) {
     this._renderTarget = target || null;
+    if (target?.texture) {
+      target.texture.renderTarget = target;
+      if (target.depthTexture) target.depthTexture.renderTarget = target;
+    }
     this._activeCubeFace = activeCubeFace;
     this._activeMipmapLevel = activeMipmapLevel;
     if (activeCubeFace) adaptationWarn(this, '_r1CubeTargetWarned',
@@ -1506,7 +1554,11 @@ export class JsrWebGLRenderer {
       height: canvas.height,
       data: new Uint8Array(canvas._rgba),
       encoding: 0,
-      encoded: false
+      encoded: false,
+      // Texture.clone() shares Source but not userData. Keep the bounded
+      // canvas association on the raw image so clones remain uploadable after
+      // the original CanvasTexture adopts its RGBA pixels.
+      _r1Canvas2D: canvas
     };
     entry.texture.needsUpdate = true;
     return true;
@@ -1532,6 +1584,7 @@ export class JsrWebGLRenderer {
     // Plain THREE.Texture with a canvas image (webgl_panorama_cube slices its
     // atlas through 2D canvases) is just as canvas-backed as CanvasTexture.
     if (isNativeCanvas2D(texture.image)) return texture.image;
+    if (isNativeCanvas2D(texture.image?._r1Canvas2D)) return texture.image._r1Canvas2D;
     if (!texture.isCanvasTexture) return null;
     const canvas = texture.userData && texture.userData.jsrCanvas2D;
     return isNativeCanvas2D(canvas) ? canvas : null;
@@ -1539,13 +1592,23 @@ export class JsrWebGLRenderer {
 
   _validateRenderTarget(target) {
     const texture = target?.texture;
-    if (!target?.isRenderTarget || !texture || target.depth !== 1 || target.textures?.length !== 1) {
-      unsupported('renderTarget', 'R1 supports one 2D target per pass');
+    if (!target?.isRenderTarget || !texture ||
+        (target.depth !== 1 && !target.isWebGLArrayRenderTarget)) {
+      unsupported('renderTarget', 'R1 supports one bounded color surface per pass');
     }
-    if (![RGBAFormat, RGBAIntegerFormat].includes(texture.format) ||
+    if (target.textures?.length > 1) {
+      adaptationWarn(target, '_r1MultipleTargetWarned',
+        'R1 retains only MRT attachment 0; additional attachments and split normal output are omitted.');
+    }
+    if (target.isWebGLArrayRenderTarget) {
+      adaptationWarn(target, '_r1ArrayTargetWarned',
+        'R1 reduces this array render target to one 2D RGBA8 layer; layer selection and remaining layers are omitted.');
+    }
+    const formats = target.isWebGLArrayRenderTarget ? [RGBAFormat, RedFormat] : [RGBAFormat, RGBAIntegerFormat];
+    if (!formats.includes(texture.format) ||
       ![UnsignedByteType, HalfFloatType, FloatType, IntType].includes(texture.type) || texture.flipY ||
       (texture.mapping !== UVMapping && !(target.isWebGLCubeRenderTarget && texture.mapping === CubeReflectionMapping))) {
-      unsupported('renderTargetTexture', 'R1 targets require a 2D RGBA color attachment');
+      unsupported('renderTargetTexture', 'R1 targets require a bounded RGBA color attachment');
     }
     if (target.isWebGLCubeRenderTarget) adaptationWarn(target, '_r1CubeTargetStorageWarned',
       'R1 stores a WebGLCubeRenderTarget as one bounded 2D color target; face sampling is approximated.');
@@ -1630,7 +1693,11 @@ export class JsrWebGLRenderer {
   _ensureRenderTargetTexture(texture, commands) {
     const target = texture.renderTarget;
     if (!target) unsupported('renderTargetAssociation', 'R1 target texture has no owning target');
-    if (this._renderTarget === target) unsupported('renderTargetFeedback', 'R1 cannot sample its active color target');
+    if (this._renderTarget === target) {
+      adaptationWarn(target, '_r1TargetFeedbackWarned',
+        'R1 unbinds the active target from this material; the base draw continues without feedback sampling.');
+      return 0;
+    }
     this._ensureRenderTarget(target, commands);
     if (texture.isDepthTexture) {
       adaptationWarn(target, '_r1DepthSampleWarned',
@@ -1678,7 +1745,11 @@ export class JsrWebGLRenderer {
     if (!mappingOk) unsupported('textureMapping', role === 'envMap'
       ? 'R1 envMap supports EquirectangularReflectionMapping on a single 2D texture or CubeReflectionMapping faces'
       : undefined);
-    if (texture.premultiplyAlpha || (texture.mipmaps && texture.mipmaps.length)) unsupported('textureState', 'premultiplyAlpha/custom mipmaps');
+    if (texture.premultiplyAlpha) unsupported('textureState', 'premultiplyAlpha');
+    if (texture.mipmaps && texture.mipmaps.length) {
+      adaptationWarn(texture, '_r1CustomMipmapsWarned',
+        'R1 drops custom mip levels; the base image and native generated mipmaps remain active where supported.');
+    }
     // Upstream clamps anisotropy to the device maximum; the native sampler
     // maximum is 1 (flutter_gpu has no anisotropic filtering), so any value
     // degrades to exactly that clamp rather than being rejected.
@@ -2507,9 +2578,15 @@ export class JsrWebGLRenderer {
     if (!source || !material || Array.isArray(material)) return null;
     const fat = object.isLineSegments2 === true || object.isWireframe === true;
     const dashed = material.isLineDashedMaterial === true || (fat && material.dashed === true);
-    if (!fat && !dashed) return null;
+    const loop = object.isLineLoop === true;
+    if (!fat && !dashed && !loop) return null;
     const attrs = source.attributes;
-    const signature = fat ? [
+    const signature = loop ? [
+      'loop', adaptedAttributeVersion(attrs.position), adaptedAttributeVersion(attrs.color),
+      adaptedAttributeVersion(source.index), source.drawRange.start, source.drawRange.count,
+      material.color ? `${material.color.r}:${material.color.g}:${material.color.b}` : '-',
+      material.opacity, material.transparent, material.version
+    ].join('|') : fat ? [
       'fat', adaptedAttributeVersion(attrs.instanceStart), adaptedAttributeVersion(attrs.instanceEnd),
       adaptedAttributeVersion(attrs.instanceColorStart), adaptedAttributeVersion(attrs.instanceColorEnd),
       material.color ? `${material.color.r}:${material.color.g}:${material.color.b}` : '-',
@@ -2524,7 +2601,7 @@ export class JsrWebGLRenderer {
     ].join('|');
     const previous = this._adaptedLineDraws.get(object);
     if (previous && previous.source === source && previous.sourceMaterial === material && previous.signature === signature) {
-      return { geometry: previous.geometry, material: previous.material, lineSegments: fat || object.isLineSegments };
+      return { geometry: previous.geometry, material: previous.material, lineSegments: loop || fat || object.isLineSegments };
     }
     let geometry;
     let adaptedMaterial;
@@ -2542,6 +2619,10 @@ export class JsrWebGLRenderer {
       }
       adaptationWarn(material, '_r1FatLineWarned',
         'R1 lowers Line2/LineSegments2 to native line segments; linewidth and alphaToCoverage are dropped.');
+    } else if (loop) {
+      geometry = lineLoopGeometry(source);
+      if (!geometry) return null;
+      adaptedMaterial = adaptedLineMaterial(material, !!source.attributes.color);
     } else {
       geometry = dashedGeometry(source, !!object.isLineSegments, material);
       adaptedMaterial = adaptedLineMaterial(material, !!source.attributes.color);
@@ -2551,7 +2632,7 @@ export class JsrWebGLRenderer {
       if (previous.material !== adaptedMaterial) previous.material.dispose();
     }
     this._adaptedLineDraws.set(object, { source, sourceMaterial: material, signature, geometry, material: adaptedMaterial });
-    return { geometry, material: adaptedMaterial, lineSegments: fat || object.isLineSegments };
+    return { geometry, material: adaptedMaterial, lineSegments: loop || fat || object.isLineSegments };
   }
 
   _adaptShaderDraw(object) {
@@ -2567,6 +2648,9 @@ export class JsrWebGLRenderer {
     else if (object.isLineSegments && attrs.position && attrs.vertColor && attrs.visible &&
         String(material.fragmentShader).includes('vVisible')) kind = 'selective';
     else if (object.isPoints && attrs.position && (attrs.customColor || attrs.size || attrs.scale)) kind = 'points';
+    else if (material.type === 'LightProbeHelperMaterial' && attrs.position && attrs.normal && uniforms.sh) kind = 'lightProbe';
+    else if (object.isLine && attrs.position && attrs.customColor && attrs.displacement &&
+        uniforms.amplitude && String(material.vertexShader).includes('amplitude')) kind = 'customLine';
     else if (object.isMesh && attrs.position && attrs.normal && attrs.customColor && attrs.displacement &&
         uniforms.amplitude && String(material.vertexShader).includes('amplitude')) kind = 'tessellation';
     if (!kind) {
@@ -2588,7 +2672,7 @@ export class JsrWebGLRenderer {
       });
       return adapted;
     }
-    const amplitude = kind === 'tessellation' ? Number(uniforms.amplitude.value) : 0;
+    const amplitude = kind === 'tessellation' || kind === 'customLine' ? Number(uniforms.amplitude.value) : 0;
     const sizeAttribute = kind === 'points' ? (attrs.size || attrs.scale || null) : null;
     let meanSize = 1;
     if (sizeAttribute) {
@@ -2602,6 +2686,9 @@ export class JsrWebGLRenderer {
       if (!(meanSize > 0)) meanSize = 0.001;
     }
     const uniformColor = uniforms.color && uniforms.color.value;
+    const probeSignature = kind === 'lightProbe'
+      ? uniforms.sh.value.map(value => `${value.x}:${value.y}:${value.z}`).join(',') + `:${uniforms.intensity.value}`
+      : '';
     const signature = [
       kind, adaptedAttributeVersion(attrs.position), adaptedAttributeVersion(attrs.normal),
       adaptedAttributeVersion(attrs.color), adaptedAttributeVersion(attrs.customColor),
@@ -2611,7 +2698,8 @@ export class JsrWebGLRenderer {
       amplitude, meanSize, material.version, material.opacity, material.transparent,
       uniformColor && uniformColor.isColor ? `${uniformColor.r}:${uniformColor.g}:${uniformColor.b}` : '-',
       uniforms.pointTexture && uniforms.pointTexture.value ? resourceId(uniforms.pointTexture.value) : 0,
-      uniforms.alphaTest ? uniforms.alphaTest.value : 0
+      uniforms.alphaTest ? uniforms.alphaTest.value : 0,
+      uniforms.opacity ? uniforms.opacity.value : material.opacity, probeSignature
     ].join('|');
     const previous = this._adaptedShaderDraws.get(object);
     if (previous && previous.source === source && previous.sourceMaterial === material && previous.signature === signature) {
@@ -2629,6 +2717,70 @@ export class JsrWebGLRenderer {
       adaptedMaterial = adaptedLineMaterial(material, true);
       adaptationWarn(material, '_r1SelectiveWarned',
         'R1 lowers the selective-draw visibility shader to filtered native line segments.');
+    } else if (kind === 'lightProbe') {
+      const count = attrs.position.count;
+      if (!previous || previous.kind !== kind || previous.geometry.attributes.position.count !== count) {
+        geometry = new BufferGeometry();
+        geometry.setAttribute('position', attrs.position);
+        geometry.setAttribute('color', new Float32BufferAttribute(new Float32Array(count * 3), 3));
+        if (source.index) geometry.setIndex(source.index);
+        geometry.setDrawRange(source.drawRange.start, source.drawRange.count);
+        geometry.boundingSphere = source.boundingSphere;
+      } else geometry = previous.geometry;
+      const colors = geometry.attributes.color;
+      const coefficients = uniforms.sh.value;
+      const intensity = Number(uniforms.intensity.value);
+      for (let i = 0; i < count; i++) {
+        const x = attrs.normal.getComponent(i, 0);
+        const y = attrs.normal.getComponent(i, 1);
+        const z = attrs.normal.getComponent(i, 2);
+        const length = Math.hypot(x, y, z) || 1;
+        writeLightProbeColor(coefficients, x / length, y / length, z / length,
+          intensity, colors.array, i * 3);
+      }
+      colors._r1DynamicContent = true;
+      colors.needsUpdate = true;
+      adaptedMaterial = previous && previous.kind === kind ? previous.material :
+        new MeshBasicMaterial({ vertexColors: true, side: material.side, fog: material.fog });
+      adaptationWarn(material, '_r1LightProbeHelperWarned',
+        'R1 evaluates the light-probe SH irradiance helper into native vertex colors.');
+    } else if (kind === 'customLine') {
+      const count = attrs.position.count;
+      if (!previous || previous.kind !== kind || previous.geometry.attributes.position.count !== count) {
+        geometry = new BufferGeometry();
+        geometry.setAttribute('position', new Float32BufferAttribute(new Float32Array(count * 3), 3));
+        geometry.setAttribute('color', new Float32BufferAttribute(new Float32Array(count * 3), 3));
+        if (source.index) geometry.setIndex(source.index);
+        geometry.setDrawRange(source.drawRange.start, source.drawRange.count);
+      } else geometry = previous.geometry;
+      const positions = geometry.attributes.position;
+      const colors = geometry.attributes.color;
+      for (let i = 0; i < count; i++) {
+        for (let c = 0; c < 3; c++) {
+          positions.array[i * 3 + c] = attrs.position.getComponent(i, c) +
+            attrs.displacement.getComponent(i, c) * amplitude;
+          colors.array[i * 3 + c] = attrs.customColor.getComponent(i, c);
+        }
+      }
+      positions._r1DynamicContent = true;
+      colors._r1DynamicContent = true;
+      positions.needsUpdate = true;
+      colors.needsUpdate = true;
+      geometry.computeBoundingSphere();
+      adaptedMaterial = previous && previous.kind === kind ? previous.material : new LineBasicMaterial({
+        color: uniformColor && uniformColor.isColor ? uniformColor : new Color(0xffffff),
+        opacity: uniforms.opacity ? Number(uniforms.opacity.value) : material.opacity,
+        transparent: !!material.transparent,
+        vertexColors: true,
+        depthTest: material.depthTest,
+        depthWrite: material.depthWrite,
+        blending: material.blending,
+        fog: material.fog
+      });
+      if (adaptedMaterial.color && uniformColor?.isColor) adaptedMaterial.color.copy(uniformColor);
+      adaptedMaterial.opacity = uniforms.opacity ? Number(uniforms.opacity.value) : material.opacity;
+      adaptationWarn(material, '_r1CustomLineWarned',
+        'R1 evaluates the custom line displacement/color shader on the CPU.');
     } else if (kind === 'points') {
       if (attrs.customColor) {
         geometry = new BufferGeometry();
@@ -2763,7 +2915,6 @@ export class JsrWebGLRenderer {
         adaptationWarn(object, '_r1BatchedMeshWarned',
           'R1 draws the BatchedMesh shared geometry once; per-range visibility and per-instance transforms are not retained.');
       }
-      if (object.isLineLoop) unsupported('LineLoop');
       const adapted = this._sceneOverrideMaterial ? null : this._adaptDrawable(object);
       const material = this._sceneOverrideMaterial || (adapted ? adapted.material : object.material);
       const renderGeometry = adapted ? adapted.geometry : object.geometry;
@@ -2837,7 +2988,11 @@ export class JsrWebGLRenderer {
     else if (light.isPointLight) type = 2;
     else if (light.isHemisphereLight) type = 3;
     else if (light.isSpotLight) type = 4;
-    else if (light.type === 'SunLight') type = 1; // addons/lights/SunLight: directional towards the origin
+    else if (light.isLightProbe) {
+      type = 0;
+      adaptationWarn(light, '_r1LightProbeWarned',
+        'R1 retains light-probe band 0 as ambient light; directional SH bands remain on the CPU helper only.');
+    } else if (light.type === 'SunLight') type = 1; // addons/lights/SunLight: directional towards the origin
     else if (light.isRectAreaLight) {
       type = 2;
       adaptationWarn(light, '_r1RectAreaWarned',
@@ -2858,11 +3013,18 @@ export class JsrWebGLRenderer {
       // translation is directional state, not a point-light location/target.
       _direction.copy(_position).normalize();
     }
+    let lightColor = light.color;
+    if (light.isLightProbe && light.sh?.coefficients?.[0]) {
+      const coefficient = light.sh.coefficients[0];
+      lightColor = light._r1ProbeColor || (light._r1ProbeColor = new Color());
+      lightColor.setRGB(Math.max(0, coefficient.x * 0.886227),
+        Math.max(0, coefficient.y * 0.886227), Math.max(0, coefficient.z * 0.886227));
+    }
     const groundColor = light.isHemisphereLight ? light.groundColor : null;
     const spot = light.isSpotLight
       ? { angle: light.angle, penumbra: light.penumbra, distance: light.distance, decay: light.decay }
       : null;
-    const signature = [type, light.color.r, light.color.g, light.color.b, light.intensity,
+    const signature = [type, lightColor.r, lightColor.g, lightColor.b, light.intensity,
       _position.x, _position.y, _position.z, _direction.x, _direction.y, _direction.z,
       groundColor ? groundColor.r : 0, groundColor ? groundColor.g : 0,
       groundColor ? groundColor.b : 0,
@@ -2870,9 +3032,9 @@ export class JsrWebGLRenderer {
     const old = this._state.lights.get(id);
     if (!old || old.signature !== signature) {
       if (!Number.isFinite(light.intensity) || light.intensity < 0) throw new Error('three.invalid: light intensity');
-      finiteArray([light.color.r, light.color.g, light.color.b, _position.x, _position.y, _position.z, _direction.x, _direction.y, _direction.z], 'light');
+      finiteArray([lightColor.r, lightColor.g, lightColor.b, _position.x, _position.y, _position.z, _direction.x, _direction.y, _direction.z], 'light');
       if (groundColor) finiteArray([groundColor.r, groundColor.g, groundColor.b], 'light groundColor');
-      commands.push(lightCommand(id, type, light.color, light.intensity, _position, _direction, groundColor, spot));
+      commands.push(lightCommand(id, type, lightColor, light.intensity, _position, _direction, groundColor, spot));
       this._mapSet(this._state.lights, id, { signature, object: light });
     }
     return id;

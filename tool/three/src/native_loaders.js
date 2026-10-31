@@ -6,6 +6,27 @@ function text(bytes) { return decodeUtf8(bytes); }
 
 function buffer(bytes) { return bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength); }
 
+// A loader is a lifetime scope for its asset guards. In particular, a loader
+// first used before the main canvas exists must not silently acquire that
+// canvas on a later loadAsync call: doing so manufactures an epoch/generation
+// mismatch while the second request is in flight. Explicit setCanvas() starts
+// a new association; disposal guards remain active for every bound canvas.
+function associatedCanvas(loader, runtime) {
+  if (loader.canvas) return loader.canvas;
+  if (!loader._assetAssociationReady) {
+    loader._defaultAssetCanvas = runtime.getCanvas('main');
+    loader._assetAssociationReady = true;
+  }
+  return loader._defaultAssetCanvas;
+}
+
+function setLoaderCanvas(loader, canvas) {
+  loader.canvas = canvas;
+  loader._defaultAssetCanvas = null;
+  loader._assetAssociationReady = false;
+  return loader;
+}
+
 export class JsrFileLoader extends Loader {
   constructor(manager) {
     super(manager);
@@ -15,7 +36,7 @@ export class JsrFileLoader extends Loader {
     this.canvas = null;
   }
 
-  setCanvas(canvas) { this.canvas = canvas; return this; }
+  setCanvas(canvas) { return setLoaderCanvas(this, canvas); }
   setResponseType(value) { this.responseType = value; return this; }
   setMimeType(value) { this.mimeType = value; return this; }
   abort() { this._aborted = true; return this; }
@@ -25,7 +46,7 @@ export class JsrFileLoader extends Loader {
     url = this.path + url;
     url = this.manager.resolveURL(url);
     const runtime = getThreeRuntime(false);
-    const canvas = this.canvas || runtime.getCanvas('main');
+    const canvas = associatedCanvas(this, runtime);
     const guard = canvas ? { canvas, generation: canvas.generation, epoch: canvas._assetEpoch } : null;
     const cached = Cache.get(`file:${url}`);
     const finish = (data, callback) => {
@@ -170,7 +191,7 @@ export class JsrImageLoader extends Loader {
     this.canvas = null;
   }
 
-  setCanvas(canvas) { this.canvas = canvas; return this; }
+  setCanvas(canvas) { return setLoaderCanvas(this, canvas); }
 
   load(url, onLoad, onProgress, onError) {
     installRawImageDrawImage();
@@ -193,7 +214,7 @@ export class JsrImageLoader extends Loader {
     url = this.path + (url === undefined ? '' : url);
     url = this.manager.resolveURL(url);
     const runtime = getThreeRuntime(false);
-    const canvas = this.canvas || runtime.getCanvas('main');
+    const canvas = associatedCanvas(this, runtime);
     const generation = canvas ? canvas.generation : 0;
     const guard = canvas ? { canvas, generation, epoch: canvas._assetEpoch } : null;
     const requestId = ++JsrImageLoader._requestId;
@@ -242,14 +263,14 @@ export class JsrTextureLoader extends Loader {
     this.canvas = null;
   }
 
-  setCanvas(canvas) { this.canvas = canvas; return this; }
+  setCanvas(canvas) { return setLoaderCanvas(this, canvas); }
 
   load(url, onLoad, onProgress, onError) {
     const texture = new Texture();
     url = this.path + (url === undefined ? '' : url);
     url = this.manager.resolveURL(url);
     const runtime = getThreeRuntime(false);
-    const canvas = this.canvas || runtime.getCanvas('main');
+    const canvas = associatedCanvas(this, runtime);
     const generation = canvas ? canvas.generation : 0;
     const guard = canvas ? { canvas, generation, epoch: canvas._assetEpoch } : null;
     this.manager.itemStart(url);

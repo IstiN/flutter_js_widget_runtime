@@ -23,30 +23,11 @@ import 'support/widget_logic_helper.dart';
 /// jpg image). Both scenes add black `Fog(0, 1500, 4000)` and drift the camera
 /// each RAF tick.
 ///
-/// Verdict — DOCUMENTED-GAP (two stacked, individually pinned capability
-/// failures; the official scene can never render on R1):
-///
-/// 1. PRIMARY: the official floor textures call
-///    `textureCanvas.repeat.set(1000, 1000)` and R1 v1 declares no UV
-///    transform fields, so every `renderer.render()` throws
-///    `three.unsupported: textureTransform`
-///    (`tool/three/src/native_renderer.js:510`) before any frame is
-///    assembled — error card every RAF tick, no surface, frame 0.
-/// 2. SECONDARY (revealed by the probe neutralizing only that repeat line):
-///    the nearest floor is `textureCanvas.clone()`, and r186 `Texture.copy`
-///    SHARES the `TextureSource` (`this.source = source.source`) while
-///    JSON-cloning `userData` (`src/textures/Texture.js:477,514`), which
-///    drops the native-canvas reference. Once `_adoptCanvasTexture` swaps
-///    the shared `source.data` for raw RGBA
-///    (`tool/three/src/native_renderer.js:474-482`), the clone's `.image` is
-///    a plain data object and `_canvasForTexture`
-///    (`tool/three/src/native_renderer.js:491-494`) finds no Flutter canvas,
-///    so the renderer's internal canvas-refresh renders
-///    (`tool/three/src/native_renderer.js:483`) throw
-///    `three.unsupported: canvas2d.source` every tick
-///    (`tool/three/src/native_renderer.js:502`). Module renders keep
-///    succeeding (probe counters), but the scene graph can never fully
-///    texture: only ONE floor RGBA and ONE painting jpg ever upload.
+/// Verdict — RENDERS (both scenes): the wave-3 per-map UV transform lane
+/// accepts the floor repeat(1000, 1000), and the later CanvasTexture work
+/// fixed the shared-TextureSource clone adoption, so the NEAREST half no
+/// longer throws canvas2d.source. Both halves upload their floor RGBA and
+/// painting jpg and submit real draw plans with zero error cards.
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
   if (!hasQuickjsNativeLib) {
@@ -58,9 +39,8 @@ void main() {
     return;
   }
 
-  testWidgets('webgl_materials_texture_filters boots and mounts but every '
-      'frame throws the CanvasTexture canvas2d.source gap (wave-3 removed '
-      'the textureTransform blocker)', (tester) async {
+  testWidgets('webgl_materials_texture_filters boots and renders both '
+      'scenes without capability errors', (tester) async {
     final harness = await ThreeQuickjsExampleHarness.boot(
       tester,
       widgetId: 'three-materials-texture-filters',
@@ -77,7 +57,7 @@ void main() {
     );
 
     // Boot facts: the canvas mounts and the embedded painting asset
-    // registers, but this module never submits an R1 frame.
+    // registers, and both scene halves submit R1 frames.
     final exported = harness.engine.exportedState!;
     expect(exported['example'], 'webgl_materials_texture_filters');
     expect(exported['backend'], 'flutterGpu');
@@ -95,35 +75,24 @@ void main() {
     expect(gui['controllers'], 0);
     expect(gui['values'], isEmpty);
 
-    // The LINEAR half of the module renders (surface + frames submit —
-    // the wave-3 UV-transform lane accepts the floor tiling), then the
-    // NEAREST half's clone adoption throws canvas2d.source every tick.
+    // BOTH halves render: the wave-3 UV-transform lane accepts the floor
+    // tiling and the CanvasTexture clone adoption gap is fixed, so no
+    // capability error cards appear at all.
     expect(harness.surface, isNotNull);
     expect(harness.state!.submittedFrameCount, greaterThan(0));
 
-    // The render tree is the three mount envelope followed by repeating
-    // capability error cards.
     expect(harness.renderTrees.first['type'], 'three');
     expect(harness.renderTrees.first['canvasId'], 'main');
-    final errorCard = harness.renderTrees.last.toString();
-    expect(errorCard, contains('Widget error:'));
-    // Wave-3 shipped per-map UV transforms (R1 v4), so the floor's
-    // repeat.set(1000, 1000) no longer throws; the remaining blocker is
-    // the module's tiled floor CanvasTexture, whose canvas source the
-    // native CanvasTexture lane cannot adopt (wave-2 documented gap).
-    expect(errorCard, contains('three.unsupported: canvas2d.source'));
-    expect(
-      errorCard,
-      contains('native CanvasTexture requires a Flutter canvas2d image'),
-    );
-    expect(errorCard, contains('native R1 does not provide this capability'));
+    for (final tree in harness.renderTrees) {
+      expect(tree.toString(), isNot(contains('Widget error:')));
+      expect(tree.toString(), isNot(contains('three.unsupported')));
+    }
 
     await harness.dispose(tester);
   }, timeout: const Timeout(Duration(seconds: 180)));
 
-  testWidgets('filters probe: the official floor repeat(1000, 1000) is the '
-      'pinned textureTransform trigger; neutralizing only that line exposes '
-      'the CanvasTexture-clone canvas2d.source gap', (tester) async {
+  testWidgets('filters probe: neutralizing only the floor repeat(1000, 1000) '
+      'renders BOTH scenes with zero render errors', (tester) async {
     // State-flag probe (no log scraping): the floor texture's official
     // repeat.set(1e3, 1e3) call is intercepted to record the values R1
     // rejects, then neutralized to (1, 1); the two module render calls are
@@ -138,55 +107,45 @@ void main() {
     );
     final report = await _awaitProbeReport(probe, tester);
 
-    // The pinned PRIMARY trigger: the OFFICIAL module sets floor repeat
-    // (1000, 1000) on its checkerboard CanvasTextures, which
-    // native_renderer.js:510 rejects outright on R1.
+    // The pinned official trigger values are still recorded by the probe.
     expect(report['floorRepeat'], [1000, 1000]);
 
-    // With only that line neutralized the LINEAR scene renders cleanly every
-    // tick while the NEAREST scene's render throws canvas2d.source every tick
-    // (once the shared checkerboard CanvasTexture source is mutated by the
-    // linear clone's adopt, the nearest clone has no Flutter canvas2d image
-    // left to upload). Both counters must therefore grow in lockstep.
-    expect(report['renderErrors'] as int? ?? 0, greaterThan(20));
+    // With only that line neutralized BOTH scenes render cleanly every tick:
+    // the shared-TextureSource clone adoption gap is fixed, so the nearest
+    // clone adopts its floor RGBA just like the linear original.
     expect(report['renderOk'] as int? ?? 0, greaterThan(20));
-    expect(report['allErrors'] as int? ?? 0, greaterThan(20));
-    expect(report['allCode'], 'three.unsupported');
-    expect(report['allFeature'], 'canvas2d.source');
-    expect(
-      report['allMsg'],
-      contains('native CanvasTexture requires a Flutter canvas2d image'),
-    );
-    // And the host surfaces the secondary gap as a repeating error card.
+    expect(report['renderErrors'] as int? ?? 0, 0);
+    expect(report['allErrors'] as int? ?? 0, 0);
     expect(
       probe.renderTrees.any((tree) =>
-          tree.toString().contains('three.unsupported: canvas2d.source')),
-      isTrue,
+          tree.toString().contains('three.unsupported')),
+      isFalse,
     );
 
-    // Host side: module frames flow, all four official materials upsert,
-    // but only ONE floor RGBA texture and ONE painting jpg ever upload —
-    // the nearest floor clone never adopts (the shared-TextureSource gap).
+    // Host side: module frames flow, all EIGHT official materials upsert
+    // (four per scene half), and BOTH floor RGBA textures plus BOTH
+    // painting jpgs upload.
     final state = probe.state;
     expect(state, isNotNull);
     expect(state!.submittedFrameCount, greaterThan(20));
-    expect(state.materials, hasLength(4));
-    expect(state.textureUploadCount, 2);
+    expect(state.materials, hasLength(8));
+    expect(state.textureUploadCount, greaterThanOrEqualTo(4));
     final encoded = state.textures.values
         .where((texture) => texture.isEncoded)
         .toList();
-    expect(encoded, hasLength(1));
-    expect(encoded.single.data.length, 148992); // raw jpg bytes pass through
-    expect(encoded.single.srgb, isTrue);
-    expect(encoded.single.nearestMag, isFalse);
-    expect(encoded.single.nearestMin, isFalse);
-    expect(encoded.single.mipmaps, isTrue);
+    expect(encoded, hasLength(2));
+    for (final painting in encoded) {
+      expect(painting.data.length, 148992); // raw jpg bytes pass through
+      expect(painting.srgb, isTrue);
+    }
     final rgba = state.textures.values
         .where((texture) => !texture.isEncoded)
         .toList();
-    expect(rgba, hasLength(1));
-    expect(rgba.single.width, greaterThan(0));
-    expect(rgba.single.height, greaterThan(0));
+    expect(rgba, hasLength(2));
+    for (final floor in rgba) {
+      expect(floor.width, greaterThan(0));
+      expect(floor.height, greaterThan(0));
+    }
 
     // The submitted frames carry the scene meshes on shared
     // PlaneGeometry(100, 100) = 6 indices each, with the module's own
@@ -199,11 +158,9 @@ void main() {
       expect(draw.indexed, isTrue);
       expect(draw.material.kind, JsThreeMaterialKind.meshBasic);
     }
-    // Only the uploaded textures can bind: the nearest floor clone never
-    // adopts (shared TextureSource gap), so exactly the linear floor (RGBA)
-    // and the linear painting (jpg) draws carry a texture id; the nearest
-    // scene contributes no draws at all (its render throws before any of
-    // its materials/textures ever upsert).
+    // The sampled frame carries one scene half (the module submits one
+    // frame per scene per tick): its floor RGBA and painting jpg draws
+    // bind; the other half submits the next tick.
     final texturedDraws = plan.draws
         .where((draw) => draw.material.mapTextureId != 0)
         .toList();
@@ -214,32 +171,23 @@ void main() {
       return texture.isEncoded ? 'jpg' : 'rgba';
     }).toSet();
     expect(boundKinds, {'jpg', 'rgba'});
-    final painting = texturedDraws.map((draw) =>
-        state.textures[draw.material.mapTextureId]!).singleWhere(
-      (texture) => texture.isEncoded,
-    );
-    expect(painting.data.length, 148992);
-    expect(painting.srgb, isTrue);
+    for (final draw in texturedDraws.where(
+      (draw) => state.textures[draw.material.mapTextureId]!.isEncoded,
+    )) {
+      final painting = state.textures[draw.material.mapTextureId]!;
+      expect(painting.data.length, 148992);
+      expect(painting.srgb, isTrue);
+    }
     final overlays =
         plan.draws.where((draw) => draw.material.transparent).toList();
     expect(overlays.length, lessThanOrEqualTo(2));
     for (final draw in overlays) {
       expect(draw.material.opacity, closeTo(0.75, 0.001));
     }
-    // The sampled frame is the LINEAR scene half: its floor keeps the
-    // default white MeshBasicMaterial and both its textured draws bind.
-    // (The nearest scene half's tinted 0xffccaa floor never reaches a
-    // submitted frame — its CanvasTexture clone is the canvas2d.source
-    // casualty documented above.)
-    final whiteFloors = plan.draws
-        .map((draw) => draw.material)
-        .where((material) =>
-            !material.transparent &&
-            material.colorR > 0.9 &&
-            material.colorG > 0.9 &&
-            material.colorB > 0.9)
-        .toList();
-    expect(whiteFloors.length, greaterThanOrEqualTo(1));
+    // Both scene halves submit on alternate ticks: the sampled frame's
+    // floor is either the linear half's default white MeshBasicMaterial
+    // or the nearest half's official 0xffccaa tint (boundKinds above
+    // already proves its floor RGBA and painting jpg are bound).
 
     // The rendered scene carries black Fog(0, 1500, 4000) on black.
     final frame = plan.frame!;
@@ -275,8 +223,7 @@ Future<Map<String, dynamic>> _awaitProbeReport(
     final probeState = exported?['probe'];
     if (probeState is Map) latest = probeState.cast<String, dynamic>();
     if ((latest['floorRepeat'] as List?) != null &&
-        (latest['renderOk'] as int? ?? 0) > 20 &&
-        (latest['allErrors'] as int? ?? 0) > 20) {
+        (latest['renderOk'] as int? ?? 0) > 20) {
       return latest;
     }
     await probe.pumpFrame(tester);

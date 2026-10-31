@@ -50,7 +50,11 @@ function normalizeAssetUrl(value) {
 function candidateValues(literals) {
   return literals.filter(value => {
     if (value.includes('://') || value.startsWith('data:') || value.startsWith('three/')) return false;
-    if (isAssetUrl(value.replace(/^\.\//, '')) || /[\r\n{}$]/.test(value)) return false;
+    const rooted = value.replace(/^\.\//, '');
+    // A loader-relative filename can itself start with "models/" (LDraw's
+    // packed MPDs do). Keep those candidates for setPath expansion instead of
+    // treating every rooted-looking string as an already-resolved URL.
+    if ((isAssetUrl(rooted) && !EXTENSIONS.has(extensionOf(rooted))) || /[\r\n{}$]/.test(value)) return false;
     return !value.startsWith('/') && !value.includes('\0');
   });
 }
@@ -254,6 +258,19 @@ async function definitionFor(root, url, embeddedGlbs, aliases) {
   };
   if (extension === 'gif') definition.convertToPng = true;
   if (extension === 'hdr') definition.hdrRgba = true;
+  if (extension === 'drc') definition.prepareDraco = true;
+  if (extension === 'ktx2') definition.prepareKtx2 = true;
+  if (extension === 'wrl') definition.prepareVrml = true;
+  if (extension === 'glb') {
+    const document = glbDocument(bytes);
+    const compressed = new Set([
+      'KHR_draco_mesh_compression', 'EXT_meshopt_compression',
+      'KHR_meshopt_compression', 'KHR_texture_basisu'
+    ]);
+    if (document && (document.extensionsUsed || []).some(name => compressed.has(name))) {
+      definition.predecodeGlb = true;
+    }
+  }
   if (embeddedGlbs.has(url)) definition.externalizeImages = true;
   if (aliases.has(url)) definition.aliases = aliases.get(url);
   if (RAW_IMAGE_EXTENSIONS.has(extension) ||
