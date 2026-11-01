@@ -8,7 +8,7 @@ const EXTENSIONS = new Set([
   '3dm', '3ds', '3dl', '3mf', 'amf', 'avif', 'bin', 'bmp', 'bvh', 'cube', 'dae', 'drc', 'exr',
   'fbx', 'gcode', 'gif', 'glb', 'gltf', 'hdr', 'jpeg', 'jpg', 'js', 'json', 'kmz',
   'ktx', 'ktx2', 'ldr', 'mdd', 'mp3', 'mpd', 'mtl', 'nrrd', 'obj', 'ogg', 'pcd', 'pdb',
-  'ply', 'png', 'svg', 'tga', 'tif', 'tiff', 'usdz', 'vox', 'vrml', 'wasm', 'wav',
+  'ply', 'png', 'svg', 'tga', 'tif', 'tiff', 'ttf', 'usdz', 'vox', 'vrml', 'wasm', 'wav',
   'webp', 'wrl', 'zip'
 ]);
 const BROAD_DIRECTORIES = new Set([

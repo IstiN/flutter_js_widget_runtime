@@ -95,6 +95,15 @@ if (!runtimeDocument || !runtimeDocument.defaultView) {
   throw new Error(`${WIDGET_ID}: the JSR runtime document facade is unavailable`);
 }
 const runtimeWindow = runtimeDocument.defaultView;
+if (typeof ROOT.HTMLCanvasElement === 'undefined') ROOT.HTMLCanvasElement = canvas.constructor;
+if (typeof runtimeWindow.HTMLCanvasElement === 'undefined') runtimeWindow.HTMLCanvasElement = ROOT.HTMLCanvasElement;
+if (typeof ROOT.performance === 'undefined') ROOT.performance = { now: () => Date.now() };
+if (typeof runtimeWindow.performance === 'undefined') runtimeWindow.performance = ROOT.performance;
+if (typeof ROOT.HTMLMediaElement === 'undefined') {
+  ROOT.HTMLMediaElement = class JsrHTMLMediaElement {};
+  ROOT.HTMLMediaElement.HAVE_METADATA = 1;
+}
+if (typeof runtimeWindow.HTMLMediaElement === 'undefined') runtimeWindow.HTMLMediaElement = ROOT.HTMLMediaElement;
 // Browser scripts occasionally use the global viewport aliases (SSR's
 // EffectComposer options) instead of window.innerWidth/innerHeight.
 for (const dimension of ['innerWidth', 'innerHeight']) {
@@ -341,6 +350,16 @@ function localElement(tagName) {
     this.__jsrClicked = true;
     this.dispatchEvent({ type: 'click' });
   };
+  const queryChildren = new Map();
+  element.querySelector = function(selector) {
+    const key = String(selector);
+    if (!queryChildren.has(key)) {
+      const child = localElement(key.replace(/^[^A-Za-z]*/, '') || 'div');
+      queryChildren.set(key, append(this, child));
+    }
+    return queryChildren.get(key);
+  };
+  element.querySelectorAll = function(selector) { return [this.querySelector(selector)]; };
   return element;
 }
 
@@ -688,6 +707,10 @@ const INLINE_SCRIPTS = JSON.parse(__JSR_THREE_EXAMPLE_SCRIPTS_JSON__);
 const AUDIO_ELEMENTS = JSON.parse(__JSR_THREE_EXAMPLE_AUDIO_JSON__);
 const localElementsById = new Map();
 runtimeDocument.getElementById = function(id) {
+  if (id === 'canvas1' && WIDGET_ID === 'three-worker-offscreencanvas') {
+    if (!canvas.parentNode) appendMainCanvas(container, canvas);
+    return canvas;
+  }
   if (id === 'c') {
     if (!canvas.parentNode) {
       canvas.setSize(
@@ -723,6 +746,10 @@ runtimeDocument.getElementById = function(id) {
   }
   return localElementsById.get(id);
 };
+// Browser named-access exposes the static info element as window.info. A few
+// official modules rely on that alias instead of calling getElementById.
+if (typeof ROOT.info === 'undefined') ROOT.info = info;
+if (typeof runtimeWindow.info === 'undefined') runtimeWindow.info = info;
 runtimeDocument.querySelector = function(selector) {
   const value = String(selector);
   if (value === '.container') return container;

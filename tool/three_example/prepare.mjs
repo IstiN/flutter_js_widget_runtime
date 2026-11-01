@@ -14,6 +14,26 @@ const CORE = path.join(ROOT, 'tool/three');
 const PIN = JSON.parse(await readFile(path.join(CORE, 'source-pin.json'), 'utf8'));
 const require = createRequire(path.join(CORE, 'package.json'));
 const esbuild = require('esbuild');
+
+// External packages are pinned once under vendor/ (see vendor/lock.json for
+// npm tarball and bundled-entry SHA-256 identities). Prepares never resolve a
+// registry or CDN. Example-specific entries may replace an import with a
+// bounded adapter when the upstream package requires a browser/GPU/WASM lane.
+const VENDOR_IMPORTS = Object.freeze({
+  'tween': 'tween/index.mjs',
+  'three-subdivide': 'three-subdivide/index.mjs',
+  'goodrays': 'goodrays/index.mjs',
+  'postprocessing': 'postprocessing/index.mjs',
+  'three-mesh-bvh': 'three-mesh-bvh/index.mjs',
+  'three-bvh-csg': 'three-bvh-csg/index.mjs',
+  '@three.ez/simplify-geometry': 'three-ez-simplify-geometry/index.mjs',
+  '@three.ez/batched-mesh-extensions': 'three-ez-batched-mesh-extensions/index.mjs',
+  '@needle-tools/three-animation-pointer': 'needle-three-animation-pointer/index.mjs',
+  '@needle-tools/gltf-progressive': 'needle-gltf-progressive/index.mjs',
+  'https://cdn.jsdelivr.net/npm/opentype.js@1.3.4/+esm': 'opentype/index.mjs',
+  'https://cdn.jsdelivr.net/npm/lottie-web@5.13.0/+esm': 'lottie-web/index.mjs'
+});
+
 const EXAMPLES = Object.freeze({
   webgl_interactive_raycasting_points: {
     id: 'three-interactive-raycasting-points',
@@ -2743,6 +2763,19 @@ webgl_geometry_shapes: {
       html: '4bdcb5a0f3075db8d9905fcf1de3b116b6945d1fcabf1982ea731027e7b74016',
       module: '9c8b90bc8a3de418e52aeddce94979f04a4ffee95f91500ceeef04689c46974e'
     },
+    importOverrides: {
+      '@three.ez/batched-mesh-extensions': 'degrades/batch_lod_native.mjs',
+      '@three.ez/simplify-geometry': 'degrades/batch_lod_native.mjs'
+    },
+    facadeWraps: {
+      BatchedMesh: `(Base) => class extends Base {
+        constructor(maximum, ...rest) { const cap = Math.min(maximum, 128); super(cap, ...rest); this._jsrCap = cap; this._jsrNextId = 0; }
+        addInstance(geometryId) { const id = this._jsrNextId++; return id < this._jsrCap ? super.addInstance(geometryId) : id; }
+        setMatrixAt(id, matrix) { if (id < this._jsrCap) return super.setMatrixAt(id, matrix); }
+        setColorAt(id, color) { if (id < this._jsrCap) return super.setColorAt(id, color); }
+        getColorAt(id, color) { if (id < this._jsrCap) return super.getColorAt(id, color); return color; }
+      }`
+    },
     assets: []
   },
   webgl_buffergeometry_attributes_integer: {
@@ -3209,7 +3242,20 @@ webgl_geometry_shapes: {
       html: '0d03162026f333914f1d961203b35cf4eccbe6dfee19eab29aeef2f1a70243c8',
       module: '236c799ba6b5fca0fbe851632f20fa3e3d7c7a74e5381a309c16d8ccd1aaaa44'
     },
-    assets: []
+    importOverrides: {
+      '3d-tiles-renderer': 'degrades/tiles_native.mjs',
+      '3d-tiles-renderer/core/plugins': 'degrades/tiles_plugins.mjs',
+      '3d-tiles-renderer/three/plugins': 'degrades/tiles_plugins.mjs',
+      'postprocessing': 'degrades/postprocessing_noop.mjs',
+      '@takram/three-clouds': 'degrades/atmosphere_native.mjs',
+      '@takram/three-atmosphere': 'degrades/atmosphere_native.mjs',
+      '@takram/three-geospatial': 'degrades/atmosphere_native.mjs',
+      '@takram/three-geospatial-effects': 'degrades/atmosphere_native.mjs'
+    },
+    moduleOverride: 'degrades/tiles_scene.mjs',
+    assets: [
+      { url: 'textures/cesiumion.png', output: 'cesiumion.png', mime: 'image/png', diagnostic: 'cloudFallback', sha256: '9233315e05c926879d1c551159bfbef9a63a2697083d3e1fa106d997dbefc31b' }
+    ]
   },
   webgl_loader_3mf: {
     id: 'three-loader-3mf',
@@ -3379,7 +3425,10 @@ webgl_geometry_shapes: {
       html: '43e8e73510ab4a689decf61fcdf8e4596336fdc6af6e2d5938ce0ca7d4e9b7e2',
       module: 'b56aa30ca003d493c33bc7d21536c4e48cde2074b9bb8cc8ebcdcd94952f5f4c'
     },
-    assets: []
+    discoverAssets: true,
+    compat: "import { installRemoteGltfCompat } from './degrades/remote_gltf_compat.mjs'; installRemoteGltfCompat('animation');",
+    addonShims: { 'three/addons/loaders/KTX2Loader.js': "export { KTX2Loader } from './degrades/ktx2_predecoded.mjs';" },
+    assets: [{ url: 'models/gltf/Horse.glb', output: 'models__gltf__Horse.glb', mime: 'model/gltf-binary', diagnostic: 'auto:models/gltf/Horse.glb', sha256: 'bebaa4a60ba373317e25bf20f049f26ad0f5c86d4731ab67d46eb8c93c920947', discovered: true, aliases: ['https://cloud.needle.tools/-/assets/Z23hmXB27L6Db-optimized/file'] }]
   },
   webgl_loader_gltf_anisotropy: {
     id: 'three-loader-gltf-anisotropy',
@@ -3469,7 +3518,14 @@ webgl_geometry_shapes: {
       html: 'ebe4720fef3c7d36ea834967d27586f7d0bd963a93e3da86c3b51688b8011edf',
       module: 'a0e834bbaf145b3b21ddc08fae4c15d2a51a9fe85576cd352efd581a42c11b60'
     },
-    assets: []
+    discoverAssets: true,
+    compat: "import { installRemoteGltfCompat } from './degrades/remote_gltf_compat.mjs'; installRemoteGltfCompat('progressive');",
+    importOverrides: { '@needle-tools/gltf-progressive': 'degrades/progressive_local.mjs' },
+    assets: [
+      { url: 'models/gltf/Horse.glb', output: 'models__gltf__Horse.glb', mime: 'model/gltf-binary', diagnostic: 'auto:models/gltf/Horse.glb', sha256: 'bebaa4a60ba373317e25bf20f049f26ad0f5c86d4731ab67d46eb8c93c920947', aliases: ['https://cloud.needle.tools/-/assets/Z23hmXBZnlceI-ZnlceI-world/file'], discovered: true },
+      { url: 'models/gltf/LittlestTokyo.glb', output: 'models__gltf__LittlestTokyo.glb', mime: 'model/gltf-binary', diagnostic: 'auto:models/gltf/LittlestTokyo.glb', sha256: '8375c2aa6808e28ad1cb9c0d43e1513f57ffd7865244bf66bbbd5bb0e907e06d', aliases: ['https://cloud.needle.tools/-/assets/Z23hmXBZ2sPRdk-world/file'], discovered: true, predecodeGlb: true, externalizeImages: true },
+      { url: 'models/gltf/duck.glb', output: 'models__gltf__duck.glb', mime: 'model/gltf-binary', diagnostic: 'auto:models/gltf/duck.glb', sha256: '76c62e63a0aec09cd66f2e2c9452a6dcee428f2464dd2c6d845958a8f7f7cdd1', aliases: ['https://cloud.needle.tools/-/assets/Z23hmXBZ21QnG-Z21QnG-product/file'], discovered: true, predecodeGlb: true, externalizeImages: true }
+    ]
   },
   webgl_loader_gltf_sheen: {
     id: 'three-loader-gltf-sheen',
@@ -3520,7 +3576,10 @@ webgl_geometry_shapes: {
       html: '16bb9fbfac63210fb315a06d81edb95b105052aae5917e21232b9b5186012f56',
       module: '91010b984ba8c5934a725b9b022b9e0741c04aadc043a5fd613a6d24b72a37aa'
     },
-    assets: []
+    importOverrides: { 'web-ifc': 'degrades/ifc_static.mjs' },
+    assets: [
+      { url: 'models/ifc/rac_advanced_sample_project.ifc', output: 'rac_advanced_sample_project.ifc', mime: 'application/octet-stream', diagnostic: 'ifcSource', sha256: '9440a72eb2d27e3ba9edeafdcdfb71945e6baec56d5b09211bcde743de7fe0a5' }
+    ]
   },
   webgl_loader_imagebitmap: {
     id: 'three-loader-imagebitmap',
@@ -3696,6 +3755,8 @@ webgl_geometry_shapes: {
       html: '7f90e7315a5e0646e6da8fe4fd30006ed5737a6194d86f79a04428bf7a6962a8',
       module: 'bb5901b59a83b6349789e84a56b702967b2c0e3981a5eba508e6bc9e9c576b36'
     },
+    discoverAssets: true,
+    importOverrides: { 'https://cdn.jsdelivr.net/npm/lottie-web@5.13.0/+esm': 'degrades/lottie_canvas.mjs' },
     assets: []
   },
   webgl_loader_texture_pvrtc: {
@@ -3745,6 +3806,8 @@ webgl_geometry_shapes: {
       html: '862381a762da708c344e0d1919054f8d5e470ec30f9a32b82343fe30c4a04c8f',
       module: '5a6b18fa2efc9d3935b901d813929df56e595074b2bd2ece2e3a2da22decf922'
     },
+    discoverAssets: true,
+    importOverrides: { 'fs': 'degrades/node_fs_dead_branch.mjs' },
     assets: []
   },
   webgl_loader_usdz: {
@@ -3982,6 +4045,7 @@ webgl_geometry_shapes: {
       html: 'd6607aab8c1c61f080ac90cab7b198fe62e347262b715f4e738a076edf10abdc',
       module: 'b0fd81f68d4dd45c11b29454a407d050943f60a76c6529c1f55d8609c7b9b302'
     },
+    importOverrides: { 'three-html-render/polyfill': 'degrades/html_polyfill.mjs' },
     assets: []
   },
   webgl_materials_texture_manualmipmap: {
@@ -4107,7 +4171,14 @@ webgl_geometry_shapes: {
       html: '796c056faaf559a232adae07c74bbf0ca65bea8fee5e71450d11b2d404a83920',
       module: 'c8eac3d132360cb3959f64fe1888b27119ddfe30f44f8a0c486c15c7c8ae4c76'
     },
-    assets: []
+    target: 'es2022',
+    stripTopLevelAwait: true,
+    discoverAssets: true,
+    importOverrides: {
+      'https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.35': 'degrades/mediapipe_static.mjs'
+    },
+    addonShims: { 'three/addons/loaders/KTX2Loader.js': "export { KTX2Loader } from './degrades/ktx2_predecoded.mjs';" },
+    assets: [{ url: 'models/gltf/facecap.glb', output: 'models__gltf__facecap.glb', mime: 'model/gltf-binary', diagnostic: 'auto:models/gltf/facecap.glb', sha256: '6bfce6d0fcbb5839f5102b79733007859fef7c5df6d9eb49e2264542810b5f64', discovered: true, predecodeGlb: true, externalizeImages: true }]
   },
   webgl_multiple_elements: {
     id: 'three-multiple-elements',
@@ -4355,6 +4426,11 @@ webgl_geometry_shapes: {
       html: '0d0d4a6bd0033766bdb5820fdb80f0a37cbe6347cde6be05b70de73fd1b8eb8f',
       module: 'b2c42d3bb5897b328236bf1022cc62e63f75d2016028db86ae93258758970eb8'
     },
+    discoverAssets: true,
+    importOverrides: {
+      'postprocessing': 'degrades/composer_direct.mjs',
+      'goodrays': 'degrades/godrays_omitted.mjs'
+    },
     assets: []
   },
   webgl_postprocessing_gtao: {
@@ -4579,6 +4655,9 @@ webgl_geometry_shapes: {
       html: 'ec3276652a9c3c0591dcbd1bf55505a894e6ce67d1fff07d5e334fa484c18207',
       module: '82527c68e12110969f3a3a8fb2e0ede996f274bfd22ced814345ee507cf2d763'
     },
+    discoverAssets: true,
+    importOverrides: { 'three-mesh-bvh': 'degrades/raycast_native.mjs' },
+    addonShims: { 'three/addons/loaders/FBXLoader.js': "export { FBXLoader } from './degrades/fbx_proxy.mjs';" },
     assets: []
   },
   webgl_read_float_buffer: {
@@ -4616,6 +4695,8 @@ webgl_geometry_shapes: {
       html: '44eed0eceac5fed0da348732afe0012e917b930778adb7047cd9f97935f5c647',
       module: 'ea81d81d1ce58c7ba65d2c453139d3b1ad78264242bcd9a0768d093dc1939f5f'
     },
+    discoverAssets: true,
+    importOverrides: { 'three-gpu-pathtracer': 'degrades/pathtracer_native.mjs' },
     assets: []
   },
   webgl_rendertarget_texture2darray: {
@@ -4900,6 +4981,12 @@ webgl_geometry_shapes: {
       html: '3106ff1fde2593624f2c9a529e81a138080684c9b7b715038af7a17298c90363',
       module: '3118260a8540e8ae0e5cf212802a2a9d4fe965570bd873b86885cb56f2634048'
     },
+    compat: "import { installTslCompat } from './degrades/tsl_compat.mjs'; installTslCompat();",
+    importOverrides: {
+      'three/webgpu': 'degrades/tsl_webgpu.mjs',
+      'three/tsl': 'degrades/tsl_nodes.mjs'
+    },
+    discoverAssets: true,
     assets: []
   },
   webgl_tsl_instancing: {
@@ -4912,6 +4999,12 @@ webgl_geometry_shapes: {
       html: 'e1982ef17d9be75ee0724bffb78a0a57e409fab70882c6fc37ac5f8317f85796',
       module: '4e3d3f1651fb4f4d6747872ed9ecf996123b29c8ff76c02f9a5537baf88474ac'
     },
+    compat: "import { installTslCompat } from './degrades/tsl_compat.mjs'; installTslCompat();",
+    importOverrides: {
+      'three/webgpu': 'degrades/tsl_webgpu.mjs',
+      'three/tsl': 'degrades/tsl_nodes.mjs'
+    },
+    discoverAssets: true,
     assets: []
   },
   webgl_tsl_shadowmap: {
@@ -4924,6 +5017,12 @@ webgl_geometry_shapes: {
       html: 'bb76403130c73d93a1e4ee1937e862ddbc4269eca45fb829898e770593f5c451',
       module: 'f2c3e9e7e85d22275ceaf747efb62156378726f038ad64c4233714dc9dd82bd0'
     },
+    compat: "import { installTslCompat } from './degrades/tsl_compat.mjs'; installTslCompat();",
+    importOverrides: {
+      'three/webgpu': 'degrades/tsl_webgpu.mjs',
+      'three/tsl': 'degrades/tsl_nodes.mjs'
+    },
+    discoverAssets: true,
     assets: []
   },
   webgl_tsl_skinning: {
@@ -4936,6 +5035,12 @@ webgl_geometry_shapes: {
       html: '4098311a21edab107a95383d9348716546b238c5eab11a26459f6735b80cd6fe',
       module: 'ff4f7a0bd888418b6186bed6d831bac842196b5327ef9befc92d03f012ecf5f0'
     },
+    compat: "import { installTslCompat } from './degrades/tsl_compat.mjs'; installTslCompat();",
+    importOverrides: {
+      'three/webgpu': 'degrades/tsl_webgpu.mjs',
+      'three/tsl': 'degrades/tsl_nodes.mjs'
+    },
+    discoverAssets: true,
     assets: []
   },
   webgl_ubo: {
@@ -5033,6 +5138,7 @@ webgl_geometry_shapes: {
       html: 'c64ffbdbce4187114d0ce016101f040b0ab9480a9206fbacdeaad4dd4e864242',
       module: '6cd1c205815d4837ab1bc8698394eb4f61cc6cc837f8b38a39f4f4957007c434'
     },
+    discoverAssets: true,
     assets: []
   },
   webgl_worker_offscreencanvas: {
@@ -5045,7 +5151,25 @@ webgl_geometry_shapes: {
       html: '541155a55102491f17004b94cdbc70285ff4ddfd59e28e1a4191438fc5a98ccc',
       module: '78727d2d204dbcf53c71f99c304db6e36ed37e932ec5f9766dc2bc7684d48be5'
     },
-    assets: []
+    facadeWraps: {
+      ImageBitmapLoader: `(Base) => class extends Base {
+        load(url, onLoad, onProgress, onError) {
+          const loader = new __three.TextureLoader();
+          loader.path = this.path;
+          return loader.load(url, texture => onLoad(texture.image), onProgress, error => {
+            console.error(error); if (onError) onError(error);
+          });
+        }
+      }`,
+      CanvasTexture: `(Base) => class extends __three.Texture {
+        constructor(image) { super(image); this.needsUpdate = true; }
+      }`
+    },
+    compat: "console.warn('three: offscreen Worker lane is bounded to one native canvas; the official onscreen scene renders and the second core import uses the single-core facade.');",
+    assets: [{
+      url: 'textures/matcaps/matcap-porcelain-white.jpg', output: 'matcap-porcelain-white.jpg', mime: 'image/jpeg',
+      diagnostic: 'matcap', sha256: 'bf1c51469cd0bd5720b5ac0bb7023f5263c31f5f392e7710f7a6ca5df6b417b5'
+    }],
   },
 });
 const slash = value => value.split(path.sep).join('/');
@@ -5282,7 +5406,7 @@ function addonPath(jsmRoot, specifier) {
   return resolved;
 }
 
-function localOnlyPlugin({ source, facadeSource = null, officialBytes = null, final = false, compatSource = null, addonShims = null }) {
+function localOnlyPlugin({ source, facadeSource = null, officialBytes = null, final = false, compatSource = null, addonShims = null, importOverrides = null }) {
   const jsmRoot = path.join(source, 'examples/jsm');
   const allowedRoots = final ? [HERE, jsmRoot] : [path.join(CORE, 'src'), source];
   const shimNames = addonShims ? Object.keys(addonShims) : [];
@@ -5313,6 +5437,15 @@ function localOnlyPlugin({ source, facadeSource = null, officialBytes = null, fi
         }
         return { path: path.join(HERE, 'lil_gui_adapter.js') };
       });
+      build.onResolve({ filter: /^three\/examples\/jsm\// }, args => (
+        { path: addonPath(jsmRoot, `three/addons/${args.path.slice('three/examples/jsm/'.length)}`) }
+      ));
+      build.onResolve({ filter: /^three\/addons\/tsl\/WebGLNodesHandler\.js$/ }, args => {
+        if (final && importOverrides && importOverrides['three/webgpu']) {
+          return { path: path.join(HERE, 'degrades/webgl_nodes_handler.mjs') };
+        }
+        return { path: addonPath(jsmRoot, args.path) };
+      });
       build.onResolve({ filter: /^three\/addons\// }, args => {
         if (final && args.path === 'three/addons/loaders/VRMLLoader.js' && shimNames.includes(args.path)) {
           return { path: path.join(HERE, 'vrml_loader_adapter.js') };
@@ -5331,11 +5464,26 @@ function localOnlyPlugin({ source, facadeSource = null, officialBytes = null, fi
         if (final && args.importer) return { path: 'official_module.js', namespace: 'jsr-official' };
         return undefined;
       });
-      build.onResolve({ filter: /^(?:https?:|data:|node:|npm:|jsr:)|^\/\// }, args => ({
-        errors: [{ text: `Remote/non-local imports are forbidden: ${args.path}` }]
-      }));
+      // examples/jsm/offscreen/scene.js imports the built core by relative
+      // path. Route that second core specifier onto the already discovered
+      // facade; the post-build second-core guard still rejects every src file.
+      build.onResolve({ filter: /(?:^|\/)three\.module\.js$/ }, args => {
+        if (facadeSource !== null && args.path.endsWith('build/three.module.js')) {
+          return { path: 'three', namespace: 'jsr-three-facade' };
+        }
+        return undefined;
+      });
+      build.onResolve({ filter: /^(?:https?:|data:|node:|npm:|jsr:)|^\/\// }, args => {
+        const override = importOverrides && importOverrides[args.path];
+        const vendored = VENDOR_IMPORTS[args.path];
+        if (override || vendored) return { path: path.join(HERE, override || `vendor/${vendored}`) };
+        return { errors: [{ text: `Remote/non-local imports are forbidden: ${args.path}` }] };
+      });
       build.onResolve({ filter: /^[^./]/ }, args => {
         if (args.kind === 'entry-point') return undefined;
+        const override = importOverrides && importOverrides[args.path];
+        const vendored = VENDOR_IMPORTS[args.path];
+        if (override || vendored) return { path: path.join(HERE, override || `vendor/${vendored}`) };
         return { errors: [{ text: `Unknown bare import is forbidden: ${args.path}` }] };
       });
       build.onResolve({ filter: /^three(?:\/|$)/ }, args => ({
@@ -5956,9 +6104,12 @@ async function prepareAssets(source, definitions) {
       assets.push({ ...definition, bytes });
       continue;
     }
-    else if (definition.mime === 'application/octet-stream' || definition.mime.startsWith('audio/')) {
+    else if (definition.mime === 'application/octet-stream' || definition.mime === 'image/svg+xml' || definition.mime.startsWith('audio/')) {
       // Raw model payloads and encoded audio: the sha256 pin above is the
       // integrity gate; model loaders parse bytes and audio goes to the host.
+      // SVG here is SVGLoader source XML, not an <img> texture. Rasterizing it
+      // would destroy the paths the official example renders, so retain its
+      // verified UTF-8 bytes and let FileLoader's text lane consume them.
       assets.push({ ...definition, bytes });
       continue;
     }
@@ -5982,6 +6133,7 @@ function sortedRecordMap(values) {
 async function main() {
   const options = parseArgs(process.argv.slice(2));
   const definition = options.definition;
+  const buildTarget = definition.target || 'es2020';
   const out = path.join(ROOT, 'example/widgets', definition.directory);
   const entryName = `${definition.id}-entry.js`;
   const source = await realpath(options.source);
@@ -5996,13 +6148,30 @@ async function main() {
   if (sha(extracted.moduleBytes) !== definition.expected.module) {
     throw new Error(`Extracted official ${options.example} module differs from the pinned r186 bytes`);
   }
+  let officialBuildBytes = extracted.moduleBytes;
+  if (definition.stripTopLevelAwait) {
+    // The static MediaPipe adapter is synchronous. IIFE has no top-level-await
+    // representation, so remove only the two pinned adapter awaits; the
+    // original official_module.js and its SHA-256 remain byte-for-byte intact.
+    const sourceText = extracted.moduleBytes.toString('utf8');
+    const transformed = sourceText.replace(/\bawait\s+(?=FilesetResolver\.forVisionTasks|FaceLandmarker\.createFromOptions)/g, '');
+    if (transformed.length !== sourceText.length - 12 || (sourceText.match(/\bawait\s+/g) || []).length !== 2) {
+      throw new Error('Pinned top-level-await adapter no longer matches exactly two MediaPipe awaits');
+    }
+    officialBuildBytes = Buffer.from(transformed);
+  }
   const assetDefinitions = definition.discoverAssets
     ? await discoverAssets({
         source,
-        moduleSource: extracted.moduleBytes.toString('utf8'),
+        moduleSource: `${extracted.moduleBytes.toString('utf8')}\n${definition.compat || ''}`,
         explicit: definition.assets
       })
     : definition.assets;
+  if (definition.moduleOverride) {
+    // Explicit bounded degrade: preserve and pin the official bytes separately,
+    // but bundle the documented native scene instead of an unavailable runtime.
+    officialBuildBytes = await readFile(path.join(HERE, definition.moduleOverride));
+  }
   const assets = await prepareAssets(source, assetDefinitions);
   const addonShims = {
     ...automaticAssetAddonShims(assetDefinitions),
@@ -6050,7 +6219,7 @@ async function main() {
     write: false,
     format: 'iife',
     platform: 'neutral',
-    target: ['es2020'],
+    target: [buildTarget],
     minify: !process.env.JSR_PREPARE_NO_MINIFY,
     treeShaking: true,
     legalComments: 'inline',
@@ -6060,10 +6229,11 @@ async function main() {
     plugins: [helperFastPathPlugin(), localOnlyPlugin({
       source,
       facadeSource,
-      officialBytes: extracted.moduleBytes,
+      officialBytes: officialBuildBytes,
       final: true,
       compatSource: definition.compat || null,
-      addonShims
+      addonShims,
+      importOverrides: definition.importOverrides || null
     })],
     define: {
       __JSR_THREE_EXAMPLE_ID__: JSON.stringify(options.example),
@@ -6112,7 +6282,7 @@ async function main() {
     const label = `source/examples/${asset.url}`;
     if (!inputs[label]) inputs[label] = asset.sourceRecord || record(asset.bytes);
   }
-  for (const file of ['prepare.mjs', 'asset_discovery.mjs', 'asset_decode.mjs', 'example_adapter.js', 'example_canvas2d.js', 'lil_gui_adapter.js', 'stats_adapter.js']) {
+  for (const file of ['prepare.mjs', 'asset_discovery.mjs', 'asset_decode.mjs', 'example_adapter.js', 'example_canvas2d.js', 'lil_gui_adapter.js', 'stats_adapter.js', 'vendor/lock.json']) {
     await addInput(`tool/three_example/${file}`, await readFile(path.join(HERE, file)));
   }
   for (const file of ['source-pin.json', 'src/native_entry.js']) {
@@ -6148,7 +6318,7 @@ async function main() {
       esbuildRequire: 'tool/three/package.json'
     },
     build: {
-      format: 'iife', platform: 'neutral', target: 'es2020', minify: true,
+      format: 'iife', platform: 'neutral', target: buildTarget, minify: true,
       offline: true, remoteResolution: false,
       exportDiscovery: 'esbuild ESM/metafile over tool/three/src/native_entry.js',
       adapterOrder: 'ES module dependency: example_adapter.js before official_module.js'
@@ -6156,7 +6326,12 @@ async function main() {
     extraction: {
       importmap: extracted.importmap,
       importmapBytes: record(extracted.importmapBytes),
-      officialModule: record(extracted.moduleBytes)
+      officialModule: record(extracted.moduleBytes),
+      buildTransform: definition.moduleOverride
+        ? `explicit bounded native replacement: ${definition.moduleOverride}`
+        : definition.stripTopLevelAwait
+          ? 'removed two awaits only from synchronous static MediaPipe adapters'
+          : undefined
     },
     assetDiscovery: definition.discoverAssets ? assetDefinitions : undefined,
     facade: {

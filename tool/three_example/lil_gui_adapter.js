@@ -217,6 +217,8 @@ function installEvents(JSR) {
 
 export class Controller {
   constructor(container, object, property, kind) {
+    // ToPropertyKey coercion: morph-target dictionaries supply numeric indices.
+    if (typeof property === 'number' && Number.isFinite(property)) property = String(property);
     if (!object || typeof property !== 'string' || !property || property.length > 128) {
       throw new Error('three.invalid: lil-gui requires a bounded object property');
     }
@@ -380,7 +382,7 @@ export class StringController extends Controller {
 // lil-gui dropdown: add(obj, prop, ['a', 'b']) / add(obj, prop, [2, 4, 8]).
 // Bounded native facade: values must be strings or finite numbers, list
 // capped at MAX_OPTIONS entries; setValue validates membership.
-const MAX_OPTIONS = 32;
+const MAX_OPTIONS = 64;
 
 export class OptionsController extends Controller {
   constructor(container, object, property, allowed, labels = null) {

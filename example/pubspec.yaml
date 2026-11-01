@@ -309,4 +309,25 @@ flutter:
     - widgets/three-volume-cloud/
     - widgets/three-volume-instancing/
     - widgets/three-volume-perlin/
+    - widgets/three-batch-lod-bvh/
+    - widgets/three-geometry-csg/
+    - widgets/three-loader-3dtiles/
+    - widgets/three-loader-gltf-animation-pointer/
+    - widgets/three-loader-gltf-progressive-lod/
+    - widgets/three-loader-ifc/
+    - widgets/three-loader-svg/
+    - widgets/three-loader-texture-lottie/
+    - widgets/three-loader-ttf/
+    - widgets/three-materials-texture-html/
+    - widgets/three-modifier-subdivision/
+    - widgets/three-postprocessing-godrays/
+    - widgets/three-raycaster-bvh/
+    - widgets/three-renderer-pathtracer/
+    - widgets/three-tsl-clearcoat/
+    - widgets/three-tsl-instancing/
+    - widgets/three-tsl-shadowmap/
+    - widgets/three-tsl-skinning/
+    - widgets/three-watch/
+    - widgets/three-worker-offscreencanvas/
+    - widgets/three-morphtargets-webcam/
     - assets/models/

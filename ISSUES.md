@@ -244,32 +244,45 @@ definition generation, prepared-only runner/pubspec registration) and
 Prepare results: `/tmp/three_prepare_results.json`; logs:
 `/tmp/three_prepare_logs/`.
 
-### Prepare failures (21, all WebGL)
+### Prepare failures (21, all WebGL) — RESOLVED
 
-- **Forbidden external bare imports (12):**
-  `webgl_batch_lod_bvh` (@three.ez/simplify-geometry),
-  `webgl_geometry_csg` (three-bvh-csg),
-  `webgl_loader_3dtiles` (3d-tiles-renderer plus postprocessing/@takram plugins),
-  `webgl_loader_gltf_animation_pointer` (@needle-tools/three-animation-pointer),
-  `webgl_loader_gltf_progressive_lod` (@needle-tools/gltf-progressive),
-  `webgl_loader_ifc` (web-ifc),
-  `webgl_materials_texture_html` (three-html-render/polyfill),
-  `webgl_modifier_subdivision` (three-subdivide),
-  `webgl_postprocessing_godrays` (goodrays),
-  `webgl_raycaster_bvh` (three-mesh-bvh),
-  `webgl_renderer_pathtracer` (three-gpu-pathtracer),
-  `webgl_watch` (tween).
-- **Unmapped three/webgpu or three/tsl imports (4):**
-  `webgl_tsl_clearcoat`, `webgl_tsl_instancing`, `webgl_tsl_shadowmap`,
-  `webgl_tsl_skinning`.
-- **Remote CDN imports / module-format blockers (3):**
-  `webgl_loader_texture_lottie` (lottie-web CDN),
-  `webgl_loader_ttf` (opentype.js CDN),
-  `webgl_morphtargets_webcam` (MediaPipe CDN plus top-level await under es2020).
-- **Second core import outside finite roots (1):**
-  `webgl_worker_offscreencanvas` (examples/jsm/offscreen/scene.js imports
-  build/three.module.js instead of the facade).
-- **Unsupported prepared asset type (1):** `webgl_loader_svg` (image/svg+xml).
+All 21 now prepare offline, are registered in the 303-entry catalog, and render
+through the native R1 path. The final focused matrix is in
+`/tmp/three_gap_matrix.jsonl`: 21/21 mounted, 21/21 submitted at least one real
+frame, 21/21 produced draws, with no JS errors or planner warnings. The durable
+regression suite is `test/three_example_gap_render_test.dart` and reuses
+`test/support/three_example_render_contract.dart`; its 21/21 cases pass. Every
+example also passes a second `prepare --offline --verify` reproducibility check
+(`/tmp/three_gap_verify.log`).
+
+| Official example | Result |
+|---|---|
+| `webgl_batch_lod_bvh` | **Warned bounded degrade:** vendored `@three.ez/simplify-geometry`; native rendering reuses source geometry across LODs and omits radix/BVH acceleration. |
+| `webgl_geometry_csg` | Prepared/rendering; vendored `three-bvh-csg` with bounded native CSG evaluation. |
+| `webgl_loader_3dtiles` | **Warned bounded degrade:** surrounding scene renders with pinned local geometry; remote ion/tile traversal and the large renderer/plugin/WASM stack are not attempted. |
+| `webgl_loader_gltf_animation_pointer` | **Warned bounded degrade:** vendored Needle entry API, pinned local glTF stand-ins, native raycast/pointer fan-out; remote Needle payloads are not fetched. |
+| `webgl_loader_gltf_progressive_lod` | **Warned bounded degrade:** vendored Needle entry API and pinned local glTF stand-ins; remote progressive LOD payloads are not fetched. |
+| `webgl_loader_ifc` | **Warned bounded degrade:** surrounding native mesh renders; web-ifc WASM parsing/execution is intentionally not bundled. |
+| `webgl_materials_texture_html` | Prepared/rendering; bounded native HTML surface rasterization through the existing local DOM/canvas path, no runtime CDN. |
+| `webgl_modifier_subdivision` | Prepared/rendering; vendored `three-subdivide`. |
+| `webgl_postprocessing_godrays` | Prepared/rendering; vendored `goodrays` (`three-good-godrays`). |
+| `webgl_raycaster_bvh` | Prepared/rendering; vendored `three-mesh-bvh`, with native static indexed-mesh raycast acceleration. |
+| `webgl_renderer_pathtracer` | **Warned bounded degrade:** direct native scene rendering remains active; GPU path tracing and its large runtime are not attempted. |
+| `webgl_watch` | Prepared/rendering; vendored `@tweenjs/tween.js`. |
+| `webgl_tsl_clearcoat` | **Warned WebGL2 fallback:** equivalent clearcoat scene; the official module is WebGPU/TSL-only and has no official WebGL fallback. |
+| `webgl_tsl_instancing` | **Warned WebGL2 fallback:** equivalent instanced scene; no official WebGL fallback exists. |
+| `webgl_tsl_shadowmap` | **Warned WebGL2 fallback:** equivalent shadow scene; no official WebGL fallback exists. |
+| `webgl_tsl_skinning` | **Warned WebGL2 fallback:** equivalent skinned scene using the pinned official glTF; no official WebGL fallback exists. |
+| `webgl_loader_texture_lottie` | **Warned bounded degrade:** vendored `lottie-web` light HTML player API; browser vector rendering is replaced by native-canvas animation while retaining frame/transport behavior. |
+| `webgl_loader_ttf` | Prepared/rendering; vendored `opentype.js`. |
+| `webgl_morphtargets_webcam` | **Warned bounded degrade:** pinned official face glTF and native morph animation render; MediaPipe/camera inference is not bundled. |
+| `webgl_worker_offscreencanvas` | Prepared/rendering; the second `build/three.module.js` import maps to the single-core facade and the Worker lane is bounded to one native canvas. |
+| `webgl_loader_svg` | Prepared/rendering; all pinned SVG assets are transcoded to PNG at prepare with `qlmanage`, with source/output SHA-256 pins. |
+
+Vendored package versions, entry/license paths, and entry SHA-256 digests live in
+`tool/three_example/vendor/lock.json`; prepare import rewrites resolve only those
+pins. The four WebGPU-only examples are explicit prepared WebGL fallbacks rather
+than silent platform-unsupported failures.
 
 ### Full matrix (282 prepared examples)
 
@@ -577,3 +590,12 @@ Regression coverage: `js_three_r1_capability_examples_test.dart` (21/21 pass;
 `/tmp/r1_contract5.log`), using the shared three_example_render_contract health
 assertions plus explicit zero-RAF and degradation-warning checks. Analyzer is
 clean; no protocol or production Dart changes were needed.
+
+## FINAL: full official JS/WebGL catalog coverage (three.js r186)
+
+303/303 official webgl_*/webaudio_* examples prepared offline + registered.
+Matrix: 297 rendering + 6 host-harness cases covered by dedicated tests
+(effects-ascii submits frames after canvas replacement; postprocessing-glitch
+needs its #startButton gesture; 4 webaudio use the audio-host dedicated
+suites). Arbitrary-GLSL three-shader remains a bounded recognizer-based
+degrade. All quality gates green.

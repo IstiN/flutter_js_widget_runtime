@@ -1,4 +1,4 @@
-import { Mesh, PMREMGenerator as CorePMREMGenerator } from 'three';
+import { Mesh, DataTexture, PMREMGenerator as CorePMREMGenerator } from 'three';
 import { installThreeRuntime } from './runtime.js';
 import { installNativeCanvas2D } from './native_canvas2d.js';
 import { installNativeRaycastBVH } from './native_raycast_bvh.js';
@@ -144,11 +144,49 @@ export class JsrPMREMGenerator extends CorePMREMGenerator {
   }
 }
 
+// HTML-in-canvas requires a browser layout/rasterization stack. Preserve the
+// official HTMLTexture construction and textured mesh with a bounded local
+// RGBA8 placeholder rather than aborting the surrounding native scene.
+export class JsrImageBitmapLoader extends JsrImageLoader {
+  setOptions() { return this; }
+}
+
+export class HTMLTexture extends DataTexture {
+  constructor(element) {
+    const width = 256;
+    const height = 256;
+    const data = new Uint8Array(width * height * 4);
+    for (let y = 0; y < height; y++) {
+      for (let x = 0; x < width; x++) {
+        const offset = (y * width + x) * 4;
+        const stripe = ((x >> 5) + (y >> 5)) % 2 === 0;
+        data[offset] = stripe ? 238 : 40;
+        data[offset + 1] = stripe ? 242 : 96;
+        data[offset + 2] = stripe ? 248 : 160;
+        data[offset + 3] = 255;
+      }
+    }
+    super(data, width, height);
+    this.isHTMLTexture = true;
+    this.sourceElement = element || null;
+    // InteractionManager projects the source element onto the textured mesh.
+    // Keep the native RGBA payload while supplying the browser CSS surface it
+    // touches; no DOM layout is attempted.
+    Object.assign(this.image, {
+      style: {}, offsetWidth: width, offsetHeight: height,
+      clientWidth: width, clientHeight: height
+    });
+    this.needsUpdate = true;
+    console.warn('three: HTMLTexture uses a bounded 256x256 native RGBA placeholder; browser HTML layout/rasterization is unavailable.');
+  }
+}
+
 export * from 'three';
 export { JsrPMREMGenerator as PMREMGenerator, JsrCanvasTextureLoader as TextureLoader };
 export { getNativeRaycastDiagnostics } from './native_raycast_bvh.js';
 export { JsrWebGLRenderer as WebGLRenderer } from './native_renderer.js';
 export { JsrFileLoader as FileLoader, JsrImageLoader as ImageLoader } from './native_loaders.js';
+export { JsrImageBitmapLoader as ImageBitmapLoader };
 export { JsrDataTextureLoader as DataTextureLoader } from './native_loaders.js';
 export { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 export { ThreeCompatibilityRuntime, JsrThreeCanvas } from './runtime.js';

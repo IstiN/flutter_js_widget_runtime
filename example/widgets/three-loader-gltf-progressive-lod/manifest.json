@@ -1,0 +1,13 @@
+{
+  "id": "three-loader-gltf-progressive-lod",
+  "name": "GLTF with progressive loading — three.js r186",
+  "description": "Unmodified official webgl_loader_gltf_progressive_lod module on the JSR THREE R1/WebGL2 runtime.",
+  "version": "0.1.0",
+  "icon": "🧊",
+  "allowedCommands": [],
+  "network": false,
+  "widget": {
+    "entry": "widget.js",
+    "interactive": true
+  }
+}

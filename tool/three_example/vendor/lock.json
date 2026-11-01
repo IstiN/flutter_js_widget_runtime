@@ -1,0 +1,86 @@
+{
+  "@needle-tools/gltf-progressive": {
+    "entry": "index.mjs",
+    "entrySha256": "d34bea964dc711afbf0a79d4a97b2b660e8dc821452e9186bd91c8ced561c9e5",
+    "license": "LICENSE (records absent upstream license metadata)",
+    "npmTarballSha256": "541dc7ae55cac20a71b0c2995234bda12ef51f8856269eb3a56c1770fe385eac",
+    "version": "3.2.0"
+  },
+  "@needle-tools/three-animation-pointer": {
+    "entry": "index.mjs",
+    "entrySha256": "5db7f980e831cc9d840956c7d77a9b40baeeb8df1c11edc77dc1a7e746c53599",
+    "license": "LICENSE",
+    "npmTarballSha256": "888ac911034ae20ded90b0e6e22285d164df40221dc675541c2a840597efc538",
+    "version": "1.0.7"
+  },
+  "@three.ez/batched-mesh-extensions": {
+    "entry": "index.mjs",
+    "entrySha256": "ca56321442845ea297bcf207bcb396a3dea937b9d342324c2323194b8b4b60c7",
+    "license": "LICENSE",
+    "npmTarballSha256": "dbec4b2a8f0e22c22d279865806dff058ca1f69b5de4cd2a42dcb2c681d36f5f",
+    "version": "0.0.11"
+  },
+  "@three.ez/simplify-geometry": {
+    "entry": "index.mjs",
+    "entrySha256": "864c915095c576648d4c8724e16d49825923703b8790edf9e7cfa58107795885",
+    "license": "LICENSE",
+    "npmTarballSha256": "6890158e9ef2baa040163692077ce56d7883f132074e2abd7085476d77bbab19",
+    "version": "0.0.1"
+  },
+  "@tweenjs/tween.js": {
+    "entry": "index.mjs",
+    "entrySha256": "4e54d74514b1e5940ec5be9ce257539405fce5d49fb8845b12bb8d7d9862d40e",
+    "license": "LICENSE",
+    "npmTarballSha256": "e92ea848c92bd29239efd2689a018c0ef531391ce0041a1787a964314fd4eb8a",
+    "version": "23.1.3"
+  },
+  "lottie-web": {
+    "entry": "index.mjs",
+    "entrySha256": "a71d2de172f75a80b76fd78fb27dec73b45516959cb813c609ada17f9c4caa93",
+    "license": "LICENSE",
+    "npmTarballSha256": "00f306a9b5669abf9622c418b549681d1b858e0b7fa7ea6adc0772ca57c3fd4f",
+    "version": "5.13.0"
+  },
+  "opentype.js": {
+    "entry": "index.mjs",
+    "entrySha256": "8d79d17388114a29d74681dfaed84068b1d7d9b4e39a9544fb6406d25579ad8f",
+    "license": "LICENSE",
+    "npmTarballSha256": "891876b34f56bc0ac3a354247d53a5b7d70ede7552c274c1077567c91baf7262",
+    "version": "1.3.4"
+  },
+  "postprocessing": {
+    "entry": "index.mjs",
+    "entrySha256": "e60a269a663f9cf4dcf8848a6571782dd9494ca7e84d6331c987cb4a984b3f9d",
+    "license": "LICENSE",
+    "npmTarballSha256": "aff0d5433c7241c1db221473bce9acf85a0e0920d0d5d3560d55361e68aa6a93",
+    "version": "6.39.1"
+  },
+  "three-bvh-csg": {
+    "entry": "index.mjs",
+    "entrySha256": "dab4d28b7675ecddad02eb3937949e0662e69a479540a3401fb06304d148a3c0",
+    "license": "LICENSE",
+    "npmTarballSha256": "9cfc598742c8a072edd01f2774c16047ff9622625e8d0918475fd021455a9754",
+    "version": "0.0.18"
+  },
+  "three-good-godrays": {
+    "entry": "index.mjs",
+    "entrySha256": "610536cdfbf7ecf60953f8d2c76559104c0e45fe052ee5f4e635dc78d4bc1ab7",
+    "license": "LICENSE",
+    "npmTarballSha256": "3afc40e56a296b50fc90ff14c86329c31460b02c6b624af6047e3cd091524029",
+    "version": "0.12.0"
+  },
+  "three-mesh-bvh": {
+    "entry": "index.mjs",
+    "entrySha256": "59722d27ea0626dab51d2e46192c2c7f4636655de79c2da557bca115b9e53642",
+    "license": "LICENSE",
+    "npmTarballSha256": "98e01475c5a3ce0c437d920c07774abb9235e69c7fff64cb5b04fc251c121471",
+    "version": "0.9.10"
+  },
+  "three-subdivide": {
+    "entry": "index.mjs",
+    "entrySha256": "60fb0d735f73640e6871be6af31edede9c2c4257191485f447d9e0f5d43d673c",
+    "license": "LICENSE",
+    "npmTarballSha256": "a410689e8ec4af737eccd7350e213b889f9dce74f7ff25cad1fa0cd8b876c011",
+    "version": "1.1.5"
+  }
+}
