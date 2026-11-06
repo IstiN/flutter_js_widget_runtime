@@ -17,7 +17,7 @@ void main() {
         widgetId: 'three-points-sprites',
         instanceId: 'three-points-sprites-render-test',
       );
-      await harness.pumpUntil(
+      final plan = await harness.pumpUntilRendered(
         tester,
         (state, plan) =>
             state.submittedFrameCount >= 3 &&
@@ -25,14 +25,7 @@ void main() {
             plan.draws.length == 5 &&
             plan.draws.every((draw) => draw.material.mapTextureId != 0),
       );
-      await tester.runAsync(
-        () => Future<void>.delayed(const Duration(seconds: 2)),
-      );
-      await harness.pumpFrames(tester, 40);
-
       final state = harness.state!;
-      final plan = const ThreeDrawPlanner().plan(state);
-      expect(plan.diagnostics.warnings, isEmpty);
       expect(plan.draws, hasLength(5));
       expect(
         plan.draws.map((draw) => draw.material.pointSize),

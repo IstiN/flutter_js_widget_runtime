@@ -6,6 +6,30 @@ import 'package:js_widget_runtime/src/renderer/nodes/three/js_three_protocol.dar
 
 import 'three_protocol_bytes.dart';
 final threeProtocolDecoder = JsThreeProtocolDecoder();
+void _writeFrameHead(
+  Uint8List out, {
+  required int scene,
+  required int camera,
+  required double exposure,
+  required int fogMode,
+  required double fogNear,
+  required double fogFar,
+}) {
+  setU32(out, 0, scene);
+  setU32(out, 4, camera);
+  setF32(out, 8, 0.1);
+  setF32(out, 12, 0.2);
+  setF32(out, 16, 0.3);
+  setF32(out, 20, 0.4);
+  setF32(out, 24, exposure);
+  setU32(out, 28, fogMode);
+  setF32(out, 32, 0.5);
+  setF32(out, 36, 0.6);
+  setF32(out, 40, 0.7);
+  setF32(out, 44, fogNear);
+  setF32(out, 48, fogFar);
+}
+
 
 Uint8List threeCommand(int opcode, Uint8List body) {
   final out = Uint8List(8 + body.length);
@@ -200,19 +224,15 @@ Uint8List threeFrameV4({
   double fogFar = 75,
 }) {
   final out = Uint8List(148);
-  setU32(out, 0, scene);
-  setU32(out, 4, camera);
-  setF32(out, 8, 0.1);
-  setF32(out, 12, 0.2);
-  setF32(out, 16, 0.3);
-  setF32(out, 20, 0.4);
-  setF32(out, 24, exposure);
-  setU32(out, 28, fogMode);
-  setF32(out, 32, 0.5);
-  setF32(out, 36, 0.6);
-  setF32(out, 40, 0.7);
-  setF32(out, 44, fogNear);
-  setF32(out, 48, fogFar);
+  _writeFrameHead(
+    out,
+    scene: scene,
+    camera: camera,
+    exposure: exposure,
+    fogMode: fogMode,
+    fogNear: fogNear,
+    fogFar: fogFar,
+  );
   setU32(out, 52, toneMapping);
   setF32(out, 56, fogDensity);
   setU32(out, 60, 0);
@@ -517,19 +537,15 @@ Uint8List threeFrame({
       ? 0
       : 4 + culledShadowNodeIds.length * 4;
   final out = Uint8List(base + mainLength + shadowLength);
-  setU32(out, 0, scene);
-  setU32(out, 4, camera);
-  setF32(out, 8, 0.1);
-  setF32(out, 12, 0.2);
-  setF32(out, 16, 0.3);
-  setF32(out, 20, 0.4);
-  setF32(out, 24, exposure);
-  setU32(out, 28, fogMode);
-  setF32(out, 32, 0.5);
-  setF32(out, 36, 0.6);
-  setF32(out, 40, 0.7);
-  setF32(out, 44, fogNear);
-  setF32(out, 48, fogFar);
+  _writeFrameHead(
+    out,
+    scene: scene,
+    camera: camera,
+    exposure: exposure,
+    fogMode: fogMode,
+    fogNear: fogNear,
+    fogFar: fogFar,
+  );
   setU32(out, 52, shadowWidth);
   setU32(out, 56, shadowHeight);
   setF32(out, 60, -0.0001);

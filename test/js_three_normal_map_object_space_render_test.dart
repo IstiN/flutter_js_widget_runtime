@@ -1,6 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:js_widget_runtime/src/renderer/nodes/three/js_three_protocol.dart';
-import 'package:js_widget_runtime/src/renderer/nodes/three/three_draw_plan.dart';
 
 import 'support/three_quickjs_example_harness.dart';
 import 'support/widget_logic_helper.dart';
@@ -17,7 +16,7 @@ void main() {
         widgetId: 'three-materials-normalmap-object-space',
         instanceId: 'three-normal-map-object-space-render-test',
       );
-      await harness.pumpUntil(
+      final plan = await harness.pumpUntilRendered(
         tester,
         (state, plan) =>
             state.submittedFrameCount >= 1 &&
@@ -26,14 +25,7 @@ void main() {
             plan.draws.single.material.normalMapTextureId != 0,
         attempts: 400,
       );
-      await tester.runAsync(
-        () => Future<void>.delayed(const Duration(seconds: 2)),
-      );
-      await harness.pumpFrames(tester, 40);
-
       final state = harness.state!;
-      final plan = const ThreeDrawPlanner().plan(state);
-      expect(plan.diagnostics.warnings, isEmpty);
       expect(plan.draws, hasLength(1));
       final draw = plan.draws.single;
       expect(draw.material.kind, JsThreeMaterialKind.meshStandard);

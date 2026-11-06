@@ -8,23 +8,34 @@ Widget _app(Widget child) => MaterialApp(
       home: Scaffold(body: child),
     );
 
+/// Pumps a `video` node through a [FakeMediaHost], wiring [events] to the
+/// renderer's `onEvent` (omit [onError] to leave the node without a hook).
+Future<FakeMediaHost> _pumpVideo(
+  WidgetTester tester,
+  List<Map<String, dynamic>> events, {
+  String? onError = 'viderr',
+}) async {
+  final host = FakeMediaHost();
+  final renderer = JsonWidgetRenderer(
+    onEvent: (id, payload) => events.add({'id': id, 'payload': payload}),
+    mediaHost: host,
+  );
+  await tester.pumpWidget(_app(renderer.build({
+    'type': 'video',
+    'src': '/tmp/v.mp4',
+    if (onError != null) 'onError': onError,
+  })));
+  await tester.pump();
+  return host;
+}
+
 void main() {
   group('video node onError', () {
     testWidgets('controller errorStream fires the onError event', (
       tester,
     ) async {
-      final host = FakeMediaHost();
       final events = <Map<String, dynamic>>[];
-      final renderer = JsonWidgetRenderer(
-        onEvent: (id, payload) => events.add({'id': id, 'payload': payload}),
-        mediaHost: host,
-      );
-      await tester.pumpWidget(_app(renderer.build({
-        'type': 'video',
-        'src': '/tmp/v.mp4',
-        'onError': 'viderr',
-      })));
-      await tester.pump();
+      final host = await _pumpVideo(tester, events);
 
       host.video.errors.add({'message': 'network dropped'});
       await tester.pump();
@@ -60,17 +71,8 @@ void main() {
     testWidgets('without onError the error stays silent (back-compat)', (
       tester,
     ) async {
-      final host = FakeMediaHost();
       final events = <Map<String, dynamic>>[];
-      final renderer = JsonWidgetRenderer(
-        onEvent: (id, payload) => events.add({'id': id, 'payload': payload}),
-        mediaHost: host,
-      );
-      await tester.pumpWidget(_app(renderer.build({
-        'type': 'video',
-        'src': '/tmp/v.mp4',
-      })));
-      await tester.pump();
+      final host = await _pumpVideo(tester, events, onError: null);
 
       host.video.errors.add('boom');
       await tester.pump();

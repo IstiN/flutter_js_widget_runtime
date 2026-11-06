@@ -366,20 +366,18 @@ Uint8List r1Material(
     final clipBytes = v3 ? 8 : 0;
     final base = (phong ? 72 : 56) + clipBytes;
     final data = ByteData(base + (emissive ? 16 : 0) + (stencil ? 32 : 0));
-    data.setUint32(0, id, Endian.little);
-    data.setUint32(4, version, Endian.little);
-    data.setUint32(8, kind.wireValue, Endian.little);
-    data.setUint32(12, mapTextureId, Endian.little);
-    data.setUint32(16, flags, Endian.little);
-    data.setUint32(20, side.wireValue, Endian.little);
-    data.setFloat32(24, color[0], Endian.little);
-    data.setFloat32(28, color[1], Endian.little);
-    data.setFloat32(32, color[2], Endian.little);
-    data.setFloat32(36, opacity, Endian.little);
-    data.setFloat32(40, 0.5, Endian.little);
-    data.setFloat32(44, 0, Endian.little);
-    data.setFloat32(48, 0, Endian.little);
-    data.setFloat32(52, pointSize, Endian.little);
+      _writeR1MaterialHead(
+        data,
+        id: id,
+        version: version,
+        kind: kind,
+        mapTextureId: mapTextureId,
+        flags: flags,
+        side: side,
+        color: color,
+        opacity: opacity,
+        pointSize: pointSize,
+      );
     if (v3) {
       data.setUint32(56, clipId, Endian.little);
       data.setUint32(60, clipFlags, Endian.little);
@@ -408,20 +406,18 @@ Uint8List r1Material(
         (emissive ? 16 : 0) +
         (stencil ? 32 : 0),
   );
-  data.setUint32(0, id, Endian.little);
-  data.setUint32(4, version, Endian.little);
-  data.setUint32(8, kind.wireValue, Endian.little);
-  data.setUint32(12, mapTextureId, Endian.little);
-  data.setUint32(16, flags, Endian.little);
-  data.setUint32(20, side.wireValue, Endian.little);
-  data.setFloat32(24, color[0], Endian.little);
-  data.setFloat32(28, color[1], Endian.little);
-  data.setFloat32(32, color[2], Endian.little);
-  data.setFloat32(36, opacity, Endian.little);
-  data.setFloat32(40, 0.5, Endian.little);
-  data.setFloat32(44, 0, Endian.little);
-  data.setFloat32(48, 0, Endian.little);
-  data.setFloat32(52, pointSize, Endian.little);
+_writeR1MaterialHead(
+    data,
+    id: id,
+    version: version,
+    kind: kind,
+    mapTextureId: mapTextureId,
+    flags: flags,
+    side: side,
+    color: color,
+    opacity: opacity,
+    pointSize: pointSize,
+  );
   // v3 clip id + flags.
   data.setUint32(56, clipId ?? 0, Endian.little);
   data.setUint32(60, clipFlags, Endian.little);
@@ -459,6 +455,34 @@ Uint8List r1Material(
   offset += 96;
   if (stencil) _writeStencilTail(data, offset, stencilWrite, stencilFunc, stencilRef, stencilFuncMask, stencilWriteMask, stencilFailOp, stencilZFailOp, stencilZPassOp);
   return Uint8List.view(data.buffer);
+}
+
+void _writeR1MaterialHead(
+  ByteData data, {
+  required int id,
+  required int version,
+  required JsThreeMaterialKind kind,
+  required int mapTextureId,
+  required int flags,
+  required JsThreeSide side,
+  required List<double> color,
+  required double opacity,
+  required double pointSize,
+}) {
+  data.setUint32(0, id, Endian.little);
+  data.setUint32(4, version, Endian.little);
+  data.setUint32(8, kind.wireValue, Endian.little);
+  data.setUint32(12, mapTextureId, Endian.little);
+  data.setUint32(16, flags, Endian.little);
+  data.setUint32(20, side.wireValue, Endian.little);
+  data.setFloat32(24, color[0], Endian.little);
+  data.setFloat32(28, color[1], Endian.little);
+  data.setFloat32(32, color[2], Endian.little);
+  data.setFloat32(36, opacity, Endian.little);
+  data.setFloat32(40, 0.5, Endian.little);
+  data.setFloat32(44, 0, Endian.little);
+  data.setFloat32(48, 0, Endian.little);
+  data.setFloat32(52, pointSize, Endian.little);
 }
 
 void _writeStencilTail(

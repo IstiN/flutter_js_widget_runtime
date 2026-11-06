@@ -211,6 +211,23 @@ final class ThreeQuickjsExampleHarness {
     return plan;
   }
 
+  /// [pumpUntil] + async settle + [pumpFrames] + empty-warnings check:
+  /// the shared render-test skeleton.
+  Future<ThreeDrawPlan> pumpUntilRendered(
+    WidgetTester tester,
+    bool Function(JsThreeSurfaceState state, ThreeDrawPlan plan) ready, {
+    int attempts = 300,
+  }) async {
+    await pumpUntil(tester, ready, attempts: attempts);
+    await tester.runAsync(
+      () => Future<void>.delayed(const Duration(seconds: 2)),
+    );
+    await pumpFrames(tester, 40);
+    final plan = const ThreeDrawPlanner().plan(state!);
+    expect(plan.diagnostics.warnings, isEmpty);
+    return plan;
+  }
+
   Future<void> pumpFrames(WidgetTester tester, int count) async {
     for (var frame = 0; frame < count; frame++) {
       await pumpFrame(tester);

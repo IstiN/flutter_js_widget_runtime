@@ -101,6 +101,19 @@ Future<int> _skyPixelsInWindow(
   return count;
 }
 
+/// One greedy-merged green mega-plate under the camera: positions span
+/// behind the eye, exercising the near-plane clip of huge quads.
+void _plateUnderCamera(JsVoxelWorld world) {
+  world.handleHostCall('voxel.mesh', {
+    'id': 'w',
+    'key': '0,0',
+    'origin': [0, 0, 0],
+    'positions': [-64, 0, -64, -64, 0, 80, 80, 0, 80, 80, 0, -64],
+    'colors': [0.2, 0.8, 0.2, 0.2, 0.8, 0.2, 0.2, 0.8, 0.2, 0.2, 0.8, 0.2],
+    'indices': [0, 1, 2, 0, 2, 3],
+  });
+}
+
 void main() {
   setUp(() => VoxelDiagnostics.bsp = false);
   tearDown(VoxelDiagnostics.reset);
@@ -178,14 +191,7 @@ void main() {
     test('texture subdivision: big tris split so uv stays faithful', () async {
       final world = JsVoxelWorld();
       world.handleHostCall('voxel.attach', {'id': 'w'});
-      world.handleHostCall('voxel.mesh', {
-        'id': 'w',
-        'key': '0,0',
-        'origin': [0, 0, 0],
-        'positions': [-64, 0, -64, -64, 0, 80, 80, 0, 80, 80, 0, -64],
-        'colors': [0.2, 0.8, 0.2, 0.2, 0.8, 0.2, 0.2, 0.8, 0.2, 0.2, 0.8, 0.2],
-        'indices': [0, 1, 2, 0, 2, 3],
-      });
+      _plateUnderCamera(world);
       Map<String, Object?> cam(bool tex) => {
         'id': 'w',
         'position': [8, 6, 8],
@@ -310,14 +316,7 @@ void main() {
       // in the scanned center window must hit it at ANY yaw (pitch is
       // down). The plate spans behind the eye, exercising the near-plane
       // clip of huge quads — the shape that exposed holes.
-      world.handleHostCall('voxel.mesh', {
-        'id': 'w',
-        'key': '0,0',
-        'origin': [0, 0, 0],
-        'positions': [-64, 0, -64, -64, 0, 80, 80, 0, 80, 80, 0, -64],
-        'colors': [0.2, 0.8, 0.2, 0.2, 0.8, 0.2, 0.2, 0.8, 0.2, 0.2, 0.8, 0.2],
-        'indices': [0, 1, 2, 0, 2, 3],
-      });
+      _plateUnderCamera(world);
       const sky = 0xFF102030;
       for (var step = 0; step < 36; step++) {
         world.handleHostCall('voxel.camera', {

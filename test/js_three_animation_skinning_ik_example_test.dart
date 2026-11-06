@@ -5,6 +5,20 @@ import 'support/running_widget.dart';
 import 'support/three_quickjs_example_harness.dart';
 import 'support/widget_logic_helper.dart';
 
+/// Shared JS preamble for the skinned-mesh R1 regression sources: a
+/// 64x64 canvas, a scene and a camera at z=8 plus a unit box geometry.
+const _skinnedScenePreamble = '''
+        const canvas = jsr.three.createCanvas('main');
+        const renderer = new THREE.WebGLRenderer({canvas: canvas});
+        renderer.setSize(64, 64);
+        const scene = new THREE.Scene();
+        const camera = new THREE.PerspectiveCamera(60, 1, 0.1, 100);
+        camera.position.set(0, 0, 8);
+        camera.lookAt(0, 0, 0);
+        const geometry = new THREE.BoxGeometry(1, 1, 1);
+        const count = geometry.attributes.position.count;
+''';
+
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
   if (!hasQuickjsNativeLib) {
@@ -214,16 +228,7 @@ void main() {
     final harness = await ThreeQuickjsExampleHarness.bootSource(
       tester,
       instanceId: 'three-skinned-bounds-regression',
-      source: r'''
-        const canvas = jsr.three.createCanvas('main');
-        const renderer = new THREE.WebGLRenderer({canvas: canvas});
-        renderer.setSize(64, 64);
-        const scene = new THREE.Scene();
-        const camera = new THREE.PerspectiveCamera(60, 1, 0.1, 100);
-        camera.position.set(0, 0, 8);
-        camera.lookAt(0, 0, 0);
-        const geometry = new THREE.BoxGeometry(1, 1, 1);
-        const count = geometry.attributes.position.count;
+      source: _skinnedScenePreamble + r'''
         const skinIndices = new THREE.Float32BufferAttribute(
           new Array(count * 4).fill(0), 4);
         const skinWeights = new THREE.Float32BufferAttribute(
@@ -312,16 +317,7 @@ void main() {
     final harness = await ThreeQuickjsExampleHarness.bootSource(
       tester,
       instanceId: 'three-skinned-cull-memo-regression',
-      source: r'''
-        const canvas = jsr.three.createCanvas('main');
-        const renderer = new THREE.WebGLRenderer({canvas: canvas});
-        renderer.setSize(64, 64);
-        const scene = new THREE.Scene();
-        const camera = new THREE.PerspectiveCamera(60, 1, 0.1, 100);
-        camera.position.set(0, 0, 8);
-        camera.lookAt(0, 0, 0);
-        const geometry = new THREE.BoxGeometry(1, 1, 1);
-        const count = geometry.attributes.position.count;
+      source: _skinnedScenePreamble + r'''
         geometry.setAttribute('skinIndex',
           new THREE.Float32BufferAttribute(new Array(count * 4).fill(0), 4));
         geometry.setAttribute('skinWeight',

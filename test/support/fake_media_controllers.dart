@@ -44,14 +44,8 @@ class RecordingAudioController extends JsAudioController {
   Future<void> dispose() async => calls.add('dispose');
 }
 
-/// Inert video controller for hosts that must satisfy the full interface.
-class FakeVideoController extends JsVideoController {
-  @override
-  double? get aspectRatio => null;
-
-  @override
-  Stream<double?> get aspectRatioStream => const Stream.empty();
-
+/// Shared no-op transport surface: empty streams, no-op play/pause/seek.
+mixin FakeInertPlayback on JsMediaController {
   @override
   Stream<Duration> get positionStream => const Stream.empty();
 
@@ -69,6 +63,48 @@ class FakeVideoController extends JsVideoController {
 
   @override
   Future<void> seek(Duration position) async {}
+}
+
+/// Shared broadcast transport streams with in-memory play/pause/seek, for
+/// widget tests that drive playback state through the controller API.
+mixin FakePlaybackStreams on JsMediaController {
+  final _position = StreamController<Duration>.broadcast();
+  final _duration = StreamController<Duration>.broadcast();
+  final _playing = StreamController<bool>.broadcast();
+
+  @override
+  Stream<Duration> get positionStream => _position.stream;
+
+  @override
+  Stream<Duration> get durationStream => _duration.stream;
+
+  @override
+  Stream<bool> get playingStream => _playing.stream;
+
+  @override
+  Future<void> play() async => _playing.add(true);
+
+  @override
+  Future<void> pause() async => _playing.add(false);
+
+  @override
+  Future<void> seek(Duration position) async => _position.add(position);
+
+  /// Closes the broadcast transport streams.
+  Future<void> closePlayback() async {
+    await _position.close();
+    await _duration.close();
+    await _playing.close();
+  }
+}
+
+/// Inert video controller for hosts that must satisfy the full interface.
+class FakeVideoController extends JsVideoController with FakeInertPlayback {
+  @override
+  double? get aspectRatio => null;
+
+  @override
+  Stream<double?> get aspectRatioStream => const Stream.empty();
 
   @override
   Future<void> dispose() async {}

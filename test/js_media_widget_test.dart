@@ -4,14 +4,14 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:js_widget_runtime/js_widget_runtime.dart';
 
-class _FakeVideoController extends JsVideoController {
+import 'support/fake_media_controllers.dart';
+
+class _FakeVideoController extends JsVideoController
+    with FakePlaybackStreams {
   _FakeVideoController(this.src);
 
   final String src;
   bool disposed = false;
-  final _position = StreamController<Duration>.broadcast();
-  final _duration = StreamController<Duration>.broadcast();
-  final _playing = StreamController<bool>.broadcast();
   final _aspectRatio = StreamController<double?>.broadcast();
 
   @override
@@ -21,29 +21,9 @@ class _FakeVideoController extends JsVideoController {
   Stream<double?> get aspectRatioStream => _aspectRatio.stream;
 
   @override
-  Stream<Duration> get positionStream => _position.stream;
-
-  @override
-  Stream<Duration> get durationStream => _duration.stream;
-
-  @override
-  Stream<bool> get playingStream => _playing.stream;
-
-  @override
-  Future<void> play() async => _playing.add(true);
-
-  @override
-  Future<void> pause() async => _playing.add(false);
-
-  @override
-  Future<void> seek(Duration position) async => _position.add(position);
-
-  @override
   Future<void> dispose() async {
     disposed = true;
-    await _position.close();
-    await _duration.close();
-    await _playing.close();
+    await closePlayback();
     await _aspectRatio.close();
   }
 
@@ -62,37 +42,15 @@ class _FakeVideoController extends JsVideoController {
       );
 }
 
-class _FakeAudioController extends JsAudioController {
+class _FakeAudioController extends JsAudioController
+    with FakePlaybackStreams {
   _FakeAudioController(this.src);
 
   final String src;
-  final _position = StreamController<Duration>.broadcast();
-  final _duration = StreamController<Duration>.broadcast();
-  final _playing = StreamController<bool>.broadcast();
-
-  @override
-  Stream<Duration> get positionStream => _position.stream;
-
-  @override
-  Stream<Duration> get durationStream => _duration.stream;
-
-  @override
-  Stream<bool> get playingStream => _playing.stream;
-
-  @override
-  Future<void> play() async => _playing.add(true);
-
-  @override
-  Future<void> pause() async => _playing.add(false);
-
-  @override
-  Future<void> seek(Duration position) async => _position.add(position);
 
   @override
   Future<void> dispose() async {
-    await _position.close();
-    await _duration.close();
-    await _playing.close();
+    await closePlayback();
   }
 }
 

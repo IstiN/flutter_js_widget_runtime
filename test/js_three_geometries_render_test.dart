@@ -1,6 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:js_widget_runtime/src/renderer/nodes/three/js_three_protocol.dart';
-import 'package:js_widget_runtime/src/renderer/nodes/three/three_draw_plan.dart';
 
 import 'support/three_quickjs_example_harness.dart';
 import 'support/widget_logic_helper.dart';
@@ -17,7 +16,7 @@ void main() {
       widgetId: 'three-geometries',
       instanceId: 'three-geometries-render-test',
     );
-    await harness.pumpUntil(
+    final plan = await harness.pumpUntilRendered(
       tester,
       (state, plan) =>
           state.submittedFrameCount >= 3 &&
@@ -25,14 +24,7 @@ void main() {
           plan.draws.length == 16 &&
           plan.draws.every((draw) => draw.material.mapTextureId != 0),
     );
-    await tester.runAsync(
-      () => Future<void>.delayed(const Duration(seconds: 2)),
-    );
-    await harness.pumpFrames(tester, 40);
-
     final state = harness.state!;
-    final plan = const ThreeDrawPlanner().plan(state);
-    expect(plan.diagnostics.warnings, isEmpty);
     expect(plan.draws, hasLength(16));
     final textureId = plan.draws.first.material.mapTextureId;
     expect(textureId, greaterThan(0));

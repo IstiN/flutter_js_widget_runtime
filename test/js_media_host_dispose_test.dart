@@ -1,4 +1,3 @@
-import 'dart:async';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:js_widget_runtime/js_widget_runtime.dart';
@@ -43,28 +42,11 @@ final class _CountingMediaHost extends JsMediaHost {
   }
 }
 
-final class _NoopAudioController extends JsAudioController {
+final class _NoopAudioController extends JsAudioController
+    with FakeInertPlayback {
   _NoopAudioController(this.host);
 
   final _CountingMediaHost host;
-
-  @override
-  Stream<Duration> get positionStream => const Stream.empty();
-
-  @override
-  Stream<Duration> get durationStream => const Stream.empty();
-
-  @override
-  Stream<bool> get playingStream => const Stream.empty();
-
-  @override
-  Future<void> play() async {}
-
-  @override
-  Future<void> pause() async {}
-
-  @override
-  Future<void> seek(Duration position) async {}
 
   @override
   Future<void> dispose() async {

@@ -87,12 +87,9 @@ Uint8List _batch({bool instanced = true, List<double>? colors}) {
   return body;
 }
 
-({
-  JsThreeNodeUpsert node,
-  JsThreeGeometryUpsert geometry,
-  JsThreeMaterialUpsert material,
-})
-_drawResources({
+ThreeDrawItem _draw({
+  int offset = 0,
+  int? count,
   JsThreeMaterialKind kind = JsThreeMaterialKind.meshBasic,
   bool indexed = true,
   bool wireframe = false,
@@ -112,6 +109,7 @@ _drawResources({
   List<double> color = const [1, 1, 1],
   double opacity = 1,
 }) {
+
   final geometry = Uint8List(
     68 +
         (indexed ? 24 : 0) +
@@ -178,59 +176,10 @@ _drawResources({
       matrixWorld?[index] ?? (index % 5 == 0 ? 1 : 0),
     );
   }
-  return (
+  return ThreeDrawItem(
     node: _decode(4, node) as JsThreeNodeUpsert,
     geometry: _decode(1, geometry) as JsThreeGeometryUpsert,
     material: _decode(3, material) as JsThreeMaterialUpsert,
-  );
-}
-
-ThreeDrawItem _draw({
-  int offset = 0,
-  int? count,
-  JsThreeMaterialKind kind = JsThreeMaterialKind.meshBasic,
-  bool indexed = true,
-  bool wireframe = false,
-  List<int>? wireIndices,
-  double specularR = 0,
-  double specularG = 0,
-  double specularB = 0,
-  double shininess = 0,
-  bool emissive = false,
-  double emissiveR = 0,
-  double emissiveG = 0,
-  double emissiveB = 0,
-  double emissiveIntensity = 1,
-  JsThreeSide side = JsThreeSide.front,
-  int nodeId = 1,
-  List<double>? matrixWorld,
-  List<double> color = const [1, 1, 1],
-  double opacity = 1,
-}) {
-  final resources = _drawResources(
-    kind: kind,
-    indexed: indexed,
-    wireframe: wireframe,
-    wireIndices: wireIndices,
-    specularR: specularR,
-    specularG: specularG,
-    specularB: specularB,
-    shininess: shininess,
-    emissive: emissive,
-    emissiveR: emissiveR,
-    emissiveG: emissiveG,
-    emissiveB: emissiveB,
-    emissiveIntensity: emissiveIntensity,
-    side: side,
-    nodeId: nodeId,
-    matrixWorld: matrixWorld,
-    color: color,
-    opacity: opacity,
-  );
-  return ThreeDrawItem(
-    node: resources.node,
-    geometry: resources.geometry,
-    material: resources.material,
     primitive: wireframe
         ? ThreeDrawPrimitive.lines
         : ThreeDrawPrimitive.triangles,
