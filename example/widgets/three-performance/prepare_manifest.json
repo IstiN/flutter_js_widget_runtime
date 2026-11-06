@@ -62,6 +62,173 @@
       "discovered": true
     }
   ],
+  "assetPolicy": {
+    "inlineMaxBytes": 1000,
+    "externalAssets": [
+      {
+        "url": "models/gltf/Cloth_Red_metallicRoughness",
+        "file": "models__gltf__Cloth_Red_metallicRoughness",
+        "bytes": 387017,
+        "sha256": "4f5443d897f63076e50ea970da2b515f9f2155083c00132bae6bfd5d07dbb7c6"
+      },
+      {
+        "url": "models/gltf/Cloth_Wood_metallicRoughness",
+        "file": "models__gltf__Cloth_Wood_metallicRoughness",
+        "bytes": 349315,
+        "sha256": "ac941cc7e79b5b0ce30df4e5badacd3bee2cf0a189852afcadf923d9f38994a5"
+      },
+      {
+        "url": "models/gltf/Coin_metallicRoughness",
+        "file": "models__gltf__Coin_metallicRoughness",
+        "bytes": 737018,
+        "sha256": "5e15e9093f63cd1dc887948cd4d6ee5833715c9b61f5ef5bb9f3f603805ae730"
+      },
+      {
+        "url": "models/gltf/dungeon_warkarma.glb",
+        "file": "models__gltf__dungeon_warkarma.glb",
+        "bytes": 5560632,
+        "sha256": "6ffd6443b4c99c6d60b45083cfd82c8a8f1ced7be024eebe4a94aa65fbc61237"
+      },
+      {
+        "url": "models/gltf/Floor_01_metallicRoughness",
+        "file": "models__gltf__Floor_01_metallicRoughness",
+        "bytes": 870626,
+        "sha256": "71f12cff42b5f40cc9944432f9ebf0d34d0658c93d44bdaa2335fe62cf5fcf21"
+      },
+      {
+        "url": "models/gltf/Floor_02_metallicRoughness",
+        "file": "models__gltf__Floor_02_metallicRoughness",
+        "bytes": 294408,
+        "sha256": "8fb0072153ae3e8468f89d47b24ee9e740edb8db054c0377bfc9bc1228d1ee71"
+      },
+      {
+        "url": "models/gltf/Floor_Stone_metallicRoughness",
+        "file": "models__gltf__Floor_Stone_metallicRoughness",
+        "bytes": 1031532,
+        "sha256": "a0fdb32b4caedca2f5601ca6a3087e04c704ec70f41d294b7b4f50f53577c590"
+      },
+      {
+        "url": "models/gltf/Global_Black_metallicRoughness",
+        "file": "models__gltf__Global_Black_metallicRoughness",
+        "bytes": 649724,
+        "sha256": "8b144d73ef1cdb24890417100f5b6820c4bef62a74fbbf242e05609cd30d8f78"
+      },
+      {
+        "url": "models/gltf/Global_Metal_metallicRoughness",
+        "file": "models__gltf__Global_Metal_metallicRoughness",
+        "bytes": 823575,
+        "sha256": "3edbbd6a2b4af01ca122caf3ca709ebc1de0cb546320c2c2c54fd9a5ee3acce5"
+      },
+      {
+        "url": "models/gltf/Global_White_metallicRoughness",
+        "file": "models__gltf__Global_White_metallicRoughness",
+        "bytes": 285053,
+        "sha256": "206f7e9aa39309cbb1159e102121d9459d1a8726a46f9eb735d9edfa63c708d0"
+      },
+      {
+        "url": "models/gltf/Global_Wood_metallicRoughness",
+        "file": "models__gltf__Global_Wood_metallicRoughness",
+        "bytes": 1040384,
+        "sha256": "2e50f24a7c5127b24e96d8acfa12909ee4aaabc2c6d32683e0389be02be5e8e7"
+      },
+      {
+        "url": "models/gltf/P_Steps_metallicRoughness",
+        "file": "models__gltf__P_Steps_metallicRoughness",
+        "bytes": 590356,
+        "sha256": "7acd954d0572eba07f45d66f0cdde6d07f1baf2c596863173365ad2bd6ea1135"
+      },
+      {
+        "url": "models/gltf/Pillars_metallicRoughness",
+        "file": "models__gltf__Pillars_metallicRoughness",
+        "bytes": 667675,
+        "sha256": "5abf6cfec3182b52f55c145996be2b05e648d1c4fcdc74b90e862b39e0d1f7d8"
+      },
+      {
+        "url": "models/gltf/Skull_metallicRoughness",
+        "file": "models__gltf__Skull_metallicRoughness",
+        "bytes": 530517,
+        "sha256": "e572b5bfdde424a32e50b4a15a84c74ceca130917bf2fdd606e723b575c6552a"
+      },
+      {
+        "url": "models/gltf/Steps_metallicRoughness",
+        "file": "models__gltf__Steps_metallicRoughness",
+        "bytes": 836459,
+        "sha256": "5103bb64a78f260d08e5a5454d6c56b388ffac7b665834cebc13668177011fac"
+      },
+      {
+        "url": "models/gltf/Stone_metallicRoughness",
+        "file": "models__gltf__Stone_metallicRoughness",
+        "bytes": 931959,
+        "sha256": "4418255344c91926b5554e35cb21aef36bfed7b2bcf73f712f8c4633c72dd7c0"
+      },
+      {
+        "url": "models/gltf/Tile_Border_metallicRoughness",
+        "file": "models__gltf__Tile_Border_metallicRoughness",
+        "bytes": 522023,
+        "sha256": "01d1968302572d52aaf003b22d43dc884a0fb89227fb96d62555b634eee5ed2b"
+      },
+      {
+        "url": "models/gltf/Tile_Borders__0_metallicRoughness",
+        "file": "models__gltf__Tile_Borders__0_metallicRoughness",
+        "bytes": 836459,
+        "sha256": "5103bb64a78f260d08e5a5454d6c56b388ffac7b665834cebc13668177011fac"
+      },
+      {
+        "url": "models/gltf/Tiles_metallicRoughness",
+        "file": "models__gltf__Tiles_metallicRoughness",
+        "bytes": 629573,
+        "sha256": "7814c4504ecd765d1cdb9f3fae579e47b3d63ed6a987b7c698b13088adf9020b"
+      },
+      {
+        "url": "models/gltf/Torch_Flame_metallicRoughness",
+        "file": "models__gltf__Torch_Flame_metallicRoughness",
+        "bytes": 748848,
+        "sha256": "b4bdfaba519c324c7a641bc329821a8d02613be162b5d32a64dd58c345b6e3eb"
+      },
+      {
+        "url": "models/gltf/Torch_Metal_metallicRoughness",
+        "file": "models__gltf__Torch_Metal_metallicRoughness",
+        "bytes": 860090,
+        "sha256": "1743bcdea3711d99931be62d2cce34a805ac7e366287375070cd2e77a7ed5481"
+      },
+      {
+        "url": "models/gltf/Torch_Wood_metallicRoughness",
+        "file": "models__gltf__Torch_Wood_metallicRoughness",
+        "bytes": 901481,
+        "sha256": "36c33e17ea8d2b6d0f3034aeaab029b743de8c15a0d13abda22691b9288fe5d6"
+      },
+      {
+        "url": "models/gltf/Wall_Dark_Blue_metallicRoughness",
+        "file": "models__gltf__Wall_Dark_Blue_metallicRoughness",
+        "bytes": 1241603,
+        "sha256": "5f4b67adb6c2b239b749976a52a3fd73fa38a02c44b6baa47dfa9d892ec115fe"
+      },
+      {
+        "url": "models/gltf/Wall_Dark_White_metallicRoughness",
+        "file": "models__gltf__Wall_Dark_White_metallicRoughness",
+        "bytes": 761046,
+        "sha256": "b7106a346e1f46a04b703fe76a5947e6392cac35f903685f7bf0cc670aa332c3"
+      },
+      {
+        "url": "models/gltf/Weapon_Metal_metallicRoughness",
+        "file": "models__gltf__Weapon_Metal_metallicRoughness",
+        "bytes": 199223,
+        "sha256": "988eb7a94d78258796d1389909f0490eb1941ffa4fea99ce94bc9dc14963e620"
+      },
+      {
+        "url": "models/gltf/Weapon_Wood_metallicRoughness",
+        "file": "models__gltf__Weapon_Wood_metallicRoughness",
+        "bytes": 195589,
+        "sha256": "868919edbc890bbba5fdf417ba145643fa699f7e9280c68583796266f05e5ce4"
+      },
+      {
+        "url": "textures/equirectangular/royal_esplanade_2k.hdr.jpg",
+        "file": "textures__equirectangular__royal_esplanade_2k.hdr.jpg",
+        "bytes": 171652,
+        "sha256": "3780f65d6c672e5129372f77285b0e7a787397b222d48370bb65d9b78d7b74cf"
+      }
+    ]
+  },
   "facade": {
     "global": "globalThis.THREE",
     "exports": [
@@ -233,6 +400,7 @@
       "InterpolationSamplingMode",
       "InterpolationSamplingType",
       "InvertStencilOp",
+      "JsrImageBitmapLoader",
       "JsrPMREMGenerator",
       "JsrThreeCanvas",
       "KeepStencilOp",
@@ -508,9 +676,11 @@
       "ZeroFactor",
       "ZeroSlopeEnding",
       "ZeroStencilOp",
+      "createBoundedCSGEvaluator",
       "createCanvasElement",
       "error",
       "getConsoleFunction",
+      "getNativeCSGDiagnostics",
       "getNativeRaycastDiagnostics",
       "log",
       "setConsoleFunction",
@@ -518,18 +688,18 @@
       "warnOnce"
     ],
     "source": {
-      "bytes": 40476,
-      "sha256": "baabdb4de38d637b71b2b9d406c9b21a984a33ea04fdb92cbf78788ebe40ce1b"
+      "bytes": 40792,
+      "sha256": "b53b4112c20d93222d610247eeff59481f20c4de97476f67124a5ed2f3231fca"
     }
   },
   "inputs": {
-    "assets/three/three.native.js": {
-      "bytes": 791598,
-      "sha256": "58efdde0f4795a978fdf0a9ed9a4f606264aff39bb4e164aaaf00f5542c280e8"
+    "assets/three/jsr_three_native.js": {
+      "bytes": 838773,
+      "sha256": "af83dafee1db2d7e13a065f781011a97938b694a552d09c8f62c16fc791b6b2f"
     },
-    "assets/three/three.web.js": {
-      "bytes": 855325,
-      "sha256": "973b78155b07710ece2f22e803cb25a8cb08da4f62b5f825dc676715f5859311"
+    "assets/three/jsr_three_web.js": {
+      "bytes": 858448,
+      "sha256": "437fc270ea8663d61d9abb8ffed6e6814cd6239f36eb78785fc54176f75cb4a1"
     },
     "source/LICENSE": {
       "bytes": 1081,
@@ -668,32 +838,48 @@
       "sha256": "29492424209a17a723b3b0c8e9c83995697a4c466840d1b33ba6f6ff2b7542a4"
     },
     "tool/three/src/native_entry.js": {
-      "bytes": 1951,
-      "sha256": "7852c54a706c19e98978c884aa9cd9bfd8d040a2d304c8e6d8cf973dd3554eaf"
+      "bytes": 26368,
+      "sha256": "dac7dc374e1374499bc9e9a84593e7e1e848bfcde7bb916d7212ccd517e861d3"
+    },
+    "tool/three_example/asset_decode.mjs": {
+      "bytes": 51634,
+      "sha256": "273d0f8261829418eb08a93177990de1fb76cda9211852d578439a39ceb61af1"
     },
     "tool/three_example/asset_discovery.mjs": {
-      "bytes": 11532,
-      "sha256": "5219e6b747041382d9e40edc33901f04140df1cfb0454b181d8145414a75ee9e"
+      "bytes": 12424,
+      "sha256": "89a14e272cb1ddac5b555b4361af938764127ee069ac367a18262b8299643eca"
+    },
+    "tool/three_example/degrades/fast_text_decode.mjs": {
+      "bytes": 4205,
+      "sha256": "80c6c886e7c8852b1eb75196fb5edefb8a6d617314e86dcf5cab9aee0c013752"
     },
     "tool/three_example/example_adapter.js": {
-      "bytes": 36267,
-      "sha256": "c604a1842689cfaf43e2bdf335b55f2384780c7b163cd41ab6e91e3912704b61"
+      "bytes": 49943,
+      "sha256": "1ab349ba0361871765f4351a6fc3228fb05c93315985fbbf07644592c96ad8c4"
     },
     "tool/three_example/example_canvas2d.js": {
-      "bytes": 20988,
-      "sha256": "ae6143c0400efcb2b9ca05c69416ea13519aa5c94a8e7d2e75ffe767ef4c8fba"
+      "bytes": 22635,
+      "sha256": "3bb5bcd47d637e187e79fd7463ba4247e3cc7b5705e62229983e8e607fccf753"
     },
     "tool/three_example/lil_gui_adapter.js": {
-      "bytes": 28916,
-      "sha256": "dc11346394f41bb4f385738d3afa6aa75e695ac80fe3be3a5fbf4201686376bf"
+      "bytes": 32173,
+      "sha256": "2f83bde66c35db02a16eec3db21beae0e1198e04f1b0723f9b3dbda89c6675f7"
     },
     "tool/three_example/prepare.mjs": {
-      "bytes": 252492,
-      "sha256": "544095661162d33d5b6e91b6b744f7eb60b97c1ff9ea1f4ae297b2f39044af43"
+      "bytes": 344397,
+      "sha256": "8258265969c64a9629cbf0a49c3273f1222238fb404f654a028a6128f366dfa8"
     },
     "tool/three_example/stats_adapter.js": {
       "bytes": 2107,
       "sha256": "98defe8785b259fdf70182c7d4a0a8e8e39ff8be901c3a9f93cd991240784086"
+    },
+    "tool/three_example/vendor/lock.json": {
+      "bytes": 3496,
+      "sha256": "684724e244c7042cbe7bd1fa0dace4e9a653a73d25c35f04c21b9d62d0eb6219"
+    },
+    "tool/three_example/vendor/xml_dom.js": {
+      "bytes": 18555,
+      "sha256": "b5ed0f0cfc690fc55c03280cc3c2ab67e39d09504b51d979a827306e00249182"
     }
   },
   "outputs": {
@@ -701,113 +887,117 @@
       "bytes": 1081,
       "sha256": "8b378ebe60e2fe500158cb0ac71cb5e8b7d92953c2abcc63a0eb90499653b5bc"
     },
+    "assets.json": {
+      "bytes": 11679,
+      "sha256": "7f387f3df7c9090b621591e25f4bb4d5d705f4678de82b01104874afb2c1d00c"
+    },
     "manifest.json": {
       "bytes": 329,
       "sha256": "afa3b718f38a41dd21ffbe034ea0faaca0d4e271a57361519a2ea3ea50cfe1f1"
     },
     "models__gltf__Cloth_Red_metallicRoughness": {
-      "bytes": 802907,
-      "sha256": "d58dcca815769d1d97d0a8dd9323562952ebb2b24e6bb62b4cc2443d593f48a6"
+      "bytes": 387017,
+      "sha256": "4f5443d897f63076e50ea970da2b515f9f2155083c00132bae6bfd5d07dbb7c6"
     },
     "models__gltf__Cloth_Wood_metallicRoughness": {
-      "bytes": 660171,
-      "sha256": "86985695039165e749633b79ea28d614d5538730d80e181fb5fd0ee56bdd9b61"
+      "bytes": 349315,
+      "sha256": "ac941cc7e79b5b0ce30df4e5badacd3bee2cf0a189852afcadf923d9f38994a5"
     },
     "models__gltf__Coin_metallicRoughness": {
-      "bytes": 1959546,
-      "sha256": "9c1a8c4089254fc4089b8138cf17f6174fc7e0802e3045093cf4a493b5c8471b"
+      "bytes": 737018,
+      "sha256": "5e15e9093f63cd1dc887948cd4d6ee5833715c9b61f5ef5bb9f3f603805ae730"
     },
     "models__gltf__Floor_01_metallicRoughness": {
-      "bytes": 2405820,
-      "sha256": "8585e437d32ed5737525ed68d63d58e235e29ca7cec83f390912b64cf27eeaf4"
+      "bytes": 870626,
+      "sha256": "71f12cff42b5f40cc9944432f9ebf0d34d0658c93d44bdaa2335fe62cf5fcf21"
     },
     "models__gltf__Floor_02_metallicRoughness": {
-      "bytes": 665031,
-      "sha256": "5b7bdffeccb1cae7310ba839016abaa4fa9e755ba88738c606c523434abbc464"
+      "bytes": 294408,
+      "sha256": "8fb0072153ae3e8468f89d47b24ee9e740edb8db054c0377bfc9bc1228d1ee71"
     },
     "models__gltf__Floor_Stone_metallicRoughness": {
-      "bytes": 2823759,
-      "sha256": "b87d05fe37be7e68e49a5a5543a530ff645f697f7feca059f201044e76549d29"
+      "bytes": 1031532,
+      "sha256": "a0fdb32b4caedca2f5601ca6a3087e04c704ec70f41d294b7b4f50f53577c590"
     },
     "models__gltf__Global_Black_metallicRoughness": {
-      "bytes": 1552732,
-      "sha256": "a90da7f1ce59c3f833c9ed5cddd8839c3d63429b57a9407b2b1a1a2b79636dcb"
+      "bytes": 649724,
+      "sha256": "8b144d73ef1cdb24890417100f5b6820c4bef62a74fbbf242e05609cd30d8f78"
     },
     "models__gltf__Global_Metal_metallicRoughness": {
-      "bytes": 2178555,
-      "sha256": "3ed796be0747a78f4c6983b11d2e52c91ee53ec810b9228d4bf90970185f810b"
+      "bytes": 823575,
+      "sha256": "3edbbd6a2b4af01ca122caf3ca709ebc1de0cb546320c2c2c54fd9a5ee3acce5"
     },
     "models__gltf__Global_White_metallicRoughness": {
-      "bytes": 532598,
-      "sha256": "a8ead4197fba0fbe5e356da6852df20d7c366ecdb27bbaa9bc8c9a2044e99d66"
+      "bytes": 285053,
+      "sha256": "206f7e9aa39309cbb1159e102121d9459d1a8726a46f9eb735d9edfa63c708d0"
     },
     "models__gltf__Global_Wood_metallicRoughness": {
-      "bytes": 2933285,
-      "sha256": "2aaeae9f797045a23cbfb65a094e73c2fc9968dde9015bac013c946ddab03dac"
+      "bytes": 1040384,
+      "sha256": "2e50f24a7c5127b24e96d8acfa12909ee4aaabc2c6d32683e0389be02be5e8e7"
     },
     "models__gltf__P_Steps_metallicRoughness": {
-      "bytes": 1295635,
-      "sha256": "58b31b2a8c2f9f838ab37f4a7ad675c5f7e5a65ac5b6d7f79674f92a5c7f325d"
+      "bytes": 590356,
+      "sha256": "7acd954d0572eba07f45d66f0cdde6d07f1baf2c596863173365ad2bd6ea1135"
     },
     "models__gltf__Pillars_metallicRoughness": {
-      "bytes": 1622168,
-      "sha256": "b784eec5abce3eab260a45183b2d4953a6e32b7e9399aa903e85fb0943c1479f"
+      "bytes": 667675,
+      "sha256": "5abf6cfec3182b52f55c145996be2b05e648d1c4fcdc74b90e862b39e0d1f7d8"
     },
     "models__gltf__Skull_metallicRoughness": {
-      "bytes": 1207535,
-      "sha256": "b1246e7ad9accfe504ab0bd203a7b0e39581c2421ecca4d610351eeb21514365"
+      "bytes": 530517,
+      "sha256": "e572b5bfdde424a32e50b4a15a84c74ceca130917bf2fdd606e723b575c6552a"
     },
     "models__gltf__Steps_metallicRoughness": {
-      "bytes": 2169167,
-      "sha256": "0aa2c0cb6ecb61a2822858fecfd7dc7ed61d2c5547d9c677fdf14e1800c14cc4"
+      "bytes": 836459,
+      "sha256": "5103bb64a78f260d08e5a5454d6c56b388ffac7b665834cebc13668177011fac"
     },
     "models__gltf__Stone_metallicRoughness": {
-      "bytes": 2562992,
-      "sha256": "8ab530fbbd1aaf6991532734a1ed4a737e317a4d5c75d9099805dd62e4017b38"
+      "bytes": 931959,
+      "sha256": "4418255344c91926b5554e35cb21aef36bfed7b2bcf73f712f8c4633c72dd7c0"
     },
     "models__gltf__Tile_Border_metallicRoughness": {
-      "bytes": 1159436,
-      "sha256": "801148ab5457b5da66f3b923ab1838a255b020269e82f667373c63be6d67e16b"
+      "bytes": 522023,
+      "sha256": "01d1968302572d52aaf003b22d43dc884a0fb89227fb96d62555b634eee5ed2b"
     },
     "models__gltf__Tile_Borders__0_metallicRoughness": {
-      "bytes": 2169167,
-      "sha256": "0aa2c0cb6ecb61a2822858fecfd7dc7ed61d2c5547d9c677fdf14e1800c14cc4"
+      "bytes": 836459,
+      "sha256": "5103bb64a78f260d08e5a5454d6c56b388ffac7b665834cebc13668177011fac"
     },
     "models__gltf__Tiles_metallicRoughness": {
-      "bytes": 1590275,
-      "sha256": "08ffb70fe107a4e14a5192a83eefed2eacec6ad8c92cbd3e3a7ea852e5d12ed9"
+      "bytes": 629573,
+      "sha256": "7814c4504ecd765d1cdb9f3fae579e47b3d63ed6a987b7c698b13088adf9020b"
     },
     "models__gltf__Torch_Flame_metallicRoughness": {
-      "bytes": 1895354,
-      "sha256": "4f4d1788b304d1e7525810e5e1847458b283531660d9ff0a7167443f0ed481bd"
+      "bytes": 748848,
+      "sha256": "b4bdfaba519c324c7a641bc329821a8d02613be162b5d32a64dd58c345b6e3eb"
     },
     "models__gltf__Torch_Metal_metallicRoughness": {
-      "bytes": 2258919,
-      "sha256": "63e21de383da3992e4b9850f4ccbc602c8854391733d800dd070e177f22135de"
+      "bytes": 860090,
+      "sha256": "1743bcdea3711d99931be62d2cce34a805ac7e366287375070cd2e77a7ed5481"
     },
     "models__gltf__Torch_Wood_metallicRoughness": {
-      "bytes": 2345796,
-      "sha256": "725984b739d560525a07b5e4bf858be0057df56bdb71eef62e0faa8074356fa1"
+      "bytes": 901481,
+      "sha256": "36c33e17ea8d2b6d0f3034aeaab029b743de8c15a0d13abda22691b9288fe5d6"
     },
     "models__gltf__Wall_Dark_Blue_metallicRoughness": {
-      "bytes": 3753546,
-      "sha256": "eb9aa9998725c9f9075dcdbd649e594e19017c20e1c5a223f6bafd3dcf886a5a"
+      "bytes": 1241603,
+      "sha256": "5f4b67adb6c2b239b749976a52a3fd73fa38a02c44b6baa47dfa9d892ec115fe"
     },
     "models__gltf__Wall_Dark_White_metallicRoughness": {
-      "bytes": 1877927,
-      "sha256": "bcccdcf897e23e93fc177e5bfb3dc1aa050c81a9d8abb8019aee621cf3480728"
+      "bytes": 761046,
+      "sha256": "b7106a346e1f46a04b703fe76a5947e6392cac35f903685f7bf0cc670aa332c3"
     },
     "models__gltf__Weapon_Metal_metallicRoughness": {
-      "bytes": 379729,
-      "sha256": "25d08a2e98a155761ebcca4c882c2dad7096a54d0b7afb2d693bdbbeb4db6e62"
+      "bytes": 199223,
+      "sha256": "988eb7a94d78258796d1389909f0490eb1941ffa4fea99ce94bc9dc14963e620"
     },
     "models__gltf__Weapon_Wood_metallicRoughness": {
-      "bytes": 390135,
-      "sha256": "fdab591a486b006a543f4cea5468b4034f320e0a03baeeaa33fbe4762167f066"
+      "bytes": 195589,
+      "sha256": "868919edbc890bbba5fdf417ba145643fa699f7e9280c68583796266f05e5ce4"
     },
     "models__gltf__dungeon_warkarma.glb": {
-      "bytes": 7991084,
-      "sha256": "de017f928f39c7e06f24a82521a03b46d9ae1f5693e66ce60b0cc0a95fddfe7a"
+      "bytes": 5560632,
+      "sha256": "6ffd6443b4c99c6d60b45083cfd82c8a8f1ced7be024eebe4a94aa65fbc61237"
     },
     "official_module.js": {
       "bytes": 2311,
@@ -818,12 +1008,12 @@
       "sha256": "06af6ab15d64cf9fc424c955067243646810c6be9d6ed12b753a032c75db9664"
     },
     "textures__equirectangular__royal_esplanade_2k.hdr.jpg": {
-      "bytes": 552463,
-      "sha256": "b05a664c5fb022ddc6104f253a6684570e99876d30b41a220c8dea4482df6d64"
+      "bytes": 171652,
+      "sha256": "3780f65d6c672e5129372f77285b0e7a787397b222d48370bb65d9b78d7b74cf"
     },
     "widget.js": {
-      "bytes": 126683292,
-      "sha256": "7b102f3ec59923e3805bd2292bf50fac37260ea43ae28eb35eaa7ca7e4a1e81c"
+      "bytes": 132030,
+      "sha256": "6b53326a32feca4add89325f8560476161aa8e0ad4a9e7001118d70a3705b6a3"
     }
   }
 }
