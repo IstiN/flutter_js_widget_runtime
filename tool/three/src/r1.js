@@ -1,5 +1,11 @@
 import { checkedU32 } from './errors.js';
-import { utf8 } from './runtime.js';
+// r1.js is imported directly by node tests; runtime.js pulls in the audio
+// shim which needs the pinned three source, so inline the one helper it
+// borrows instead of importing the whole runtime. The helper is the
+// STRING->bytes direction (TextEncoder in browsers / Buffer in the vm).
+const utf8 = value => (typeof TextEncoder !== 'undefined')
+  ? new TextEncoder().encode(value)
+  : Uint8Array.from(Buffer.from(value, 'utf8'));
 
 export const T1_VERSION = 1;
 // v8: material stencil tail (last 32 bytes when MATERIAL_FLAG_STENCIL is set),
