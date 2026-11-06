@@ -37,6 +37,24 @@ function __send(ch,payload){sendMessage(ch,__tag(payload));}
 var __idCounter = 0;
 var __nid = function(){return 'i'+(++__idCounter);};
 
+// Warm-bytes resolve: the isolate worker delivers big host-call results
+// (GLBs, decoded RGBA textures) as raw typed data instead of a base64
+// string literal — QuickJS parses a 20MB JS string literal in seconds and
+// would then base64-decode it again. The Dart side ships the bytes next to
+// the resolve message and stashes them under the resolve id; this helper
+// pulls them into a real Uint8Array through the __jsrWarmFill bytes host
+// function and resolves the promise with {..value, bytes}. Engines without
+// the bytes export never see this path (their resolves stay inline base64).
+function __jsrWarmResolve(id, value, size){
+  var cb = __cbs[id];
+  if(!cb) return;
+  delete __cbs[id];
+  var a = new Uint8Array(size|0);
+  __jsrWarmFill(String(id), a);
+  value.bytes = a;
+  cb(value);
+}
+
 // Reusable argument-joiner: avoids Array.prototype.slice.call(arguments)
 // allocation on every console call.
 function __joinArgs(a){
@@ -208,22 +226,64 @@ var jsr = {
     else if (data && data.buffer) {
       u8 = new Uint8Array(data.buffer, data.byteOffset || 0, data.byteLength);
     } else u8 = new Uint8Array(data);
+    // Fused encoder: two 12-bit indices per triplet index a 4096-entry
+    // pair table of 2-char strings; quads land in a pre-sized Uint16Array
+    // and leave through one chunked String.fromCharCode + join. Output is
+    // byte-identical to the historical per-char concatenation (same
+    // alphabet, same padding) but far cheaper per frame: the old loop
+    // spent ~50ms of QuickJS time on an 868KB R1 geometry envelope.
     var A = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz' + '0123456789' + '+/';
-    var out = new Array(((u8.length + 2) / 3) | 0);
-    var o = 0, i;
-    for (i = 0; i + 2 < u8.length; i += 3) {
-      var n = (u8[i] << 16) | (u8[i + 1] << 8) | u8[i + 2];
-      out[o++] = A[(n >> 18) & 63] + A[(n >> 12) & 63] + A[(n >> 6) & 63] + A[n & 63];
+    var len = u8.length;
+    if (len === 0) return '';
+    var pairTable = jsr._b64PairTable ||
+      (jsr._b64PairTable = (function(){
+        var t = new Array(4096);
+        for (var hi = 0; hi < 64; hi++)
+          for (var lo = 0; lo < 64; lo++)
+            t[(hi << 6) | lo] = A[hi] + A[lo];
+        return t;
+      })());
+    var full = (len / 3) | 0;
+    var rem = len - full * 3;
+    var quadCount = full * 4 + (rem ? 4 : 0);
+    var codes = new Uint16Array(quadCount);
+    var q = 0;
+    for (var i = 0; i < full; i++) {
+      var o = i * 3;
+      var n = (u8[o] << 16) | (u8[o + 1] << 8) | u8[o + 2];
+      var pair = pairTable[(n >> 12) & 0xfff];
+      codes[q++] = pair.charCodeAt(0);
+      codes[q++] = pair.charCodeAt(1);
+      pair = pairTable[n & 0xfff];
+      codes[q++] = pair.charCodeAt(0);
+      codes[q++] = pair.charCodeAt(1);
     }
-    var rem = u8.length - i;
+    var tail = full * 3;
     if (rem === 1) {
-      var n1 = u8[i] << 16;
-      out[o++] = A[(n1 >> 18) & 63] + A[(n1 >> 12) & 63] + '==';
+      var n1 = u8[tail] << 16;
+      var p1 = pairTable[(n1 >> 12) & 0xfff];
+      codes[q++] = p1.charCodeAt(0);
+      codes[q++] = p1.charCodeAt(1);
+      codes[q++] = 61; // '='
+      codes[q++] = 61; // '='
     } else if (rem === 2) {
-      var n2 = (u8[i] << 16) | (u8[i + 1] << 8);
-      out[o++] = A[(n2 >> 18) & 63] + A[(n2 >> 12) & 63] + A[(n2 >> 6) & 63] + '=';
+      var n2 = (u8[tail] << 16) | (u8[tail + 1] << 8);
+      var p2a = pairTable[(n2 >> 12) & 0xfff];
+      codes[q++] = p2a.charCodeAt(0);
+      codes[q++] = p2a.charCodeAt(1);
+      // Third char is A[(n2 >> 6) & 63]; index the pair table with a zero
+      // low sextet and keep only the high char.
+      codes[q++] = pairTable[((n2 >> 6) & 0x3f) << 6].charCodeAt(0);
+      codes[q++] = 61; // '='
     }
-    return out.join('');
+    var CHUNK = 8192;
+    if (quadCount <= CHUNK) return String.fromCharCode.apply(null, codes);
+    var parts = [];
+    for (var off = 0; off < quadCount; off += CHUNK) {
+      parts.push(String.fromCharCode.apply(
+        null, quadCount - off < CHUNK ? codes.subarray(off) : codes.subarray(off, off + CHUNK)));
+    }
+    return parts.join('');
   },
 
   // Fire-and-forget BINARY lane: jsr.hostCallBinary('scene.transforms', b64)

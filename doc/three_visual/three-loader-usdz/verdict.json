@@ -1,0 +1,12 @@
+{
+  "auto_seeded": true,
+  "mae": 0.638549,
+  "official_id": "webgl_loader_usdz",
+  "performance": {
+    "native": {},
+    "reference": {}
+  },
+  "status": "blocked",
+  "summary": "ours: empty/near-uniform capture",
+  "updated": "2026-11-01T15:07:26+00:00"
+}

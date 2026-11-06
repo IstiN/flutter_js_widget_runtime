@@ -1,0 +1,17 @@
+{
+  "schema": "jsr-three-example-external-assets-v1",
+  "id": "three-materials-envmaps-fasthdr",
+  "inlineMaxBytes": 1500000,
+  "assets": [
+    {
+      "url": "textures/equirectangular/blouberg_sunrise_2_1k.hdr",
+      "file": "blouberg_sunrise_2_1k.hdr.rgba",
+      "mime": "application/x-rgba",
+      "width": 1024,
+      "height": 512,
+      "bytes": 2097152,
+      "sha256": "78e9f88a19b2e4a62a0b4091bf74f4d3fc614dc580dded5d6b3752cac3f702a9",
+      "aliases": []
+    }
+  ]
+}

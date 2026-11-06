@@ -194,8 +194,8 @@ class JsRuntimeConfig {
   final bool threeEnabled;
 
   /// Test/host override for the generated platform-specific THREE bundle.
-  /// Normally null; the engine loads `assets/three/three.native.js` or
-  /// `assets/three/three.web.js` from the package bundle.
+  /// Normally null; the engine loads `assets/three/jsr_three_native.js` or
+  /// `assets/three/jsr_three_web.js` from the package bundle.
   final String? threeSource;
 
   /// Independent upstream-THREE host used by `three` nodes and JSR3D-T1.

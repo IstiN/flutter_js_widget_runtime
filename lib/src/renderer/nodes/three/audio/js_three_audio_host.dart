@@ -121,7 +121,7 @@ final class JsThreeAudioHost {
   }) async {
     _invalidateTransport(id);
     final source = _sources[id];
-    if (source == null) return const {'released': false};
+    if (source == null || source.released) return const {'released': false};
     source.cancelPlayback();
     final controller = source.controller!;
     await controller.pause();
@@ -135,7 +135,7 @@ final class JsThreeAudioHost {
     Map<String, dynamic> args,
   ) async {
     final source = _sources[id];
-    if (source == null) return const {'updated': false};
+    if (source == null || source.released) return const {'updated': false};
     source.update(
       volume: _number(args, 'volume', source.volume, 0, 1),
       balance: _number(args, 'balance', source.balance, -1, 1),
@@ -175,10 +175,48 @@ final class JsThreeAudioHost {
     if (!preserveRevision) _transportRevisions.remove(id);
     final source = _sources.remove(id);
     if (source == null) return const {'released': false};
-    source.cancelPlayback();
-    await source.errorSubscription?.cancel();
-    await source.controller!.dispose();
+    await _disposeSource(source);
     return const {'released': true};
+  }
+
+  /// Single-release teardown for one source: cancels playback, detaches the
+  /// error subscription, pauses and disposes the controller at most once,
+  /// even when a transport command races the teardown. The pause runs
+  /// BEFORE the dispose and is retried when the dispose fails: dispose is
+  /// only bookkeeping (real hosts: audioplayers dispose racing a pending
+  /// seek/play), while pause is what actually mutes a looping player — a
+  /// failed dispose must never leave a source audible. A failing controller
+  /// dispose is surfaced via [onError] instead of propagating — one broken
+  /// player must never abort the release loop and strand the remaining
+  /// PLAYING sources.
+  Future<void> _disposeSource(_ThreeAudioSource source) async {
+    if (source.released) return;
+    source.released = true;
+    source.cancelPlayback();
+    try {
+      await source.errorSubscription?.cancel();
+    } catch (error) {
+      _reportError(error);
+    }
+    final controller = source.controller!;
+    try {
+      await controller.pause();
+    } catch (error) {
+      _reportError(error);
+    }
+    try {
+      await controller.dispose();
+    } catch (error) {
+      // The racing dispose may have detached mid-command: mute again
+      // (best effort) so the player cannot keep sounding, then surface
+      // the failure without aborting the release loop.
+      try {
+        await controller.pause();
+      } catch (pauseError) {
+        _reportError(pauseError);
+      }
+      _reportError(error);
+    }
   }
 
   int _invalidateTransport(String id) {
@@ -205,6 +243,11 @@ final class JsThreeAudioHost {
   }
 
   /// Releases every player owned by this engine generation.
+  ///
+  /// Called both by the embedder's page teardown (widget switch / page
+  /// close) and by the `disposeEngine` host call; the second caller is a
+  /// no-op. Each source is released via [_disposeSource] so per-source
+  /// failures cannot abort the loop and leave sounds playing.
   Future<Map<String, bool>> dispose() async {
     if (_disposed) return const {'disposed': false};
     _disposed = true;
@@ -212,9 +255,7 @@ final class JsThreeAudioHost {
     _sources.clear();
     _transportRevisions.clear();
     for (final source in sources) {
-      source.cancelPlayback();
-      await source.errorSubscription?.cancel();
-      await source.controller!.dispose();
+      await _disposeSource(source);
     }
     return const {'disposed': true};
   }
@@ -233,6 +274,10 @@ final class _ThreeAudioSource {
   bool loop = false;
   bool playing = false;
   int revision = 0;
+
+  /// Set once the controller has been handed to `_disposeSource`; guards
+  /// against double release when a transport command races the teardown.
+  bool released = false;
 
   int beginPlayback(_PlayRequest request) {
     revision++;

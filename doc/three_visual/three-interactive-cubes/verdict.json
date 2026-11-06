@@ -1,0 +1,16 @@
+{
+  "auto_seeded": false,
+  "mae": 0.395904,
+  "official_id": "webgl_interactive_cubes",
+  "performance": {
+    "native": {
+      "presentedFps": 25.4618072890664,
+      "presentedFramesDelta": 51,
+      "sampleMs": 2003
+    },
+    "reference": {}
+  },
+  "status": "similar",
+  "summary": "",
+  "updated": "2026-11-01T11:44:02.933389+00:00"
+}

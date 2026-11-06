@@ -1,0 +1,18 @@
+{
+  "schema": "jsr-three-example-external-assets-v1",
+  "id": "three-loader-gcode",
+  "inlineMaxBytes": 1500000,
+  "assets": [
+    {
+      "url": "models/gcode/benchy_scene.bin",
+      "file": "models__gcode__benchy_scene.bin",
+      "mime": "application/octet-stream",
+      "width": 0,
+      "height": 0,
+      "bytes": 1551508,
+      "sha256": "0746835f027445db2797016485be698361abacf099ef2f8673c0ebb4a2da6dc5",
+      "aliases": [],
+      "diagnostic": "generated:benchyGcodeScene"
+    }
+  ]
+}

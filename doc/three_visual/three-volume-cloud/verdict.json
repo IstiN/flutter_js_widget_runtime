@@ -1,0 +1,16 @@
+{
+  "auto_seeded": false,
+  "mae": 0.224788,
+  "official_id": "webgl_volume_cloud",
+  "performance": {
+    "native": {
+      "presentedFps": 119.76047904191617,
+      "presentedFramesDelta": 240,
+      "sampleMs": 2004
+    },
+    "reference": {}
+  },
+  "status": "different",
+  "summary": "Visual pair review: reference and native scenes differ materially in content, materials, lighting, layout, or presentation; inspect pair before assigning a root cause.",
+  "updated": "2026-11-01T11:44:02.933389+00:00"
+}

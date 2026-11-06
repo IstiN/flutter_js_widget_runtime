@@ -69,10 +69,10 @@
     {
       "url": "models/collada/elf/elf.dae",
       "output": "models__collada__elf__elf.dae",
-      "mime": "application/octet-stream",
-      "diagnostic": "auto:models/collada/elf/elf.dae",
-      "sha256": "14ce50b81a4da5798a7971063c57a6421fcffe0236f64c2ab6b50de5a6d5ccd5",
-      "discovered": true
+      "mime": "application/xml",
+      "prepareCollada": true,
+      "colladaExternalImages": true,
+      "sha256": "14ce50b81a4da5798a7971063c57a6421fcffe0236f64c2ab6b50de5a6d5ccd5"
     },
     {
       "url": "models/collada/elf/Face_tex_002_toObj.jpg",
@@ -268,6 +268,7 @@
       "InterpolationSamplingMode",
       "InterpolationSamplingType",
       "InvertStencilOp",
+      "JsrImageBitmapLoader",
       "JsrPMREMGenerator",
       "JsrThreeCanvas",
       "KeepStencilOp",
@@ -543,9 +544,11 @@
       "ZeroFactor",
       "ZeroSlopeEnding",
       "ZeroStencilOp",
+      "createBoundedCSGEvaluator",
       "createCanvasElement",
       "error",
       "getConsoleFunction",
+      "getNativeCSGDiagnostics",
       "getNativeRaycastDiagnostics",
       "log",
       "setConsoleFunction",
@@ -553,38 +556,22 @@
       "warnOnce"
     ],
     "source": {
-      "bytes": 40479,
-      "sha256": "fb60ce2a554c8960dacd65326a3fc31db576b96469f6060c94167c4fa6023754"
+      "bytes": 40795,
+      "sha256": "bbb753f7e5cfb2bb2804ce89ec308ffeaed13c66d4ba7e7a46065f7b3a634976"
     }
   },
   "inputs": {
-    "assets/three/three.native.js": {
-      "bytes": 802497,
-      "sha256": "d68a0d7de927391c3c3e88ecf1363dc395b4d6a15edf147af767351b8421aa87"
+    "assets/three/jsr_three_native.js": {
+      "bytes": 838188,
+      "sha256": "774cd82da77974165fd9ec3122c1e4e4505bca3faa5003cb72afc6a59f5f4e5b"
     },
-    "assets/three/three.web.js": {
-      "bytes": 855325,
-      "sha256": "973b78155b07710ece2f22e803cb25a8cb08da4f62b5f825dc676715f5859311"
+    "assets/three/jsr_three_web.js": {
+      "bytes": 857885,
+      "sha256": "8bf94959ca16ffd59b904e040edcf4ffe405eac56cf941285a2da0a5337fb878"
     },
     "source/LICENSE": {
       "bytes": 1081,
       "sha256": "8b378ebe60e2fe500158cb0ac71cb5e8b7d92953c2abcc63a0eb90499653b5bc"
-    },
-    "source/examples/jsm/loaders/ColladaLoader.js": {
-      "bytes": 3988,
-      "sha256": "b150c67c4bf98ed1eec3cf291e1bd00fc53016488bcefadd7a24f659e86e52d9"
-    },
-    "source/examples/jsm/loaders/TGALoader.js": {
-      "bytes": 11792,
-      "sha256": "da4cfa0c050b8076a63596f36f6e5a54a4a8271774a5301482996be030505c43"
-    },
-    "source/examples/jsm/loaders/collada/ColladaComposer.js": {
-      "bytes": 66711,
-      "sha256": "d96f4dcf36bc6a30a4d385bce511ed10e27893d1824074daa97ac863df1232e8"
-    },
-    "source/examples/jsm/loaders/collada/ColladaParser.js": {
-      "bytes": 36839,
-      "sha256": "d9532ab17f1d9e2919deba8029d759d5dcaed2f21195ded9e29491f719b1a0c6"
     },
     "source/examples/models/collada/elf/Body_tex_003.jpg": {
       "bytes": 222968,
@@ -615,40 +602,44 @@
       "sha256": "29492424209a17a723b3b0c8e9c83995697a4c466840d1b33ba6f6ff2b7542a4"
     },
     "tool/three/src/native_entry.js": {
-      "bytes": 6624,
-      "sha256": "594351712bf936a0d3e564ebf39e0b27bdf4cf5c42b75f071d50bef64038dfea"
+      "bytes": 26368,
+      "sha256": "dac7dc374e1374499bc9e9a84593e7e1e848bfcde7bb916d7212ccd517e861d3"
     },
     "tool/three_example/asset_decode.mjs": {
-      "bytes": 26590,
-      "sha256": "3ff4cdc95457c7e604a91fd0c8711a0d493b0fed37dead02050e3ad7c1fb4955"
+      "bytes": 42102,
+      "sha256": "81e15438074e820dc13552b267de326fab895bca729cc5db744da6bedb420a26"
     },
     "tool/three_example/asset_discovery.mjs": {
-      "bytes": 12417,
-      "sha256": "65acc770c76fdfaa04b64d18787cb7a49893c2b20ea517b5612b7b419af0abe7"
+      "bytes": 12424,
+      "sha256": "89a14e272cb1ddac5b555b4361af938764127ee069ac367a18262b8299643eca"
     },
     "tool/three_example/example_adapter.js": {
-      "bytes": 39496,
-      "sha256": "2fbd0cac03c94286fbdb132c15cf997a9456e127537cbde90292ec6989b63ec6"
+      "bytes": 49943,
+      "sha256": "1ab349ba0361871765f4351a6fc3228fb05c93315985fbbf07644592c96ad8c4"
     },
     "tool/three_example/example_canvas2d.js": {
-      "bytes": 20988,
-      "sha256": "ae6143c0400efcb2b9ca05c69416ea13519aa5c94a8e7d2e75ffe767ef4c8fba"
+      "bytes": 22635,
+      "sha256": "3bb5bcd47d637e187e79fd7463ba4247e3cc7b5705e62229983e8e607fccf753"
     },
     "tool/three_example/lil_gui_adapter.js": {
-      "bytes": 29874,
-      "sha256": "45668e5bc4d27e8cb7dc28855087f6a5fa04ccc1b1a2d5adb08a31cde39c90bb"
+      "bytes": 32173,
+      "sha256": "2f83bde66c35db02a16eec3db21beae0e1198e04f1b0723f9b3dbda89c6675f7"
     },
     "tool/three_example/prepare.mjs": {
-      "bytes": 262210,
-      "sha256": "34f9a20b5e2523836dd885ff07fea8ae4db1b1ec9be29375ce8a19e96be31f07"
+      "bytes": 315738,
+      "sha256": "3b0289d8d7db92ec08e8c41644ccd934458c173e6a4c6f0a7c7856b3281466f5"
     },
     "tool/three_example/stats_adapter.js": {
       "bytes": 2107,
       "sha256": "98defe8785b259fdf70182c7d4a0a8e8e39ff8be901c3a9f93cd991240784086"
     },
+    "tool/three_example/vendor/lock.json": {
+      "bytes": 3496,
+      "sha256": "684724e244c7042cbe7bd1fa0dace4e9a653a73d25c35f04c21b9d62d0eb6219"
+    },
     "tool/three_example/vendor/xml_dom.js": {
-      "bytes": 15539,
-      "sha256": "4de33465eee57c254cb20293e87d69b903a897913c8caaee4f61c006589c4f67"
+      "bytes": 18555,
+      "sha256": "b5ed0f0cfc690fc55c03280cc3c2ab67e39d09504b51d979a827306e00249182"
     }
   },
   "outputs": {
@@ -677,8 +668,8 @@
       "sha256": "40d6a751eb5a9484259684c081e6518bab99348f671ab7a82a9ec3d6be60ffd4"
     },
     "models__collada__elf__elf.dae": {
-      "bytes": 1942817,
-      "sha256": "14ce50b81a4da5798a7971063c57a6421fcffe0236f64c2ab6b50de5a6d5ccd5"
+      "bytes": 1452564,
+      "sha256": "1b9a1374e0f8e5aa0d8b11bb210b63813fdd1b14590bcb46b79535880e5808eb"
     },
     "official_module.js": {
       "bytes": 2050,
@@ -689,8 +680,8 @@
       "sha256": "bbb4970bad5d35034e44dfaa529408be5462eaef71cc5732957abf41f399639e"
     },
     "widget.js": {
-      "bytes": 4399954,
-      "sha256": "c3baeb33f49e52f89ffbb96fbe0bd1eb9e871d96c548e60cccba4c9edbe7b56f"
+      "bytes": 2846581,
+      "sha256": "044adf9996fbcdc4246e75427c82bc15289c6b957e343b870d7699c9e02c6901"
     }
   }
 }

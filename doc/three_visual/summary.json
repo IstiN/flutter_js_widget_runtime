@@ -1,0 +1,141 @@
+{
+  "accounting_only": true,
+  "counts": {
+    "blocked": 39,
+    "degraded-documented": 5,
+    "different": 163,
+    "similar": 96
+  },
+  "native_presented_fps": {
+    "max": 942.0289855072464,
+    "measurements": 235,
+    "median": 119.88011988011988,
+    "min": 0.0
+  },
+  "pixel_comparisons": 280,
+  "threshold": 0.025,
+  "total": 303,
+  "updated": "2026-11-01T15:10:50+00:00",
+  "worst": [
+    {
+      "mae": 0.809845,
+      "widget_id": "three-postprocessing-gtao"
+    },
+    {
+      "mae": 0.791367,
+      "widget_id": "three-postprocessing-fxaa"
+    },
+    {
+      "mae": 0.790398,
+      "widget_id": "three-materials-envmaps-fasthdr"
+    },
+    {
+      "mae": 0.762712,
+      "widget_id": "three-gpgpu-birds-gltf"
+    },
+    {
+      "mae": 0.751751,
+      "widget_id": "three-buffergeometry-custom-attributes-particles"
+    },
+    {
+      "mae": 0.717079,
+      "widget_id": "three-tonemapping"
+    },
+    {
+      "mae": 0.668037,
+      "widget_id": "three-ubo-arrays"
+    },
+    {
+      "mae": 0.652927,
+      "widget_id": "three-postprocessing-backgrounds"
+    },
+    {
+      "mae": 0.638549,
+      "widget_id": "three-loader-usdz"
+    },
+    {
+      "mae": 0.636971,
+      "widget_id": "three-gpgpu-water"
+    },
+    {
+      "mae": 0.630359,
+      "widget_id": "three-loader-gltf-compressed"
+    },
+    {
+      "mae": 0.616846,
+      "widget_id": "three-loader-gltf-dispersion"
+    },
+    {
+      "mae": 0.61549,
+      "widget_id": "three-custom-attributes-points"
+    },
+    {
+      "mae": 0.601825,
+      "widget_id": "three-volume-instancing"
+    },
+    {
+      "mae": 0.566098,
+      "widget_id": "three-postprocessing-3dlut"
+    },
+    {
+      "mae": 0.56364,
+      "widget_id": "three-buffergeometry-instancing-interleaved"
+    },
+    {
+      "mae": 0.552203,
+      "widget_id": "three-depth-texture"
+    },
+    {
+      "mae": 0.524815,
+      "widget_id": "three-animation-skinning-ik"
+    },
+    {
+      "mae": 0.521683,
+      "widget_id": "three-loader-texture-ultrahdr"
+    },
+    {
+      "mae": 0.505215,
+      "widget_id": "three-materials-blending-custom"
+    },
+    {
+      "mae": 0.493528,
+      "widget_id": "three-loader-vrml"
+    },
+    {
+      "mae": 0.477011,
+      "widget_id": "three-buffergeometry-instancing-billboards"
+    },
+    {
+      "mae": 0.466974,
+      "widget_id": "three-materials-texture-anisotropy"
+    },
+    {
+      "mae": 0.463063,
+      "widget_id": "three-shaders-sky"
+    },
+    {
+      "mae": 0.463014,
+      "widget_id": "three-postprocessing-rgb-halftone"
+    },
+    {
+      "mae": 0.455821,
+      "widget_id": "three-effects-parallaxbarrier"
+    },
+    {
+      "mae": 0.442496,
+      "widget_id": "three-lightprobes"
+    },
+    {
+      "mae": 0.43349,
+      "widget_id": "three-panorama-cube"
+    },
+    {
+      "mae": 0.424637,
+      "widget_id": "three-custom-attributes-points3"
+    },
+    {
+      "mae": 0.4168,
+      "widget_id": "three-worker-offscreencanvas"
+    }
+  ]
+}

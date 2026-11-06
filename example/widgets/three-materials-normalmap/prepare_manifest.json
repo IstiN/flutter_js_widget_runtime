@@ -214,6 +214,8 @@
       "InterpolationSamplingMode",
       "InterpolationSamplingType",
       "InvertStencilOp",
+      "JsrImageBitmapLoader",
+      "JsrPMREMGenerator",
       "JsrThreeCanvas",
       "KeepStencilOp",
       "KeyframeTrack",
@@ -488,9 +490,11 @@
       "ZeroFactor",
       "ZeroSlopeEnding",
       "ZeroStencilOp",
+      "createBoundedCSGEvaluator",
       "createCanvasElement",
       "error",
       "getConsoleFunction",
+      "getNativeCSGDiagnostics",
       "getNativeRaycastDiagnostics",
       "log",
       "setConsoleFunction",
@@ -498,18 +502,18 @@
       "warnOnce"
     ],
     "source": {
-      "bytes": 40979,
-      "sha256": "98a8c227106b6c113b316eb1b635cf74103099fb0e0acd8a959fd24e919c6e8c"
+      "bytes": 41389,
+      "sha256": "01f0b87fab3e1c55ea24527757ddd3dda5c4a28782aee883a6fe6a88d9d9a72b"
     }
   },
   "inputs": {
-    "assets/three/three.native.js": {
-      "bytes": 722455,
-      "sha256": "f6bd9007554b6b02ab7dc73fd0ea816a841afdecaacbeeb32174c33da1b1996e"
+    "assets/three/jsr_three_native.js": {
+      "bytes": 838188,
+      "sha256": "774cd82da77974165fd9ec3122c1e4e4505bca3faa5003cb72afc6a59f5f4e5b"
     },
-    "assets/three/three.web.js": {
-      "bytes": 834390,
-      "sha256": "e4e059b5c360606fb4ed721f2d686821b0b840119a3939535160b279c5deea6b"
+    "assets/three/jsr_three_web.js": {
+      "bytes": 857885,
+      "sha256": "8bf94959ca16ffd59b904e040edcf4ffe405eac56cf941285a2da0a5337fb878"
     },
     "source/LICENSE": {
       "bytes": 1081,
@@ -568,28 +572,44 @@
       "sha256": "29492424209a17a723b3b0c8e9c83995697a4c466840d1b33ba6f6ff2b7542a4"
     },
     "tool/three/src/native_entry.js": {
-      "bytes": 882,
-      "sha256": "5fb8a476137d36328693c1d75c0754075b673f0f18acdfeafe12c6b4426cf57f"
+      "bytes": 26368,
+      "sha256": "dac7dc374e1374499bc9e9a84593e7e1e848bfcde7bb916d7212ccd517e861d3"
+    },
+    "tool/three_example/asset_decode.mjs": {
+      "bytes": 42102,
+      "sha256": "81e15438074e820dc13552b267de326fab895bca729cc5db744da6bedb420a26"
+    },
+    "tool/three_example/asset_discovery.mjs": {
+      "bytes": 12424,
+      "sha256": "89a14e272cb1ddac5b555b4361af938764127ee069ac367a18262b8299643eca"
     },
     "tool/three_example/example_adapter.js": {
-      "bytes": 13503,
-      "sha256": "452432f9a05de5ba5c05af3974cc1d411535cc03da0b93b1fd7ecb5b511653f1"
+      "bytes": 49943,
+      "sha256": "1ab349ba0361871765f4351a6fc3228fb05c93315985fbbf07644592c96ad8c4"
     },
     "tool/three_example/example_canvas2d.js": {
-      "bytes": 11319,
-      "sha256": "94bf2a231e814275a28528d97afeb5a6bf55f031b5e9856f21ac74f215e5f698"
+      "bytes": 22635,
+      "sha256": "3bb5bcd47d637e187e79fd7463ba4247e3cc7b5705e62229983e8e607fccf753"
     },
     "tool/three_example/lil_gui_adapter.js": {
-      "bytes": 28485,
-      "sha256": "de03987c75754c821c3e511a5edc819a1054ed73d95d09b7d65ec3dd69e0fa40"
+      "bytes": 32173,
+      "sha256": "2f83bde66c35db02a16eec3db21beae0e1198e04f1b0723f9b3dbda89c6675f7"
     },
     "tool/three_example/prepare.mjs": {
-      "bytes": 74948,
-      "sha256": "11aadb85151114dfd03a6376ec55219fd84dc6d642a57c7703da8b77b6909b24"
+      "bytes": 315738,
+      "sha256": "3b0289d8d7db92ec08e8c41644ccd934458c173e6a4c6f0a7c7856b3281466f5"
     },
     "tool/three_example/stats_adapter.js": {
       "bytes": 2107,
       "sha256": "98defe8785b259fdf70182c7d4a0a8e8e39ff8be901c3a9f93cd991240784086"
+    },
+    "tool/three_example/vendor/lock.json": {
+      "bytes": 3496,
+      "sha256": "684724e244c7042cbe7bd1fa0dace4e9a653a73d25c35f04c21b9d62d0eb6219"
+    },
+    "tool/three_example/vendor/xml_dom.js": {
+      "bytes": 18555,
+      "sha256": "b5ed0f0cfc690fc55c03280cc3c2ab67e39d09504b51d979a827306e00249182"
     }
   },
   "outputs": {
@@ -626,8 +646,8 @@
       "sha256": "60d920cef908de10d41e946cf0b28c3ff8dff431e310274ba0626f3307983d3b"
     },
     "widget.js": {
-      "bytes": 1977463,
-      "sha256": "edfceddac4b5a904ca429b0d9a6f711e59c9f491f9a63327599369796367e184"
+      "bytes": 2010946,
+      "sha256": "078b85f1e744a84e3c1871db25e46a4bb3f97aae9668cda7d33642ac4883e0a3"
     }
   }
 }

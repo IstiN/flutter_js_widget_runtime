@@ -28,9 +28,22 @@ export function installRemoteGltfCompat(mode) {
     let replacement = null;
     let scale = 1;
     if (typeof url === 'string' && url.startsWith('https://cloud.needle.tools/')) {
-      if (mode === 'animation') replacement = 'models/gltf/Horse.glb';
-      else if (url.includes('Z2sPRdk-world')) { replacement = 'models/gltf/LittlestTokyo.glb'; scale = 10; }
-      else if (url.includes('ZnlceI-world')) { replacement = 'models/gltf/Horse.glb'; scale = 200; }
+      if (mode === 'animation') {
+        replacement = 'models/gltf/Horse.glb';
+        // The official pointer camera frames a small city at 6–7 world units,
+        // not the unscaled ~200-unit Horse stand-in.
+        scale = 0.01;
+      } else if (url.includes('Z2sPRdk-world')) {
+        replacement = 'models/gltf/LittlestTokyo.glb';
+        // The official module applies another 0.1: final scale is 0.01,
+        // matching the stock LittlestTokyo example's camera framing.
+        scale = 0.1;
+      } else if (url.includes('ZnlceI-world')) {
+        replacement = 'models/gltf/Horse.glb';
+        // The official airship transform applies 0.0005; keep the stand-in
+        // at the same 0.01 final scale as the animation replacement.
+        scale = 20;
+      }
       else { replacement = 'models/gltf/duck.glb'; scale = 2; }
       console.warn(`three: remote Needle glTF replaced by pinned ${replacement}; progressive/remote-only content is explicitly degraded.`);
     }

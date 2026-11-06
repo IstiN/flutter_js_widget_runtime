@@ -1,0 +1,16 @@
+{
+  "auto_seeded": true,
+  "mae": 0.288798,
+  "official_id": "webgl_postprocessing_masking",
+  "performance": {
+    "native": {
+      "presentedFps": 120.31952071892162,
+      "presentedFramesDelta": 241,
+      "sampleMs": 2003
+    },
+    "reference": {}
+  },
+  "status": "blocked",
+  "summary": "ours: empty/near-uniform capture",
+  "updated": "2026-11-01T15:07:33+00:00"
+}

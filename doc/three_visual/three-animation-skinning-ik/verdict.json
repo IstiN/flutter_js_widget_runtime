@@ -1,0 +1,16 @@
+{
+  "auto_seeded": false,
+  "mae": 0.524815,
+  "official_id": "webgl_animation_skinning_ik",
+  "performance": {
+    "native": {
+      "presentedFps": 24.475524475524477,
+      "presentedFramesDelta": 49,
+      "sampleMs": 2002
+    },
+    "reference": {}
+  },
+  "status": "different",
+  "summary": "Visual pair review: reference and native scenes differ materially in content, materials, lighting, layout, or presentation; inspect pair before assigning a root cause.",
+  "updated": "2026-11-01T11:44:02.933389+00:00"
+}

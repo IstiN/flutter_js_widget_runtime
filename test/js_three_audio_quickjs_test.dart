@@ -35,7 +35,7 @@ Future<_AudioProbe> _boot(
   bool withMediaHost = true,
 }) async {
   final threeSource = await tester.runAsync(
-    () => rootBundle.loadString('assets/three/three.native.js'),
+    () => rootBundle.loadString('assets/three/jsr_three_native.js'),
   );
   final calls = <Map<String, dynamic>>[];
   final config =

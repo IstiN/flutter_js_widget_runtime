@@ -1,4 +1,8 @@
-import { Mesh, DataTexture, PMREMGenerator as CorePMREMGenerator } from 'three';
+import {
+  Box3, CubeCamera as CoreCubeCamera, Mesh, DataTexture, EquirectangularReflectionMapping,
+  LinearFilter, Matrix3, Matrix4, PMREMGenerator as CorePMREMGenerator, RGBAFormat, SkinnedMesh as CoreSkinnedMesh,
+  Sphere, UnsignedByteType
+} from 'three';
 import { installThreeRuntime } from './runtime.js';
 import { installNativeCanvas2D } from './native_canvas2d.js';
 import { installNativeRaycastBVH } from './native_raycast_bvh.js';
@@ -137,18 +141,393 @@ export class JsrPMREMGenerator extends CorePMREMGenerator {
   fromScene(scene, sigma = 0, near = 0.1, far = 100, options = {}) {
     const renderer = this._renderer;
     if (renderer instanceof JsrWebGLRenderer) {
-      this._warn(renderer, 'R1 omits PMREM scene environments; direct lighting remains active.');
-      return { texture: null, dispose() {} };
+      this._warn(renderer, 'R1 approximates PMREM scene environments with a smooth room-gradient equirect (bright ceiling, lit side walls and a dark floor blended over ~0.08-wide smoothstep transitions, so metal surfaces keep directional shading without banding); per-scene prefiltering is omitted.');
+      // RoomEnvironment-only examples have no direct lights. Returning null
+      // makes their Standard/Physical materials black even though map pixels
+      // uploaded correctly. A flat 0.8 environment kept the diffuse/specular
+      // response but flattened every metalness-1 surface into a uniform
+      // silhouette (no bright tops / dark undersides), so the approximation
+      // mirrors the room's radiance layout instead: a bright ceiling with the
+      // 100-intensity panel, mid walls with the side area lights, and a dark
+      // floor at a mean level around 0.4. The vertical profile blends through
+      // ~0.08-wide smoothstep transitions: the earlier hard band ladder left
+      // full-saturation-to-dark luminance cliffs that the mirrored-floor
+      // reflection sampled as a hard "shadow cut" across the floor.
+      const texture = jsrRoomGradientEquirect();
+      return { texture, dispose() { texture.dispose(); } };
     }
     return super.fromScene(scene, sigma, near, far, options);
-  }
-}
+  }}
 
 // HTML-in-canvas requires a browser layout/rasterization stack. Preserve the
 // official HTMLTexture construction and textured mesh with a bounded local
+const JSR_ROOM_EQUIRECT_WIDTH = 128;
+const JSR_ROOM_EQUIRECT_HEIGHT = 64;
+function jsrRoomGradientEquirect() {
+  const width = JSR_ROOM_EQUIRECT_WIDTH;
+  const height = JSR_ROOM_EQUIRECT_HEIGHT;
+  const data = new Uint8Array(width * height * 4);
+  // Radiance layout mirrors the RoomEnvironment: a bright ceiling panel, mid
+  // walls with two side area lights, and a dark floor. The two band
+  // boundaries blend through 0.08-wide smoothstep windows (no hard edges);
+  // at 64 rows the steepest per-row luminance step stays under 0.15, so the
+  // floor reflection never lands on a luminance cliff.
+  const CEILING_LEVEL = 0.75;
+  const WALL_LEVEL = 0.32;
+  const FLOOR_LEVEL = 0.05;
+  const CEILING_EDGE = 0.3;
+  const FLOOR_EDGE = 0.8;
+  const TRANSITION = 0.08;
+  const smoothstep = (edge0, edge1, x) => {
+    const t = Math.min(1, Math.max(0, (x - edge0) / (edge1 - edge0)));
+    return t * t * (3 - 2 * t);
+  };
+  for (let y = 0; y < height; y++) {
+    const v = (y + 0.5) / height;
+    const level = WALL_LEVEL +
+      (CEILING_LEVEL - WALL_LEVEL) * (1 - smoothstep(CEILING_EDGE - TRANSITION / 2, CEILING_EDGE + TRANSITION / 2, v)) +
+      (FLOOR_LEVEL - WALL_LEVEL) * smoothstep(FLOOR_EDGE - TRANSITION / 2, FLOOR_EDGE + TRANSITION / 2, v);
+    for (let x = 0; x < width; x++) {
+      const u = x / width;
+      let pixel = level;
+      if (v > CEILING_EDGE + TRANSITION / 2 && v < FLOOR_EDGE - TRANSITION / 2) {
+        const panel = Math.max(0, 1 - Math.abs(u - 0.25) * 8) +
+          Math.max(0, 1 - Math.abs(u - 0.75) * 8);
+        pixel = Math.min(1, level + panel * 0.3);
+      }
+      const byte = Math.max(0, Math.min(255, Math.round(pixel * 255)));
+      const index = (y * width + x) * 4;
+      data[index] = byte;
+      data[index + 1] = byte;
+      data[index + 2] = byte;
+      data[index + 3] = 255;
+    }
+  }
+  const texture = new DataTexture(data, width, height, RGBAFormat, UnsignedByteType);
+  texture.mapping = EquirectangularReflectionMapping;
+  // Bilinear sampling keeps the stored gradient smooth through the R1 env
+  // sampler; the previous Nearest default re-introduced per-texel steps at
+  // the band edges.
+  texture.magFilter = LinearFilter;
+  texture.minFilter = LinearFilter;
+  texture.needsUpdate = true;
+  return texture;
+}
+
 // RGBA8 placeholder rather than aborting the surrounding native scene.
 export class JsrImageBitmapLoader extends JsrImageLoader {
   setOptions() { return this; }
+}
+
+const csgTokens = new WeakMap();
+let nextCsgToken = 1;
+
+// Bounded cube-camera lane. R1 stores a WebGLCubeRenderTarget as ONE bounded
+// 2D color target (setRenderTarget drops per-face storage; the last face's
+// pixels win). Upstream CubeCamera.update therefore spends five of its six
+// full scene renders producing bytes the next face immediately overwrites in
+// R1 storage. This override keeps upstream's state choreography — render
+// target save/restore, mipmap generation enabled on the surviving (final)
+// call, needsPMREMUpdate — but renders only the face whose pixels survive.
+// Face sampling remains the already-disclosed approximation
+// (_r1CubeTargetStorageWarned). Measured on webgl_animation_skinning_ik:
+// five full scene plan-builds per frame dropped (cube lane 21.8ms -> 3.5ms).
+function entryAdaptationWarn(object, key, message) {
+  if (!object || object[key]) return;
+  object[key] = true;
+  console.warn(`three: ${message}`);
+}
+
+const stockCubeCameraUpdate = CoreCubeCamera.prototype.update;
+CoreCubeCamera.prototype.update = function (renderer, scene) {
+  const renderTarget = this.renderTarget;
+  if (!renderTarget?.isWebGLCubeRenderTarget || !Array.isArray(this.children) || this.children.length !== 6) {
+    return stockCubeCameraUpdate.call(this, renderer, scene);
+  }
+  entryAdaptationWarn(this, '_r1CubeFaceCollapseWarned',
+    'CubeCamera.update renders only the final (-Z) face: R1 cube storage is one bounded 2D target whose pixels are the last face written, so the five overwritten face renders are dropped.');
+  if (this.parent === null) this.updateMatrixWorld();
+  const { activeMipmapLevel } = this;
+  if (this.coordinateSystem !== renderer.coordinateSystem) {
+    this.coordinateSystem = renderer.coordinateSystem;
+    this.updateCoordinateSystem();
+  }
+  const cameraNZ = this.children[5];
+  const currentRenderTarget = renderer.getRenderTarget();
+  const currentActiveCubeFace = renderer.getActiveCubeFace();
+  const currentActiveMipmapLevel = renderer.getActiveMipmapLevel();
+  const currentXrEnabled = renderer.xr.enabled;
+  renderer.xr.enabled = false;
+  const generateMipmaps = renderTarget.texture.generateMipmaps;
+  // Mipmaps are generated during the last render() call — in the bounded
+  // lane that is the only call, so the flag is restored before it.
+  renderTarget.texture.generateMipmaps = generateMipmaps;
+  let reversedDepthBuffer = false;
+  if (renderer.isWebGLRenderer === true) {
+    reversedDepthBuffer = renderer.state.buffers.depth.getReversed();
+  } else {
+    reversedDepthBuffer = renderer.reversedDepthBuffer;
+  }
+  renderer.setRenderTarget(renderTarget, 5, activeMipmapLevel);
+  if (reversedDepthBuffer && renderer.autoClear === false) renderer.clearDepth();
+  renderer.render(scene, cameraNZ);
+  renderer.setRenderTarget(currentRenderTarget, currentActiveCubeFace, currentActiveMipmapLevel);
+  renderer.xr.enabled = currentXrEnabled;
+  renderTarget.texture.needsPMREMUpdate = true;
+};
+
+// Bounded skinned bounds. R1 CPU skining bakes bone transforms into the
+// position attribute every changed frame (_applySkining). Upstream
+// SkinnedMesh.computeBoundingSphere assumes a bind-pose attribute and
+// re-applies the whole skeleton per vertex; over the already-skinned R1
+// attribute that double-transforms every vertex — the webgl_animation_
+// skinning_ik head-vanish root cause (published center displaced ~10 radii
+// from the drawn extents) — and costs one skeleton-transformed pass per
+// frame in the example's updateIK traverse. The honest R1 bound is the
+// exact min/max of the CURRENT attribute (identical numbers to the
+// per-render cull-sphere refresh), memoized on the attribute version so
+// repeat calls within a frame are free.
+const stockSkinnedComputeBoundingSphere = CoreSkinnedMesh.prototype.computeBoundingSphere;
+CoreSkinnedMesh.prototype.computeBoundingSphere = function () {
+  const position = this.geometry?.attributes?.position;
+  if (!position || !position.array || !position.count || position.isInterleavedBufferAttribute) {
+    return stockSkinnedComputeBoundingSphere.call(this);
+  }
+  const array = position.array;
+  const memo = this._r1SkinnedBoundsMemo;
+  const sphere = this.geometry.boundingSphere;
+  if (sphere && memo && memo.version === position.version && memo.array === array) return sphere;
+  let minX = Infinity, minY = Infinity, minZ = Infinity;
+  let maxX = -Infinity, maxY = -Infinity, maxZ = -Infinity;
+  for (let v = 0, p3 = 0; v < position.count; v++, p3 += 3) {
+    const x = array[p3], y = array[p3 + 1], z = array[p3 + 2];
+    if (x < minX) minX = x;
+    if (x > maxX) maxX = x;
+    if (y < minY) minY = y;
+    if (y > maxY) maxY = y;
+    if (z < minZ) minZ = z;
+    if (z > maxZ) maxZ = z;
+  }
+  const bounds = sphere || (this.geometry.boundingSphere = new Sphere());
+  bounds.center.set((minX + maxX) / 2, (minY + maxY) / 2, (minZ + maxZ) / 2);
+  bounds.radius = 0.5 * Math.hypot(maxX - minX, maxY - minY, maxZ - minZ);
+  this._r1SkinnedBoundsMemo = { version: position.version, array };
+  return bounds;
+};
+const nativeCSGDiagnostics = {
+  evaluations: 0,
+  exactHits: 0,
+  transformSkips: 0,
+  transformUpdates: 0,
+  structuralInvalidations: 0
+};
+globalThis.__JSR_THREE_CSG_DIAGNOSTICS__ = nativeCSGDiagnostics;
+
+function csgToken(value) {
+  if (!value || (typeof value !== 'object' && typeof value !== 'function')) return String(value);
+  let id = csgTokens.get(value);
+  if (!id) { id = nextCsgToken++; csgTokens.set(value, id); }
+  return id;
+}
+
+function csgBrushKey(brush) {
+  const geometry = brush.geometry;
+  const attributes = geometry ? Object.keys(geometry.attributes).sort().map(name => {
+    const attribute = geometry.attributes[name];
+    return `${name}:${attribute.version}:${csgToken(attribute.array)}`;
+  }).join(',') : '';
+  const materials = Array.isArray(brush.material) ? brush.material : [brush.material];
+  return [csgToken(geometry), geometry?.index?.version || 0, attributes,
+    materials.map(material => `${csgToken(material)}:${material?.version || 0}`).join(',')].join('|');
+}
+
+function csgStructuralKey(evaluator, a, b, operations, targetBrushes) {
+  return [
+    csgToken(a), csgToken(b), csgToken(targetBrushes),
+    Array.isArray(operations) ? operations.map(csgToken).join(',') : csgToken(operations),
+    evaluator.useGroups, evaluator.consolidateGroups, evaluator.removeUnusedMaterials,
+    (evaluator.attributes || []).join(','), csgBrushKey(a), csgBrushKey(b)
+  ].join(';');
+}
+
+function csgTransformKey(a, b) {
+  return `${a.matrixWorld.elements.join(',')}|${b.matrixWorld.elements.join(',')}`;
+}
+
+function csgCaptureTransformCache(result, a, b, relativeTransforms) {
+  if (!result || !result.geometry || !result.position || !result.matrixWorld) return null;
+  if (!relativeTransforms) return { result, relativeTransforms: false };
+  const geometry = result.geometry;
+  const position = geometry.attributes.position;
+  if (!position || position.itemSize !== 3 || position.isInterleavedBufferAttribute ||
+      !position.array || !geometry.groups || geometry.groups.length === 0) return null;
+  const normal = geometry.attributes.normal;
+  if (normal && (normal.itemSize !== 3 || normal.isInterleavedBufferAttribute || !normal.array)) return null;
+  const resultMaterials = Array.isArray(result.material) ? result.material : [result.material];
+  const aMaterials = Array.isArray(a.material) ? a.material : [a.material];
+  const bMaterials = Array.isArray(b.material) ? b.material : [b.material];
+  const sources = new Uint8Array(position.count);
+  const index = geometry.index;
+  let marked = 0;
+  for (const group of geometry.groups) {
+    const material = resultMaterials[group.materialIndex];
+    const fromA = aMaterials.includes(material);
+    const fromB = bMaterials.includes(material);
+    if (fromA === fromB) return null;
+    const source = fromB ? 2 : 1;
+    const end = group.start + group.count;
+    for (let offset = group.start; offset < end; offset++) {
+      const vertex = index ? index.getX(offset) : offset;
+      if (vertex < 0 || vertex >= sources.length) return null;
+      if (sources[vertex] === 0) marked++;
+      else if (sources[vertex] !== source) return null;
+      sources[vertex] = source;
+    }
+  }
+  if (marked !== position.count) return null;
+  // Propagation rewrites these arrays on every transform tick. Let R1 skip
+  // the static-helper content hashes: hashing both arrays twice per frame is
+  // pure QuickJS overhead and cannot avoid the required upload.
+  position._r1DynamicContent = true;
+  if (normal) normal._r1DynamicContent = true;
+  return {
+    result, sources,
+    positionArray: position.array,
+    basePositions: position.array.slice(0, position.count * 3),
+    normalArray: normal ? normal.array : null,
+    baseNormals: normal ? normal.array.slice(0, normal.count * 3) : null,
+    aWorld: a.matrixWorld.clone(),
+    bWorldInverse: b.matrixWorld.clone().invert(),
+    transform: new Matrix4(),
+    normalTransform: new Matrix3(),
+    boundingBox: geometry.boundingBox || new Box3(),
+    boundingSphere: geometry.boundingSphere || new Sphere()
+  };
+}
+
+function csgUpdateTransformCache(cache, a, b) {
+  if (!cache) return false;
+  const result = cache.result;
+  if (cache.relativeTransforms === false) {
+    a.matrixWorld.decompose(result.position, result.quaternion, result.scale);
+    result.updateMatrix();
+    result.matrixWorld.copy(a.matrixWorld);
+    return false;
+  }
+  const geometry = result.geometry;
+  const position = geometry.attributes.position;
+  if (position.array !== cache.positionArray) return false;
+  // A-sourced vertices remain in A's local frame. B-sourced vertices follow
+  // the relative B transform, expressed in the current A frame:
+  // newA^-1 * newB * oldB^-1 * oldA.
+  const m = cache.transform.copy(a.matrixWorld).invert()
+    .multiply(b.matrixWorld).multiply(cache.bWorldInverse).multiply(cache.aWorld).elements;
+  const normal = geometry.attributes.normal;
+  if (normal && cache.normalArray) cache.normalTransform.getNormalMatrix(cache.transform);
+  const nm = cache.normalTransform.elements;
+  const positions = position.array, base = cache.basePositions, sources = cache.sources;
+  let minX = Infinity, minY = Infinity, minZ = Infinity;
+  let maxX = -Infinity, maxY = -Infinity, maxZ = -Infinity;
+  for (let vertex = 0; vertex < position.count; vertex++) {
+    const offset = vertex * 3;
+    const x = base[offset], y = base[offset + 1], z = base[offset + 2];
+    let px = x, py = y, pz = z;
+    if (sources[vertex] === 2) {
+      const w = 1 / (m[3] * x + m[7] * y + m[11] * z + m[15]);
+      px = (m[0] * x + m[4] * y + m[8] * z + m[12]) * w;
+      py = (m[1] * x + m[5] * y + m[9] * z + m[13]) * w;
+      pz = (m[2] * x + m[6] * y + m[10] * z + m[14]) * w;
+      positions[offset] = px;
+      positions[offset + 1] = py;
+      positions[offset + 2] = pz;
+      if (normal && cache.normalArray) {
+        const nx = cache.baseNormals[offset], ny = cache.baseNormals[offset + 1], nz = cache.baseNormals[offset + 2];
+        const tx = nm[0] * nx + nm[3] * ny + nm[6] * nz;
+        const ty = nm[1] * nx + nm[4] * ny + nm[7] * nz;
+        const tz = nm[2] * nx + nm[5] * ny + nm[8] * nz;
+        const inverseLength = 1 / (Math.sqrt(tx * tx + ty * ty + tz * tz) || 1);
+        cache.normalArray[offset] = tx * inverseLength;
+        cache.normalArray[offset + 1] = ty * inverseLength;
+        cache.normalArray[offset + 2] = tz * inverseLength;
+      }
+    }
+    if (px < minX) minX = px;
+    if (py < minY) minY = py;
+    if (pz < minZ) minZ = pz;
+    if (px > maxX) maxX = px;
+    if (py > maxY) maxY = py;
+    if (pz > maxZ) maxZ = pz;
+  }
+  const bounds = cache.boundingBox;
+  bounds.min.set(minX, minY, minZ);
+  bounds.max.set(maxX, maxY, maxZ);
+  const sphere = cache.boundingSphere;
+  sphere.center.set((minX + maxX) * 0.5, (minY + maxY) * 0.5, (minZ + maxZ) * 0.5);
+  const dx = maxX - minX, dy = maxY - minY, dz = maxZ - minZ;
+  sphere.radius = Math.sqrt(dx * dx + dy * dy + dz * dz) * 0.5;
+  geometry.boundingBox = bounds;
+  geometry.boundingSphere = sphere;
+  a.matrixWorld.decompose(result.position, result.quaternion, result.scale);
+  result.updateMatrix();
+  result.matrixWorld.copy(a.matrixWorld);
+  position.needsUpdate = true;
+  if (normal && cache.normalArray) normal.needsUpdate = true;
+  return true;
+}
+
+// three-bvh-csg recomputes its full BVH split for every call. Animated examples
+// change only the brush transforms on most ticks, so retain one topology.
+// Exact CSG can be refreshed at a bounded cadence, but defaults to structural
+// invalidation only because one synchronous evaluation can stall QuickJS for
+// over 100 ms. By default both source transforms propagate through the cached
+// material groups; relativeTransforms:false keeps a coherent rigid result for
+// long-running animation. Geometry, material, operation, target, and
+// evaluator-option changes still invalidate immediately.
+export function createBoundedCSGEvaluator(BaseEvaluator, options = {}) {
+  if (typeof BaseEvaluator !== 'function') throw new TypeError('BaseEvaluator must be a constructor');
+  const transformInterval = options.transformInterval === undefined ? 0 : options.transformInterval;
+  if (!Number.isInteger(transformInterval) || transformInterval < 0 || transformInterval > 60) {
+    throw new RangeError('transformInterval must be an integer within 0..60');
+  }
+  const relativeTransforms = options.relativeTransforms !== false;
+  return class JsrBoundedCSGEvaluator extends BaseEvaluator {
+    evaluate(a, b, operations, targetBrushes, ...rest) {
+      // Without a caller-owned target there is no stable result to return on a
+      // skipped tick; preserve stock behavior for that less common API form.
+      if (targetBrushes === undefined) return super.evaluate(a, b, operations, targetBrushes, ...rest);
+      const structural = csgStructuralKey(this, a, b, operations, targetBrushes);
+      const transforms = csgTransformKey(a, b);
+      const cached = this._jsrCSGCache;
+      if (cached && cached.structural === structural) {
+        if (cached.transforms === transforms) {
+          nativeCSGDiagnostics.exactHits++;
+          return cached.result;
+        }
+        if (transformInterval === 0 || cached.skipped < transformInterval - 1) {
+          cached.skipped++;
+          nativeCSGDiagnostics.transformSkips++;
+          if (csgUpdateTransformCache(cached.transformCache, a, b)) {
+            nativeCSGDiagnostics.transformUpdates++;
+          }
+          return cached.result;
+        }
+      } else if (cached) {
+        nativeCSGDiagnostics.structuralInvalidations++;
+      }
+      const result = super.evaluate(a, b, operations, targetBrushes, ...rest);
+      nativeCSGDiagnostics.evaluations++;
+      this._jsrCSGCache = {
+        structural: csgStructuralKey(this, a, b, operations, targetBrushes),
+        transforms: csgTransformKey(a, b), result, skipped: 0,
+        transformCache: csgCaptureTransformCache(result, a, b, relativeTransforms)
+      };
+      return result;
+    }
+  };
+}
+
+export function getNativeCSGDiagnostics() {
+  return { ...nativeCSGDiagnostics };
 }
 
 export class HTMLTexture extends DataTexture {

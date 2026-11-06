@@ -1,0 +1,42 @@
+{
+  "schema": "jsr-three-example-external-assets-v1",
+  "id": "three-loader-gltf-compressed",
+  "inlineMaxBytes": 1500000,
+  "assets": [
+    {
+      "url": "models/gltf/coffeemat.glb",
+      "file": "models__gltf__coffeemat.glb",
+      "mime": "model/gltf-binary",
+      "width": 0,
+      "height": 0,
+      "bytes": 20652356,
+      "sha256": "33a7b36a1a3615548d9edc4c8698acf1e8b335649c503c2a49c6899128ff9f19",
+      "aliases": [],
+      "diagnostic": "auto:models/gltf/coffeemat.glb"
+    },
+    {
+      "url": "models/gltf/embedded-0.png",
+      "file": "models__gltf__embedded-0.png",
+      "mime": "image/png",
+      "width": 4096,
+      "height": 4096,
+      "bytes": 1642104,
+      "sha256": "cdd4c9c311ec26d485139bee213b51a12f67c0ae499ccf763d2f2ebef0a6ef2e",
+      "aliases": [
+        "models/gltf/./embedded-0.png"
+      ]
+    },
+    {
+      "url": "models/gltf/embedded-1.png",
+      "file": "models__gltf__embedded-1.png",
+      "mime": "image/png",
+      "width": 4096,
+      "height": 4096,
+      "bytes": 4390516,
+      "sha256": "df1b7a27209172666d153d5a1fc1807173fea4ae161b4db8955925e2d3b2d46a",
+      "aliases": [
+        "models/gltf/./embedded-1.png"
+      ]
+    }
+  ]
+}

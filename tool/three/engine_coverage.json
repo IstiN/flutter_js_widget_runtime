@@ -1,21 +1,21 @@
 {
   "source": "three r186 pinned (three.core.js ∪ three.module.js exports)",
-  "generatedAt": "2026-10-30",
+  "generatedAt": "2026-11-05",
   "totals": {
     "engineExports": 454,
-    "r1Ok": 158,
+    "r1Ok": 163,
     "r1Bounded": 15,
-    "r1No": 65,
+    "r1No": 60,
     "upstreamCpu": 41,
     "constants": 170,
     "nativeAbsent": 5,
     "unclassified": 0,
     "webLane": 17,
-    "renderHonored": 173,
+    "renderHonored": 178,
     "renderRelevantClassified": 238,
-    "quickjsUsable": 384,
-    "renderHonoredPct": 38.1,
-    "quickjsUsablePct": 84.6,
+    "quickjsUsable": 389,
+    "renderHonoredPct": 39.2,
+    "quickjsUsablePct": 85.7,
     "webLanePct": 100
   },
   "rows": [
@@ -75,9 +75,9 @@
     },
     {
       "symbol": "AlwaysStencilFunc",
-      "lane": "web-only",
-      "status": "no",
-      "flutterAnalog": "stencil state outside R1"
+      "lane": "r1",
+      "status": "ok",
+      "flutterAnalog": "R1 v8 material stencil tail (raw GL enum → gl.stencilFunc)"
     },
     {
       "symbol": "AmbientLight",
@@ -569,9 +569,9 @@
     },
     {
       "symbol": "DecrementWrapStencilOp",
-      "lane": "web-only",
-      "status": "no",
-      "flutterAnalog": "stencil state outside R1"
+      "lane": "r1",
+      "status": "ok",
+      "flutterAnalog": "R1 v8 material stencil tail (raw GL enum → gl.stencilOp)"
     },
     {
       "symbol": "DefaultLoadingManager",
@@ -913,9 +913,9 @@
     },
     {
       "symbol": "IncrementWrapStencilOp",
-      "lane": "web-only",
-      "status": "no",
-      "flutterAnalog": "stencil state outside R1"
+      "lane": "r1",
+      "status": "ok",
+      "flutterAnalog": "R1 v8 material stencil tail (raw GL enum → gl.stencilOp)"
     },
     {
       "symbol": "InstancedBufferAttribute",
@@ -1513,9 +1513,9 @@
     },
     {
       "symbol": "NotEqualStencilFunc",
-      "lane": "web-only",
-      "status": "no",
-      "flutterAnalog": "stencil state outside R1"
+      "lane": "r1",
+      "status": "ok",
+      "flutterAnalog": "R1 v8 material stencil tail (raw GL enum → gl.stencilFunc)"
     },
     {
       "symbol": "NumberKeyframeTrack",
@@ -2055,9 +2055,9 @@
     },
     {
       "symbol": "ReplaceStencilOp",
-      "lane": "web-only",
-      "status": "no",
-      "flutterAnalog": "stencil state outside R1"
+      "lane": "r1",
+      "status": "ok",
+      "flutterAnalog": "R1 v8 material stencil tail (raw GL enum → gl.stencilOp)"
     },
     {
       "symbol": "ReverseSubtractEquation",

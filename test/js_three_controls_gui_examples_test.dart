@@ -228,4 +228,89 @@ void main() {
     await engine.dispose();
     await tester.pump();
   }, timeout: const Timeout(Duration(seconds: 120)));
+
+  testWidgets('official DOF focus slider reaches R1 through the GUI lane', (
+    tester,
+  ) async {
+    final harness = await ThreeQuickjsExampleHarness.boot(
+      tester,
+      widgetId: 'three-postprocessing-dof',
+      instanceId: 'three-dof-toggle-test',
+    );
+    await harness.pumpUntil(
+      tester,
+      (state, plan) =>
+          state.submittedFrameCount >= 2 &&
+          state.textureUploadCount >= 1 &&
+          plan.draws.isNotEmpty,
+      attempts: 400,
+    );
+    final engine = harness.engine;
+    Map<String, dynamic> guiSnapshot() =>
+        engine.exportedState!['gui'] as Map<String, dynamic>;
+    final gui = guiSnapshot();
+    expect(gui['native'], isTrue, reason: engine.peekLogs().join('\n'));
+    final values = (gui['values'] as List).cast<Map<String, dynamic>>();
+    final byProperty = {
+      for (final value in values) value['property'] as String: value,
+    };
+    final focus = byProperty['focus']!;
+    final aperture = byProperty['aperture']!;
+    expect(
+      focus['kind'],
+      'number',
+      reason: 'the official DOF focus control is a lil-gui slider',
+    );
+    expect(aperture['kind'], 'number');
+    final planBefore = harness.plan;
+    expect(planBefore, isNotNull);
+    expect(planBefore!.diagnostics.warnings, isEmpty);
+
+    // The official module ships gui.close(): the facade keeps the collapsed
+    // panel's controllers non-interactive (browser parity), so first tap the
+    // title toggle through the same callEvent lane the gesture detector uses.
+    final toggleActions = (guiSnapshot()['toggleActions'] as List)
+        .cast<String>();
+    expect(
+      toggleActions,
+      isNotEmpty,
+      reason: 'the closed DOF panel exports its title tap-toggle action',
+    );
+    await harness.backend.callEvent(
+      toggleActions.first,
+      const <String, dynamic>{},
+    );
+    await harness.pumpFrames(tester, 3);
+    final expanded = (guiSnapshot()['values'] as List)
+        .cast<Map<String, dynamic>>()
+        .firstWhere((value) => value['property'] == 'focus');
+    expect(
+      expanded['open'],
+      isTrue,
+      reason: 'the title tap-toggle expands the official DOF panel',
+    );
+
+    // The Flutter slider dispatches through the GUI event lane; drive the
+    // same callEvent path the runtime gestures use.
+    await harness.backend.callEvent(focus['action'] as String, {
+      'value': 900.0,
+    });
+    await harness.pumpFrames(tester, 3);
+
+    final after = (guiSnapshot()['values'] as List)
+        .cast<Map<String, dynamic>>()
+        .firstWhere((value) => value['property'] == 'focus');
+    expect(
+      after['value'],
+      closeTo(900, 1e-6),
+      reason: 'slider events must flip the official effectController.focus',
+    );
+    expect(guiSnapshot()['changes'], greaterThanOrEqualTo(1));
+    final planAfter = harness.plan;
+    expect(planAfter, isNotNull);
+    expect(planAfter!.diagnostics.warnings, isEmpty);
+    expect(planAfter.draws, isNotEmpty);
+    await engine.dispose();
+    await tester.pump();
+  }, timeout: const Timeout(Duration(seconds: 120)));
 }

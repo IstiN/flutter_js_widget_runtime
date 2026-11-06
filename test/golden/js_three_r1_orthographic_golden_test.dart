@@ -121,7 +121,7 @@ void main() {
     tester,
   ) async {
     final threeSource = await tester.runAsync(
-      () => rootBundle.loadString('assets/three/three.native.js'),
+      () => rootBundle.loadString('assets/three/jsr_three_native.js'),
     );
     final distinct = await _captureOrthographicGrid(
       tester,

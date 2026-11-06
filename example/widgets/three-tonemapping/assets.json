@@ -1,0 +1,149 @@
+{
+  "schema": "jsr-three-example-external-assets-v1",
+  "id": "three-tonemapping",
+  "inlineMaxBytes": 1500000,
+  "assets": [
+    {
+      "url": "models/gltf/embedded-0.png",
+      "file": "models__gltf__embedded-0.png",
+      "mime": "image/png",
+      "width": 1024,
+      "height": 1024,
+      "bytes": 1604528,
+      "sha256": "c288d22aa2768f5caa27abdb4fa77158ae13bce29f567ae6682dfd0ca71ecd9a",
+      "aliases": [
+        "models/gltf/./embedded-0.png"
+      ]
+    },
+    {
+      "url": "models/gltf/embedded-1.png",
+      "file": "models__gltf__embedded-1.png",
+      "mime": "image/png",
+      "width": 1024,
+      "height": 1024,
+      "bytes": 1874516,
+      "sha256": "0e9594b3d7597eab314400c88b8f3acf7b46d28d901fc46e1a225084cb0e5921",
+      "aliases": [
+        "models/gltf/./embedded-1.png"
+      ]
+    },
+    {
+      "url": "models/gltf/embedded-2.png",
+      "file": "models__gltf__embedded-2.png",
+      "mime": "image/png",
+      "width": 1024,
+      "height": 1024,
+      "bytes": 2078340,
+      "sha256": "f94f609a1bc39b142a0d3a48f6bbd2666f75160954e33744e4c0569d3e8a5a0c",
+      "aliases": [
+        "models/gltf/./embedded-2.png"
+      ]
+    },
+    {
+      "url": "models/gltf/embedded-3.png",
+      "file": "models__gltf__embedded-3.png",
+      "mime": "image/png",
+      "width": 1024,
+      "height": 1024,
+      "bytes": 1562452,
+      "sha256": "910a56a9dffcfe62073fa8d11b82a55a7db9150c97652dc2c79590c1b1b29af8",
+      "aliases": [
+        "models/gltf/./embedded-3.png"
+      ]
+    },
+    {
+      "url": "models/gltf/embedded-4.png",
+      "file": "models__gltf__embedded-4.png",
+      "mime": "image/png",
+      "width": 1024,
+      "height": 1024,
+      "bytes": 1836176,
+      "sha256": "9cc4012e56bd7bea824fe66b17e8999e8550c16c7abf7114293e66df8c9bc32f",
+      "aliases": [
+        "models/gltf/./embedded-4.png"
+      ]
+    },
+    {
+      "url": "models/gltf/embedded-5.png",
+      "file": "models__gltf__embedded-5.png",
+      "mime": "image/png",
+      "width": 1024,
+      "height": 1024,
+      "bytes": 2101795,
+      "sha256": "3ab58a8175ae32f0333a73535756588deaaa98d7f6063fd12da26e6d9b8ccfb2",
+      "aliases": [
+        "models/gltf/./embedded-5.png"
+      ]
+    },
+    {
+      "url": "models/gltf/embedded-6.png",
+      "file": "models__gltf__embedded-6.png",
+      "mime": "image/png",
+      "width": 1024,
+      "height": 1024,
+      "bytes": 1631805,
+      "sha256": "e6642ebb8686f8cdfbd12becf33182e4bad248e8211dec028661ace77cc43ef5",
+      "aliases": [
+        "models/gltf/./embedded-6.png"
+      ]
+    },
+    {
+      "url": "models/gltf/embedded-7.png",
+      "file": "models__gltf__embedded-7.png",
+      "mime": "image/png",
+      "width": 1024,
+      "height": 1024,
+      "bytes": 1891555,
+      "sha256": "493b38e2d633ca71065668182923d8f286339ffb74b42200816e3e0b1f41f4b0",
+      "aliases": [
+        "models/gltf/./embedded-7.png"
+      ]
+    },
+    {
+      "url": "models/gltf/embedded-8.png",
+      "file": "models__gltf__embedded-8.png",
+      "mime": "image/png",
+      "width": 1024,
+      "height": 1024,
+      "bytes": 2175261,
+      "sha256": "a59cd2e6f8f1795d6ef8e544b249c32b8acb8af5803dedee80467de447641bbb",
+      "aliases": [
+        "models/gltf/./embedded-8.png"
+      ]
+    },
+    {
+      "url": "models/gltf/embedded-9.png",
+      "file": "models__gltf__embedded-9.png",
+      "mime": "image/png",
+      "width": 1024,
+      "height": 1024,
+      "bytes": 1500308,
+      "sha256": "32a006e8dd0135b545ddd932693c35e82168a63061387722debde0eaf17558f1",
+      "aliases": [
+        "models/gltf/./embedded-9.png"
+      ]
+    },
+    {
+      "url": "models/gltf/venice_mask.glb",
+      "file": "models__gltf__venice_mask.glb",
+      "mime": "model/gltf-binary",
+      "width": 0,
+      "height": 0,
+      "bytes": 15179316,
+      "sha256": "bdce339b54100fdd55da0abd33f372e87a27733763027a4b57caa2732b466cf8",
+      "aliases": [],
+      "diagnostic": "auto:models/gltf/venice_mask.glb"
+    },
+    {
+      "url": "textures/equirectangular/venice_sunset_1k.hdr",
+      "file": "textures__equirectangular__venice_sunset_1k.hdr",
+      "mime": "application/x-rgba",
+      "width": 1024,
+      "height": 512,
+      "bytes": 2097152,
+      "sha256": "6afd08b5c4c228a17e656c04d6b16cf14425b9d4af3e1a4742a7f7bf65f281d8",
+      "aliases": [],
+      "diagnostic": "auto:textures/equirectangular/venice_sunset_1k.hdr"
+    }
+  ]
+}

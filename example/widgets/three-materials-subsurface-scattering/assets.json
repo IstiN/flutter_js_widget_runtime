@@ -1,0 +1,18 @@
+{
+  "schema": "jsr-three-example-external-assets-v1",
+  "id": "three-materials-subsurface-scattering",
+  "inlineMaxBytes": 1500000,
+  "assets": [
+    {
+      "url": "models/fbx/stanford-bunny.fbx",
+      "file": "models__fbx__stanford-bunny.fbx",
+      "mime": "application/octet-stream",
+      "width": 0,
+      "height": 0,
+      "bytes": 8067084,
+      "sha256": "d93bc888e6bd7d205792a90ac21443286eb189bc15f56326b3b8becff17665e5",
+      "aliases": [],
+      "diagnostic": "auto:models/fbx/stanford-bunny.fbx"
+    }
+  ]
+}

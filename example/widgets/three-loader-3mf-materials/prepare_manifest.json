@@ -43,6 +43,35 @@
       "sha256": "c965fce51ad887da0165531b5dbb5bee2ba6d68e46650d16a4da8d3a365bd9b7"
     }
   },
+  "assetDiscovery": [
+    {
+      "url": "models/3mf/tex/truck/CMC_LOGO_COLOR.png",
+      "output": "models__3mf__tex__truck__cmc_logo_color.png",
+      "mime": "image/png",
+      "diagnostic": "generated:truckTexture",
+      "generated": "example/widgets/three-loader-3mf-materials/models__3mf__tex__truck__cmc_logo_color.png",
+      "sha256": "6f82405b12690c3d81a97451bb3a8c140d221d06b4dd29cdc5b0332f8e19d999"
+    },
+    {
+      "url": "models/3mf/truck.3mf",
+      "output": "models__3mf__truck.3mf",
+      "mime": "application/octet-stream",
+      "diagnostic": "generated:truckScene",
+      "generated": "example/widgets/three-loader-3mf-materials/models__3mf__truck.3mf",
+      "sha256": "ab6d2d3889747406466fe3d4467d56b719c75094ee8339808eb3fc83e00d7441"
+    }
+  ],
+  "assetPolicy": {
+    "inlineMaxBytes": 1500000,
+    "externalAssets": [
+      {
+        "url": "models/3mf/truck.3mf",
+        "file": "models__3mf__truck.3mf",
+        "bytes": 7443140,
+        "sha256": "ab6d2d3889747406466fe3d4467d56b719c75094ee8339808eb3fc83e00d7441"
+      }
+    ]
+  },
   "facade": {
     "global": "globalThis.THREE",
     "exports": [
@@ -214,6 +243,7 @@
       "InterpolationSamplingMode",
       "InterpolationSamplingType",
       "InvertStencilOp",
+      "JsrImageBitmapLoader",
       "JsrPMREMGenerator",
       "JsrThreeCanvas",
       "KeepStencilOp",
@@ -489,9 +519,11 @@
       "ZeroFactor",
       "ZeroSlopeEnding",
       "ZeroStencilOp",
+      "createBoundedCSGEvaluator",
       "createCanvasElement",
       "error",
       "getConsoleFunction",
+      "getNativeCSGDiagnostics",
       "getNativeRaycastDiagnostics",
       "log",
       "setConsoleFunction",
@@ -499,18 +531,18 @@
       "warnOnce"
     ],
     "source": {
-      "bytes": 40485,
-      "sha256": "541d73c1e694be0f50b52016b79cf815ec259452083fae50b739186ea7432fde"
+      "bytes": 40801,
+      "sha256": "e9c442b5c7311a2131930238921e29be76590b1e69a5837a914457e0dcb62d98"
     }
   },
   "inputs": {
-    "assets/three/three.native.js": {
-      "bytes": 777104,
-      "sha256": "5adcb8e7c2d94dd83748134c4d13b9fcfcba9b671445fe27de895575402241b0"
+    "assets/three/jsr_three_native.js": {
+      "bytes": 838188,
+      "sha256": "774cd82da77974165fd9ec3122c1e4e4505bca3faa5003cb72afc6a59f5f4e5b"
     },
-    "assets/three/three.web.js": {
-      "bytes": 855325,
-      "sha256": "973b78155b07710ece2f22e803cb25a8cb08da4f62b5f825dc676715f5859311"
+    "assets/three/jsr_three_web.js": {
+      "bytes": 857885,
+      "sha256": "8bf94959ca16ffd59b904e040edcf4ffe405eac56cf941285a2da0a5337fb878"
     },
     "source/LICENSE": {
       "bytes": 1081,
@@ -520,10 +552,6 @@
       "bytes": 40755,
       "sha256": "3d79d07ecb686b4e5d93232eedab255331c1beef711e13164eaa1f68655a5f2b"
     },
-    "source/examples/jsm/libs/fflate.module.js": {
-      "bytes": 89384,
-      "sha256": "209a4412eb48ce609edb4391992a792ffcc3983d30ee7e2b0b89a8c470f3cd8a"
-    },
     "source/examples/jsm/lights/SunLight.js": {
       "bytes": 1946,
       "sha256": "b5ac54e816c3e8231c1b52009b950f26f03f5ed28b6119a8e7940e052f417996"
@@ -532,13 +560,13 @@
       "bytes": 9326,
       "sha256": "fd3ecd1e7d426813607f2829a1f767c0473ddbf3b3507d1cc9cca888a6839e31"
     },
-    "source/examples/jsm/loaders/3MFLoader.js": {
-      "bytes": 44293,
-      "sha256": "7282b67069807190795a3382d01a0bfddeaa6ea77867977072703aefd8b88bd6"
+    "source/examples/models/3mf/tex/truck/CMC_LOGO_COLOR.png": {
+      "bytes": 38253,
+      "sha256": "6f82405b12690c3d81a97451bb3a8c140d221d06b4dd29cdc5b0332f8e19d999"
     },
-    "source/examples/jsm/utils/BufferGeometryUtils.js": {
-      "bytes": 37712,
-      "sha256": "9fb63427ce6641fa14fd0baff9cc4d1b5f9c3d85fd084bf2e90e803c44ec1797"
+    "source/examples/models/3mf/truck.3mf": {
+      "bytes": 7443140,
+      "sha256": "ab6d2d3889747406466fe3d4467d56b719c75094ee8339808eb3fc83e00d7441"
     },
     "source/examples/webgl_loader_3mf_materials.html": {
       "bytes": 3714,
@@ -549,28 +577,48 @@
       "sha256": "29492424209a17a723b3b0c8e9c83995697a4c466840d1b33ba6f6ff2b7542a4"
     },
     "tool/three/src/native_entry.js": {
-      "bytes": 1951,
-      "sha256": "7852c54a706c19e98978c884aa9cd9bfd8d040a2d304c8e6d8cf973dd3554eaf"
+      "bytes": 26368,
+      "sha256": "dac7dc374e1374499bc9e9a84593e7e1e848bfcde7bb916d7212ccd517e861d3"
+    },
+    "tool/three_example/asset_decode.mjs": {
+      "bytes": 42102,
+      "sha256": "81e15438074e820dc13552b267de326fab895bca729cc5db744da6bedb420a26"
+    },
+    "tool/three_example/asset_discovery.mjs": {
+      "bytes": 12424,
+      "sha256": "89a14e272cb1ddac5b555b4361af938764127ee069ac367a18262b8299643eca"
+    },
+    "tool/three_example/degrades/loader_3mf_prebuilt.mjs": {
+      "bytes": 7916,
+      "sha256": "aca4d9d74f134cbe190332b936dcf1300ac3de2b7df3361171dec1f0a6a17ab4"
     },
     "tool/three_example/example_adapter.js": {
-      "bytes": 20723,
-      "sha256": "9c713a0daa93289f0aeb2d75de6c067569ca4bc2235c24f3bb2bc8feab03336c"
+      "bytes": 49943,
+      "sha256": "1ab349ba0361871765f4351a6fc3228fb05c93315985fbbf07644592c96ad8c4"
     },
     "tool/three_example/example_canvas2d.js": {
-      "bytes": 20988,
-      "sha256": "ae6143c0400efcb2b9ca05c69416ea13519aa5c94a8e7d2e75ffe767ef4c8fba"
+      "bytes": 22635,
+      "sha256": "3bb5bcd47d637e187e79fd7463ba4247e3cc7b5705e62229983e8e607fccf753"
     },
     "tool/three_example/lil_gui_adapter.js": {
-      "bytes": 28916,
-      "sha256": "dc11346394f41bb4f385738d3afa6aa75e695ac80fe3be3a5fbf4201686376bf"
+      "bytes": 32173,
+      "sha256": "2f83bde66c35db02a16eec3db21beae0e1198e04f1b0723f9b3dbda89c6675f7"
     },
     "tool/three_example/prepare.mjs": {
-      "bytes": 247876,
-      "sha256": "4ed1752612b57fb4ac32f62717e772e9a85f4e8a0f7e51a764443b68af0b8aac"
+      "bytes": 315738,
+      "sha256": "3b0289d8d7db92ec08e8c41644ccd934458c173e6a4c6f0a7c7856b3281466f5"
     },
     "tool/three_example/stats_adapter.js": {
       "bytes": 2107,
       "sha256": "98defe8785b259fdf70182c7d4a0a8e8e39ff8be901c3a9f93cd991240784086"
+    },
+    "tool/three_example/vendor/lock.json": {
+      "bytes": 3496,
+      "sha256": "684724e244c7042cbe7bd1fa0dace4e9a653a73d25c35f04c21b9d62d0eb6219"
+    },
+    "tool/three_example/vendor/xml_dom.js": {
+      "bytes": 18555,
+      "sha256": "b5ed0f0cfc690fc55c03280cc3c2ab67e39d09504b51d979a827306e00249182"
     }
   },
   "outputs": {
@@ -578,9 +626,21 @@
       "bytes": 1081,
       "sha256": "8b378ebe60e2fe500158cb0ac71cb5e8b7d92953c2abcc63a0eb90499653b5bc"
     },
+    "assets.json": {
+      "bytes": 481,
+      "sha256": "07f923410f0d106f2cedfb62db68583f2e979e9adbcb5b6a3fa23ef5ae0e5063"
+    },
     "manifest.json": {
       "bytes": 340,
       "sha256": "6f90f08d1b399befe8cd50636e0101264262f1aa976612e6b67fa9c28957b25e"
+    },
+    "models__3mf__tex__truck__cmc_logo_color.png": {
+      "bytes": 38253,
+      "sha256": "6f82405b12690c3d81a97451bb3a8c140d221d06b4dd29cdc5b0332f8e19d999"
+    },
+    "models__3mf__truck.3mf": {
+      "bytes": 7443140,
+      "sha256": "ab6d2d3889747406466fe3d4467d56b719c75094ee8339808eb3fc83e00d7441"
     },
     "official_module.js": {
       "bytes": 2651,
@@ -591,8 +651,8 @@
       "sha256": "acac936c0f0ff8820c4263ce2db6aeca8a8f8317aca1aac948b59cb60b7d5d5a"
     },
     "widget.js": {
-      "bytes": 80110,
-      "sha256": "30b46c9d08c134fd318ca1331dff177b427fcfb6fc4b4eeaa1e41b9dbae18b41"
+      "bytes": 132776,
+      "sha256": "823033f0a15fc3c7c24d06596a51da062235efac4ba57b4c349de908e904bec3"
     }
   }
 }

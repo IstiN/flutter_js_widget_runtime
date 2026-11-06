@@ -23,7 +23,7 @@ function prepareFailure(args, expected) {
   assert.match(result.stderr, expected);
 }
 
-prepareFailure(['webgl_geometry_cube'], /Expected exactly one supported example/);
+prepareFailure(['not_a_real_three_example'], /Expected exactly one supported example/);
 prepareFailure(['webgl_geometry_colors', '--source'], /--source requires a directory/);
 prepareFailure(['webgl_geometry_colors', '--unknown'], /Expected exactly one supported example/);
 prepareFailure([
@@ -43,7 +43,7 @@ const [html, savedModule, widget, native, manifestBytes] = await Promise.all([
   readFile(path.join(OUT, 'original.html')),
   readFile(path.join(OUT, 'official_module.js')),
   readFile(path.join(OUT, 'widget.js'), 'utf8'),
-  readFile(path.join(ROOT, 'assets/three/three.native.js'), 'utf8'),
+  readFile(path.join(ROOT, 'assets/three/jsr_three_native.js'), 'utf8'),
   readFile(path.join(OUT, 'prepare_manifest.json'))
 ]);
 const manifest = JSON.parse(manifestBytes.toString('utf8'));
@@ -109,7 +109,7 @@ const context = vm.createContext({
   setTimeout,
   clearTimeout
 });
-vm.runInContext(native, context, { filename: 'three.native.js' });
+vm.runInContext(native, context, { filename: 'jsr_three_native.js' });
 vm.runInContext('globalThis.THREE = THREE;', context);
 vm.runInContext(widget, context, { filename: 'widget.js' });
 await Promise.resolve();

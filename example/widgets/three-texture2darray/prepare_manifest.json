@@ -53,6 +53,17 @@
       "discovered": true
     }
   ],
+  "assetPolicy": {
+    "inlineMaxBytes": 1500000,
+    "externalAssets": [
+      {
+        "url": "textures/3d/head256x256x109.zip",
+        "file": "textures__3d__head256x256x109.zip",
+        "bytes": 4127257,
+        "sha256": "7d6d9c15a24a043114a9a2d07380b1afe24f4c45aa0a0da0c55bf764cb2cf906"
+      }
+    ]
+  },
   "facade": {
     "global": "globalThis.THREE",
     "exports": [
@@ -224,6 +235,7 @@
       "InterpolationSamplingMode",
       "InterpolationSamplingType",
       "InvertStencilOp",
+      "JsrImageBitmapLoader",
       "JsrPMREMGenerator",
       "JsrThreeCanvas",
       "KeepStencilOp",
@@ -499,9 +511,11 @@
       "ZeroFactor",
       "ZeroSlopeEnding",
       "ZeroStencilOp",
+      "createBoundedCSGEvaluator",
       "createCanvasElement",
       "error",
       "getConsoleFunction",
+      "getNativeCSGDiagnostics",
       "getNativeRaycastDiagnostics",
       "log",
       "setConsoleFunction",
@@ -509,18 +523,18 @@
       "warnOnce"
     ],
     "source": {
-      "bytes": 40479,
-      "sha256": "df859ed3cf596c4fc86606d2dc4a34a66b84af512e172853533a88839b3fa14f"
+      "bytes": 40795,
+      "sha256": "5c866e28153c9f665a8b7e1bc2c0d5ee7e3284e35d223abf31d62971c142f02c"
     }
   },
   "inputs": {
-    "assets/three/three.native.js": {
-      "bytes": 791598,
-      "sha256": "58efdde0f4795a978fdf0a9ed9a4f606264aff39bb4e164aaaf00f5542c280e8"
+    "assets/three/jsr_three_native.js": {
+      "bytes": 838188,
+      "sha256": "774cd82da77974165fd9ec3122c1e4e4505bca3faa5003cb72afc6a59f5f4e5b"
     },
-    "assets/three/three.web.js": {
-      "bytes": 855325,
-      "sha256": "973b78155b07710ece2f22e803cb25a8cb08da4f62b5f825dc676715f5859311"
+    "assets/three/jsr_three_web.js": {
+      "bytes": 857885,
+      "sha256": "8bf94959ca16ffd59b904e040edcf4ffe405eac56cf941285a2da0a5337fb878"
     },
     "source/LICENSE": {
       "bytes": 1081,
@@ -543,38 +557,54 @@
       "sha256": "29492424209a17a723b3b0c8e9c83995697a4c466840d1b33ba6f6ff2b7542a4"
     },
     "tool/three/src/native_entry.js": {
-      "bytes": 1951,
-      "sha256": "7852c54a706c19e98978c884aa9cd9bfd8d040a2d304c8e6d8cf973dd3554eaf"
+      "bytes": 26368,
+      "sha256": "dac7dc374e1374499bc9e9a84593e7e1e848bfcde7bb916d7212ccd517e861d3"
+    },
+    "tool/three_example/asset_decode.mjs": {
+      "bytes": 42102,
+      "sha256": "81e15438074e820dc13552b267de326fab895bca729cc5db744da6bedb420a26"
     },
     "tool/three_example/asset_discovery.mjs": {
-      "bytes": 11532,
-      "sha256": "5219e6b747041382d9e40edc33901f04140df1cfb0454b181d8145414a75ee9e"
+      "bytes": 12424,
+      "sha256": "89a14e272cb1ddac5b555b4361af938764127ee069ac367a18262b8299643eca"
     },
     "tool/three_example/example_adapter.js": {
-      "bytes": 36267,
-      "sha256": "c604a1842689cfaf43e2bdf335b55f2384780c7b163cd41ab6e91e3912704b61"
+      "bytes": 49943,
+      "sha256": "1ab349ba0361871765f4351a6fc3228fb05c93315985fbbf07644592c96ad8c4"
     },
     "tool/three_example/example_canvas2d.js": {
-      "bytes": 20988,
-      "sha256": "ae6143c0400efcb2b9ca05c69416ea13519aa5c94a8e7d2e75ffe767ef4c8fba"
+      "bytes": 22635,
+      "sha256": "3bb5bcd47d637e187e79fd7463ba4247e3cc7b5705e62229983e8e607fccf753"
     },
     "tool/three_example/lil_gui_adapter.js": {
-      "bytes": 28916,
-      "sha256": "dc11346394f41bb4f385738d3afa6aa75e695ac80fe3be3a5fbf4201686376bf"
+      "bytes": 32173,
+      "sha256": "2f83bde66c35db02a16eec3db21beae0e1198e04f1b0723f9b3dbda89c6675f7"
     },
     "tool/three_example/prepare.mjs": {
-      "bytes": 252492,
-      "sha256": "544095661162d33d5b6e91b6b744f7eb60b97c1ff9ea1f4ae297b2f39044af43"
+      "bytes": 315738,
+      "sha256": "3b0289d8d7db92ec08e8c41644ccd934458c173e6a4c6f0a7c7856b3281466f5"
     },
     "tool/three_example/stats_adapter.js": {
       "bytes": 2107,
       "sha256": "98defe8785b259fdf70182c7d4a0a8e8e39ff8be901c3a9f93cd991240784086"
+    },
+    "tool/three_example/vendor/lock.json": {
+      "bytes": 3496,
+      "sha256": "684724e244c7042cbe7bd1fa0dace4e9a653a73d25c35f04c21b9d62d0eb6219"
+    },
+    "tool/three_example/vendor/xml_dom.js": {
+      "bytes": 18555,
+      "sha256": "b5ed0f0cfc690fc55c03280cc3c2ab67e39d09504b51d979a827306e00249182"
     }
   },
   "outputs": {
     "THREE_LICENSE": {
       "bytes": 1081,
       "sha256": "8b378ebe60e2fe500158cb0ac71cb5e8b7d92953c2abcc63a0eb90499653b5bc"
+    },
+    "assets.json": {
+      "bytes": 513,
+      "sha256": "ea215a60a87720aaa8c69de37700149320f9ae5294c0edaef666631915fd3a7c"
     },
     "manifest.json": {
       "bytes": 341,
@@ -593,8 +623,8 @@
       "sha256": "7d6d9c15a24a043114a9a2d07380b1afe24f4c45aa0a0da0c55bf764cb2cf906"
     },
     "widget.js": {
-      "bytes": 5551106,
-      "sha256": "1f85653b030950fe83e09daf1eb2c9cddcf7c0360d6ada39dd02a41fbddfd4c4"
+      "bytes": 63573,
+      "sha256": "eeb4be7f3f84bb07b8cfedba52386280feaaa086f537c7265184e90066913d5f"
     }
   }
 }

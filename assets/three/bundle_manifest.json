@@ -27,16 +27,16 @@
       "tool/three/src/errors.js": "a816e842488f759d202f284ff64e1f237c6d4474cdfcdcf1cf707e4a5506c887",
       "tool/three/src/native_audio.js": "6c4cb5e303a6a76af503df646a99114a2c740cd49ea03f5035f1233258e860ba",
       "tool/three/src/native_canvas2d.js": "c8a7cda446ee4cc47c81fd87fa829cd94e67faa5c53de12e3be8cf7a95ba810c",
-      "tool/three/src/native_entry.js": "22359f8d27e9a43832eb6aeefdb98530423f6bba63daab535814efc3cd1c4bb6",
-      "tool/three/src/native_loaders.js": "4982baa39b981878f8e96545791c97d8bacf6c52d16e55906fa1e0e1391073da",
+      "tool/three/src/native_entry.js": "dac7dc374e1374499bc9e9a84593e7e1e848bfcde7bb916d7212ccd517e861d3",
+      "tool/three/src/native_loaders.js": "f82361807448bbc2a29d281f06d1d9194f683e00519c3513608ccb3b504c10c4",
       "tool/three/src/native_raycast_bvh.js": "9aada0445e0fb5d1cba38ea8e801588d8b496cce8531f57ab9c60e61d7049384",
-      "tool/three/src/native_renderer.js": "a5fd064a41e917657420931cd0fd8744340b0ab762fc1116f43828adda51880e",
+      "tool/three/src/native_renderer.js": "cef239f3c09cf9c1be72a6ccd6a74015e8339a84badb2c28ba3a8a4711abfa63",
       "tool/three/src/native_three_shim.js": "3f29d9215d19ec495af2e3aab9ac785429a471e4867fe3fbd4784f38515ea096",
-      "tool/three/src/r1.js": "a833767c30a7fa7c56f29af6557bde6acce87b45d49b8d3ab23a6702cb6a90e8",
-      "tool/three/src/runtime.js": "ecd609a6c15b50aa7472b2269453ecb060279d035065ec9650db57e24a02e46d",
+      "tool/three/src/r1.js": "566560bfe83a2fc0112264fca7e96899ed58345e0005af6f1cbd12dcb7869dc1",
+      "tool/three/src/runtime.js": "c297b2a97a101938fa2bafcf05e78c482f6fb5bde3514aa88689a8ba86fce139",
       "tool/three/src/web_entry.js": "538a1625cffb9539d70055b173c98320799457a9c5e7b5a4c0577c22841cd3ad",
       "tool/three/src/web_renderer.js": "2b808b22123fce8e49b9ed8d76f75872199efb527b477e202f295ed6a244819c",
-      "tool/three/build.mjs": "824a3560afd2f88c62a80df7ffbe2717111f6e256f85e769d93755e61450240d",
+      "tool/three/build.mjs": "d9c5d1a43e472c489ecd43c4009c46d1254edb3de882c57fb59a0f08bec599a3",
       "tool/three/package.json": "320b83ddda5dd9dea7f3b233a7eab267ed71d463dda31916929c80f034a94f8e",
       "tool/three/package-lock.json": "f0507fde83eefa84d2a088e6ecc3b2cd1e65f49c9df7bd6d0783d0f1b352cff3",
       "tool/three/source-pin.json": "29492424209a17a723b3b0c8e9c83995697a4c466840d1b33ba6f6ff2b7542a4",
@@ -45,20 +45,12 @@
   },
   "outputs": {
     "jsr_three_native.js": {
-      "bytes": 802458,
-      "sha256": "9ff90acc979d07b81db2e35f66e09cf28ebb5309332e896ce9c84e61a3dc8f10"
+      "bytes": 838773,
+      "sha256": "af83dafee1db2d7e13a065f781011a97938b694a552d09c8f62c16fc791b6b2f"
     },
     "jsr_three_web.js": {
-      "bytes": 855325,
-      "sha256": "973b78155b07710ece2f22e803cb25a8cb08da4f62b5f825dc676715f5859311"
-    },
-    "three.native.js": {
-      "bytes": 802458,
-      "sha256": "9ff90acc979d07b81db2e35f66e09cf28ebb5309332e896ce9c84e61a3dc8f10"
-    },
-    "three.web.js": {
-      "bytes": 855325,
-      "sha256": "973b78155b07710ece2f22e803cb25a8cb08da4f62b5f825dc676715f5859311"
+      "bytes": 858448,
+      "sha256": "437fc270ea8663d61d9abb8ffed6e6814cd6239f36eb78785fc54176f75cb4a1"
     }
   }
 }

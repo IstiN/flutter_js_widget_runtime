@@ -110,6 +110,10 @@ class WebWorkerJsWidgetEngineBackend implements JsWidgetEngineBackend {
   }) async {
     await dispose();
     _disposed = false;
+    // dispose() above ended the RAF lane permanently (late-request drop
+    // guard); this run's widget needs frames again — revive the lane while
+    // keeping the full worker teardown the dispose did.
+    _bridge.resetForRun();
     final threeHost = _config.threeHost;
     if (threeHost is WebThreeHost) {
       threeHost.bindEngine(_bridge.threeEngineId, _postThreeControl);

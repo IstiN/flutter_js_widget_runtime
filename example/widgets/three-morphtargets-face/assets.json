@@ -1,0 +1,18 @@
+{
+  "schema": "jsr-three-example-external-assets-v1",
+  "id": "three-morphtargets-face",
+  "inlineMaxBytes": 1500000,
+  "assets": [
+    {
+      "url": "models/gltf/facecap.glb",
+      "file": "models__gltf__facecap.glb",
+      "mime": "model/gltf-binary",
+      "width": 0,
+      "height": 0,
+      "bytes": 5713940,
+      "sha256": "b9aa10fee69cc985aa9fee588d8e500654b96a71baabf9d9f675b1285442b7e3",
+      "aliases": [],
+      "diagnostic": "auto:models/gltf/facecap.glb"
+    }
+  ]
+}

@@ -1,0 +1,18 @@
+{
+  "schema": "jsr-three-example-external-assets-v1",
+  "id": "three-loader-gltf-transmission",
+  "inlineMaxBytes": 1500000,
+  "assets": [
+    {
+      "url": "models/gltf/IridescentDishWithOlives.glb",
+      "file": "models__gltf__IridescentDishWithOlives.glb",
+      "mime": "model/gltf-binary",
+      "width": 0,
+      "height": 0,
+      "bytes": 4926856,
+      "sha256": "bed01d1c0f39b8e9ea84bbcb136678368d9443a92b7df7673ce673dd007e2ca3",
+      "aliases": [],
+      "diagnostic": "auto:models/gltf/IridescentDishWithOlives.glb"
+    }
+  ]
+}

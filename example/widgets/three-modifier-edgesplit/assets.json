@@ -1,0 +1,27 @@
+{
+  "schema": "jsr-three-example-external-assets-v1",
+  "id": "three-modifier-edgesplit",
+  "inlineMaxBytes": 1500000,
+  "assets": [
+    {
+      "url": "models/obj/cerberus/Cerberus_A.jpg",
+      "file": "models__obj__cerberus__Cerberus_A.jpg",
+      "mime": "application/x-rgba",
+      "width": 2048,
+      "height": 2048,
+      "bytes": 16777216,
+      "sha256": "d0c2743f67e19c0b6449dc81ce52feb4bad8230f03fc3b7af61e0793adb6209b",
+      "aliases": []
+    },
+    {
+      "url": "models/obj/cerberus/Cerberus.obj",
+      "file": "models__obj__cerberus__Cerberus.obj",
+      "mime": "application/octet-stream",
+      "width": 0,
+      "height": 0,
+      "bytes": 2637083,
+      "sha256": "0ffac38139fe00145683774bf33d2fb245e2770a68bb71c552812ab9d12ee534",
+      "aliases": []
+    }
+  ]
+}

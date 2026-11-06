@@ -8,14 +8,18 @@ if (typeof ROOT.self === 'undefined') ROOT.self = ROOT;
 const browserDocument = ROOT.document || null;
 const EXAMPLE = __JSR_THREE_EXAMPLE_ID__;
 const WIDGET_ID = __JSR_THREE_WIDGET_ID__;
-const ASSETS = JSON.parse(__JSR_THREE_EXAMPLE_ASSETS_JSON__);
+const ASSETS = JSON.parse(__JSR_THREE_EXAMPLE_ASSETS_JSON__).map(asset => ({
+  ...asset,
+  data: JSON.parse(__JSR_THREE_EXAMPLE_ASSET_DATA_JSON__)[asset.ref]
+}));
+const EXTERNAL_ASSETS = JSON.parse(__JSR_THREE_EXAMPLE_EXTERNAL_ASSETS_JSON__);
 const ASSETS_BY_URL = new Map(ASSETS.map(asset => [asset.url, asset]));
 const JSR = ROOT.jsr;
 
 if (!JSR || !JSR.three || typeof JSR.three.createCanvas !== 'function' ||
     typeof JSR.three.registerAsset !== 'function' ||
     typeof JSR.three._prepareTree !== 'function') {
-  throw new Error(`${WIDGET_ID}: evaluate the JSR three.native.js/three.web.js bundle first`);
+  throw new Error(`${WIDGET_ID}: evaluate the JSR jsr_three_native.js/jsr_three_web.js bundle first`);
 }
 if (typeof JSR.render !== 'function' || typeof JSR.exportState !== 'function') {
   throw new Error(`${WIDGET_ID}: jsr.render and jsr.exportState are required`);
@@ -78,6 +82,11 @@ if (typeof ROOT.Blob === 'undefined') {
   }
 }
 
+// GLTFLoader refers to the bare global `Blob`. QuickJS does not consistently
+// expose a globalThis property as a module binding, so give the bundled addon
+// scope the same Blob facade explicitly.
+const Blob = ROOT.Blob;
+
 const canvas = JSR.three.createCanvas('main');
 const runtimeDocument = canvas.ownerDocument;
 canvas.getRootNode = () => runtimeDocument;
@@ -134,6 +143,7 @@ let statsDiagnostics = {
   phase: 'idle', frames: 0, fps: 0, frameTimeMs: 0,
   begins: 0, ends: 0, updates: 0, mode: 0
 };
+let statsUpdates = 0;
 let guiDiagnostics = { roots: 0, controllers: 0, changes: 0, finishes: 0, values: [] };
 const mediaDiagnostics = {
   videoElements: 0, videoTextures: 0, shaderFallbacks: 0, warnings: []
@@ -179,12 +189,26 @@ function publishDiagnostics() {
   for (const asset of ASSETS) {
     if (asset.diagnostic) state[asset.diagnostic] = assetDiagnostics[asset.url];
   }
+  for (const asset of EXTERNAL_ASSETS) {
+    if (asset.diagnostic) state[asset.diagnostic] = assetDiagnostics[asset.url];
+  }
+  state.externalAssets = EXTERNAL_ASSETS.length;
   JSR.exportState(state);
 }
 
 // Stats is a local diagnostic adapter, not a second render-tree node.
 export function reportStats(value) {
   statsDiagnostics = value;
+  // Stats.update runs every RAF. Publishing diagnostics at that rate rebuilds
+  // the entire native controls tree and can cost more than the 3D frame.
+  // The overlay is a low-frequency diagnostic; GUI changes still publish
+  // immediately through reportGui.
+  if (value && value.phase === 'update') {
+    statsUpdates++;
+    // Publish the first live renderer.info immediately; consumers must never
+    // observe a successfully submitted first frame with a zero diagnostic.
+    if (statsUpdates !== 1 && statsUpdates % 30 !== 0) return;
+  }
   publishDiagnostics();
 }
 
@@ -218,6 +242,24 @@ for (const asset of ASSETS) {
     width: asset.width,
     height: asset.height
   });
+}
+
+// Assets above the prepare inline threshold ship as separate widget files and
+// load through the runtime host lane (JSR.three.loadAsset -> `three.asset`)
+// on first request instead of a base64 constant decoded at init. The facade
+// only pins their alias URLs (e.g. the remote URL an official module fetches)
+// to the canonical asset URL so the host lane sees the pinned offline name.
+const externalAssetDiagnostics = {};
+for (const asset of EXTERNAL_ASSETS) {
+  externalAssetDiagnostics[asset.url] = {
+    url: asset.url, bytes: asset.bytes, registered: false, external: true
+  };
+  if (typeof JSR.three.registerAssetRedirect === 'function') {
+    for (const alias of asset.aliases || []) {
+      JSR.three.registerAssetRedirect(alias, asset.url);
+    }
+  }
+  assetDiagnostics[asset.url] = externalAssetDiagnostics[asset.url];
 }
 
 function eventTarget(target) {
@@ -286,6 +328,16 @@ function localElement(tagName) {
       contains(name) { return this._names.has(name); }
     }
   });
+  // Instance-of contract: upstream code checks shim elements against the
+  // document's window constructors (CSS2DObject's 'removed' listener runs
+  // `element instanceof element.ownerDocument.defaultView.Element`). The
+  // runtime document now carries the bounded marker class, so put local
+  // elements on its prototype chain.
+  const domElementMarker = runtimeDocument.defaultView.Element;
+  if (typeof domElementMarker === 'function' &&
+      !(element instanceof domElementMarker)) {
+    Object.setPrototypeOf(element, domElementMarker.prototype);
+  }
   const cssNumber = (value, fallback) => {
     const parsed = Number.parseFloat(value);
     return Number.isFinite(parsed) ? parsed : fallback;
@@ -345,6 +397,18 @@ function localElement(tagName) {
   };
   element.remove = function() {
     if (this.parentNode && typeof this.parentNode.removeChild === 'function') this.parentNode.removeChild(this);
+  };
+  // CSS2DObject (webgl_loader_pdb) and similar label DOM code set attributes
+  // on their elements; keep a bounded attribute map instead of throwing.
+  const attributes = new Map();
+  element.setAttribute = function(name, value) {
+    attributes.set(String(name), String(value));
+  };
+  element.getAttribute = function(name) {
+    return attributes.has(String(name)) ? attributes.get(String(name)) : null;
+  };
+  element.removeAttribute = function(name) {
+    attributes.delete(String(name));
   };
   element.click = function() {
     this.__jsrClicked = true;
@@ -813,6 +877,15 @@ for (const type of ['pointerdown', 'pointermove', 'pointerup', 'pointercancel'])
   });
 }
 
+// Start-overlay examples (e.g. webgl_postprocessing_glitch) boot their scene
+// only after the user presses #startButton. Pointer events never reach a
+// screenshot/preview session, so the scene would never present a frame.
+// Auto-start once, shortly after boot, unless a pointer already did.
+setTimeout(() => {
+  const startButton = localElementsById.get('startButton');
+  if (startButton && !startButton.__jsrClicked) startButton.click();
+}, 400);
+
 function warnCompat(key, message) {
   if (mediaDiagnostics.warnings.includes(key)) return;
   mediaDiagnostics.warnings.push(key);
@@ -895,6 +968,7 @@ function installNativeExampleCompat() {
   const nativeRender = prototype.render;
   const nativeSetRenderTarget = prototype.setRenderTarget;
   const shaderFallbacks = new WeakMap();
+  const webcamEyeFallbacks = new WeakMap();
   let visualizerCamera = null;
   const singleShaderScene = scene => {
     if (!scene) return false;
@@ -964,6 +1038,70 @@ function installNativeExampleCompat() {
         'ground-projection',
         'three: R1 renders the ground-projected example with its real equirect HDR background; the projected skybox mesh is omitted.'
       );
+    }
+    if (EXAMPLE === 'webgl_animation_keyframes' && scene && typeof scene.traverse === 'function') {
+      // R1 CPU-skins before Frustum.intersectsObject lazily computes a
+      // SkinnedMesh sphere, so upstream getVertexPosition would skin the
+      // already-skinned positions a second time and can cull the whole city.
+      // The official camera contains this bounded 72-draw scene; retain every
+      // city mesh rather than trusting those incompatible transient bounds.
+      scene.traverse(object => {
+        if (object.isMesh) object.frustumCulled = false;
+      });
+      if (scene.isScene && !scene.userData.__jsrKeyframePresentation) {
+        // The official scene is lit exclusively by PMREM.fromScene(sky).
+        // Native R1 deliberately omits that prefiltered environment, so the
+        // city otherwise has zero incident light and every Standard material
+        // is black. Keep the real geometry/textures and approximate its sky
+        // illumination with supported native lights. The native Sky fallback
+        // is an ordinary BackSide box (not the upstream far-plane shader), so
+        // bound it inside the official camera's 100-unit far plane as well.
+        scene.background = new three.Color(0xc5e8f2);
+        scene.add(new three.HemisphereLight(0xc5e8f2, 0x746457, 2));
+        const sunlight = new three.DirectionalLight(0xfff1dc, 3);
+        sunlight.position.set(-3, 10, 7);
+        scene.add(sunlight);
+        scene.traverse(object => {
+          if (object.isSky) object.scale.setScalar(50);
+        });
+        scene.userData.__jsrKeyframePresentation = true;
+        warnCompat(
+          'keyframes-environment',
+          'three: R1 approximates the keyframes PMREM sky with native hemisphere/directional lighting and a bounded sky dome.'
+        );
+      }
+    }
+    if (EXAMPLE === 'webgl_morphtargets_webcam' && scene && typeof scene.traverse === 'function') {
+      // Only the two eye meshes retain a Standard material here; the official
+      // head and teeth already use Normal materials. The mirrored scene has a
+      // negative world determinant. R1's double-sided PBR normal then faces
+      // away from the camera, making Fresnel Schlick exactly one and reducing
+      // ambient-only Standard eyes to pure black. Lambert retains the real
+      // eye atlas/UV transform and ambient-lit appearance without that PBR
+      // Fresnel term, so the static face has eyes rather than black holes.
+      scene.traverse(object => {
+        const source = object.isMesh && object.material;
+        if (!source || Array.isArray(source) || !source.isMeshStandardMaterial) return;
+        let fallback = webcamEyeFallbacks.get(source);
+        if (!fallback) {
+          fallback = new three.MeshLambertMaterial({
+            color: source.color || 0xffffff,
+            map: source.map || null,
+            side: source.side,
+            transparent: source.transparent,
+            opacity: source.opacity,
+            alphaTest: source.alphaTest,
+            depthTest: source.depthTest,
+            depthWrite: source.depthWrite
+          });
+          webcamEyeFallbacks.set(source, fallback);
+          warnCompat(
+            'webcam-eye-material',
+            'three: R1 renders the mirrored Face Cap eyes with their real atlas on Lambert materials; the MediaPipe degrade is unchanged.'
+          );
+        }
+        object.material = fallback;
+      });
     }
     degradeSceneVideos(scene);
     adaptMediaShaders(scene);

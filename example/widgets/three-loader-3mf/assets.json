@@ -1,0 +1,40 @@
+{
+  "schema": "jsr-three-example-external-assets-v1",
+  "id": "three-loader-3mf",
+  "inlineMaxBytes": 1500000,
+  "assets": [
+    {
+      "url": "models/3mf/multipletextures.3mf",
+      "file": "models__3mf__multipletextures.3mf",
+      "mime": "application/octet-stream",
+      "width": 0,
+      "height": 0,
+      "bytes": 5801888,
+      "sha256": "010724fc7f5f1b7e1a7e992749479c1abebfa7ea87cdd20a12b886d31cb9d874",
+      "aliases": [],
+      "diagnostic": "generated:multipleTexturesScene"
+    },
+    {
+      "url": "models/3mf/truck.3mf",
+      "file": "models__3mf__truck.3mf",
+      "mime": "application/octet-stream",
+      "width": 0,
+      "height": 0,
+      "bytes": 7443140,
+      "sha256": "ab6d2d3889747406466fe3d4467d56b719c75094ee8339808eb3fc83e00d7441",
+      "aliases": [],
+      "diagnostic": "generated:truckScene"
+    },
+    {
+      "url": "models/3mf/variable voronoi.3mf",
+      "file": "models__3mf__variable__voronoi.3mf",
+      "mime": "application/octet-stream",
+      "width": 0,
+      "height": 0,
+      "bytes": 3050984,
+      "sha256": "a82deafa43a69ae4d304a3aee9178ae974ac57af9ef644600443fba64637436e",
+      "aliases": [],
+      "diagnostic": "generated:variableVoronoiScene"
+    }
+  ]
+}

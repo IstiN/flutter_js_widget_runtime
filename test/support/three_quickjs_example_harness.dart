@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter/services.dart';
@@ -10,6 +11,53 @@ import 'package:js_widget_runtime/src/renderer/nodes/three/three_draw_plan.dart'
 import 'package:js_widget_runtime/src/runtime/js_widget_engine_quickjs.dart';
 
 import 'three_test_config.dart';
+
+/// Serves a prepared example's external assets (schema
+/// `jsr-three-example-external-assets-v1`) straight from the widget directory.
+///
+/// The app resolves these through its own host lane; headless tests use this
+/// loader so prepared widgets no longer require inlined asset payloads.
+JsThreeAssetLoader widgetDirAssetLoader(String widgetDir) {
+  final byUrl = <String, Map<String, dynamic>>{};
+  Future<Map<String, Map<String, dynamic>>>? pending;
+  Future<Map<String, Map<String, dynamic>>> populate() {
+    // GLTFLoader fans out concurrent requests (GLB + textures). Share ONE
+    // sidecar read so a request never observes the not-yet-populated map.
+    return pending ??= () async {
+      // Widgets without externalized assets have no sidecar descriptor:
+      // treat that as an empty pin table instead of crashing the lane.
+      final file = File('$widgetDir/assets.json');
+      if (!file.existsSync()) return byUrl;
+      final text = await file.readAsString();
+      final decoded = jsonDecode(text);
+      if (decoded is! Map || decoded['assets'] is! List) return byUrl;
+      for (final entry in decoded['assets'] as List) {
+        if (entry is! Map) continue;
+        final record = entry.cast<String, dynamic>();
+        byUrl[record['url'] as String] = record;
+        for (final alias in (record['aliases'] as List?) ?? const []) {
+          byUrl[alias as String] = record;
+        }
+      }
+      return byUrl;
+    }();
+  }
+
+  return (engineId, url) async {
+    final records = await populate();
+    final record = records[url];
+    if (record == null) {
+      throw StateError('three.assetFailure: no pinned asset for $url');
+    }
+    final bytes = await File('$widgetDir/${record['file']}').readAsBytes();
+    return JsThreeAsset(
+      data: bytes,
+      mimeType: record['mime'] as String? ?? 'application/octet-stream',
+      width: (record['width'] as num?)?.toInt() ?? 0,
+      height: (record['height'] as num?)?.toInt() ?? 0,
+    );
+  };
+}
 
 /// Shared real-QuickJS boot and frame pumping for official THREE examples.
 final class ThreeQuickjsExampleHarness {
@@ -28,10 +76,14 @@ final class ThreeQuickjsExampleHarness {
     bool useIsolate = false,
     Future<Object?> Function(String name, Map<String, dynamic> args)?
     onHostCall,
+    JsThreeAssetLoader? assetLoader,
+    /// Prepended to the widget source before eval (probe preludes); assets
+    /// still resolve from the widget directory lane.
+    String? sourcePrelude,
   }) async {
     final sources = await tester.runAsync(
       () async => (
-        three: await rootBundle.loadString('assets/three/three.native.js'),
+        three: await rootBundle.loadString('assets/three/jsr_three_native.js'),
         widget: await File(
           'example/widgets/$widgetId/widget.js',
         ).readAsString(),
@@ -39,12 +91,19 @@ final class ThreeQuickjsExampleHarness {
     );
     return _start(
       threeSource: sources!.three,
-      widgetSource: sources.widget,
+      widgetSource: sourcePrelude == null
+          ? sources.widget
+          : '$sourcePrelude\n${sources.widget}',
       widgetId: widgetId,
       instanceId: instanceId,
       useIsolate: useIsolate,
       onHostCall: onHostCall,
       tester: tester,
+      // Prepared widgets externalize their above-threshold assets
+      // (prepare.mjs --inline-max-bytes); serve the pinned sidecar from the
+      // widget directory exactly like the example app's bundle lane.
+      assetLoader:
+          assetLoader ?? widgetDirAssetLoader('example/widgets/$widgetId'),
     );
   }
 
@@ -52,11 +111,13 @@ final class ThreeQuickjsExampleHarness {
     WidgetTester tester, {
     required String source,
     required String instanceId,
+    bool useIsolate = false,
     Future<Object?> Function(String name, Map<String, dynamic> args)?
     onHostCall,
+    JsThreeAssetLoader? assetLoader,
   }) async {
     final threeSource = await tester.runAsync(
-      () => rootBundle.loadString('assets/three/three.native.js'),
+      () => rootBundle.loadString('assets/three/jsr_three_native.js'),
     );
     return _start(
       threeSource: threeSource!,
@@ -64,7 +125,9 @@ final class ThreeQuickjsExampleHarness {
       widgetId: 'three-native-test',
       instanceId: instanceId,
       tester: tester,
+      useIsolate: useIsolate,
       onHostCall: onHostCall,
+      assetLoader: assetLoader,
     );
   }
 
@@ -77,8 +140,9 @@ final class ThreeQuickjsExampleHarness {
     bool useIsolate = false,
     Future<Object?> Function(String name, Map<String, dynamic> args)?
     onHostCall,
+    JsThreeAssetLoader? assetLoader,
   }) async {
-    final host = createFlutterGpuThreeHost();
+    final host = createFlutterGpuThreeHost(assetLoader: assetLoader);
     final renderTrees = <Map<String, dynamic>>[];
     final config = threeTestConfig(
       engineId: instanceId,

@@ -378,6 +378,7 @@ function encodePreparedKtx2(decoded) {
     width: decoded.width || 0,
     height: decoded.height || 0,
     depth: decoded.depth || 1,
+    cube: decoded.cube === true,
     colorSpace: decoded.colorSpace || 'linear',
     error: decoded.error || null
   }));
@@ -393,6 +394,216 @@ export async function decodeKtx2Asset(source, bytes, url, allowUnsupported = tru
   } catch (error) {
     if (!allowUnsupported) throw new Error(`${url}: ${error.message}`);
     const message = `${url}: prepare-time KTX2 decode unavailable: ${error.message}`;
+    console.warn(`three: ${message}`);
+    return encodePreparedKtx2({ error: message });
+  }
+}
+
+// --- prepare-time DDS decode (webgl_loader_texture_dds) ---------------------
+// R1 has no BCn upload lane, so the stock DDSLoader path keeps compressed
+// textures unbound (white meshes). Decode DXT1/DXT3/DXT5 + uncompressed
+// A8R8G8B8/R8G8B8 blocks to RGBA at prepare time and ship the base mip inside
+// the same JSRKTEX2 container the KTX2 lane uses. Mip chains are collapsed to
+// the base level (the shim forces LinearFilter). BC6H/BC7/BC4/BC5 (DX10
+// extension) and cube-face DDS stay unsupported and fail LOUDLY with a
+// header error the shim turns into a console warning + unbound texture.
+const ddsDxtColorMask = (value) => [(value >> 11) & 31, (value >> 5) & 63, value & 31];
+
+function ddsChannel565(word) {
+  const [r, g, b] = ddsDxtColorMask(word);
+  return [(r * 255) / 31, (g * 255) / 63, (b * 255) / 31];
+}
+
+function ddsColorBlockToRgba(block, output, base, x0, y0, width, height) {
+  const word0 = block.readUInt16LE(0);
+  const word1 = block.readUInt16LE(2);
+  const c0 = ddsChannel565(word0);
+  const c1 = ddsChannel565(word1);
+  const opaque = word0 >= word1;
+  const palette = opaque
+    ? [c0, c1, [0, 1, 2].map(ch => (2 * c0[ch] + c1[ch]) / 3), [0, 1, 2].map(ch => (c0[ch] + 2 * c1[ch]) / 3)]
+    : [c0, c1, [0, 1, 2].map(ch => (c0[ch] + c1[ch]) / 2), null];
+  for (let texel = 0; texel < 16; texel++) {
+    const x = x0 + (texel & 3);
+    const y = y0 + (texel >> 2);
+    if (x >= width || y >= height) continue;
+    const code = (block[4 + (texel >> 3)] >> ((texel & 7) * 2)) & 3;
+    const target = base + (y * width + x) * 4;
+    const color = palette[code];
+    if (color === null) {
+      output[target] = output[target + 1] = output[target + 2] = output[target + 3] = 0;
+    } else {
+      output[target] = color[0];
+      output[target + 1] = color[1];
+      output[target + 2] = color[2];
+      output[target + 3] = 255;
+    }
+  }
+}
+
+function ddsAlpha3BlockToRgba(block, output, base, x0, y0, width, height) {
+  // BC3/BC4-style interpolated alpha: two 8-bit endpoints + 16 3-bit indices.
+  const a0 = block[0];
+  const a1 = block[1];
+  for (let texel = 0; texel < 16; texel++) {
+    const x = x0 + (texel & 3);
+    const y = y0 + (texel >> 2);
+    if (x >= width || y >= height) continue;
+    const bit = texel * 3;
+    const code = ((block[2 + (bit >> 3)] | (block[3 + (bit >> 3)] << 8)) >> (bit & 7)) & 7;
+    let alpha;
+    if (a0 > a1) alpha = [a0, a1, (6 * a0 + a1) / 7, (5 * a0 + 2 * a1) / 7, (4 * a0 + 3 * a1) / 7, (3 * a0 + 4 * a1) / 7, (2 * a0 + 5 * a1) / 7, (a0 + 6 * a1) / 7][code];
+    else alpha = [a0, a1, (4 * a0 + a1) / 5, (3 * a0 + 2 * a1) / 5, (2 * a0 + 3 * a1) / 5, (a0 + 4 * a1) / 5, 0, 255][code];
+    const target = base + (y * width + x) * 4;
+    output[target + 3] = alpha;
+  }
+}
+
+function ddsAlpha4BlockToRgba(block, output, base, x0, y0, width, height) {
+  // BC2 explicit alpha: 16 packed 4-bit values.
+  for (let texel = 0; texel < 16; texel++) {
+    const x = x0 + (texel & 3);
+    const y = y0 + (texel >> 2);
+    if (x >= width || y >= height) continue;
+    const target = base + (y * width + x) * 4;
+    output[target + 3] = (block[texel >> 1] >> ((texel & 1) * 4)) & 15;
+  }
+}
+
+function ddsMipLevelSize(mode, width, height) {
+  if (mode === 'rgba8') return width * height * 4;
+  if (mode === 'rgb8') return width * height * 3;
+  return Math.ceil(width / 4) * Math.ceil(height / 4) * (mode === 'bc1' ? 8 : 16);
+}
+
+function ddsMipChainBytes(mode, width, height) {
+  let total = 0;
+  for (let w = width, h = height; w > 1 || h > 1; w = Math.max(1, w >> 1), h = Math.max(1, h >> 1)) total += ddsMipLevelSize(mode, w, h);
+  total += ddsMipLevelSize(mode, 1, 1);
+  return total;
+}
+
+function decodeDdsBaseMip(buf, dataOffset, mode, width, height) {
+  const pixels = width * height;
+  const rgba = Buffer.alloc(pixels * 4);
+  if (mode === 'rgba8') {
+    const rMask = buf.readUInt32LE(92), gMask = buf.readUInt32LE(96), bMask = buf.readUInt32LE(100), aMask = buf.readUInt32LE(104);
+    // Bit shift = TRAILING zero count (lowest set bit of the mask), not the
+    // highest set bit — masks like 0x00ff0000 span bits 16..23.
+    const shift = mask => mask ? 31 - Math.clz32(mask & -mask) : 0;
+    const bits = mask => mask ? 32 - Math.clz32(mask) - shift(mask) : 0;
+    for (let index = 0; index < pixels; index++) {
+      const word = buf.readUInt32LE(dataOffset + index * 4);
+      const channel = (mask, channelBits, target) => {
+        if (!mask) return;
+        rgba[index * 4 + target] = Math.round(((word >> shift(mask)) & ((1 << channelBits) - 1)) * 255 / ((1 << channelBits) - 1));
+      };
+      channel(rMask, bits(rMask), 0);
+      channel(gMask, bits(gMask), 1);
+      channel(bMask, bits(bMask), 2);
+      channel(aMask, bits(aMask), 3);
+      if (!aMask) rgba[index * 4 + 3] = 255;
+    }
+  } else if (mode === 'rgb8') {
+    for (let index = 0; index < pixels; index++) {
+      const base = dataOffset + index * 3;
+      rgba[index * 4] = buf[base + 2];
+      rgba[index * 4 + 1] = buf[base + 1];
+      rgba[index * 4 + 2] = buf[base];
+      rgba[index * 4 + 3] = 255;
+    }
+  } else {
+    const blockRows = Math.ceil(height / 4);
+    const blockCols = Math.ceil(width / 4);
+    if (buf.length < dataOffset + blockRows * blockCols * (mode === 'bc1' ? 8 : 16)) throw new Error('truncated DDS base mip');
+    for (let blockY = 0; blockY < blockRows; blockY++) {
+      for (let blockX = 0; blockX < blockCols; blockX++) {
+        const blockBytes = mode === 'bc1' ? 8 : 16;
+        const blockBase = dataOffset + (blockY * blockCols + blockX) * blockBytes;
+        const block = buf.subarray(blockBase, blockBase + blockBytes);
+        const x0 = blockX * 4;
+        const y0 = blockY * 4;
+        if (mode === 'bc1') ddsColorBlockToRgba(block, rgba, 0, x0, y0, width, height);
+        else {
+          if (mode === 'bc2') ddsAlpha4BlockToRgba(block.subarray(0, 8), rgba, 0, x0, y0, width, height);
+          else ddsAlpha3BlockToRgba(block.subarray(0, 8), rgba, 0, x0, y0, width, height);
+          ddsColorBlockToRgba(block.subarray(8), rgba, 0, x0, y0, width, height);
+        }
+      }
+    }
+  }
+  // DDS rows are top-down; the JSRKTEX2/DataTexture lane is GL bottom-up
+  // (KTX2 level data), so flip vertically to match the proven lane.
+  const row = width * 4;
+  const flipped = Buffer.alloc(pixels * 4);
+  for (let y = 0; y < height; y++) {
+    rgba.copy(flipped, (height - 1 - y) * row, y * row, (y + 1) * row);
+  }
+  return flipped;
+}
+
+function decodeDds(bytes, url) {
+  const buf = Buffer.from(bytes.buffer, bytes.byteOffset, bytes.byteLength);
+  if (buf.length < 128 || buf.toString('latin1', 0, 4) !== 'DDS ') throw new Error('missing DDS magic');
+  const width = buf.readUInt32LE(16);
+  const height = buf.readUInt32LE(12);
+  if (!width || !height) throw new Error('zero DDS dimensions');
+  const caps2 = buf.readUInt32LE(112);
+  let faceCount = 1;
+  if (caps2 & 0x200) {
+    if ((caps2 & 0xfc00) !== 0xfc00) throw new Error('cube-face DDS with missing faces is unsupported');
+    faceCount = 6;
+  }
+  const fourCC = buf.toString('latin1', 84, 88).replace(/\0/g, ' ').trim();
+  let dataOffset = 128;
+  let mode = '';
+  if (fourCC === 'DX10') {
+    if (buf.readUInt32LE(136) & 0x4) {
+      if (!(caps2 & 0x200) || (caps2 & 0xfc00) !== 0xfc00) throw new Error('cube-face DX10 DDS with missing faces is unsupported');
+      faceCount = 6;
+    }
+    const dxgiFormat = buf.readUInt32LE(128);
+    if (dxgiFormat === 71 || dxgiFormat === 74 || dxgiFormat === 77) {
+      mode = ['bc1', 'bc2', 'bc3'][[71, 74, 77].indexOf(dxgiFormat)];
+    } else if (dxgiFormat === 28) {
+      mode = 'rgba8';
+    } else {
+      throw new Error(`DX10 extension format ${dxgiFormat} unsupported (BC6H/BC7/BC4/BC5 need an HDR/BCn prepare lane)`);
+    }
+    dataOffset = 148;
+  } else if (fourCC === 'DXT1') {
+    mode = 'bc1';
+  } else if (fourCC === 'DXT2' || fourCC === 'DXT3') {
+    mode = 'bc2';
+  } else if (fourCC === 'DXT4' || fourCC === 'DXT5') {
+    mode = 'bc3';
+  } else if (!fourCC) {
+    const bitCount = buf.readUInt32LE(88);
+    if (bitCount === 32) mode = 'rgba8';
+    else if (bitCount === 24) mode = 'rgb8';
+    else throw new Error(`uncompressed DDS with ${bitCount}bpp is unsupported`);
+  } else {
+    throw new Error(`DDS FourCC '${fourCC}' unsupported (BC6H/BC7/BC4/BC5 need an HDR/BCn prepare lane)`);
+  }
+  if (width * height * faceCount > MAX_TEXTURE_PIXELS) throw new Error('DDS texture exceeds prepare pixel quota');
+  const baseMip = decodeDdsBaseMip(buf, dataOffset, mode, width, height);
+  const faces = [baseMip];
+  const mipCount = (buf.readUInt32LE(8) & 0x200) ? Math.max(1, buf.readUInt32LE(28)) : 1;
+  const faceStride = mipCount > 1 ? ddsMipChainBytes(mode, width, height) : ddsMipLevelSize(mode, width, height);
+  for (let face = 1; face < faceCount; face++) {
+    const offset = dataOffset + face * faceStride;
+    if (buf.length < offset) throw new Error(`truncated DDS cube face ${face}`);
+    faces.push(decodeDdsBaseMip(buf, offset, mode, width, height));
+  }
+  return { width, height, depth: 1, cube: faceCount === 6, rgba: Buffer.concat(faces), colorSpace: 'srgb' };
+}
+
+export async function decodeDdsAsset(source, bytes, url, allowUnsupported = true) {
+  try {
+    return encodePreparedKtx2(decodeDds(bytes, url));
+  } catch (error) {
+    if (!allowUnsupported) throw new Error(`${url}: ${error.message}`);
+    const message = `${url}: prepare-time DDS decode unavailable: ${error.message}`;
     console.warn(`three: ${message}`);
     return encodePreparedKtx2({ error: message });
   }
@@ -447,12 +658,13 @@ function encodePng(decoded) {
 }
 
 async function decodeMeshoptViews(source, document, binary, appendView) {
-  const decoder = await meshoptModule(source);
+  let decoder;
   const originalLength = document.bufferViews?.length || 0;
   for (let index = 0; index < originalLength; index++) {
     const view = document.bufferViews[index];
     const extension = view.extensions?.EXT_meshopt_compression || view.extensions?.KHR_meshopt_compression;
     if (!extension) continue;
+    decoder ||= await meshoptModule(source);
     if (extension.buffer !== 0) throw new Error('meshopt source buffer must be the GLB BIN buffer');
     const start = extension.byteOffset || 0;
     const sourceBytes = new Uint8Array(binary.buffer, binary.byteOffset + start, extension.byteLength);
@@ -480,11 +692,12 @@ async function decodeMeshoptViews(source, document, binary, appendView) {
 }
 
 async function decodeDracoPrimitives(source, document, binary, appendView) {
-  const draco = await dracoModule(source);
+  let draco;
   for (const mesh of document.meshes || []) {
     for (const primitive of mesh.primitives || []) {
       const extension = primitive.extensions?.KHR_draco_mesh_compression;
       if (!extension) continue;
+      draco ||= await dracoModule(source);
       const view = document.bufferViews?.[extension.bufferView];
       if (!view || view.buffer !== 0) throw new Error('Draco primitive has an invalid bufferView');
       const start = view.byteOffset || 0;
@@ -569,6 +782,123 @@ async function decodeBasisImages(source, document, appendView) {
   if (decoded) removeExtensions(document, ['KHR_texture_basisu']);
 }
 
+const ACCESSOR_COMPONENTS = {
+  SCALAR: 1, VEC2: 2, VEC3: 3, VEC4: 4,
+  MAT2: 4, MAT3: 9, MAT4: 16
+};
+
+// meshopt commonly leaves every base/morph attribute in one interleaved
+// buffer. R1's CPU morph lane writes tightly packed position/normal arrays;
+// retaining that layout makes one mesh's blend overwrite its siblings and UVs.
+// Split only genuinely interleaved accessors, preserving their integer type,
+// normalization and quantization transforms (and therefore the official mesh).
+function deinterleaveAccessors(document, appendView, url) {
+  for (const accessor of document.accessors || []) {
+    if (accessor.bufferView === undefined || accessor.type.startsWith('MAT')) continue;
+    const view = document.bufferViews[accessor.bufferView];
+    const Type = typedArray(accessor.componentType);
+    const components = ACCESSOR_COMPONENTS[accessor.type];
+    if (!view || view.buffer !== 0 || !components) throw new Error(`${url}: invalid interleaved accessor`);
+    const elementBytes = components * Type.BYTES_PER_ELEMENT;
+    const stride = view.byteStride || elementBytes;
+    if (stride === elementBytes) continue;
+    const source = appendView.read(accessor.bufferView);
+    const start = accessor.byteOffset || 0;
+    if (stride < elementBytes || start < 0 ||
+        (accessor.count > 0 && start + (accessor.count - 1) * stride + elementBytes > source.length)) {
+      throw new Error(`${url}: truncated interleaved accessor`);
+    }
+    const output = Buffer.alloc(accessor.count * elementBytes);
+    for (let index = 0; index < accessor.count; index++) {
+      source.copy(output, index * elementBytes, start + index * stride,
+        start + index * stride + elementBytes);
+    }
+    accessor.bufferView = appendView(output);
+    accessor.byteOffset = 0;
+  }
+}
+
+function readComponent(view, offset, componentType) {
+  switch (componentType) {
+    case 5120: return view.getInt8(offset);
+    case 5121: return view.getUint8(offset);
+    case 5122: return view.getInt16(offset, true);
+    case 5123: return view.getUint16(offset, true);
+    case 5125: return view.getUint32(offset, true);
+    case 5126: return view.getFloat32(offset, true);
+    default: throw new Error(`Unsupported glTF accessor componentType ${componentType}`);
+  }
+}
+
+function normalizedScale(componentType) {
+  switch (componentType) {
+    case 5120: return 1 / 127;
+    case 5121: return 1 / 255;
+    case 5122: return 1 / 32767;
+    case 5123: return 1 / 65535;
+    case 5125: return 1 / 4294967295;
+    default: return 1;
+  }
+}
+
+// CPU morphing must not write blended values back into quantized integer
+// storage: normalized Int8 normals can overflow and flip, while integer
+// positions needlessly lose precision. Convert exactly the base/target
+// position and normal accessors to tight Float32, applying glTF normalization.
+function floatMorphAttributes(document, appendView, url) {
+  const indices = new Set();
+  for (const mesh of document.meshes || []) {
+    for (const primitive of mesh.primitives || []) {
+      if (!primitive.targets?.length) continue;
+      for (const semantic of ['POSITION', 'NORMAL']) {
+        if (primitive.attributes?.[semantic] !== undefined) indices.add(primitive.attributes[semantic]);
+        for (const target of primitive.targets) {
+          if (target[semantic] !== undefined) indices.add(target[semantic]);
+        }
+      }
+    }
+  }
+  for (const index of indices) {
+    const accessor = document.accessors?.[index];
+    if (!accessor || accessor.sparse || accessor.componentType === 5126) continue;
+    const source = appendView.read(accessor.bufferView);
+    const input = new DataView(source.buffer, source.byteOffset, source.byteLength);
+    const Type = typedArray(accessor.componentType);
+    const components = ACCESSOR_COMPONENTS[accessor.type];
+    if (!components) throw new Error(`${url}: invalid morph accessor ${index}`);
+    const elementBytes = components * Type.BYTES_PER_ELEMENT;
+    const stride = document.bufferViews[accessor.bufferView].byteStride || elementBytes;
+    const start = accessor.byteOffset || 0;
+    if (start < 0 ||
+        (accessor.count > 0 && start + (accessor.count - 1) * stride + elementBytes > source.length)) {
+      throw new Error(`${url}: invalid morph accessor ${index}`);
+    }
+    const output = Buffer.alloc(accessor.count * components * 4);
+    const scale = accessor.normalized ? normalizedScale(accessor.componentType) : 1;
+    const signed = accessor.componentType === 5120 || accessor.componentType === 5122;
+    const min = Array(components).fill(Infinity);
+    const max = Array(components).fill(-Infinity);
+    for (let vertex = 0; vertex < accessor.count; vertex++) {
+      for (let component = 0; component < components; component++) {
+        let value = readComponent(input, start + vertex * stride + component * Type.BYTES_PER_ELEMENT,
+          accessor.componentType) * scale;
+        if (signed && accessor.normalized) value = Math.max(value, -1);
+        const offset = (vertex * components + component) * 4;
+        output.writeFloatLE(value, offset);
+        const stored = output.readFloatLE(offset);
+        min[component] = Math.min(min[component], stored);
+        max[component] = Math.max(max[component], stored);
+      }
+    }
+    accessor.bufferView = appendView(output);
+    accessor.byteOffset = 0;
+    accessor.componentType = 5126;
+    delete accessor.normalized;
+    if (accessor.min) accessor.min = min;
+    if (accessor.max) accessor.max = max;
+  }
+}
+
 export async function decodeGlbAsset(source, bytes, url) {
   const { document, binary: initialBinary } = parseGlb(bytes, url);
   let binary = initialBinary;
@@ -590,6 +920,8 @@ export async function decodeGlbAsset(source, bytes, url) {
   await decodeMeshoptViews(source, document, binary, appendView);
   await decodeDracoPrimitives(source, document, binary, appendView);
   await decodeBasisImages(source, document, appendView);
+  floatMorphAttributes(document, appendView, url);
+  deinterleaveAccessors(document, appendView, url);
   return serializeGlb(document, binary);
 }
 
@@ -612,7 +944,69 @@ function installPrepareImageFacade() {
   };
 }
 
-export async function decodeColladaAsset(source, bytes, url) {
+function attachExternalGlbTextures(document, binary, refs, url) {
+  document.images ||= [];
+  document.textures ||= [];
+  document.samplers ||= [];
+  const imageIndex = new Map();
+  const materialIndex = new Map();
+  (document.materials || []).forEach((material, index) => {
+    if (materialIndex.has(material.name)) throw new Error(`${url}: duplicate exported material name ${material.name}`);
+    materialIndex.set(material.name, index);
+  });
+  const texturedMaterials = new Set();
+  for (const reference of refs) {
+    let index = imageIndex.get(reference.uri);
+    if (index === undefined) {
+      const extension = path.posix.extname(reference.uri).toLowerCase();
+      if (extension !== '.png' && extension !== '.jpg' && extension !== '.jpeg') {
+        throw new Error(`${url}: unsupported external collada image ${reference.uri}`);
+      }
+      index = document.images.length;
+      document.images.push({
+        uri: reference.uri,
+        mimeType: extension === '.png' ? 'image/png' : 'image/jpeg'
+      });
+      document.textures.push({ sampler: document.samplers.length, source: index });
+      document.samplers.push({ wrapS: 10497, wrapT: 10497 });
+      imageIndex.set(reference.uri, index);
+    }
+    const material = document.materials[materialIndex.get(reference.materialName)];
+    if (!material) throw new Error(`${url}: exported material ${reference.materialName} missing`);
+    if (reference.slot !== 'map') throw new Error(`${url}: unsupported collada texture slot ${reference.slot}`);
+    if (material.pbrMetallicRoughness?.baseColorTexture) {
+      throw new Error(`${url}: material ${reference.materialName} already carries a base color texture`);
+    }
+    material.pbrMetallicRoughness = { ...material.pbrMetallicRoughness, baseColorTexture: { index } };
+    texturedMaterials.add(reference.materialName);
+    // The runtime samples GLB textures with flipY=false, while the offline
+    // ColladaLoader lane samples with flipY=true: pre-flip texcoord v so the
+    // pinned widget JPEGs land upright (no pixel re-encoding, uri references
+    // only).
+    material.jsrFlipTexcoords = true;
+  }
+  for (const mesh of document.meshes || []) {
+    for (const primitive of mesh.primitives) {
+      const material = document.materials[primitive.material];
+      if (!material?.jsrFlipTexcoords) continue;
+      const accessor = document.accessors[primitive.attributes.TEXCOORD_0];
+      if (!accessor || accessor.componentType !== 5126 || accessor.type !== 'VEC2') {
+        throw new Error(`${url}: mesh ${mesh.name} needs float VEC2 texcoords for the flipY fix-up`);
+      }
+      const view = document.bufferViews[accessor.bufferView];
+      const start = (view.byteOffset || 0) + (accessor.byteOffset || 0);
+      for (let offset = start; offset < start + accessor.count * 8; offset += 8) {
+        binary.writeFloatLE(1 - binary.readFloatLE(offset + 4), offset + 4);
+      }
+      delete material.jsrFlipTexcoords;
+    }
+  }
+  for (const material of document.materials || []) delete material.jsrFlipTexcoords;
+  return serializeGlb(document, binary);
+}
+
+export async function decodeColladaAsset(source, bytes, url, options = {}) {
+  const { animations = false, externalImages = false } = options;
   const previousParser = globalThis.DOMParser;
   const previousFileReader = globalThis.FileReader;
   globalThis.DOMParser = JsrDOMParser;
@@ -628,15 +1022,60 @@ export async function decodeColladaAsset(source, bytes, url) {
   };
   const restore = installPrepareImageFacade();
   try {
-    const [{ ColladaLoader }, { GLTFExporter }] = await Promise.all([
+    const [threeModule, { ColladaLoader }, { GLTFExporter }] = await Promise.all([
+      import(pathToFileURL(path.join(source, 'build/three.module.js'))),
       import(pathToFileURL(path.join(source, 'examples/jsm/loaders/ColladaLoader.js'))),
       import(pathToFileURL(path.join(source, 'examples/jsm/exporters/GLTFExporter.js')))
     ]);
-    const collada = new ColladaLoader().parse(bytes.toString('utf8'), `${path.posix.dirname(url)}/`);
-    const output = await new GLTFExporter().parseAsync(collada.scene, { binary: true, animations: [] });
-    if (output.byteLength > 4000000) throw new Error(`${url}: prepare-exported GLB exceeds 4,000,000 bytes`);
-    console.warn('three: collada-kinematics uses a prepare-exported static robot; runtime joint tweening is omitted to bound the QuickJS boot path');
-    return Buffer.from(output);
+    // Capture the request URL behind every TextureLoader-created texture so
+    // the exported GLB can reference the already-pinned widget asset instead
+    // of carrying undecodable pixel data. Offline parse loads them as inert
+    // Texture placeholders (no pixels are ever fetched here).
+    const textureUrls = new Map();
+    const originalTextureLoad = threeModule.TextureLoader.prototype.load;
+    threeModule.TextureLoader.prototype.load = function (textureUrl, onLoad, onProgress, onError) {
+      const texture = new threeModule.Texture();
+      textureUrls.set(texture, String(textureUrl));
+      return texture;
+    };
+    try {
+      const collada = new ColladaLoader().parse(bytes.toString('utf8'), `${path.posix.dirname(url)}/`);
+      let textureRefs = [];
+      if (externalImages) {
+        collada.scene.traverse(object => {
+          if (!object.isMesh) return;
+          const materials = Array.isArray(object.material) ? object.material : [object.material];
+          for (const material of materials) {
+            for (const [slot, value] of Object.entries(material)) {
+              if (!value || value.isTexture !== true) continue;
+              const textureUrl = textureUrls.get(value);
+              if (textureUrl === undefined) throw new Error(`${url}: untracked collada texture slot ${slot}`);
+              textureRefs.push({
+                materialName: material.name,
+                slot,
+                uri: path.posix.join(path.posix.dirname(url), textureUrl)
+              });
+              material[slot] = null;
+            }
+          }
+        });
+        if (!textureRefs.length) throw new Error(`${url}: colladaExternalImages pin expected textures but none were found`);
+      }
+      const output = await new GLTFExporter().parseAsync(collada.scene, {
+        binary: true,
+        animations: animations ? (collada.scene.animations || []) : []
+      });
+      let glb = Buffer.from(output);
+      if (externalImages) {
+        const parsed = parseGlb(glb, url);
+        glb = attachExternalGlbTextures(parsed.document, parsed.binary, textureRefs, url);
+      }
+      if (glb.byteLength > 4000000) throw new Error(`${url}: prepare-exported GLB exceeds 4,000,000 bytes`);
+      if (!animations) console.warn('three: collada-kinematics uses a prepare-exported static robot; runtime joint tweening is omitted to bound the QuickJS boot path');
+      return glb;
+    } finally {
+      threeModule.TextureLoader.prototype.load = originalTextureLoad;
+    }
   } finally {
     restore();
     if (previousParser === undefined) delete globalThis.DOMParser;
@@ -682,6 +1121,36 @@ function canonicalizeSerializedUuids(value) {
   return value;
 }
 
+// VRMLLoader pins the Background group at renderOrder = -Infinity
+// (examples/jsm/loaders/VRMLLoader.js "render background group first"). JSON
+// cannot carry non-finite numbers: JSON.stringify(-Infinity) emits `null`, and
+// ObjectLoader would restore renderOrder = null, which the strict R1 finite
+// guard rejects at draw time. Serialize the same finite, symmetric sentinels
+// the renderer itself uses for TransformControls' +/-Infinity render order.
+const VRML_RENDER_ORDER_LIMIT = 1e30;
+
+// Serialized-scene guard against unbounded prepare payloads. elevationGrid1.wrl
+// (90x90 ElevationGrid heightfield) serializes to a measured 6,832,305 chars /
+// 47,526 verts (~56 serialized bytes per vertex, ~2x the 3.4MB first estimate) —
+// dropped entirely by the old 2,000,000-char quota, which shipped a 649B
+// "model omitted" placeholder. 8M keeps it with headroom while still bounding
+// the widget payload; QuickJS JSON.parse of the 6.8M-char payload is measured
+// in the boot lane (vrml_prepare_test + jsr_widget bench) before this budget
+// is spent.
+const VRML_PREPARE_QUOTA_CHARS = 8_000_000;
+
+function sanitizeSerializedRenderOrders(node) {
+  if (!node || typeof node !== 'object') return;
+  if (Array.isArray(node)) {
+    for (const item of node) sanitizeSerializedRenderOrders(item);
+    return;
+  }
+  if (typeof node.renderOrder === 'number' && !Number.isFinite(node.renderOrder)) {
+    node.renderOrder = node.renderOrder < 0 ? -VRML_RENDER_ORDER_LIMIT : VRML_RENDER_ORDER_LIMIT;
+  }
+  for (const value of Object.values(node)) sanitizeSerializedRenderOrders(value);
+}
+
 export async function decodeVrmlAsset(source, bytes, url) {
   const [{ VRMLLoader }, THREE] = await Promise.all([
     import(pathToFileURL(path.join(source, 'examples/jsm/loaders/VRMLLoader.js'))),
@@ -693,8 +1162,9 @@ export async function decodeVrmlAsset(source, bytes, url) {
   try {
     const scene = new VRMLLoader().parse(bytes.toString('utf8'), `${path.posix.dirname(url)}/`);
     serialized = canonicalizeSerializedUuids(scene.toJSON());
-    if (JSON.stringify(serialized).length > 2000000) {
-      warning = `${url}: serialized VRML exceeds the 2,000,000-byte prepare quota; model omitted`;
+    sanitizeSerializedRenderOrders(serialized);
+    if (JSON.stringify(serialized).length > VRML_PREPARE_QUOTA_CHARS) {
+      warning = `${url}: serialized VRML exceeds the ${(VRML_PREPARE_QUOTA_CHARS / 1000000).toFixed(1)}M-char prepare quota; model omitted`;
       serialized = canonicalizeSerializedUuids(new THREE.Scene().toJSON());
     }
   } catch (error) {

@@ -1,0 +1,23 @@
+{
+  "auto_seeded": false,
+  "mae": 0.015541,
+  "official_id": "webgl_test_memory2",
+  "performance": {
+    "native": {
+      "presentedFps": 62.437562437562434,
+      "presentedFramesDelta": 125,
+      "sampleMs": 2002
+    },
+    "reference": {
+      "browserRafFps": 0.8952150754216462,
+      "captureWaitMs": 15000,
+      "frames": 2,
+      "sampleMs": 2234.100000000559,
+      "statsFps": null,
+      "statsRange": null
+    }
+  },
+  "status": "similar",
+  "summary": "",
+  "updated": "2026-11-01T11:44:02.933389+00:00"
+}

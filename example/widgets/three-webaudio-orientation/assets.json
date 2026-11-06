@@ -1,0 +1,48 @@
+{
+  "schema": "jsr-three-example-external-assets-v1",
+  "id": "three-webaudio-orientation",
+  "inlineMaxBytes": 1500000,
+  "assets": [
+    {
+      "url": "models/gltf/BoomBox.glb",
+      "file": "BoomBox.glb",
+      "mime": "model/gltf-binary",
+      "width": 0,
+      "height": 0,
+      "bytes": 2268888,
+      "sha256": "15af4ebf79e8d0f55ccacbfebf1aad6199226a429cfdb4a6f514ac873c9b7fd0",
+      "aliases": []
+    },
+    {
+      "url": "models/gltf/embedded-1.png",
+      "file": "embedded-1.png",
+      "mime": "image/png",
+      "width": 2048,
+      "height": 2048,
+      "bytes": 3581457,
+      "sha256": "98a0ac36feb5c3cab65775b3348fc5e98cd2beb64d8fc8ff8cb3fb3e2f5d7908",
+      "aliases": []
+    },
+    {
+      "url": "models/gltf/embedded-2.png",
+      "file": "embedded-2.png",
+      "mime": "image/png",
+      "width": 2048,
+      "height": 2048,
+      "bytes": 2990380,
+      "sha256": "077dfcd03f430ad56bc7b96b76570d4c69d55235528b4a9e48e1078d29070960",
+      "aliases": []
+    },
+    {
+      "url": "sounds/376737_Skullbeatz___Bad_Cat_Maste.mp3",
+      "file": "skullbeatz.mp3",
+      "mime": "audio/mpeg",
+      "width": 0,
+      "height": 0,
+      "bytes": 5874479,
+      "sha256": "d7263cf4c686eb0a70fb08d4015e88fbe0a0b464050e5ad40c1c9d0cbec07d3e",
+      "aliases": [],
+      "diagnostic": "audioClip"
+    }
+  ]
+}

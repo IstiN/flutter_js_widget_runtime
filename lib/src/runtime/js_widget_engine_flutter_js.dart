@@ -105,7 +105,10 @@ class FlutterJsWidgetEngineBackend implements JsWidgetEngineBackend {
     // may still be on the native stack.
     final oldRuntime = _runtime;
     _disposed = true;
-    _bridge.dispose();
+    // Reset timers/scenes but keep the bridge usable — dispose() would end
+    // the RAF lane permanently and the widget that runs below needs it
+    // (same contract as the QuickJS backend's run()).
+    _bridge.resetForRun();
     _runtime = null;
 
     _disposed = false;

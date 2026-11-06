@@ -217,7 +217,19 @@ class AudioPlayersJsController extends JsAudioController
   Future<void> setBalance(double balance) => _player.setBalance(balance);
 
   @override
-  Future<void> dispose() => _player.dispose();
+  Future<void> dispose() async {
+    // Ordered teardown: stop() before dispose() so an in-flight
+    // `_ensureStarted` (setSource/resume multi-await) cannot attach a
+    // looping native player that dispose then detaches mid-command —
+    // the race that left a LOOPING AVPlayer sounding forever.
+    _started = false;
+    try {
+      await _player.stop();
+    } catch (_) {
+      // Stop is best effort; dispose below is the authoritative release.
+    }
+    await _player.dispose();
+  }
 }
 
 Source _audioSource(String src) {

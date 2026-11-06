@@ -1,0 +1,16 @@
+{
+  "auto_seeded": false,
+  "mae": 0.061549,
+  "official_id": "webgl_instancing_scatter",
+  "performance": {
+    "native": {
+      "presentedFps": 31.45282076884673,
+      "presentedFramesDelta": 63,
+      "sampleMs": 2003
+    },
+    "reference": {}
+  },
+  "status": "similar",
+  "summary": "",
+  "updated": "2026-11-01T11:44:02.933389+00:00"
+}

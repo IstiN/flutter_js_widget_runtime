@@ -1,0 +1,16 @@
+{
+  "auto_seeded": false,
+  "mae": 0.015133,
+  "official_id": "webgl_morphtargets_webcam",
+  "performance": {
+    "native": {
+      "presentedFps": 119.88011988011988,
+      "presentedFramesDelta": 240,
+      "sampleMs": 2002
+    },
+    "reference": {}
+  },
+  "status": "degraded-documented",
+  "summary": "Head is centered and black eye holes are fixed, but the white cartoon eyes and face silhouette remain non-parity; MediaPipe/video are degraded.",
+  "updated": "2026-11-01T11:44:02.933389+00:00"
+}

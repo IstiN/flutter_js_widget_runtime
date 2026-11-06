@@ -8,8 +8,11 @@ export default {
     const data = options.animationData || {};
     const dpr = Math.max(1, Math.min(2, Number(options.rendererSettings && options.rendererSettings.dpr) || 1));
     const canvas = document.createElement('canvas');
-    canvas.width = Math.max(1, Math.min(512, Math.round((data.w || 256) * dpr)));
-    canvas.height = Math.max(1, Math.min(512, Math.round((data.h || 256) * dpr)));
+    // This compatibility animation is intentionally simple geometry. A
+    // 512px host canvas spends most of the frame budget rasterizing and
+    // returning 1 MiB RGBA payloads, starving the independent THREE RAF.
+    canvas.width = Math.max(1, Math.min(192, Math.round((data.w || 256) * dpr)));
+    canvas.height = Math.max(1, Math.min(192, Math.round((data.h || 256) * dpr)));
     const context = canvas.getContext('2d');
     const listeners = new Map();
     const first = Number(data.ip) || 0;

@@ -1,0 +1,16 @@
+{
+  "auto_seeded": false,
+  "mae": 0.104608,
+  "official_id": "webgl_lod",
+  "performance": {
+    "native": {
+      "presentedFps": 55.472263868065966,
+      "presentedFramesDelta": 111,
+      "sampleMs": 2001
+    },
+    "reference": {}
+  },
+  "status": "similar",
+  "summary": "",
+  "updated": "2026-11-01T11:44:02.933389+00:00"
+}

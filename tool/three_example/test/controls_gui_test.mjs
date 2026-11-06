@@ -8,7 +8,7 @@ import { fileURLToPath } from 'node:url';
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.resolve(HERE, '../../..');
-const native = await readFile(path.join(ROOT, 'assets/three/three.native.js'), 'utf8');
+const native = await readFile(path.join(ROOT, 'assets/three/jsr_three_native.js'), 'utf8');
 const sha = bytes => createHash('sha256').update(bytes).digest('hex');
 
 async function verifyOfficial(example, directory) {
@@ -114,6 +114,9 @@ function boot(widget, instanceId) {
     hostCallBinary(name, bytes) { assert.equal(name, 'three.r1'); packets.push(Buffer.from(bytes)); },
     hostCall(name) {
       if (name === 'three.canvas2d') return new Promise(() => {});
+      // Unbundled asset requests (e.g. the DOF example's Swedish Royal Castle
+      // cube faces) resolve as bounded misses exactly like the offline host.
+      if (name === 'three.asset') return null;
       throw new Error(`unexpected host call ${name}`);
     }
   };
@@ -122,7 +125,7 @@ function boot(widget, instanceId) {
     setTimeout(callback) { const id = ++nextTimer; timers.set(id, callback); return id; },
     clearTimeout(id) { timers.delete(id); }
   });
-  vm.runInContext(native, context, { filename: 'three.native.js' });
+  vm.runInContext(native, context, { filename: 'jsr_three_native.js' });
   vm.runInContext('globalThis.THREE = THREE; Math.random = () => 0.375;', context);
   vm.runInContext(widget, context, { filename: 'widget.js' });
   return {
@@ -215,8 +218,24 @@ let checkbox = findCheckbox(math.renders.at(-1), 'useLookAt');
 assert.ok(checkbox, 'native lil-gui emits a real JSR checkbox');
 const panel = math.renders.at(-1).children.find(node => node.type === 'container');
 assert.equal(panel.decoration.color, '#F21F1F1F');
-assert.equal(panel.child.children[0].style.color, '#FFEBEBEB',
+const titleToggle = panel.child.children[0];
+assert.equal(titleToggle.type, 'gestureDetector',
+  'the panel title is a tap-toggle for the closed official panel');
+assert.equal(typeof titleToggle.onTap, 'string');
+assert.ok(titleToggle.onTap.startsWith('three.gui.toggle.'));
+assert.equal(titleToggle.child.style.color, '#FFEBEBEB',
   'title and inherited checkbox label use light text on the dark panel');
+const titleToggleBefore = titleToggle.child.data;
+math.jsr._handler(titleToggle.onTap, {});
+const collapsedTitle = math.renders.at(-1).children.find(node => node.type === 'container')
+  .child.children[0];
+assert.notEqual(collapsedTitle.child.data, titleToggleBefore,
+  'title tap flips the official panel between collapsed and expanded');
+math.jsr._handler(titleToggle.onTap, {});
+const reopenedTitle = math.renders.at(-1).children.find(node => node.type === 'container')
+  .child.children[0];
+assert.equal(reopenedTitle.child.data, titleToggleBefore,
+  'title tap restores the expanded panel');
 assert.equal(checkbox.value, false);
 assert.equal(math.states.at(-1).gui.values[0].value, false);
 math.jsr._handler(checkbox.onChanged, { value: true });
@@ -231,7 +250,13 @@ assert.equal(vm.runInContext('globalThis.__meshLookAts', math.context), 1,
 const mathCommands = math.packets.flatMap(packet => commands(packet));
 assert.ok(mathCommands.some(command => command.opcode === 3 && command.body.readUInt32LE(8) === 6),
   'orientation cone emits native MeshNormalMaterial');
-assert.equal(math.timers.size, 1, 'official recurring target timer remains scheduled');
+// Two timers: the adapter's one-shot start-overlay auto-click (setTimeout
+// 400ms, never pumped in this harness) plus the official recurring animate
+// loop that must remain scheduled.
+assert.equal(math.timers.size, 2, 'start-overlay auto-click plus official animate timer');
+const timerSources = [...math.timers.values()].map(source => String(source));
+assert.ok(timerSources.some(source => source.includes('Math.random')),
+  'official recurring target timer remains scheduled');
 
 const raycastInfo = await verifyOfficial(
   'webgl_instancing_raycast', 'three-instancing-raycast'
@@ -260,6 +285,52 @@ const raycastCommands = raycast.packets.flatMap(packet => commands(packet));
 assert.ok(raycastCommands.some(command => command.opcode === 3 &&
   command.body.readUInt32LE(8) === 5),
   'official instanced raycast scene uses MeshPhongMaterial');
+
+
+const dofInfo = await verifyOfficial(
+  'webgl_postprocessing_dof', 'three-postprocessing-dof'
+);
+const dof = boot(
+  await readFile(path.join(dofInfo.out, 'widget.js'), 'utf8'), 'dof-gui-test'
+);
+dof.frame(0);
+// The official module ships gui.close(), so the facade renders a collapsed
+// root whose body is reachable only through the title tap-toggle gesture.
+const findToggle = tree => {
+  const actions = [];
+  const walk = node => {
+    if (!node || typeof node !== 'object') return;
+    if (typeof node.onTap === 'string' && node.onTap.startsWith('three.gui.toggle.')) actions.push(node.onTap);
+    for (const value of Object.values(node)) if (value && typeof value === 'object') walk(value);
+  };
+  walk(tree);
+  return actions;
+};
+const closedRows = dof.renders.at(-1);
+assert.equal((findToggle(closedRows) ?? []).length, 1, 'collapsed DOF panel renders one title tap-toggle');
+assert.ok(findToggle(closedRows)[0], 'title toggle carries a three.gui.toggle.N action');
+const slidersBefore = (dof.states.at(-1).gui.values ?? []).filter(value => value.open).length;
+assert.equal(slidersBefore, 0, 'closed DOF panel exposes no reachable controllers');
+dof.jsr._handler(findToggle(closedRows)[0], {});
+dof.frame(performance.now() + 16);
+const expandedRows = dof.renders.at(-1);
+assert.equal((dof.states.at(-1).gui.values ?? []).filter(value => value.open).length, 3,
+  'tapping the title expands the official DOF panel');
+const guiState = dof.states.at(-1).gui;
+const focus = (guiState.values ?? []).find(value => value.property === 'focus');
+assert.ok(focus, 'expanded DOF panel exposes the official focus controller');
+assert.equal(focus.kind, 'number');
+assert.equal(focus.open, true);
+const changesBefore = dof.states.at(-1).gui.changes;
+dof.jsr._handler(focus.action, { value: 900 });
+const focusAfter = dof.states.filter(state => state.gui).at(-1).gui.values
+  .find(value => value.property === 'focus');
+assert.equal(focusAfter.value, 900, 'slider events update the official effectController.focus');
+assert.ok(dof.states.filter(state => state.gui).at(-1).gui.changes > changesBefore);
+assert.equal((findToggle(expandedRows) ?? []).length, 1);
+assert.ok((dof.packets ?? []).length >= 0, 'DOF still drives the animation loop');
+const dofCommands = dof.packets.flatMap(packet => commands(packet));
+assert.ok(dofCommands.some(command => command.opcode === 6), 'DOF submits camera frames after the toggle');
 
 console.log(JSON.stringify({
   ok: true,

@@ -1,0 +1,18 @@
+{
+  "schema": "jsr-three-example-external-assets-v1",
+  "id": "three-loader-3dm",
+  "inlineMaxBytes": 1500000,
+  "assets": [
+    {
+      "url": "models/3dm/Rhino_Logo.3dm",
+      "file": "models__3dm__Rhino_Logo.3dm",
+      "mime": "application/octet-stream",
+      "width": 0,
+      "height": 0,
+      "bytes": 5617729,
+      "sha256": "80cf6ce2b189d9999a4e009cd8c40bcb8fab4e05cd458de732572eda028b7e19",
+      "aliases": [],
+      "diagnostic": "auto:models/3dm/Rhino_Logo.3dm"
+    }
+  ]
+}

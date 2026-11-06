@@ -35,7 +35,10 @@ void main() {
         ..geometry(1)
         ..node(2, parentId: 1);
       fixture.commands.add(
-        r1Command(8, r1Frame(sceneId: 1, cameraId: 1, culledNodeIds: const [2])),
+        r1Command(
+          8,
+          r1Frame(sceneId: 1, cameraId: 1, culledNodeIds: const [2]),
+        ),
       );
 
       final plan = const ThreeDrawPlanner().plan(fixture.state());
@@ -285,7 +288,6 @@ void main() {
       expect(resourcedPlan.draws, isEmpty);
       expect(resourcedPlan.diagnostics.warnings, isNotEmpty);
       expect(resourcedPlan.diagnostics.warnings.first, contains('5'));
-
     });
 
     test('auto-instances the 200-mesh Orthographic shape into one draw', () {
@@ -470,48 +472,38 @@ void main() {
       expect(pointPlan.draws.every((draw) => !draw.autoInstanced), isTrue);
     });
 
-    test(
-      'rejects invalid batch ranges and incompatible parts',
-      () {
-        final invalidRanges = ThreeDrawPlanFixture.basic()
-          ..geometry(1, indices: const [0, 1, 2, 2, 1, 0, 0, 2, 1])
-          ..material(2, kind: JsThreeMaterialKind.lineBasic)
-          ..batch(
-            5,
-            parts: const [
-              (1, 1, 8, 3),
-              (1, 1, 1, 3),
-              (1, 1, 0, 2),
-              (1, 99, 0, 3),
-              (1, 2, 0, 3),
-            ],
-          );
-        final invalidPlan = const ThreeDrawPlanner().plan(
-          invalidRanges.state(),
+    test('rejects invalid batch ranges and incompatible parts', () {
+      final invalidRanges = ThreeDrawPlanFixture.basic()
+        ..geometry(1, indices: const [0, 1, 2, 2, 1, 0, 0, 2, 1])
+        ..material(2, kind: JsThreeMaterialKind.lineBasic)
+        ..batch(
+          5,
+          parts: const [
+            (1, 1, 8, 3),
+            (1, 1, 1, 3),
+            (1, 1, 0, 2),
+            (1, 99, 0, 3),
+            (1, 2, 0, 3),
+          ],
         );
-        expect(invalidPlan.draws, isEmpty);
-        expect(invalidPlan.diagnostics.invalidBatchCount, 3);
-        expect(invalidPlan.diagnostics.missingResourceCount, 1);
-        expect(invalidPlan.diagnostics.incompatibleMaterialCount, 1);
+      final invalidPlan = const ThreeDrawPlanner().plan(invalidRanges.state());
+      expect(invalidPlan.draws, isEmpty);
+      expect(invalidPlan.diagnostics.invalidBatchCount, 3);
+      expect(invalidPlan.diagnostics.missingResourceCount, 1);
+      expect(invalidPlan.diagnostics.incompatibleMaterialCount, 1);
 
-        final nonIndexed = ThreeDrawPlanFixture.basic()
-          ..geometry(
-            1,
-            positions: List<double>.generate(18, (index) => index.toDouble()),
-          )
-          ..batch(5, parts: const [(1, 1, 0, 3), (1, 1, 3, 3)]);
-        final nonIndexedPlan = const ThreeDrawPlanner().plan(
-          nonIndexed.state(),
-        );
-        expect(nonIndexedPlan.draws, hasLength(2));
-        expect(nonIndexedPlan.draws.map((draw) => draw.indexOffset), [0, 3]);
-        expect(
-          nonIndexedPlan.draws.every((draw) => draw.drawCount == 3),
-          isTrue,
-        );
-        expect(nonIndexedPlan.diagnostics.invalidBatchCount, 0);
-      },
-    );
+      final nonIndexed = ThreeDrawPlanFixture.basic()
+        ..geometry(
+          1,
+          positions: List<double>.generate(18, (index) => index.toDouble()),
+        )
+        ..batch(5, parts: const [(1, 1, 0, 3), (1, 1, 3, 3)]);
+      final nonIndexedPlan = const ThreeDrawPlanner().plan(nonIndexed.state());
+      expect(nonIndexedPlan.draws, hasLength(2));
+      expect(nonIndexedPlan.draws.map((draw) => draw.indexOffset), [0, 3]);
+      expect(nonIndexedPlan.draws.every((draw) => draw.drawCount == 3), isTrue);
+      expect(nonIndexedPlan.diagnostics.invalidBatchCount, 0);
+    });
 
     // Honest merge verdict for per-instance colors: AUTO-instanced runs
     // merge across differing material colors because _threeAutoInstanceData
@@ -534,9 +526,9 @@ void main() {
         ..node(2, parentId: 1, materialId: 2)
         ..node(3, parentId: 1, materialId: 3);
 
-      final plan = const ThreeDrawPlanner(autoInstance: true).plan(
-        fixture.state(),
-      );
+      final plan = const ThreeDrawPlanner(
+        autoInstance: true,
+      ).plan(fixture.state());
 
       expect(plan.draws, hasLength(1));
       final draw = plan.draws.single;
@@ -749,7 +741,9 @@ void main() {
     );
 
     test('missing frame and camera produce a non-renderable plan', () {
-      final noFrame = ThreeDrawPlanFixture.withCommands([r1Command(6, r1Camera(1))]).state();
+      final noFrame = ThreeDrawPlanFixture.withCommands([
+        r1Command(6, r1Camera(1)),
+      ]).state();
       expect(const ThreeDrawPlanner().plan(noFrame).canRender, isFalse);
 
       final noCamera = ThreeDrawPlanFixture.withCommands([
@@ -782,8 +776,14 @@ void main() {
 
     test('diagnoses hierarchy cycles without looping or drawing', () {
       final state = ThreeDrawPlanFixture.withCommands([
-        r1Command(4, r1Node(1, parentId: 2, objectKind: JsThreeObjectKind.group)),
-        r1Command(4, r1Node(2, parentId: 1, objectKind: JsThreeObjectKind.group)),
+        r1Command(
+          4,
+          r1Node(1, parentId: 2, objectKind: JsThreeObjectKind.group),
+        ),
+        r1Command(
+          4,
+          r1Node(2, parentId: 1, objectKind: JsThreeObjectKind.group),
+        ),
         r1Command(6, r1Camera(1)),
         r1Command(8, r1Frame(sceneId: 1, cameraId: 1)),
       ]).state();
@@ -1011,39 +1011,40 @@ void main() {
     });
 
     test('v3 spot lights and clipping sets pack exact GPU uniforms', () {
-      final fixture = ThreeDrawPlanFixture.withCommands([
-        r1Command(4, r1Node(1, objectKind: JsThreeObjectKind.group)),
-        r1Command(6, r1Camera(1)),
-        r1Command(
-          8,
-          r1Frame(
-            sceneId: 1,
-            cameraId: 1,
-            shadowMapSize: 1024,
-            shadowLightType: 2,
-          ),
-        ),
-        r1Command(3, r1Material(1, clipId: 5, clipFlags: 2)),
-        r1Command(13, r1Clipping(5)),
-        r1Command(
-          7,
-          r1Light(
-            2,
-            JsThreeLightType.spot,
-            intensity: 60,
-            red: 0.25,
-            green: 0.5,
-            blue: 0.75,
-            spotAngle: 0.6283,
-            spotPenumbra: 0.2,
-            spotDistance: 12,
-            spotDecay: 2,
-          ),
-        ),
-      ])
-        ..r1Version = 3
-        ..geometry(1)
-        ..node(2, parentId: 1);
+      final fixture =
+          ThreeDrawPlanFixture.withCommands([
+              r1Command(4, r1Node(1, objectKind: JsThreeObjectKind.group)),
+              r1Command(6, r1Camera(1)),
+              r1Command(
+                8,
+                r1Frame(
+                  sceneId: 1,
+                  cameraId: 1,
+                  shadowMapSize: 1024,
+                  shadowLightType: 2,
+                ),
+              ),
+              r1Command(3, r1Material(1, clipId: 5, clipFlags: 2)),
+              r1Command(13, r1Clipping(5)),
+              r1Command(
+                7,
+                r1Light(
+                  2,
+                  JsThreeLightType.spot,
+                  intensity: 60,
+                  red: 0.25,
+                  green: 0.5,
+                  blue: 0.75,
+                  spotAngle: 0.6283,
+                  spotPenumbra: 0.2,
+                  spotDistance: 12,
+                  spotDecay: 2,
+                ),
+              ),
+            ])
+            ..r1Version = 3
+            ..geometry(1)
+            ..node(2, parentId: 1);
       final plan = const ThreeDrawPlanner().plan(fixture.state());
 
       expect(plan.spotLights, hasLength(1));
@@ -1121,13 +1122,333 @@ void main() {
         fixture.light(id, JsThreeLightType.spot);
       }
       final plan = const ThreeDrawPlanner().plan(fixture.state());
-      expect(plan.spotLights.map((light) => light.lightId), [
-        20,
-        21,
-        22,
-        23,
-      ]);
+      expect(plan.spotLights.map((light) => light.lightId), [20, 21, 22, 23]);
       expect(plan.diagnostics.droppedSpotLightCount, 2);
+    });
+
+    test(
+      'background skybox node sorts before scene draws (v7 renderOrder)',
+      () {
+        Uint8List v7Node(
+          int id, {
+          int parentId = 1,
+          int geometryId = 0,
+          int materialId = 0,
+          JsThreeObjectKind objectKind = JsThreeObjectKind.group,
+          double renderOrder = 0,
+        }) {
+          final data = ByteData(104);
+          data.setUint32(0, id, Endian.little);
+          data.setUint32(4, parentId, Endian.little);
+          data.setUint32(8, geometryId, Endian.little);
+          data.setUint32(12, materialId, Endian.little);
+          data.setUint32(16, 1, Endian.little); // visible
+          data.setUint32(20, objectKind.wireValue, Endian.little);
+          final matrix = Float32List.fromList(const [
+            1, 0, 0, 0, //
+            0, 1, 0, 0, //
+            0, 0, 1, 0, //
+            0, 0, -2, 1, //
+          ]);
+          for (var i = 0; i < 16; i++) {
+            data.setFloat32(24 + i * 4, matrix[i], Endian.little);
+          }
+          data.setUint32(88, 0, Endian.little); // shadow flags
+          data.setFloat32(92, 0.5, Endian.little); // sprite center x
+          data.setFloat32(96, 0.5, Endian.little); // sprite center y
+          data.setFloat32(100, renderOrder, Endian.little);
+          return Uint8List.view(data.buffer);
+        }
+
+        // Regression for the watch white-slab / clearcoat missing-spheres
+        // captures: the injected scene.background skybox sorts with the opaque
+        // draws, so when its material id happens to be the highest it drew
+        // LAST and its near-plane fragments painted the whole frame over the
+        // scene. The encoder now pins the skybox node's renderOrder first
+        // (upstream WebGLBackground order) and the planner must honor it.
+        // The v7 frame body = the fixture's v3 body with the v4 tone tail and
+        // the v5 point-shadow tail spliced in before the shadow-map fields;
+        // all tail values stay at their neutral zeros.
+        Uint8List v7Frame() {
+          final base = r1Frame(sceneId: 1, cameraId: 1, shadowLightType: 0);
+          final data = ByteData(base.length + 32);
+          data.buffer.asUint8List().setAll(0, base.sublist(0, 52));
+          // bytes 52..84 stay zero: tone mapping none + density 0, point
+          // shadow flag 0 + reserved 0 + inactive light xyz/far.
+          data.buffer.asUint8List().setAll(84, base.sublist(52));
+          return Uint8List.view(data.buffer);
+        }
+
+        // Minimal v7 material body for an unlit kind: base fields, neutral
+        // clip tail, v4 slot tail (identity UV matrices, env intensity 1),
+        // zeroed v5 (16 bytes incl. reserved pad) / v6 tails and an all-zero
+        // Dubois tail.
+        Uint8List v7Material(int id, JsThreeMaterialKind kind) {
+          final data = ByteData(304);
+          data.setUint32(0, id, Endian.little);
+          data.setUint32(4, 1, Endian.little); // version
+          data.setUint32(8, kind.wireValue, Endian.little);
+          data.setUint32(12, 0, Endian.little); // map texture id
+          data.setUint32(16, 0, Endian.little); // flags
+          data.setUint32(20, 0, Endian.little); // side: front
+          final color = kind == JsThreeMaterialKind.background
+              ? [1.0, 1.0, 1.0]
+              : [1.0, 1.0, 1.0];
+          for (var i = 0; i < 3; i++) {
+            data.setFloat32(24 + i * 4, color[i], Endian.little);
+          }
+          data.setFloat32(36, 1, Endian.little); // opacity
+          data.setFloat32(40, 1, Endian.little); // roughness
+          data.setFloat32(44, 0, Endian.little); // metalness
+          data.setFloat32(48, 0, Endian.little); // alphaTest
+          data.setFloat32(52, 1, Endian.little); // point size
+          // 56: clip id/flags zero. 64: alpha map 0, env map 0, intensity 1.
+          data.setFloat32(72, 1, Endian.little);
+          const identity = <double>[1.0, 0, 0, 0, 1.0, 0, 0, 0, 1.0];
+          for (var i = 0; i < 9; i++) {
+            data.setFloat32(76 + i * 4, identity[i], Endian.little);
+            data.setFloat32(112 + i * 4, identity[i], Endian.little);
+          }
+          // 148: v5 tail = matcap/gradient ids, rotation, reserved pad (16
+          // bytes). 164: v6 normal/bump tails with unit scales. 192: Dubois
+          // right id, reserved, matrices zero.
+          data.setFloat32(168, 1, Endian.little); // normal scale x
+          data.setFloat32(172, 1, Endian.little); // normal scale y
+          data.setFloat32(180, 1, Endian.little); // bump scale
+          return Uint8List.view(data.buffer);
+        }
+
+        final fixture = ThreeDrawPlanFixture.withCommands([
+          r1Command(
+            4,
+            v7Node(1, parentId: 0, objectKind: JsThreeObjectKind.group),
+          ),
+          r1Command(6, r1Camera(1)),
+          r1Command(8, v7Frame()),
+          r1Command(3, v7Material(9, JsThreeMaterialKind.background)),
+          r1Command(3, v7Material(2, JsThreeMaterialKind.meshBasic)),
+        ]);
+        fixture.geometry(1);
+        fixture.r1Version = 7;
+        fixture.commands.addAll([
+          r1Command(
+            4,
+            v7Node(
+              10,
+              geometryId: 1,
+              materialId: 9,
+              objectKind: JsThreeObjectKind.mesh,
+              renderOrder: -1e6,
+            ),
+          ),
+          r1Command(
+            4,
+            v7Node(
+              11,
+              geometryId: 1,
+              materialId: 2,
+              objectKind: JsThreeObjectKind.mesh,
+            ),
+          ),
+        ]);
+
+        final plan = const ThreeDrawPlanner().plan(fixture.state());
+        expect(plan.canRender, isTrue);
+        expect(plan.opaque, isNotEmpty);
+        expect(plan.opaque.first.material.kind, JsThreeMaterialKind.background);
+        expect(plan.opaque.first.node.renderOrder, -1e6);
+        expect(plan.opaque.last.material.kind, JsThreeMaterialKind.meshBasic);
+        expect(plan.diagnostics.warnings, isEmpty);
+      },
+    );
+  });
+
+  group('R1 v8 stencil draw state and clear markers', () {
+    Iterable<ThreeStencilClearMarker> markers(ThreeDrawPlan plan) =>
+        plan.mainStream
+            .whereType<ThreeDrawStreamStencilClear>()
+            .map((entry) => entry.clear);
+
+    /// v8 fixture: the extended node layout (v5+ sprite center) is chosen
+    /// at encode time, so the root group must be added after r1Version.
+    /// v8 fixture: the extended node layout (v5+ sprite center) is chosen
+    /// at encode time, so the root group must be added after r1Version.
+    /// The FRAME command is appended by each test AFTER its markers — the
+    /// encoder emits markers ahead of FRAME in the same envelope.
+    ThreeDrawPlanFixture v8Fixture() {
+      final fixture = ThreeDrawPlanFixture.withCommands(<Uint8List>[])
+        ..r1Version = 8;
+      fixture
+        ..node(1, objectKind: JsThreeObjectKind.group)
+        ..camera(1);
+      return fixture;
+    }
+
+    void v8Frame(ThreeDrawPlanFixture fixture,
+        {List<int> culledNodeIds = const []}) {
+      fixture.commands.add(
+        r1Command(
+          8,
+          r1Frame(
+            sceneId: 1,
+            cameraId: 1,
+            culledNodeIds: culledNodeIds,
+            v5Tail: true,
+          ),
+        ),
+      );
+    }
+
+    test('stenciless v8 scenes produce a marker-free draw stream', () {
+      final fixture = v8Fixture();
+      fixture
+        ..geometry(1)
+        ..material(2)
+        ..node(10, parentId: 1, materialId: 2)
+        ..node(11, parentId: 1, materialId: 2, z: -2);
+      v8Frame(fixture);
+
+      final plan = const ThreeDrawPlanner().plan(fixture.state());
+
+      // Byte-identical contract: no stencil state, no markers, pre-v8 order.
+      expect(plan.stream, everyElement(isA<ThreeDrawStreamDraw>()));
+      expect(
+        plan.stream
+            .whereType<ThreeDrawStreamDraw>()
+            .map((entry) => entry.draw.node.nodeId),
+        [10, 11],
+      );
+      expect(
+        plan.mainStream
+            .whereType<ThreeDrawStreamDraw>()
+            .every((entry) => entry.draw.stencil == null),
+        isTrue,
+      );
+      expect(plan.diagnostics.warnings, isEmpty);
+    });
+
+    test('stencil and colorWrite state ride on the draw entries', () {
+      final fixture = v8Fixture();
+      fixture
+        ..geometry(1)
+        ..material(
+          2,
+          stencil: true,
+          stencilFunc: JsThreeStencilFunc.notEqual,
+          stencilRef: 3,
+          stencilFuncMask: 15,
+          stencilWriteMask: 240,
+          stencilFailOp: JsThreeStencilOp.zero,
+          stencilZFailOp: JsThreeStencilOp.replace,
+          stencilZPassOp: JsThreeStencilOp.incrementWrap,
+        )
+        ..material(3, colorWriteOff: true)
+        ..node(10, parentId: 1, materialId: 2)
+        ..node(11, parentId: 1, materialId: 3);
+      v8Frame(fixture);
+
+      final plan = const ThreeDrawPlanner().plan(fixture.state());
+      final stenciled = plan.draws
+          .firstWhere((draw) => draw.node.nodeId == 10)
+          .stencil!;
+      expect(stenciled.writeEnabled, isTrue);
+      expect(stenciled.compareFunction, JsThreeStencilFunc.notEqual);
+      expect(stenciled.reference, 3);
+      expect(stenciled.readMask, 15);
+      expect(stenciled.writeMask, 240);
+      expect(stenciled.failOperation, JsThreeStencilOp.zero);
+      expect(stenciled.zFailOperation, JsThreeStencilOp.replace);
+      expect(stenciled.zPassOperation, JsThreeStencilOp.incrementWrap);
+      expect(stenciled.colorWrite, isTrue);
+
+      final writeOff = plan.draws
+          .firstWhere((draw) => draw.node.nodeId == 11)
+          .stencil!;
+      expect(writeOff.writeEnabled, isFalse);
+      expect(writeOff.colorWrite, isFalse);
+
+      expect(plan.diagnostics.warnings, isEmpty);
+    });
+
+    test('markers weave after the last draw of their node in stream order', () {
+      final fixture = v8Fixture();
+      fixture
+        ..geometry(1)
+        ..material(2)
+        ..material(3)
+        ..node(10, parentId: 1, materialId: 2, renderOrder: 1)
+        ..node(11, parentId: 1, materialId: 3, renderOrder: 2)
+        ..stencilClear(0, 1)
+        ..stencilClear(11, 7)
+        ..stencilClear(10, 2);
+      v8Frame(fixture);
+
+      final plan = const ThreeDrawPlanner().plan(fixture.state());
+
+      expect(plan.draws.map((draw) => draw.node.nodeId), [10, 11]);
+      expect(markers(plan).map((clear) => (clear.nodeId, clear.value)), [
+        (0, 1),
+        (10, 2),
+        (11, 7),
+      ]);
+      expect(
+        plan.mainStream.map((entry) => entry is ThreeDrawStreamDraw
+            ? 'd${entry.draw.node.nodeId}'
+            : 'c${(entry as ThreeDrawStreamStencilClear).clear.value}'),
+        ['c1', 'd10', 'c2', 'd11', 'c7'],
+      );
+    });
+
+    test('markers for absent owners anchor by renderOrder', () {
+      final fixture = v8Fixture();
+      fixture
+        ..geometry(1)
+        ..material(2)
+        ..material(3)
+        ..node(10, parentId: 1, materialId: 2, renderOrder: 1)
+        ..node(11, parentId: 1, materialId: 3, renderOrder: 2)
+        ..node(12, parentId: 1, materialId: 2, renderOrder: 5);
+      fixture.stencilClear(12, 4);
+      v8Frame(fixture, culledNodeIds: const [12]);
+
+      final plan = const ThreeDrawPlanner().plan(fixture.state());
+
+      // Node 12 is culled; its marker lands after draws sorting below
+      // renderOrder 5, i.e. after both surviving draws.
+      expect(plan.draws.map((draw) => draw.node.nodeId), [10, 11, 12]);
+      expect(plan.draws.last.culledFromMain, isTrue);
+      expect(plan.mainDraws.map((draw) => draw.node.nodeId), [10, 11]);
+      expect(markers(plan).single.value, 4);
+      expect(
+        plan.mainStream
+            .whereType<ThreeDrawStreamDraw>()
+            .map((entry) => entry.draw.node.nodeId),
+        [10, 11],
+      );
+      expect(
+        plan.mainStream.last,
+        isA<ThreeDrawStreamStencilClear>()
+            .having((e) => e.clear.nodeId, 'nodeId', 12)
+            .having((e) => e.clear.value, 'value', 4),
+      );
+    });
+
+    test('markers survive main culling even when their node is gone', () {
+      final fixture = v8Fixture();
+      fixture
+        ..geometry(1)
+        ..material(2)
+        ..node(10, parentId: 1, materialId: 2)
+        ..stencilClear(10, 9);
+      v8Frame(fixture, culledNodeIds: const [10]);
+
+      final plan = const ThreeDrawPlanner().plan(fixture.state());
+
+      expect(plan.mainDraws, isEmpty);
+      // Culled owner with renderOrder 0: nothing sorts below it, so the
+      // marker anchors at the stream start and is still applied.
+      expect(plan.mainStream.single, isA<ThreeDrawStreamStencilClear>());
+      expect(markers(plan).single.value, 9);
     });
   });
 }

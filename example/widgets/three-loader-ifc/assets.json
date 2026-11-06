@@ -1,0 +1,18 @@
+{
+  "schema": "jsr-three-example-external-assets-v1",
+  "id": "three-loader-ifc",
+  "inlineMaxBytes": 1500000,
+  "assets": [
+    {
+      "url": "models/ifc/rac_advanced_sample_project.ifc",
+      "file": "rac_advanced_sample_project.ifc",
+      "mime": "application/octet-stream",
+      "width": 0,
+      "height": 0,
+      "bytes": 42831859,
+      "sha256": "9440a72eb2d27e3ba9edeafdcdfb71945e6baec56d5b09211bcde743de7fe0a5",
+      "aliases": [],
+      "diagnostic": "ifcSource"
+    }
+  ]
+}

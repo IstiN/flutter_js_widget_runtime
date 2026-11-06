@@ -1,0 +1,354 @@
+{
+  "schema": "jsr-three-example-external-assets-v1",
+  "id": "three-performance",
+  "inlineMaxBytes": 1000,
+  "assets": [
+    {
+      "url": "models/gltf/Cloth_Red_metallicRoughness",
+      "file": "models__gltf__Cloth_Red_metallicRoughness",
+      "mime": "image/png",
+      "width": 1024,
+      "height": 1024,
+      "bytes": 387017,
+      "sha256": "4f5443d897f63076e50ea970da2b515f9f2155083c00132bae6bfd5d07dbb7c6",
+      "aliases": [
+        "models/gltf/./Cloth_Red_metallicRoughness"
+      ],
+      "diagnostic": "textureMaxSize:1024"
+    },
+    {
+      "url": "models/gltf/Cloth_Wood_metallicRoughness",
+      "file": "models__gltf__Cloth_Wood_metallicRoughness",
+      "mime": "image/png",
+      "width": 1024,
+      "height": 1024,
+      "bytes": 349315,
+      "sha256": "ac941cc7e79b5b0ce30df4e5badacd3bee2cf0a189852afcadf923d9f38994a5",
+      "aliases": [
+        "models/gltf/./Cloth_Wood_metallicRoughness"
+      ],
+      "diagnostic": "textureMaxSize:1024"
+    },
+    {
+      "url": "models/gltf/Coin_metallicRoughness",
+      "file": "models__gltf__Coin_metallicRoughness",
+      "mime": "image/png",
+      "width": 1024,
+      "height": 1024,
+      "bytes": 737018,
+      "sha256": "5e15e9093f63cd1dc887948cd4d6ee5833715c9b61f5ef5bb9f3f603805ae730",
+      "aliases": [
+        "models/gltf/./Coin_metallicRoughness"
+      ],
+      "diagnostic": "textureMaxSize:1024"
+    },
+    {
+      "url": "models/gltf/dungeon_warkarma.glb",
+      "file": "models__gltf__dungeon_warkarma.glb",
+      "mime": "model/gltf-binary",
+      "width": 0,
+      "height": 0,
+      "bytes": 5560632,
+      "sha256": "6ffd6443b4c99c6d60b45083cfd82c8a8f1ced7be024eebe4a94aa65fbc61237",
+      "aliases": [],
+      "diagnostic": "auto:models/gltf/dungeon_warkarma.glb"
+    },
+    {
+      "url": "models/gltf/Floor_01_metallicRoughness",
+      "file": "models__gltf__Floor_01_metallicRoughness",
+      "mime": "image/png",
+      "width": 1024,
+      "height": 1024,
+      "bytes": 870626,
+      "sha256": "71f12cff42b5f40cc9944432f9ebf0d34d0658c93d44bdaa2335fe62cf5fcf21",
+      "aliases": [
+        "models/gltf/./Floor_01_metallicRoughness"
+      ],
+      "diagnostic": "textureMaxSize:1024"
+    },
+    {
+      "url": "models/gltf/Floor_02_metallicRoughness",
+      "file": "models__gltf__Floor_02_metallicRoughness",
+      "mime": "image/png",
+      "width": 1024,
+      "height": 1024,
+      "bytes": 294408,
+      "sha256": "8fb0072153ae3e8468f89d47b24ee9e740edb8db054c0377bfc9bc1228d1ee71",
+      "aliases": [
+        "models/gltf/./Floor_02_metallicRoughness"
+      ],
+      "diagnostic": "textureMaxSize:1024"
+    },
+    {
+      "url": "models/gltf/Floor_Stone_metallicRoughness",
+      "file": "models__gltf__Floor_Stone_metallicRoughness",
+      "mime": "image/png",
+      "width": 1024,
+      "height": 1024,
+      "bytes": 1031532,
+      "sha256": "a0fdb32b4caedca2f5601ca6a3087e04c704ec70f41d294b7b4f50f53577c590",
+      "aliases": [
+        "models/gltf/./Floor_Stone_metallicRoughness"
+      ],
+      "diagnostic": "textureMaxSize:1024"
+    },
+    {
+      "url": "models/gltf/Global_Black_metallicRoughness",
+      "file": "models__gltf__Global_Black_metallicRoughness",
+      "mime": "image/png",
+      "width": 1024,
+      "height": 1024,
+      "bytes": 649724,
+      "sha256": "8b144d73ef1cdb24890417100f5b6820c4bef62a74fbbf242e05609cd30d8f78",
+      "aliases": [
+        "models/gltf/./Global_Black_metallicRoughness"
+      ],
+      "diagnostic": "textureMaxSize:1024"
+    },
+    {
+      "url": "models/gltf/Global_Metal_metallicRoughness",
+      "file": "models__gltf__Global_Metal_metallicRoughness",
+      "mime": "image/png",
+      "width": 1024,
+      "height": 1024,
+      "bytes": 823575,
+      "sha256": "3edbbd6a2b4af01ca122caf3ca709ebc1de0cb546320c2c2c54fd9a5ee3acce5",
+      "aliases": [
+        "models/gltf/./Global_Metal_metallicRoughness"
+      ],
+      "diagnostic": "textureMaxSize:1024"
+    },
+    {
+      "url": "models/gltf/Global_White_metallicRoughness",
+      "file": "models__gltf__Global_White_metallicRoughness",
+      "mime": "image/png",
+      "width": 1024,
+      "height": 1024,
+      "bytes": 285053,
+      "sha256": "206f7e9aa39309cbb1159e102121d9459d1a8726a46f9eb735d9edfa63c708d0",
+      "aliases": [
+        "models/gltf/./Global_White_metallicRoughness"
+      ],
+      "diagnostic": "textureMaxSize:1024"
+    },
+    {
+      "url": "models/gltf/Global_Wood_metallicRoughness",
+      "file": "models__gltf__Global_Wood_metallicRoughness",
+      "mime": "image/png",
+      "width": 1024,
+      "height": 1024,
+      "bytes": 1040384,
+      "sha256": "2e50f24a7c5127b24e96d8acfa12909ee4aaabc2c6d32683e0389be02be5e8e7",
+      "aliases": [
+        "models/gltf/./Global_Wood_metallicRoughness"
+      ],
+      "diagnostic": "textureMaxSize:1024"
+    },
+    {
+      "url": "models/gltf/P_Steps_metallicRoughness",
+      "file": "models__gltf__P_Steps_metallicRoughness",
+      "mime": "image/png",
+      "width": 1024,
+      "height": 1024,
+      "bytes": 590356,
+      "sha256": "7acd954d0572eba07f45d66f0cdde6d07f1baf2c596863173365ad2bd6ea1135",
+      "aliases": [
+        "models/gltf/./P_Steps_metallicRoughness"
+      ],
+      "diagnostic": "textureMaxSize:1024"
+    },
+    {
+      "url": "models/gltf/Pillars_metallicRoughness",
+      "file": "models__gltf__Pillars_metallicRoughness",
+      "mime": "image/png",
+      "width": 1024,
+      "height": 1024,
+      "bytes": 667675,
+      "sha256": "5abf6cfec3182b52f55c145996be2b05e648d1c4fcdc74b90e862b39e0d1f7d8",
+      "aliases": [
+        "models/gltf/./Pillars_metallicRoughness"
+      ],
+      "diagnostic": "textureMaxSize:1024"
+    },
+    {
+      "url": "models/gltf/Skull_metallicRoughness",
+      "file": "models__gltf__Skull_metallicRoughness",
+      "mime": "image/png",
+      "width": 1024,
+      "height": 1024,
+      "bytes": 530517,
+      "sha256": "e572b5bfdde424a32e50b4a15a84c74ceca130917bf2fdd606e723b575c6552a",
+      "aliases": [
+        "models/gltf/./Skull_metallicRoughness"
+      ],
+      "diagnostic": "textureMaxSize:1024"
+    },
+    {
+      "url": "models/gltf/Steps_metallicRoughness",
+      "file": "models__gltf__Steps_metallicRoughness",
+      "mime": "image/png",
+      "width": 1024,
+      "height": 1024,
+      "bytes": 836459,
+      "sha256": "5103bb64a78f260d08e5a5454d6c56b388ffac7b665834cebc13668177011fac",
+      "aliases": [
+        "models/gltf/./Steps_metallicRoughness"
+      ],
+      "diagnostic": "textureMaxSize:1024"
+    },
+    {
+      "url": "models/gltf/Stone_metallicRoughness",
+      "file": "models__gltf__Stone_metallicRoughness",
+      "mime": "image/png",
+      "width": 1024,
+      "height": 1024,
+      "bytes": 931959,
+      "sha256": "4418255344c91926b5554e35cb21aef36bfed7b2bcf73f712f8c4633c72dd7c0",
+      "aliases": [
+        "models/gltf/./Stone_metallicRoughness"
+      ],
+      "diagnostic": "textureMaxSize:1024"
+    },
+    {
+      "url": "models/gltf/Tile_Border_metallicRoughness",
+      "file": "models__gltf__Tile_Border_metallicRoughness",
+      "mime": "image/png",
+      "width": 1024,
+      "height": 1024,
+      "bytes": 522023,
+      "sha256": "01d1968302572d52aaf003b22d43dc884a0fb89227fb96d62555b634eee5ed2b",
+      "aliases": [
+        "models/gltf/./Tile_Border_metallicRoughness"
+      ],
+      "diagnostic": "textureMaxSize:1024"
+    },
+    {
+      "url": "models/gltf/Tile_Borders__0_metallicRoughness",
+      "file": "models__gltf__Tile_Borders__0_metallicRoughness",
+      "mime": "image/png",
+      "width": 1024,
+      "height": 1024,
+      "bytes": 836459,
+      "sha256": "5103bb64a78f260d08e5a5454d6c56b388ffac7b665834cebc13668177011fac",
+      "aliases": [
+        "models/gltf/./Tile_Borders__0_metallicRoughness"
+      ],
+      "diagnostic": "textureMaxSize:1024"
+    },
+    {
+      "url": "models/gltf/Tiles_metallicRoughness",
+      "file": "models__gltf__Tiles_metallicRoughness",
+      "mime": "image/png",
+      "width": 1024,
+      "height": 1024,
+      "bytes": 629573,
+      "sha256": "7814c4504ecd765d1cdb9f3fae579e47b3d63ed6a987b7c698b13088adf9020b",
+      "aliases": [
+        "models/gltf/./Tiles_metallicRoughness"
+      ],
+      "diagnostic": "textureMaxSize:1024"
+    },
+    {
+      "url": "models/gltf/Torch_Flame_metallicRoughness",
+      "file": "models__gltf__Torch_Flame_metallicRoughness",
+      "mime": "image/png",
+      "width": 1024,
+      "height": 1024,
+      "bytes": 748848,
+      "sha256": "b4bdfaba519c324c7a641bc329821a8d02613be162b5d32a64dd58c345b6e3eb",
+      "aliases": [
+        "models/gltf/./Torch_Flame_metallicRoughness"
+      ],
+      "diagnostic": "textureMaxSize:1024"
+    },
+    {
+      "url": "models/gltf/Torch_Metal_metallicRoughness",
+      "file": "models__gltf__Torch_Metal_metallicRoughness",
+      "mime": "image/png",
+      "width": 1024,
+      "height": 1024,
+      "bytes": 860090,
+      "sha256": "1743bcdea3711d99931be62d2cce34a805ac7e366287375070cd2e77a7ed5481",
+      "aliases": [
+        "models/gltf/./Torch_Metal_metallicRoughness"
+      ],
+      "diagnostic": "textureMaxSize:1024"
+    },
+    {
+      "url": "models/gltf/Torch_Wood_metallicRoughness",
+      "file": "models__gltf__Torch_Wood_metallicRoughness",
+      "mime": "image/png",
+      "width": 1024,
+      "height": 1024,
+      "bytes": 901481,
+      "sha256": "36c33e17ea8d2b6d0f3034aeaab029b743de8c15a0d13abda22691b9288fe5d6",
+      "aliases": [
+        "models/gltf/./Torch_Wood_metallicRoughness"
+      ],
+      "diagnostic": "textureMaxSize:1024"
+    },
+    {
+      "url": "models/gltf/Wall_Dark_Blue_metallicRoughness",
+      "file": "models__gltf__Wall_Dark_Blue_metallicRoughness",
+      "mime": "image/png",
+      "width": 1024,
+      "height": 1024,
+      "bytes": 1241603,
+      "sha256": "5f4b67adb6c2b239b749976a52a3fd73fa38a02c44b6baa47dfa9d892ec115fe",
+      "aliases": [
+        "models/gltf/./Wall_Dark_Blue_metallicRoughness"
+      ],
+      "diagnostic": "textureMaxSize:1024"
+    },
+    {
+      "url": "models/gltf/Wall_Dark_White_metallicRoughness",
+      "file": "models__gltf__Wall_Dark_White_metallicRoughness",
+      "mime": "image/png",
+      "width": 1024,
+      "height": 1024,
+      "bytes": 761046,
+      "sha256": "b7106a346e1f46a04b703fe76a5947e6392cac35f903685f7bf0cc670aa332c3",
+      "aliases": [
+        "models/gltf/./Wall_Dark_White_metallicRoughness"
+      ],
+      "diagnostic": "textureMaxSize:1024"
+    },
+    {
+      "url": "models/gltf/Weapon_Metal_metallicRoughness",
+      "file": "models__gltf__Weapon_Metal_metallicRoughness",
+      "mime": "image/png",
+      "width": 1024,
+      "height": 1024,
+      "bytes": 199223,
+      "sha256": "988eb7a94d78258796d1389909f0490eb1941ffa4fea99ce94bc9dc14963e620",
+      "aliases": [
+        "models/gltf/./Weapon_Metal_metallicRoughness"
+      ],
+      "diagnostic": "textureMaxSize:1024"
+    },
+    {
+      "url": "models/gltf/Weapon_Wood_metallicRoughness",
+      "file": "models__gltf__Weapon_Wood_metallicRoughness",
+      "mime": "image/png",
+      "width": 1024,
+      "height": 1024,
+      "bytes": 195589,
+      "sha256": "868919edbc890bbba5fdf417ba145643fa699f7e9280c68583796266f05e5ce4",
+      "aliases": [
+        "models/gltf/./Weapon_Wood_metallicRoughness"
+      ],
+      "diagnostic": "textureMaxSize:1024"
+    },
+    {
+      "url": "textures/equirectangular/royal_esplanade_2k.hdr.jpg",
+      "file": "textures__equirectangular__royal_esplanade_2k.hdr.jpg",
+      "mime": "image/jpeg",
+      "width": 1024,
+      "height": 512,
+      "bytes": 171652,
+      "sha256": "3780f65d6c672e5129372f77285b0e7a787397b222d48370bb65d9b78d7b74cf",
+      "aliases": [],
+      "diagnostic": "auto:textures/equirectangular/royal_esplanade_2k.hdr.jpg, textureMaxSize:1024"
+    }
+  ]
+}

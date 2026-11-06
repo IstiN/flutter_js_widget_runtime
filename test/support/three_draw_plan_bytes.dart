@@ -68,6 +68,16 @@ final class ThreeDrawPlanFixture {
     double opacity = 1,
     bool depthTest = true,
     bool depthWrite = true,
+    bool colorWriteOff = false,
+    bool stencil = false,
+    bool stencilWrite = true,
+    JsThreeStencilFunc stencilFunc = JsThreeStencilFunc.always,
+    int stencilRef = 0,
+    int stencilFuncMask = 255,
+    int stencilWriteMask = 255,
+    JsThreeStencilOp stencilFailOp = JsThreeStencilOp.keep,
+    JsThreeStencilOp stencilZFailOp = JsThreeStencilOp.keep,
+    JsThreeStencilOp stencilZPassOp = JsThreeStencilOp.keep,
   }) {
     commands.add(
       r1Command(
@@ -87,6 +97,17 @@ final class ThreeDrawPlanFixture {
           opacity: opacity,
           depthTest: depthTest,
           depthWrite: depthWrite,
+          extendedTail: r1Version >= 4,
+          colorWriteOff: colorWriteOff,
+          stencil: stencil,
+          stencilWrite: stencilWrite,
+          stencilFunc: stencilFunc,
+          stencilRef: stencilRef,
+          stencilFuncMask: stencilFuncMask,
+          stencilWriteMask: stencilWriteMask,
+          stencilFailOp: stencilFailOp,
+          stencilZFailOp: stencilZFailOp,
+          stencilZPassOp: stencilZPassOp,
         ),
       ),
     );
@@ -102,6 +123,7 @@ final class ThreeDrawPlanFixture {
     double z = 0,
     bool castShadow = false,
     bool receiveShadow = false,
+    double renderOrder = 0,
   }) {
     commands.add(
       r1Command(
@@ -116,10 +138,16 @@ final class ThreeDrawPlanFixture {
           matrixWorld: _translation(0, 0, z),
           castShadow: castShadow,
           receiveShadow: receiveShadow,
+          renderOrder: renderOrder,
+          extendedLayout: r1Version >= 5,
         ),
       ),
     );
   }
+
+  /// R1 v8 opcode 15 STENCIL_CLEAR marker; applies at its stream position.
+  void stencilClear(int nodeId, int value) =>
+      commands.add(r1Command(15, r1StencilClear(nodeId, value)));
 
   void batch(
     int id, {
@@ -303,29 +331,88 @@ Uint8List r1Material(
   double opacity = 1,
   bool depthTest = true,
   bool depthWrite = true,
+  bool colorWriteOff = false,
+  bool stencil = false,
+  bool stencilWrite = true,
+  JsThreeStencilFunc stencilFunc = JsThreeStencilFunc.always,
+  int stencilRef = 0,
+  int stencilFuncMask = 255,
+  int stencilWriteMask = 255,
+  JsThreeStencilOp stencilFailOp = JsThreeStencilOp.keep,
+  JsThreeStencilOp stencilZFailOp = JsThreeStencilOp.keep,
+  JsThreeStencilOp stencilZPassOp = JsThreeStencilOp.keep,
   int? clipId,
   int clipFlags = 0,
+  /// v4+ material layering: clip id/flags, texture slots + UV matrices,
+  /// v5 matcap/gradient, v6 normal/bump/roughness/metalness + anaglyph
+  /// tails, all ahead of the optional v8 stencil tail. Required whenever
+  /// the stream version is v4 or higher.
+  bool extendedTail = false,
 }) {
   final phong = kind == JsThreeMaterialKind.meshPhong;
   final v3 = clipId != null;
-  final clipBytes = v3 ? 8 : 0;
-  final base = (phong ? 72 : 56) + clipBytes;
-  final data = ByteData(base + (emissive ? 16 : 0));
+  final flags =
+      (transparent ? 4 : 0) |
+      (depthTest ? 8 : 0) |
+      (depthWrite ? 16 : 0) |
+      (vertexColors ? 1 : 0) |
+      (flatShading ? 2 : 0) |
+      (wireframe ? 32 : 0) |
+      (sizeAttenuation ? 0 : 64) |
+      (colorWriteOff ? 0x400 : 0) |
+      (stencil ? 0x800 : 0);
+  if (!extendedTail) {
+    // Legacy (v1..v3) layout: no texture-slot/matcap/normal tails.
+    final clipBytes = v3 ? 8 : 0;
+    final base = (phong ? 72 : 56) + clipBytes;
+    final data = ByteData(base + (emissive ? 16 : 0) + (stencil ? 32 : 0));
+    data.setUint32(0, id, Endian.little);
+    data.setUint32(4, version, Endian.little);
+    data.setUint32(8, kind.wireValue, Endian.little);
+    data.setUint32(12, mapTextureId, Endian.little);
+    data.setUint32(16, flags, Endian.little);
+    data.setUint32(20, side.wireValue, Endian.little);
+    data.setFloat32(24, color[0], Endian.little);
+    data.setFloat32(28, color[1], Endian.little);
+    data.setFloat32(32, color[2], Endian.little);
+    data.setFloat32(36, opacity, Endian.little);
+    data.setFloat32(40, 0.5, Endian.little);
+    data.setFloat32(44, 0, Endian.little);
+    data.setFloat32(48, 0, Endian.little);
+    data.setFloat32(52, pointSize, Endian.little);
+    if (v3) {
+      data.setUint32(56, clipId, Endian.little);
+      data.setUint32(60, clipFlags, Endian.little);
+    }
+    if (phong) {
+      data.setFloat32(56 + clipBytes, 0.125, Endian.little);
+      data.setFloat32(60 + clipBytes, 0.25, Endian.little);
+      data.setFloat32(64 + clipBytes, 0.5, Endian.little);
+      data.setFloat32(68 + clipBytes, 64, Endian.little);
+    }
+    if (emissive) {
+      final offset = base;
+      data.setFloat32(offset, 0.125, Endian.little);
+      data.setFloat32(offset + 4, 0.25, Endian.little);
+      data.setFloat32(offset + 8, 0.5, Endian.little);
+      data.setFloat32(offset + 12, 3, Endian.little);
+    }
+    if (stencil) _writeStencilTail(data, base + (emissive ? 16 : 0), stencilWrite, stencilFunc, stencilRef, stencilFuncMask, stencilWriteMask, stencilFailOp, stencilZFailOp, stencilZPassOp);
+    return Uint8List.view(data.buffer);
+  }
+  // v4+ layout: legacy head + clip + slots + v5 + v6 + [phong] +
+  // [emissive] + anaglyph + [stencil tail].
+  final data = ByteData(
+    304 +
+        (phong ? 16 : 0) +
+        (emissive ? 16 : 0) +
+        (stencil ? 32 : 0),
+  );
   data.setUint32(0, id, Endian.little);
   data.setUint32(4, version, Endian.little);
   data.setUint32(8, kind.wireValue, Endian.little);
   data.setUint32(12, mapTextureId, Endian.little);
-  data.setUint32(
-    16,
-    (transparent ? 4 : 0) |
-        (depthTest ? 8 : 0) |
-        (depthWrite ? 16 : 0) |
-        (vertexColors ? 1 : 0) |
-        (flatShading ? 2 : 0) |
-        (wireframe ? 32 : 0) |
-        (sizeAttenuation ? 0 : 64),
-    Endian.little,
-  );
+  data.setUint32(16, flags, Endian.little);
   data.setUint32(20, side.wireValue, Endian.little);
   data.setFloat32(24, color[0], Endian.little);
   data.setFloat32(28, color[1], Endian.little);
@@ -335,23 +422,73 @@ Uint8List r1Material(
   data.setFloat32(44, 0, Endian.little);
   data.setFloat32(48, 0, Endian.little);
   data.setFloat32(52, pointSize, Endian.little);
-  if (v3) {
-    data.setUint32(56, clipId, Endian.little);
-    data.setUint32(60, clipFlags, Endian.little);
+  // v3 clip id + flags.
+  data.setUint32(56, clipId ?? 0, Endian.little);
+  data.setUint32(60, clipFlags, Endian.little);
+  // v4 texture slots: alpha/env ids, env intensity, two 3x3 UV matrices.
+  data.setFloat32(72, 1); // envMapIntensity
+  for (var matrix = 0; matrix < 2; matrix++) {
+    for (var index = 0; index < 9; index++) {
+      data.setFloat32(76 + (matrix * 9 + index) * 4, index % 4 == 0 ? 1 : 0);
+    }
   }
+  // v5 tail: matcap id, gradient id, sprite rotation, reserved.
+  data.setFloat32(156, 0); // sprite rotation (zeroed already)
+  // v6 tail: normal map id + scale, bump map id + scale, roughness/metal ids.
+  data.setFloat32(168, 1); // normalScaleX
+  data.setFloat32(172, 1); // normalScaleY
+  data.setFloat32(180, 1); // bumpScale
+  var offset = 192;
   if (phong) {
-    data.setFloat32(56 + clipBytes, 0.125, Endian.little);
-    data.setFloat32(60 + clipBytes, 0.25, Endian.little);
-    data.setFloat32(64 + clipBytes, 0.5, Endian.little);
-    data.setFloat32(68 + clipBytes, 64, Endian.little);
+    data.setFloat32(offset, 0.125, Endian.little);
+    data.setFloat32(offset + 4, 0.25, Endian.little);
+    data.setFloat32(offset + 8, 0.5, Endian.little);
+    data.setFloat32(offset + 12, 64, Endian.little);
+    offset += 16;
   }
   if (emissive) {
-    final offset = base;
     data.setFloat32(offset, 0.125, Endian.little);
     data.setFloat32(offset + 4, 0.25, Endian.little);
     data.setFloat32(offset + 8, 0.5, Endian.little);
     data.setFloat32(offset + 12, 3, Endian.little);
+    offset += 16;
   }
+  // Anaglyph tail: right-map id + three reserved fields, then the two
+  // column-padded 3x3 matrices (all zero = identity-free disabled state).
+  offset += 16;
+  offset += 96;
+  if (stencil) _writeStencilTail(data, offset, stencilWrite, stencilFunc, stencilRef, stencilFuncMask, stencilWriteMask, stencilFailOp, stencilZFailOp, stencilZPassOp);
+  return Uint8List.view(data.buffer);
+}
+
+void _writeStencilTail(
+  ByteData data,
+  int tail, [
+  bool stencilWrite = true,
+  JsThreeStencilFunc stencilFunc = JsThreeStencilFunc.always,
+  int stencilRef = 0,
+  int stencilFuncMask = 255,
+  int stencilWriteMask = 255,
+  JsThreeStencilOp stencilFailOp = JsThreeStencilOp.keep,
+  JsThreeStencilOp stencilZFailOp = JsThreeStencilOp.keep,
+  JsThreeStencilOp stencilZPassOp = JsThreeStencilOp.keep,
+]) {
+  // R1 v8 material stencil tail: last 32 bytes of the body.
+  data.setUint32(tail, stencilWrite ? 1 : 0, Endian.little);
+  data.setUint32(tail + 4, stencilFunc.wireValue, Endian.little);
+  data.setUint32(tail + 8, stencilRef, Endian.little);
+  data.setUint32(tail + 12, stencilFuncMask, Endian.little);
+  data.setUint32(tail + 16, stencilWriteMask, Endian.little);
+  data.setUint32(tail + 20, stencilFailOp.wireValue, Endian.little);
+  data.setUint32(tail + 24, stencilZFailOp.wireValue, Endian.little);
+  data.setUint32(tail + 28, stencilZPassOp.wireValue, Endian.little);
+}
+
+/// R1 v8 opcode 15 STENCIL_CLEAR body: u32 nodeId + u32 value.
+Uint8List r1StencilClear(int nodeId, int value) {
+  final data = ByteData(8);
+  data.setUint32(0, nodeId, Endian.little);
+  data.setUint32(4, value, Endian.little);
   return Uint8List.view(data.buffer);
 }
 
@@ -365,8 +502,14 @@ Uint8List r1Node(
   List<double>? matrixWorld,
   bool castShadow = false,
   bool receiveShadow = false,
+  double renderOrder = 0,
+  bool extendedLayout = false,
 }) {
-  final data = ByteData(92);
+  // v5+ nodes carry sprite center (0.5, 0.5) after the shadow flags and
+  // v7+ adds renderOrder (zeroed bytes keep the v5/v6 reserved-u32 valid);
+  // older streams end at the flags.
+  final extended = extendedLayout || renderOrder != 0;
+  final data = ByteData(extended ? 104 : 92);
   data.setUint32(0, id, Endian.little);
   data.setUint32(4, parentId, Endian.little);
   data.setUint32(8, geometryId, Endian.little);
@@ -379,6 +522,11 @@ Uint8List r1Node(
     (castShadow ? 1 : 0) | (receiveShadow ? 2 : 0),
     Endian.little,
   );
+  if (extended) {
+    data.setFloat32(92, 0.5, Endian.little);
+    data.setFloat32(96, 0.5, Endian.little);
+    data.setFloat32(100, renderOrder, Endian.little);
+  }
   return Uint8List.view(data.buffer);
 }
 
@@ -495,10 +643,17 @@ Uint8List r1Frame({
   List<int> culledNodeIds = const [],
   List<int> culledShadowNodeIds = const [],
   int? shadowLightType,
+  bool v5Tail = false,
 }) {
   final hasCulling = culledNodeIds.isNotEmpty || culledShadowNodeIds.isNotEmpty;
   final v3 = shadowLightType != null;
-  final base = v3 ? 140 : 136;
+  // v4 adds the tone/fog tail (8 bytes) and v5 the point-shadow tail
+  // (24 bytes) before the shadow block; all default lanes are zero. The
+  // shadow light type u32 is present from v3 on, so a v5+ frame always
+  // carries it (0 = none).
+  final withLightType = v3 || v5Tail;
+  final shift = v5Tail ? 32 : 0;
+  final base = (withLightType ? 140 : 136) + shift;
   final data = ByteData(
     base +
         (hasCulling ? 4 + culledNodeIds.length * 4 : 0) +
@@ -511,15 +666,17 @@ Uint8List r1Frame({
   data.setFloat32(16, 0.3, Endian.little);
   data.setFloat32(20, 1, Endian.little);
   data.setFloat32(24, exposure, Endian.little);
-  data.setUint32(52, shadowMapSize, Endian.little);
-  data.setUint32(56, shadowMapSize, Endian.little);
-  data.setFloat32(60, -0.0001, Endian.little);
-  data.setFloat32(64, 0.02, Endian.little);
-  data.setFloat32(68, 1, Endian.little);
+  data.setUint32(52 + shift, shadowMapSize, Endian.little);
+  data.setUint32(56 + shift, shadowMapSize, Endian.little);
+  data.setFloat32(60 + shift, -0.0001, Endian.little);
+  data.setFloat32(64 + shift, 0.02, Endian.little);
+  data.setFloat32(68 + shift, 1, Endian.little);
   for (final index in [0, 5, 10, 15]) {
-    data.setFloat32(72 + index * 4, 1, Endian.little);
+    data.setFloat32(72 + shift + index * 4, 1, Endian.little);
   }
-  if (v3) data.setUint32(136, shadowLightType, Endian.little);
+  if (withLightType) {
+    data.setUint32(136 + shift, shadowLightType ?? 0, Endian.little);
+  }
   var offset = base;
   if (hasCulling) {
     data.setUint32(offset, culledNodeIds.length, Endian.little);

@@ -1,0 +1,12 @@
+{
+  "auto_seeded": false,
+  "mae": 0.027409,
+  "official_id": "webgl_geometry_teapot",
+  "performance": {
+    "native": {},
+    "reference": {}
+  },
+  "status": "similar",
+  "summary": "",
+  "updated": "2026-11-01T11:44:02.933389+00:00"
+}

@@ -1,0 +1,18 @@
+{
+  "schema": "jsr-three-example-external-assets-v1",
+  "id": "three-random-uv",
+  "inlineMaxBytes": 1500000,
+  "assets": [
+    {
+      "url": "textures/equirectangular/lobe.hdr",
+      "file": "textures__equirectangular__lobe.hdr",
+      "mime": "application/x-rgba",
+      "width": 1024,
+      "height": 512,
+      "bytes": 2097152,
+      "sha256": "08e7f729744216695da6291797abe8b79c561e09a7e4defef1cc2a123ecac13f",
+      "aliases": [],
+      "diagnostic": "auto:textures/equirectangular/lobe.hdr"
+    }
+  ]
+}

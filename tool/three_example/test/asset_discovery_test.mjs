@@ -3,6 +3,7 @@ import { mkdtemp, mkdir, readFile, rm, writeFile } from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 import { discoverAssets, verifyDiscoveredAssets } from '../asset_discovery.mjs';
+import { decodeGlbAsset } from '../asset_decode.mjs';
 import { JsrDOMParser } from '../vendor/xml_dom.js';
 
 const xml = new JsrDOMParser().parseFromString(
@@ -116,3 +117,78 @@ try {
 } finally {
   await rm(temporary, { recursive: true, force: true });
 }
+
+function glbBytes(document, binary) {
+  const json = Buffer.from(JSON.stringify(document));
+  const jsonLength = (json.length + 3) & ~3;
+  const binLength = (binary.length + 3) & ~3;
+  const output = Buffer.alloc(12 + 8 + jsonLength + 8 + binLength);
+  output.write('glTF', 0, 'latin1');
+  output.writeUInt32LE(2, 4);
+  output.writeUInt32LE(output.length, 8);
+  output.writeUInt32LE(jsonLength, 12);
+  output.writeUInt32LE(0x4e4f534a, 16);
+  json.copy(output, 20);
+  output.fill(0x20, 20 + json.length, 20 + jsonLength);
+  output.writeUInt32LE(binLength, 20 + jsonLength);
+  output.writeUInt32LE(0x004e4942, 24 + jsonLength);
+  binary.copy(output, 28 + jsonLength);
+  return output;
+}
+
+// FaceCap's quantized base and morph attributes share stride-8/stride-4
+// meshopt views. Prepare must split them into overflow-safe Float32 storage,
+// applying normalized-integer semantics without changing the numeric data.
+const interleaved = Buffer.alloc(40);
+for (let vertex = 0; vertex < 2; vertex++) {
+  for (let component = 0; component < 3; component++) {
+    interleaved.writeUInt16LE((vertex + 1) * (component + 1), vertex * 8 + component * 2);
+    interleaved.writeInt16LE(-(vertex + 1) * (component + 1), 16 + vertex * 8 + component * 2);
+  }
+}
+interleaved.writeInt8(127, 32);
+interleaved.writeInt8(-127, 33);
+interleaved.writeInt8(64, 34);
+interleaved.writeInt8(0, 36);
+interleaved.writeInt8(127, 37);
+interleaved.writeInt8(-64, 38);
+const interleavedDocument = {
+  asset: { version: '2.0' },
+  buffers: [{ byteLength: interleaved.length }],
+  bufferViews: [
+    { buffer: 0, byteOffset: 0, byteLength: 32, byteStride: 8 },
+    { buffer: 0, byteOffset: 32, byteLength: 8, byteStride: 4 }
+  ],
+  accessors: [
+    { bufferView: 0, byteOffset: 0, componentType: 5123, count: 2, type: 'VEC3' },
+    { bufferView: 0, byteOffset: 16, componentType: 5122, count: 2, type: 'VEC3' },
+    { bufferView: 1, byteOffset: 0, componentType: 5120, normalized: true, count: 2, type: 'VEC3' }
+  ],
+  meshes: [{ weights: [0.25], primitives: [{ attributes: { POSITION: 0, NORMAL: 2 }, targets: [{ POSITION: 1 }] }] }]
+};
+const decodedInterleaved = await decodeGlbAsset(temporary,
+  glbBytes(interleavedDocument, interleaved), 'interleaved.glb');
+const decodedJsonLength = decodedInterleaved.readUInt32LE(12);
+const decodedDocument = JSON.parse(decodedInterleaved.toString('utf8', 20, 20 + decodedJsonLength));
+const decodedBinary = decodedInterleaved.subarray(28 + decodedJsonLength);
+assert.equal(decodedDocument.bufferViews.length, 5);
+assert.deepEqual(decodedDocument.meshes, interleavedDocument.meshes);
+for (const [index, expected] of [
+  [0, [1, 2, 3, 2, 4, 6]],
+  [1, [-1, -2, -3, -2, -4, -6]],
+  [2, [1, -1, 64 / 127, 0, 1, -64 / 127]]
+]) {
+  const accessor = decodedDocument.accessors[index];
+  const view = decodedDocument.bufferViews[accessor.bufferView];
+  assert.equal(accessor.componentType, 5126);
+  assert.equal(accessor.normalized, undefined);
+  assert.equal(accessor.byteOffset, 0);
+  assert.equal(view.byteStride, undefined);
+  assert.equal(view.byteLength, 24);
+  const values = [];
+  for (let offset = 0; offset < 24; offset += 4) {
+    values.push(decodedBinary.readFloatLE((view.byteOffset || 0) + offset));
+  }
+  assert.deepEqual(values, expected.map(value => Math.fround(value)));
+}
+console.log(JSON.stringify({ ok: true, interleavedMorphAccessorsFloated: 3 }));

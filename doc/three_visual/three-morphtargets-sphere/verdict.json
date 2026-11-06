@@ -1,0 +1,16 @@
+{
+  "auto_seeded": false,
+  "mae": 0.03361,
+  "official_id": "webgl_morphtargets_sphere",
+  "performance": {
+    "native": {
+      "presentedFps": 22.977022977022976,
+      "presentedFramesDelta": 46,
+      "sampleMs": 2002
+    },
+    "reference": {}
+  },
+  "status": "similar",
+  "summary": "Visual pair review: reference and native scenes differ materially in content, materials, lighting, layout, or presentation; inspect pair before assigning a root cause.",
+  "updated": "2026-11-01T11:44:02.933389+00:00"
+}

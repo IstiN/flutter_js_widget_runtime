@@ -1,0 +1,16 @@
+{
+  "auto_seeded": false,
+  "mae": 0.085733,
+  "official_id": "webgl_geometry_text",
+  "performance": {
+    "native": {
+      "presentedFps": 119.82026959560659,
+      "presentedFramesDelta": 240,
+      "sampleMs": 2003
+    },
+    "reference": {}
+  },
+  "status": "similar",
+  "summary": "",
+  "updated": "2026-11-01T11:44:02.933389+00:00"
+}

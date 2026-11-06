@@ -50,7 +50,7 @@ Future<ThreeGpuGoldenRun> bootThreeGpuGolden(
 /// Loads the bundled native three.js source for [bootThreeGpuGolden].
 Future<String?> loadBundledThreeGoldenSource(WidgetTester tester) =>
     tester.runAsync(
-      () => rootBundle.loadString('assets/three/three.native.js'),
+      () => rootBundle.loadString('assets/three/jsr_three_native.js'),
     );
 
 /// Boots the golden harness from the bundled asset in one call.

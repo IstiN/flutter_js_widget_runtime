@@ -1,0 +1,18 @@
+{
+  "schema": "jsr-three-example-external-assets-v1",
+  "id": "three-tsl-skinning",
+  "inlineMaxBytes": 1500000,
+  "assets": [
+    {
+      "url": "models/gltf/Michelle.glb",
+      "file": "models__gltf__Michelle.glb",
+      "mime": "model/gltf-binary",
+      "width": 0,
+      "height": 0,
+      "bytes": 3276916,
+      "sha256": "2da8f6e4d71d9e2caf45091709b919e690cee78772b9daf7806dbc373ada6448",
+      "aliases": [],
+      "diagnostic": "auto:models/gltf/Michelle.glb"
+    }
+  ]
+}

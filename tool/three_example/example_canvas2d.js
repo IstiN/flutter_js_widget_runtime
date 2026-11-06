@@ -204,6 +204,39 @@ class SoftwarePixels {
       throw new Error('three.unsupported: example canvas drawImage requires a positive in-bounds source and destination');
     }
     if (dw * dh > MAX_PIXELS) throw new Error('three.invalid: example canvas drawImage output quota exceeded');
+    // Identity 1:1 blit fast path (integer-aligned scale of 1). Browser
+    // atlas slicing (e.g. the panorama cube's six faces from one stripe)
+    // lands here; the general bilinear loop below costs seconds in QuickJS
+    // for 1024x1024 tiles. Per-row opaque detection lets fully-opaque rows
+    // copy through typed .set() while translucent rows keep the exact
+    // source-over blend the slow path applies.
+    if (sw === dw && sh === dh &&
+      Number.isInteger(sx) && Number.isInteger(sy) &&
+      Number.isInteger(dx) && Number.isInteger(dy)) {
+      const srcStride = source.width * 4;
+      const dstStride = this.width * 4;
+      for (let row = 0; row < sh; row++) {
+        const from = (sy + row) * srcStride + sx * 4;
+        const to = (dy + row) * dstStride + dx * 4;
+        let opaque = true;
+        for (let p = from + 3; p < from + sw * 4; p += 4) {
+          if (source.data[p] !== 255) { opaque = false; break; }
+        }
+        if (opaque) {
+          this.data.set(source.data.subarray(from, from + sw * 4), to);
+          continue;
+        }
+        for (let p = 0; p < sw * 4; p += 4) {
+          const alpha = source.data[from + p + 3] / 255;
+          const inverse = 1 - alpha;
+          this.data[to + p] = source.data[from + p] * alpha + this.data[to + p] * inverse;
+          this.data[to + p + 1] = source.data[from + p + 1] * alpha + this.data[to + p + 1] * inverse;
+          this.data[to + p + 2] = source.data[from + p + 2] * alpha + this.data[to + p + 2] * inverse;
+          this.data[to + p + 3] = source.data[from + p + 3] + this.data[to + p + 3] * inverse;
+        }
+      }
+      return;
+    }
     const left = Math.max(0, Math.floor(dx));
     const right = Math.min(this.width, Math.ceil(dx + dw));
     const top = Math.max(0, Math.floor(dy));

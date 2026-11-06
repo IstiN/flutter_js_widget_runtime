@@ -1,0 +1,12 @@
+{
+  "auto_seeded": false,
+  "mae": 0.020396,
+  "official_id": "webgl_loader_texture_exr",
+  "performance": {
+    "native": {},
+    "reference": {}
+  },
+  "status": "similar",
+  "summary": "",
+  "updated": "2026-11-01T11:44:02.933389+00:00"
+}

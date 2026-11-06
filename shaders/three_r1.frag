@@ -7,16 +7,20 @@
 #define PI 3.14159265358979323846
 #define EPSILON 0.0001
 
-in vec3 worldPosition;
-in vec3 worldNormal;
+layout(location = 0) in vec3 worldPosition;
+layout(location = 1) in vec3 worldNormal;
 layout(location = 6) in vec3 viewNormal;
 layout(location = 7) in vec3 viewPosition;
 layout(location = 8) in vec2 materialState;
-in vec2 textureUv;
-in vec4 vertexColor;
+layout(location = 2) in vec2 textureUv;
+layout(location = 3) in vec4 vertexColor;
 layout(location = 9) in vec4 instanceDiffuse;
-in float viewDepth;
+layout(location = 4) in float viewDepth;
 layout(location = 5) in vec4 shadowPosition;
+// R1 v7: MeshDepthMaterial (kind 12) depth-viz lane — the vertex stage
+// normalizes view depth over the camera's near..far range (recovered from
+// the projection matrix; see three_r1.vert jsrDepthClipRange).
+layout(location = 11) in float depthLinear01;
 
 out vec4 outColor;
 
@@ -479,6 +483,21 @@ void main() {
     outColor = vec4(composite, max(left.a, right.a));
     return;
   }
+  if (kind == 12) {
+    // R1 v7 MeshDepthMaterial (BasicDepthPacking only). The bounded RT lane
+    // aliases target.depthTexture onto the RT color attachment, so upstream's
+    // readDepth() overlay keeps sampling blue scene pixels (webgl_depth_texture
+    // blue screen). Instead the depth viz rides the color channel: grayscale
+    // linearized view depth (0 near, 1 far, clamped) is written into the
+    // attachment. Deliberately NOT tone mapped or sRGB encoded — the value is
+    // data, and the example's post shader re-maps it per fragment. map/
+    // alphaMap and alphaTest stay unapplied in this lane (the bare override
+    // material carries none; validateMaterial warns when they are set).
+    float depth01 = clamp(depthLinear01, 0.0, 1.0);
+    float opacity = materialState.y > 0.5 ? material_info.colorOpacity.a : 1.0;
+    outColor = vec4(vec3(depth01), opacity);
+    return;
+  }
   if (kind == 6) {
     vec3 n;
     if (material_info.vertexColorsFlatShadingHasMapReserved.y > 0.5) {
@@ -510,13 +529,19 @@ void main() {
   if (material_info.vertexColorsFlatShadingHasMapReserved.x > 0.5) {
     albedo *= vertexColor;
   }
+  // THREE map_particle_fragment: Points have no UV attribute; the sprite
+  // coordinate is per-fragment gl_PointCoord. Meshes retain their UV lane.
+  vec2 mapUv = kind == 4
+      ? vec2(gl_PointCoord.x, 1.0 - gl_PointCoord.y)
+      : textureUv;
   if (material_info.vertexColorsFlatShadingHasMapReserved.z > 0.5) {
-    albedo *= texture(mapTexture, transformedMapUv(textureUv));
+    albedo *= texture(mapTexture, transformedMapUv(mapUv));
   }
   // THREE alphamap_fragment: the alpha map modulates alpha through its
   // GREEN channel (an upstream grayscale convention), before alphaTest.
   if (material_info.alphaEnvIntensity.x > 0.5) {
-    albedo.a *= texture(alphaMapTexture, transformedAlphaMapUv(textureUv)).g;
+    vec2 alphaUv = kind == 4 ? mapUv : textureUv;
+    albedo.a *= texture(alphaMapTexture, transformedAlphaMapUv(alphaUv)).g;
   }
   if (albedo.a < material_info.roughnessMetalnessAlphaTestKind.z) {
     discard;
@@ -648,8 +673,12 @@ void main() {
           vec3 delta = lights.pointPositionIntensity[i].xyz - worldPosition;
           float distanceSquared = max(dot(delta, delta), EPSILON);
           vec3 l = delta * inversesqrt(distanceSquared);
+          float decay = lights.pointColor[i].a;
+          float attenuation = decay == 0.0
+              ? 1.0
+              : pow(distanceSquared, -0.5 * decay);
           vec3 radiance = lights.pointColor[i].rgb *
-                          lights.pointPositionIntensity[i].w / distanceSquared;
+                          lights.pointPositionIntensity[i].w * attenuation;
           float nDotL = max(dot(n, l), 0.0);
           vec3 direct = baseColor / PI;
           if (kind == 8) {
@@ -709,8 +738,12 @@ void main() {
           vec3 delta = lights.pointPositionIntensity[i].xyz - worldPosition;
           float distanceSquared = max(dot(delta, delta), EPSILON);
           vec3 l = delta * inversesqrt(distanceSquared);
+          float decay = lights.pointColor[i].a;
+          float attenuation = decay == 0.0
+              ? 1.0
+              : pow(distanceSquared, -0.5 * decay);
           vec3 radiance = lights.pointColor[i].rgb *
-                          lights.pointPositionIntensity[i].w / distanceSquared;
+                          lights.pointPositionIntensity[i].w * attenuation;
           float pointVisibility = pointShadowFactor;
           color += standardLight(
               n, v, l, radiance, baseColor, f0, roughness, metalness) * pointVisibility;
@@ -756,8 +789,21 @@ void main() {
     vec3 envColor = material_info.matcapGradientCube.z > 0.5
         ? texture(envMapTexture, cubeAtlasUv(reflectVec)).rgb
         : texture(envMapTexture, equirectUv(reflectVec)).rgb;
-    color += envColor * material_info.alphaEnvIntensity.z *
-        (1.0 - clamp(roughnessFactor, 0.0, 1.0));
+    float envIntensity = material_info.alphaEnvIntensity.z;
+    if (kind == 1 || kind == 2) {
+      // Approximate split IBL instead of adding a roughness-scaled mirror to
+      // every material. Diffuse irradiance survives roughness 1 and preserves
+      // albedo/maps; only the specular lobe vanishes at full roughness.
+      float metal = clamp(metalnessFactor, 0.0, 1.0);
+      float rough = clamp(roughnessFactor, 0.0, 1.0);
+      vec3 diffuseIbl = albedo.rgb * (1.0 - metal);
+      vec3 f0 = mix(vec3(0.04), albedo.rgb, metal);
+      color += envColor * envIntensity *
+          (diffuseIbl + f0 * (1.0 - rough));
+    } else {
+      color += envColor * envIntensity *
+          (1.0 - clamp(roughnessFactor, 0.0, 1.0));
+    }
   }
   color *= frame_info.cameraPositionExposure.w;
   color = applyToneMapping(color);

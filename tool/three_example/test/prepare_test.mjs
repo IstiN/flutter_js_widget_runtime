@@ -15,7 +15,7 @@ const [html, savedModule, widget, native, manifestBytes, atlas] = await Promise.
   readFile(path.join(OUT, 'original.html')),
   readFile(path.join(OUT, 'official_module.js')),
   readFile(path.join(OUT, 'widget.js'), 'utf8'),
-  readFile(path.join(ROOT, 'assets/three/three.native.js'), 'utf8'),
+  readFile(path.join(ROOT, 'assets/three/jsr_three_native.js'), 'utf8'),
   readFile(path.join(OUT, 'prepare_manifest.json')),
   readFile(path.join(OUT, 'atlas.png'))
 ]);
@@ -89,7 +89,20 @@ const jsr = {
     assert.equal(name, 'three.r1');
     packets.push(bytes.byteLength);
   },
-  async hostCall(name) { throw new Error(`unexpected host call ${name}`); }
+  async hostCall(name, args) {
+    if (name === 'three.canvas2d') {
+      const decode = args.action === 'decodeImage';
+      const width = decode ? 16 : args.width;
+      const height = decode ? 32 : args.height;
+      return {
+        ...args,
+        width,
+        height,
+        data: Buffer.alloc(width * height * 4, 255).toString('base64')
+      };
+    }
+    throw new Error(`unexpected host call ${name}`);
+  }
 };
 const context = vm.createContext({
   jsr,
@@ -105,7 +118,7 @@ const context = vm.createContext({
   setTimeout,
   clearTimeout
 });
-vm.runInContext(native, context, { filename: 'three.native.js' });
+vm.runInContext(native, context, { filename: 'jsr_three_native.js' });
 vm.runInContext('globalThis.THREE = THREE;', context);
 vm.runInContext(widget, context, { filename: 'widget.js' });
 
@@ -163,8 +176,8 @@ assert.equal(canvasPointerUps, 1);
 assert.equal(documentPointerUps, 1, 'pointerup reaches ownerDocument exactly once');
 assert.equal(mainCanvas.hasPointerCapture(7), false);
 
-// Exercise the same upstream ImageLoader path used by the real web bundle.
-// The adapter decodes only the registered bytes into a local texture source.
+// Exercise native ImageLoader: only registered bytes cross the bounded host
+// decoder, producing a raw RGBA texture source without browser bitmap APIs.
 const webImage = await new Promise((resolve, reject) => {
   new context.THREE.ImageLoader().load(
     'textures/minecraft/atlas.png',
@@ -174,9 +187,11 @@ const webImage = await new Promise((resolve, reject) => {
   );
 });
 assert.equal(webImage.complete, true);
-assert.equal(webImage._drawn, true);
-assert.deepEqual(decodedAtlas, atlas);
-assert.equal(closedBitmaps, 1);
+assert.equal(webImage._r1Pixels.width, 16);
+assert.equal(webImage._r1Pixels.height, 32);
+assert.equal(webImage._r1Pixels.data.length, 16 * 32 * 4);
+assert.equal(decodedAtlas, null);
+assert.equal(closedBitmaps, 0);
 assert.equal(jsr.three._runtime.canvases.size, 1);
 
 console.log(JSON.stringify({
@@ -186,7 +201,7 @@ console.log(JSON.stringify({
   canvasCount: 1,
   renderCalls: renders.length,
   documentPointerUps,
-  localAtlasBytes: decodedAtlas.length,
+  localAtlasBytes: webImage._r1Pixels.data.length,
   r1Bytes: packets[0],
   triangles: states.at(-1).renderer.triangles
 }, null, 2));

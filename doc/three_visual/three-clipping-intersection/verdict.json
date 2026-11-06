@@ -1,0 +1,12 @@
+{
+  "auto_seeded": false,
+  "mae": 0.058404,
+  "official_id": "webgl_clipping_intersection",
+  "performance": {
+    "native": {},
+    "reference": {}
+  },
+  "status": "similar",
+  "summary": "",
+  "updated": "2026-11-01T11:44:02.933389+00:00"
+}

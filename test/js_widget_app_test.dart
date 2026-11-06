@@ -14,7 +14,7 @@ WidgetManifest _manifest({String path = 'widgets/demo'}) => WidgetManifest(
   isSingleFile: false,
 );
 
-JsRuntimeConfig _config() => JsRuntimeConfig(
+JsRuntimeConfig _config([String? widgetId]) => JsRuntimeConfig(
   onRender: (_) {},
   onSetTitle: (_) {},
   onStorageUpdate: (_) {},
@@ -36,10 +36,7 @@ void main() {
     // First frame is the loading state.
     expect(find.byType(CircularProgressIndicator), findsOneWidget);
     await tester.pumpAndSettle();
-    expect(
-      find.textContaining('Error loading widget'),
-      findsOneWidget,
-    );
+    expect(find.textContaining('Error loading widget'), findsOneWidget);
   });
 
   testWidgets('JsWidgetApp reports a reader failure via onError', (

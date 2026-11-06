@@ -227,7 +227,7 @@ function facadeModule(names) {
   const lines = [
     "import { StressWebGLRenderer } from './stress_renderer.js';",
     'const __three = globalThis.THREE;',
-    "if (!__three) throw new Error('three-minecraft-stress: evaluate three.native.js first');",
+    "if (!__three) throw new Error('three-minecraft-stress: evaluate jsr_three_native.js first');",
     "if (__three.REVISION !== '186') throw new Error('three-minecraft-stress: pinned r186 is required');"
   ];
   const bindings = [];
@@ -459,7 +459,7 @@ async function main() {
   for (const file of ['source-pin.json', 'src/native_entry.js']) {
     await addInput(`tool/three/${file}`, await readFile(path.join(CORE, file)));
   }
-  await addInput('assets/three/three.native.js', await readFile(path.join(ROOT, 'assets/three/three.native.js')));
+  await addInput('assets/three/jsr_three_native.js', await readFile(path.join(ROOT, 'assets/three/jsr_three_native.js')));
   await addInput('source/LICENSE', license);
   for (const input of Object.keys(result.metafile.inputs)) {
     if (input.startsWith('jsr-stress-') || input.startsWith('<') || path.basename(input) === 'three-minecraft-stress-entry.js') continue;

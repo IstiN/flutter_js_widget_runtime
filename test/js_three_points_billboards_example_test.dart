@@ -27,13 +27,16 @@ import 'support/widget_logic_helper.dart';
 ///
 /// Test 1 drives the prepared widget (stock module, no shims) and pins the
 /// draw plan + frame fog fields. Test 2 runs the VERBATIM official module
-/// body (minus its two import lines) on the shared three.native.js runtime
+/// body (minus its two import lines) on the shared jsr_three_native.js runtime
 /// through the probe harness, proving the stock FogExp2 scene renders.
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
   if (!hasQuickjsNativeLib) {
-    test('points billboards example', () {},
-        skip: 'QuickJS native library is not available');
+    test(
+      'points billboards example',
+      () {},
+      skip: 'QuickJS native library is not available',
+    );
     return;
   }
 
@@ -83,12 +86,26 @@ void main() {
       expect(exportedLate['gapCode'], 'none');
       expect(exportedLate['gapFeature'], '');
       expect(exportedLate['fogIsFogExp2'], isTrue);
-      expect((exportedLate['fogDensity'] as num).toDouble(), closeTo(0.001, 1e-9));
+      expect(
+        (exportedLate['fogDensity'] as num).toDouble(),
+        closeTo(0.001, 1e-9),
+      );
 
       await harness.dispose(tester);
     },
     timeout: const Timeout(Duration(seconds: 180)),
   );
+
+  test('points map uses gl_PointCoord instead of a missing mesh UV', () {
+    final shader = File('shaders/three_r1.frag').readAsStringSync();
+    expect(
+      shader,
+      contains('vec2(gl_PointCoord.x, 1.0 - gl_PointCoord.y)'),
+      reason:
+          'the official disc is transparent at (0,0); sampling the '
+          'missing Points uv attribute discards every particle',
+    );
+  });
 }
 
 /// The real widget test: the stock module renders every frame with its
@@ -132,9 +149,14 @@ Future<void> _runPreparedWidgetTest(WidgetTester tester) async {
 /// The official sprite: examples/textures/sprites/disc.png, checked into the
 /// repo byte-identical as the three-interactive-points widget asset.
 Uint8List _readOfficialDiscSprite() {
-  final bytes = File('example/widgets/three-interactive-points/disc.png')
-      .readAsBytesSync();
-  expect(bytes.length, 866, reason: 'disc.png must be the official 866B sprite');
+  final bytes = File(
+    'example/widgets/three-interactive-points/disc.png',
+  ).readAsBytesSync();
+  expect(
+    bytes.length,
+    866,
+    reason: 'disc.png must be the official 866B sprite',
+  );
   final header = ByteData.sublistView(bytes, 16, 24);
   expect(header.getUint32(0), 32);
   expect(header.getUint32(4), 32);
@@ -198,7 +220,7 @@ String _probeSource(Uint8List discPng) {
   const jsr = ROOT.jsr;
   const THREE = ROOT.THREE;
   if (!jsr || !jsr.three || !THREE) {
-    throw new Error('probe: evaluate the three.native.js bundle first');
+    throw new Error('probe: evaluate the jsr_three_native.js bundle first');
   }
 
   // The official sprite asset (textures/sprites/disc.png), byte-identical

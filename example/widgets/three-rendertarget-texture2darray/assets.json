@@ -1,0 +1,18 @@
+{
+  "schema": "jsr-three-example-external-assets-v1",
+  "id": "three-rendertarget-texture2darray",
+  "inlineMaxBytes": 1500000,
+  "assets": [
+    {
+      "url": "textures/3d/head256x256x109.zip",
+      "file": "textures__3d__head256x256x109.zip",
+      "mime": "application/octet-stream",
+      "width": 0,
+      "height": 0,
+      "bytes": 4127257,
+      "sha256": "7d6d9c15a24a043114a9a2d07380b1afe24f4c45aa0a0da0c55bf764cb2cf906",
+      "aliases": [],
+      "diagnostic": "auto:textures/3d/head256x256x109.zip"
+    }
+  ]
+}

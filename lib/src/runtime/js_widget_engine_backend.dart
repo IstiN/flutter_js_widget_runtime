@@ -1,6 +1,26 @@
 import 'dart:async';
+import 'dart:typed_data';
 
 import 'package:js_widget_runtime/src/renderer/nodes/js_voxel_node.dart';
+
+/// Raw bytes for one pre-warmed widget asset, keyed by asset url in
+/// `JsRuntimeConfig.assetWarmProvider`. Carries the same payload the
+/// per-request asset lane serves, shipped once before widget evaluation so
+/// loaders (GLTF texture fan-out) fill from the JS heap instead of a host
+/// round trip per texture.
+class JsWarmAsset {
+  const JsWarmAsset({
+    required this.bytes,
+    this.mimeType = 'application/octet-stream',
+    this.width = 0,
+    this.height = 0,
+  });
+
+  final Uint8List bytes;
+  final String mimeType;
+  final int width;
+  final int height;
+}
 
 /// Abstract backend for the JS widget engine.
 ///

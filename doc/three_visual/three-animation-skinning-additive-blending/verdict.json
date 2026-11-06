@@ -1,0 +1,16 @@
+{
+  "auto_seeded": false,
+  "mae": 0.062234,
+  "official_id": "webgl_animation_skinning_additive_blending",
+  "performance": {
+    "native": {
+      "presentedFps": 6.496751624187906,
+      "presentedFramesDelta": 13,
+      "sampleMs": 2001
+    },
+    "reference": {}
+  },
+  "status": "similar",
+  "summary": "",
+  "updated": "2026-11-01T11:44:02.933389+00:00"
+}

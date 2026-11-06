@@ -1,0 +1,12 @@
+{
+  "auto_seeded": true,
+  "mae": 0.616846,
+  "official_id": "webgl_loader_gltf_dispersion",
+  "performance": {
+    "native": {},
+    "reference": {}
+  },
+  "status": "blocked",
+  "summary": "ours: black capture",
+  "updated": "2026-11-01T15:07:22+00:00"
+}

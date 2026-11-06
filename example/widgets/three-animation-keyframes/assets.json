@@ -1,0 +1,18 @@
+{
+  "schema": "jsr-three-example-external-assets-v1",
+  "id": "three-animation-keyframes",
+  "inlineMaxBytes": 1500000,
+  "assets": [
+    {
+      "url": "models/gltf/LittlestTokyo.glb",
+      "file": "models__gltf__LittlestTokyo.glb",
+      "mime": "model/gltf-binary",
+      "width": 0,
+      "height": 0,
+      "bytes": 15498116,
+      "sha256": "2be5c17e87a9c47e392fc66201ecc3eff0394bd892489d2340ca630b8ae82977",
+      "aliases": [],
+      "diagnostic": "auto:models/gltf/LittlestTokyo.glb"
+    }
+  ]
+}

@@ -1,0 +1,12 @@
+{
+  "auto_seeded": false,
+  "mae": 0.004284,
+  "official_id": "webgl_loader_kmz",
+  "performance": {
+    "native": {},
+    "reference": {}
+  },
+  "status": "similar",
+  "summary": "",
+  "updated": "2026-11-01T11:44:02.933389+00:00"
+}

@@ -6,9 +6,9 @@ abstract final class ThreeUpstreamBundle {
   static const String tagObject = '48dd7be01263658aad497fd72e09d1e4c6213461';
   static const String commit = '9b4a2ac29c63ccb43fd51c5661f2f873ac2c39b8';
   static const String nativeAsset =
-      'packages/js_widget_runtime/assets/three/three.native.js';
+      'packages/js_widget_runtime/assets/three/jsr_three_native.js';
   static const String webAsset =
-      'packages/js_widget_runtime/assets/three/three.web.js';
+      'packages/js_widget_runtime/assets/three/jsr_three_web.js';
 
   /// Loads the platform bundle only when THREE was explicitly enabled.
   static Future<String> load({

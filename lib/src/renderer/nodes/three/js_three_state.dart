@@ -68,6 +68,8 @@ final class JsThreeApplyResult {
       changes.whereType<JsThreeRemoveNode>();
   Iterable<JsThreeDisposeResource> get resourceDisposals =>
       changes.whereType<JsThreeDisposeResource>();
+  Iterable<JsThreeStencilClear> get stencilClears =>
+      changes.whereType<JsThreeStencilClear>();
   Iterable<JsThreeSubmitFrame> get submittedFrames =>
       changes.whereType<JsThreeSubmitFrame>();
 }
@@ -114,12 +116,111 @@ final class JsThreeStateStore {
   }
 }
 
+/// Read-only surface resources used while planning draws.
+///
+/// Either the live [JsThreeSurfaceState] or a [JsThreeFramePlanView]
+/// snapshot taken when a frame was queued.
+abstract interface class JsThreeFrameResources {
+  JsThreeSurfaceKey get key;
+  bool get disposed;
+  JsThreeSubmitFrame? get currentFrame;
+  Map<int, JsThreeGeometryUpsert> get geometries;
+  Map<int, JsThreeTextureUpsert> get textures;
+  Map<int, JsThreeRenderTargetUpsert> get renderTargets;
+  Map<int, JsThreeMaterialUpsert> get materials;
+  Map<int, JsThreeNodeUpsert> get nodes;
+  Map<int, JsThreeDrawBatchUpsert> get batches;
+  Map<int, JsThreeCameraUpsert> get cameras;
+  Map<int, JsThreeLightUpsert> get lights;
+  Map<int, JsThreeClippingUpsert> get clippings;
+
+  /// R1 v8 STENCIL_CLEAR markers decoded from the envelope carrying
+  /// [currentFrame], in stream order; empty for every stenciless frame.
+  List<JsThreeStencilClear> get stencilClears;
+}
+
+/// Resource snapshot taken when a frame was queued for presentation.
+///
+/// Multi-pass effects queue a render-target frame first and re-upsert the
+/// materials/render targets used by later passes afterwards, so planning a
+/// queued frame against the *final* surface state binds scene meshes to the
+/// wrong (screen-facing) material or target records. Frame planning uses this
+/// snapshot instead; GPU resource caches keep following the final state.
+final class JsThreeFramePlanView implements JsThreeFrameResources {
+  JsThreeFramePlanView._(
+    this.frame, {
+    required this.key,
+    required this.disposed,
+    required this.geometries,
+    required this.textures,
+    required this.renderTargets,
+    required this.materials,
+    required this.nodes,
+    required this.batches,
+    required this.cameras,
+    required this.lights,
+    required this.clippings,
+    required this.stencilClears,
+  });
+
+  factory JsThreeFramePlanView.snapshot(
+    JsThreeSurfaceState state,
+    JsThreeSubmitFrame frame,
+    List<JsThreeStencilClear> stencilClears,
+  ) => JsThreeFramePlanView._(
+    frame,
+    key: state.key,
+    disposed: state.disposed,
+    geometries: Map.of(state._geometries),
+    textures: Map.of(state._textures),
+    renderTargets: Map.of(state._renderTargets),
+    materials: Map.of(state._materials),
+    nodes: Map.of(state._nodes),
+    batches: Map.of(state._batches),
+    cameras: Map.of(state._cameras),
+    lights: Map.of(state._lights),
+    clippings: Map.of(state._clippings),
+    stencilClears: List.unmodifiable(stencilClears),
+  );
+
+  final JsThreeSubmitFrame frame;
+
+  @override
+  final JsThreeSurfaceKey key;
+  @override
+  final bool disposed;
+  @override
+  final Map<int, JsThreeGeometryUpsert> geometries;
+  @override
+  final Map<int, JsThreeTextureUpsert> textures;
+  @override
+  final Map<int, JsThreeRenderTargetUpsert> renderTargets;
+  @override
+  final Map<int, JsThreeMaterialUpsert> materials;
+  @override
+  final Map<int, JsThreeNodeUpsert> nodes;
+  @override
+  final Map<int, JsThreeDrawBatchUpsert> batches;
+  @override
+  final Map<int, JsThreeCameraUpsert> cameras;
+  @override
+  final Map<int, JsThreeLightUpsert> lights;
+  @override
+  final Map<int, JsThreeClippingUpsert> clippings;
+
+  @override
+  final List<JsThreeStencilClear> stencilClears;
+
+  @override
+  JsThreeSubmitFrame get currentFrame => frame;
+}
+
 /// Current drawing state plus lifetime upload/presentation diagnostics.
-final class JsThreeSurfaceState {
+final class JsThreeSurfaceState implements JsThreeFrameResources {
   JsThreeSurfaceState._(this.key);
 
   static const int maxPendingFrames = 2;
-  static const int maxPendingTargetFrames = 32;
+  static const int maxPendingTargetFrames = 64;
 
   final JsThreeSurfaceKey key;
   final Map<int, JsThreeGeometryUpsert> _geometries = {};
@@ -132,6 +233,14 @@ final class JsThreeSurfaceState {
   final Map<int, JsThreeLightUpsert> _lights = {};
   final Map<int, JsThreeClippingUpsert> _clippings = {};
   final List<JsThreeSubmitFrame> _pendingFrames = [];
+  final List<JsThreeFramePlanView> _pendingFrameViews = [];
+
+  /// R1 v8 STENCIL_CLEAR markers decoded since the last submitted FRAME;
+  /// the encoder always emits markers in the same envelope as their frame
+  /// (markers precede FRAME), so [._recordFrame] flushes them into the
+  /// frame's snapshot and clears the accumulation.
+  final List<JsThreeStencilClear> _pendingStencilClears = [];
+  List<JsThreeStencilClear> _currentFrameStencilClears = const [];
 
   String get engineId => key.engineId;
   String get surfaceId => key.surfaceId;
@@ -156,6 +265,12 @@ final class JsThreeSurfaceState {
   Map<int, JsThreeClippingUpsert> get clippings =>
       UnmodifiableMapView(_clippings);
 
+  /// R1 v8 STENCIL_CLEAR markers attached to [currentFrame], in stream
+  /// order; empty for stenciless frames.
+  @override
+  List<JsThreeStencilClear> get stencilClears =>
+      _currentFrameStencilClears;
+
   JsThreeSubmitFrame? get currentFrame => _currentFrame;
   JsThreeSubmitFrame? _currentFrame;
   List<JsThreeSubmitFrame> get pendingFrames =>
@@ -178,6 +293,15 @@ final class JsThreeSurfaceState {
     if (_pendingFrames.isEmpty) return null;
     return _pendingFrames.removeAt(0);
   }
+
+  /// Planning snapshot paired with the frame returned by
+  /// [takePendingFrame]; null for legacy queues without snapshots.
+  JsThreeFramePlanView? takePendingFrameView() {
+    if (_pendingFrameViews.isEmpty) return null;
+    return _pendingFrameViews.removeAt(0);
+  }
+
+  int get pendingFrameViewCount => _pendingFrameViews.length;
 
   int get geometryUploadCount => _geometryUploadCount;
   int get textureUploadCount => _textureUploadCount;
@@ -299,6 +423,8 @@ extension _JsThreeSurfaceStateOperations on JsThreeSurfaceState {
         batch.changes.add(value);
       case final JsThreeSubmitFrame value:
         _recordFrame(value, batch);
+      case final JsThreeStencilClear value:
+        _recordStencilClear(value, batch);
       case final JsThreeDisposeResource value:
         _recordRemoval(
           _disposeResource(value.resourceKind, value.resourceId),
@@ -380,8 +506,24 @@ extension _JsThreeSurfaceStateOperations on JsThreeSurfaceState {
   }
 
   void _recordFrame(JsThreeSubmitFrame frame, _ApplyBatch batch) {
+    _currentFrameStencilClears = List.unmodifiable(_pendingStencilClears);
+    _pendingStencilClears.clear();
     if (_submitFrame(frame)) batch.coalesced++;
     batch.changes.add(frame);
+  }
+
+  /// R1 v8 STENCIL_CLEAR markers accumulate until their FRAME command (the
+  /// encoder emits them in the same envelope, ahead of FRAME). The bound
+  /// mirrors the decoder's per-envelope command cap so a pathological
+  /// marker-only envelope sequence cannot grow this list unbounded.
+  void _recordStencilClear(JsThreeStencilClear value, _ApplyBatch batch) {
+    if (_pendingStencilClears.length >= JsThreeProtocolDecoder.maxCommandCount) {
+      throw const JsThreeProtocolException(
+        'pending stencil clears exceed the command cap',
+      );
+    }
+    _pendingStencilClears.add(value);
+    batch.changes.add(value);
   }
 
   bool _upsertGeometry(JsThreeGeometryUpsert value) {
@@ -443,26 +585,39 @@ extension _JsThreeSurfaceStateOperations on JsThreeSurfaceState {
   bool _submitFrame(JsThreeSubmitFrame frame) {
     _currentFrame = frame;
     _submittedFrameCount++;
+    final view = JsThreeFramePlanView.snapshot(
+      this,
+      frame,
+      _currentFrameStencilClears,
+    );
     if (_pendingFrames.length < JsThreeSurfaceState.maxPendingFrames) {
       _pendingFrames.add(frame);
+      _pendingFrameViews.add(view);
       return false;
     }
     final targetWork =
         frame.renderTargetId != 0 ||
         _pendingFrames.any((pending) => pending.renderTargetId != 0);
-    if (targetWork &&
+    final multiViewWork =
+        frame.scissorTest ||
+        _pendingFrames.any((pending) => pending.scissorTest);
+    if ((targetWork || multiViewWork) &&
         _pendingFrames.length < JsThreeSurfaceState.maxPendingTargetFrames) {
       _pendingFrames.add(frame);
+      _pendingFrameViews.add(view);
       return false;
     }
-    if (targetWork) {
+    if (targetWork || multiViewWork) {
       _pendingFrames.removeAt(1);
+      _pendingFrameViews.removeAt(1);
       _pendingFrames.add(frame);
+      _pendingFrameViews.add(view);
       return true;
     }
     // Keep the oldest (potentially in-flight) frame and replace only the
     // newest pending presentation. Every resource command remains effective.
     _pendingFrames[JsThreeSurfaceState.maxPendingFrames - 1] = frame;
+    _pendingFrameViews[JsThreeSurfaceState.maxPendingFrames - 1] = view;
     return true;
   }
 
@@ -489,6 +644,9 @@ extension _JsThreeSurfaceStateOperations on JsThreeSurfaceState {
     _cameras.clear();
     _lights.clear();
     _pendingFrames.clear();
+    _pendingFrameViews.clear();
+    _pendingStencilClears.clear();
+    _currentFrameStencilClears = const [];
     _currentFrame = null;
   }
 }

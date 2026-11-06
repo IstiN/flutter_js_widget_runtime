@@ -195,16 +195,14 @@
           type: 'column',
           children: [
             {
-              type: 'stack',
-              children: [
-                {
-                  type: 'container',
-                  height: 240,
-                  decoration: { color: '#87ceeb', borderRadius: 12 },
-                  child: { type: 'voxel', id: WORLD_ID }
-                }
-              ],
-              alignment: 'center'
+              // The tile owns the height: the scene takes what remains after
+              // stats and controls instead of forcing a fixed 240px scene.
+              type: 'expanded',
+              child: {
+                type: 'container',
+                decoration: { color: '#87ceeb', borderRadius: 12 },
+                child: { type: 'voxel', id: WORLD_ID }
+              }
             },
             { type: 'sizedBox', height: 8 },
             statRow(t),

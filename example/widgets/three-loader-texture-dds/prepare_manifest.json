@@ -43,6 +43,95 @@
       "sha256": "f818496949c2090c0e995662c7dfc916b3b85d826527f57e1c2fc24166867d46"
     }
   },
+  "assetPolicy": {
+    "inlineMaxBytes": 0,
+    "externalAssets": [
+      {
+        "url": "textures/compressed/disturb_argb_mip.dds",
+        "file": "textures__compressed__disturb_argb_mip.dds",
+        "bytes": 262239,
+        "sha256": "b7aeed68db84c0396f0c445b7a7d298ba3b8f3f01dbed12eb0e4cc95086e88dc"
+      },
+      {
+        "url": "textures/compressed/disturb_argb_nomip.dds",
+        "file": "textures__compressed__disturb_argb_nomip.dds",
+        "bytes": 262239,
+        "sha256": "b7aeed68db84c0396f0c445b7a7d298ba3b8f3f01dbed12eb0e4cc95086e88dc"
+      },
+      {
+        "url": "textures/compressed/disturb_dx10_bc6h_signed_mip.dds",
+        "file": "textures__compressed__disturb_dx10_bc6h_signed_mip.dds",
+        "bytes": 266,
+        "sha256": "b3c193e36840e5043322ba064e158d54fcbb894839996bcde1c4442a74e4f34f"
+      },
+      {
+        "url": "textures/compressed/disturb_dx10_bc6h_signed_nomip.dds",
+        "file": "textures__compressed__disturb_dx10_bc6h_signed_nomip.dds",
+        "bytes": 268,
+        "sha256": "bfdf4d1ed3cf0fb4b283714524109094aeda6e5d54a3980790c2ea558ca2ba48"
+      },
+      {
+        "url": "textures/compressed/disturb_dx10_bc6h_unsigned_mip.dds",
+        "file": "textures__compressed__disturb_dx10_bc6h_unsigned_mip.dds",
+        "bytes": 268,
+        "sha256": "63ee3eeedb23ba59ff1cd0ec24f9319807d8318f98a892d5bec8178e6da139e0"
+      },
+      {
+        "url": "textures/compressed/disturb_dx10_bc6h_unsigned_nomip.dds",
+        "file": "textures__compressed__disturb_dx10_bc6h_unsigned_nomip.dds",
+        "bytes": 270,
+        "sha256": "681d7fc302955fdb2874e2d39bbca84836bf45e3af6d266bf5f80600748aef1f"
+      },
+      {
+        "url": "textures/compressed/disturb_dxt1_mip.dds",
+        "file": "textures__compressed__disturb_dxt1_mip.dds",
+        "bytes": 1048671,
+        "sha256": "699a4d03709a0a57ad87fbd20009ed52fd597020168f621b50ab65ecb88a9896"
+      },
+      {
+        "url": "textures/compressed/disturb_dxt1_nomip.dds",
+        "file": "textures__compressed__disturb_dxt1_nomip.dds",
+        "bytes": 1048671,
+        "sha256": "699a4d03709a0a57ad87fbd20009ed52fd597020168f621b50ab65ecb88a9896"
+      },
+      {
+        "url": "textures/compressed/explosion_dxt5_mip.dds",
+        "file": "textures__compressed__explosion_dxt5_mip.dds",
+        "bytes": 262239,
+        "sha256": "33f5724569a728e6b3a83f71168a919c1b3ca5e9c3600ac3f9eb22caf969cb82"
+      },
+      {
+        "url": "textures/compressed/hepatica_dxt3_mip.dds",
+        "file": "textures__compressed__hepatica_dxt3_mip.dds",
+        "bytes": 262239,
+        "sha256": "e7cec2a5ce0642823a133ba42e506d7aeae996173ed8258262b8e92da2c26cf8"
+      },
+      {
+        "url": "textures/compressed/Mountains_argb_mip.dds",
+        "file": "textures__compressed__Mountains_argb_mip.dds",
+        "bytes": 393310,
+        "sha256": "92a2b92dfecf577a4e0fb0a53330ca262d245faf480ed0b36f4ce1a1ff45578a"
+      },
+      {
+        "url": "textures/compressed/Mountains_argb_nomip.dds",
+        "file": "textures__compressed__Mountains_argb_nomip.dds",
+        "bytes": 393310,
+        "sha256": "64fb23f046cb42bd1621062fc1cf06d62bbb9e41cbf9eff90a4f548bd0aff963"
+      },
+      {
+        "url": "textures/compressed/Mountains.dds",
+        "file": "textures__compressed__Mountains.dds",
+        "bytes": 6291550,
+        "sha256": "811f4120b2cc7987555f6a9216e13f004425af6b7095b68a335786c9b1214e67"
+      },
+      {
+        "url": "textures/wave_normals_24bit_uncompressed.dds",
+        "file": "textures__wave_normals_24bit_uncompressed.dds",
+        "bytes": 262239,
+        "sha256": "76ed468430f48a7ad8a229e728f66e69a7f609a70cee13cf7a9a6ac3721fd865"
+      }
+    ]
+  },
   "facade": {
     "global": "globalThis.THREE",
     "exports": [
@@ -214,6 +303,7 @@
       "InterpolationSamplingMode",
       "InterpolationSamplingType",
       "InvertStencilOp",
+      "JsrImageBitmapLoader",
       "JsrPMREMGenerator",
       "JsrThreeCanvas",
       "KeepStencilOp",
@@ -489,9 +579,11 @@
       "ZeroFactor",
       "ZeroSlopeEnding",
       "ZeroStencilOp",
+      "createBoundedCSGEvaluator",
       "createCanvasElement",
       "error",
       "getConsoleFunction",
+      "getNativeCSGDiagnostics",
       "getNativeRaycastDiagnostics",
       "log",
       "setConsoleFunction",
@@ -499,26 +591,78 @@
       "warnOnce"
     ],
     "source": {
-      "bytes": 40483,
-      "sha256": "d8a95e5605d66ffb75ea71ac29c5c226001eb23087a03770efa0d95547284e23"
+      "bytes": 40799,
+      "sha256": "33e0968fb1c2ad2e3e8f1d21c8e4fadd095a0d25a2a3cd1ab073273134be1bb5"
     }
   },
   "inputs": {
-    "assets/three/three.native.js": {
-      "bytes": 777104,
-      "sha256": "5adcb8e7c2d94dd83748134c4d13b9fcfcba9b671445fe27de895575402241b0"
+    "assets/three/jsr_three_native.js": {
+      "bytes": 838188,
+      "sha256": "774cd82da77974165fd9ec3122c1e4e4505bca3faa5003cb72afc6a59f5f4e5b"
     },
-    "assets/three/three.web.js": {
-      "bytes": 855325,
-      "sha256": "973b78155b07710ece2f22e803cb25a8cb08da4f62b5f825dc676715f5859311"
+    "assets/three/jsr_three_web.js": {
+      "bytes": 857885,
+      "sha256": "8bf94959ca16ffd59b904e040edcf4ffe405eac56cf941285a2da0a5337fb878"
     },
     "source/LICENSE": {
       "bytes": 1081,
       "sha256": "8b378ebe60e2fe500158cb0ac71cb5e8b7d92953c2abcc63a0eb90499653b5bc"
     },
-    "source/examples/jsm/loaders/DDSLoader.js": {
-      "bytes": 9088,
-      "sha256": "500c12d19c791a8e8177137e67cbfc63357de1b3e1afe87b4805c09ab6b56c6b"
+    "source/examples/textures/compressed/Mountains.dds": {
+      "bytes": 786560,
+      "sha256": "b280c9c775121fc403434a8dc9aed1483766ea6b97c5a951b70f8f9d3d2d7bc0"
+    },
+    "source/examples/textures/compressed/Mountains_argb_mip.dds": {
+      "bytes": 524408,
+      "sha256": "ae86f2e19efa56af1e0d553f81ca1d366b632f732a1c200f62a9fd3577550c88"
+    },
+    "source/examples/textures/compressed/Mountains_argb_nomip.dds": {
+      "bytes": 393344,
+      "sha256": "30b5b1c7d753b7a8eeea7928a16d1a06b17e7a702635055f89fbbe687edcec13"
+    },
+    "source/examples/textures/compressed/disturb_argb_mip.dds": {
+      "bytes": 349652,
+      "sha256": "810b506b5d090f5a1483449f83998f886edd5fa20dcc9cb2b0756d68c31903af"
+    },
+    "source/examples/textures/compressed/disturb_argb_nomip.dds": {
+      "bytes": 262272,
+      "sha256": "b5d83c0f5ce7bffe5ecaa5c708ec4e3dcf208b0ccebe4ecf00a282c6230168e6"
+    },
+    "source/examples/textures/compressed/disturb_dx10_bc6h_signed_mip.dds": {
+      "bytes": 349700,
+      "sha256": "96e751643db35292ac8cbb356fadd05bb3c468e18ca6f1d5db75ac0d45128598"
+    },
+    "source/examples/textures/compressed/disturb_dx10_bc6h_signed_nomip.dds": {
+      "bytes": 262292,
+      "sha256": "588f8954158e68c3eae4cc02c0603bea5be917aa94b9b785d7ab418264c641c7"
+    },
+    "source/examples/textures/compressed/disturb_dx10_bc6h_unsigned_mip.dds": {
+      "bytes": 349700,
+      "sha256": "e207948823b49a97ded61202f068a9044fa84ae5c96197cf7d538a462c72c1da"
+    },
+    "source/examples/textures/compressed/disturb_dx10_bc6h_unsigned_nomip.dds": {
+      "bytes": 262292,
+      "sha256": "0ca36e2a14eee476c13b35393a8f4e140cf2e4cc2f1de9495d873aae9f2afaa7"
+    },
+    "source/examples/textures/compressed/disturb_dxt1_mip.dds": {
+      "bytes": 174904,
+      "sha256": "83e59177ef9c3b8613c4b83e84cbafd7502c4d54103a246e82f359d5bd6905a1"
+    },
+    "source/examples/textures/compressed/disturb_dxt1_nomip.dds": {
+      "bytes": 131200,
+      "sha256": "6626a8c11b1fdd37371cf21182242e51551645ee3f05477c318ab7e014c0a435"
+    },
+    "source/examples/textures/compressed/explosion_dxt5_mip.dds": {
+      "bytes": 87536,
+      "sha256": "0ff0f06b11e360abdac66a70acfc3130f66313064def9b1dd75cdd9f81469272"
+    },
+    "source/examples/textures/compressed/hepatica_dxt3_mip.dds": {
+      "bytes": 87536,
+      "sha256": "a4e3cea3c090e89e61acbcbca4543a4207113ea03b9e48071ae5ff6e444d4929"
+    },
+    "source/examples/textures/wave_normals_24bit_uncompressed.dds": {
+      "bytes": 262271,
+      "sha256": "943b5d189997f460ff8d4a35f5259d36809a5c6669a440d99b4f8b5abe0d8e4b"
     },
     "source/examples/webgl_loader_texture_dds.html": {
       "bytes": 8317,
@@ -529,34 +673,54 @@
       "sha256": "29492424209a17a723b3b0c8e9c83995697a4c466840d1b33ba6f6ff2b7542a4"
     },
     "tool/three/src/native_entry.js": {
-      "bytes": 1951,
-      "sha256": "7852c54a706c19e98978c884aa9cd9bfd8d040a2d304c8e6d8cf973dd3554eaf"
+      "bytes": 26368,
+      "sha256": "dac7dc374e1374499bc9e9a84593e7e1e848bfcde7bb916d7212ccd517e861d3"
+    },
+    "tool/three_example/asset_decode.mjs": {
+      "bytes": 51634,
+      "sha256": "273d0f8261829418eb08a93177990de1fb76cda9211852d578439a39ceb61af1"
+    },
+    "tool/three_example/asset_discovery.mjs": {
+      "bytes": 12424,
+      "sha256": "89a14e272cb1ddac5b555b4361af938764127ee069ac367a18262b8299643eca"
     },
     "tool/three_example/example_adapter.js": {
-      "bytes": 20723,
-      "sha256": "9c713a0daa93289f0aeb2d75de6c067569ca4bc2235c24f3bb2bc8feab03336c"
+      "bytes": 49943,
+      "sha256": "1ab349ba0361871765f4351a6fc3228fb05c93315985fbbf07644592c96ad8c4"
     },
     "tool/three_example/example_canvas2d.js": {
-      "bytes": 20988,
-      "sha256": "ae6143c0400efcb2b9ca05c69416ea13519aa5c94a8e7d2e75ffe767ef4c8fba"
+      "bytes": 22635,
+      "sha256": "3bb5bcd47d637e187e79fd7463ba4247e3cc7b5705e62229983e8e607fccf753"
     },
     "tool/three_example/lil_gui_adapter.js": {
-      "bytes": 28916,
-      "sha256": "dc11346394f41bb4f385738d3afa6aa75e695ac80fe3be3a5fbf4201686376bf"
+      "bytes": 32173,
+      "sha256": "2f83bde66c35db02a16eec3db21beae0e1198e04f1b0723f9b3dbda89c6675f7"
     },
     "tool/three_example/prepare.mjs": {
-      "bytes": 247876,
-      "sha256": "4ed1752612b57fb4ac32f62717e772e9a85f4e8a0f7e51a764443b68af0b8aac"
+      "bytes": 335951,
+      "sha256": "539aabfd891955bb2b8b6c765ddc1bc883e5058adf615193747eeb2ea1bb790a"
     },
     "tool/three_example/stats_adapter.js": {
       "bytes": 2107,
       "sha256": "98defe8785b259fdf70182c7d4a0a8e8e39ff8be901c3a9f93cd991240784086"
+    },
+    "tool/three_example/vendor/lock.json": {
+      "bytes": 3496,
+      "sha256": "684724e244c7042cbe7bd1fa0dace4e9a653a73d25c35f04c21b9d62d0eb6219"
+    },
+    "tool/three_example/vendor/xml_dom.js": {
+      "bytes": 18555,
+      "sha256": "b5ed0f0cfc690fc55c03280cc3c2ab67e39d09504b51d979a827306e00249182"
     }
   },
   "outputs": {
     "THREE_LICENSE": {
       "bytes": 1081,
       "sha256": "8b378ebe60e2fe500158cb0ac71cb5e8b7d92953c2abcc63a0eb90499653b5bc"
+    },
+    "assets.json": {
+      "bytes": 5521,
+      "sha256": "03b2e635862cfdda039ff994cbcb7dd7f82132f58380eb15168697223b8c01a4"
     },
     "manifest.json": {
       "bytes": 364,
@@ -570,9 +734,65 @@
       "bytes": 8317,
       "sha256": "124c55dfa997841b4ed3b0b27cd1e2ce871fa4d4db1f703bbae764872411b672"
     },
+    "textures__compressed__Mountains.dds": {
+      "bytes": 6291550,
+      "sha256": "811f4120b2cc7987555f6a9216e13f004425af6b7095b68a335786c9b1214e67"
+    },
+    "textures__compressed__Mountains_argb_mip.dds": {
+      "bytes": 393310,
+      "sha256": "92a2b92dfecf577a4e0fb0a53330ca262d245faf480ed0b36f4ce1a1ff45578a"
+    },
+    "textures__compressed__Mountains_argb_nomip.dds": {
+      "bytes": 393310,
+      "sha256": "64fb23f046cb42bd1621062fc1cf06d62bbb9e41cbf9eff90a4f548bd0aff963"
+    },
+    "textures__compressed__disturb_argb_mip.dds": {
+      "bytes": 262239,
+      "sha256": "b7aeed68db84c0396f0c445b7a7d298ba3b8f3f01dbed12eb0e4cc95086e88dc"
+    },
+    "textures__compressed__disturb_argb_nomip.dds": {
+      "bytes": 262239,
+      "sha256": "b7aeed68db84c0396f0c445b7a7d298ba3b8f3f01dbed12eb0e4cc95086e88dc"
+    },
+    "textures__compressed__disturb_dx10_bc6h_signed_mip.dds": {
+      "bytes": 266,
+      "sha256": "b3c193e36840e5043322ba064e158d54fcbb894839996bcde1c4442a74e4f34f"
+    },
+    "textures__compressed__disturb_dx10_bc6h_signed_nomip.dds": {
+      "bytes": 268,
+      "sha256": "bfdf4d1ed3cf0fb4b283714524109094aeda6e5d54a3980790c2ea558ca2ba48"
+    },
+    "textures__compressed__disturb_dx10_bc6h_unsigned_mip.dds": {
+      "bytes": 268,
+      "sha256": "63ee3eeedb23ba59ff1cd0ec24f9319807d8318f98a892d5bec8178e6da139e0"
+    },
+    "textures__compressed__disturb_dx10_bc6h_unsigned_nomip.dds": {
+      "bytes": 270,
+      "sha256": "681d7fc302955fdb2874e2d39bbca84836bf45e3af6d266bf5f80600748aef1f"
+    },
+    "textures__compressed__disturb_dxt1_mip.dds": {
+      "bytes": 1048671,
+      "sha256": "699a4d03709a0a57ad87fbd20009ed52fd597020168f621b50ab65ecb88a9896"
+    },
+    "textures__compressed__disturb_dxt1_nomip.dds": {
+      "bytes": 1048671,
+      "sha256": "699a4d03709a0a57ad87fbd20009ed52fd597020168f621b50ab65ecb88a9896"
+    },
+    "textures__compressed__explosion_dxt5_mip.dds": {
+      "bytes": 262239,
+      "sha256": "33f5724569a728e6b3a83f71168a919c1b3ca5e9c3600ac3f9eb22caf969cb82"
+    },
+    "textures__compressed__hepatica_dxt3_mip.dds": {
+      "bytes": 262239,
+      "sha256": "e7cec2a5ce0642823a133ba42e506d7aeae996173ed8258262b8e92da2c26cf8"
+    },
+    "textures__wave_normals_24bit_uncompressed.dds": {
+      "bytes": 262239,
+      "sha256": "76ed468430f48a7ad8a229e728f66e69a7f609a70cee13cf7a9a6ac3721fd865"
+    },
     "widget.js": {
-      "bytes": 36465,
-      "sha256": "5b33baaa39ba6c8462b9512c61caab87c850e82c62c0dd59e1b1d0a72d4e74e1"
+      "bytes": 63051,
+      "sha256": "deffbb0c98de51929462ab2699140fb71b318ec4bffe031b301f26252e054402"
     }
   }
 }

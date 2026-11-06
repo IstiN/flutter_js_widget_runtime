@@ -1,0 +1,17 @@
+{
+  "schema": "jsr-three-example-external-assets-v1",
+  "id": "three-panorama-cube",
+  "inlineMaxBytes": 1500000,
+  "assets": [
+    {
+      "url": "textures/cube/sun_temple_stripe.jpg",
+      "file": "sun_temple_stripe.jpg",
+      "mime": "image/jpeg",
+      "width": 8192,
+      "height": 1024,
+      "bytes": 1784172,
+      "sha256": "4aadca4e81b71bae67ab1229e403dc755e33c4fbc498ce4c8d868e3d2a5a0200",
+      "aliases": []
+    }
+  ]
+}

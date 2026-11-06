@@ -54,9 +54,9 @@ function decode(packet) {
   const surfaceLength = bytes.readUInt16LE(18);
   const payload = bytes.subarray(headerBytes);
   assert.equal(payload.subarray(0, 4).toString(), 'JSR1');
-  // R1 envelope version: v5 at r186 wave-3; accept v3..v5 like the Dart decoder.
+  // Accept the same v3..v7 envelopes as the strict Dart decoder.
   const envelopeVersion = payload.readUInt16LE(4);
-  assert.ok(envelopeVersion >= 3 && envelopeVersion <= 5, `unexpected R1 envelope version ${envelopeVersion}`);
+  assert.ok(envelopeVersion >= 3 && envelopeVersion <= 8, `unexpected R1 envelope version ${envelopeVersion}`); // v8 adds the stencil lane
   const commands = [];
   let offset = 12;
   for (let i = 0; i < payload.readUInt32LE(8); i++) {
@@ -545,7 +545,7 @@ test('manual shadow revisions are explicit and ignore ordinary scene uploads', (
   renderer.shadowMap.needsUpdate = true;
   renderer.render(scene, camera);
   let frames = host.packets().flatMap(packet => only(packet, 8));
-  assert.equal(frames[0].body.length, 184); // 152 + v5 point-shadow block 32
+  assert.equal(frames[0].body.length, 244); // v7 frame plus target/viewport trailer
   assert.equal(u32(frames[0].body, 180), 1);
   renderer.render(scene, camera);
   frames = host.packets().flatMap(packet => only(packet, 8));
@@ -557,7 +557,147 @@ test('manual shadow revisions are explicit and ignore ordinary scene uploads', (
   renderer.shadowMap.autoUpdate = true;
   renderer.render(scene, camera);
   frames = host.packets().flatMap(packet => only(packet, 8));
-  assert.equal(frames[3].body.length, 172, 'default shadow mode keeps the optional-id layout after the v5 tail');
+  assert.equal(frames[3].body.length, 244, 'default shadow mode keeps the v7 target/viewport layout');
+});
+
+test('GLBufferAttribute points upload the full buffer once and move drawRange through batch parts', () => {
+  const host = createHost();
+  const T = host.THREE;
+  const { renderer, scene, camera } = rendererHost(host);
+  const particles = new Float32Array(90 * 3);
+  for (let i = 0; i < particles.length; i++) particles[i] = (i % 7) * 0.1 - 0.3;
+  const gl = renderer.getContext();
+  const glBuffer = gl.createBuffer();
+  gl.bindBuffer(gl.ARRAY_BUFFER, glBuffer);
+  gl.bufferData(gl.ARRAY_BUFFER, particles, gl.STATIC_DRAW);
+  const geometry = new T.BufferGeometry();
+  geometry.setAttribute('position', new T.GLBufferAttribute(glBuffer, gl.FLOAT, 3, 4, 90));
+  const points = new T.Points(geometry, new T.PointsMaterial());
+  scene.add(points);
+
+  geometry.setDrawRange(0, 30);
+  renderer.render(scene, camera);
+  const first = host.packets()[0];
+  const firstGeometries = only(first, 1);
+  assert.equal(firstGeometries.length, 1);
+  assert.equal(u32(firstGeometries[0].body, 12), 90, 'the full backing store uploads once, not the initial window');
+  const firstBatch = only(first, 11)[0].body;
+  assert.equal(u32(firstBatch, 8), 1, 'range-lane draws are a single non-instanced part');
+  assert.equal(u32(firstBatch, 16), 1);
+  assert.equal(u32(firstBatch, 20), id(geometry));
+  assert.equal(u32(firstBatch, 28), 0);
+  assert.equal(u32(firstBatch, 32), 30);
+  assert.equal(u32(firstGeometries[0].body, 16), 0,
+    'the range lane must stay non-indexed: an identity index materialized from the first frame window would pin geometry.indexCount to a stale window size and make the Dart part-range validator reject every later window that grew past it');
+
+  geometry.setDrawRange(24, 48);
+  renderer.render(scene, camera);
+  const second = host.packets()[1];
+  assert.equal(only(second, 1).length, 0, 'moving the window must not re-upload any geometry attribute');
+  const secondBatch = only(second, 11)[0].body;
+  assert.equal(u32(secondBatch, 28), 24);
+  assert.equal(u32(secondBatch, 32), 48);
+  assert.ok(u32(secondBatch, 4) > u32(firstBatch, 4), 'the window move bumps the DRAW_BATCH version');
+
+  // The official glbufferattribute example GROWS drawRange.count monotonically
+  // (100 + 500*random per frame, mod 300k). Growing past the first window must
+  // stay valid: the geometry record keeps indexCount 0, so the part is
+  // validated against the full 90-vertex store and never turns the draw into
+  // a rejected/black frame.
+  geometry.setDrawRange(0, 89);
+  renderer.render(scene, camera);
+  const third = host.packets()[2];
+  assert.equal(only(third, 1).length, 0, 'growing the window must not re-upload geometry either');
+  const thirdBatch = only(third, 11)[0].body;
+  assert.equal(u32(thirdBatch, 28), 0);
+  assert.equal(u32(thirdBatch, 32), 89);
+  // Draw calls stay bounded at one batched part regardless of window size.
+  assert.equal(renderer.info.render.calls, 1);
+});
+
+const geometryAttributeF32 = (body, wanted) => {
+  const mask = u32(body, 8);
+  let offset = 28;
+  for (const [name, bit] of [['position', 1], ['normal', 2], ['uv', 4], ['color', 8]]) {
+    if (!(mask & bit)) continue;
+    const byteLength = u32(body, offset);
+    offset += 4;
+    if (name === wanted) {
+      const out = new Float32Array(byteLength / 4);
+      for (let i = 0; i < out.length; i++) out[i] = f32(body, offset + i * 4);
+      return out;
+    }
+    offset += byteLength;
+  }
+  return null;
+};
+
+test('billboard CPU lane clamps default instanceCount, bakes exact view-space offsets, and skips unchanged frames', () => {
+  const host = createHost();
+  const T = host.THREE;
+  const { renderer, scene, camera } = rendererHost(host);
+  const circle = new T.CircleGeometry(1, 6);
+  const geometry = new T.InstancedBufferGeometry();
+  geometry.index = circle.index;
+  geometry.attributes = circle.attributes;
+  // instanceCount stays at three's default (Infinity): the lane must clamp to
+  // the instanced attribute length like upstream draw-count derivation.
+  geometry.setAttribute('translate', new T.InstancedBufferAttribute(new Float32Array([
+    0.5, -0.2, 0.8, -1, 0.3, 0.4, 0.2, 0.9, -0.6
+  ]), 3));
+  const material = new T.RawShaderMaterial({
+    uniforms: { time: { value: 1.25 } },
+    vertexShader: 'uniform float time; attribute vec3 translate; void main() { gl_Position = vec4(translate, 1.0); }',
+    fragmentShader: 'void main() { gl_FragColor = vec4(1.0); }'
+  });
+  const mesh = new T.Mesh(geometry, material);
+  mesh.scale.set(500, 500, 500);
+  mesh.rotation.set(0.3, 0.7, 0);
+  scene.add(mesh);
+  camera.position.set(300, 150, 900);
+  camera.lookAt(0, 0, 0);
+
+  renderer.render(scene, camera);
+  const firstGeometry = only(host.packets()[0], 1)[0];
+  const perInstance = circle.index.count;
+  assert.equal(u32(firstGeometry.body, 12), 3 * perInstance, 'default instanceCount clamps to the translate attribute length');
+
+  // Exactness pin: the official vertex stage computes
+  // gl_Position = projection * (modelView * translate + position * scale),
+  // so the baked local position must satisfy L = M^-1 * (M*t + R_cam * p*scale).
+  const positions = geometryAttributeF32(firstGeometry.body, 'position');
+  const inverse = new T.Matrix4().copy(mesh.matrixWorld).invert();
+  const time = material.uniforms.time.value;
+  let worst = 0;
+  for (let instance = 0; instance < 3; instance++) {
+    const t = new T.Vector3().fromBufferAttribute(geometry.attributes.translate, instance);
+    const scale = Math.sin((t.x + time) * 2.1) + Math.sin((t.y + time) * 3.2) + Math.sin((t.z + time) * 4.3);
+    const size = scale * 10 + 10;
+    for (let vertex = 0; vertex < perInstance; vertex++) {
+      const source = circle.index.array[vertex];
+      const sprite = new T.Vector3().fromBufferAttribute(circle.attributes.position, source)
+        .multiplyScalar(size).applyQuaternion(camera.quaternion);
+      const world = t.clone().applyMatrix4(mesh.matrixWorld).add(sprite);
+      const local = world.applyMatrix4(inverse);
+      const base = (instance * perInstance + vertex) * 3;
+      worst = Math.max(worst, Math.abs(positions[base] - local.x),
+        Math.abs(positions[base + 1] - local.y), Math.abs(positions[base + 2] - local.z));
+    }
+  }
+  assert.ok(worst < 1e-4, `billboard local positions deviate from V*M*L semantics by ${worst}`);
+
+  renderer.render(scene, camera);
+  assert.equal(only(host.packets()[1], 1).length, 0, 'unchanged scene and camera skip the CPU re-evaluation upload');
+
+  mesh.rotation.y += 0.4;
+  mesh.updateMatrixWorld(true);
+  renderer.render(scene, camera);
+  assert.equal(only(host.packets()[2], 1).length, 1, 'mesh rotation alone re-runs the evaluation because M^-1 changes');
+
+  camera.position.set(-400, 80, 300);
+  camera.lookAt(0, 0, 0);
+  renderer.render(scene, camera);
+  assert.equal(only(host.packets()[3], 1).length, 1, 'camera movement alone re-runs the evaluation because the view basis changes');
 });
 
 function rendererHost(host) {

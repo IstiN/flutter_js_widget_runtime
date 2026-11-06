@@ -1,0 +1,12 @@
+{
+  "auto_seeded": true,
+  "mae": 0.104202,
+  "official_id": "webaudio_sandbox",
+  "performance": {
+    "native": {},
+    "reference": {}
+  },
+  "status": "blocked",
+  "summary": "ours: empty/near-uniform capture",
+  "updated": "2026-11-01T15:07:13+00:00"
+}

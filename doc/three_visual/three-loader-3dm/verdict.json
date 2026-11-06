@@ -1,0 +1,16 @@
+{
+  "auto_seeded": true,
+  "mae": 0.001941,
+  "official_id": "webgl_loader_3dm",
+  "performance": {
+    "native": {
+      "presentedFps": 119.88011988011988,
+      "presentedFramesDelta": 240,
+      "sampleMs": 2002
+    },
+    "reference": {}
+  },
+  "status": "blocked",
+  "summary": "ours: black capture",
+  "updated": "2026-11-01T15:07:19+00:00"
+}

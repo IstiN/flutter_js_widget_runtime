@@ -43,6 +43,23 @@
       "sha256": "2536872df6ad45c5e1bf3de35f45c67085f14be141613eb6ea74170aa0510017"
     }
   },
+  "assetPolicy": {
+    "inlineMaxBytes": 1500000,
+    "externalAssets": [
+      {
+        "url": "models/obj/cerberus/Cerberus_A.jpg",
+        "file": "models__obj__cerberus__Cerberus_A.jpg",
+        "bytes": 16777216,
+        "sha256": "d0c2743f67e19c0b6449dc81ce52feb4bad8230f03fc3b7af61e0793adb6209b"
+      },
+      {
+        "url": "models/obj/cerberus/Cerberus.obj",
+        "file": "models__obj__cerberus__Cerberus.obj",
+        "bytes": 2637083,
+        "sha256": "0ffac38139fe00145683774bf33d2fb245e2770a68bb71c552812ab9d12ee534"
+      }
+    ]
+  },
   "facade": {
     "global": "globalThis.THREE",
     "exports": [
@@ -214,6 +231,7 @@
       "InterpolationSamplingMode",
       "InterpolationSamplingType",
       "InvertStencilOp",
+      "JsrImageBitmapLoader",
       "JsrPMREMGenerator",
       "JsrThreeCanvas",
       "KeepStencilOp",
@@ -489,9 +507,11 @@
       "ZeroFactor",
       "ZeroSlopeEnding",
       "ZeroStencilOp",
+      "createBoundedCSGEvaluator",
       "createCanvasElement",
       "error",
       "getConsoleFunction",
+      "getNativeCSGDiagnostics",
       "getNativeRaycastDiagnostics",
       "log",
       "setConsoleFunction",
@@ -499,18 +519,18 @@
       "warnOnce"
     ],
     "source": {
-      "bytes": 40483,
-      "sha256": "93769ee1aa269b5b254452b97e121dc9bce16a390e2730b4d88e119b94ad23d6"
+      "bytes": 40799,
+      "sha256": "275d418f2b8c89b0aa8bdd2fb58aac4f93906d7ade11c0daf83761922d2ae972"
     }
   },
   "inputs": {
-    "assets/three/three.native.js": {
-      "bytes": 749854,
-      "sha256": "e9ffab22ec0bdc39831aeda68383b70354fa1daafa1262868ab5bbe1d3f7867e"
+    "assets/three/jsr_three_native.js": {
+      "bytes": 838188,
+      "sha256": "774cd82da77974165fd9ec3122c1e4e4505bca3faa5003cb72afc6a59f5f4e5b"
     },
-    "assets/three/three.web.js": {
-      "bytes": 837486,
-      "sha256": "f6dc3ec1012bb86857b83551eefe978cec0ad9dd63137e842212d87678c919be"
+    "assets/three/jsr_three_web.js": {
+      "bytes": 857885,
+      "sha256": "8bf94959ca16ffd59b904e040edcf4ffe405eac56cf941285a2da0a5337fb878"
     },
     "source/LICENSE": {
       "bytes": 1081,
@@ -541,8 +561,8 @@
       "sha256": "0ffac38139fe00145683774bf33d2fb245e2770a68bb71c552812ab9d12ee534"
     },
     "source/examples/models/obj/cerberus/Cerberus_A.jpg": {
-      "bytes": 16777216,
-      "sha256": "d0c2743f67e19c0b6449dc81ce52feb4bad8230f03fc3b7af61e0793adb6209b"
+      "bytes": 829757,
+      "sha256": "e29e1d326560c635bf2407ba3bf506d632ae603d212082f74ada55c4f22423b6"
     },
     "source/examples/webgl_modifier_edgesplit.html": {
       "bytes": 5019,
@@ -553,28 +573,44 @@
       "sha256": "29492424209a17a723b3b0c8e9c83995697a4c466840d1b33ba6f6ff2b7542a4"
     },
     "tool/three/src/native_entry.js": {
-      "bytes": 1951,
-      "sha256": "7852c54a706c19e98978c884aa9cd9bfd8d040a2d304c8e6d8cf973dd3554eaf"
+      "bytes": 26368,
+      "sha256": "dac7dc374e1374499bc9e9a84593e7e1e848bfcde7bb916d7212ccd517e861d3"
+    },
+    "tool/three_example/asset_decode.mjs": {
+      "bytes": 42102,
+      "sha256": "81e15438074e820dc13552b267de326fab895bca729cc5db744da6bedb420a26"
+    },
+    "tool/three_example/asset_discovery.mjs": {
+      "bytes": 12424,
+      "sha256": "89a14e272cb1ddac5b555b4361af938764127ee069ac367a18262b8299643eca"
     },
     "tool/three_example/example_adapter.js": {
-      "bytes": 18345,
-      "sha256": "add8ffdaaf772581bb49b3e46d8e7bdf974cc8626e2dc3371176748a01b16881"
+      "bytes": 49943,
+      "sha256": "1ab349ba0361871765f4351a6fc3228fb05c93315985fbbf07644592c96ad8c4"
     },
     "tool/three_example/example_canvas2d.js": {
-      "bytes": 20988,
-      "sha256": "ae6143c0400efcb2b9ca05c69416ea13519aa5c94a8e7d2e75ffe767ef4c8fba"
+      "bytes": 22635,
+      "sha256": "3bb5bcd47d637e187e79fd7463ba4247e3cc7b5705e62229983e8e607fccf753"
     },
     "tool/three_example/lil_gui_adapter.js": {
-      "bytes": 28485,
-      "sha256": "de03987c75754c821c3e511a5edc819a1054ed73d95d09b7d65ec3dd69e0fa40"
+      "bytes": 32173,
+      "sha256": "2f83bde66c35db02a16eec3db21beae0e1198e04f1b0723f9b3dbda89c6675f7"
     },
     "tool/three_example/prepare.mjs": {
-      "bytes": 145673,
-      "sha256": "4a4e3ea157fa7cf9fe3f8c1691d957562bd1f13858e41d66aba33d1a0c7d2055"
+      "bytes": 315738,
+      "sha256": "3b0289d8d7db92ec08e8c41644ccd934458c173e6a4c6f0a7c7856b3281466f5"
     },
     "tool/three_example/stats_adapter.js": {
       "bytes": 2107,
       "sha256": "98defe8785b259fdf70182c7d4a0a8e8e39ff8be901c3a9f93cd991240784086"
+    },
+    "tool/three_example/vendor/lock.json": {
+      "bytes": 3496,
+      "sha256": "684724e244c7042cbe7bd1fa0dace4e9a653a73d25c35f04c21b9d62d0eb6219"
+    },
+    "tool/three_example/vendor/xml_dom.js": {
+      "bytes": 18555,
+      "sha256": "b5ed0f0cfc690fc55c03280cc3c2ab67e39d09504b51d979a827306e00249182"
     }
   },
   "outputs": {
@@ -582,9 +618,21 @@
       "bytes": 1081,
       "sha256": "8b378ebe60e2fe500158cb0ac71cb5e8b7d92953c2abcc63a0eb90499653b5bc"
     },
+    "assets.json": {
+      "bytes": 787,
+      "sha256": "e88ffc0d417d4862f1b41072e1273416e0b03cab68fc454b0cfbb2bc860d2fe5"
+    },
     "manifest.json": {
       "bytes": 351,
       "sha256": "377d99c75127f1793cb43d7be1e2cd5b90c03d0307b8a3010e06d1efb821f03f"
+    },
+    "models__obj__cerberus__Cerberus.obj": {
+      "bytes": 2637083,
+      "sha256": "0ffac38139fe00145683774bf33d2fb245e2770a68bb71c552812ab9d12ee534"
+    },
+    "models__obj__cerberus__Cerberus_A.jpg": {
+      "bytes": 16777216,
+      "sha256": "d0c2743f67e19c0b6449dc81ce52feb4bad8230f03fc3b7af61e0793adb6209b"
     },
     "official_module.js": {
       "bytes": 4047,
@@ -594,13 +642,9 @@
       "bytes": 5019,
       "sha256": "dbb115e40909c4844f4639f2b9f411b748487cbc7aa8300908eb9cfc56a6c2ea"
     },
-    "undefined": {
-      "bytes": 16777216,
-      "sha256": "d0c2743f67e19c0b6449dc81ce52feb4bad8230f03fc3b7af61e0793adb6209b"
-    },
     "widget.js": {
-      "bytes": 25991855,
-      "sha256": "efd2e76d0167c5bed4a8e00bbc496aee06ec36596a92c5b2a239b9bfe7d2e9f4"
+      "bytes": 132856,
+      "sha256": "cab25fdc70af6fe10ef73aa8ecd29d758c8c2a0777fb529292a1b40af30076a6"
     }
   }
 }

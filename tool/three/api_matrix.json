@@ -1,13 +1,13 @@
 {
   "source": "three r186 pinned",
-  "generatedAt": "2026-10-30",
+  "generatedAt": "2026-11-05",
   "totals": {
     "examples": 607,
-    "supported": 72,
-    "blocked": 438,
+    "supported": 73,
+    "blocked": 437,
     "webLane": 78,
     "unknownApi": 19,
-    "prepared": 61
+    "prepared": 303
   },
   "rows": [
     {
@@ -1352,7 +1352,7 @@
     },
     {
       "id": "webaudio_orientation",
-      "prepared": false,
+      "prepared": true,
       "verdict": "blocked",
       "uses": [
         "PerspectiveCamera",
@@ -1386,7 +1386,7 @@
     },
     {
       "id": "webaudio_sandbox",
-      "prepared": false,
+      "prepared": true,
       "verdict": "blocked",
       "uses": [
         "Timer",
@@ -1418,7 +1418,7 @@
     },
     {
       "id": "webaudio_timing",
-      "prepared": false,
+      "prepared": true,
       "verdict": "blocked",
       "uses": [
         "Scene",
@@ -1446,7 +1446,7 @@
     },
     {
       "id": "webaudio_visualizer",
-      "prepared": false,
+      "prepared": true,
       "verdict": "blocked",
       "uses": [
         "Scene",
@@ -1475,7 +1475,7 @@
     },
     {
       "id": "webgl_animation_keyframes",
-      "prepared": false,
+      "prepared": true,
       "verdict": "blocked",
       "uses": [
         "Timer",
@@ -1501,7 +1501,7 @@
     },
     {
       "id": "webgl_animation_multiple",
-      "prepared": false,
+      "prepared": true,
       "verdict": "blocked",
       "uses": [
         "PerspectiveCamera",
@@ -1530,7 +1530,7 @@
     },
     {
       "id": "webgl_animation_skinning_additive_blending",
-      "prepared": false,
+      "prepared": true,
       "verdict": "blocked",
       "uses": [
         "Timer",
@@ -1562,7 +1562,7 @@
     },
     {
       "id": "webgl_animation_skinning_blending",
-      "prepared": false,
+      "prepared": true,
       "verdict": "blocked",
       "uses": [
         "PerspectiveCamera",
@@ -1590,7 +1590,7 @@
     },
     {
       "id": "webgl_animation_skinning_ik",
-      "prepared": false,
+      "prepared": true,
       "verdict": "blocked",
       "uses": [
         "Vector3",
@@ -1623,7 +1623,7 @@
     },
     {
       "id": "webgl_animation_skinning_morph",
-      "prepared": false,
+      "prepared": true,
       "verdict": "blocked",
       "uses": [
         "PerspectiveCamera",
@@ -1651,7 +1651,7 @@
     },
     {
       "id": "webgl_animation_walk",
-      "prepared": false,
+      "prepared": true,
       "verdict": "blocked",
       "uses": [
         "Vector3",
@@ -1692,7 +1692,7 @@
     },
     {
       "id": "webgl_batch_lod_bvh",
-      "prepared": false,
+      "prepared": true,
       "verdict": "blocked",
       "uses": [
         "Mesh",
@@ -1756,7 +1756,7 @@
     },
     {
       "id": "webgl_buffergeometry_attributes_integer",
-      "prepared": false,
+      "prepared": true,
       "verdict": "web-lane",
       "uses": [
         "PerspectiveCamera",
@@ -1784,7 +1784,7 @@
     },
     {
       "id": "webgl_buffergeometry_attributes_none",
-      "prepared": false,
+      "prepared": true,
       "verdict": "web-lane",
       "uses": [
         "PerspectiveCamera",
@@ -1806,7 +1806,7 @@
     },
     {
       "id": "webgl_buffergeometry_custom_attributes_particles",
-      "prepared": false,
+      "prepared": true,
       "verdict": "blocked",
       "uses": [
         "PerspectiveCamera",
@@ -1830,7 +1830,7 @@
     },
     {
       "id": "webgl_buffergeometry_drawrange",
-      "prepared": false,
+      "prepared": true,
       "verdict": "blocked",
       "uses": [
         "PerspectiveCamera",
@@ -1860,7 +1860,7 @@
     },
     {
       "id": "webgl_buffergeometry_glbufferattribute",
-      "prepared": false,
+      "prepared": true,
       "verdict": "blocked",
       "uses": [
         "WebGLRenderer",
@@ -1907,7 +1907,7 @@
     },
     {
       "id": "webgl_buffergeometry_instancing",
-      "prepared": false,
+      "prepared": true,
       "verdict": "web-lane",
       "uses": [
         "PerspectiveCamera",
@@ -1930,7 +1930,7 @@
     },
     {
       "id": "webgl_buffergeometry_instancing_billboards",
-      "prepared": false,
+      "prepared": true,
       "verdict": "web-lane",
       "uses": [
         "PerspectiveCamera",
@@ -1951,7 +1951,7 @@
     },
     {
       "id": "webgl_buffergeometry_instancing_interleaved",
-      "prepared": false,
+      "prepared": true,
       "verdict": "supported",
       "uses": [
         "Quaternion",
@@ -2054,7 +2054,7 @@
     },
     {
       "id": "webgl_buffergeometry_rawshader",
-      "prepared": false,
+      "prepared": true,
       "verdict": "web-lane",
       "uses": [
         "PerspectiveCamera",
@@ -2076,7 +2076,7 @@
     },
     {
       "id": "webgl_buffergeometry_selective_draw",
-      "prepared": false,
+      "prepared": true,
       "verdict": "web-lane",
       "uses": [
         "Scene",
@@ -2145,7 +2145,7 @@
     },
     {
       "id": "webgl_camera_array",
-      "prepared": false,
+      "prepared": true,
       "verdict": "blocked",
       "uses": [
         "PerspectiveCamera",
@@ -2190,7 +2190,7 @@
     },
     {
       "id": "webgl_clipculldistance",
-      "prepared": false,
+      "prepared": true,
       "verdict": "web-lane",
       "uses": [
         "PerspectiveCamera",
@@ -2293,8 +2293,8 @@
     },
     {
       "id": "webgl_clipping_stencil",
-      "prepared": false,
-      "verdict": "blocked",
+      "prepared": true,
+      "verdict": "supported",
       "uses": [
         "Group",
         "MeshBasicMaterial",
@@ -2324,18 +2324,12 @@
         "addon:libs/lil-gui.module.min.js",
         "addon:libs/stats.module.js"
       ],
-      "blockers": [
-        "AlwaysStencilFunc (stencil state outside R1)",
-        "IncrementWrapStencilOp (stencil state outside R1)",
-        "DecrementWrapStencilOp (stencil state outside R1)",
-        "NotEqualStencilFunc (stencil state outside R1)",
-        "ReplaceStencilOp (stencil state outside R1)"
-      ],
+      "blockers": [],
       "unknown": []
     },
     {
       "id": "webgl_custom_attributes",
-      "prepared": false,
+      "prepared": true,
       "verdict": "web-lane",
       "uses": [
         "PerspectiveCamera",
@@ -2358,7 +2352,7 @@
     },
     {
       "id": "webgl_custom_attributes_lines",
-      "prepared": false,
+      "prepared": true,
       "verdict": "blocked",
       "uses": [
         "PerspectiveCamera",
@@ -2381,7 +2375,7 @@
     },
     {
       "id": "webgl_custom_attributes_points",
-      "prepared": false,
+      "prepared": true,
       "verdict": "blocked",
       "uses": [
         "PerspectiveCamera",
@@ -2405,7 +2399,7 @@
     },
     {
       "id": "webgl_custom_attributes_points2",
-      "prepared": false,
+      "prepared": true,
       "verdict": "web-lane",
       "uses": [
         "PerspectiveCamera",
@@ -2432,7 +2426,7 @@
     },
     {
       "id": "webgl_custom_attributes_points3",
-      "prepared": false,
+      "prepared": true,
       "verdict": "web-lane",
       "uses": [
         "PerspectiveCamera",
@@ -2459,7 +2453,7 @@
     },
     {
       "id": "webgl_decals",
-      "prepared": false,
+      "prepared": true,
       "verdict": "supported",
       "uses": [
         "Vector3",
@@ -2492,7 +2486,7 @@
     },
     {
       "id": "webgl_depth_texture",
-      "prepared": false,
+      "prepared": true,
       "verdict": "web-lane",
       "uses": [
         "DepthFormat",
@@ -2532,7 +2526,7 @@
     },
     {
       "id": "webgl_effects_anaglyph",
-      "prepared": false,
+      "prepared": true,
       "verdict": "web-lane",
       "uses": [
         "PerspectiveCamera",
@@ -2551,7 +2545,7 @@
     },
     {
       "id": "webgl_effects_ascii",
-      "prepared": false,
+      "prepared": true,
       "verdict": "blocked",
       "uses": [
         "PerspectiveCamera",
@@ -2575,7 +2569,7 @@
     },
     {
       "id": "webgl_effects_parallaxbarrier",
-      "prepared": false,
+      "prepared": true,
       "verdict": "web-lane",
       "uses": [
         "PerspectiveCamera",
@@ -2594,7 +2588,7 @@
     },
     {
       "id": "webgl_effects_stereo",
-      "prepared": false,
+      "prepared": true,
       "verdict": "blocked",
       "uses": [
         "PerspectiveCamera",
@@ -2615,7 +2609,7 @@
     },
     {
       "id": "webgl_framebuffer_texture",
-      "prepared": false,
+      "prepared": true,
       "verdict": "web-lane",
       "uses": [
         "Vector2",
@@ -2642,7 +2636,7 @@
     },
     {
       "id": "webgl_furnace_test",
-      "prepared": false,
+      "prepared": true,
       "verdict": "blocked",
       "uses": [
         "WebGLRenderer",
@@ -2663,7 +2657,7 @@
     },
     {
       "id": "webgl_geometries",
-      "prepared": false,
+      "prepared": true,
       "verdict": "supported",
       "uses": [
         "PerspectiveCamera",
@@ -2723,7 +2717,7 @@
     },
     {
       "id": "webgl_geometry_colors_lookuptable",
-      "prepared": false,
+      "prepared": true,
       "verdict": "unknown-api",
       "uses": [
         "Scene",
@@ -2780,7 +2774,7 @@
     },
     {
       "id": "webgl_geometry_csg",
-      "prepared": false,
+      "prepared": true,
       "verdict": "blocked",
       "uses": [
         "PerspectiveCamera",
@@ -2909,7 +2903,7 @@
     },
     {
       "id": "webgl_geometry_nurbs",
-      "prepared": false,
+      "prepared": true,
       "verdict": "supported",
       "uses": [
         "PerspectiveCamera",
@@ -3034,7 +3028,7 @@
     },
     {
       "id": "webgl_geometry_terrain",
-      "prepared": false,
+      "prepared": true,
       "verdict": "blocked",
       "uses": [
         "Timer",
@@ -3088,7 +3082,7 @@
     },
     {
       "id": "webgl_geometry_text",
-      "prepared": false,
+      "prepared": true,
       "verdict": "supported",
       "uses": [
         "Cache",
@@ -3137,7 +3131,7 @@
     },
     {
       "id": "webgl_geometry_text_stroke",
-      "prepared": false,
+      "prepared": true,
       "verdict": "blocked",
       "uses": [
         "PerspectiveCamera",
@@ -3160,7 +3154,7 @@
     },
     {
       "id": "webgl_gpgpu_birds",
-      "prepared": false,
+      "prepared": true,
       "verdict": "web-lane",
       "uses": [
         "BufferGeometry",
@@ -3188,7 +3182,7 @@
     },
     {
       "id": "webgl_gpgpu_birds_gltf",
-      "prepared": false,
+      "prepared": true,
       "verdict": "blocked",
       "uses": [
         "BufferGeometry",
@@ -3221,7 +3215,7 @@
     },
     {
       "id": "webgl_gpgpu_protoplanet",
-      "prepared": false,
+      "prepared": true,
       "verdict": "web-lane",
       "uses": [
         "PerspectiveCamera",
@@ -3246,7 +3240,7 @@
     },
     {
       "id": "webgl_gpgpu_water",
-      "prepared": false,
+      "prepared": true,
       "verdict": "blocked",
       "uses": [
         "Quaternion",
@@ -3318,7 +3312,7 @@
     },
     {
       "id": "webgl_instancing_dynamic",
-      "prepared": false,
+      "prepared": true,
       "verdict": "blocked",
       "uses": [
         "Object3D",
@@ -3347,7 +3341,7 @@
     },
     {
       "id": "webgl_instancing_morph",
-      "prepared": false,
+      "prepared": true,
       "verdict": "blocked",
       "uses": [
         "Timer",
@@ -3495,7 +3489,7 @@
     },
     {
       "id": "webgl_interactive_cubes_gpu",
-      "prepared": false,
+      "prepared": true,
       "verdict": "blocked",
       "uses": [
         "Vector2",
@@ -3658,7 +3652,7 @@
     },
     {
       "id": "webgl_lensflares",
-      "prepared": false,
+      "prepared": true,
       "verdict": "blocked",
       "uses": [
         "Timer",
@@ -3687,7 +3681,7 @@
     },
     {
       "id": "webgl_lightprobe",
-      "prepared": false,
+      "prepared": true,
       "verdict": "web-lane",
       "uses": [
         "WebGLRenderer",
@@ -3713,7 +3707,7 @@
     },
     {
       "id": "webgl_lightprobe_cubecamera",
-      "prepared": false,
+      "prepared": true,
       "verdict": "web-lane",
       "uses": [
         "WebGLRenderer",
@@ -3736,7 +3730,7 @@
     },
     {
       "id": "webgl_lightprobes",
-      "prepared": false,
+      "prepared": true,
       "verdict": "web-lane",
       "uses": [
         "PerspectiveCamera",
@@ -3763,7 +3757,7 @@
     },
     {
       "id": "webgl_lightprobes_complex",
-      "prepared": false,
+      "prepared": true,
       "verdict": "web-lane",
       "uses": [
         "PerspectiveCamera",
@@ -3794,7 +3788,7 @@
     },
     {
       "id": "webgl_lightprobes_sponza",
-      "prepared": false,
+      "prepared": true,
       "verdict": "blocked",
       "uses": [
         "Box3",
@@ -3885,7 +3879,7 @@
     },
     {
       "id": "webgl_lights_rectarealight",
-      "prepared": false,
+      "prepared": true,
       "verdict": "blocked",
       "uses": [
         "Timer",
@@ -3964,7 +3958,7 @@
     },
     {
       "id": "webgl_lights_sunlight",
-      "prepared": false,
+      "prepared": true,
       "verdict": "blocked",
       "uses": [
         "Color",
@@ -4018,7 +4012,7 @@
     },
     {
       "id": "webgl_lines_dashed",
-      "prepared": false,
+      "prepared": true,
       "verdict": "blocked",
       "uses": [
         "PerspectiveCamera",
@@ -4042,7 +4036,7 @@
     },
     {
       "id": "webgl_lines_fat",
-      "prepared": false,
+      "prepared": true,
       "verdict": "blocked",
       "uses": [
         "WebGLRenderer",
@@ -4073,7 +4067,7 @@
     },
     {
       "id": "webgl_lines_fat_raycasting",
-      "prepared": false,
+      "prepared": true,
       "verdict": "web-lane",
       "uses": [
         "Color",
@@ -4110,7 +4104,7 @@
     },
     {
       "id": "webgl_lines_fat_wireframe",
-      "prepared": false,
+      "prepared": true,
       "verdict": "blocked",
       "uses": [
         "WebGLRenderer",
@@ -4139,7 +4133,7 @@
     },
     {
       "id": "webgl_loader_3dm",
-      "prepared": false,
+      "prepared": true,
       "verdict": "unknown-api",
       "uses": [
         "Object3D",
@@ -4158,7 +4152,7 @@
     },
     {
       "id": "webgl_loader_3ds",
-      "prepared": false,
+      "prepared": true,
       "verdict": "blocked",
       "uses": [
         "PerspectiveCamera",
@@ -4179,7 +4173,7 @@
     },
     {
       "id": "webgl_loader_3dtiles",
-      "prepared": false,
+      "prepared": true,
       "verdict": "blocked",
       "uses": [
         "PerspectiveCamera",
@@ -4225,7 +4219,7 @@
     },
     {
       "id": "webgl_loader_3mf",
-      "prepared": false,
+      "prepared": true,
       "verdict": "blocked",
       "uses": [
         "WebGLRenderer",
@@ -4248,7 +4242,7 @@
     },
     {
       "id": "webgl_loader_3mf_materials",
-      "prepared": false,
+      "prepared": true,
       "verdict": "blocked",
       "uses": [
         "Scene",
@@ -4274,7 +4268,7 @@
     },
     {
       "id": "webgl_loader_amf",
-      "prepared": false,
+      "prepared": true,
       "verdict": "unknown-api",
       "uses": [
         "Scene",
@@ -4295,7 +4289,7 @@
     },
     {
       "id": "webgl_loader_bvh",
-      "prepared": false,
+      "prepared": true,
       "verdict": "blocked",
       "uses": [
         "Timer",
@@ -4318,7 +4312,7 @@
     },
     {
       "id": "webgl_loader_collada",
-      "prepared": false,
+      "prepared": true,
       "verdict": "blocked",
       "uses": [
         "PerspectiveCamera",
@@ -4338,7 +4332,7 @@
     },
     {
       "id": "webgl_loader_collada_kinematics",
-      "prepared": false,
+      "prepared": true,
       "verdict": "blocked",
       "uses": [
         "PerspectiveCamera",
@@ -4358,7 +4352,7 @@
     },
     {
       "id": "webgl_loader_collada_skinning",
-      "prepared": false,
+      "prepared": true,
       "verdict": "blocked",
       "uses": [
         "PerspectiveCamera",
@@ -4380,7 +4374,7 @@
     },
     {
       "id": "webgl_loader_draco",
-      "prepared": false,
+      "prepared": true,
       "verdict": "blocked",
       "uses": [
         "PerspectiveCamera",
@@ -4403,7 +4397,7 @@
     },
     {
       "id": "webgl_loader_fbx",
-      "prepared": false,
+      "prepared": true,
       "verdict": "blocked",
       "uses": [
         "LoadingManager",
@@ -4434,7 +4428,7 @@
     },
     {
       "id": "webgl_loader_fbx_nurbs",
-      "prepared": false,
+      "prepared": true,
       "verdict": "blocked",
       "uses": [
         "PerspectiveCamera",
@@ -4452,7 +4446,7 @@
     },
     {
       "id": "webgl_loader_gcode",
-      "prepared": false,
+      "prepared": true,
       "verdict": "unknown-api",
       "uses": [
         "Vector3",
@@ -4470,7 +4464,7 @@
     },
     {
       "id": "webgl_loader_gltf",
-      "prepared": false,
+      "prepared": true,
       "verdict": "unknown-api",
       "uses": [
         "Timer",
@@ -4494,7 +4488,7 @@
     },
     {
       "id": "webgl_loader_gltf_animation_pointer",
-      "prepared": false,
+      "prepared": true,
       "verdict": "blocked",
       "uses": [
         "Timer",
@@ -4524,7 +4518,7 @@
     },
     {
       "id": "webgl_loader_gltf_anisotropy",
-      "prepared": false,
+      "prepared": true,
       "verdict": "unknown-api",
       "uses": [
         "WebGLRenderer",
@@ -4543,7 +4537,7 @@
     },
     {
       "id": "webgl_loader_gltf_avif",
-      "prepared": false,
+      "prepared": true,
       "verdict": "blocked",
       "uses": [
         "PerspectiveCamera",
@@ -4561,7 +4555,7 @@
     },
     {
       "id": "webgl_loader_gltf_compressed",
-      "prepared": false,
+      "prepared": true,
       "verdict": "blocked",
       "uses": [
         "WebGLRenderer",
@@ -4588,7 +4582,7 @@
     },
     {
       "id": "webgl_loader_gltf_dispersion",
-      "prepared": false,
+      "prepared": true,
       "verdict": "blocked",
       "uses": [
         "PerspectiveCamera",
@@ -4608,7 +4602,7 @@
     },
     {
       "id": "webgl_loader_gltf_instancing",
-      "prepared": false,
+      "prepared": true,
       "verdict": "unknown-api",
       "uses": [
         "PerspectiveCamera",
@@ -4627,7 +4621,7 @@
     },
     {
       "id": "webgl_loader_gltf_iridescence",
-      "prepared": false,
+      "prepared": true,
       "verdict": "blocked",
       "uses": [
         "WebGLRenderer",
@@ -4646,7 +4640,7 @@
     },
     {
       "id": "webgl_loader_gltf_progressive_lod",
-      "prepared": false,
+      "prepared": true,
       "verdict": "blocked",
       "uses": [
         "Scene",
@@ -4673,7 +4667,7 @@
     },
     {
       "id": "webgl_loader_gltf_sheen",
-      "prepared": false,
+      "prepared": true,
       "verdict": "blocked",
       "uses": [
         "PerspectiveCamera",
@@ -4695,7 +4689,7 @@
     },
     {
       "id": "webgl_loader_gltf_transmission",
-      "prepared": false,
+      "prepared": true,
       "verdict": "blocked",
       "uses": [
         "Timer",
@@ -4719,7 +4713,7 @@
     },
     {
       "id": "webgl_loader_gltf_variants",
-      "prepared": false,
+      "prepared": true,
       "verdict": "blocked",
       "uses": [
         "PerspectiveCamera",
@@ -4739,7 +4733,7 @@
     },
     {
       "id": "webgl_loader_ifc",
-      "prepared": false,
+      "prepared": true,
       "verdict": "blocked",
       "uses": [
         "Scene",
@@ -4765,7 +4759,7 @@
     },
     {
       "id": "webgl_loader_imagebitmap",
-      "prepared": false,
+      "prepared": true,
       "verdict": "supported",
       "uses": [
         "ImageBitmapLoader",
@@ -4786,7 +4780,7 @@
     },
     {
       "id": "webgl_loader_kmz",
-      "prepared": false,
+      "prepared": true,
       "verdict": "unknown-api",
       "uses": [
         "Scene",
@@ -4805,7 +4799,7 @@
     },
     {
       "id": "webgl_loader_ldraw",
-      "prepared": false,
+      "prepared": true,
       "verdict": "blocked",
       "uses": [
         "PerspectiveCamera",
@@ -4837,7 +4831,7 @@
     },
     {
       "id": "webgl_loader_md2",
-      "prepared": false,
+      "prepared": true,
       "verdict": "blocked",
       "uses": [
         "Timer",
@@ -4867,7 +4861,7 @@
     },
     {
       "id": "webgl_loader_md2_control",
-      "prepared": false,
+      "prepared": true,
       "verdict": "blocked",
       "uses": [
         "Timer",
@@ -4900,7 +4894,7 @@
     },
     {
       "id": "webgl_loader_mdd",
-      "prepared": false,
+      "prepared": true,
       "verdict": "blocked",
       "uses": [
         "Scene",
@@ -4920,7 +4914,7 @@
     },
     {
       "id": "webgl_loader_nrrd",
-      "prepared": false,
+      "prepared": true,
       "verdict": "blocked",
       "uses": [
         "PerspectiveCamera",
@@ -4946,7 +4940,7 @@
     },
     {
       "id": "webgl_loader_obj",
-      "prepared": false,
+      "prepared": true,
       "verdict": "blocked",
       "uses": [
         "PerspectiveCamera",
@@ -4965,7 +4959,7 @@
     },
     {
       "id": "webgl_loader_pcd",
-      "prepared": false,
+      "prepared": true,
       "verdict": "unknown-api",
       "uses": [
         "WebGLRenderer",
@@ -4983,7 +4977,7 @@
     },
     {
       "id": "webgl_loader_pdb",
-      "prepared": false,
+      "prepared": true,
       "verdict": "blocked",
       "uses": [
         "Vector3",
@@ -5057,7 +5051,7 @@
     },
     {
       "id": "webgl_loader_svg",
-      "prepared": false,
+      "prepared": true,
       "verdict": "blocked",
       "uses": [
         "PerspectiveCamera",
@@ -5079,7 +5073,7 @@
     },
     {
       "id": "webgl_loader_texture_dds",
-      "prepared": false,
+      "prepared": true,
       "verdict": "blocked",
       "uses": [
         "PerspectiveCamera",
@@ -5105,7 +5099,7 @@
     },
     {
       "id": "webgl_loader_texture_exr",
-      "prepared": false,
+      "prepared": true,
       "verdict": "supported",
       "uses": [
         "WebGLRenderer",
@@ -5123,7 +5117,7 @@
     },
     {
       "id": "webgl_loader_texture_hdr",
-      "prepared": false,
+      "prepared": true,
       "verdict": "blocked",
       "uses": [
         "WebGLRenderer",
@@ -5143,7 +5137,7 @@
     },
     {
       "id": "webgl_loader_texture_ktx",
-      "prepared": false,
+      "prepared": true,
       "verdict": "blocked",
       "uses": [
         "WebGLRenderer",
@@ -5166,7 +5160,7 @@
     },
     {
       "id": "webgl_loader_texture_ktx2",
-      "prepared": false,
+      "prepared": true,
       "verdict": "blocked",
       "uses": [
         "DataTexture",
@@ -5187,7 +5181,7 @@
     },
     {
       "id": "webgl_loader_texture_lottie",
-      "prepared": false,
+      "prepared": true,
       "verdict": "blocked",
       "uses": [
         "PerspectiveCamera",
@@ -5218,7 +5212,7 @@
     },
     {
       "id": "webgl_loader_texture_pvrtc",
-      "prepared": false,
+      "prepared": true,
       "verdict": "unknown-api",
       "uses": [
         "PerspectiveCamera",
@@ -5241,7 +5235,7 @@
     },
     {
       "id": "webgl_loader_texture_tga",
-      "prepared": false,
+      "prepared": true,
       "verdict": "unknown-api",
       "uses": [
         "PerspectiveCamera",
@@ -5264,7 +5258,7 @@
     },
     {
       "id": "webgl_loader_texture_tiff",
-      "prepared": false,
+      "prepared": true,
       "verdict": "unknown-api",
       "uses": [
         "PerspectiveCamera",
@@ -5283,7 +5277,7 @@
     },
     {
       "id": "webgl_loader_texture_ultrahdr",
-      "prepared": false,
+      "prepared": true,
       "verdict": "unknown-api",
       "uses": [
         "WebGLRenderer",
@@ -5306,7 +5300,7 @@
     },
     {
       "id": "webgl_loader_ttf",
-      "prepared": false,
+      "prepared": true,
       "verdict": "unknown-api",
       "uses": [
         "PerspectiveCamera",
@@ -5333,7 +5327,7 @@
     },
     {
       "id": "webgl_loader_usdz",
-      "prepared": false,
+      "prepared": true,
       "verdict": "blocked",
       "uses": [
         "PerspectiveCamera",
@@ -5354,7 +5348,7 @@
     },
     {
       "id": "webgl_loader_vox",
-      "prepared": false,
+      "prepared": true,
       "verdict": "unknown-api",
       "uses": [
         "PerspectiveCamera",
@@ -5372,7 +5366,7 @@
     },
     {
       "id": "webgl_loader_vrml",
-      "prepared": false,
+      "prepared": true,
       "verdict": "blocked",
       "uses": [
         "PerspectiveCamera",
@@ -5408,7 +5402,7 @@
     },
     {
       "id": "webgl_lod",
-      "prepared": false,
+      "prepared": true,
       "verdict": "blocked",
       "uses": [
         "Timer",
@@ -5431,7 +5425,7 @@
     },
     {
       "id": "webgl_marchingcubes",
-      "prepared": false,
+      "prepared": true,
       "verdict": "web-lane",
       "uses": [
         "Timer",
@@ -5470,7 +5464,7 @@
     },
     {
       "id": "webgl_materials_alphahash",
-      "prepared": false,
+      "prepared": true,
       "verdict": "blocked",
       "uses": [
         "Color",
@@ -5503,7 +5497,7 @@
     },
     {
       "id": "webgl_materials_blending",
-      "prepared": false,
+      "prepared": true,
       "verdict": "blocked",
       "uses": [
         "TextureLoader",
@@ -5533,7 +5527,7 @@
     },
     {
       "id": "webgl_materials_blending_custom",
-      "prepared": false,
+      "prepared": true,
       "verdict": "blocked",
       "uses": [
         "AddEquation",
@@ -5610,7 +5604,7 @@
     },
     {
       "id": "webgl_materials_car",
-      "prepared": false,
+      "prepared": true,
       "verdict": "blocked",
       "uses": [
         "WebGLRenderer",
@@ -5645,7 +5639,7 @@
     },
     {
       "id": "webgl_materials_channels",
-      "prepared": false,
+      "prepared": true,
       "verdict": "blocked",
       "uses": [
         "FrontSide",
@@ -5691,7 +5685,7 @@
     },
     {
       "id": "webgl_materials_cubemap",
-      "prepared": false,
+      "prepared": true,
       "verdict": "blocked",
       "uses": [
         "PerspectiveCamera",
@@ -5715,7 +5709,7 @@
     },
     {
       "id": "webgl_materials_cubemap_dynamic",
-      "prepared": false,
+      "prepared": true,
       "verdict": "blocked",
       "uses": [
         "WebGLRenderer",
@@ -5745,7 +5739,7 @@
     },
     {
       "id": "webgl_materials_cubemap_mipmaps",
-      "prepared": false,
+      "prepared": true,
       "verdict": "supported",
       "uses": [
         "CubeTextureLoader",
@@ -5787,7 +5781,7 @@
     },
     {
       "id": "webgl_materials_cubemap_render_to_mipmaps",
-      "prepared": false,
+      "prepared": true,
       "verdict": "web-lane",
       "uses": [
         "CubeTextureLoader",
@@ -5847,7 +5841,7 @@
     },
     {
       "id": "webgl_materials_envmaps",
-      "prepared": false,
+      "prepared": true,
       "verdict": "blocked",
       "uses": [
         "PerspectiveCamera",
@@ -5874,7 +5868,7 @@
     },
     {
       "id": "webgl_materials_envmaps_exr",
-      "prepared": false,
+      "prepared": true,
       "verdict": "web-lane",
       "uses": [
         "PerspectiveCamera",
@@ -5905,7 +5899,7 @@
     },
     {
       "id": "webgl_materials_envmaps_fasthdr",
-      "prepared": false,
+      "prepared": true,
       "verdict": "blocked",
       "uses": [
         "PerspectiveCamera",
@@ -5932,7 +5926,7 @@
     },
     {
       "id": "webgl_materials_envmaps_groundprojected",
-      "prepared": false,
+      "prepared": true,
       "verdict": "blocked",
       "uses": [
         "PerspectiveCamera",
@@ -5967,7 +5961,7 @@
     },
     {
       "id": "webgl_materials_envmaps_hdr",
-      "prepared": false,
+      "prepared": true,
       "verdict": "blocked",
       "uses": [
         "PerspectiveCamera",
@@ -6042,7 +6036,7 @@
     },
     {
       "id": "webgl_materials_normalmap",
-      "prepared": false,
+      "prepared": true,
       "verdict": "web-lane",
       "uses": [
         "PerspectiveCamera",
@@ -6087,7 +6081,7 @@
     },
     {
       "id": "webgl_materials_normalmap_object_space",
-      "prepared": false,
+      "prepared": true,
       "verdict": "blocked",
       "uses": [
         "WebGLRenderer",
@@ -6108,7 +6102,7 @@
     },
     {
       "id": "webgl_materials_physical_clearcoat",
-      "prepared": false,
+      "prepared": true,
       "verdict": "blocked",
       "uses": [
         "PerspectiveCamera",
@@ -6139,7 +6133,7 @@
     },
     {
       "id": "webgl_materials_physical_transmission",
-      "prepared": false,
+      "prepared": true,
       "verdict": "blocked",
       "uses": [
         "EquirectangularReflectionMapping",
@@ -6167,7 +6161,7 @@
     },
     {
       "id": "webgl_materials_physical_transmission_alpha",
-      "prepared": false,
+      "prepared": true,
       "verdict": "unknown-api",
       "uses": [
         "EquirectangularReflectionMapping",
@@ -6188,7 +6182,7 @@
     },
     {
       "id": "webgl_materials_subsurface_scattering",
-      "prepared": false,
+      "prepared": true,
       "verdict": "blocked",
       "uses": [
         "PerspectiveCamera",
@@ -6289,7 +6283,7 @@
     },
     {
       "id": "webgl_materials_texture_html",
-      "prepared": false,
+      "prepared": true,
       "verdict": "blocked",
       "uses": [
         "WebGLRenderer",
@@ -6319,7 +6313,7 @@
     },
     {
       "id": "webgl_materials_texture_manualmipmap",
-      "prepared": false,
+      "prepared": true,
       "verdict": "supported",
       "uses": [
         "PerspectiveCamera",
@@ -6415,7 +6409,7 @@
     },
     {
       "id": "webgl_materials_video",
-      "prepared": false,
+      "prepared": true,
       "verdict": "blocked",
       "uses": [
         "PerspectiveCamera",
@@ -6443,7 +6437,7 @@
     },
     {
       "id": "webgl_materials_video_webcam",
-      "prepared": false,
+      "prepared": true,
       "verdict": "blocked",
       "uses": [
         "PerspectiveCamera",
@@ -6463,7 +6457,7 @@
     },
     {
       "id": "webgl_materials_wireframe",
-      "prepared": false,
+      "prepared": true,
       "verdict": "web-lane",
       "uses": [
         "WebGLRenderer",
@@ -6533,7 +6527,7 @@
     },
     {
       "id": "webgl_mesh_batch",
-      "prepared": false,
+      "prepared": true,
       "verdict": "blocked",
       "uses": [
         "Matrix4",
@@ -6569,7 +6563,7 @@
     },
     {
       "id": "webgl_mirror",
-      "prepared": false,
+      "prepared": true,
       "verdict": "web-lane",
       "uses": [
         "Vector2",
@@ -6596,7 +6590,7 @@
     },
     {
       "id": "webgl_modifier_curve",
-      "prepared": false,
+      "prepared": true,
       "verdict": "blocked",
       "uses": [
         "Vector2",
@@ -6629,7 +6623,7 @@
     },
     {
       "id": "webgl_modifier_curve_instanced",
-      "prepared": false,
+      "prepared": true,
       "verdict": "blocked",
       "uses": [
         "Vector2",
@@ -6663,7 +6657,7 @@
     },
     {
       "id": "webgl_modifier_edgesplit",
-      "prepared": false,
+      "prepared": true,
       "verdict": "supported",
       "uses": [
         "WebGLRenderer",
@@ -6684,7 +6678,7 @@
     },
     {
       "id": "webgl_modifier_simplifier",
-      "prepared": false,
+      "prepared": true,
       "verdict": "supported",
       "uses": [
         "WebGLRenderer",
@@ -6702,7 +6696,7 @@
     },
     {
       "id": "webgl_modifier_subdivision",
-      "prepared": false,
+      "prepared": true,
       "verdict": "blocked",
       "uses": [
         "WebGLRenderer",
@@ -6746,7 +6740,7 @@
     },
     {
       "id": "webgl_modifier_tessellation",
-      "prepared": false,
+      "prepared": true,
       "verdict": "blocked",
       "uses": [
         "PerspectiveCamera",
@@ -6774,7 +6768,7 @@
     },
     {
       "id": "webgl_morphtargets",
-      "prepared": false,
+      "prepared": true,
       "verdict": "blocked",
       "uses": [
         "Scene",
@@ -6796,7 +6790,7 @@
     },
     {
       "id": "webgl_morphtargets_face",
-      "prepared": false,
+      "prepared": true,
       "verdict": "blocked",
       "uses": [
         "Timer",
@@ -6826,7 +6820,7 @@
     },
     {
       "id": "webgl_morphtargets_horse",
-      "prepared": false,
+      "prepared": true,
       "verdict": "blocked",
       "uses": [
         "PerspectiveCamera",
@@ -6845,7 +6839,7 @@
     },
     {
       "id": "webgl_morphtargets_sphere",
-      "prepared": false,
+      "prepared": true,
       "verdict": "blocked",
       "uses": [
         "PerspectiveCamera",
@@ -6865,7 +6859,7 @@
     },
     {
       "id": "webgl_morphtargets_webcam",
-      "prepared": false,
+      "prepared": true,
       "verdict": "blocked",
       "uses": [
         "WebGLRenderer",
@@ -6897,7 +6891,7 @@
     },
     {
       "id": "webgl_multiple_elements",
-      "prepared": false,
+      "prepared": true,
       "verdict": "blocked",
       "uses": [
         "BoxGeometry",
@@ -6921,7 +6915,7 @@
     },
     {
       "id": "webgl_multiple_elements_text",
-      "prepared": false,
+      "prepared": true,
       "verdict": "blocked",
       "uses": [
         "Timer",
@@ -6944,7 +6938,7 @@
     },
     {
       "id": "webgl_multiple_rendertargets",
-      "prepared": false,
+      "prepared": true,
       "verdict": "web-lane",
       "uses": [
         "WebGLRenderer",
@@ -6975,7 +6969,7 @@
     },
     {
       "id": "webgl_multiple_scenes_comparison",
-      "prepared": false,
+      "prepared": true,
       "verdict": "blocked",
       "uses": [
         "Scene",
@@ -6994,7 +6988,7 @@
     },
     {
       "id": "webgl_multiple_views",
-      "prepared": false,
+      "prepared": true,
       "verdict": "blocked",
       "uses": [
         "Color",
@@ -7018,7 +7012,7 @@
     },
     {
       "id": "webgl_multisampled_renderbuffers",
-      "prepared": false,
+      "prepared": true,
       "verdict": "web-lane",
       "uses": [
         "PerspectiveCamera",
@@ -7050,7 +7044,7 @@
     },
     {
       "id": "webgl_panorama_cube",
-      "prepared": false,
+      "prepared": true,
       "verdict": "supported",
       "uses": [
         "WebGLRenderer",
@@ -7087,7 +7081,7 @@
     },
     {
       "id": "webgl_performance",
-      "prepared": false,
+      "prepared": true,
       "verdict": "unknown-api",
       "uses": [
         "PerspectiveCamera",
@@ -7107,7 +7101,7 @@
     },
     {
       "id": "webgl_pmrem_cubemap",
-      "prepared": false,
+      "prepared": true,
       "verdict": "blocked",
       "uses": [
         "PerspectiveCamera",
@@ -7130,7 +7124,7 @@
     },
     {
       "id": "webgl_pmrem_equirectangular",
-      "prepared": false,
+      "prepared": true,
       "verdict": "blocked",
       "uses": [
         "PerspectiveCamera",
@@ -7155,7 +7149,7 @@
     },
     {
       "id": "webgl_pmrem_test",
-      "prepared": false,
+      "prepared": true,
       "verdict": "blocked",
       "uses": [
         "WebGLRenderer",
@@ -7203,7 +7197,7 @@
     },
     {
       "id": "webgl_points_dynamic",
-      "prepared": false,
+      "prepared": true,
       "verdict": "web-lane",
       "uses": [
         "Timer",
@@ -7243,7 +7237,7 @@
     },
     {
       "id": "webgl_points_sprites",
-      "prepared": false,
+      "prepared": true,
       "verdict": "blocked",
       "uses": [
         "PerspectiveCamera",
@@ -7267,7 +7261,7 @@
     },
     {
       "id": "webgl_points_waves",
-      "prepared": false,
+      "prepared": true,
       "verdict": "web-lane",
       "uses": [
         "PerspectiveCamera",
@@ -7287,7 +7281,7 @@
     },
     {
       "id": "webgl_portal",
-      "prepared": false,
+      "prepared": true,
       "verdict": "web-lane",
       "uses": [
         "WebGLRenderer",
@@ -7313,7 +7307,7 @@
     },
     {
       "id": "webgl_postprocessing",
-      "prepared": false,
+      "prepared": true,
       "verdict": "web-lane",
       "uses": [
         "WebGLRenderer",
@@ -7346,7 +7340,7 @@
     },
     {
       "id": "webgl_postprocessing_3dlut",
-      "prepared": false,
+      "prepared": true,
       "verdict": "web-lane",
       "uses": [
         "PerspectiveCamera",
@@ -7381,7 +7375,7 @@
     },
     {
       "id": "webgl_postprocessing_advanced",
-      "prepared": false,
+      "prepared": true,
       "verdict": "web-lane",
       "uses": [
         "OrthographicCamera",
@@ -7441,7 +7435,7 @@
     },
     {
       "id": "webgl_postprocessing_afterimage",
-      "prepared": false,
+      "prepared": true,
       "verdict": "web-lane",
       "uses": [
         "WebGLRenderer",
@@ -7467,7 +7461,7 @@
     },
     {
       "id": "webgl_postprocessing_backgrounds",
-      "prepared": false,
+      "prepared": true,
       "verdict": "web-lane",
       "uses": [
         "WebGLRenderer",
@@ -7503,7 +7497,7 @@
     },
     {
       "id": "webgl_postprocessing_dof",
-      "prepared": false,
+      "prepared": true,
       "verdict": "web-lane",
       "uses": [
         "PerspectiveCamera",
@@ -7530,7 +7524,7 @@
     },
     {
       "id": "webgl_postprocessing_dof2",
-      "prepared": false,
+      "prepared": true,
       "verdict": "web-lane",
       "uses": [
         "Vector2",
@@ -7568,7 +7562,7 @@
     },
     {
       "id": "webgl_postprocessing_fxaa",
-      "prepared": false,
+      "prepared": true,
       "verdict": "web-lane",
       "uses": [
         "PerspectiveCamera",
@@ -7596,7 +7590,7 @@
     },
     {
       "id": "webgl_postprocessing_glitch",
-      "prepared": false,
+      "prepared": true,
       "verdict": "web-lane",
       "uses": [
         "WebGLRenderer",
@@ -7625,7 +7619,7 @@
     },
     {
       "id": "webgl_postprocessing_godrays",
-      "prepared": false,
+      "prepared": true,
       "verdict": "web-lane",
       "uses": [
         "PerspectiveCamera",
@@ -7656,7 +7650,7 @@
     },
     {
       "id": "webgl_postprocessing_gtao",
-      "prepared": false,
+      "prepared": true,
       "verdict": "blocked",
       "uses": [
         "Timer",
@@ -7691,7 +7685,7 @@
     },
     {
       "id": "webgl_postprocessing_masking",
-      "prepared": false,
+      "prepared": true,
       "verdict": "web-lane",
       "uses": [
         "PerspectiveCamera",
@@ -7722,7 +7716,7 @@
     },
     {
       "id": "webgl_postprocessing_outline",
-      "prepared": false,
+      "prepared": true,
       "verdict": "blocked",
       "uses": [
         "Raycaster",
@@ -7768,7 +7762,7 @@
     },
     {
       "id": "webgl_postprocessing_pixel",
-      "prepared": false,
+      "prepared": true,
       "verdict": "web-lane",
       "uses": [
         "OrthographicCamera",
@@ -7809,7 +7803,7 @@
     },
     {
       "id": "webgl_postprocessing_procedural",
-      "prepared": false,
+      "prepared": true,
       "verdict": "web-lane",
       "uses": [
         "WebGLRenderer",
@@ -7828,7 +7822,7 @@
     },
     {
       "id": "webgl_postprocessing_rgb_halftone",
-      "prepared": false,
+      "prepared": true,
       "verdict": "web-lane",
       "uses": [
         "WebGLRenderer",
@@ -7859,7 +7853,7 @@
     },
     {
       "id": "webgl_postprocessing_sao",
-      "prepared": false,
+      "prepared": true,
       "verdict": "web-lane",
       "uses": [
         "WebGLRenderer",
@@ -7889,7 +7883,7 @@
     },
     {
       "id": "webgl_postprocessing_smaa",
-      "prepared": false,
+      "prepared": true,
       "verdict": "web-lane",
       "uses": [
         "WebGLRenderer",
@@ -7917,7 +7911,7 @@
     },
     {
       "id": "webgl_postprocessing_sobel",
-      "prepared": false,
+      "prepared": true,
       "verdict": "web-lane",
       "uses": [
         "Scene",
@@ -7948,7 +7942,7 @@
     },
     {
       "id": "webgl_postprocessing_ssaa",
-      "prepared": false,
+      "prepared": true,
       "verdict": "web-lane",
       "uses": [
         "WebGLRenderer",
@@ -7979,7 +7973,7 @@
     },
     {
       "id": "webgl_postprocessing_ssao",
-      "prepared": false,
+      "prepared": true,
       "verdict": "web-lane",
       "uses": [
         "WebGLRenderer",
@@ -8010,7 +8004,7 @@
     },
     {
       "id": "webgl_postprocessing_ssr",
-      "prepared": false,
+      "prepared": true,
       "verdict": "blocked",
       "uses": [
         "PerspectiveCamera",
@@ -8048,7 +8042,7 @@
     },
     {
       "id": "webgl_postprocessing_taa",
-      "prepared": false,
+      "prepared": true,
       "verdict": "web-lane",
       "uses": [
         "WebGLRenderer",
@@ -8077,7 +8071,7 @@
     },
     {
       "id": "webgl_postprocessing_transition",
-      "prepared": false,
+      "prepared": true,
       "verdict": "web-lane",
       "uses": [
         "Timer",
@@ -8110,7 +8104,7 @@
     },
     {
       "id": "webgl_postprocessing_unreal_bloom",
-      "prepared": false,
+      "prepared": true,
       "verdict": "web-lane",
       "uses": [
         "Timer",
@@ -8141,7 +8135,7 @@
     },
     {
       "id": "webgl_postprocessing_unreal_bloom_selective",
-      "prepared": false,
+      "prepared": true,
       "verdict": "blocked",
       "uses": [
         "Layers",
@@ -8186,7 +8180,7 @@
     },
     {
       "id": "webgl_random_uv",
-      "prepared": false,
+      "prepared": true,
       "verdict": "blocked",
       "uses": [
         "PerspectiveCamera",
@@ -8218,7 +8212,7 @@
     },
     {
       "id": "webgl_raycaster_bvh",
-      "prepared": false,
+      "prepared": true,
       "verdict": "blocked",
       "uses": [
         "BufferGeometry",
@@ -8300,7 +8294,7 @@
     },
     {
       "id": "webgl_read_float_buffer",
-      "prepared": false,
+      "prepared": true,
       "verdict": "web-lane",
       "uses": [
         "OrthographicCamera",
@@ -8327,7 +8321,7 @@
     },
     {
       "id": "webgl_refraction",
-      "prepared": false,
+      "prepared": true,
       "verdict": "web-lane",
       "uses": [
         "Timer",
@@ -8353,7 +8347,7 @@
     },
     {
       "id": "webgl_renderer_pathtracer",
-      "prepared": false,
+      "prepared": true,
       "verdict": "blocked",
       "uses": [
         "PerspectiveCamera",
@@ -8394,7 +8388,7 @@
     },
     {
       "id": "webgl_rendertarget_texture2darray",
-      "prepared": false,
+      "prepared": true,
       "verdict": "web-lane",
       "uses": [
         "Scene",
@@ -8425,7 +8419,7 @@
     },
     {
       "id": "webgl_reversed_depth_buffer",
-      "prepared": false,
+      "prepared": true,
       "verdict": "web-lane",
       "uses": [
         "WebGLRenderTarget",
@@ -8457,7 +8451,7 @@
     },
     {
       "id": "webgl_rtt",
-      "prepared": false,
+      "prepared": true,
       "verdict": "web-lane",
       "uses": [
         "PerspectiveCamera",
@@ -8483,7 +8477,7 @@
     },
     {
       "id": "webgl_sculpt",
-      "prepared": false,
+      "prepared": true,
       "verdict": "blocked",
       "uses": [
         "Vector3",
@@ -8517,7 +8511,7 @@
     },
     {
       "id": "webgl_shader",
-      "prepared": false,
+      "prepared": true,
       "verdict": "web-lane",
       "uses": [
         "OrthographicCamera",
@@ -8534,7 +8528,7 @@
     },
     {
       "id": "webgl_shader_lava",
-      "prepared": false,
+      "prepared": true,
       "verdict": "web-lane",
       "uses": [
         "PerspectiveCamera",
@@ -8565,7 +8559,7 @@
     },
     {
       "id": "webgl_shaders_ocean",
-      "prepared": false,
+      "prepared": true,
       "verdict": "web-lane",
       "uses": [
         "WebGLRenderer",
@@ -8602,7 +8596,7 @@
     },
     {
       "id": "webgl_shaders_sky",
-      "prepared": false,
+      "prepared": true,
       "verdict": "web-lane",
       "uses": [
         "Vector3",
@@ -8631,7 +8625,7 @@
     },
     {
       "id": "webgl_shadow_contact",
-      "prepared": false,
+      "prepared": true,
       "verdict": "blocked",
       "uses": [
         "PerspectiveCamera",
@@ -8668,7 +8662,7 @@
     },
     {
       "id": "webgl_shadowmap",
-      "prepared": false,
+      "prepared": true,
       "verdict": "web-lane",
       "uses": [
         "Timer",
@@ -8702,7 +8696,7 @@
     },
     {
       "id": "webgl_shadowmap_csm",
-      "prepared": false,
+      "prepared": true,
       "verdict": "web-lane",
       "uses": [
         "Scene",
@@ -8730,7 +8724,7 @@
     },
     {
       "id": "webgl_shadowmap_pcss",
-      "prepared": false,
+      "prepared": true,
       "verdict": "web-lane",
       "uses": [
         "Scene",
@@ -8758,7 +8752,7 @@
     },
     {
       "id": "webgl_shadowmap_performance",
-      "prepared": false,
+      "prepared": true,
       "verdict": "blocked",
       "uses": [
         "Timer",
@@ -8821,7 +8815,7 @@
     },
     {
       "id": "webgl_shadowmap_progressive",
-      "prepared": false,
+      "prepared": true,
       "verdict": "blocked",
       "uses": [
         "Mesh",
@@ -8850,7 +8844,7 @@
     },
     {
       "id": "webgl_shadowmap_viewer",
-      "prepared": false,
+      "prepared": true,
       "verdict": "web-lane",
       "uses": [
         "PerspectiveCamera",
@@ -8877,7 +8871,7 @@
     },
     {
       "id": "webgl_shadowmap_vsm",
-      "prepared": false,
+      "prepared": true,
       "verdict": "web-lane",
       "uses": [
         "PerspectiveCamera",
@@ -8907,7 +8901,7 @@
     },
     {
       "id": "webgl_shadowmesh",
-      "prepared": false,
+      "prepared": true,
       "verdict": "supported",
       "uses": [
         "Scene",
@@ -8935,7 +8929,7 @@
     },
     {
       "id": "webgl_simple_gi",
-      "prepared": false,
+      "prepared": true,
       "verdict": "web-lane",
       "uses": [
         "Mesh",
@@ -8979,7 +8973,7 @@
     },
     {
       "id": "webgl_test_memory",
-      "prepared": false,
+      "prepared": true,
       "verdict": "supported",
       "uses": [
         "PerspectiveCamera",
@@ -8996,7 +8990,7 @@
     },
     {
       "id": "webgl_test_memory2",
-      "prepared": false,
+      "prepared": true,
       "verdict": "web-lane",
       "uses": [
         "PerspectiveCamera",
@@ -9014,7 +9008,7 @@
     },
     {
       "id": "webgl_test_wide_gamut",
-      "prepared": false,
+      "prepared": true,
       "verdict": "blocked",
       "uses": [
         "ColorManagement",
@@ -9034,7 +9028,7 @@
     },
     {
       "id": "webgl_texture2darray",
-      "prepared": false,
+      "prepared": true,
       "verdict": "web-lane",
       "uses": [
         "PerspectiveCamera",
@@ -9063,7 +9057,7 @@
     },
     {
       "id": "webgl_texture2darray_compressed",
-      "prepared": false,
+      "prepared": true,
       "verdict": "blocked",
       "uses": [
         "PerspectiveCamera",
@@ -9087,7 +9081,7 @@
     },
     {
       "id": "webgl_texture2darray_layerupdate",
-      "prepared": false,
+      "prepared": true,
       "verdict": "blocked",
       "uses": [
         "PerspectiveCamera",
@@ -9118,7 +9112,7 @@
     },
     {
       "id": "webgl_texture3d",
-      "prepared": false,
+      "prepared": true,
       "verdict": "blocked",
       "uses": [
         "Scene",
@@ -9151,7 +9145,7 @@
     },
     {
       "id": "webgl_texture3d_partialupdate",
-      "prepared": false,
+      "prepared": true,
       "verdict": "blocked",
       "uses": [
         "Vector3",
@@ -9185,7 +9179,7 @@
     },
     {
       "id": "webgl_tonemapping",
-      "prepared": false,
+      "prepared": true,
       "verdict": "blocked",
       "uses": [
         "NoToneMapping",
@@ -9220,7 +9214,7 @@
     },
     {
       "id": "webgl_tsl_clearcoat",
-      "prepared": false,
+      "prepared": true,
       "verdict": "blocked",
       "uses": [
         "PerspectiveCamera",
@@ -9255,7 +9249,7 @@
     },
     {
       "id": "webgl_tsl_instancing",
-      "prepared": false,
+      "prepared": true,
       "verdict": "blocked",
       "uses": [
         "Vector3",
@@ -9286,7 +9280,7 @@
     },
     {
       "id": "webgl_tsl_shadowmap",
-      "prepared": false,
+      "prepared": true,
       "verdict": "blocked",
       "uses": [
         "PerspectiveCamera",
@@ -9319,7 +9313,7 @@
     },
     {
       "id": "webgl_tsl_skinning",
-      "prepared": false,
+      "prepared": true,
       "verdict": "blocked",
       "uses": [
         "PerspectiveCamera",
@@ -9343,7 +9337,7 @@
     },
     {
       "id": "webgl_ubo",
-      "prepared": false,
+      "prepared": true,
       "verdict": "web-lane",
       "uses": [
         "PerspectiveCamera",
@@ -9373,7 +9367,7 @@
     },
     {
       "id": "webgl_ubo_arrays",
-      "prepared": false,
+      "prepared": true,
       "verdict": "web-lane",
       "uses": [
         "PerspectiveCamera",
@@ -9404,7 +9398,7 @@
     },
     {
       "id": "webgl_video_kinect",
-      "prepared": false,
+      "prepared": true,
       "verdict": "blocked",
       "uses": [
         "PerspectiveCamera",
@@ -9429,7 +9423,7 @@
     },
     {
       "id": "webgl_video_panorama_equirectangular",
-      "prepared": false,
+      "prepared": true,
       "verdict": "blocked",
       "uses": [
         "PerspectiveCamera",
@@ -9449,7 +9443,7 @@
     },
     {
       "id": "webgl_volume_cloud",
-      "prepared": false,
+      "prepared": true,
       "verdict": "blocked",
       "uses": [
         "WebGLRenderer",
@@ -9482,7 +9476,7 @@
     },
     {
       "id": "webgl_volume_instancing",
-      "prepared": false,
+      "prepared": true,
       "verdict": "web-lane",
       "uses": [
         "WebGLRenderer",
@@ -9509,7 +9503,7 @@
     },
     {
       "id": "webgl_volume_perlin",
-      "prepared": false,
+      "prepared": true,
       "verdict": "blocked",
       "uses": [
         "WebGLRenderer",
@@ -9537,7 +9531,7 @@
     },
     {
       "id": "webgl_watch",
-      "prepared": false,
+      "prepared": true,
       "verdict": "blocked",
       "uses": [
         "PerspectiveCamera",
@@ -9573,7 +9567,7 @@
     },
     {
       "id": "webgl_worker_offscreencanvas",
-      "prepared": false,
+      "prepared": true,
       "verdict": "blocked",
       "uses": [
         "addon:offscreen/jank.js",
@@ -10014,9 +10008,6 @@
       ],
       "blockers": [
         "MeshBasicNodeMaterial (WebGPU/TSL node materials)",
-        "AlwaysStencilFunc (stencil state outside R1)",
-        "NotEqualStencilFunc (stencil state outside R1)",
-        "ReplaceStencilOp (stencil state outside R1)",
         "WebGPURenderer (WebGPU outside R1)",
         "addon:lights/SunLight.js (WebGPU)"
       ],

@@ -214,6 +214,8 @@
       "InterpolationSamplingMode",
       "InterpolationSamplingType",
       "InvertStencilOp",
+      "JsrImageBitmapLoader",
+      "JsrPMREMGenerator",
       "JsrThreeCanvas",
       "KeepStencilOp",
       "KeyframeTrack",
@@ -488,9 +490,11 @@
       "ZeroFactor",
       "ZeroSlopeEnding",
       "ZeroStencilOp",
+      "createBoundedCSGEvaluator",
       "createCanvasElement",
       "error",
       "getConsoleFunction",
+      "getNativeCSGDiagnostics",
       "getNativeRaycastDiagnostics",
       "log",
       "setConsoleFunction",
@@ -498,18 +502,18 @@
       "warnOnce"
     ],
     "source": {
-      "bytes": 40403,
-      "sha256": "8c257f8c1174fee7d5ea77759aa8ad0f1d654534cd97e9cb9656faaae382bd40"
+      "bytes": 40813,
+      "sha256": "0c1fadae1a3359d56dec16fb23cfa392782d3f466d95a503e8f49d5e8296a8fc"
     }
   },
   "inputs": {
-    "assets/three/three.native.js": {
-      "bytes": 729395,
-      "sha256": "fac454c7680a7d75270a41f8dbd42076c94aad607ece3f37fcd12556954b57b4"
+    "assets/three/jsr_three_native.js": {
+      "bytes": 838188,
+      "sha256": "774cd82da77974165fd9ec3122c1e4e4505bca3faa5003cb72afc6a59f5f4e5b"
     },
-    "assets/three/three.web.js": {
-      "bytes": 835134,
-      "sha256": "9fc36cb776a1a4a8c0ef3e2e7fdefa7943967d4e525014b339f9e7417edc625a"
+    "assets/three/jsr_three_web.js": {
+      "bytes": 857885,
+      "sha256": "8bf94959ca16ffd59b904e040edcf4ffe405eac56cf941285a2da0a5337fb878"
     },
     "source/LICENSE": {
       "bytes": 1081,
@@ -532,8 +536,8 @@
       "sha256": "b1632a703206c3d830de9fcbe515696770d04b71a15ee6b50afa6d2c3298c86f"
     },
     "source/examples/models/gltf/Nefertiti/Nefertiti.glb": {
-      "bytes": 1233272,
-      "sha256": "f97b4c631d633fcbe780b95b1778f5d15518204c5170dd472340596192b4741b"
+      "bytes": 1233240,
+      "sha256": "d8c00c742b59137695245eefeef0e217d6e33c64eeaeb1904ff39f6b31542639"
     },
     "source/examples/models/gltf/Nefertiti/material0_basecolor.jpg": {
       "bytes": 291043,
@@ -552,34 +556,50 @@
       "sha256": "29492424209a17a723b3b0c8e9c83995697a4c466840d1b33ba6f6ff2b7542a4"
     },
     "tool/three/src/native_entry.js": {
-      "bytes": 882,
-      "sha256": "5fb8a476137d36328693c1d75c0754075b673f0f18acdfeafe12c6b4426cf57f"
+      "bytes": 26368,
+      "sha256": "dac7dc374e1374499bc9e9a84593e7e1e848bfcde7bb916d7212ccd517e861d3"
+    },
+    "tool/three_example/asset_decode.mjs": {
+      "bytes": 42102,
+      "sha256": "81e15438074e820dc13552b267de326fab895bca729cc5db744da6bedb420a26"
+    },
+    "tool/three_example/asset_discovery.mjs": {
+      "bytes": 12424,
+      "sha256": "89a14e272cb1ddac5b555b4361af938764127ee069ac367a18262b8299643eca"
     },
     "tool/three_example/example_adapter.js": {
-      "bytes": 14550,
-      "sha256": "bd270a4cc40d715daff1dfdea195ade30be968514d6774fbe4ea03b0baefbaf9"
+      "bytes": 49943,
+      "sha256": "1ab349ba0361871765f4351a6fc3228fb05c93315985fbbf07644592c96ad8c4"
     },
     "tool/three_example/example_canvas2d.js": {
-      "bytes": 12314,
-      "sha256": "f44f052a653ea254ae30b04cbeda1ed2476dd455bcd1055970970980ec94c53f"
+      "bytes": 22635,
+      "sha256": "3bb5bcd47d637e187e79fd7463ba4247e3cc7b5705e62229983e8e607fccf753"
     },
     "tool/three_example/lil_gui_adapter.js": {
-      "bytes": 28485,
-      "sha256": "de03987c75754c821c3e511a5edc819a1054ed73d95d09b7d65ec3dd69e0fa40"
+      "bytes": 32173,
+      "sha256": "2f83bde66c35db02a16eec3db21beae0e1198e04f1b0723f9b3dbda89c6675f7"
     },
     "tool/three_example/prepare.mjs": {
-      "bytes": 136493,
-      "sha256": "d8fa7555a2613afcf8e4275dede9b94b13bd4679a98e6643cbb1cd135d5eb15f"
+      "bytes": 315738,
+      "sha256": "3b0289d8d7db92ec08e8c41644ccd934458c173e6a4c6f0a7c7856b3281466f5"
     },
     "tool/three_example/stats_adapter.js": {
       "bytes": 2107,
       "sha256": "98defe8785b259fdf70182c7d4a0a8e8e39ff8be901c3a9f93cd991240784086"
+    },
+    "tool/three_example/vendor/lock.json": {
+      "bytes": 3496,
+      "sha256": "684724e244c7042cbe7bd1fa0dace4e9a653a73d25c35f04c21b9d62d0eb6219"
+    },
+    "tool/three_example/vendor/xml_dom.js": {
+      "bytes": 18555,
+      "sha256": "b5ed0f0cfc690fc55c03280cc3c2ab67e39d09504b51d979a827306e00249182"
     }
   },
   "outputs": {
     "Nefertiti.glb": {
-      "bytes": 1233272,
-      "sha256": "f97b4c631d633fcbe780b95b1778f5d15518204c5170dd472340596192b4741b"
+      "bytes": 1233252,
+      "sha256": "c984f3596be399991af2cc50f9eaa36c3fe77b38253bdda6e824542df8cf426f"
     },
     "THREE_LICENSE": {
       "bytes": 1081,
@@ -606,8 +626,8 @@
       "sha256": "45c84138ac446bb204a0ab7cac31ad67a55bb004a45874d6b980a7b73420c5ec"
     },
     "widget.js": {
-      "bytes": 2490858,
-      "sha256": "23390e1a7ce4f2bc0deb6fa5268550808b0259dd66cd83ecd197f401f451ee53"
+      "bytes": 2522303,
+      "sha256": "6a319fed1bd19c68773c9412f7f57b23417185db43c215b711080fd7a22db530"
     }
   }
 }

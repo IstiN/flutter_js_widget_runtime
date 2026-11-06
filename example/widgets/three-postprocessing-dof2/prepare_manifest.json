@@ -43,6 +43,47 @@
       "sha256": "7d453ac6fc7c29d0c7721366c79c971b2f92f8e90ddc456baaca8c7a30fe2323"
     }
   },
+  "assetPolicy": {
+    "inlineMaxBytes": 1500000,
+    "externalAssets": [
+      {
+        "url": "textures/cube/Bridge2/negx.jpg",
+        "file": "bridge2-negx.jpg",
+        "bytes": 4194304,
+        "sha256": "59740642dcfe9c2527bc47883bd05ec849a41163ed335deb8f8fb768fb52ae07"
+      },
+      {
+        "url": "textures/cube/Bridge2/negy.jpg",
+        "file": "bridge2-negy.jpg",
+        "bytes": 4194304,
+        "sha256": "2d20edbc4fa9439f8d4152a00cfc97e6b72dfe1afbd36089a2c072c2657d9225"
+      },
+      {
+        "url": "textures/cube/Bridge2/negz.jpg",
+        "file": "bridge2-negz.jpg",
+        "bytes": 4194304,
+        "sha256": "1938953ad89ced2d73a7c93c4ad680ac035537f130ff68780437564c0e0bdfee"
+      },
+      {
+        "url": "textures/cube/Bridge2/posx.jpg",
+        "file": "bridge2-posx.jpg",
+        "bytes": 4194304,
+        "sha256": "4543e71968538092b646bfc56882802f2c7219b1615e50892e89854fd44cb55e"
+      },
+      {
+        "url": "textures/cube/Bridge2/posy.jpg",
+        "file": "bridge2-posy.jpg",
+        "bytes": 4194304,
+        "sha256": "0fb15d4923f799e217de28b34be02bc0f5e4064bac229fe8dd69d4f35077f588"
+      },
+      {
+        "url": "textures/cube/Bridge2/posz.jpg",
+        "file": "bridge2-posz.jpg",
+        "bytes": 4194304,
+        "sha256": "181c6b3b644673f2449b680e544fa49eaa6101ebf7b3a29010d9e16b4314644d"
+      }
+    ]
+  },
   "facade": {
     "global": "globalThis.THREE",
     "exports": [
@@ -214,6 +255,7 @@
       "InterpolationSamplingMode",
       "InterpolationSamplingType",
       "InvertStencilOp",
+      "JsrImageBitmapLoader",
       "JsrPMREMGenerator",
       "JsrThreeCanvas",
       "KeepStencilOp",
@@ -489,9 +531,11 @@
       "ZeroFactor",
       "ZeroSlopeEnding",
       "ZeroStencilOp",
+      "createBoundedCSGEvaluator",
       "createCanvasElement",
       "error",
       "getConsoleFunction",
+      "getNativeCSGDiagnostics",
       "getNativeRaycastDiagnostics",
       "log",
       "setConsoleFunction",
@@ -499,18 +543,18 @@
       "warnOnce"
     ],
     "source": {
-      "bytes": 40484,
-      "sha256": "0edc4685c4d852108e865ef82a3cf60609766ef0686be3e447e454b7b654a467"
+      "bytes": 40800,
+      "sha256": "9f0b70fa0d3cb9f135d49d755d407222391ecf591ed3dc6e1a034d5b446d5f80"
     }
   },
   "inputs": {
-    "assets/three/three.native.js": {
-      "bytes": 777104,
-      "sha256": "5adcb8e7c2d94dd83748134c4d13b9fcfcba9b671445fe27de895575402241b0"
+    "assets/three/jsr_three_native.js": {
+      "bytes": 838188,
+      "sha256": "774cd82da77974165fd9ec3122c1e4e4505bca3faa5003cb72afc6a59f5f4e5b"
     },
-    "assets/three/three.web.js": {
-      "bytes": 855325,
-      "sha256": "973b78155b07710ece2f22e803cb25a8cb08da4f62b5f825dc676715f5859311"
+    "assets/three/jsr_three_web.js": {
+      "bytes": 857885,
+      "sha256": "8bf94959ca16ffd59b904e040edcf4ffe405eac56cf941285a2da0a5337fb878"
     },
     "source/LICENSE": {
       "bytes": 1081,
@@ -524,6 +568,34 @@
       "bytes": 9865,
       "sha256": "2aa29eebe47bff7fb5fe059df1be3e94430e3498ae14da947166979452145b65"
     },
+    "source/examples/models/json/suzanne_buffergeometry.json": {
+      "bytes": 24675,
+      "sha256": "8aa6f692a08b2ec0991b7903914cfa3154e2f553a4ca72ca3fb5d7e6c16f839f"
+    },
+    "source/examples/textures/cube/Bridge2/negx.jpg": {
+      "bytes": 119967,
+      "sha256": "047052e77f698a819903f1d2fe27b40ee56930150fc38913da7e1c58e8dcae70"
+    },
+    "source/examples/textures/cube/Bridge2/negy.jpg": {
+      "bytes": 139902,
+      "sha256": "52b4b95125c777d48ac9ea568d79d55fd3fb62e24a7da37600720cdddb7ab333"
+    },
+    "source/examples/textures/cube/Bridge2/negz.jpg": {
+      "bytes": 157978,
+      "sha256": "1bc79f442f31931576d734565821b41b331a017dd86f2ac6a60ac6d3bbbbe6ba"
+    },
+    "source/examples/textures/cube/Bridge2/posx.jpg": {
+      "bytes": 134029,
+      "sha256": "bfea380ae3b2f2b44d3040c9fe7a8f3e325450a12b7a0f29561b5ca175f1a250"
+    },
+    "source/examples/textures/cube/Bridge2/posy.jpg": {
+      "bytes": 105686,
+      "sha256": "cc467777340037ee8f95460b19772a8ae6a71c125af1714bfd408db2c1c33d98"
+    },
+    "source/examples/textures/cube/Bridge2/posz.jpg": {
+      "bytes": 162661,
+      "sha256": "d56085e5da2e8f2cee13694519ed153995045f5a11b1d41d25be70380cf15548"
+    },
     "source/examples/webgl_postprocessing_dof2.html": {
       "bytes": 13928,
       "sha256": "c68085e65ad3192e205aa5b7900d9bc597f2ba272ee09af693d340997c267d59"
@@ -533,34 +605,78 @@
       "sha256": "29492424209a17a723b3b0c8e9c83995697a4c466840d1b33ba6f6ff2b7542a4"
     },
     "tool/three/src/native_entry.js": {
-      "bytes": 1951,
-      "sha256": "7852c54a706c19e98978c884aa9cd9bfd8d040a2d304c8e6d8cf973dd3554eaf"
+      "bytes": 26368,
+      "sha256": "dac7dc374e1374499bc9e9a84593e7e1e848bfcde7bb916d7212ccd517e861d3"
+    },
+    "tool/three_example/asset_decode.mjs": {
+      "bytes": 51634,
+      "sha256": "273d0f8261829418eb08a93177990de1fb76cda9211852d578439a39ceb61af1"
+    },
+    "tool/three_example/asset_discovery.mjs": {
+      "bytes": 12424,
+      "sha256": "89a14e272cb1ddac5b555b4361af938764127ee069ac367a18262b8299643eca"
     },
     "tool/three_example/example_adapter.js": {
-      "bytes": 20723,
-      "sha256": "9c713a0daa93289f0aeb2d75de6c067569ca4bc2235c24f3bb2bc8feab03336c"
+      "bytes": 49943,
+      "sha256": "1ab349ba0361871765f4351a6fc3228fb05c93315985fbbf07644592c96ad8c4"
     },
     "tool/three_example/example_canvas2d.js": {
-      "bytes": 20988,
-      "sha256": "ae6143c0400efcb2b9ca05c69416ea13519aa5c94a8e7d2e75ffe767ef4c8fba"
+      "bytes": 22635,
+      "sha256": "3bb5bcd47d637e187e79fd7463ba4247e3cc7b5705e62229983e8e607fccf753"
     },
     "tool/three_example/lil_gui_adapter.js": {
-      "bytes": 28916,
-      "sha256": "dc11346394f41bb4f385738d3afa6aa75e695ac80fe3be3a5fbf4201686376bf"
+      "bytes": 32173,
+      "sha256": "2f83bde66c35db02a16eec3db21beae0e1198e04f1b0723f9b3dbda89c6675f7"
     },
     "tool/three_example/prepare.mjs": {
-      "bytes": 247876,
-      "sha256": "4ed1752612b57fb4ac32f62717e772e9a85f4e8a0f7e51a764443b68af0b8aac"
+      "bytes": 341164,
+      "sha256": "6f705835b1b150a5c989f358ca4e0e263e67eaa198cb95e6ca48b81a6f424535"
     },
     "tool/three_example/stats_adapter.js": {
       "bytes": 2107,
       "sha256": "98defe8785b259fdf70182c7d4a0a8e8e39ff8be901c3a9f93cd991240784086"
+    },
+    "tool/three_example/vendor/lock.json": {
+      "bytes": 3496,
+      "sha256": "684724e244c7042cbe7bd1fa0dace4e9a653a73d25c35f04c21b9d62d0eb6219"
+    },
+    "tool/three_example/vendor/xml_dom.js": {
+      "bytes": 18555,
+      "sha256": "b5ed0f0cfc690fc55c03280cc3c2ab67e39d09504b51d979a827306e00249182"
     }
   },
   "outputs": {
     "THREE_LICENSE": {
       "bytes": 1081,
       "sha256": "8b378ebe60e2fe500158cb0ac71cb5e8b7d92953c2abcc63a0eb90499653b5bc"
+    },
+    "assets.json": {
+      "bytes": 1945,
+      "sha256": "ed6e5659980ec518d5124ff787a47b1a95c5b36530859daf54647b38256a7062"
+    },
+    "bridge2-negx.jpg": {
+      "bytes": 4194304,
+      "sha256": "59740642dcfe9c2527bc47883bd05ec849a41163ed335deb8f8fb768fb52ae07"
+    },
+    "bridge2-negy.jpg": {
+      "bytes": 4194304,
+      "sha256": "2d20edbc4fa9439f8d4152a00cfc97e6b72dfe1afbd36089a2c072c2657d9225"
+    },
+    "bridge2-negz.jpg": {
+      "bytes": 4194304,
+      "sha256": "1938953ad89ced2d73a7c93c4ad680ac035537f130ff68780437564c0e0bdfee"
+    },
+    "bridge2-posx.jpg": {
+      "bytes": 4194304,
+      "sha256": "4543e71968538092b646bfc56882802f2c7219b1615e50892e89854fd44cb55e"
+    },
+    "bridge2-posy.jpg": {
+      "bytes": 4194304,
+      "sha256": "0fb15d4923f799e217de28b34be02bc0f5e4064bac229fe8dd69d4f35077f588"
+    },
+    "bridge2-posz.jpg": {
+      "bytes": 4194304,
+      "sha256": "181c6b3b644673f2449b680e544fa49eaa6101ebf7b3a29010d9e16b4314644d"
     },
     "manifest.json": {
       "bytes": 366,
@@ -574,9 +690,13 @@
       "bytes": 13928,
       "sha256": "c68085e65ad3192e205aa5b7900d9bc597f2ba272ee09af693d340997c267d59"
     },
+    "suzanne_buffergeometry.json": {
+      "bytes": 24675,
+      "sha256": "8aa6f692a08b2ec0991b7903914cfa3154e2f553a4ca72ca3fb5d7e6c16f839f"
+    },
     "widget.js": {
-      "bytes": 90291,
-      "sha256": "70e3cae9a19ddd0c2e394a720bc333b0e0a942ca5248290ce0f6872667471b07"
+      "bytes": 149530,
+      "sha256": "e5f8f008a0d63f6a31aa41c57975f20a67f4cc4d28f409eba7f68c9f8e771035"
     }
   }
 }

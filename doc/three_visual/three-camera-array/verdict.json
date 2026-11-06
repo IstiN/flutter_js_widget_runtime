@@ -1,0 +1,16 @@
+{
+  "auto_seeded": false,
+  "mae": 0.028083,
+  "official_id": "webgl_camera_array",
+  "performance": {
+    "native": {
+      "presentedFps": 119.44027986006996,
+      "presentedFramesDelta": 239,
+      "sampleMs": 2001
+    },
+    "reference": {}
+  },
+  "status": "similar",
+  "summary": "Visual pair review: all 36 ArrayCamera subviews render in the correct 6x6 layout with matching lighting and geometry; remaining difference is animation phase.",
+  "updated": "2026-11-01T15:10:50.836318+00:00"
+}

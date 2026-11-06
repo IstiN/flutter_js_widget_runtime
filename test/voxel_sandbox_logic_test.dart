@@ -10,42 +10,61 @@ final bool _hasNativeLib = QuickjsFfi.isAvailable;
 
 void main() {
   if (!_hasNativeLib) return;
-  test('voxel-sandbox widget boots on QuickJS and fills the voxel world',
-      () async {
-    final backend = QuickjsWidgetEngineBackend(
-      config: JsRuntimeConfig(
-        widgetId: 'voxel-sandbox',
-        onRender: (_) {},
-        onSetTitle: (_) {},
-        onStorageUpdate: (_) {},
-      ),
-    );
-    await backend.init();
-    addTearDown(backend.dispose);
-    unawaited(
-      backend
-          .run(File('example/widgets/voxel-sandbox/widget.js').readAsStringSync())
-          .catchError((_) {}),
-    );
-    // Wait until all 9 chunks + camera land in the bridge-owned world.
-    for (var i = 0; i < 100; i++) {
-      await Future<void>.delayed(const Duration(milliseconds: 20));
-      final world = backend.voxelWorld;
-      if (world != null && world.chunksOf('sandbox').length == 9) break;
-    }
-    final world = backend.voxelWorld!;
-    expect(world.chunksOf('sandbox').length, 9, reason: '3x3 chunks uploaded');
-    var faces = 0;
-    for (final c in world.chunksOf('sandbox').values) {
-      faces += c.indices.length ~/ 3;
-    }
-    // ignore: avoid_print
-    print('SMOKE faces=$faces');
-    expect(faces, greaterThan(500));
-    // Dig edit: re-pushes only dirty chunks (world totals unchanged).
-    await backend.callEvent('dig');
-    expect(world.chunksOf('sandbox').length, 9);
-    // Camera event repaints without re-upload.
-    await backend.callEvent('cam_left');
-  }, timeout: const Timeout(Duration(minutes: 2)));
+  test(
+    'voxel-sandbox widget boots on QuickJS and fills the voxel world',
+    () async {
+      Map<String, dynamic>? rendered;
+      final backend = QuickjsWidgetEngineBackend(
+        config: JsRuntimeConfig(
+          widgetId: 'voxel-sandbox',
+          onRender: (tree) => rendered = tree,
+          onSetTitle: (_) {},
+          onStorageUpdate: (_) {},
+        ),
+      );
+      await backend.init();
+      addTearDown(backend.dispose);
+      unawaited(
+        backend
+            .run(
+              File(
+                'example/widgets/voxel-sandbox/widget.js',
+              ).readAsStringSync(),
+            )
+            .catchError((_) {}),
+      );
+      // Wait until all 9 chunks + camera land in the bridge-owned world.
+      for (var i = 0; i < 100; i++) {
+        await Future<void>.delayed(const Duration(milliseconds: 20));
+        final world = backend.voxelWorld;
+        if (world != null && world.chunksOf('sandbox').length == 9) break;
+      }
+      final world = backend.voxelWorld!;
+      expect(
+        world.chunksOf('sandbox').length,
+        9,
+        reason: '3x3 chunks uploaded',
+      );
+      var faces = 0;
+      for (final c in world.chunksOf('sandbox').values) {
+        faces += c.indices.length ~/ 3;
+      }
+      // ignore: avoid_print
+      print('SMOKE faces=$faces');
+      expect(faces, greaterThan(500));
+      // Tile layout regression: stats + controls already consume part of the
+      // 4x3 cell. A fixed 240px scene overflowed the tile by 81px; Expanded
+      // gives the scene exactly the space left by its naturally-sized footer.
+      final column = rendered!['child'] as Map<String, dynamic>;
+      final scene = (column['children'] as List).first as Map<String, dynamic>;
+      expect(scene['type'], 'expanded');
+      expect((scene['child'] as Map<String, dynamic>)['height'], isNull);
+      // Dig edit: re-pushes only dirty chunks (world totals unchanged).
+      await backend.callEvent('dig');
+      expect(world.chunksOf('sandbox').length, 9);
+      // Camera event repaints without re-upload.
+      await backend.callEvent('cam_left');
+    },
+    timeout: const Timeout(Duration(minutes: 2)),
+  );
 }

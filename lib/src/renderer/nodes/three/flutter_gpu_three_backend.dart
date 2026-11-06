@@ -934,7 +934,10 @@ final class _ThreeFrameEncoder {
   final double viewportHeight;
 
   bool _pointShadowActive() =>
-      backend._shadowFrameActive && plan.frame!.hasPointShadow != 0;
+      backend._shadowFrameActive &&
+      plan.frame!.hasPointShadow != 0 &&
+      backend._pointShadowFrontColorTexture != null &&
+      backend._pointShadowBackColorTexture != null;
 
   void _bindPointShadowTextures(_ThreeUniformSlots slots, gpu.RenderPass pass) {
     final active = _pointShadowActive();
@@ -988,9 +991,8 @@ final class _ThreeFrameEncoder {
     );
     pass.bindTexture(
       slots.shadowMap,
-      backend._shadowFrameActive
-          ? backend._shadowColorTexture!
-          : backend._fallbackTexture,
+      (backend._shadowFrameActive ? backend._shadowColorTexture : null) ??
+          backend._fallbackTexture,
     );
     _bindPointShadowTextures(slots, pass);
     var recordedDraws = 0;
@@ -1009,7 +1011,7 @@ final class _ThreeFrameEncoder {
   int recordShadow(gpu.CommandBuffer command) {
     final frame = plan.frame!;
     if (!frame.hasShadow) return 0;
-    if (frame.shadowLightType == JsThreeShadowLightType.point) {
+    if (frame.hasPointShadowMap) {
       return _recordPointShadowPasses(command, frame);
     }
     return _recordProjectedShadowPass(command, frame);
@@ -1051,7 +1053,11 @@ final class _ThreeFrameEncoder {
     backend._shadowFrameActive = true;
     var recordedDraws = 0;
     recordedDraws += _recordPointShadowFace(command, frame, 1);
-    recordedDraws += _recordPointShadowFace(command, frame, 2);
+    // Metal forbids two open render encoders on one command buffer: the
+    // back hemisphere gets its own buffer, submitted ahead of the main one.
+    final backCommand = backend._context.createCommandBuffer();
+    recordedDraws += _recordPointShadowFace(backCommand, frame, 2);
+    _submitThreeShadow(backend, backCommand);
     return recordedDraws;
   }
 

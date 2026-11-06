@@ -1,0 +1,18 @@
+{
+  "schema": "jsr-three-example-external-assets-v1",
+  "id": "three-loader-3mf-materials",
+  "inlineMaxBytes": 1500000,
+  "assets": [
+    {
+      "url": "models/3mf/truck.3mf",
+      "file": "models__3mf__truck.3mf",
+      "mime": "application/octet-stream",
+      "width": 0,
+      "height": 0,
+      "bytes": 7443140,
+      "sha256": "ab6d2d3889747406466fe3d4467d56b719c75094ee8339808eb3fc83e00d7441",
+      "aliases": [],
+      "diagnostic": "generated:truckScene"
+    }
+  ]
+}

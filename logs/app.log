@@ -1,0 +1,657 @@
+2026-11-03T17:47:46.163714Z [debug] [Fa] system prompt platform=SandboxPlatform.desktop, commands section 235 chars
+2026-11-03T17:47:49.380993Z [trajectory] backfill: 35 records, 16 rows in 0ms
+2026-11-03T17:47:51.361435Z [trajectory] backfill: 36 records, 16 rows in 0ms
+2026-11-03T17:47:59.342579Z [trajectory] backfill: 40 records, 19 rows in 0ms
+2026-11-03T17:48:05.409066Z [trajectory] backfill: 43 records, 21 rows in 0ms
+2026-11-03T17:48:11.351693Z [trajectory] backfill: 44 records, 22 rows in 0ms
+2026-11-03T17:48:15.381314Z [trajectory] backfill: 45 records, 22 rows in 0ms
+2026-11-03T17:48:25.383661Z [trajectory] backfill: 46 records, 22 rows in 0ms
+2026-11-03T17:48:29.376289Z [trajectory] backfill: 47 records, 22 rows in 0ms
+2026-11-03T17:48:33.378424Z [trajectory] backfill: 48 records, 23 rows in 0ms
+2026-11-03T17:48:35.392057Z [trajectory] backfill: 50 records, 24 rows in 0ms
+2026-11-03T17:48:39.365215Z [trajectory] backfill: 51 records, 24 rows in 0ms
+2026-11-03T17:48:43.390844Z [trajectory] backfill: 52 records, 24 rows in 0ms
+2026-11-03T17:48:45.384291Z [trajectory] backfill: 53 records, 24 rows in 0ms
+2026-11-03T17:48:51.373534Z [trajectory] backfill: 54 records, 24 rows in 0ms
+2026-11-03T17:49:03.416895Z [trajectory] backfill: 55 records, 24 rows in 0ms
+2026-11-03T17:49:05.399745Z [trajectory] backfill: 56 records, 25 rows in 0ms
+2026-11-03T17:49:07.417587Z [trajectory] backfill: 57 records, 25 rows in 0ms
+2026-11-03T17:49:11.393556Z [trajectory] backfill: 58 records, 25 rows in 0ms
+2026-11-03T17:49:17.410213Z [trajectory] backfill: 60 records, 26 rows in 0ms
+2026-11-03T17:49:21.450355Z [trajectory] backfill: 62 records, 27 rows in 0ms
+2026-11-03T17:49:33.410999Z [trajectory] backfill: 63 records, 27 rows in 0ms
+2026-11-03T17:49:37.409749Z [trajectory] backfill: 65 records, 28 rows in 0ms
+2026-11-03T17:49:39.415499Z [trajectory] backfill: 67 records, 29 rows in 0ms
+2026-11-03T17:49:41.429410Z [trajectory] backfill: 68 records, 29 rows in 0ms
+2026-11-03T17:49:45.417217Z [trajectory] backfill: 69 records, 29 rows in 0ms
+2026-11-03T17:49:49.414221Z [trajectory] backfill: 71 records, 30 rows in 0ms
+2026-11-03T17:50:05.434411Z [trajectory] backfill: 72 records, 31 rows in 0ms
+2026-11-03T17:50:29.431331Z [trajectory] backfill: 73 records, 31 rows in 0ms
+2026-11-03T17:50:35.421932Z [trajectory] backfill: 74 records, 32 rows in 0ms
+2026-11-03T17:50:43.433560Z [trajectory] backfill: 75 records, 32 rows in 0ms
+2026-11-03T17:51:11.424071Z [trajectory] backfill: 76 records, 32 rows in 0ms
+2026-11-03T17:51:13.424606Z [trajectory] backfill: 78 records, 33 rows in 0ms
+2026-11-03T17:51:15.424024Z [trajectory] backfill: 82 records, 36 rows in 0ms
+2026-11-03T17:51:21.441687Z [trajectory] backfill: 83 records, 36 rows in 0ms
+2026-11-03T17:51:23.440613Z [trajectory] backfill: 85 records, 37 rows in 0ms
+2026-11-03T17:51:33.446857Z [trajectory] backfill: 88 records, 39 rows in 0ms
+2026-11-03T17:51:37.426910Z [trajectory] backfill: 90 records, 41 rows in 0ms
+2026-11-03T17:51:41.457549Z [trajectory] backfill: 92 records, 42 rows in 0ms
+2026-11-03T17:51:43.483156Z [trajectory] backfill: 93 records, 42 rows in 0ms
+2026-11-03T17:51:45.451114Z [trajectory] backfill: 94 records, 42 rows in 0ms
+2026-11-03T17:51:51.451565Z [trajectory] backfill: 95 records, 43 rows in 0ms
+2026-11-03T17:51:53.455147Z [trajectory] backfill: 96 records, 43 rows in 0ms
+2026-11-03T17:51:57.470044Z [trajectory] backfill: 97 records, 44 rows in 0ms
+2026-11-03T17:51:59.453285Z [trajectory] backfill: 98 records, 44 rows in 0ms
+2026-11-03T17:52:03.480440Z [trajectory] backfill: 100 records, 45 rows in 0ms
+2026-11-03T17:52:07.463204Z [trajectory] backfill: 102 records, 46 rows in 0ms
+2026-11-03T17:52:09.434121Z [trajectory] backfill: 103 records, 46 rows in 0ms
+2026-11-03T17:52:13.487107Z [trajectory] backfill: 104 records, 46 rows in 0ms
+2026-11-03T17:52:17.442684Z [trajectory] backfill: 105 records, 46 rows in 0ms
+2026-11-03T17:52:23.501225Z [trajectory] backfill: 106 records, 46 rows in 0ms
+2026-11-03T17:52:25.498194Z [trajectory] backfill: 107 records, 46 rows in 0ms
+2026-11-03T17:52:31.470562Z [trajectory] backfill: 108 records, 46 rows in 0ms
+2026-11-03T17:52:33.490270Z [trajectory] backfill: 110 records, 47 rows in 0ms
+2026-11-03T17:52:41.467050Z [trajectory] backfill: 111 records, 47 rows in 0ms
+2026-11-03T17:52:43.484041Z [trajectory] backfill: 113 records, 48 rows in 0ms
+2026-11-03T17:52:47.490319Z [trajectory] backfill: 114 records, 48 rows in 0ms
+2026-11-03T17:52:51.499621Z [trajectory] backfill: 116 records, 49 rows in 0ms
+2026-11-03T17:52:55.492572Z [trajectory] backfill: 118 records, 50 rows in 0ms
+2026-11-03T17:53:01.508778Z [trajectory] backfill: 119 records, 50 rows in 0ms
+2026-11-03T17:53:05.496611Z [trajectory] backfill: 120 records, 50 rows in 0ms
+2026-11-03T17:53:07.502996Z [trajectory] backfill: 122 records, 51 rows in 0ms
+2026-11-03T17:53:11.525601Z [trajectory] backfill: 123 records, 51 rows in 0ms
+2026-11-03T17:53:13.476982Z [trajectory] backfill: 125 records, 52 rows in 0ms
+2026-11-03T17:53:15.499858Z [trajectory] backfill: 127 records, 53 rows in 0ms
+2026-11-03T17:53:19.531165Z [trajectory] backfill: 128 records, 53 rows in 0ms
+2026-11-03T17:53:25.547095Z [trajectory] backfill: 129 records, 53 rows in 0ms
+2026-11-03T17:53:27.542161Z [trajectory] backfill: 131 records, 54 rows in 0ms
+2026-11-03T17:53:31.517942Z [trajectory] backfill: 132 records, 54 rows in 0ms
+2026-11-03T17:53:33.506261Z [trajectory] backfill: 134 records, 55 rows in 0ms
+2026-11-03T17:53:41.524277Z [trajectory] backfill: 138 records, 58 rows in 0ms
+2026-11-03T17:53:51.539304Z [trajectory] backfill: 141 records, 60 rows in 0ms
+2026-11-03T17:53:53.537059Z [trajectory] backfill: 142 records, 61 rows in 0ms
+2026-11-03T17:53:55.826690Z [trajectory] backfill: 144 records, 62 rows in 1ms
+2026-11-03T17:53:59.526946Z [trajectory] backfill: 145 records, 62 rows in 0ms
+2026-11-03T17:54:15.579619Z [trajectory] backfill: 148 records, 63 rows in 0ms
+2026-11-03T17:54:21.562069Z [trajectory] backfill: 149 records, 65 rows in 0ms
+2026-11-03T17:54:23.589478Z [trajectory] backfill: 151 records, 65 rows in 0ms
+2026-11-03T17:54:29.552996Z [trajectory] backfill: 154 records, 67 rows in 0ms
+2026-11-03T17:54:37.617889Z [trajectory] backfill: 156 records, 68 rows in 0ms
+2026-11-03T17:55:01.540960Z [trajectory] backfill: 157 records, 68 rows in 0ms
+2026-11-03T17:55:05.535991Z [trajectory] backfill: 158 records, 68 rows in 0ms
+2026-11-03T17:55:11.604711Z [trajectory] backfill: 159 records, 68 rows in 0ms
+2026-11-03T17:55:13.553357Z [trajectory] backfill: 160 records, 68 rows in 0ms
+2026-11-03T17:55:17.557665Z [trajectory] backfill: 161 records, 69 rows in 0ms
+2026-11-03T17:55:19.593190Z [trajectory] backfill: 162 records, 70 rows in 0ms
+2026-11-03T17:55:27.547196Z [trajectory] backfill: 163 records, 70 rows in 0ms
+2026-11-03T17:55:35.591546Z [trajectory] backfill: 164 records, 71 rows in 0ms
+2026-11-03T17:55:41.515161Z [trajectory] backfill: 165 records, 71 rows in 0ms
+2026-11-03T17:55:43.551295Z [trajectory] backfill: 166 records, 71 rows in 0ms
+2026-11-03T17:55:47.576314Z [trajectory] backfill: 167 records, 72 rows in 0ms
+2026-11-03T17:55:53.551300Z [trajectory] backfill: 168 records, 72 rows in 0ms
+2026-11-03T17:55:55.579232Z [trajectory] backfill: 169 records, 72 rows in 0ms
+2026-11-03T17:55:59.596712Z [trajectory] backfill: 170 records, 73 rows in 0ms
+2026-11-03T17:56:05.569489Z [trajectory] backfill: 171 records, 73 rows in 0ms
+2026-11-03T17:56:08.964055Z [debug] [fah][sessions] session_list_skip path=/Users/Uladzimir_Klyshevich/Library/Group Containers/group.dev.fa1.shared/fa/sessions/--Users-Uladzimir_Klyshevich-git-dmtools--/2026-11-03T20-55-27-689233_01a1a28d-3d49-790b-a45b-210b7bb2f9b1.jsonl error=Failed to read session header /Users/Uladzimir_Klyshevich/Library/Group Containers/group.dev.fa1.shared/fa/sessions/--Users-Uladzimir_Klyshevich-git-dmtools--/2026-11-03T20-55-27-689233_01a1a28d-3d49-790b-a45b-210b7bb2f9b1.jsonl: Cannot open file
+2026-11-03T17:56:09.066342Z [debug] [fah][sessions] session_list_skip path=/Users/Uladzimir_Klyshevich/Library/Group Containers/group.dev.fa1.shared/fa/sessions/--Users-Uladzimir_Klyshevich-git-dmtools--/2026-11-03T20-55-27-689233_01a1a28d-3d49-790b-a45b-210b7bb2f9b1.jsonl error=Failed to read session header /Users/Uladzimir_Klyshevich/Library/Group Containers/group.dev.fa1.shared/fa/sessions/--Users-Uladzimir_Klyshevich-git-dmtools--/2026-11-03T20-55-27-689233_01a1a28d-3d49-790b-a45b-210b7bb2f9b1.jsonl: Cannot open file
+2026-11-03T17:56:09.569659Z [trajectory] backfill: 172 records, 74 rows in 0ms
+2026-11-03T17:56:10.583419Z [debug] [fah][sessions] session_list_skip path=/Users/Uladzimir_Klyshevich/Library/Group Containers/group.dev.fa1.shared/fa/sessions/--Users-Uladzimir_Klyshevich-git-demo_widget--/messages/01a13fdc-775a-703f-b048-881d7b4d4ba5_main/inbox error=Failed to list session directory /Users/Uladzimir_Klyshevich/Library/Group Containers/group.dev.fa1.shared/fa/sessions/--Users-Uladzimir_Klyshevich-git-demo_widget--/messages/01a13fdc-775a-703f-b048-881d7b4d4ba5_main/inbox: Directory listing failed
+2026-11-03T17:56:10.710194Z [debug] [fah][sessions] session_list_skip path=/Users/Uladzimir_Klyshevich/Library/Group Containers/group.dev.fa1.shared/fa/sessions/--Users-Uladzimir_Klyshevich-git-demo_widget--/messages/01a13fdc-775a-703f-b048-881d7b4d4ba5_main/inbox error=Failed to list session directory /Users/Uladzimir_Klyshevich/Library/Group Containers/group.dev.fa1.shared/fa/sessions/--Users-Uladzimir_Klyshevich-git-demo_widget--/messages/01a13fdc-775a-703f-b048-881d7b4d4ba5_main/inbox: Directory listing failed
+2026-11-03T17:56:11.079045Z [debug] [fah][sessions] session_list_skip path=/Users/Uladzimir_Klyshevich/Library/Group Containers/group.dev.fa1.shared/fa/sessions/--Users-Uladzimir_Klyshevich-git-demo_widget--/messages/01a13fdc-775a-703f-b048-881d7b4d4ba5_main error=Failed to list session directory /Users/Uladzimir_Klyshevich/Library/Group Containers/group.dev.fa1.shared/fa/sessions/--Users-Uladzimir_Klyshevich-git-demo_widget--/messages/01a13fdc-775a-703f-b048-881d7b4d4ba5_main: Directory listing failed
+2026-11-03T17:56:11.079244Z [debug] [fah][sessions] session_list_skip path=/Users/Uladzimir_Klyshevich/Library/Group Containers/group.dev.fa1.shared/fa/sessions/--Users-Uladzimir_Klyshevich-git-demo_widget--/messages/01a13fdc-775a-703f-b048-881d7b4d4ba5_main error=Failed to list session directory /Users/Uladzimir_Klyshevich/Library/Group Containers/group.dev.fa1.shared/fa/sessions/--Users-Uladzimir_Klyshevich-git-demo_widget--/messages/01a13fdc-775a-703f-b048-881d7b4d4ba5_main: Directory listing failed
+2026-11-03T17:56:13.436433Z [debug] [fah][sessions] session_list_skip path=/Users/Uladzimir_Klyshevich/Library/Group Containers/group.dev.fa1.shared/fa/sessions/--Users-Uladzimir_Klyshevich-git-demo_widget--/messages/01a13fdc-775a-703f-b048-881d7b4d4ba5_main/inbox error=Failed to list session directory /Users/Uladzimir_Klyshevich/Library/Group Containers/group.dev.fa1.shared/fa/sessions/--Users-Uladzimir_Klyshevich-git-demo_widget--/messages/01a13fdc-775a-703f-b048-881d7b4d4ba5_main/inbox: Directory listing failed
+2026-11-03T17:56:13.513823Z [debug] [fah][sessions] session_list_skip path=/Users/Uladzimir_Klyshevich/Library/Group Containers/group.dev.fa1.shared/fa/sessions/--Users-Uladzimir_Klyshevich-git-demo_widget--/messages/01a13fdc-775a-703f-b048-881d7b4d4ba5_main/inbox error=Failed to list session directory /Users/Uladzimir_Klyshevich/Library/Group Containers/group.dev.fa1.shared/fa/sessions/--Users-Uladzimir_Klyshevich-git-demo_widget--/messages/01a13fdc-775a-703f-b048-881d7b4d4ba5_main/inbox: Directory listing failed
+2026-11-03T17:56:14.682537Z [debug] [fah][sessions] session_list_skip path=/Users/Uladzimir_Klyshevich/Library/Group Containers/group.dev.fa1.shared/fa/sessions/--Users-Uladzimir_Klyshevich-git-demo_widget--/messages/01a13fdc-775a-703f-b048-881d7b4d4ba5_main/inbox error=Failed to list session directory /Users/Uladzimir_Klyshevich/Library/Group Containers/group.dev.fa1.shared/fa/sessions/--Users-Uladzimir_Klyshevich-git-demo_widget--/messages/01a13fdc-775a-703f-b048-881d7b4d4ba5_main/inbox: Directory listing failed
+2026-11-03T17:56:15.278047Z [debug] [fah][sessions] session_list_skip path=/Users/Uladzimir_Klyshevich/Library/Group Containers/group.dev.fa1.shared/fa/sessions/--Users-Uladzimir_Klyshevich-git-demo_widget--/messages/01a13fdc-775a-703f-b048-881d7b4d4ba5_main/inbox error=Failed to list session directory /Users/Uladzimir_Klyshevich/Library/Group Containers/group.dev.fa1.shared/fa/sessions/--Users-Uladzimir_Klyshevich-git-demo_widget--/messages/01a13fdc-775a-703f-b048-881d7b4d4ba5_main/inbox: Directory listing failed
+2026-11-03T17:56:17.556694Z [trajectory] backfill: 173 records, 74 rows in 0ms
+2026-11-03T17:56:18.426163Z [debug] [fah][sessions] session_list_skip path=/Users/Uladzimir_Klyshevich/Library/Group Containers/group.dev.fa1.shared/fa/sessions/--Users-Uladzimir_Klyshevich-git-dmtools--/2026-11-03T20-55-27-689233_01a1a28d-3d49-790b-a45b-210b7bb2f9b1.jsonl error=Failed to read session header /Users/Uladzimir_Klyshevich/Library/Group Containers/group.dev.fa1.shared/fa/sessions/--Users-Uladzimir_Klyshevich-git-dmtools--/2026-11-03T20-55-27-689233_01a1a28d-3d49-790b-a45b-210b7bb2f9b1.jsonl: Cannot open file
+2026-11-03T17:56:18.426551Z [debug] [fah][sessions] session_list_skip path=/Users/Uladzimir_Klyshevich/Library/Group Containers/group.dev.fa1.shared/fa/sessions/--Users-Uladzimir_Klyshevich-git-dmtools--/2026-11-03T20-55-27-689233_01a1a28d-3d49-790b-a45b-210b7bb2f9b1.jsonl error=Failed to read session header /Users/Uladzimir_Klyshevich/Library/Group Containers/group.dev.fa1.shared/fa/sessions/--Users-Uladzimir_Klyshevich-git-dmtools--/2026-11-03T20-55-27-689233_01a1a28d-3d49-790b-a45b-210b7bb2f9b1.jsonl: Cannot open file
+2026-11-03T17:56:18.547240Z [debug] [fah][sessions] session_list_skip path=/Users/Uladzimir_Klyshevich/Library/Group Containers/group.dev.fa1.shared/fa/sessions/--Users-Uladzimir_Klyshevich-git-dmtools--/2026-11-03T20-55-27-689233_01a1a28d-3d49-790b-a45b-210b7bb2f9b1.jsonl error=Failed to read session header /Users/Uladzimir_Klyshevich/Library/Group Containers/group.dev.fa1.shared/fa/sessions/--Users-Uladzimir_Klyshevich-git-dmtools--/2026-11-03T20-55-27-689233_01a1a28d-3d49-790b-a45b-210b7bb2f9b1.jsonl: Cannot open file
+2026-11-03T17:56:19.597580Z [trajectory] backfill: 174 records, 74 rows in 0ms
+2026-11-03T17:56:23.585392Z [trajectory] backfill: 175 records, 75 rows in 0ms
+2026-11-03T17:56:25.457843Z [debug] [fah][sessions] session_list_skip path=/Users/Uladzimir_Klyshevich/Library/Group Containers/group.dev.fa1.shared/fa/sessions/--Users-Uladzimir_Klyshevich-git-dmtools--/2026-11-03T20-55-27-689233_01a1a28d-3d49-790b-a45b-210b7bb2f9b1.jsonl error=Failed to read session header /Users/Uladzimir_Klyshevich/Library/Group Containers/group.dev.fa1.shared/fa/sessions/--Users-Uladzimir_Klyshevich-git-dmtools--/2026-11-03T20-55-27-689233_01a1a28d-3d49-790b-a45b-210b7bb2f9b1.jsonl: Cannot open file
+2026-11-03T17:56:25.458217Z [debug] [fah][sessions] session_list_skip path=/Users/Uladzimir_Klyshevich/Library/Group Containers/group.dev.fa1.shared/fa/sessions/--Users-Uladzimir_Klyshevich-git-dmtools--/2026-11-03T20-55-27-689233_01a1a28d-3d49-790b-a45b-210b7bb2f9b1.jsonl error=Failed to read session header /Users/Uladzimir_Klyshevich/Library/Group Containers/group.dev.fa1.shared/fa/sessions/--Users-Uladzimir_Klyshevich-git-dmtools--/2026-11-03T20-55-27-689233_01a1a28d-3d49-790b-a45b-210b7bb2f9b1.jsonl: Cannot open file
+2026-11-03T17:56:25.583092Z [trajectory] backfill: 177 records, 76 rows in 0ms
+2026-11-03T17:56:27.937896Z [debug] [fah][sessions] session_list_skip path=/Users/Uladzimir_Klyshevich/Library/Group Containers/group.dev.fa1.shared/fa/sessions/--Users-Uladzimir_Klyshevich-git-dmtools--/2026-11-03T20-55-27-689233_01a1a28d-3d49-790b-a45b-210b7bb2f9b1.jsonl error=Failed to read session header /Users/Uladzimir_Klyshevich/Library/Group Containers/group.dev.fa1.shared/fa/sessions/--Users-Uladzimir_Klyshevich-git-dmtools--/2026-11-03T20-55-27-689233_01a1a28d-3d49-790b-a45b-210b7bb2f9b1.jsonl: Cannot open file
+2026-11-03T17:56:27.964902Z [debug] [fah][sessions] session_list_skip path=/Users/Uladzimir_Klyshevich/Library/Group Containers/group.dev.fa1.shared/fa/sessions/--Users-Uladzimir_Klyshevich-git-dmtools--/2026-11-03T20-55-27-689233_01a1a28d-3d49-790b-a45b-210b7bb2f9b1.jsonl error=Failed to read session header /Users/Uladzimir_Klyshevich/Library/Group Containers/group.dev.fa1.shared/fa/sessions/--Users-Uladzimir_Klyshevich-git-dmtools--/2026-11-03T20-55-27-689233_01a1a28d-3d49-790b-a45b-210b7bb2f9b1.jsonl: Cannot open file
+2026-11-03T17:56:29.207021Z [debug] [fah][sessions] session_list_skip path=/Users/Uladzimir_Klyshevich/Library/Group Containers/group.dev.fa1.shared/fa/sessions/--Users-Uladzimir_Klyshevich-git-dmtools--/2026-11-03T20-55-27-689233_01a1a28d-3d49-790b-a45b-210b7bb2f9b1.jsonl error=Failed to read session header /Users/Uladzimir_Klyshevich/Library/Group Containers/group.dev.fa1.shared/fa/sessions/--Users-Uladzimir_Klyshevich-git-dmtools--/2026-11-03T20-55-27-689233_01a1a28d-3d49-790b-a45b-210b7bb2f9b1.jsonl: Cannot open file
+2026-11-03T17:56:29.810754Z [debug] [fah][sessions] session_list_skip path=/Users/Uladzimir_Klyshevich/Library/Group Containers/group.dev.fa1.shared/fa/sessions/--Users-Uladzimir_Klyshevich-git-dmtools--/2026-11-03T20-55-27-689233_01a1a28d-3d49-790b-a45b-210b7bb2f9b1.jsonl error=Failed to read session header /Users/Uladzimir_Klyshevich/Library/Group Containers/group.dev.fa1.shared/fa/sessions/--Users-Uladzimir_Klyshevich-git-dmtools--/2026-11-03T20-55-27-689233_01a1a28d-3d49-790b-a45b-210b7bb2f9b1.jsonl: Cannot open file
+2026-11-03T17:56:32.535440Z [debug] [fah][sessions] session_list_skip path=/Users/Uladzimir_Klyshevich/Library/Group Containers/group.dev.fa1.shared/fa/sessions/--Users-Uladzimir_Klyshevich-git-dmtools--/2026-11-03T20-55-27-689233_01a1a28d-3d49-790b-a45b-210b7bb2f9b1.jsonl error=Failed to read session header /Users/Uladzimir_Klyshevich/Library/Group Containers/group.dev.fa1.shared/fa/sessions/--Users-Uladzimir_Klyshevich-git-dmtools--/2026-11-03T20-55-27-689233_01a1a28d-3d49-790b-a45b-210b7bb2f9b1.jsonl: Cannot open file
+2026-11-03T17:56:32.540672Z [debug] [fah][sessions] session_list_skip path=/Users/Uladzimir_Klyshevich/Library/Group Containers/group.dev.fa1.shared/fa/sessions/--Users-Uladzimir_Klyshevich-git-dmtools--/2026-11-03T20-55-27-689233_01a1a28d-3d49-790b-a45b-210b7bb2f9b1.jsonl error=Failed to read session header /Users/Uladzimir_Klyshevich/Library/Group Containers/group.dev.fa1.shared/fa/sessions/--Users-Uladzimir_Klyshevich-git-dmtools--/2026-11-03T20-55-27-689233_01a1a28d-3d49-790b-a45b-210b7bb2f9b1.jsonl: Cannot open file
+2026-11-03T17:56:33.620717Z [trajectory] backfill: 178 records, 76 rows in 0ms
+2026-11-03T17:56:37.617895Z [trajectory] backfill: 179 records, 76 rows in 0ms
+2026-11-03T17:56:41.608368Z [trajectory] backfill: 180 records, 77 rows in 0ms
+2026-11-03T17:56:49.572686Z [trajectory] backfill: 183 records, 78 rows in 0ms
+2026-11-03T17:56:55.611744Z [trajectory] backfill: 186 records, 80 rows in 0ms
+2026-11-03T17:56:59.606421Z [trajectory] backfill: 187 records, 81 rows in 0ms
+2026-11-03T17:57:15.898903Z [trajectory] backfill: 188 records, 81 rows in 0ms
+2026-11-03T17:57:19.758239Z [trajectory] backfill: 189 records, 82 rows in 0ms
+2026-11-03T17:57:21.728772Z [trajectory] backfill: 190 records, 82 rows in 0ms
+2026-11-03T17:57:23.645217Z [trajectory] backfill: 191 records, 82 rows in 0ms
+2026-11-03T17:57:25.586820Z [trajectory] backfill: 192 records, 83 rows in 0ms
+2026-11-03T17:57:27.615703Z [trajectory] backfill: 195 records, 84 rows in 0ms
+2026-11-03T17:57:31.584998Z [trajectory] backfill: 196 records, 85 rows in 0ms
+2026-11-03T17:57:33.575510Z [trajectory] backfill: 197 records, 85 rows in 0ms
+2026-11-03T17:57:35.596499Z [trajectory] backfill: 199 records, 86 rows in 0ms
+2026-11-03T17:57:37.631477Z [trajectory] backfill: 201 records, 87 rows in 0ms
+2026-11-03T17:57:41.574100Z [trajectory] backfill: 203 records, 88 rows in 0ms
+2026-11-03T17:57:43.583862Z [trajectory] backfill: 204 records, 89 rows in 0ms
+2026-11-03T17:57:47.588618Z [trajectory] backfill: 205 records, 89 rows in 0ms
+2026-11-03T17:57:51.611949Z [trajectory] backfill: 206 records, 90 rows in 0ms
+2026-11-03T17:57:55.624779Z [trajectory] backfill: 207 records, 90 rows in 0ms
+2026-11-03T17:58:03.613868Z [trajectory] backfill: 209 records, 91 rows in 0ms
+2026-11-03T17:58:09.677588Z [trajectory] backfill: 210 records, 92 rows in 0ms
+2026-11-03T17:58:15.723867Z [trajectory] backfill: 211 records, 92 rows in 0ms
+2026-11-03T17:58:19.916699Z [trajectory] backfill: 213 records, 92 rows in 0ms
+2026-11-03T17:58:25.665779Z [trajectory] backfill: 215 records, 93 rows in 0ms
+2026-11-03T17:58:29.678026Z [trajectory] backfill: 216 records, 93 rows in 0ms
+2026-11-03T17:58:37.624825Z [trajectory] backfill: 217 records, 94 rows in 0ms
+2026-11-03T18:27:39.362438Z [debug] [fah] provider registry loaded
+2026-11-03T18:27:39.364197Z [debug] [fah] last connection loaded
+2026-11-03T18:27:39.435723Z [fa_network] account restored from wallet (access token fresh)
+2026-11-03T18:27:39.442059Z [debug] [fah] starting runApp
+2026-11-03T18:27:43.529394Z [fa_network] account networks already in sync (3)
+2026-11-03T18:27:58.876241Z [debug] [AIIN] listening for the AIIN callback on http://127.0.0.1:54603/callback
+2026-11-03T18:27:58.919652Z [debug] [AIIN] browser opened; sign in on the AIIN page
+2026-11-03T18:27:58.919698Z [debug] [AIIN] authorization URL: https://auth.aiin.by/login?client_redirect_uri=http%3A%2F%2F127.0.0.1%3A54603%2Fcallback&state=LZQdN6-vWqooTZIgCYTgXnxyE2nH4J8lzlfmxncfEc0&client_type=desktop&environment=prod
+2026-11-03T18:28:06.132978Z [debug] [fah] provider registry loaded
+2026-11-03T18:28:06.134488Z [debug] [fah] last connection loaded
+2026-11-03T18:28:06.193982Z [fa_network] account restored from wallet (access token fresh)
+2026-11-03T18:28:06.199135Z [debug] [fah] starting runApp
+2026-11-03T18:28:07.318233Z [fa_network] account networks already in sync (3)
+2026-11-03T18:28:12.894082Z [debug] [AIIN] listening for the AIIN callback on http://127.0.0.1:54628/callback
+2026-11-03T18:28:12.914420Z [debug] [AIIN] browser opened; sign in on the AIIN page
+2026-11-03T18:28:12.914461Z [debug] [AIIN] authorization URL: https://auth.aiin.by/login?client_redirect_uri=http%3A%2F%2F127.0.0.1%3A54628%2Fcallback&state=5M-Q9P061-4gH8xEVhEp2bJXwy3-BPnMFYN0kj24eoo&client_type=desktop&environment=prod
+2026-11-03T18:28:36.792731Z [debug] [AIIN] AIIN callback landed on the loopback server
+2026-11-03T18:28:36.793483Z [debug] [AIIN] exchanging the AIIN authorization code...
+2026-11-03T18:28:38.963808Z [debug] [AIIN] AIIN authorized - registering an API key...
+2026-11-03T18:28:42.096788Z [debug] [AIIN] AIIN API key registered - finishing the connect
+2026-11-03T18:28:58.764821Z [debug] [fah][sessions] boot: resuming last active 01a06102-15be-78be-9879-37615d698cf2 (957 persisted)
+2026-11-03T18:28:58.765251Z [debug] [fah][sessions] open 01a06102-15be-78be-9879-37615d698cf2: not in memory — loading from disk (0 loaded)
+2026-11-03T18:28:58.863626Z [context] project context truncated: AGENTS.md 31KB -> 31KB of the 32KB budget (full file stays on disk)
+2026-11-03T18:28:58.909996Z [debug] [Fa] system prompt platform=SandboxPlatform.desktop, commands section 235 chars
+2026-11-03T18:28:58.915074Z [debug] [Fa] system prompt platform=SandboxPlatform.desktop, commands section 235 chars
+2026-11-03T18:28:59.009965Z [debug] [Fa] system prompt platform=SandboxPlatform.desktop, commands section 235 chars
+2026-11-03T18:28:59.834949Z [trajectory] backfill: 45 records, 28 rows in 4ms
+2026-11-03T18:28:59.835211Z [debug] [Fa] system prompt platform=SandboxPlatform.desktop, commands section 235 chars
+2026-11-03T18:28:59.836530Z [open] 01a06102-15be-78be-9879-37615d698cf2: storage=226ms branch=0ms context=321ms ledger=6ms total=920ms (45 records in view)
+2026-11-03T18:29:00.174523Z [debug] liquid_glass_renderer: an Opacity or FadeTransition between a LiquidGlass and its LiquidGlassLayer only fades the glass's children, not the glass. Fade glass with LiquidGlassVisibility or LiquidGlassAppearance.visibility instead.
+2026-11-03T18:29:25.839343Z [trajectory] backfill: 46 records, 28 rows in 0ms
+2026-11-03T18:29:43.834419Z [trajectory] backfill: 47 records, 29 rows in 0ms
+2026-11-03T18:29:55.842201Z [trajectory] backfill: 48 records, 29 rows in 0ms
+2026-11-03T18:30:07.844037Z [trajectory] backfill: 49 records, 29 rows in 0ms
+2026-11-03T18:30:11.842628Z [trajectory] backfill: 50 records, 30 rows in 0ms
+2026-11-03T18:30:41.872727Z [trajectory] backfill: 51 records, 30 rows in 0ms
+2026-11-03T18:30:49.851542Z [trajectory] backfill: 52 records, 31 rows in 0ms
+2026-11-03T18:31:15.838361Z [trajectory] backfill: 53 records, 31 rows in 0ms
+2026-11-03T18:31:19.833316Z [trajectory] backfill: 56 records, 32 rows in 0ms
+2026-11-03T18:31:33.847489Z [trajectory] backfill: 59 records, 33 rows in 0ms
+2026-11-03T18:31:49.848053Z [trajectory] backfill: 65 records, 37 rows in 0ms
+2026-11-03T18:31:55.852177Z [trajectory] backfill: 66 records, 37 rows in 0ms
+2026-11-03T18:31:57.838888Z [trajectory] backfill: 67 records, 37 rows in 0ms
+2026-11-03T18:31:59.834857Z [trajectory] backfill: 69 records, 39 rows in 0ms
+2026-11-03T18:32:07.837974Z [trajectory] backfill: 70 records, 40 rows in 1ms
+2026-11-03T18:32:09.836Z [trajectory] backfill: 71 records, 40 rows in 0ms
+2026-11-03T18:32:17.849964Z [trajectory] backfill: 72 records, 40 rows in 0ms
+2026-11-03T18:32:19.835835Z [trajectory] backfill: 73 records, 40 rows in 0ms
+2026-11-03T18:32:25.840188Z [trajectory] backfill: 76 records, 42 rows in 1ms
+2026-11-03T18:32:27.837359Z [trajectory] backfill: 77 records, 43 rows in 1ms
+2026-11-03T18:32:29.831077Z [trajectory] backfill: 81 records, 46 rows in 0ms
+2026-11-03T18:32:33.849038Z [trajectory] backfill: 82 records, 46 rows in 1ms
+2026-11-03T18:32:37.851739Z [trajectory] backfill: 84 records, 47 rows in 0ms
+2026-11-03T18:32:45.838946Z [trajectory] backfill: 88 records, 50 rows in 1ms
+2026-11-03T18:32:51.837207Z [trajectory] backfill: 89 records, 51 rows in 1ms
+2026-11-03T18:32:55.847314Z [trajectory] backfill: 90 records, 51 rows in 1ms
+2026-11-03T18:32:59.845053Z [trajectory] backfill: 93 records, 54 rows in 0ms
+2026-11-03T18:33:09.839932Z [trajectory] backfill: 95 records, 54 rows in 1ms
+2026-11-03T18:33:17.848124Z [trajectory] backfill: 96 records, 54 rows in 1ms
+2026-11-03T18:33:29.838140Z [trajectory] backfill: 97 records, 55 rows in 1ms
+2026-11-03T18:33:31.843919Z [trajectory] backfill: 98 records, 55 rows in 1ms
+2026-11-03T18:33:35.836191Z [trajectory] backfill: 99 records, 56 rows in 1ms
+2026-11-03T18:33:37.842291Z [trajectory] backfill: 100 records, 56 rows in 0ms
+2026-11-03T18:33:57.838448Z [trajectory] backfill: 101 records, 58 rows in 1ms
+2026-11-03T18:34:07.833187Z [trajectory] backfill: 102 records, 59 rows in 1ms
+2026-11-03T18:34:13.859146Z [trajectory] backfill: 103 records, 59 rows in 1ms
+2026-11-03T18:34:21.851335Z [trajectory] backfill: 105 records, 60 rows in 1ms
+2026-11-03T18:34:49.849522Z [trajectory] backfill: 106 records, 60 rows in 1ms
+2026-11-03T18:34:51.835981Z [trajectory] backfill: 107 records, 60 rows in 0ms
+2026-11-03T18:35:01.853469Z [trajectory] backfill: 109 records, 61 rows in 1ms
+2026-11-03T18:35:13.850307Z [trajectory] backfill: 110 records, 61 rows in 1ms
+2026-11-03T18:35:19.835802Z [trajectory] backfill: 111 records, 62 rows in 1ms
+2026-11-03T18:35:27.852699Z [trajectory] backfill: 112 records, 62 rows in 1ms
+2026-11-03T18:35:31.843704Z [trajectory] backfill: 113 records, 62 rows in 1ms
+2026-11-03T18:35:33.832660Z [trajectory] backfill: 114 records, 63 rows in 0ms
+2026-11-03T18:36:17.834628Z [trajectory] backfill: 115 records, 64 rows in 1ms
+2026-11-03T18:36:33.843956Z [trajectory] backfill: 116 records, 64 rows in 1ms
+2026-11-03T18:36:39.834477Z [trajectory] backfill: 117 records, 65 rows in 1ms
+2026-11-03T18:37:39.845359Z [trajectory] backfill: 118 records, 65 rows in 1ms
+2026-11-03T18:37:45.849334Z [trajectory] backfill: 119 records, 65 rows in 1ms
+2026-11-03T18:37:49.831555Z [trajectory] backfill: 120 records, 66 rows in 0ms
+2026-11-03T18:37:55.844911Z [trajectory] backfill: 121 records, 66 rows in 1ms
+2026-11-03T18:37:57.832932Z [trajectory] backfill: 122 records, 67 rows in 0ms
+2026-11-03T18:38:09.835233Z [trajectory] backfill: 123 records, 68 rows in 1ms
+2026-11-03T18:38:23.834976Z [trajectory] backfill: 124 records, 68 rows in 1ms
+2026-11-03T18:38:27.848313Z [trajectory] backfill: 125 records, 68 rows in 1ms
+2026-11-03T18:38:31.847369Z [trajectory] backfill: 127 records, 69 rows in 1ms
+2026-11-03T18:38:57.864498Z [trajectory] backfill: 128 records, 69 rows in 0ms
+2026-11-03T18:39:01.832340Z [trajectory] backfill: 129 records, 70 rows in 1ms
+2026-11-03T18:39:31.846684Z [trajectory] backfill: 130 records, 70 rows in 1ms
+2026-11-03T18:39:55.832706Z [trajectory] backfill: 131 records, 71 rows in 1ms
+2026-11-03T18:39:57.835388Z [trajectory] backfill: 132 records, 71 rows in 0ms
+2026-11-03T18:40:25.847212Z [trajectory] backfill: 134 records, 72 rows in 1ms
+2026-11-03T18:40:35.843996Z [trajectory] backfill: 136 records, 73 rows in 1ms
+2026-11-03T18:40:43.831118Z [trajectory] backfill: 137 records, 74 rows in 1ms
+2026-11-03T18:40:49.847618Z [trajectory] backfill: 138 records, 74 rows in 1ms
+2026-11-03T18:40:53.833140Z [trajectory] backfill: 139 records, 75 rows in 1ms
+2026-11-03T18:40:57.846454Z [trajectory] backfill: 140 records, 75 rows in 1ms
+2026-11-03T18:41:01.832896Z [trajectory] backfill: 141 records, 76 rows in 1ms
+2026-11-03T18:41:05.846479Z [trajectory] backfill: 142 records, 76 rows in 1ms
+2026-11-03T18:41:11.838519Z [trajectory] backfill: 143 records, 76 rows in 1ms
+2026-11-03T18:41:21.832909Z [trajectory] backfill: 144 records, 77 rows in 1ms
+2026-11-03T18:42:01.832644Z [trajectory] backfill: 145 records, 78 rows in 1ms
+2026-11-03T18:42:21.826673Z [trajectory] backfill: 146 records, 78 rows in 1ms
+2026-11-03T18:42:25.811211Z [trajectory] backfill: 147 records, 79 rows in 1ms
+2026-11-03T18:42:37.821903Z [trajectory] backfill: 149 records, 80 rows in 1ms
+2026-11-03T18:42:41.819986Z [trajectory] backfill: 151 records, 81 rows in 1ms
+2026-11-03T18:42:47.814909Z [trajectory] backfill: 153 records, 82 rows in 1ms
+2026-11-03T18:42:51.812214Z [trajectory] backfill: 155 records, 83 rows in 1ms
+2026-11-03T18:42:53.824139Z [trajectory] backfill: 156 records, 84 rows in 0ms
+2026-11-03T18:42:55.802911Z [trajectory] backfill: 157 records, 84 rows in 0ms
+2026-11-03T18:42:57.805390Z [trajectory] backfill: 159 records, 85 rows in 0ms
+2026-11-03T18:42:59.806333Z [trajectory] backfill: 161 records, 86 rows in 0ms
+2026-11-03T18:43:25.813241Z [trajectory] backfill: 162 records, 86 rows in 1ms
+2026-11-03T18:43:29.812390Z [trajectory] backfill: 163 records, 86 rows in 1ms
+2026-11-03T18:43:33.813963Z [trajectory] backfill: 165 records, 87 rows in 1ms
+2026-11-03T18:43:35.793023Z [trajectory] backfill: 166 records, 88 rows in 0ms
+2026-11-03T18:43:47.811351Z [trajectory] backfill: 167 records, 88 rows in 1ms
+2026-11-03T18:43:55.810751Z [trajectory] backfill: 169 records, 89 rows in 1ms
+2026-11-03T18:43:59.810104Z [trajectory] backfill: 171 records, 90 rows in 1ms
+2026-11-03T18:44:03.811666Z [trajectory] backfill: 173 records, 91 rows in 1ms
+2026-11-03T18:44:17.814485Z [trajectory] backfill: 174 records, 91 rows in 1ms
+2026-11-03T18:44:21.799344Z [trajectory] backfill: 175 records, 92 rows in 1ms
+2026-11-03T18:44:33.812996Z [trajectory] backfill: 176 records, 92 rows in 1ms
+2026-11-03T18:44:47.806127Z [trajectory] backfill: 178 records, 93 rows in 0ms
+2026-11-03T18:44:51.809073Z [trajectory] backfill: 180 records, 94 rows in 0ms
+2026-11-03T18:44:57.805253Z [trajectory] backfill: 182 records, 95 rows in 0ms
+2026-11-03T18:45:01.793996Z [trajectory] backfill: 183 records, 96 rows in 0ms
+2026-11-03T18:45:05.798389Z [trajectory] backfill: 184 records, 96 rows in 0ms
+2026-11-03T18:45:11.808293Z [trajectory] backfill: 185 records, 96 rows in 1ms
+2026-11-03T18:45:13.807435Z [trajectory] backfill: 187 records, 97 rows in 0ms
+2026-11-03T18:45:17.794896Z [trajectory] backfill: 188 records, 98 rows in 1ms
+2026-11-03T18:45:23.808260Z [trajectory] backfill: 189 records, 98 rows in 1ms
+2026-11-03T18:48:33.645755Z [debug] [fah] provider registry loaded
+2026-11-03T18:48:33.648401Z [debug] [fah] last connection loaded
+2026-11-03T18:48:33.721091Z [fa_network] account restored from wallet (access token fresh)
+2026-11-03T18:48:33.727326Z [debug] [fah] starting runApp
+2026-11-03T18:48:35.540419Z [debug] [fah][sessions] boot: resuming last active 01a06102-15be-78be-9879-37615d698cf2 (957 persisted)
+2026-11-03T18:48:35.541300Z [debug] [fah][sessions] open 01a06102-15be-78be-9879-37615d698cf2: not in memory — loading from disk (0 loaded)
+2026-11-03T18:48:35.713857Z [context] project context truncated: AGENTS.md 31KB -> 31KB of the 32KB budget (full file stays on disk)
+2026-11-03T18:48:35.791706Z [debug] [Fa] system prompt platform=SandboxPlatform.desktop, commands section 235 chars
+2026-11-03T18:48:35.797604Z [debug] [Fa] system prompt platform=SandboxPlatform.desktop, commands section 235 chars
+2026-11-03T18:48:35.900345Z [fa_network] account networks already in sync (3)
+2026-11-03T18:48:36.002411Z [debug] [Fa] system prompt platform=SandboxPlatform.desktop, commands section 235 chars
+2026-11-03T18:48:36.873616Z [trajectory] backfill: 19 records, 8 rows in 0ms
+2026-11-03T18:48:36.873933Z [debug] [Fa] system prompt platform=SandboxPlatform.desktop, commands section 235 chars
+2026-11-03T18:48:36.875105Z [open] 01a06102-15be-78be-9879-37615d698cf2: storage=273ms branch=1ms context=396ms ledger=3ms total=1076ms (19 records in view)
+2026-11-03T18:48:40.884518Z [trajectory] backfill: 20 records, 8 rows in 0ms
+2026-11-03T18:48:44.881309Z [trajectory] backfill: 21 records, 9 rows in 0ms
+2026-11-03T18:48:46.898356Z [trajectory] backfill: 22 records, 9 rows in 0ms
+2026-11-03T18:48:48.911315Z [trajectory] backfill: 23 records, 10 rows in 0ms
+2026-11-03T18:49:03.243358Z [trajectory] backfill: 24 records, 10 rows in 0ms
+2026-11-03T18:49:16.933274Z [trajectory] backfill: 27 records, 11 rows in 0ms
+2026-11-03T18:49:20.883623Z [trajectory] backfill: 29 records, 12 rows in 0ms
+2026-11-03T18:49:22.202265Z [apps] engine start: focus-timer/widget.js
+2026-11-03T18:49:22.343850Z [debug] [QuickjsWidgetEngineBackend] starting QuickJS
+2026-11-03T18:49:22.347890Z [debug] [QuickjsWidgetEngineBackend] evaluating widget code...
+2026-11-03T18:49:22.360118Z [apps] engine start: pomodoro/widget.js
+2026-11-03T18:49:22.436204Z [debug] [QuickjsWidgetEngineBackend] starting QuickJS
+2026-11-03T18:49:22.437236Z [debug] [QuickjsWidgetEngineBackend] evaluating widget code...
+2026-11-03T18:49:22.446293Z [apps] engine start: voxel-sandbox/widget.js
+2026-11-03T18:49:22.597041Z [debug] [QuickjsWidgetEngineBackend] starting QuickJS
+2026-11-03T18:49:22.597993Z [debug] [QuickjsWidgetEngineBackend] evaluating widget code...
+2026-11-03T18:49:22.634158Z [apps] engine start: reminders/widget_tile.js
+2026-11-03T18:49:22.840792Z [debug] [QuickjsWidgetEngineBackend] starting QuickJS
+2026-11-03T18:49:22.841711Z [debug] [QuickjsWidgetEngineBackend] evaluating widget code...
+2026-11-03T18:49:22.913592Z [trajectory] backfill: 32 records, 13 rows in 0ms
+2026-11-03T18:49:26.918089Z [trajectory] backfill: 33 records, 14 rows in 0ms
+2026-11-03T18:49:29.953197Z [debug] GlassTextField: `settings` / `quality` have no effect when `surfaceStyle` is GlassSurfaceStyle.solid (a solid field is a flat recessed well and does not use the glass shader).
+2026-11-03T18:49:30.089241Z [debug] GlassTextField: `settings` / `quality` have no effect when `surfaceStyle` is GlassSurfaceStyle.solid (a solid field is a flat recessed well and does not use the glass shader).
+2026-11-03T18:49:30.929315Z [trajectory] backfill: 35 records, 15 rows in 0ms
+2026-11-03T18:49:30.961728Z [debug] GlassTextField: `settings` / `quality` have no effect when `surfaceStyle` is GlassSurfaceStyle.solid (a solid field is a flat recessed well and does not use the glass shader).
+2026-11-03T18:49:33.315448Z [debug] GlassTextField: `settings` / `quality` have no effect when `surfaceStyle` is GlassSurfaceStyle.solid (a solid field is a flat recessed well and does not use the glass shader).
+2026-11-03T18:49:33.342513Z [debug] GlassTextField: `settings` / `quality` have no effect when `surfaceStyle` is GlassSurfaceStyle.solid (a solid field is a flat recessed well and does not use the glass shader).
+2026-11-03T18:49:33.372059Z [debug] GlassTextField: `settings` / `quality` have no effect when `surfaceStyle` is GlassSurfaceStyle.solid (a solid field is a flat recessed well and does not use the glass shader).
+2026-11-03T18:49:33.399599Z [debug] GlassTextField: `settings` / `quality` have no effect when `surfaceStyle` is GlassSurfaceStyle.solid (a solid field is a flat recessed well and does not use the glass shader).
+2026-11-03T18:49:34.827265Z [debug] GlassTextField: `settings` / `quality` have no effect when `surfaceStyle` is GlassSurfaceStyle.solid (a solid field is a flat recessed well and does not use the glass shader).
+2026-11-03T18:49:34.872569Z [debug] GlassTextField: `settings` / `quality` have no effect when `surfaceStyle` is GlassSurfaceStyle.solid (a solid field is a flat recessed well and does not use the glass shader).
+2026-11-03T18:49:34.902690Z [debug] GlassTextField: `settings` / `quality` have no effect when `surfaceStyle` is GlassSurfaceStyle.solid (a solid field is a flat recessed well and does not use the glass shader).
+2026-11-03T18:49:34.937979Z [debug] GlassTextField: `settings` / `quality` have no effect when `surfaceStyle` is GlassSurfaceStyle.solid (a solid field is a flat recessed well and does not use the glass shader).
+2026-11-03T18:49:34.972988Z [trajectory] backfill: 36 records, 15 rows in 0ms
+2026-11-03T18:49:34.992297Z [debug] GlassTextField: `settings` / `quality` have no effect when `surfaceStyle` is GlassSurfaceStyle.solid (a solid field is a flat recessed well and does not use the glass shader).
+2026-11-03T18:49:35.997920Z [debug] GlassTextField: `settings` / `quality` have no effect when `surfaceStyle` is GlassSurfaceStyle.solid (a solid field is a flat recessed well and does not use the glass shader).
+2026-11-03T18:49:36.029166Z [debug] GlassTextField: `settings` / `quality` have no effect when `surfaceStyle` is GlassSurfaceStyle.solid (a solid field is a flat recessed well and does not use the glass shader).
+2026-11-03T18:49:36.067079Z [debug] GlassTextField: `settings` / `quality` have no effect when `surfaceStyle` is GlassSurfaceStyle.solid (a solid field is a flat recessed well and does not use the glass shader).
+2026-11-03T18:49:37.407698Z [debug] GlassTextField: `settings` / `quality` have no effect when `surfaceStyle` is GlassSurfaceStyle.solid (a solid field is a flat recessed well and does not use the glass shader).
+2026-11-03T18:49:37.454042Z [debug] GlassTextField: `settings` / `quality` have no effect when `surfaceStyle` is GlassSurfaceStyle.solid (a solid field is a flat recessed well and does not use the glass shader).
+2026-11-03T18:49:37.498303Z [debug] GlassTextField: `settings` / `quality` have no effect when `surfaceStyle` is GlassSurfaceStyle.solid (a solid field is a flat recessed well and does not use the glass shader).
+2026-11-03T18:49:37.538751Z [debug] GlassTextField: `settings` / `quality` have no effect when `surfaceStyle` is GlassSurfaceStyle.solid (a solid field is a flat recessed well and does not use the glass shader).
+2026-11-03T18:49:40.865741Z [debug] GlassTextField: `settings` / `quality` have no effect when `surfaceStyle` is GlassSurfaceStyle.solid (a solid field is a flat recessed well and does not use the glass shader).
+2026-11-03T18:49:40.908773Z [debug] GlassTextField: `settings` / `quality` have no effect when `surfaceStyle` is GlassSurfaceStyle.solid (a solid field is a flat recessed well and does not use the glass shader).
+2026-11-03T18:49:40.950978Z [debug] GlassTextField: `settings` / `quality` have no effect when `surfaceStyle` is GlassSurfaceStyle.solid (a solid field is a flat recessed well and does not use the glass shader).
+2026-11-03T18:49:42.677576Z [debug] GlassTextField: `settings` / `quality` have no effect when `surfaceStyle` is GlassSurfaceStyle.solid (a solid field is a flat recessed well and does not use the glass shader).
+2026-11-03T18:49:42.731857Z [debug] GlassTextField: `settings` / `quality` have no effect when `surfaceStyle` is GlassSurfaceStyle.solid (a solid field is a flat recessed well and does not use the glass shader).
+2026-11-03T18:49:42.768838Z [debug] GlassTextField: `settings` / `quality` have no effect when `surfaceStyle` is GlassSurfaceStyle.solid (a solid field is a flat recessed well and does not use the glass shader).
+2026-11-03T18:49:46.920153Z [trajectory] backfill: 38 records, 16 rows in 0ms
+2026-11-03T18:49:46.939505Z [debug] GlassTextField: `settings` / `quality` have no effect when `surfaceStyle` is GlassSurfaceStyle.solid (a solid field is a flat recessed well and does not use the glass shader).
+2026-11-03T18:49:50.929267Z [trajectory] backfill: 40 records, 17 rows in 0ms
+2026-11-03T18:49:50.955669Z [debug] GlassTextField: `settings` / `quality` have no effect when `surfaceStyle` is GlassSurfaceStyle.solid (a solid field is a flat recessed well and does not use the glass shader).
+2026-11-03T18:49:58.945616Z [trajectory] backfill: 42 records, 18 rows in 0ms
+2026-11-03T18:49:58.961620Z [debug] GlassTextField: `settings` / `quality` have no effect when `surfaceStyle` is GlassSurfaceStyle.solid (a solid field is a flat recessed well and does not use the glass shader).
+2026-11-03T18:50:00.914943Z [trajectory] backfill: 43 records, 18 rows in 0ms
+2026-11-03T18:50:00.940350Z [debug] GlassTextField: `settings` / `quality` have no effect when `surfaceStyle` is GlassSurfaceStyle.solid (a solid field is a flat recessed well and does not use the glass shader).
+2026-11-03T18:50:02.931012Z [trajectory] backfill: 45 records, 19 rows in 0ms
+2026-11-03T18:50:02.952785Z [debug] GlassTextField: `settings` / `quality` have no effect when `surfaceStyle` is GlassSurfaceStyle.solid (a solid field is a flat recessed well and does not use the glass shader).
+2026-11-03T18:50:03.947291Z [debug] GlassTextField: `settings` / `quality` have no effect when `surfaceStyle` is GlassSurfaceStyle.solid (a solid field is a flat recessed well and does not use the glass shader).
+2026-11-03T18:50:04.915808Z [trajectory] backfill: 46 records, 20 rows in 0ms
+2026-11-03T18:50:04.956425Z [debug] GlassTextField: `settings` / `quality` have no effect when `surfaceStyle` is GlassSurfaceStyle.solid (a solid field is a flat recessed well and does not use the glass shader).
+2026-11-03T18:50:06.933007Z [trajectory] backfill: 47 records, 20 rows in 0ms
+2026-11-03T18:50:06.959916Z [debug] GlassTextField: `settings` / `quality` have no effect when `surfaceStyle` is GlassSurfaceStyle.solid (a solid field is a flat recessed well and does not use the glass shader).
+2026-11-03T18:50:12.646920Z [debug] GlassTextField: `settings` / `quality` have no effect when `surfaceStyle` is GlassSurfaceStyle.solid (a solid field is a flat recessed well and does not use the glass shader).
+2026-11-03T18:50:12.937530Z [trajectory] backfill: 48 records, 21 rows in 0ms
+2026-11-03T18:50:12.966794Z [debug] GlassTextField: `settings` / `quality` have no effect when `surfaceStyle` is GlassSurfaceStyle.solid (a solid field is a flat recessed well and does not use the glass shader).
+2026-11-03T18:50:18.940032Z [trajectory] backfill: 49 records, 22 rows in 0ms
+2026-11-03T18:50:18.961569Z [debug] GlassTextField: `settings` / `quality` have no effect when `surfaceStyle` is GlassSurfaceStyle.solid (a solid field is a flat recessed well and does not use the glass shader).
+2026-11-03T18:50:34.968603Z [trajectory] backfill: 50 records, 22 rows in 0ms
+2026-11-03T18:50:34.991103Z [debug] GlassTextField: `settings` / `quality` have no effect when `surfaceStyle` is GlassSurfaceStyle.solid (a solid field is a flat recessed well and does not use the glass shader).
+2026-11-03T18:50:40.954098Z [trajectory] backfill: 52 records, 23 rows in 0ms
+2026-11-03T18:50:40.981831Z [debug] GlassTextField: `settings` / `quality` have no effect when `surfaceStyle` is GlassSurfaceStyle.solid (a solid field is a flat recessed well and does not use the glass shader).
+2026-11-03T18:50:42.945858Z [trajectory] backfill: 53 records, 23 rows in 0ms
+2026-11-03T18:50:42.973112Z [debug] GlassTextField: `settings` / `quality` have no effect when `surfaceStyle` is GlassSurfaceStyle.solid (a solid field is a flat recessed well and does not use the glass shader).
+2026-11-03T18:50:44.907275Z [trajectory] backfill: 54 records, 24 rows in 0ms
+2026-11-03T18:50:44.940490Z [debug] GlassTextField: `settings` / `quality` have no effect when `surfaceStyle` is GlassSurfaceStyle.solid (a solid field is a flat recessed well and does not use the glass shader).
+2026-11-03T18:50:54.926837Z [trajectory] backfill: 55 records, 25 rows in 0ms
+2026-11-03T18:50:54.965862Z [debug] GlassTextField: `settings` / `quality` have no effect when `surfaceStyle` is GlassSurfaceStyle.solid (a solid field is a flat recessed well and does not use the glass shader).
+2026-11-03T18:51:08.945752Z [trajectory] backfill: 56 records, 25 rows in 0ms
+2026-11-03T18:51:08.972753Z [debug] GlassTextField: `settings` / `quality` have no effect when `surfaceStyle` is GlassSurfaceStyle.solid (a solid field is a flat recessed well and does not use the glass shader).
+2026-11-03T18:51:18.952046Z [trajectory] backfill: 57 records, 25 rows in 0ms
+2026-11-03T18:51:18.974723Z [debug] GlassTextField: `settings` / `quality` have no effect when `surfaceStyle` is GlassSurfaceStyle.solid (a solid field is a flat recessed well and does not use the glass shader).
+2026-11-03T18:51:20.899604Z [trajectory] backfill: 58 records, 26 rows in 0ms
+2026-11-03T18:51:20.919114Z [debug] GlassTextField: `settings` / `quality` have no effect when `surfaceStyle` is GlassSurfaceStyle.solid (a solid field is a flat recessed well and does not use the glass shader).
+2026-11-03T18:52:07.798723Z [debug] GlassTextField: `settings` / `quality` have no effect when `surfaceStyle` is GlassSurfaceStyle.solid (a solid field is a flat recessed well and does not use the glass shader).
+2026-11-03T18:53:30.737431Z [debug] GlassTextField: `settings` / `quality` have no effect when `surfaceStyle` is GlassSurfaceStyle.solid (a solid field is a flat recessed well and does not use the glass shader).
+2026-11-03T18:53:32.313122Z [debug] GlassTextField: `settings` / `quality` have no effect when `surfaceStyle` is GlassSurfaceStyle.solid (a solid field is a flat recessed well and does not use the glass shader).
+2026-11-03T18:53:32.452478Z [debug] GlassTextField: `settings` / `quality` have no effect when `surfaceStyle` is GlassSurfaceStyle.solid (a solid field is a flat recessed well and does not use the glass shader).
+2026-11-03T18:53:38.740320Z [debug] GlassTextField: `settings` / `quality` have no effect when `surfaceStyle` is GlassSurfaceStyle.solid (a solid field is a flat recessed well and does not use the glass shader).
+2026-11-03T18:53:39.676789Z [debug] GlassTextField: `settings` / `quality` have no effect when `surfaceStyle` is GlassSurfaceStyle.solid (a solid field is a flat recessed well and does not use the glass shader).
+2026-11-03T18:53:42.825862Z [debug] GlassTextField: `settings` / `quality` have no effect when `surfaceStyle` is GlassSurfaceStyle.solid (a solid field is a flat recessed well and does not use the glass shader).
+2026-11-03T18:53:42.883547Z [debug] GlassTextField: `settings` / `quality` have no effect when `surfaceStyle` is GlassSurfaceStyle.solid (a solid field is a flat recessed well and does not use the glass shader).
+2026-11-03T18:53:42.948160Z [debug] GlassTextField: `settings` / `quality` have no effect when `surfaceStyle` is GlassSurfaceStyle.solid (a solid field is a flat recessed well and does not use the glass shader).
+2026-11-03T18:53:43.001834Z [debug] GlassTextField: `settings` / `quality` have no effect when `surfaceStyle` is GlassSurfaceStyle.solid (a solid field is a flat recessed well and does not use the glass shader).
+2026-11-03T18:53:43.059974Z [debug] GlassTextField: `settings` / `quality` have no effect when `surfaceStyle` is GlassSurfaceStyle.solid (a solid field is a flat recessed well and does not use the glass shader).
+2026-11-03T18:53:43.174444Z [debug] GlassTextField: `settings` / `quality` have no effect when `surfaceStyle` is GlassSurfaceStyle.solid (a solid field is a flat recessed well and does not use the glass shader).
+2026-11-03T18:53:44.416057Z [debug] GlassTextField: `settings` / `quality` have no effect when `surfaceStyle` is GlassSurfaceStyle.solid (a solid field is a flat recessed well and does not use the glass shader).
+2026-11-03T18:53:44.457880Z [debug] GlassTextField: `settings` / `quality` have no effect when `surfaceStyle` is GlassSurfaceStyle.solid (a solid field is a flat recessed well and does not use the glass shader).
+2026-11-03T18:53:44.502385Z [debug] GlassTextField: `settings` / `quality` have no effect when `surfaceStyle` is GlassSurfaceStyle.solid (a solid field is a flat recessed well and does not use the glass shader).
+2026-11-03T18:53:44.557324Z [debug] GlassTextField: `settings` / `quality` have no effect when `surfaceStyle` is GlassSurfaceStyle.solid (a solid field is a flat recessed well and does not use the glass shader).
+2026-11-03T18:53:45.919450Z [debug] GlassTextField: `settings` / `quality` have no effect when `surfaceStyle` is GlassSurfaceStyle.solid (a solid field is a flat recessed well and does not use the glass shader).
+2026-11-03T18:53:45.969599Z [debug] GlassTextField: `settings` / `quality` have no effect when `surfaceStyle` is GlassSurfaceStyle.solid (a solid field is a flat recessed well and does not use the glass shader).
+2026-11-03T18:53:46.038378Z [debug] GlassTextField: `settings` / `quality` have no effect when `surfaceStyle` is GlassSurfaceStyle.solid (a solid field is a flat recessed well and does not use the glass shader).
+2026-11-03T18:53:46.095838Z [debug] GlassTextField: `settings` / `quality` have no effect when `surfaceStyle` is GlassSurfaceStyle.solid (a solid field is a flat recessed well and does not use the glass shader).
+2026-11-03T18:53:46.169572Z [debug] GlassTextField: `settings` / `quality` have no effect when `surfaceStyle` is GlassSurfaceStyle.solid (a solid field is a flat recessed well and does not use the glass shader).
+2026-11-03T18:53:46.326429Z [debug] GlassTextField: `settings` / `quality` have no effect when `surfaceStyle` is GlassSurfaceStyle.solid (a solid field is a flat recessed well and does not use the glass shader).
+2026-11-03T18:54:26.795960Z [debug] GlassTextField: `settings` / `quality` have no effect when `surfaceStyle` is GlassSurfaceStyle.solid (a solid field is a flat recessed well and does not use the glass shader).
+2026-11-03T18:54:26.805920Z [debug] GlassTextField: `settings` / `quality` have no effect when `surfaceStyle` is GlassSurfaceStyle.solid (a solid field is a flat recessed well and does not use the glass shader).
+2026-11-03T18:54:47.032485Z [debug] GlassTextField: `settings` / `quality` have no effect when `surfaceStyle` is GlassSurfaceStyle.solid (a solid field is a flat recessed well and does not use the glass shader).
+2026-11-03T18:54:47.046049Z [debug] GlassTextField: `settings` / `quality` have no effect when `surfaceStyle` is GlassSurfaceStyle.solid (a solid field is a flat recessed well and does not use the glass shader).
+2026-11-03T18:54:47.981528Z [debug] GlassTextField: `settings` / `quality` have no effect when `surfaceStyle` is GlassSurfaceStyle.solid (a solid field is a flat recessed well and does not use the glass shader).
+2026-11-03T18:54:47.988866Z [debug] GlassTextField: `settings` / `quality` have no effect when `surfaceStyle` is GlassSurfaceStyle.solid (a solid field is a flat recessed well and does not use the glass shader).
+2026-11-03T18:54:53.017459Z [debug] GlassTextField: `settings` / `quality` have no effect when `surfaceStyle` is GlassSurfaceStyle.solid (a solid field is a flat recessed well and does not use the glass shader).
+2026-11-03T18:54:53.028458Z [debug] GlassTextField: `settings` / `quality` have no effect when `surfaceStyle` is GlassSurfaceStyle.solid (a solid field is a flat recessed well and does not use the glass shader).
+2026-11-03T18:54:55.020114Z [debug] GlassTextField: `settings` / `quality` have no effect when `surfaceStyle` is GlassSurfaceStyle.solid (a solid field is a flat recessed well and does not use the glass shader).
+2026-11-03T18:54:55.029094Z [debug] GlassTextField: `settings` / `quality` have no effect when `surfaceStyle` is GlassSurfaceStyle.solid (a solid field is a flat recessed well and does not use the glass shader).
+2026-11-03T18:54:58.994319Z [debug] GlassTextField: `settings` / `quality` have no effect when `surfaceStyle` is GlassSurfaceStyle.solid (a solid field is a flat recessed well and does not use the glass shader).
+2026-11-03T18:54:59.003602Z [debug] GlassTextField: `settings` / `quality` have no effect when `surfaceStyle` is GlassSurfaceStyle.solid (a solid field is a flat recessed well and does not use the glass shader).
+2026-11-03T18:55:04.976825Z [debug] GlassTextField: `settings` / `quality` have no effect when `surfaceStyle` is GlassSurfaceStyle.solid (a solid field is a flat recessed well and does not use the glass shader).
+2026-11-03T18:55:04.985853Z [debug] GlassTextField: `settings` / `quality` have no effect when `surfaceStyle` is GlassSurfaceStyle.solid (a solid field is a flat recessed well and does not use the glass shader).
+2026-11-03T18:55:07.035455Z [debug] GlassTextField: `settings` / `quality` have no effect when `surfaceStyle` is GlassSurfaceStyle.solid (a solid field is a flat recessed well and does not use the glass shader).
+2026-11-03T18:55:07.044162Z [debug] GlassTextField: `settings` / `quality` have no effect when `surfaceStyle` is GlassSurfaceStyle.solid (a solid field is a flat recessed well and does not use the glass shader).
+2026-11-03T18:55:09.298504Z [debug] GlassTextField: `settings` / `quality` have no effect when `surfaceStyle` is GlassSurfaceStyle.solid (a solid field is a flat recessed well and does not use the glass shader).
+2026-11-03T18:55:09.422332Z [debug] GlassTextField: `settings` / `quality` have no effect when `surfaceStyle` is GlassSurfaceStyle.solid (a solid field is a flat recessed well and does not use the glass shader).
+2026-11-03T18:55:09.514078Z [debug] GlassTextField: `settings` / `quality` have no effect when `surfaceStyle` is GlassSurfaceStyle.solid (a solid field is a flat recessed well and does not use the glass shader).
+2026-11-03T18:55:09.624765Z [debug] GlassTextField: `settings` / `quality` have no effect when `surfaceStyle` is GlassSurfaceStyle.solid (a solid field is a flat recessed well and does not use the glass shader).
+2026-11-03T18:55:13.050092Z [debug] GlassTextField: `settings` / `quality` have no effect when `surfaceStyle` is GlassSurfaceStyle.solid (a solid field is a flat recessed well and does not use the glass shader).
+2026-11-03T18:55:13.059831Z [debug] GlassTextField: `settings` / `quality` have no effect when `surfaceStyle` is GlassSurfaceStyle.solid (a solid field is a flat recessed well and does not use the glass shader).
+2026-11-03T18:55:18.996546Z [debug] GlassTextField: `settings` / `quality` have no effect when `surfaceStyle` is GlassSurfaceStyle.solid (a solid field is a flat recessed well and does not use the glass shader).
+2026-11-03T18:55:19.005961Z [debug] GlassTextField: `settings` / `quality` have no effect when `surfaceStyle` is GlassSurfaceStyle.solid (a solid field is a flat recessed well and does not use the glass shader).
+2026-11-03T18:55:23.021484Z [debug] GlassTextField: `settings` / `quality` have no effect when `surfaceStyle` is GlassSurfaceStyle.solid (a solid field is a flat recessed well and does not use the glass shader).
+2026-11-03T18:55:23.031803Z [debug] GlassTextField: `settings` / `quality` have no effect when `surfaceStyle` is GlassSurfaceStyle.solid (a solid field is a flat recessed well and does not use the glass shader).
+2026-11-03T18:55:23.305133Z [debug] GlassTextField: `settings` / `quality` have no effect when `surfaceStyle` is GlassSurfaceStyle.solid (a solid field is a flat recessed well and does not use the glass shader).
+2026-11-03T18:55:23.316657Z [debug] GlassTextField: `settings` / `quality` have no effect when `surfaceStyle` is GlassSurfaceStyle.solid (a solid field is a flat recessed well and does not use the glass shader).
+2026-11-03T18:55:25.794773Z [debug] GlassTextField: `settings` / `quality` have no effect when `surfaceStyle` is GlassSurfaceStyle.solid (a solid field is a flat recessed well and does not use the glass shader).
+2026-11-03T18:55:25.803782Z [debug] GlassTextField: `settings` / `quality` have no effect when `surfaceStyle` is GlassSurfaceStyle.solid (a solid field is a flat recessed well and does not use the glass shader).
+2026-11-03T18:55:27.017546Z [debug] GlassTextField: `settings` / `quality` have no effect when `surfaceStyle` is GlassSurfaceStyle.solid (a solid field is a flat recessed well and does not use the glass shader).
+2026-11-03T18:55:27.026765Z [debug] GlassTextField: `settings` / `quality` have no effect when `surfaceStyle` is GlassSurfaceStyle.solid (a solid field is a flat recessed well and does not use the glass shader).
+2026-11-03T18:55:29.018874Z [debug] GlassTextField: `settings` / `quality` have no effect when `surfaceStyle` is GlassSurfaceStyle.solid (a solid field is a flat recessed well and does not use the glass shader).
+2026-11-03T18:55:29.027601Z [debug] GlassTextField: `settings` / `quality` have no effect when `surfaceStyle` is GlassSurfaceStyle.solid (a solid field is a flat recessed well and does not use the glass shader).
+2026-11-03T18:55:35.018959Z [debug] GlassTextField: `settings` / `quality` have no effect when `surfaceStyle` is GlassSurfaceStyle.solid (a solid field is a flat recessed well and does not use the glass shader).
+2026-11-03T18:55:35.028864Z [debug] GlassTextField: `settings` / `quality` have no effect when `surfaceStyle` is GlassSurfaceStyle.solid (a solid field is a flat recessed well and does not use the glass shader).
+2026-11-03T18:55:37.008647Z [debug] GlassTextField: `settings` / `quality` have no effect when `surfaceStyle` is GlassSurfaceStyle.solid (a solid field is a flat recessed well and does not use the glass shader).
+2026-11-03T18:55:37.018785Z [debug] GlassTextField: `settings` / `quality` have no effect when `surfaceStyle` is GlassSurfaceStyle.solid (a solid field is a flat recessed well and does not use the glass shader).
+2026-11-03T18:55:41.023481Z [debug] GlassTextField: `settings` / `quality` have no effect when `surfaceStyle` is GlassSurfaceStyle.solid (a solid field is a flat recessed well and does not use the glass shader).
+2026-11-03T18:55:41.031952Z [debug] GlassTextField: `settings` / `quality` have no effect when `surfaceStyle` is GlassSurfaceStyle.solid (a solid field is a flat recessed well and does not use the glass shader).
+2026-11-03T18:55:45.371755Z [debug] GlassTextField: `settings` / `quality` have no effect when `surfaceStyle` is GlassSurfaceStyle.solid (a solid field is a flat recessed well and does not use the glass shader).
+2026-11-03T18:55:45.396402Z [debug] GlassTextField: `settings` / `quality` have no effect when `surfaceStyle` is GlassSurfaceStyle.solid (a solid field is a flat recessed well and does not use the glass shader).
+2026-11-03T18:55:46.999388Z [debug] GlassTextField: `settings` / `quality` have no effect when `surfaceStyle` is GlassSurfaceStyle.solid (a solid field is a flat recessed well and does not use the glass shader).
+2026-11-03T18:55:47.009397Z [debug] GlassTextField: `settings` / `quality` have no effect when `surfaceStyle` is GlassSurfaceStyle.solid (a solid field is a flat recessed well and does not use the glass shader).
+2026-11-03T18:55:50.479460Z [debug] GlassTextField: `settings` / `quality` have no effect when `surfaceStyle` is GlassSurfaceStyle.solid (a solid field is a flat recessed well and does not use the glass shader).
+2026-11-03T18:55:50.505269Z [debug] GlassTextField: `settings` / `quality` have no effect when `surfaceStyle` is GlassSurfaceStyle.solid (a solid field is a flat recessed well and does not use the glass shader).
+2026-11-03T18:55:50.555010Z [debug] GlassTextField: `settings` / `quality` have no effect when `surfaceStyle` is GlassSurfaceStyle.solid (a solid field is a flat recessed well and does not use the glass shader).
+2026-11-03T18:55:50.595343Z [debug] GlassTextField: `settings` / `quality` have no effect when `surfaceStyle` is GlassSurfaceStyle.solid (a solid field is a flat recessed well and does not use the glass shader).
+2026-11-03T18:55:50.648343Z [debug] GlassTextField: `settings` / `quality` have no effect when `surfaceStyle` is GlassSurfaceStyle.solid (a solid field is a flat recessed well and does not use the glass shader).
+2026-11-03T18:55:52.431378Z [debug] GlassTextField: `settings` / `quality` have no effect when `surfaceStyle` is GlassSurfaceStyle.solid (a solid field is a flat recessed well and does not use the glass shader).
+2026-11-03T18:55:52.468535Z [debug] GlassTextField: `settings` / `quality` have no effect when `surfaceStyle` is GlassSurfaceStyle.solid (a solid field is a flat recessed well and does not use the glass shader).
+2026-11-03T18:55:52.518204Z [debug] GlassTextField: `settings` / `quality` have no effect when `surfaceStyle` is GlassSurfaceStyle.solid (a solid field is a flat recessed well and does not use the glass shader).
+2026-11-03T18:55:52.576725Z [debug] GlassTextField: `settings` / `quality` have no effect when `surfaceStyle` is GlassSurfaceStyle.solid (a solid field is a flat recessed well and does not use the glass shader).
+2026-11-03T18:55:52.618025Z [debug] GlassTextField: `settings` / `quality` have no effect when `surfaceStyle` is GlassSurfaceStyle.solid (a solid field is a flat recessed well and does not use the glass shader).
+2026-11-03T18:55:52.649073Z [debug] GlassTextField: `settings` / `quality` have no effect when `surfaceStyle` is GlassSurfaceStyle.solid (a solid field is a flat recessed well and does not use the glass shader).
+2026-11-03T18:55:52.891464Z [debug] GlassTextField: `settings` / `quality` have no effect when `surfaceStyle` is GlassSurfaceStyle.solid (a solid field is a flat recessed well and does not use the glass shader).
+2026-11-03T18:55:53.053661Z [debug] GlassTextField: `settings` / `quality` have no effect when `surfaceStyle` is GlassSurfaceStyle.solid (a solid field is a flat recessed well and does not use the glass shader).
+2026-11-03T18:55:53.082996Z [debug] GlassTextField: `settings` / `quality` have no effect when `surfaceStyle` is GlassSurfaceStyle.solid (a solid field is a flat recessed well and does not use the glass shader).
+2026-11-03T18:55:58.983567Z [debug] GlassTextField: `settings` / `quality` have no effect when `surfaceStyle` is GlassSurfaceStyle.solid (a solid field is a flat recessed well and does not use the glass shader).
+2026-11-03T18:55:58.994108Z [debug] GlassTextField: `settings` / `quality` have no effect when `surfaceStyle` is GlassSurfaceStyle.solid (a solid field is a flat recessed well and does not use the glass shader).
+2026-11-03T18:56:01.010976Z [debug] GlassTextField: `settings` / `quality` have no effect when `surfaceStyle` is GlassSurfaceStyle.solid (a solid field is a flat recessed well and does not use the glass shader).
+2026-11-03T18:56:01.022055Z [debug] GlassTextField: `settings` / `quality` have no effect when `surfaceStyle` is GlassSurfaceStyle.solid (a solid field is a flat recessed well and does not use the glass shader).
+2026-11-03T18:56:05.232670Z [debug] GlassTextField: `settings` / `quality` have no effect when `surfaceStyle` is GlassSurfaceStyle.solid (a solid field is a flat recessed well and does not use the glass shader).
+2026-11-03T18:56:05.244888Z [debug] GlassTextField: `settings` / `quality` have no effect when `surfaceStyle` is GlassSurfaceStyle.solid (a solid field is a flat recessed well and does not use the glass shader).
+2026-11-03T18:56:55.215334Z [debug] GlassTextField: `settings` / `quality` have no effect when `surfaceStyle` is GlassSurfaceStyle.solid (a solid field is a flat recessed well and does not use the glass shader).
+2026-11-03T18:56:55.244Z [debug] GlassTextField: `settings` / `quality` have no effect when `surfaceStyle` is GlassSurfaceStyle.solid (a solid field is a flat recessed well and does not use the glass shader).
+2026-11-03T18:56:55.712104Z [debug] GlassTextField: `settings` / `quality` have no effect when `surfaceStyle` is GlassSurfaceStyle.solid (a solid field is a flat recessed well and does not use the glass shader).
+2026-11-03T18:56:55.721141Z [debug] GlassTextField: `settings` / `quality` have no effect when `surfaceStyle` is GlassSurfaceStyle.solid (a solid field is a flat recessed well and does not use the glass shader).
+2026-11-03T18:56:58.354561Z [debug] GlassTextField: `settings` / `quality` have no effect when `surfaceStyle` is GlassSurfaceStyle.solid (a solid field is a flat recessed well and does not use the glass shader).
+2026-11-03T18:56:58.364482Z [debug] GlassTextField: `settings` / `quality` have no effect when `surfaceStyle` is GlassSurfaceStyle.solid (a solid field is a flat recessed well and does not use the glass shader).
+2026-11-03T18:57:00.987448Z [debug] GlassTextField: `settings` / `quality` have no effect when `surfaceStyle` is GlassSurfaceStyle.solid (a solid field is a flat recessed well and does not use the glass shader).
+2026-11-03T18:57:01.000647Z [debug] GlassTextField: `settings` / `quality` have no effect when `surfaceStyle` is GlassSurfaceStyle.solid (a solid field is a flat recessed well and does not use the glass shader).
+2026-11-03T18:57:04.983694Z [debug] GlassTextField: `settings` / `quality` have no effect when `surfaceStyle` is GlassSurfaceStyle.solid (a solid field is a flat recessed well and does not use the glass shader).
+2026-11-03T18:57:04.992390Z [debug] GlassTextField: `settings` / `quality` have no effect when `surfaceStyle` is GlassSurfaceStyle.solid (a solid field is a flat recessed well and does not use the glass shader).
+2026-11-03T18:57:12.405631Z [debug] GlassTextField: `settings` / `quality` have no effect when `surfaceStyle` is GlassSurfaceStyle.solid (a solid field is a flat recessed well and does not use the glass shader).
+2026-11-03T18:57:12.418176Z [debug] GlassTextField: `settings` / `quality` have no effect when `surfaceStyle` is GlassSurfaceStyle.solid (a solid field is a flat recessed well and does not use the glass shader).
+2026-11-03T18:57:14.742196Z [debug] GlassTextField: `settings` / `quality` have no effect when `surfaceStyle` is GlassSurfaceStyle.solid (a solid field is a flat recessed well and does not use the glass shader).
+2026-11-03T18:57:14.753030Z [debug] GlassTextField: `settings` / `quality` have no effect when `surfaceStyle` is GlassSurfaceStyle.solid (a solid field is a flat recessed well and does not use the glass shader).
+2026-11-03T18:57:21.969463Z [debug] GlassTextField: `settings` / `quality` have no effect when `surfaceStyle` is GlassSurfaceStyle.solid (a solid field is a flat recessed well and does not use the glass shader).
+2026-11-03T18:57:21.977409Z [debug] GlassTextField: `settings` / `quality` have no effect when `surfaceStyle` is GlassSurfaceStyle.solid (a solid field is a flat recessed well and does not use the glass shader).
+2026-11-03T18:57:35.519913Z [debug] GlassTextField: `settings` / `quality` have no effect when `surfaceStyle` is GlassSurfaceStyle.solid (a solid field is a flat recessed well and does not use the glass shader).
+2026-11-03T18:57:35.527990Z [debug] GlassTextField: `settings` / `quality` have no effect when `surfaceStyle` is GlassSurfaceStyle.solid (a solid field is a flat recessed well and does not use the glass shader).
+2026-11-03T18:57:36.738630Z [debug] GlassTextField: `settings` / `quality` have no effect when `surfaceStyle` is GlassSurfaceStyle.solid (a solid field is a flat recessed well and does not use the glass shader).
+2026-11-03T18:57:36.747729Z [debug] GlassTextField: `settings` / `quality` have no effect when `surfaceStyle` is GlassSurfaceStyle.solid (a solid field is a flat recessed well and does not use the glass shader).
+2026-11-03T18:57:42.202878Z [debug] GlassTextField: `settings` / `quality` have no effect when `surfaceStyle` is GlassSurfaceStyle.solid (a solid field is a flat recessed well and does not use the glass shader).
+2026-11-03T18:57:42.210623Z [debug] GlassTextField: `settings` / `quality` have no effect when `surfaceStyle` is GlassSurfaceStyle.solid (a solid field is a flat recessed well and does not use the glass shader).
+2026-11-03T18:57:42.772354Z [debug] GlassTextField: `settings` / `quality` have no effect when `surfaceStyle` is GlassSurfaceStyle.solid (a solid field is a flat recessed well and does not use the glass shader).
+2026-11-03T18:57:42.781087Z [debug] GlassTextField: `settings` / `quality` have no effect when `surfaceStyle` is GlassSurfaceStyle.solid (a solid field is a flat recessed well and does not use the glass shader).
+2026-11-03T18:57:42.979802Z [debug] GlassTextField: `settings` / `quality` have no effect when `surfaceStyle` is GlassSurfaceStyle.solid (a solid field is a flat recessed well and does not use the glass shader).
+2026-11-03T18:57:42.989301Z [debug] GlassTextField: `settings` / `quality` have no effect when `surfaceStyle` is GlassSurfaceStyle.solid (a solid field is a flat recessed well and does not use the glass shader).
+2026-11-03T18:57:51.907737Z [debug] GlassTextField: `settings` / `quality` have no effect when `surfaceStyle` is GlassSurfaceStyle.solid (a solid field is a flat recessed well and does not use the glass shader).
+2026-11-03T18:57:51.914995Z [debug] GlassTextField: `settings` / `quality` have no effect when `surfaceStyle` is GlassSurfaceStyle.solid (a solid field is a flat recessed well and does not use the glass shader).
+2026-11-03T18:57:54.471302Z [debug] GlassTextField: `settings` / `quality` have no effect when `surfaceStyle` is GlassSurfaceStyle.solid (a solid field is a flat recessed well and does not use the glass shader).
+2026-11-03T18:57:54.478797Z [debug] GlassTextField: `settings` / `quality` have no effect when `surfaceStyle` is GlassSurfaceStyle.solid (a solid field is a flat recessed well and does not use the glass shader).
+2026-11-03T18:57:59.719576Z [debug] GlassTextField: `settings` / `quality` have no effect when `surfaceStyle` is GlassSurfaceStyle.solid (a solid field is a flat recessed well and does not use the glass shader).
+2026-11-03T18:57:59.729153Z [debug] GlassTextField: `settings` / `quality` have no effect when `surfaceStyle` is GlassSurfaceStyle.solid (a solid field is a flat recessed well and does not use the glass shader).
+2026-11-03T18:58:00.380969Z [debug] GlassTextField: `settings` / `quality` have no effect when `surfaceStyle` is GlassSurfaceStyle.solid (a solid field is a flat recessed well and does not use the glass shader).
+2026-11-03T18:58:00.389218Z [debug] GlassTextField: `settings` / `quality` have no effect when `surfaceStyle` is GlassSurfaceStyle.solid (a solid field is a flat recessed well and does not use the glass shader).
+2026-11-03T18:58:04.956284Z [debug] GlassTextField: `settings` / `quality` have no effect when `surfaceStyle` is GlassSurfaceStyle.solid (a solid field is a flat recessed well and does not use the glass shader).
+2026-11-03T18:58:04.965918Z [debug] GlassTextField: `settings` / `quality` have no effect when `surfaceStyle` is GlassSurfaceStyle.solid (a solid field is a flat recessed well and does not use the glass shader).
+2026-11-03T18:58:10.158230Z [debug] GlassTextField: `settings` / `quality` have no effect when `surfaceStyle` is GlassSurfaceStyle.solid (a solid field is a flat recessed well and does not use the glass shader).
+2026-11-03T18:58:10.167720Z [debug] GlassTextField: `settings` / `quality` have no effect when `surfaceStyle` is GlassSurfaceStyle.solid (a solid field is a flat recessed well and does not use the glass shader).
+2026-11-03T18:58:10.948562Z [debug] GlassTextField: `settings` / `quality` have no effect when `surfaceStyle` is GlassSurfaceStyle.solid (a solid field is a flat recessed well and does not use the glass shader).
+2026-11-03T18:58:10.958309Z [debug] GlassTextField: `settings` / `quality` have no effect when `surfaceStyle` is GlassSurfaceStyle.solid (a solid field is a flat recessed well and does not use the glass shader).
+2026-11-03T18:58:14.951368Z [debug] GlassTextField: `settings` / `quality` have no effect when `surfaceStyle` is GlassSurfaceStyle.solid (a solid field is a flat recessed well and does not use the glass shader).
+2026-11-03T18:58:14.959371Z [debug] GlassTextField: `settings` / `quality` have no effect when `surfaceStyle` is GlassSurfaceStyle.solid (a solid field is a flat recessed well and does not use the glass shader).
+2026-11-03T18:58:15.388093Z [debug] GlassTextField: `settings` / `quality` have no effect when `surfaceStyle` is GlassSurfaceStyle.solid (a solid field is a flat recessed well and does not use the glass shader).
+2026-11-03T18:58:15.397858Z [debug] GlassTextField: `settings` / `quality` have no effect when `surfaceStyle` is GlassSurfaceStyle.solid (a solid field is a flat recessed well and does not use the glass shader).
+2026-11-03T18:58:16.441551Z [debug] GlassTextField: `settings` / `quality` have no effect when `surfaceStyle` is GlassSurfaceStyle.solid (a solid field is a flat recessed well and does not use the glass shader).
+2026-11-03T18:58:16.449709Z [debug] GlassTextField: `settings` / `quality` have no effect when `surfaceStyle` is GlassSurfaceStyle.solid (a solid field is a flat recessed well and does not use the glass shader).
+2026-11-03T18:58:19.442342Z [debug] GlassTextField: `settings` / `quality` have no effect when `surfaceStyle` is GlassSurfaceStyle.solid (a solid field is a flat recessed well and does not use the glass shader).
+2026-11-03T18:58:19.454294Z [debug] GlassTextField: `settings` / `quality` have no effect when `surfaceStyle` is GlassSurfaceStyle.solid (a solid field is a flat recessed well and does not use the glass shader).
+2026-11-03T18:58:26.032973Z [debug] GlassTextField: `settings` / `quality` have no effect when `surfaceStyle` is GlassSurfaceStyle.solid (a solid field is a flat recessed well and does not use the glass shader).
+2026-11-03T18:58:26.041346Z [debug] GlassTextField: `settings` / `quality` have no effect when `surfaceStyle` is GlassSurfaceStyle.solid (a solid field is a flat recessed well and does not use the glass shader).
+2026-11-03T18:58:28.952580Z [debug] GlassTextField: `settings` / `quality` have no effect when `surfaceStyle` is GlassSurfaceStyle.solid (a solid field is a flat recessed well and does not use the glass shader).
+2026-11-03T18:58:28.961274Z [debug] GlassTextField: `settings` / `quality` have no effect when `surfaceStyle` is GlassSurfaceStyle.solid (a solid field is a flat recessed well and does not use the glass shader).
+2026-11-03T18:58:38.544032Z [debug] GlassTextField: `settings` / `quality` have no effect when `surfaceStyle` is GlassSurfaceStyle.solid (a solid field is a flat recessed well and does not use the glass shader).
+2026-11-03T18:58:38.552058Z [debug] GlassTextField: `settings` / `quality` have no effect when `surfaceStyle` is GlassSurfaceStyle.solid (a solid field is a flat recessed well and does not use the glass shader).
+2026-11-03T18:58:40.541584Z [debug] GlassTextField: `settings` / `quality` have no effect when `surfaceStyle` is GlassSurfaceStyle.solid (a solid field is a flat recessed well and does not use the glass shader).
+2026-11-03T18:58:40.549251Z [debug] GlassTextField: `settings` / `quality` have no effect when `surfaceStyle` is GlassSurfaceStyle.solid (a solid field is a flat recessed well and does not use the glass shader).
+2026-11-03T18:58:42.248017Z [debug] GlassTextField: `settings` / `quality` have no effect when `surfaceStyle` is GlassSurfaceStyle.solid (a solid field is a flat recessed well and does not use the glass shader).
+2026-11-03T18:58:42.257054Z [debug] GlassTextField: `settings` / `quality` have no effect when `surfaceStyle` is GlassSurfaceStyle.solid (a solid field is a flat recessed well and does not use the glass shader).
+2026-11-03T18:58:43.472810Z [debug] [fah] provider registry loaded
+2026-11-03T18:58:43.475056Z [debug] [fah] last connection loaded
+2026-11-03T18:58:43.536490Z [fa_network] account restored from wallet (access token fresh)
+2026-11-03T18:58:43.541065Z [debug] [fah] starting runApp
+2026-11-03T18:58:44.481241Z [debug] [fah][sessions] boot: resuming last active 01a06102-15be-78be-9879-37615d698cf2 (957 persisted)
+2026-11-03T18:58:44.481938Z [debug] [fah][sessions] open 01a06102-15be-78be-9879-37615d698cf2: not in memory — loading from disk (0 loaded)
+2026-11-03T18:58:44.558761Z [fa_network] account networks already in sync (3)
+2026-11-03T18:58:44.589288Z [context] project context truncated: AGENTS.md 31KB -> 31KB of the 32KB budget (full file stays on disk)
+2026-11-03T18:58:44.644572Z [debug] [Fa] system prompt platform=SandboxPlatform.desktop, commands section 235 chars
+2026-11-03T18:58:44.649239Z [debug] [Fa] system prompt platform=SandboxPlatform.desktop, commands section 235 chars
+2026-11-03T18:58:44.788198Z [debug] [Fa] system prompt platform=SandboxPlatform.desktop, commands section 235 chars
+2026-11-03T18:58:45.539609Z [trajectory] backfill: 20 records, 9 rows in 0ms
+2026-11-03T18:58:45.539837Z [debug] [Fa] system prompt platform=SandboxPlatform.desktop, commands section 235 chars
+2026-11-03T18:58:45.540706Z [open] 01a06102-15be-78be-9879-37615d698cf2: storage=193ms branch=1ms context=371ms ledger=2ms total=890ms (20 records in view)
+2026-11-03T18:58:45.580475Z [debug] GlassTextField: `settings` / `quality` have no effect when `surfaceStyle` is GlassSurfaceStyle.solid (a solid field is a flat recessed well and does not use the glass shader).
+2026-11-03T18:58:45.832326Z [debug] GlassTextField: `settings` / `quality` have no effect when `surfaceStyle` is GlassSurfaceStyle.solid (a solid field is a flat recessed well and does not use the glass shader).
+2026-11-03T18:58:46.165684Z [debug] GlassTextField: `settings` / `quality` have no effect when `surfaceStyle` is GlassSurfaceStyle.solid (a solid field is a flat recessed well and does not use the glass shader).
+2026-11-03T18:58:49.436600Z [debug] GlassTextField: `settings` / `quality` have no effect when `surfaceStyle` is GlassSurfaceStyle.solid (a solid field is a flat recessed well and does not use the glass shader).
+2026-11-03T18:58:49.468033Z [debug] GlassTextField: `settings` / `quality` have no effect when `surfaceStyle` is GlassSurfaceStyle.solid (a solid field is a flat recessed well and does not use the glass shader).
+2026-11-03T18:58:49.505209Z [debug] GlassTextField: `settings` / `quality` have no effect when `surfaceStyle` is GlassSurfaceStyle.solid (a solid field is a flat recessed well and does not use the glass shader).
+2026-11-03T18:58:49.525076Z [debug] GlassTextField: `settings` / `quality` have no effect when `surfaceStyle` is GlassSurfaceStyle.solid (a solid field is a flat recessed well and does not use the glass shader).
+2026-11-03T18:58:51.297841Z [debug] GlassTextField: `settings` / `quality` have no effect when `surfaceStyle` is GlassSurfaceStyle.solid (a solid field is a flat recessed well and does not use the glass shader).
+2026-11-03T18:58:51.332893Z [debug] GlassTextField: `settings` / `quality` have no effect when `surfaceStyle` is GlassSurfaceStyle.solid (a solid field is a flat recessed well and does not use the glass shader).
+2026-11-03T18:58:51.351579Z [debug] GlassTextField: `settings` / `quality` have no effect when `surfaceStyle` is GlassSurfaceStyle.solid (a solid field is a flat recessed well and does not use the glass shader).
+2026-11-03T18:58:51.384110Z [debug] GlassTextField: `settings` / `quality` have no effect when `surfaceStyle` is GlassSurfaceStyle.solid (a solid field is a flat recessed well and does not use the glass shader).
+2026-11-03T18:58:51.498418Z [debug] GlassTextField: `settings` / `quality` have no effect when `surfaceStyle` is GlassSurfaceStyle.solid (a solid field is a flat recessed well and does not use the glass shader).
+2026-11-03T18:58:54.294260Z [debug] GlassTextField: `settings` / `quality` have no effect when `surfaceStyle` is GlassSurfaceStyle.solid (a solid field is a flat recessed well and does not use the glass shader).
+2026-11-03T18:58:54.316110Z [debug] GlassTextField: `settings` / `quality` have no effect when `surfaceStyle` is GlassSurfaceStyle.solid (a solid field is a flat recessed well and does not use the glass shader).
+2026-11-03T18:58:54.338287Z [debug] GlassTextField: `settings` / `quality` have no effect when `surfaceStyle` is GlassSurfaceStyle.solid (a solid field is a flat recessed well and does not use the glass shader).
+2026-11-03T18:58:54.354709Z [debug] GlassTextField: `settings` / `quality` have no effect when `surfaceStyle` is GlassSurfaceStyle.solid (a solid field is a flat recessed well and does not use the glass shader).
+2026-11-03T18:58:54.371447Z [debug] GlassTextField: `settings` / `quality` have no effect when `surfaceStyle` is GlassSurfaceStyle.solid (a solid field is a flat recessed well and does not use the glass shader).
+2026-11-03T18:58:54.387788Z [debug] GlassTextField: `settings` / `quality` have no effect when `surfaceStyle` is GlassSurfaceStyle.solid (a solid field is a flat recessed well and does not use the glass shader).
+2026-11-03T18:58:54.408150Z [debug] GlassTextField: `settings` / `quality` have no effect when `surfaceStyle` is GlassSurfaceStyle.solid (a solid field is a flat recessed well and does not use the glass shader).
+2026-11-03T18:58:54.437650Z [debug] GlassTextField: `settings` / `quality` have no effect when `surfaceStyle` is GlassSurfaceStyle.solid (a solid field is a flat recessed well and does not use the glass shader).
+2026-11-03T18:58:54.459312Z [debug] GlassTextField: `settings` / `quality` have no effect when `surfaceStyle` is GlassSurfaceStyle.solid (a solid field is a flat recessed well and does not use the glass shader).
+2026-11-03T18:58:54.478709Z [debug] GlassTextField: `settings` / `quality` have no effect when `surfaceStyle` is GlassSurfaceStyle.solid (a solid field is a flat recessed well and does not use the glass shader).
+2026-11-03T18:58:54.500089Z [debug] GlassTextField: `settings` / `quality` have no effect when `surfaceStyle` is GlassSurfaceStyle.solid (a solid field is a flat recessed well and does not use the glass shader).
+2026-11-03T18:58:59.166606Z [debug] GlassTextField: `settings` / `quality` have no effect when `surfaceStyle` is GlassSurfaceStyle.solid (a solid field is a flat recessed well and does not use the glass shader).
+2026-11-03T18:59:00.038921Z [debug] GlassTextField: `settings` / `quality` have no effect when `surfaceStyle` is GlassSurfaceStyle.solid (a solid field is a flat recessed well and does not use the glass shader).
+2026-11-03T18:59:00.058435Z [debug] GlassTextField: `settings` / `quality` have no effect when `surfaceStyle` is GlassSurfaceStyle.solid (a solid field is a flat recessed well and does not use the glass shader).
+2026-11-03T18:59:00.072385Z [debug] GlassTextField: `settings` / `quality` have no effect when `surfaceStyle` is GlassSurfaceStyle.solid (a solid field is a flat recessed well and does not use the glass shader).
+2026-11-03T18:59:00.088011Z [debug] GlassTextField: `settings` / `quality` have no effect when `surfaceStyle` is GlassSurfaceStyle.solid (a solid field is a flat recessed well and does not use the glass shader).
+2026-11-03T18:59:00.106246Z [debug] GlassTextField: `settings` / `quality` have no effect when `surfaceStyle` is GlassSurfaceStyle.solid (a solid field is a flat recessed well and does not use the glass shader).
+2026-11-03T18:59:00.120532Z [debug] GlassTextField: `settings` / `quality` have no effect when `surfaceStyle` is GlassSurfaceStyle.solid (a solid field is a flat recessed well and does not use the glass shader).
+2026-11-03T18:59:00.138346Z [debug] GlassTextField: `settings` / `quality` have no effect when `surfaceStyle` is GlassSurfaceStyle.solid (a solid field is a flat recessed well and does not use the glass shader).
+2026-11-03T18:59:00.156964Z [debug] GlassTextField: `settings` / `quality` have no effect when `surfaceStyle` is GlassSurfaceStyle.solid (a solid field is a flat recessed well and does not use the glass shader).
+2026-11-03T18:59:00.170847Z [debug] GlassTextField: `settings` / `quality` have no effect when `surfaceStyle` is GlassSurfaceStyle.solid (a solid field is a flat recessed well and does not use the glass shader).
+2026-11-03T18:59:00.189250Z [debug] GlassTextField: `settings` / `quality` have no effect when `surfaceStyle` is GlassSurfaceStyle.solid (a solid field is a flat recessed well and does not use the glass shader).
+2026-11-03T18:59:00.205379Z [debug] GlassTextField: `settings` / `quality` have no effect when `surfaceStyle` is GlassSurfaceStyle.solid (a solid field is a flat recessed well and does not use the glass shader).
+2026-11-03T18:59:00.220114Z [debug] GlassTextField: `settings` / `quality` have no effect when `surfaceStyle` is GlassSurfaceStyle.solid (a solid field is a flat recessed well and does not use the glass shader).
+2026-11-03T18:59:00.231828Z [debug] GlassTextField: `settings` / `quality` have no effect when `surfaceStyle` is GlassSurfaceStyle.solid (a solid field is a flat recessed well and does not use the glass shader).
+2026-11-03T18:59:01.742846Z [debug] GlassTextField: `settings` / `quality` have no effect when `surfaceStyle` is GlassSurfaceStyle.solid (a solid field is a flat recessed well and does not use the glass shader).
+2026-11-03T18:59:01.756280Z [debug] GlassTextField: `settings` / `quality` have no effect when `surfaceStyle` is GlassSurfaceStyle.solid (a solid field is a flat recessed well and does not use the glass shader).
+2026-11-03T18:59:01.773384Z [debug] GlassTextField: `settings` / `quality` have no effect when `surfaceStyle` is GlassSurfaceStyle.solid (a solid field is a flat recessed well and does not use the glass shader).
+2026-11-03T18:59:01.785564Z [debug] GlassTextField: `settings` / `quality` have no effect when `surfaceStyle` is GlassSurfaceStyle.solid (a solid field is a flat recessed well and does not use the glass shader).
+2026-11-03T18:59:01.797917Z [debug] GlassTextField: `settings` / `quality` have no effect when `surfaceStyle` is GlassSurfaceStyle.solid (a solid field is a flat recessed well and does not use the glass shader).
+2026-11-03T18:59:01.829291Z [debug] GlassTextField: `settings` / `quality` have no effect when `surfaceStyle` is GlassSurfaceStyle.solid (a solid field is a flat recessed well and does not use the glass shader).
+2026-11-03T18:59:01.854842Z [debug] GlassTextField: `settings` / `quality` have no effect when `surfaceStyle` is GlassSurfaceStyle.solid (a solid field is a flat recessed well and does not use the glass shader).
+2026-11-03T18:59:01.871854Z [debug] GlassTextField: `settings` / `quality` have no effect when `surfaceStyle` is GlassSurfaceStyle.solid (a solid field is a flat recessed well and does not use the glass shader).
+2026-11-03T18:59:01.895299Z [debug] GlassTextField: `settings` / `quality` have no effect when `surfaceStyle` is GlassSurfaceStyle.solid (a solid field is a flat recessed well and does not use the glass shader).
+2026-11-03T18:59:01.908644Z [debug] GlassTextField: `settings` / `quality` have no effect when `surfaceStyle` is GlassSurfaceStyle.solid (a solid field is a flat recessed well and does not use the glass shader).
+2026-11-03T18:59:01.925693Z [debug] GlassTextField: `settings` / `quality` have no effect when `surfaceStyle` is GlassSurfaceStyle.solid (a solid field is a flat recessed well and does not use the glass shader).
+2026-11-03T18:59:01.939989Z [debug] GlassTextField: `settings` / `quality` have no effect when `surfaceStyle` is GlassSurfaceStyle.solid (a solid field is a flat recessed well and does not use the glass shader).
+2026-11-03T18:59:01.961458Z [debug] GlassTextField: `settings` / `quality` have no effect when `surfaceStyle` is GlassSurfaceStyle.solid (a solid field is a flat recessed well and does not use the glass shader).
+2026-11-03T18:59:03.882605Z [debug] GlassTextField: `settings` / `quality` have no effect when `surfaceStyle` is GlassSurfaceStyle.solid (a solid field is a flat recessed well and does not use the glass shader).
+2026-11-03T18:59:03.897619Z [debug] GlassTextField: `settings` / `quality` have no effect when `surfaceStyle` is GlassSurfaceStyle.solid (a solid field is a flat recessed well and does not use the glass shader).
+2026-11-03T18:59:03.918317Z [debug] GlassTextField: `settings` / `quality` have no effect when `surfaceStyle` is GlassSurfaceStyle.solid (a solid field is a flat recessed well and does not use the glass shader).
+2026-11-03T18:59:03.931093Z [debug] GlassTextField: `settings` / `quality` have no effect when `surfaceStyle` is GlassSurfaceStyle.solid (a solid field is a flat recessed well and does not use the glass shader).
+2026-11-03T18:59:03.950111Z [debug] GlassTextField: `settings` / `quality` have no effect when `surfaceStyle` is GlassSurfaceStyle.solid (a solid field is a flat recessed well and does not use the glass shader).
+2026-11-03T18:59:03.968557Z [debug] GlassTextField: `settings` / `quality` have no effect when `surfaceStyle` is GlassSurfaceStyle.solid (a solid field is a flat recessed well and does not use the glass shader).
+2026-11-03T18:59:03.982468Z [debug] GlassTextField: `settings` / `quality` have no effect when `surfaceStyle` is GlassSurfaceStyle.solid (a solid field is a flat recessed well and does not use the glass shader).
+2026-11-03T18:59:04.001048Z [debug] GlassTextField: `settings` / `quality` have no effect when `surfaceStyle` is GlassSurfaceStyle.solid (a solid field is a flat recessed well and does not use the glass shader).
+2026-11-03T18:59:04.016178Z [debug] GlassTextField: `settings` / `quality` have no effect when `surfaceStyle` is GlassSurfaceStyle.solid (a solid field is a flat recessed well and does not use the glass shader).
+2026-11-03T18:59:04.034492Z [debug] GlassTextField: `settings` / `quality` have no effect when `surfaceStyle` is GlassSurfaceStyle.solid (a solid field is a flat recessed well and does not use the glass shader).
+2026-11-03T18:59:04.046010Z [debug] GlassTextField: `settings` / `quality` have no effect when `surfaceStyle` is GlassSurfaceStyle.solid (a solid field is a flat recessed well and does not use the glass shader).
+2026-11-03T18:59:04.059119Z [debug] GlassTextField: `settings` / `quality` have no effect when `surfaceStyle` is GlassSurfaceStyle.solid (a solid field is a flat recessed well and does not use the glass shader).
+2026-11-03T18:59:04.074992Z [debug] GlassTextField: `settings` / `quality` have no effect when `surfaceStyle` is GlassSurfaceStyle.solid (a solid field is a flat recessed well and does not use the glass shader).
+2026-11-03T18:59:05.994131Z [debug] GlassTextField: `settings` / `quality` have no effect when `surfaceStyle` is GlassSurfaceStyle.solid (a solid field is a flat recessed well and does not use the glass shader).
+2026-11-03T18:59:15.025470Z [debug] GlassTextField: `settings` / `quality` have no effect when `surfaceStyle` is GlassSurfaceStyle.solid (a solid field is a flat recessed well and does not use the glass shader).
+2026-11-03T18:59:17.549544Z [trajectory] backfill: 22 records, 10 rows in 0ms
+2026-11-03T18:59:17.565891Z [debug] GlassTextField: `settings` / `quality` have no effect when `surfaceStyle` is GlassSurfaceStyle.solid (a solid field is a flat recessed well and does not use the glass shader).
+2026-11-03T18:59:21.691690Z [debug] GlassTextField: `settings` / `quality` have no effect when `surfaceStyle` is GlassSurfaceStyle.solid (a solid field is a flat recessed well and does not use the glass shader).
+2026-11-03T18:59:25.546994Z [trajectory] backfill: 23 records, 11 rows in 0ms
+2026-11-03T18:59:25.560623Z [debug] GlassTextField: `settings` / `quality` have no effect when `surfaceStyle` is GlassSurfaceStyle.solid (a solid field is a flat recessed well and does not use the glass shader).
+2026-11-03T18:59:31.117604Z [debug] GlassTextField: `settings` / `quality` have no effect when `surfaceStyle` is GlassSurfaceStyle.solid (a solid field is a flat recessed well and does not use the glass shader).
+2026-11-03T18:59:33.616067Z [debug] GlassTextField: `settings` / `quality` have no effect when `surfaceStyle` is GlassSurfaceStyle.solid (a solid field is a flat recessed well and does not use the glass shader).
+2026-11-03T18:59:36.240984Z [debug] GlassTextField: `settings` / `quality` have no effect when `surfaceStyle` is GlassSurfaceStyle.solid (a solid field is a flat recessed well and does not use the glass shader).
+2026-11-03T18:59:46.227133Z [debug] GlassTextField: `settings` / `quality` have no effect when `surfaceStyle` is GlassSurfaceStyle.solid (a solid field is a flat recessed well and does not use the glass shader).
+2026-11-03T18:59:47.767575Z [debug] GlassTextField: `settings` / `quality` have no effect when `surfaceStyle` is GlassSurfaceStyle.solid (a solid field is a flat recessed well and does not use the glass shader).
+2026-11-03T18:59:48.609740Z [debug] GlassTextField: `settings` / `quality` have no effect when `surfaceStyle` is GlassSurfaceStyle.solid (a solid field is a flat recessed well and does not use the glass shader).
+2026-11-03T18:59:49.613512Z [debug] GlassTextField: `settings` / `quality` have no effect when `surfaceStyle` is GlassSurfaceStyle.solid (a solid field is a flat recessed well and does not use the glass shader).
+2026-11-03T18:59:50.553389Z [debug] GlassTextField: `settings` / `quality` have no effect when `surfaceStyle` is GlassSurfaceStyle.solid (a solid field is a flat recessed well and does not use the glass shader).
+2026-11-03T18:59:51.371960Z [debug] GlassTextField: `settings` / `quality` have no effect when `surfaceStyle` is GlassSurfaceStyle.solid (a solid field is a flat recessed well and does not use the glass shader).
+2026-11-03T18:59:52.185957Z [debug] [fah][shell] open session 01a1776f-53ef-74dd-8663-d2733608cafa via local clone
+2026-11-03T18:59:52.186109Z [debug] [fah][sessions] open 01a1776f-53ef-74dd-8663-d2733608cafa: not in memory — loading from disk (1 loaded)
+2026-11-03T18:59:52.202725Z [debug] [Fa] system prompt platform=SandboxPlatform.desktop, commands section 235 chars
+2026-11-03T18:59:52.203108Z [debug] [Fa] system prompt platform=SandboxPlatform.desktop, commands section 235 chars
+2026-11-03T18:59:52.453993Z [debug] [Fa] system prompt platform=SandboxPlatform.desktop, commands section 235 chars
+2026-11-03T18:59:53.278832Z [trajectory] backfill: 39 records, 18 rows in 0ms
+2026-11-03T18:59:53.278947Z [debug] [Fa] system prompt platform=SandboxPlatform.desktop, commands section 235 chars
+2026-11-03T18:59:53.279083Z [open] 01a1776f-53ef-74dd-8663-d2733608cafa: storage=172ms branch=0ms context=503ms ledger=0ms total=1075ms (39 records in view)
+2026-11-03T18:59:53.294459Z [debug] GlassTextField: `settings` / `quality` have no effect when `surfaceStyle` is GlassSurfaceStyle.solid (a solid field is a flat recessed well and does not use the glass shader).
+2026-11-03T18:59:54.305345Z [debug] [fah][shell] open session 01a06644-7b1b-72b2-b9ea-2e1971a36251 via local clone
+2026-11-03T18:59:54.305402Z [debug] [fah][sessions] open 01a06644-7b1b-72b2-b9ea-2e1971a36251: not in memory — loading from disk (2 loaded)
+2026-11-03T18:59:54.309876Z [debug] [Fa] system prompt platform=SandboxPlatform.desktop, commands section 235 chars
+2026-11-03T18:59:54.310127Z [debug] [Fa] system prompt platform=SandboxPlatform.desktop, commands section 235 chars
+2026-11-03T18:59:54.516788Z [debug] [Fa] system prompt platform=SandboxPlatform.desktop, commands section 235 chars
+2026-11-03T18:59:56.092474Z [trajectory] backfill: 196 records, 149 rows in 7ms
+2026-11-03T18:59:56.092741Z [debug] [Fa] system prompt platform=SandboxPlatform.desktop, commands section 235 chars
+2026-11-03T18:59:56.093684Z [open] 01a06644-7b1b-72b2-b9ea-2e1971a36251: storage=101ms branch=0ms context=1075ms ledger=7ms total=1783ms (196 records in view)
+2026-11-03T18:59:56.112071Z [debug] GlassTextField: `settings` / `quality` have no effect when `surfaceStyle` is GlassSurfaceStyle.solid (a solid field is a flat recessed well and does not use the glass shader).
+2026-11-03T18:59:59.158192Z [debug] GlassTextField: `settings` / `quality` have no effect when `surfaceStyle` is GlassSurfaceStyle.solid (a solid field is a flat recessed well and does not use the glass shader).
+2026-11-03T18:59:59.182863Z [debug] GlassTextField: `settings` / `quality` have no effect when `surfaceStyle` is GlassSurfaceStyle.solid (a solid field is a flat recessed well and does not use the glass shader).
+2026-11-03T18:59:59.202123Z [debug] GlassTextField: `settings` / `quality` have no effect when `surfaceStyle` is GlassSurfaceStyle.solid (a solid field is a flat recessed well and does not use the glass shader).
+2026-11-03T18:59:59.224365Z [debug] GlassTextField: `settings` / `quality` have no effect when `surfaceStyle` is GlassSurfaceStyle.solid (a solid field is a flat recessed well and does not use the glass shader).
+2026-11-03T18:59:59.243375Z [debug] GlassTextField: `settings` / `quality` have no effect when `surfaceStyle` is GlassSurfaceStyle.solid (a solid field is a flat recessed well and does not use the glass shader).
+2026-11-03T18:59:59.263650Z [debug] GlassTextField: `settings` / `quality` have no effect when `surfaceStyle` is GlassSurfaceStyle.solid (a solid field is a flat recessed well and does not use the glass shader).
+2026-11-03T18:59:59.282458Z [debug] GlassTextField: `settings` / `quality` have no effect when `surfaceStyle` is GlassSurfaceStyle.solid (a solid field is a flat recessed well and does not use the glass shader).
+2026-11-03T18:59:59.315756Z [debug] GlassTextField: `settings` / `quality` have no effect when `surfaceStyle` is GlassSurfaceStyle.solid (a solid field is a flat recessed well and does not use the glass shader).
+2026-11-03T18:59:59.334028Z [debug] GlassTextField: `settings` / `quality` have no effect when `surfaceStyle` is GlassSurfaceStyle.solid (a solid field is a flat recessed well and does not use the glass shader).
+2026-11-03T18:59:59.356399Z [debug] GlassTextField: `settings` / `quality` have no effect when `surfaceStyle` is GlassSurfaceStyle.solid (a solid field is a flat recessed well and does not use the glass shader).
+2026-11-03T18:59:59.552265Z [trajectory] backfill: 24 records, 11 rows in 0ms
+2026-11-03T19:00:01.291260Z [trajectory] backfill: 42 records, 20 rows in 0ms
+2026-11-03T19:00:06.447530Z [debug] GlassTextField: `settings` / `quality` have no effect when `surfaceStyle` is GlassSurfaceStyle.solid (a solid field is a flat recessed well and does not use the glass shader).
+2026-11-03T19:00:12.294484Z [debug] GlassTextField: `settings` / `quality` have no effect when `surfaceStyle` is GlassSurfaceStyle.solid (a solid field is a flat recessed well and does not use the glass shader).
+2026-11-03T19:00:12.308648Z [debug] GlassTextField: `settings` / `quality` have no effect when `surfaceStyle` is GlassSurfaceStyle.solid (a solid field is a flat recessed well and does not use the glass shader).
+2026-11-03T19:00:13.086407Z [debug] GlassTextField: `settings` / `quality` have no effect when `surfaceStyle` is GlassSurfaceStyle.solid (a solid field is a flat recessed well and does not use the glass shader).
+2026-11-03T19:00:13.099082Z [debug] GlassTextField: `settings` / `quality` have no effect when `surfaceStyle` is GlassSurfaceStyle.solid (a solid field is a flat recessed well and does not use the glass shader).
+2026-11-03T19:00:13.288372Z [trajectory] backfill: 43 records, 20 rows in 0ms
+2026-11-03T19:00:14.634662Z [debug] GlassTextField: `settings` / `quality` have no effect when `surfaceStyle` is GlassSurfaceStyle.solid (a solid field is a flat recessed well and does not use the glass shader).
+2026-11-03T19:00:14.648368Z [debug] GlassTextField: `settings` / `quality` have no effect when `surfaceStyle` is GlassSurfaceStyle.solid (a solid field is a flat recessed well and does not use the glass shader).
+2026-11-03T19:00:15.284292Z [trajectory] backfill: 45 records, 21 rows in 0ms
+2026-11-03T19:00:17.067420Z [debug] GlassTextField: `settings` / `quality` have no effect when `surfaceStyle` is GlassSurfaceStyle.solid (a solid field is a flat recessed well and does not use the glass shader).

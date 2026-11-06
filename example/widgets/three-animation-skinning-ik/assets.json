@@ -1,0 +1,42 @@
+{
+  "schema": "jsr-three-example-external-assets-v1",
+  "id": "three-animation-skinning-ik",
+  "inlineMaxBytes": 1500000,
+  "assets": [
+    {
+      "url": "models/gltf/4096_kira_char_baked",
+      "file": "models__gltf__4096_kira_char_baked",
+      "mime": "image/png",
+      "width": 4096,
+      "height": 4096,
+      "bytes": 5341496,
+      "sha256": "746955a69695064773a20c1ce9cec609d6ff21cbd57c1e72aa534574edbb4c9e",
+      "aliases": [
+        "models/gltf/./4096_kira_char_baked"
+      ]
+    },
+    {
+      "url": "models/gltf/baked1",
+      "file": "models__gltf__baked1",
+      "mime": "image/png",
+      "width": 4096,
+      "height": 4096,
+      "bytes": 4624451,
+      "sha256": "f1ea0f5776af9a68ca8b2f92c13835ac34a6e066bad7b71deb94196042b4cf75",
+      "aliases": [
+        "models/gltf/./baked1"
+      ]
+    },
+    {
+      "url": "models/gltf/kira.glb",
+      "file": "models__gltf__kira.glb",
+      "mime": "model/gltf-binary",
+      "width": 0,
+      "height": 0,
+      "bytes": 3040400,
+      "sha256": "25537e6dcf2cccc2db955caab25ef36a9dc7ca3303350e7f3f3753dec76fb689",
+      "aliases": [],
+      "diagnostic": "auto:models/gltf/kira.glb"
+    }
+  ]
+}

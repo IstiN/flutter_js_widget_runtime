@@ -1,7 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:js_widget_runtime/src/renderer/nodes/three/js_three_protocol.dart';
 import 'package:js_widget_runtime/src/renderer/nodes/three/three_draw_plan.dart';
-import 'package:js_widget_runtime/src/runtime/js_widget_engine_quickjs.dart';
 
 import 'support/three_quickjs_example_harness.dart';
 
@@ -143,6 +142,13 @@ void main() {
     tester,
   ) async {
     final harness = await _bootOfficial(tester, 'three-panorama-cube');
+    // Externalized assets (>1.5MB) load through the async host lane on
+    // first request instead of being inlined at boot — the atlas upload
+    // lands a few frames later than the first presented frames.
+    await harness.pumpUntil(
+      tester,
+      (state, plan) => state.textureUploadCount >= 6,
+    );
     final ready = harness.state!;
     expect(ready.textureUploadCount, 6);
     final before = (

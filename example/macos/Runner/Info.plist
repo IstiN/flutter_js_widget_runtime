@@ -20,17 +20,30 @@
 	<string>$(FLUTTER_BUILD_NAME)</string>
 	<key>CFBundleVersion</key>
 	<string>$(FLUTTER_BUILD_NUMBER)</string>
+	<key>FLTEnableFlutterGPU</key>
+	<true/>
+	<key>FLTEnableImpeller</key>
+	<true/>
+	<key>LSEnvironment</key>
+	<dict>
+		<key>JSR_CAMERA_LOG</key>
+		<string>/tmp/jsr-shot2-camera.log</string>
+		<key>JSR_EXTRA_WAIT</key>
+		<string>12</string>
+		<key>JSR_OUT</key>
+		<string>/tmp/jsr-shot2-capture.png</string>
+		<key>JSR_WIDGET</key>
+		<string>three-morphtargets-webcam</string>
+	</dict>
 	<key>LSMinimumSystemVersion</key>
 	<string>$(MACOSX_DEPLOYMENT_TARGET)</string>
+	<key>NSCameraUsageDescription</key>
+	<string>This example app shows the live webcam picture behind the three.js face-cap model, matching the official webcam example.</string>
 	<key>NSHumanReadableCopyright</key>
 	<string>$(PRODUCT_COPYRIGHT)</string>
 	<key>NSMainNibFile</key>
 	<string>MainMenu</string>
 	<key>NSPrincipalClass</key>
 	<string>NSApplication</string>
-<key>FLTEnableImpeller</key>
-	<true/>
-<key>FLTEnableFlutterGPU</key>
-	<true/>
 </dict>
 </plist>

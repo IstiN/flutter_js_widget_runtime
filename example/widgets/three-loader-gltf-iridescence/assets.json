@@ -1,0 +1,41 @@
+{
+  "schema": "jsr-three-example-external-assets-v1",
+  "id": "three-loader-gltf-iridescence",
+  "inlineMaxBytes": 1500000,
+  "assets": [
+    {
+      "url": "models/gltf/embedded-1.png",
+      "file": "models__gltf__embedded-1.png",
+      "mime": "image/png",
+      "width": 2048,
+      "height": 2048,
+      "bytes": 2941814,
+      "sha256": "a7a89ed1f64190998b2322f9cca5ad37ff4b86bd901fc8b5c87cbeafe97becee",
+      "aliases": [
+        "models/gltf/./embedded-1.png"
+      ]
+    },
+    {
+      "url": "models/gltf/IridescenceLamp.glb",
+      "file": "models__gltf__IridescenceLamp.glb",
+      "mime": "model/gltf-binary",
+      "width": 0,
+      "height": 0,
+      "bytes": 5291240,
+      "sha256": "5db73651b888dd3aa72bced7d4c010b28202473d29a0f2f3cc3a10319d9e1433",
+      "aliases": [],
+      "diagnostic": "auto:models/gltf/IridescenceLamp.glb"
+    },
+    {
+      "url": "textures/equirectangular/venice_sunset_1k.hdr",
+      "file": "textures__equirectangular__venice_sunset_1k.hdr",
+      "mime": "application/x-rgba",
+      "width": 1024,
+      "height": 512,
+      "bytes": 2097152,
+      "sha256": "6afd08b5c4c228a17e656c04d6b16cf14425b9d4af3e1a4742a7f7bf65f281d8",
+      "aliases": [],
+      "diagnostic": "auto:textures/equirectangular/venice_sunset_1k.hdr"
+    }
+  ]
+}

@@ -176,6 +176,14 @@ final config = JsRuntimeConfig(
 );
 ```
 
+GPU-heavy animated shadow scenes re-render the shadow map every N submitted
+frames instead of every frame (N adapts 1–3 to the rolling presented-frame
+cadence; a 1–2 frame old map shifts PCF shadow edges by ≈2–4 texels —
+invisible). Invalidations (resizes, real content changes, failed
+submissions) always re-render immediately. Opt out with
+`createFlutterGpuThreeHost(adaptiveShadowRefresh: false)` or
+`--dart-define=JSR_THREE_SHADOW_ADAPTIVE=false`.
+
 ```javascript
 const canvas = jsr.three.createCanvas('main');
 const renderer = new THREE.WebGLRenderer({canvas: canvas});

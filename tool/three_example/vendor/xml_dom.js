@@ -1,11 +1,18 @@
 // A bounded, dependency-free XML DOM profile for the official model loaders.
 // It intentionally implements elements/text/attributes and the selector forms
 // used by Collada, 3MF and KMZ; it is not a browser HTML parser.
-const MAX_XML_BYTES = 16 * 1024 * 1024;
-const MAX_XML_NODES = 500000;
+// The byte budget fits the official webgl_loader_3mf_materials truck.3mf,
+// whose 3D/3dmodel.model part decompresses to 19.6 MiB (~308k elements,
+// under the node quota); typical AMF/Collada/KMZ documents stay < 2 MiB.
+const MAX_XML_BYTES = 32 * 1024 * 1024;
+// Element count plus the whitespace text nodes between them; truck.3mf's
+// model part needs ~620k of both.
+const MAX_XML_NODES = 1200000;
 const MAX_XML_DEPTH = 512;
 const MAX_XML_ATTRIBUTES = 256;
-const MAX_SELECTOR_NODES = 500000;
+// Selector walks visit the same node budget as parsing (querySelectors run
+// per model part during 3MF builds).
+const MAX_SELECTOR_NODES = 1200000;
 
 class JsrXmlNode {
   constructor(type, name, document) {
@@ -23,6 +30,34 @@ class JsrXmlNode {
   get firstChild() { return this.childNodes[0] || null; }
   get lastChild() { return this.childNodes[this.childNodes.length - 1] || null; }
   get parentElement() { return this.parentNode && this.parentNode.nodeType === 1 ? this.parentNode : null; }
+  // Element-walk accessors used by AMFLoader's document traversal (upstream
+  // DOM provides these on every node; they skip text/CDATA/comment nodes).
+  get firstElementChild() {
+    for (const node of this.childNodes) if (node.nodeType === 1) return node;
+    return null;
+  }
+  get lastElementChild() {
+    for (let index = this.childNodes.length - 1; index >= 0; index--) {
+      if (this.childNodes[index].nodeType === 1) return this.childNodes[index];
+    }
+    return null;
+  }
+  get nextElementSibling() {
+    if (!this.parentNode) return null;
+    const siblings = this.parentNode.childNodes;
+    for (let index = siblings.indexOf(this) + 1; index < siblings.length; index++) {
+      if (siblings[index].nodeType === 1) return siblings[index];
+    }
+    return null;
+  }
+  get previousElementSibling() {
+    if (!this.parentNode) return null;
+    const siblings = this.parentNode.childNodes;
+    for (let index = siblings.indexOf(this) - 1; index >= 0; index--) {
+      if (siblings[index].nodeType === 1) return siblings[index];
+    }
+    return null;
+  }
   get nextSibling() {
     if (!this.parentNode) return null;
     const siblings = this.parentNode.childNodes;
@@ -113,6 +148,36 @@ class JsrXmlElement extends JsrXmlNode {
   get id() { return this.getAttribute('id') || ''; }
   set id(value) { this.setAttribute('id', value); }
 
+  // Browser CSSStyleDeclaration facade used by SVGLoader. Presentation
+  // attributes already worked, but inline group styles carry most of the
+  // tiger's colors; without this object every path inherited black.
+  get style() {
+    const source = this.getAttribute('style') || '';
+    if (this._styleSource === source) return this._style;
+    const declarations = source.split(';');
+    if (declarations.length > 2048) throw new Error('three.xml: style declaration quota exceeded');
+    const values = Object.create(null);
+    for (const declaration of declarations) {
+      const colon = declaration.indexOf(':');
+      if (colon < 0) continue;
+      const name = declaration.slice(0, colon).trim();
+      const value = declaration.slice(colon + 1).trim();
+      if (!name || !value) continue;
+      values[name] = value;
+      values[name.replace(/-([a-z])/g, (_, letter) => letter.toUpperCase())] = value;
+    }
+    // CSSStyleDeclaration returns an empty string for unset CSS properties;
+    // SVGLoader relies on that instead of checking for undefined.
+    this._style = new Proxy(values, {
+      get(target, key) {
+        if (typeof key === 'string' && !(key in target)) return '';
+        return target[key];
+      }
+    });
+    this._styleSource = source;
+    return this._style;
+  }
+
   getAttribute(name) {
     const attribute = this.attributes.find(item => item.name === name);
     return attribute ? attribute.value : null;
@@ -135,6 +200,7 @@ class JsrXmlElement extends JsrXmlNode {
     if (existing) {
       existing.value = String(value);
       existing.nodeValue = existing.value;
+      existing.textContent = existing.value;
       return;
     }
     addAttribute(this, name, String(value));
@@ -176,7 +242,10 @@ function addAttribute(element, name, value) {
   const attribute = {
     name, nodeName: name, value, nodeValue: value, specified: true,
     localName: colon < 0 ? name : name.slice(colon + 1),
-    prefix: colon < 0 ? null : name.slice(0, colon), namespaceURI: null
+    prefix: colon < 0 ? null : name.slice(0, colon), namespaceURI: null,
+    // Upstream DOM Attr carries its value through textContent too; AMFLoader
+    // reads `attributes.id.textContent` for object ids.
+    textContent: value
   };
   element.attributes.push(attribute);
   // Named access is used by a few XML consumers alongside indexed access.

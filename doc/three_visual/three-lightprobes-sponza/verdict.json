@@ -1,0 +1,23 @@
+{
+  "auto_seeded": true,
+  "mae": 0.167669,
+  "official_id": "webgl_lightprobes_sponza",
+  "performance": {
+    "native": {
+      "presentedFps": 119.88011988011988,
+      "presentedFramesDelta": 240,
+      "sampleMs": 2002
+    },
+    "reference": {
+      "browserRafFps": 60.21398357800448,
+      "captureWaitMs": 15000,
+      "frames": 121,
+      "sampleMs": 2009.5,
+      "statsFps": null,
+      "statsRange": null
+    }
+  },
+  "status": "blocked",
+  "summary": "ours: black capture",
+  "updated": "2026-11-01T15:07:19+00:00"
+}

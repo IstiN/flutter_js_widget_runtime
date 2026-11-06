@@ -198,6 +198,17 @@
       "prepareVrml": true
     }
   ],
+  "assetPolicy": {
+    "inlineMaxBytes": 1500000,
+    "externalAssets": [
+      {
+        "url": "models/vrml/elevationGrid1.wrl",
+        "file": "models__vrml__elevationGrid1.wrl",
+        "bytes": 6832353,
+        "sha256": "27c5ad62957442d0c970f38ad4dd451b8d71e61af6ae9b51f8e3389f31b262a3"
+      }
+    ]
+  },
   "facade": {
     "global": "globalThis.THREE",
     "exports": [
@@ -369,6 +380,7 @@
       "InterpolationSamplingMode",
       "InterpolationSamplingType",
       "InvertStencilOp",
+      "JsrImageBitmapLoader",
       "JsrPMREMGenerator",
       "JsrThreeCanvas",
       "KeepStencilOp",
@@ -644,9 +656,11 @@
       "ZeroFactor",
       "ZeroSlopeEnding",
       "ZeroStencilOp",
+      "createBoundedCSGEvaluator",
       "createCanvasElement",
       "error",
       "getConsoleFunction",
+      "getNativeCSGDiagnostics",
       "getNativeRaycastDiagnostics",
       "log",
       "setConsoleFunction",
@@ -654,18 +668,18 @@
       "warnOnce"
     ],
     "source": {
-      "bytes": 40476,
-      "sha256": "a1116c0a1e8c48b47c631cf91d7a51f1535c31de36d0eca722dff0a27d74fce8"
+      "bytes": 40792,
+      "sha256": "e14d318df69fe74956620a561a5cf9583d5e512b0cf8f34b67201ce7c4cbb9f6"
     }
   },
   "inputs": {
-    "assets/three/three.native.js": {
-      "bytes": 802221,
-      "sha256": "5ceff19eb7edf2372554d7ee460222cc64edea253a4781bf6271a69d2a658a4c"
+    "assets/three/jsr_three_native.js": {
+      "bytes": 838188,
+      "sha256": "774cd82da77974165fd9ec3122c1e4e4505bca3faa5003cb72afc6a59f5f4e5b"
     },
-    "assets/three/three.web.js": {
-      "bytes": 855325,
-      "sha256": "973b78155b07710ece2f22e803cb25a8cb08da4f62b5f825dc676715f5859311"
+    "assets/three/jsr_three_web.js": {
+      "bytes": 857885,
+      "sha256": "8bf94959ca16ffd59b904e040edcf4ffe405eac56cf941285a2da0a5337fb878"
     },
     "source/LICENSE": {
       "bytes": 1081,
@@ -756,50 +770,62 @@
       "sha256": "29492424209a17a723b3b0c8e9c83995697a4c466840d1b33ba6f6ff2b7542a4"
     },
     "tool/three/src/native_entry.js": {
-      "bytes": 6186,
-      "sha256": "9f473de98542699e8d8fe6a43923cf65e3baf44974dc9387e48ad4de9210e067"
+      "bytes": 26368,
+      "sha256": "dac7dc374e1374499bc9e9a84593e7e1e848bfcde7bb916d7212ccd517e861d3"
     },
     "tool/three_example/asset_decode.mjs": {
-      "bytes": 29549,
-      "sha256": "647895d330fc1fe04f0b3e63e836b5e6dfb28b45288596d08efa08be109fdfc7"
+      "bytes": 51634,
+      "sha256": "273d0f8261829418eb08a93177990de1fb76cda9211852d578439a39ceb61af1"
     },
     "tool/three_example/asset_discovery.mjs": {
-      "bytes": 12417,
-      "sha256": "65acc770c76fdfaa04b64d18787cb7a49893c2b20ea517b5612b7b419af0abe7"
+      "bytes": 12424,
+      "sha256": "89a14e272cb1ddac5b555b4361af938764127ee069ac367a18262b8299643eca"
+    },
+    "tool/three_example/degrades/vrml_switch_timing.mjs": {
+      "bytes": 1058,
+      "sha256": "061c420a2a6d4ae9655394f19a2366d2080e1ef2b179df5cb388455411082ebb"
     },
     "tool/three_example/example_adapter.js": {
-      "bytes": 41432,
-      "sha256": "4fbfaddbfab179430be77b2a631adc7ee3f4038a872785520cd67bd739811151"
+      "bytes": 49943,
+      "sha256": "1ab349ba0361871765f4351a6fc3228fb05c93315985fbbf07644592c96ad8c4"
     },
     "tool/three_example/example_canvas2d.js": {
-      "bytes": 20988,
-      "sha256": "ae6143c0400efcb2b9ca05c69416ea13519aa5c94a8e7d2e75ffe767ef4c8fba"
+      "bytes": 22635,
+      "sha256": "3bb5bcd47d637e187e79fd7463ba4247e3cc7b5705e62229983e8e607fccf753"
     },
     "tool/three_example/lil_gui_adapter.js": {
-      "bytes": 29874,
-      "sha256": "45668e5bc4d27e8cb7dc28855087f6a5fa04ccc1b1a2d5adb08a31cde39c90bb"
+      "bytes": 32173,
+      "sha256": "2f83bde66c35db02a16eec3db21beae0e1198e04f1b0723f9b3dbda89c6675f7"
     },
     "tool/three_example/prepare.mjs": {
-      "bytes": 265195,
-      "sha256": "a64c8f84f00986226dd823eeaf963a13672ea11ffbf8ac3da1b85b5eccb8d652"
+      "bytes": 344397,
+      "sha256": "8258265969c64a9629cbf0a49c3273f1222238fb404f654a028a6128f366dfa8"
     },
     "tool/three_example/stats_adapter.js": {
       "bytes": 2107,
       "sha256": "98defe8785b259fdf70182c7d4a0a8e8e39ff8be901c3a9f93cd991240784086"
     },
+    "tool/three_example/vendor/lock.json": {
+      "bytes": 3496,
+      "sha256": "684724e244c7042cbe7bd1fa0dace4e9a653a73d25c35f04c21b9d62d0eb6219"
+    },
     "tool/three_example/vendor/xml_dom.js": {
-      "bytes": 15539,
-      "sha256": "4de33465eee57c254cb20293e87d69b903a897913c8caaee4f61c006589c4f67"
+      "bytes": 18555,
+      "sha256": "b5ed0f0cfc690fc55c03280cc3c2ab67e39d09504b51d979a827306e00249182"
     },
     "tool/three_example/vrml_loader_adapter.js": {
-      "bytes": 1489,
-      "sha256": "50b037ce2f0255770379f8fb53601b4d946b22a09a18e873d4636fdfcf360d25"
+      "bytes": 4557,
+      "sha256": "5dfb90bcc211afffda1822b1d0f839ee07c24612a17b02d5efbccf0646d3c486"
     }
   },
   "outputs": {
     "THREE_LICENSE": {
       "bytes": 1081,
       "sha256": "8b378ebe60e2fe500158cb0ac71cb5e8b7d92953c2abcc63a0eb90499653b5bc"
+    },
+    "assets.json": {
+      "bytes": 499,
+      "sha256": "d279c706ea628216210d97161ff46c5379d5752f65a8f30ef25191caa4d1526c"
     },
     "manifest.json": {
       "bytes": 340,
@@ -814,16 +840,16 @@
       "sha256": "2512a3e32506df375c7e9b79d372031900cedc21e2480bfe5bdba973db10f6e7"
     },
     "models__vrml__crystal.wrl": {
-      "bytes": 36829,
-      "sha256": "90f5906179d0c45ecb44944bdd8c179979c00f7a36032192eeba25615a51b313"
+      "bytes": 36831,
+      "sha256": "b2311ff858ff4bd4cf47ef863b72f7a4e1c3d2d181f46bb8049770f2c410524e"
     },
     "models__vrml__elevationGrid1.wrl": {
-      "bytes": 649,
-      "sha256": "47f81164f05cb2af0fa63c71114b4aba659b005361a47795de3545abc6c82f5f"
+      "bytes": 6832353,
+      "sha256": "27c5ad62957442d0c970f38ad4dd451b8d71e61af6ae9b51f8e3389f31b262a3"
     },
     "models__vrml__elevationGrid2.wrl": {
-      "bytes": 15900,
-      "sha256": "04e4132066f53b35a0a4d83d79eabc785780ce9db3fc0857ddf0f13e59596746"
+      "bytes": 15902,
+      "sha256": "e9d185e6553514b949f3c34d3a4dbee09f0c113d96018ad6ccd7997401e2c903"
     },
     "models__vrml__extrusion1.wrl": {
       "bytes": 6391,
@@ -838,8 +864,8 @@
       "sha256": "4149545c64331f7db192bac3e82fa75f6fc8094d78a1aca629a8722deb766fd7"
     },
     "models__vrml__house.wrl": {
-      "bytes": 485555,
-      "sha256": "10bb5e9fb475dde8d924720df7eee6a75c6b64b7337f857f2e65dd9d5ec9fb05"
+      "bytes": 485557,
+      "sha256": "b9a89376983a5484b25528a102ac87ee8f31b3770f7aad7db3bba00958188c14"
     },
     "models__vrml__lines.wrl": {
       "bytes": 2313,
@@ -854,20 +880,20 @@
       "sha256": "11b530b5b08bf97001ecf189781fbeabcfe4336fc40f33fa013dd62aa5310f40"
     },
     "models__vrml__meshWithLines.wrl": {
-      "bytes": 35193,
-      "sha256": "2bfd1ebf1961a90a0a06bcd01d2cbe33549159c7f03ae1fb5fa987ae68e6c614"
+      "bytes": 35195,
+      "sha256": "b973ed2593a67a9f77e05099fbab113893738b5e6fdcbdda2411782a25a0fb98"
     },
     "models__vrml__meshWithTexture.wrl": {
       "bytes": 7800,
       "sha256": "4befdc814b980510e064f800ecdbcd4ba1a06a812a4435b92e4e39eda44826b4"
     },
     "models__vrml__multilineString.wrl": {
-      "bytes": 4552,
-      "sha256": "e1f4ea140ba8b247baad1b874d08a25c54566f73d3fc2972e6da207efcdb7da8"
+      "bytes": 4554,
+      "sha256": "639229d6c14ded3c1a6caadc37bcd6d48a4a17f99914bbeb791ff8b7717e43fb"
     },
     "models__vrml__pixelTexture.wrl": {
-      "bytes": 15648,
-      "sha256": "4a91588d4575ae9d3d69486514410c367de5f6634493f324ba564ade4a7acf46"
+      "bytes": 15650,
+      "sha256": "8d26b592824d6cb0c81e45b7cd2b767b5a77e1d90afdd7d05c0c45e3d72b95a4"
     },
     "models__vrml__points.wrl": {
       "bytes": 2245,
@@ -882,8 +908,8 @@
       "sha256": "2fcc9406cffb725ee89f140037b5d825449f4d1c516d469e7da065391085d065"
     },
     "widget.js": {
-      "bytes": 1159301,
-      "sha256": "d217486afccc1f7da6be37739639405a53bb916c3ad11d45b5cf59dc39ceaf79"
+      "bytes": 1165688,
+      "sha256": "a2b489cf273ae4451152f59358854304d86d23cc8aefdffa48c7b069b3ae6282"
     }
   }
 }

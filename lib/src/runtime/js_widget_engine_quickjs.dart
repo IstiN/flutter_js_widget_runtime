@@ -5,6 +5,7 @@ import 'package:flutter/foundation.dart';
 
 import 'package:js_widget_runtime/src/defaults/vm_default_handlers.dart';
 import 'package:js_widget_runtime/src/model/js_runtime_config.dart';
+import 'package:js_widget_runtime/src/renderer/nodes/three/three_skinning_native.dart';
 import 'package:js_widget_runtime/src/runtime/js_widget_bootstrap.dart';
 import 'package:js_widget_runtime/src/runtime/js_widget_bridge.dart';
 import 'package:js_widget_runtime/src/runtime/js_widget_engine_backend.dart';
@@ -109,7 +110,10 @@ class QuickjsWidgetEngineBackend
     // use-after-free no Dart try/catch can intercept.
     final oldRuntime = _runtime;
     _disposed = true;
-    _bridge.dispose();
+    // Reset timers/scenes but keep the bridge usable: the widget that runs
+    // below must be able to request frames again (dispose() would end the
+    // RAF lane permanently).
+    _bridge.resetForRun();
     _runtime = null;
 
     _disposed = false;
@@ -289,6 +293,14 @@ class QuickjsWidgetEngineBackend
       // Advertised via `voxel.attach` → widgets may ship packed chunks
       // through the zero-JSON voxel.mesh.bin lane.
       _bridge.voxelWorld.binaryLaneAvailable = true;
+      // CPU skining fast lane: the R1 renderer's _applySkining hands the
+      // whole (bone matrices, indices, weights, bind pose) packet to Dart
+      // and reads the skinned positions/normals back IN PLACE. Pure local
+      // computation — no ports, no copies — so the per-vertex loop never
+      // runs in QuickJS (16k-vertex rigs cost ~14ms/frame there).
+      rt.registerHostBytesFn('__jsrSkinBytes', (name, data) {
+        if (name == 'three.skin') applyThreeSkinningPacket(data);
+      });
     }
   }
 

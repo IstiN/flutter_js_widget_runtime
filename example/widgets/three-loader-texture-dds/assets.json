@@ -1,0 +1,161 @@
+{
+  "schema": "jsr-three-example-external-assets-v1",
+  "id": "three-loader-texture-dds",
+  "inlineMaxBytes": 0,
+  "assets": [
+    {
+      "url": "textures/compressed/disturb_argb_mip.dds",
+      "file": "textures__compressed__disturb_argb_mip.dds",
+      "mime": "application/x-jsr-ktx2-rgba",
+      "width": 0,
+      "height": 0,
+      "bytes": 262239,
+      "sha256": "b7aeed68db84c0396f0c445b7a7d298ba3b8f3f01dbed12eb0e4cc95086e88dc",
+      "aliases": [],
+      "diagnostic": "ddsArgbMip"
+    },
+    {
+      "url": "textures/compressed/disturb_argb_nomip.dds",
+      "file": "textures__compressed__disturb_argb_nomip.dds",
+      "mime": "application/x-jsr-ktx2-rgba",
+      "width": 0,
+      "height": 0,
+      "bytes": 262239,
+      "sha256": "b7aeed68db84c0396f0c445b7a7d298ba3b8f3f01dbed12eb0e4cc95086e88dc",
+      "aliases": [],
+      "diagnostic": "ddsArgbNomip"
+    },
+    {
+      "url": "textures/compressed/disturb_dx10_bc6h_signed_mip.dds",
+      "file": "textures__compressed__disturb_dx10_bc6h_signed_mip.dds",
+      "mime": "application/x-jsr-ktx2-rgba",
+      "width": 0,
+      "height": 0,
+      "bytes": 266,
+      "sha256": "b3c193e36840e5043322ba064e158d54fcbb894839996bcde1c4442a74e4f34f",
+      "aliases": [],
+      "diagnostic": "ddsBc6hSignedMip"
+    },
+    {
+      "url": "textures/compressed/disturb_dx10_bc6h_signed_nomip.dds",
+      "file": "textures__compressed__disturb_dx10_bc6h_signed_nomip.dds",
+      "mime": "application/x-jsr-ktx2-rgba",
+      "width": 0,
+      "height": 0,
+      "bytes": 268,
+      "sha256": "bfdf4d1ed3cf0fb4b283714524109094aeda6e5d54a3980790c2ea558ca2ba48",
+      "aliases": [],
+      "diagnostic": "ddsBc6hSignedNomip"
+    },
+    {
+      "url": "textures/compressed/disturb_dx10_bc6h_unsigned_mip.dds",
+      "file": "textures__compressed__disturb_dx10_bc6h_unsigned_mip.dds",
+      "mime": "application/x-jsr-ktx2-rgba",
+      "width": 0,
+      "height": 0,
+      "bytes": 268,
+      "sha256": "63ee3eeedb23ba59ff1cd0ec24f9319807d8318f98a892d5bec8178e6da139e0",
+      "aliases": [],
+      "diagnostic": "ddsBc6hUnsignedMip"
+    },
+    {
+      "url": "textures/compressed/disturb_dx10_bc6h_unsigned_nomip.dds",
+      "file": "textures__compressed__disturb_dx10_bc6h_unsigned_nomip.dds",
+      "mime": "application/x-jsr-ktx2-rgba",
+      "width": 0,
+      "height": 0,
+      "bytes": 270,
+      "sha256": "681d7fc302955fdb2874e2d39bbca84836bf45e3af6d266bf5f80600748aef1f",
+      "aliases": [],
+      "diagnostic": "ddsBc6hUnsignedNomip"
+    },
+    {
+      "url": "textures/compressed/disturb_dxt1_mip.dds",
+      "file": "textures__compressed__disturb_dxt1_mip.dds",
+      "mime": "application/x-jsr-ktx2-rgba",
+      "width": 0,
+      "height": 0,
+      "bytes": 1048671,
+      "sha256": "699a4d03709a0a57ad87fbd20009ed52fd597020168f621b50ab65ecb88a9896",
+      "aliases": [],
+      "diagnostic": "ddsDxt1Mip"
+    },
+    {
+      "url": "textures/compressed/disturb_dxt1_nomip.dds",
+      "file": "textures__compressed__disturb_dxt1_nomip.dds",
+      "mime": "application/x-jsr-ktx2-rgba",
+      "width": 0,
+      "height": 0,
+      "bytes": 1048671,
+      "sha256": "699a4d03709a0a57ad87fbd20009ed52fd597020168f621b50ab65ecb88a9896",
+      "aliases": [],
+      "diagnostic": "ddsDxt1Nomip"
+    },
+    {
+      "url": "textures/compressed/explosion_dxt5_mip.dds",
+      "file": "textures__compressed__explosion_dxt5_mip.dds",
+      "mime": "application/x-jsr-ktx2-rgba",
+      "width": 0,
+      "height": 0,
+      "bytes": 262239,
+      "sha256": "33f5724569a728e6b3a83f71168a919c1b3ca5e9c3600ac3f9eb22caf969cb82",
+      "aliases": [],
+      "diagnostic": "ddsDxt5Mip"
+    },
+    {
+      "url": "textures/compressed/hepatica_dxt3_mip.dds",
+      "file": "textures__compressed__hepatica_dxt3_mip.dds",
+      "mime": "application/x-jsr-ktx2-rgba",
+      "width": 0,
+      "height": 0,
+      "bytes": 262239,
+      "sha256": "e7cec2a5ce0642823a133ba42e506d7aeae996173ed8258262b8e92da2c26cf8",
+      "aliases": [],
+      "diagnostic": "ddsDxt3Mip"
+    },
+    {
+      "url": "textures/compressed/Mountains_argb_mip.dds",
+      "file": "textures__compressed__Mountains_argb_mip.dds",
+      "mime": "application/x-jsr-ktx2-rgba",
+      "width": 0,
+      "height": 0,
+      "bytes": 393310,
+      "sha256": "92a2b92dfecf577a4e0fb0a53330ca262d245faf480ed0b36f4ce1a1ff45578a",
+      "aliases": [],
+      "diagnostic": "ddsCubeArgbMip"
+    },
+    {
+      "url": "textures/compressed/Mountains_argb_nomip.dds",
+      "file": "textures__compressed__Mountains_argb_nomip.dds",
+      "mime": "application/x-jsr-ktx2-rgba",
+      "width": 0,
+      "height": 0,
+      "bytes": 393310,
+      "sha256": "64fb23f046cb42bd1621062fc1cf06d62bbb9e41cbf9eff90a4f548bd0aff963",
+      "aliases": [],
+      "diagnostic": "ddsCubeArgbNomip"
+    },
+    {
+      "url": "textures/compressed/Mountains.dds",
+      "file": "textures__compressed__Mountains.dds",
+      "mime": "application/x-jsr-ktx2-rgba",
+      "width": 0,
+      "height": 0,
+      "bytes": 6291550,
+      "sha256": "811f4120b2cc7987555f6a9216e13f004425af6b7095b68a335786c9b1214e67",
+      "aliases": [],
+      "diagnostic": "ddsCubeDxt1"
+    },
+    {
+      "url": "textures/wave_normals_24bit_uncompressed.dds",
+      "file": "textures__wave_normals_24bit_uncompressed.dds",
+      "mime": "application/x-jsr-ktx2-rgba",
+      "width": 0,
+      "height": 0,
+      "bytes": 262239,
+      "sha256": "76ed468430f48a7ad8a229e728f66e69a7f609a70cee13cf7a9a6ac3721fd865",
+      "aliases": [],
+      "diagnostic": "ddsRgb24"
+    }
+  ]
+}

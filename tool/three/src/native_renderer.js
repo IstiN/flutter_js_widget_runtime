@@ -1,20 +1,21 @@
 import {
-  ACESFilmicToneMapping, AgXToneMapping, BackSide, BoxGeometry, BufferGeometry, CineonToneMapping, Color, CubeReflectionMapping, CubeRefractionMapping,
-  ClampToEdgeWrapping, CustomToneMapping, DataTexture, DoubleSide, DynamicDrawUsage, EquirectangularReflectionMapping, Float32BufferAttribute, FrontSide, Frustum, LinearFilter,
+  ACESFilmicToneMapping, AgXToneMapping, BackSide, BasicDepthPacking, BoxGeometry, BufferAttribute, BufferGeometry, CineonToneMapping, Color, CubeReflectionMapping, CubeRefractionMapping,
+  ClampToEdgeWrapping, CustomToneMapping, DataTexture, DoubleSide, DynamicDrawUsage, EquirectangularReflectionMapping, Float32BufferAttribute, FrontSide, Frustum, InstancedBufferAttribute, InstancedMesh, LinearFilter,
   LinearMipmapNearestFilter, LinearMipmapLinearFilter, LinearToneMapping, LineBasicMaterial, Matrix4, Mesh, MeshBasicMaterial, MeshLambertMaterial, MeshNormalMaterial, MeshStandardMaterial,
   MirroredRepeatWrapping, NeutralToneMapping, NearestFilter, NearestMipmapNearestFilter,
   NearestMipmapLinearFilter, NoToneMapping, NormalBlending, CustomBlending, PointsMaterial, HalfFloatType, FloatType, IntType, RedFormat,
   ReinhardToneMapping, RGBAFormat, RGBAIntegerFormat, RepeatWrapping, SRGBColorSpace, UVMapping, UnsignedByteType,
-  Vector3, Vector4, WebGLCoordinateSystem
+  Sphere, Vector3, Vector4, WebGLCoordinateSystem, Object3D
 } from 'three';
 import { unsupported, requireFinite } from './errors.js';
 import { getThreeRuntime } from './runtime.js';
 import { isNativeCanvas2D } from './native_canvas2d.js';
 import {
-  OPCODE, NO_SHADOW, cameraCommand, clippingCommand, command, disposeResourceCommand, disposeSurfaceCommand,
+  MATERIAL_FLAG_COLOR_WRITE_OFF, MATERIAL_FLAG_STENCIL, OPCODE, NO_SHADOW, STENCIL_FUNC, STENCIL_OP,
+  cameraCommand, clippingCommand, command, disposeResourceCommand, disposeSurfaceCommand,
   drawBatchCommand, encodeEnvelope, frameCommand, geometryCommand, lightCommand,
   materialCommand, nodeCommand, removeBatchCommand, removeNodeCommand, renderTargetCommand, resourceId,
-  textureCommand
+  stencilClearCommand, textureCommand
 } from './r1.js';
 
 const ATTR_NAMES = ['position', 'normal', 'uv', 'color'];
@@ -23,9 +24,24 @@ const ATTR_NAMES = ['position', 'normal', 'uv', 'color'];
 const TONE_MAPPINGS = new Set([NoToneMapping, LinearToneMapping, ReinhardToneMapping,
   CineonToneMapping, ACESFilmicToneMapping, CustomToneMapping, AgXToneMapping, NeutralToneMapping]);
 const MAX_INSTANCES = 1000000;
+const MAX_BATCHED_INSTANCES = 20000;
+// BatchedMesh adaptation proxies are R1-internal instanced stand-ins, not
+// official scene children: the module's own raycaster already walks the
+// BatchedMesh through its BVH-accelerated raycast over the retained
+// instances. Leaving the default Mesh/InstancedMesh raycast on the proxies
+// re-tested every proxy's full triangle range per pointermove (10 proxies x
+// full LOD0 ranges ~ 2.1M triangle tests per event in QuickJS) purely to
+// re-derive hits the batched raycast already produced, so proxies opt out.
+const jsrBatchedMeshProxyRaycast = function () {};
 const MAX_RENDER_TARGETS = 16;
 const MAX_RENDER_TARGET_PIXELS = 16 * 1024 * 1024;
-const FRAME_TARGET_FLAGS = Object.freeze({ clearColor: 1, clearDepth: 2, scissor: 4, viewport: 8 });
+// Frame-target flag bit for the R1 v8 stencil lane: the frame-start stencil
+// clear (value 0), mirroring upstream clear(color, depth, stencil) /
+// autoClearStencil. Emitted only when the frame actually touches stencil
+// state (a stencil-tail material or a clearStencil call), so stenciless
+// frames keep their pre-v8 flags word. Mid-frame clears use
+// OPCODE.STENCIL_CLEAR markers instead.
+const FRAME_TARGET_FLAGS = Object.freeze({ clearColor: 1, clearDepth: 2, scissor: 4, viewport: 8, clearStencil: 16 });
 const MAX_BATCH_PARTS = 1024;
 const RESOURCE_KIND = { geometry: 1, texture: 2, material: 3, node: 4, light: 5, camera: 6, renderTarget: 7 };
 const ZERO = new Vector3();
@@ -37,7 +53,6 @@ const _frustum = new Frustum();
 const _frustumMatrix = new Matrix4();
 const objectTokens = new WeakMap();
 let nextToken = 1;
-
 function token(object) {
   if (!object || (typeof object !== 'object' && typeof object !== 'function')) return 0;
   let value = objectTokens.get(object);
@@ -96,14 +111,52 @@ function attributeContentHash(array) {
 // CPU morph/skinning sets the private flag for the same reason. Hashing those
 // arrays twice per frame (once to disprove reuse, once to rebuild the cache)
 // is pure QuickJS overhead and is especially costly for draw-range buffers.
+// Blend-source finiteness memoized on the SOURCE object keyed by its own
+// version: morph target attributes and the pristine base copies are immutable
+// in practice (MD2 loaders write them once), so each array is scanned at most
+// once for the whole widget lifetime while mutable sources rescan on version
+// bumps and mutable-but-unchanged versions keep their verdict.
+function morphSourceFinite(attribute, count) {
+  if (!attribute) return false;
+  const source = attribute.array;
+  if (!source || source.length < count) return false;
+  if (attribute._r1MorphFiniteVersion === attribute.version) return true;
+  const verdict = sourceFiniteStrict(source, count);
+  if (verdict) attribute._r1MorphFiniteVersion = attribute.version;
+  return verdict;
+}
+
+function baseSourceFinite(array, count) {
+  if (!array || array.length < count) return false;
+  if (array._r1MorphBaseFinite === true) return true;
+  if (!sourceFiniteStrict(array, count)) return false;
+  array._r1MorphBaseFinite = true;
+  return true;
+}
+
+function sourceFiniteStrict(array, count) {
+  for (let i = 0; i < count; i++) {
+    const value = array[i];
+    if (value !== value || value === Infinity || value === -Infinity) return false;
+  }
+  return true;
+}
+
+function activeTargetsFinite(active, count) {
+  for (let a = 1; a < active.length; a += 2) {
+    if (!morphSourceFinite(active[a], count)) return false;
+  }
+  return true;
+}
+
 function volatileAttribute(attribute) {
   return !!attribute && (attribute._r1DynamicContent === true || attribute.usage === DynamicDrawUsage);
 }
 
-function geometrySignature(geometry, primitive, mode) {
+function geometrySignature(geometry, primitive, mode, rangeOverride) {
   const attributes = ATTR_NAMES.map(name => attributeSignature(geometry.attributes[name])).join('|');
   const index = geometry.index;
-  const range = geometry.drawRange || { start: 0, count: Infinity };
+  const range = rangeOverride || geometry.drawRange || { start: 0, count: Infinity };
   return [primitive, mode, attributes, index ? attributeSignature(index) : '-', range.start, range.count].join(';');
 }
 
@@ -137,24 +190,62 @@ function normalizedAttributeScale(array) {
   return 0;
 }
 
-function attributeFloats(attribute, vertexCount, components, name, vertexOffset = 0) {
+// Degenerate dynamic geometry (zero-area triangles, asset-authored NaN like
+// the ShadowmappableMesh.glb line primitive) may carry non-finite normals;
+// upstream GPUs shade those vertices with undefined lighting. R1 bounds them
+// to the zero vector instead of rejecting the whole frame, while
+// position/uv/color keep the strict requireFinite contract.
+function finiteOrNeutralNormal(value, name, attribute) {
+  if (Number.isFinite(value)) return value;
+  if (name === 'normal') {
+    if (attribute && !attribute._r1DegenerateNormalWarned) {
+      attribute._r1DegenerateNormalWarned = true;
+      console.warn('three: R1 zeroes non-finite normal components on this degenerate geometry; position/uv/color keep the strict finite contract.');
+    }
+    return 0;
+  }
+  requireFinite(value, `${name} attribute`);
+  return value;
+}
+
+function attributeFloats(attribute, vertexCount, components, name, vertexOffset = 0, reusable = null) {
   if (!attribute) return null;
   if (attribute.itemSize !== components || attribute.count < vertexOffset + vertexCount) throw new Error(`three.invalid: ${name} attribute must have ${components} components per vertex`);
   const total = vertexCount * components;
+  const values = reusable && reusable.length === total ? reusable : new Float32Array(total);
   if (attribute.isGLBufferAttribute) {
-    const data = attribute.buffer?._r1Data;
+    const buffer = attribute.buffer;
+    const data = buffer?._r1Data;
     if (!data || data.length < (vertexOffset + vertexCount) * components) unsupported('rawGLAttribute', `${name} has no bounded software buffer data`);
-    const scale = attribute.normalized && data instanceof Uint8Array ? 1 / 255 : 1;
-    const values = new Float32Array(total);
-    for (let i = 0; i < total; i++) {
-      const value = data[vertexOffset * components + i] * scale;
-      requireFinite(value, `${name} attribute`);
-      values[i] = value;
+    // GLBufferAttribute payload lives GPU-side upstream; the bounded lane
+    // keeps one converted Float32Array per buffer content and serves every
+    // drawRange window as a subarray of it. The official glbufferattribute
+    // example mutates setDrawRange every frame while the buffer bytes stay
+    // constant — reconverting the growing window per frame made each frame
+    // an O(window) rescan (measured: presentedFps degraded 60→18 as the
+    // window reached ~140k particles with ~0.9M QuickJS iterations/frame).
+    // Cache identity is (buffer, data, length); bufferData() swaps _r1Data,
+    // so stale content cannot survive a re-bind. The returned window is a
+    // view: callers may retain it across sequences, and invalidation always
+    // allocates a fresh array instead of mutating a retained one.
+    let cache = attribute._r1GLFloats;
+    if (!cache || cache.buffer !== buffer || cache.data !== data || cache.full.length !== data.length) {
+      const scale = attribute.normalized && data instanceof Uint8Array ? 1 / 255 : 1;
+      const intBytes = attribute.normalized && data instanceof Uint8Array;
+      const full = new Float32Array(data.length);
+      for (let i = 0; i < data.length; i++) {
+        const value = data[i] * scale;
+        // Integer bytes map into [0,1] and are finite by construction; float
+        // payloads keep the strict finite contract with the same messages.
+        full[i] = intBytes ? value : finiteOrNeutralNormal(value, name, attribute);
+      }
+      cache = { buffer, data, full };
+      attribute._r1GLFloats = cache;
     }
-    return values;
+    const start = vertexOffset * components;
+    return cache.full.subarray(start, start + total);
   }
   if (typeof attribute.getComponent !== 'function') unsupported('rawGLAttribute', name);
-  const values = new Float32Array(total);
   const array = attribute.array;
   const componentOffset = vertexOffset * components;
   // Fast path: a plain (non-interleaved) typed array is read by direct
@@ -174,9 +265,22 @@ function attributeFloats(attribute, vertexCount, components, name, vertexOffset 
         return values;
       }
     } else if (array instanceof Float32Array || array instanceof Float64Array) {
+      if (array instanceof Float32Array && attribute._r1FiniteVersion === attribute.version) {
+        // The synchronous native skin kernel validated this exact version.
+        // TypedArray.set performs the bulk copy without a per-float JS loop.
+        if (values !== array) {
+          values.set(componentOffset === 0 && total === array.length ? array :
+            array.subarray(componentOffset, componentOffset + total));
+        }
+        return values;
+      }
       for (let i = 0; i < total; i++) {
-        const value = array[componentOffset + i];
-        requireFinite(value, `${name} attribute`);
+        let value = array[componentOffset + i];
+        // Keep the strict finite contract without a QuickJS function call for
+        // every valid component on dynamic geometry's per-frame hot path.
+        if (value !== value || value === Infinity || value === -Infinity) {
+          value = finiteOrNeutralNormal(value, name, attribute);
+        }
         values[i] = value;
       }
       return values;
@@ -188,8 +292,7 @@ function attributeFloats(attribute, vertexCount, components, name, vertexOffset 
   for (let i = 0; i < vertexCount; i++) {
     for (let c = 0; c < components; c++) {
       const value = attribute.getComponent(vertexOffset + i, c);
-      requireFinite(value, `${name} attribute`);
-      values[i * components + c] = value;
+      values[i * components + c] = finiteOrNeutralNormal(value, name, attribute);
     }
   }
   return values;
@@ -221,7 +324,9 @@ function prepareIndices(geometry, primitive, mode, vertexCount) {
   } else if ((primitive === 0 && vertexCount % 3 !== 0) || (primitive === 1 && vertexCount % 2 !== 0)) {
     throw new Error('three.invalid: primitive vertex count is not aligned');
   }
-  return source;
+  // The upload cache retains this typed buffer across animated vertex
+  // uploads; geometryCommand can then copy its bytes in one operation.
+  return source ? new Uint32Array(source) : null;
 }
 
 function prepareWireIndices(geometry, vertexCount) {
@@ -308,6 +413,16 @@ function materialKind(material) {
   if (material.isSpriteMaterial) return 0;
   if (material.isMeshToonMaterial) return 8;
   if (material.isMeshMatcapMaterial) return 9;
+  // R1 v7: MeshDepthMaterial rides the depth-viz lane (shaders/three_r1.frag
+  // kind 12): grayscale linearized view depth written into the color
+  // attachment, so the bounded RT lane — whose DepthTexture is aliased to the
+  // RT color — still shows real depth structure (webgl_depth_texture).
+  if (material.isMeshDepthMaterial) {
+    if (material.depthPacking !== BasicDepthPacking) {
+      unsupported('depthPacking', 'MeshDepthMaterial supports BasicDepthPacking only');
+    }
+    return 12;
+  }
   unsupported('material', material.type || 'unknown material');
 }
 
@@ -354,12 +469,22 @@ function copyShaderFlags(source, target) {
 
 function shaderTextureList(uniforms) {
   const textures = [];
-  for (const uniform of Object.values(uniforms)) {
+  for (const [name, uniform] of Object.entries(uniforms)) {
     const value = uniform && uniform.value;
-    if (value?.isTexture) textures.push(value);
-    else if (Array.isArray(value)) for (const item of value) if (item?.isTexture) textures.push(item);
+    if (value?.isTexture) textures.push({ name, texture: value });
+    else if (Array.isArray(value)) {
+      for (const item of value) if (item?.isTexture) textures.push({ name, texture: item });
+    }
   }
-  return textures;
+  // The bounded lane lowers a multi-texture shader to its FIRST bound
+  // texture. For postprocess blends (e.g. AfterimagePass tOld/tNew) the
+  // insertion order keeps the PREVIOUS frame and drops the current one,
+  // rendering black. Rank the pass's primary input first so the lowering
+  // keeps the frame being presented; secondary inputs (accumulation history
+  // buffers) remain dropped and the warn string documents the loss.
+  const rank = ({ name }) => (/^(tDiffuse|tNew|tInput|map)$/.test(name) ? 0 : 1);
+  textures.sort((a, b) => rank(a) - rank(b));
+  return textures.map((entry) => entry.texture);
 }
 
 function firstShaderTexture(uniforms) {
@@ -466,56 +591,293 @@ function hslShaderColor(scale) {
   return [clamp(Math.abs(h * 6 - 3) - 1), clamp(2 - Math.abs(h * 6 - 2)), clamp(Math.abs(h * 6 - 4) - 1)];
 }
 
-function refreshInstancedShaderGeometry(geometry, uniforms) {
+function refreshInstancedShaderGeometry(geometry, uniforms, object, viewMatrix) {
   const data = geometry._r1Instanced;
   if (!data) return;
   const { source, kind, perInstance, verticesPerInstance, capacity } = data;
   const attrs = source.attributes;
-  const instances = Math.min(source.instanceCount || 0, capacity);
+  let instances = Math.min(source.instanceCount || 0, capacity);
+  if (!Number.isFinite(source.instanceCount) || !(source.instanceCount > 0)) {
+    // Upstream clamps instanced draws to the instanced attribute lengths;
+    // mirror that here so a default (Infinity) count cannot read past the
+    // arrays and encode NaNs (three.js defaults instanceCount to Infinity).
+    for (const name in attrs) {
+      const attribute = attrs[name];
+      if (attribute && attribute.isInstancedBufferAttribute) {
+        instances = Math.min(instances, attribute.count);
+      }
+    }
+  }
   const positions = geometry.attributes.position;
   const colors = geometry.attributes.color;
   const uvs = geometry.attributes.uv;
   const time = Number(uniforms.time?.value || 0);
   const sineTime = Number(uniforms.sineTime?.value || 0);
+  // Exact-repeat frames (paused timeline, duplicate render() calls, coalesced
+  // RAF batches) must not rewrite 36k vertices or bump upload versions. The
+  // key covers source identity/versions plus the animated uniforms; a source
+  // array mutated in place WITHOUT a version bump would be missed, which
+  // upstream never does (InstancedBufferAttribute.needsUpdate).
+  const versionKey = [
+    attributeVersionKey(attrs.translate), attributeVersionKey(attrs.position),
+    attributeVersionKey(attrs.uv), attributeVersionKey(attrs.color),
+    attributeVersionKey(attrs.offset), attributeVersionKey(attrs.orientationStart),
+    attributeVersionKey(attrs.orientationEnd), attributeVersionKey(source.index),
+    instances
+  ].join('|');
+  const me = object && object.matrixWorld ? object.matrixWorld.elements : null;
+  const ve = viewMatrix && viewMatrix.elements ? viewMatrix.elements : null;
+  let unchanged = data.lastKey === versionKey && data.lastTime === time &&
+    data.lastSineTime === sineTime && data.lastCount === instances;
+  if (kind === 'billboards' && unchanged) {
+    // The billboard offset is baked into local space through M⁻¹·Rᵥᵀ, so a
+    // camera or mesh rotation alone must re-run the evaluation even when
+    // every uniform is unchanged.
+    if (!data.viewKey || !me || !ve) unchanged = false;
+
+    else {
+      let k = 0;
+      for (const e of [me, ve]) {
+        for (const base of [0, 4, 8]) {
+          for (let r = 0; r < 3; r++, k++) {
+            if (data.viewKey[k] !== e[base + r]) { unchanged = false; break; }
+          }
+          if (!unchanged) break;
+        }
+        if (!unchanged) break;
+      }
+    }
+  }
+  if (unchanged) return;
+  if (unchanged) return;
+  data.lastKey = versionKey;
+  data.lastTime = time;
+  data.lastSineTime = sineTime;
+  data.lastCount = instances;
+  if (kind === 'billboards' && me && ve) {
+    // 18 slots: two matrices (mesh, view) x three linear columns x three rows.
+    if (!data.viewKey) data.viewKey = new Float64Array(18);
+    let k = 0;
+    for (const e of [me, ve]) {
+      for (const base of [0, 4, 8]) {
+        for (let r = 0; r < 3; r++, k++) data.viewKey[k] = e[base + r];
+      }
+    }
+  }
+  // Plain-array fast path: instance attributes in these examples are never
+  // interleaved; the getComponent fallback keeps interleaved sources correct.
+  const plain = attr => attr && !attr.isInterleavedBufferAttribute &&
+    attr.array && attr.array.length >= attr.count * attr.itemSize ? attr.array : null;
+  const tArr = plain(attrs.translate), oArr = plain(attrs.offset);
+  const osArr = plain(attrs.orientationStart), oeArr = plain(attrs.orientationEnd);
+  const cArr = plain(attrs.color);
+  const templateKey = `${attributeVersionKey(attrs.position)}:${attributeVersionKey(attrs.uv)}:${attributeVersionKey(source.index)}`;
+  let templatePos = data.templatePos;
+  let templateUv = data.templateUv;
+  if (kind === 'billboards' && (!templatePos || data.templateKey !== templateKey)) {
+    templatePos = new Float32Array(verticesPerInstance * 3);
+    for (let v = 0; v < verticesPerInstance; v++) {
+      const sv = perInstance[v];
+      templatePos[v * 3] = attrs.position.getComponent(sv, 0);
+      templatePos[v * 3 + 1] = attrs.position.getComponent(sv, 1);
+      templatePos[v * 3 + 2] = attrs.position.getComponent(sv, 2);
+    }
+    templateUv = attrs.uv ? new Float32Array(verticesPerInstance * 2) : null;
+    if (templateUv) {
+      for (let v = 0; v < verticesPerInstance; v++) {
+        const sv = perInstance[v];
+        templateUv[v * 2] = attrs.uv.getComponent(sv, 0);
+        templateUv[v * 2 + 1] = attrs.uv.getComponent(sv, 1);
+      }
+    }
+    data.templatePos = templatePos;
+    data.templateUv = templateUv;
+    data.templateKey = templateKey;
+    data.uvWritten = false;
+  }
+  // The official billboard vertex stage offsets the sprite in VIEW space
+  // (mvPosition.xyz += position * scale AFTER the modelView transform), so
+  // the sprite must NOT inherit the node scale — webgl_buffergeometry_
+  // instancing_billboards scales its mesh 500x and the sprite offset has to
+  // stay ~40 view units, not 20000. The corrected local position satisfies
+  // M·L = M·translate + Rᵥᵀ·(position·size), i.e.
+  // L = translate + (M⁻¹lin·Rᵥᵀ)·(position·size); the offset is a direction
+  // vector, so the camera translation never enters. B = M⁻¹lin·Rᵥᵀ is
+  // per-frame, and per instance only its columns are scaled by `size`.
+  const basis = kind === 'billboards' ? _r1BillboardBasis(me, ve) : null;
+  const posArr = positions.array;
+  const colArr = colors.array;
   for (let instance = 0; instance < instances; instance++) {
+    // translate exists only on billboards geometry; instancing geometry has
+    // offset/orientationStart/orientationEnd and no translate attribute.
+    const t0 = kind === 'billboards' ? (tArr ? tArr[instance * 3] : attrs.translate.getComponent(instance, 0)) : 0;
+    const t1 = kind === 'billboards' ? (tArr ? tArr[instance * 3 + 1] : attrs.translate.getComponent(instance, 1)) : 0;
+    const t2 = kind === 'billboards' ? (tArr ? tArr[instance * 3 + 2] : attrs.translate.getComponent(instance, 2)) : 0;
     let scale = 0;
     if (kind === 'billboards') {
-      const x = attrs.translate.getComponent(instance, 0), y = attrs.translate.getComponent(instance, 1), z = attrs.translate.getComponent(instance, 2);
-      scale = Math.sin((x + time) * 2.1) + Math.sin((y + time) * 3.2) + Math.sin((z + time) * 4.3);
+      scale = Math.sin((t0 + time) * 2.1) + Math.sin((t1 + time) * 3.2) + Math.sin((t2 + time) * 4.3);
     }
-    const orientation = kind === 'instancing' ? [0, 1, 2, 3].map(c =>
-      attrs.orientationStart.getComponent(instance, c) * (1 - sineTime) + attrs.orientationEnd.getComponent(instance, c) * sineTime) : null;
-    if (orientation) {
-      const length = Math.hypot(...orientation) || 1;
-      for (let c = 0; c < 4; c++) orientation[c] /= length;
+    let o0 = 0, o1 = 0, o2 = 0, o3 = 1;
+    if (kind === 'instancing') {
+      for (let c = 0; c < 4; c++) {
+        const s = osArr ? osArr[instance * 4 + c] : attrs.orientationStart.getComponent(instance, c);
+        const e = oeArr ? oeArr[instance * 4 + c] : attrs.orientationEnd.getComponent(instance, c);
+        const lerped = s * (1 - sineTime) + e * sineTime;
+        if (c === 0) o0 = lerped;
+        else if (c === 1) o1 = lerped;
+        else if (c === 2) o2 = lerped;
+        else o3 = lerped;
+      }
+      const length = Math.hypot(o0, o1, o2, o3) || 1;
+      o0 /= length; o1 /= length; o2 /= length; o3 /= length;
     }
     const color = kind === 'billboards' ? hslShaderColor(scale) : null;
-    for (let vertex = 0; vertex < verticesPerInstance; vertex++) {
-      const sourceVertex = perInstance ? perInstance[vertex] : vertex;
-      const output = instance * verticesPerInstance + vertex;
-      let point;
-      if (kind === 'billboards') {
-        const size = scale * 10 + 10;
-        point = [0, 1, 2].map(c => attrs.translate.getComponent(instance, c) + attrs.position.getComponent(sourceVertex, c) * size);
+    const base = instance * verticesPerInstance;
+    if (kind === 'billboards') {
+      const size = scale * 10 + 10;
+      let a0, a1, a2, b0, b1, b2, c0, c1, c2;
+      if (basis) {
+        // a/b/c are the COLUMNS of M_linear⁻¹·R_cam: the local-space image of
+        // the view-space sprite axes, so vertex k adds cx*a_k + cy*b_k + cz*c_k.
+        a0 = size * basis[0]; b0 = size * basis[1]; c0 = size * basis[2];
+        a1 = size * basis[3]; b1 = size * basis[4]; c1 = size * basis[5];
+        a2 = size * basis[6]; b2 = size * basis[7]; c2 = size * basis[8];
       } else {
-        const spread = Math.max(Math.abs(sineTime * 2 + 1), 0.5);
-        point = [0, 1, 2].map(c => attrs.offset.getComponent(instance, c) * spread + attrs.position.getComponent(sourceVertex, c));
-        point = rotateShaderQuaternion(point, orientation);
+        // Degenerate/missing matrices: keep the sprite axis-aligned instead
+        // of crashing; the render walk rejects non-finite world matrices
+        // before this point, so this only covers a zero-scale mesh.
+        a0 = size; a1 = 0; a2 = 0; b0 = 0; b1 = size; b2 = 0; c0 = 0; c1 = 0; c2 = size;
       }
-      positions.setXYZ(output, point[0], point[1], point[2]);
-      if (kind === 'billboards') colors.setXYZ(output, color[0], color[1], color[2]);
-      else colors.setXYZ(output,
-        attrs.color.getComponent(instance, 0) + Math.sin(point[0] * 10 + time) * 0.5,
-        attrs.color.getComponent(instance, 1), attrs.color.getComponent(instance, 2));
-      if (attrs.uv) uvs.setXY(output, attrs.uv.getComponent(sourceVertex, 0), attrs.uv.getComponent(sourceVertex, 1));
+      for (let vertex = 0; vertex < verticesPerInstance; vertex++) {
+        const cx = templatePos[vertex * 3], cy = templatePos[vertex * 3 + 1], cz = templatePos[vertex * 3 + 2];
+        const o = (base + vertex) * 3;
+        posArr[o] = t0 + cx * a0 + cy * b0 + cz * c0;
+        posArr[o + 1] = t1 + cx * a1 + cy * b1 + cz * c1;
+        posArr[o + 2] = t2 + cx * a2 + cy * b2 + cz * c2;
+        colArr[o] = color[0];
+        colArr[o + 1] = color[1];
+        colArr[o + 2] = color[2];
+      }
+    } else {
+      const cR = cArr ? cArr[instance * 3] : attrs.color.getComponent(instance, 0);
+      const cG = cArr ? cArr[instance * 3 + 1] : attrs.color.getComponent(instance, 1);
+      const cB = cArr ? cArr[instance * 3 + 2] : attrs.color.getComponent(instance, 2);
+      const spread = Math.max(Math.abs(sineTime * 2 + 1), 0.5);
+      for (let vertex = 0; vertex < verticesPerInstance; vertex++) {
+        const p0 = (oArr ? oArr[instance * 3] : attrs.offset.getComponent(instance, 0)) * spread +
+          attrs.position.getComponent(vertex, 0);
+        const p1 = (oArr ? oArr[instance * 3 + 1] : attrs.offset.getComponent(instance, 1)) * spread +
+          attrs.position.getComponent(vertex, 1);
+        const p2 = (oArr ? oArr[instance * 3 + 2] : attrs.offset.getComponent(instance, 2)) * spread +
+          attrs.position.getComponent(vertex, 2);
+        const point = rotateShaderQuaternion([p0, p1, p2], [o0, o1, o2, o3]);
+        const o = (base + vertex) * 3;
+        posArr[o] = point[0];
+        posArr[o + 1] = point[1];
+        posArr[o + 2] = point[2];
+        colArr[o] = cR + Math.sin(point[0] * 10 + time) * 0.5;
+        colArr[o + 1] = cG;
+        colArr[o + 2] = cB;
+      }
     }
   }
-  geometry.setDrawRange(0, instances * verticesPerInstance);
-  for (const attribute of [positions, colors, uvs]) {
-    attribute._r1DynamicContent = true;
-    attribute.needsUpdate = true;
+  // The sprite UV map is static per source geometry: write it once instead of
+  // re-marking ~295KB of unchanged UV bytes dynamic every frame.
+  if (kind === 'billboards' && uvs && templateUv && !data.uvWritten) {
+    const uvArr = uvs.array;
+    for (let instance = 0; instance < instances; instance++) {
+      const base = instance * verticesPerInstance * 2;
+      for (let v = 0; v < verticesPerInstance; v++) {
+        uvArr[base + v * 2] = templateUv[v * 2];
+        uvArr[base + v * 2 + 1] = templateUv[v * 2 + 1];
+      }
+    }
+    uvs._r1DynamicContent = true;
+    uvs.needsUpdate = true;
+    data.uvWritten = true;
   }
-  geometry.computeBoundingSphere();
+  geometry.setDrawRange(0, instances * verticesPerInstance);
+  positions._r1DynamicContent = true;
+  positions.needsUpdate = true;
+  colors._r1DynamicContent = true;
+  colors.needsUpdate = true;
+  // One conservative culling bound per source content instead of an O(vertex)
+  // computeBoundingSphere walk per frame: billboard sprites add at most
+  // |scale*10+10| ≤ 40 template units through B (max |B| element × √3 loses
+  // against the spectral norm), instancing spreads offsets by ≤ 3 and unit
+  // quaternions preserve lengths. Both bounds dominate the real extents, so
+  // frustum culling stays safe while the per-frame QuickJS walk disappears.
+  if (!data.staticSphere) {
+    let radius = 1e-3;
+    if (kind === 'billboards') {
+      let maxTranslate = 0;
+      for (let i = 0; i < instances; i++) {
+        const x = tArr ? tArr[i * 3] : attrs.translate.getComponent(i, 0);
+        const y = tArr ? tArr[i * 3 + 1] : attrs.translate.getComponent(i, 1);
+        const z = tArr ? tArr[i * 3 + 2] : attrs.translate.getComponent(i, 2);
+        maxTranslate = Math.max(maxTranslate, Math.hypot(x, y, z));
+      }
+      let maxTemplate = 0;
+      for (let v = 0; v < verticesPerInstance; v++) {
+        maxTemplate = Math.max(maxTemplate, Math.hypot(
+          templatePos[v * 3], templatePos[v * 3 + 1], templatePos[v * 3 + 2]));
+      }
+      let maxB = 0;
+      if (basis) for (let i = 0; i < 9; i++) maxB = Math.max(maxB, Math.abs(basis[i]));
+      radius = maxTranslate + 40 * maxTemplate * maxB * Math.sqrt(3) + 1e-3;
+    } else {
+      let maxOffset = 0;
+      for (let i = 0; i < instances; i++) {
+        const x = oArr ? oArr[i * 3] : attrs.offset.getComponent(i, 0);
+        const y = oArr ? oArr[i * 3 + 1] : attrs.offset.getComponent(i, 1);
+        const z = oArr ? oArr[i * 3 + 2] : attrs.offset.getComponent(i, 2);
+        maxOffset = Math.max(maxOffset, Math.hypot(x, y, z));
+      }
+      let maxVert = 0;
+      for (let i = 0; i < attrs.position.count; i++) {
+        maxVert = Math.max(maxVert, Math.hypot(
+          attrs.position.getComponent(i, 0), attrs.position.getComponent(i, 1),
+          attrs.position.getComponent(i, 2)));
+      }
+      radius = maxOffset * 3 + maxVert + 1e-3;
+    }
+    geometry.boundingSphere = new Sphere(new Vector3(0, 0, 0), radius);
+    data.staticSphere = true;
+  }
+}
+
+// B = (M⁻¹)lin · Rᵥᵀ for the billboard lane. THREE Matrix4 storage is column
+// major (element[c*4+r] is row r, column c). Returns a shared 9-float scratch
+// (row-major 3x3); the caller consumes it before any other call.
+const _r1BillboardBasisScratch = new Float32Array(9);
+function _r1BillboardBasis(meshElements, viewElements) {
+  if (!meshElements || !viewElements) return null;
+  const m = meshElements, v = viewElements;
+  const a00 = m[0], a01 = m[4], a02 = m[8];
+  const a10 = m[1], a11 = m[5], a12 = m[9];
+  const a20 = m[2], a21 = m[6], a22 = m[10];
+  const det = a00 * (a11 * a22 - a12 * a21) - a01 * (a10 * a22 - a12 * a20) + a02 * (a10 * a21 - a11 * a20);
+  if (!Number.isFinite(det) || Math.abs(det) < 1e-20) return null;
+  const invDet = 1 / det;
+  const i00 = (a11 * a22 - a12 * a21) * invDet;
+  const i01 = (a02 * a21 - a01 * a22) * invDet;
+  const i02 = (a01 * a12 - a02 * a11) * invDet;
+  const i10 = (a12 * a20 - a10 * a22) * invDet;
+  const i11 = (a00 * a22 - a02 * a20) * invDet;
+  const i12 = (a02 * a10 - a00 * a12) * invDet;
+  const i20 = (a10 * a21 - a11 * a20) * invDet;
+  const i21 = (a01 * a20 - a00 * a21) * invDet;
+  const i22 = (a00 * a11 - a01 * a10) * invDet;
+  const out = _r1BillboardBasisScratch;
+  for (let c = 0; c < 3; c++) {
+    // Basis = M_linear⁻¹ · R_cam = M_linear⁻¹ · V_linearᵀ; entries pair the
+    // mesh inverse with the VIEW ROW c (column-major storage: v[j*4+c]).
+    const v0 = v[c], v1 = v[4 + c], v2 = v[8 + c];
+    out[0 * 3 + c] = i00 * v0 + i01 * v1 + i02 * v2;
+    out[1 * 3 + c] = i10 * v0 + i11 * v1 + i12 * v2;
+    out[2 * 3 + c] = i20 * v0 + i21 * v1 + i22 * v2;
+  }
+  return out;
 }
 
 function shaderNoiseTexture(fragment) {
@@ -610,7 +972,7 @@ function refreshProceduralRtt(geometry, time) {
   color.needsUpdate = true;
 }
 
-function adaptedShaderDraw(object) {
+function adaptedShaderDraw(object, viewMatrix = null) {
   const source = object.material;
   const uniforms = source.uniforms || {};
   const vertex = sourceTokens(source.vertexShader);
@@ -635,11 +997,20 @@ function adaptedShaderDraw(object) {
   const instancedKind = object.geometry.isInstancedBufferGeometry && attrs.offset && attrs.orientationStart ? 'instancing' :
     object.geometry.isInstancedBufferGeometry && attrs.translate ? 'billboards' : null;
   if (instancedKind) {
-    const geometry = instancedShaderGeometry(object.geometry, instancedKind);
+    // The expanded geometry must be STABLE across frames: a fresh
+    // BufferGeometry per call gets a fresh resource id and re-sends the full
+    // position/color/uv payload every render (measured: billboards re-uploaded
+    // ~1.3MB per frame, presentedFps 10). Cache on the source geometry; the
+    // refresh signature below decides whether the contents actually moved.
+    const cachedDraw = object.geometry._r1ShaderDraw;
+    const geometry = cachedDraw && cachedDraw._r1Instanced.kind === instancedKind
+      ? cachedDraw
+      : instancedShaderGeometry(object.geometry, instancedKind);
     if (geometry) {
-      refreshInstancedShaderGeometry(geometry, uniforms);
+      if (geometry !== cachedDraw) object.geometry._r1ShaderDraw = geometry;
+      refreshInstancedShaderGeometry(geometry, uniforms, object, viewMatrix);
       adaptationWarn(source, '_r1InstancedShaderWarned',
-        `R1 CPU-evaluates at most 2048 ${instancedKind} instances; billboard view alignment is approximated.`);
+        `R1 CPU-evaluates at most 2048 ${instancedKind} instances; billboard view alignment is exact but instance counts above the cap are not drawn.`);
       return { material: basicShaderMaterial(source, { map: uniforms.map?.value, vertexColors: true }), geometry };
     }
   }
@@ -751,6 +1122,10 @@ function validateMaterial(material) {
     console.warn('three: R1 shades MeshPhysicalMaterial as MeshStandardMaterial (physical-only lobes dropped).');
   }
   if (material.wireframe && !(material.isMeshBasicMaterial || material.isMeshLambertMaterial || material.isMeshPhongMaterial || material.isMeshNormalMaterial || (material.isMeshStandardMaterial) || material.isMeshToonMaterial || material.isMeshMatcapMaterial)) unsupported('wireframe', 'R1 wireframe requires a mesh material');
+  if (material.isMeshDepthMaterial && (material.map || material.alphaMap)) {
+    adaptationWarn(material, '_r1DepthMaterialMapsWarned',
+      'R1 drops MeshDepthMaterial map/alphaMap (depth output is untextured grayscale view depth).');
+  }
   if (material.wireframe && (material.wireframeLinewidth !== 1 || material.wireframeLinecap !== 'round' || material.wireframeLinejoin !== 'round')) unsupported('wireframeStyle', 'R1 supports one-pixel round wireframe lines');
   if (material.blending === CustomBlending) {
     adaptationWarn(material, '_r1CustomBlendingWarned',
@@ -758,14 +1133,15 @@ function validateMaterial(material) {
   }
   const droppedState = [
     material.alphaHash ? 'alphaHash' : null,
-    material.premultipliedAlpha ? 'premultipliedAlpha' : null,
-    material.colorWrite === false ? 'colorWrite=false' : null,
-    material.stencilWrite ? 'stencilWrite' : null
+    material.premultipliedAlpha ? 'premultipliedAlpha' : null
   ].filter(Boolean);
   if (droppedState.length) {
     adaptationWarn(material, '_r1MaterialStateWarned',
       `R1 drops ${droppedState.join(', ')}; base color/depth rendering remains active.`);
   }
+  // R1 v8: colorWrite=false and the Material.stencil* state encode into the
+  // material flags/tail (MATERIAL_FLAG_COLOR_WRITE_OFF, MATERIAL_FLAG_STENCIL
+  // + the stencil tail), so they no longer belong in the dropped set.
   if (material.polygonOffset && !material._r1PolygonOffsetWarned) {
     // DecalGeometry enables polygon offset after the click. R1 has no factor/
     // units depth-state lane; keep drawing the decal with the base depth state
@@ -1258,6 +1634,7 @@ export class JsrWebGLRenderer {
     this._disposed = false;
     this._animationLoop = null;
     this._animationHandle = null;
+    this._animationBatch = null;
     this._pendingDisposals = [];
     this._resources = new Map();
     this._renderTargets = new Map();
@@ -1266,6 +1643,13 @@ export class JsrWebGLRenderer {
     this._activeCubeFace = 0;
     this._activeMipmapLevel = 0;
     this._clearFlags = 0;
+    // R1 v8 stencil-lane walk state: the in-flight command stream (for
+    // clearStencil() during onAfterRender), the node id whose draw upstream
+    // would follow with the callback, and the per-frame "scene touches
+    // stencil" marker that gates the FRAME_TARGET_FLAGS.clearStencil bit.
+    this._walkCommands = null;
+    this._walkAfterRenderNodeId = 0;
+    this._frameStencilActivity = false;
     this._viewport = { x: 0, y: 0, z: this._width, w: this._height };
     this._scissor = { x: 0, y: 0, z: this._width, w: this._height };
     this._scissorTest = false;
@@ -1277,6 +1661,7 @@ export class JsrWebGLRenderer {
     this._canvasRefreshHandle = null;
     this._adaptedLineDraws = new WeakMap();
     this._adaptedShaderDraws = new WeakMap();
+    this._batchedMeshProxies = new WeakMap();
     this._lastScene = null;
     this._lastCamera = null;
     this._state = canvas._r1State || (canvas._r1State = {
@@ -1371,6 +1756,9 @@ export class JsrWebGLRenderer {
       'R1 ignores renderer.setEffects passes; the direct scene draw is retained.');
   }
   setRenderTarget(target, activeCubeFace = 0, activeMipmapLevel = 0) {
+    // Validate before mutating renderer state: a rejected target must not
+    // poison the next otherwise-valid frame.
+    if (target) this._validateRenderTarget(target);
     this._renderTarget = target || null;
     if (target?.texture) {
       target.texture.renderTarget = target;
@@ -1380,7 +1768,6 @@ export class JsrWebGLRenderer {
     this._activeMipmapLevel = activeMipmapLevel;
     if (activeCubeFace) adaptationWarn(this, '_r1CubeTargetWarned',
       'R1 reuses the bounded 2D target for cube-camera faces; separate face storage is dropped.');
-    if (this._renderTarget) this._validateRenderTarget(this._renderTarget);
   }
   getRenderTarget() { return this._renderTarget; }
   getActiveCubeFace() { return this._activeCubeFace; }
@@ -1398,12 +1785,159 @@ export class JsrWebGLRenderer {
     this.readRenderTargetPixels(target, x, y, width, height, buffer);
     return Promise.resolve();
   }
-  clear(color = true, depth = true) {
+  clear(color = true, depth = true, stencil = false) {
     if (color) this._clearFlags |= FRAME_TARGET_FLAGS.clearColor;
     if (depth) this._clearFlags |= FRAME_TARGET_FLAGS.clearDepth;
+    if (stencil) this._clearFlags |= FRAME_TARGET_FLAGS.clearStencil;
   }
   clearDepth() { this.clear(false, true); }
   clearColor() { this.clear(true, false); }
+  // Upstream clears the stencil buffer immediately; R1 records the intent:
+  // inside a render walk the OPCODE.STENCIL_CLEAR marker lands at the
+  // current stream position (bound to the onAfterRender node when the walk
+  // is invoking one), outside a walk a value of 0 rides the next FRAME's
+  // FRAME_TARGET_FLAGS.clearStencil bit and non-zero values emit a
+  // standalone marker envelope.
+  clearStencil(value = 0) {
+    if (!Number.isInteger(value) || value < 0 || value > 0xffffffff) {
+      throw new Error('three.invalid: stencil clear value must be a u32');
+    }
+    if (this._walkCommands) {
+      this._walkCommands.push(stencilClearCommand(this._walkAfterRenderNodeId, value));
+      this._frameStencilActivity = true;
+      return;
+    }
+    if (value === 0) {
+      this._clearFlags |= FRAME_TARGET_FLAGS.clearStencil;
+      return;
+    }
+    this._emit([stencilClearCommand(0, value)]);
+  }
+
+  // Upstream copies GPU framebuffer pixels into a FramebufferTexture for the
+  // next frame's sampling (webgl_framebuffer_texture). R1 keeps pixels on the
+  // host, so the bounded lane fabricates the neutral CPU copy the sampler
+  // lane reads (identical contract to readRenderTargetPixels) and renders the
+  // base scene without error spam. GPU-true feedback stays explicitly absent.
+  copyFramebufferToTexture(texture, position = null, level = 0) {
+    if (!texture || !texture.isFramebufferTexture) {
+      throw new Error('three.invalid: copyFramebufferToTexture expects a FramebufferTexture');
+    }
+    if (level !== 0) unsupported('textureMipmap', 'R1 copies framebuffer level 0 only');
+    if (position !== null && (!Number.isFinite(position.x) || !Number.isFinite(position.y))) {
+      throw new Error('three.invalid: copyFramebufferToTexture position must be finite');
+    }
+    const width = Math.floor(texture.image?.width || 0);
+    const height = Math.floor(texture.image?.height || 0);
+    if (width <= 0 || height <= 0 || width > 4096 || height > 4096) {
+      throw new Error('three.invalid: FramebufferTexture size is outside the bounded range');
+    }
+    if (!texture.image.data || texture.image.data.length !== width * height * 4) {
+      texture.image = { width, height, data: new Uint8Array(width * height * 4), encoding: 0, encoded: false };
+      adaptationWarn(this, '_r1FramebufferCopyWarned',
+        'R1 lowers copyFramebufferToTexture to a bounded neutral copy; GPU frame pixels are not returned to JavaScript.');
+      texture.needsUpdate = true;
+    }
+  }
+
+  // Upstream texSubImage-style copy. R1 has no GPU-side copies, so the bounded
+  // lane edits CPU-side texture bytes (same format/type, Uint8Array storage)
+  // and flags the destination for a full re-upload. Data3DTexture partial
+  // updates (webgl_texture3d_partialupdate) ride exactly this lane; GPU-only
+  // sources degrade loudly instead of failing the animation loop.
+  copyTextureToTexture(srcTexture, dstTexture, srcRegion = null, dstPosition = null, srcLevel = 0, dstLevel = 0) {
+    if (!srcTexture || !srcTexture.isTexture || !dstTexture || !dstTexture.isTexture) {
+      throw new Error('three.invalid: copyTextureToTexture requires source and destination textures');
+    }
+    if (srcLevel !== 0 || dstLevel !== 0) unsupported('textureMipmap', 'R1 copies texture level 0 only');
+    const srcImage = srcTexture.image;
+    const dstImage = dstTexture.image;
+    if (!srcImage || !(srcImage.data instanceof Uint8Array) ||
+        !dstImage || !(dstImage.data instanceof Uint8Array) || srcTexture.type !== dstTexture.type) {
+      unsupported('copyTextureToTexture',
+        'R1 copies CPU-side Uint8Array textures of matching type only; GPU-side copies stay on the host');
+    }
+    // r186 Data3DTexture inherits the RGBAFormat default, so generated R8
+    // volumes (webgl_texture3d_partialupdate) carry a mislabeled source format.
+    // Trust the byte layout for the 1-byte-per-texel R8 lane; everything else
+    // must match formats exactly.
+    const formatMismatch = srcTexture.format !== dstTexture.format &&
+      !(dstTexture.format === RedFormat && srcTexture.format === RGBAFormat &&
+        srcImage.data.length === srcImage.width * srcImage.height * (srcImage.depth || 1));
+    if (formatMismatch) {
+      unsupported('copyTextureToTexture',
+        'R1 copies CPU-side Uint8Array textures with matching format or matching R8 byte layout only; GPU-side copies stay on the host');
+    }
+    let width, height, depth, minX = 0, minY = 0, minZ = 0;
+    if (srcRegion !== null) {
+      if (!srcRegion.min || !srcRegion.max || !Number.isFinite(srcRegion.min.x) ||
+          !Number.isFinite(srcRegion.min.y) || !Number.isFinite(srcRegion.max.x) || !Number.isFinite(srcRegion.max.y) ||
+          (srcRegion.isBox3 && !Number.isFinite(srcRegion.max.z))) {
+        throw new Error('three.invalid: copyTextureToTexture region');
+      }
+      width = srcRegion.max.x - srcRegion.min.x;
+      height = srcRegion.max.y - srcRegion.min.y;
+      depth = srcRegion.isBox3 ? srcRegion.max.z - srcRegion.min.z : 1;
+      minX = srcRegion.min.x;
+      minY = srcRegion.min.y;
+      minZ = srcRegion.isBox3 ? srcRegion.min.z : 0;
+    } else {
+      width = srcImage.width;
+      height = srcImage.height;
+      depth = (srcTexture.isData3DTexture || srcTexture.isDataArrayTexture) ? srcImage.depth : 1;
+    }
+    const dstX = dstPosition ? dstPosition.x : 0;
+    const dstY = dstPosition ? dstPosition.y : 0;
+    const dstZ = dstPosition ? (dstPosition.z || 0) : 0;
+    const sourceDepth = (srcTexture.isData3DTexture || srcTexture.isDataArrayTexture) ? srcImage.depth : 1;
+    const destinationDepth = (dstTexture.isData3DTexture || dstTexture.isDataArrayTexture) ? dstImage.depth : 1;
+    // `image.data` must hold RAW texel bytes of the declared layout. An
+    // encoded (JPEG/PNG) upload keeps its compressed blob in `data`, so
+    // indexing it in texel units would scribble garbage across compressed
+    // bytes (and RangeError at `set`). Degrade loudly for those instead.
+    const byteLayoutOk = image =>
+      image.data.length === image.width * image.height * (image.depth || 1) * 4 ||
+      image.data.length === image.width * image.height * (image.depth || 1);
+    if (!byteLayoutOk(srcImage) || !byteLayoutOk(dstImage)) {
+      unsupported('copyTextureToTexture',
+        'R1 copies raw CPU-side texel bytes only; an encoded texture blob cannot receive partial updates without a CPU decode');
+    }
+    if (!Number.isInteger(width) || !Number.isInteger(height) || !Number.isInteger(depth) ||
+        width <= 0 || height <= 0 || depth <= 0 ||
+        minX + width > srcImage.width || minY + height > srcImage.height || minZ + depth > sourceDepth ||
+        dstX + width > dstImage.width || dstY + height > dstImage.height || dstZ + depth > destinationDepth ||
+        !Number.isInteger(dstX) || !Number.isInteger(dstY) || !Number.isInteger(dstZ)) {
+      throw new Error('three.invalid: copyTextureToTexture region is outside the source or destination texture');
+    }
+    const srcTexelBytes = srcImage.data.length /
+      (srcImage.width * srcImage.height * (srcImage.depth || 1));
+    const dstTexelBytes = dstImage.data.length /
+      (dstImage.width * dstImage.height * (dstImage.depth || 1));
+    if (srcTexelBytes !== dstTexelBytes) {
+      unsupported('copyTextureToTexture',
+        'R1 copies between matching texel byte widths only');
+    }
+    const srcImageStride = srcImage.width * srcImage.height * srcTexelBytes;
+    const dstImageStride = dstImage.width * dstImage.height * dstTexelBytes;
+    for (let z = 0; z < depth; z++) {
+      const srcLayer = (minZ + z) * srcImageStride;
+      const dstLayer = (dstZ + z) * dstImageStride;
+      for (let y = 0; y < height; y++) {
+        const srcStart = srcLayer +
+          ((minY + y) * srcImage.width + minX) * srcTexelBytes;
+        const dstStart = dstLayer +
+          ((dstY + y) * dstImage.width + dstX) * dstTexelBytes;
+        const rowBytes = width * srcTexelBytes;
+        dstImage.data.set(
+          srcImage.data.subarray(srcStart, srcStart + rowBytes),
+          dstStart,
+        );
+      }
+    }
+    adaptationWarn(this, '_r1TextureCopyWarned',
+      'R1 lowers copyTextureToTexture to CPU-side bytes plus a full destination re-upload; partial GPU updates are not retained.');
+    dstTexture.needsUpdate = true;
+  }
 
   setAnimationLoop(callback) {
     if (callback !== null && typeof callback !== 'function') throw new TypeError('three.invalid: animation loop callback');
@@ -1416,7 +1950,14 @@ export class JsrWebGLRenderer {
     const tick = time => {
       if (this._disposed || this._animationLoop !== callback) return;
       this._animationHandle = this.runtime.requestAnimationFrame(tick);
-      callback(time);
+      this._animationBatch = { commands: [] };
+      try {
+        callback(time);
+      } finally {
+        const batch = this._animationBatch;
+        this._animationBatch = null;
+        this._flushBatch(batch);
+      }
     };
     this._animationHandle = this.runtime.requestAnimationFrame(tick);
   }
@@ -1666,7 +2207,10 @@ export class JsrWebGLRenderer {
       this._renderTargetDisposers.delete(id);
       target.removeEventListener('dispose', dispose);
       target.texture.removeEventListener('dispose', dispose);
-      this._queueDisposal(disposeResourceCommand(id, 7));
+      // RenderTarget.setSize() disposes in r186; the next _ensureRenderTarget
+      // re-tracks with a fresh version, so Dart must see the disposal first
+      // or its per-id version gate drops the resized upsert as stale.
+      this._pendingDisposals.push({ id, kind: RESOURCE_KIND.renderTarget });
     };
     target.addEventListener('dispose', dispose);
     target.texture.addEventListener('dispose', dispose);
@@ -1723,7 +2267,9 @@ export class JsrWebGLRenderer {
         'R1 drops this array sampler in the bounded 2D material lowering.');
       return 0;
     }
-    if (!texture.isCubeTexture && (texture.isCompressedTexture || texture.isVideoTexture || texture.isFramebufferTexture || texture.isDepthTexture || texture.isExternalTexture)) unsupported('textureType', texture.type);
+    if (!texture.isCubeTexture && (texture.isCompressedTexture || texture.isVideoTexture ||
+        (texture.isFramebufferTexture && !(texture.image && texture.image.data instanceof Uint8Array)) ||
+        texture.isDepthTexture || texture.isExternalTexture)) unsupported('textureType', texture.type);
     if (texture.isCubeTexture && role !== 'envMap') unsupported('textureMapping', `R1 ${role} requires a plain 2D texture`);
     const canvas = this._canvasForTexture(texture);
     if (texture.isCanvasTexture && !canvas) unsupported('canvas2d.source', 'native CanvasTexture requires a Flutter canvas2d image');
@@ -1915,6 +2461,11 @@ export class JsrWebGLRenderer {
     const kind = material._r1NativeKind === 'anaglyph' ? 11 : materialKind(material);
     validateMaterial(material);
     const id = resourceId(material);
+    // v8 stencil tail (null for upstream-default stencil state). Computed
+    // before the frame cache so per-frame stencil activity tracking stays
+    // correct even when the material signature itself is cached.
+    const stencil = this._materialStencil(material);
+    if (stencil) this._frameStencilActivity = true;
     const frameCached = this._frameMaterials.get(id);
     if (frameCached !== undefined) return frameCached;
     this._listen(material, 'materials', this._state.materials, id);
@@ -1966,7 +2517,7 @@ export class JsrWebGLRenderer {
       if (!Number.isFinite(emissiveIntensity) || emissiveIntensity < 0) throw new Error('three.invalid: material emissiveIntensity must be finite and nonnegative');
     }
     const side = sideValue(material.side);
-    const flags = (material.vertexColors ? 1 : 0) | (material.flatShading ? 2 : 0) | (material.transparent ? 4 : 0) | (material.depthTest ? 8 : 0) | (material.depthWrite ? 16 : 0) | (material.wireframe ? 32 : 0) | (material.sizeAttenuation === false ? 64 : 0) | ((material.blending || 0) << 7);
+    const flags = (material.vertexColors ? 1 : 0) | (material.flatShading ? 2 : 0) | (material.transparent ? 4 : 0) | (material.depthTest ? 8 : 0) | (material.depthWrite ? 16 : 0) | (material.wireframe ? 32 : 0) | (material.sizeAttenuation === false ? 64 : 0) | ((material.blending || 0) << 7) | (material.colorWrite === false ? MATERIAL_FLAG_COLOR_WRITE_OFF : 0) | (stencil ? MATERIAL_FLAG_STENCIL : 0);
     const clip = this._resolveClipping(material, commands);
     const signature = [kind, mapId, shaderMap ? this._state.textures.get(resourceId(shaderMap))?.version || 0 : 0,
       flags, side, color.r, color.g, color.b, opacity, roughness, metalness, alphaTest, pointSize,
@@ -1975,14 +2526,17 @@ export class JsrWebGLRenderer {
       clip.signature, clip.flags, alphaMapId, envMapId, envMapIntensity,
       mapUvMatrix ? mapUvMatrix.join(',') : 'I', alphaMapUvMatrix ? alphaMapUvMatrix.join(',') : 'I',
       matcapId, gradientMapId, spriteRotation, normalMapId, normalScaleX, normalScaleY, bumpMapId, bumpScale, roughnessMapId, metalnessMapId,
-      mapRightId, anaglyph ? anaglyph.left.join(',') : '', anaglyph ? anaglyph.rightMatrix.join(',') : ''].join('|');
+      mapRightId, anaglyph ? anaglyph.left.join(',') : '', anaglyph ? anaglyph.rightMatrix.join(',') : '',
+      stencil ? [stencil.stencilWrite, stencil.stencilFunc, stencil.stencilRef, stencil.stencilFuncMask,
+        stencil.stencilWriteMask, stencil.stencilFailOp, stencil.stencilZFailOp, stencil.stencilZPassOp].join(':') : ''].join('|');
     const changed = this._nextVersion(this._state.materials, id, signature);
     if (changed) {
       commands.push(materialCommand(id, changed.version, kind, mapId, flags, side, color, opacity, roughness, metalness, alphaTest, pointSize, specular, shininess, emissive, emissiveIntensity, clip.id, clip.flags,
         { alphaMapId, envMapId, envMapIntensity, mapUvMatrix, alphaMapUvMatrix },
         { matcapId, gradientMapId, rotation: spriteRotation },
         { normalMapId, normalScaleX, normalScaleY, bumpMapId, bumpScale, roughnessMapId, metalnessMapId },
-        kind === 11 ? { rightId: mapRightId, left: anaglyph.left, right: anaglyph.rightMatrix } : null));
+        kind === 11 ? { rightId: mapRightId, left: anaglyph.left, right: anaglyph.rightMatrix } : null,
+        stencil));
       this._mapSet(this._state.materials, id, { signature, version: changed.version, object: material });
     }
     this._frameMaterials.set(id, id);
@@ -2031,6 +2585,63 @@ export class JsrWebGLRenderer {
     return { id, flags, signature };
   }
 
+  // R1 v8 stencil tail payload, or null when every Material.stencil* field
+  // sits at its upstream default (stencilWrite false, AlwaysStencilFunc,
+  // ref 0, masks 255, KeepStencilOp x3) — the byte-stability contract for
+  // stenciless materials. Upstream gates the whole stencil block on
+  // material.stencilWrite (WebGLState.setMaterial), so the tail mirrors the
+  // encoded state honestly: the native pass re-applies the same gating.
+  _materialStencil(material) {
+    const stencilWrite = !!material.stencilWrite;
+    const stencilFunc = material.stencilFunc === undefined || material.stencilFunc === null ? STENCIL_FUNC.always : material.stencilFunc;
+    const stencilRef = material.stencilRef || 0;
+    const stencilFuncMask = material.stencilFuncMask === undefined ? 255 : material.stencilFuncMask;
+    const stencilWriteMask = material.stencilWriteMask === undefined ? 255 : material.stencilWriteMask;
+    const stencilFailOp = material.stencilFail === undefined || material.stencilFail === null ? STENCIL_OP.keep : material.stencilFail;
+    const stencilZFailOp = material.stencilZFail === undefined || material.stencilZFail === null ? STENCIL_OP.keep : material.stencilZFail;
+    const stencilZPassOp = material.stencilZPass === undefined || material.stencilZPass === null ? STENCIL_OP.keep : material.stencilZPass;
+    if (!stencilWrite && stencilFunc === STENCIL_FUNC.always && stencilRef === 0 &&
+        stencilFuncMask === 255 && stencilWriteMask === 255 &&
+        stencilFailOp === STENCIL_OP.keep && stencilZFailOp === STENCIL_OP.keep &&
+        stencilZPassOp === STENCIL_OP.keep) return null;
+    return { stencilWrite, stencilFunc, stencilRef, stencilFuncMask, stencilWriteMask, stencilFailOp, stencilZFailOp, stencilZPassOp };
+  }
+
+  // Upstream invokes object.onAfterRender(renderer, scene, camera, geometry,
+  // material, group) right after renderBufferDirect; webgl_clipping_stencil
+  // uses it to call renderer.clearStencil() after each cap plane. The R1
+  // walk (this flatten pass) is where upstream would have drawn the object,
+  // so the callback runs here and its clearStencil() lands as an
+  // OPCODE.STENCIL_CLEAR marker bound to the node id — the native side
+  // applies it after that node's draws in its sorted order. The callback
+  // sees a BOUNDED renderer proxy (clearStencil/clear/clearColor/clearDepth
+  // only): anything else throws into the one-time warn below instead of
+  // corrupting the encode pass, and the throw degrades to today's behavior
+  // (callback skipped) rather than failing the frame.
+  _runOnAfterRender(object, scene, camera, commands, nodeId) {
+    let clearValue = null;
+    const boundedRenderer = {
+      clearStencil: value => { clearValue = value === undefined ? 0 : value; },
+      clear: (color, depth, stencil) => { if (stencil) clearValue = 0; },
+      clearColor: () => {},
+      clearDepth: () => {}
+    };
+    const previousNodeId = this._walkAfterRenderNodeId;
+    this._walkAfterRenderNodeId = nodeId;
+    try {
+      object.onAfterRender(boundedRenderer, scene, camera, object.geometry || null, object.material || null, null);
+    } catch (error) {
+      adaptationWarn(object, '_r1OnAfterRenderWarned',
+        `R1 invokes object.onAfterRender in a bounded clearStencil proxy and it threw: ${error.message}`);
+    } finally {
+      this._walkAfterRenderNodeId = previousNodeId;
+    }
+    if (clearValue !== null) {
+      commands.push(stencilClearCommand(nodeId, clearValue));
+      this._frameStencilActivity = true;
+    }
+  }
+
   // Per-geometry signature cache. Rebuilding the signature string for every
   // drawable on every frame is pure QuickJS string churn (~tens of KB of
   // garbage per frame — the dominant cost of a static scene's traverse).
@@ -2039,12 +2650,17 @@ export class JsrWebGLRenderer {
   // an identical hash means a helper set needsUpdate with the same content
   // (see attributeContentHash) -> still reuse the string, just refresh the
   // cached versions. Only genuinely different content rebuilds the string.
-  _geometrySignatureCached(geometry, primitive, mode, includeWire) {
+  _geometrySignatureCached(geometry, primitive, mode, includeWire, fullRange = false) {
     let cache = this._geometrySignatureCache ? null : null;
     const store = this._geometrySignatureCache || (this._geometrySignatureCache = new Map());
     cache = store.get(geometry);
-    const range = geometry.drawRange || { start: 0, count: Infinity };
-    if (cache && cache.primitive === primitive && cache.mode === mode &&
+    // The GLBufferAttribute draw-range lane uploads the FULL vertex set once
+    // and moves the window through a batch part, so its signature must stay
+    // stable across setDrawRange mutations; the lane flag is part of the
+    // identity so a sliced upload of the same geometry can never alias it.
+    const range = fullRange ? { start: 0, count: Infinity } :
+      (geometry.drawRange || { start: 0, count: Infinity });
+    if (cache && cache.full === (fullRange ? 1 : 0) && cache.primitive === primitive && cache.mode === mode &&
         cache.wire === (includeWire ? 1 : 0) && cache.rangeStart === range.start &&
         cache.rangeCount === range.count) {
       let reuse = true;
@@ -2065,7 +2681,7 @@ export class JsrWebGLRenderer {
       }
       if (reuse) {
         const index = geometry.index;
-        const indexVersion = index ? index.version : -1;
+        const indexVersion = index ? attributeVersionKey(index) : -1;
         if (indexVersion !== cache.versions[4]) {
           if (index && !volatileAttribute(index) && attributeContentHash(index.array) === cache.hashes[4]) {
             cache.versions[4] = indexVersion;
@@ -2082,16 +2698,25 @@ export class JsrWebGLRenderer {
     for (let i = 0; i < ATTR_NAMES.length; i++) {
       const attribute = geometry.attributes[ATTR_NAMES[i]];
       if (attribute) {
-        versions[i] = attributeVersionKey(attribute);
-        hashes[i] = volatileAttribute(attribute) ? 0 : attributeContentHash(attribute.array);
+        const version = attributeVersionKey(attribute);
+        versions[i] = version;
+        // A dynamic position/normal invalidates this signature every frame,
+        // but says nothing about the UV/color arrays. Preserve the content
+        // hash when the complete identity/version key is unchanged instead
+        // of rescanning every static attribute on every animated frame.
+        hashes[i] = cache && cache.versions[i] === version ? cache.hashes[i] :
+          (volatileAttribute(attribute) ? 0 : attributeContentHash(attribute.array));
       }
     }
     if (geometry.index) {
-      versions[4] = geometry.index.version;
-      hashes[4] = volatileAttribute(geometry.index) ? 0 : attributeContentHash(geometry.index.array);
+      const index = geometry.index;
+      const version = attributeVersionKey(index);
+      versions[4] = version;
+      hashes[4] = cache && cache.versions[4] === version ? cache.hashes[4] :
+        (volatileAttribute(index) ? 0 : attributeContentHash(index.array));
     }
-    const sig = `${geometrySignature(geometry, primitive, mode)};wire:${includeWire ? 1 : 0}`;
-    store.set(geometry, { primitive, mode, wire: includeWire ? 1 : 0, rangeStart: range.start, rangeCount: range.count, versions, hashes, sig });
+    const sig = `${geometrySignature(geometry, primitive, mode, range)};wire:${includeWire ? 1 : 0}`;
+    store.set(geometry, { full: fullRange ? 1 : 0, primitive, mode, wire: includeWire ? 1 : 0, rangeStart: range.start, rangeCount: range.count, versions, hashes, sig });
     return sig;
   }
 
@@ -2101,13 +2726,18 @@ export class JsrWebGLRenderer {
     if (old && old.attribute === attribute && old.array === (attribute ? attribute.array : null) &&
         old.version === attributeVersionKey(attribute) && old.vertexCount === vertexCount &&
         old.components === components && old.vertexOffset === vertexOffset) return old.values;
-    const values = attributeFloats(attribute, vertexCount, components, name, vertexOffset);
+    // Reuse only storage from an earlier submission sequence. Multiple render
+    // passes can retain commands in one animation batch; rewriting their
+    // arrays before the flush would corrupt the earlier pass.
+    const reusable = old && old.sequence !== this._state.sequence ? old.values : null;
+    const values = attributeFloats(attribute, vertexCount, components, name, vertexOffset, reusable);
     entries[slot] = { attribute, array: attribute ? attribute.array : null,
-      version: attributeVersionKey(attribute), vertexCount, components, vertexOffset, values };
+      version: attributeVersionKey(attribute), vertexCount, components, vertexOffset, values,
+      sequence: this._state.sequence };
     return values;
   }
 
-  _ensureGeometry(geometry, primitive, mode, commands, wireframe = false) {    if (!geometry || !geometry.isBufferGeometry) unsupported('geometry', 'only BufferGeometry is supported');
+  _ensureGeometry(geometry, primitive, mode, commands, wireframe = false, fullRange = false) {    if (!geometry || !geometry.isBufferGeometry) unsupported('geometry', 'only BufferGeometry is supported');
     if (geometry.index && (!geometry.index.array || geometry.index.isGLBufferAttribute)) unsupported('rawGLAttribute', 'index');
 
     const position = geometry.attributes.position;
@@ -2122,7 +2752,7 @@ export class JsrWebGLRenderer {
     // that window instead of the full capacity backing store (the official
     // draw-range example allocates 250k line vertices but uses only a few
     // hundred). Group offsets remain relative to the original range below.
-    const sliceRange = !geometry.index && !includeWire && mode !== 'line' && range.count > 0 &&
+    const sliceRange = !fullRange && !geometry.index && !includeWire && mode !== 'line' && range.count > 0 &&
       (range.start !== 0 || range.count !== sourceVertexCount);
     const vertexOffset = sliceRange ? range.start : 0;
     const vertexCount = sliceRange ? range.count : sourceVertexCount;
@@ -2133,7 +2763,7 @@ export class JsrWebGLRenderer {
     if (frameCached && (!wireframe || frameCached.hasWireIndices)) return frameCached;
     this._listen(geometry, 'geometries', this._state.geometries, id);
     this._mapSet(this._geometryModes, id, { primitive, mode });
-    const signature = this._geometrySignatureCached(geometry, primitive, mode, includeWire);
+    const signature = this._geometrySignatureCached(geometry, primitive, mode, includeWire, fullRange);
     const changed = this._nextVersion(this._state.geometries, id, signature);
     if (!changed) {
       const cached = this._state.geometries.get(id);
@@ -2161,8 +2791,17 @@ export class JsrWebGLRenderer {
     };
     if (color && color.itemSize !== 3 && color.itemSize !== 4) throw new Error('three.invalid: color attribute must have 3 or 4 components');
     const index = geometry.index;
+    // The range lane (fullRange) drives per-frame windows through DRAW_BATCH
+    // parts; an identity index materialized from the FIRST frame's drawRange
+    // would pin geometry.indexCount to that stale window size forever (the
+    // geometry never re-uploads), and the Dart part-range validator would
+    // reject every later window that grew past it — the official
+    // glbufferattribute example grows drawRange.count from 100 toward 300k,
+    // which rendered ~2 frames and then dropped the batch (black frame).
+    // Non-indexed points draws do not need an index (the legacy slice lane
+    // uploads none either), so the full-range lane emits none.
     let indices = null;
-    if (!sliceRange) {
+    if (!sliceRange && (index || !fullRange)) {
       const reusable = upload.indices && upload.index === index &&
         upload.indexArray === (index ? index.array : null) &&
         upload.indexVersion === attributeVersionKey(index);
@@ -2195,6 +2834,11 @@ export class JsrWebGLRenderer {
 
   _updateNode(object, id, parentId, geometryId, materialId, visible, objectKind, commands, spriteCenter) {
     const matrix = object.matrixWorld;
+    // TransformControls intentionally uses +/-Infinity to pin its gizmo at
+    // the ends of upstream's render order. Keep that ordering with finite,
+    // symmetric sentinels at the strict R1 float32 boundary.
+    const renderOrder = object.renderOrder === Infinity ? 1e30 :
+      object.renderOrder === -Infinity ? -1e30 : object.renderOrder;
     const castShadow = object.castShadow === true && !object.isSprite;
     const receiveShadow = object.receiveShadow === true && !object.isSprite;
     const old = this._state.nodes.get(id);
@@ -2203,17 +2847,21 @@ export class JsrWebGLRenderer {
       old.visible === visible && old.objectKind === objectKind &&
       old.castShadow === castShadow && old.receiveShadow === receiveShadow &&
       old.spriteCenterX === spriteCenter.x && old.spriteCenterY === spriteCenter.y &&
-      cachedMatrixEquals(old.matrix, matrix);
+      old.renderOrder === renderOrder && cachedMatrixEquals(old.matrix, matrix);
     if (!unchanged) {
+      if (!Number.isFinite(renderOrder)) {
+        throw new Error(`three.invalid: node renderOrder must be finite (${object.type}/${object.name}/${id}: ${object.renderOrder})`);
+      }
       finiteArray(matrix.elements, 'matrixWorld');
       requireFinite(spriteCenter.x, 'sprite center');
       requireFinite(spriteCenter.y, 'sprite center');
       commands.push(nodeCommand(id, parentId, geometryId, materialId, visible, objectKind, matrix,
-        { cast: castShadow, receive: receiveShadow }, spriteCenter));
+        { cast: castShadow, receive: receiveShadow }, spriteCenter, renderOrder));
       this._mapSet(this._state.nodes, id, {
         parentId, geometryId, materialId, visible, objectKind,
         castShadow, receiveShadow, matrix: matrix.elements.slice(), object,
-        spriteCenterX: spriteCenter.x, spriteCenterY: spriteCenter.y
+        spriteCenterX: spriteCenter.x, spriteCenterY: spriteCenter.y,
+        renderOrder
       });
     }
   }
@@ -2300,7 +2948,7 @@ export class JsrWebGLRenderer {
     return parts;
   }
 
-  _ensureBatch(object, id, geometry, materials, commands) {
+  _ensureBatch(object, id, geometry, materials, commands, partsOverride = null) {
     const simpleInstanced = object.isInstancedMesh && !Array.isArray(object.material);
     const instance = object.isInstancedMesh ? this._instanceData(object, materials) : null;
     let simpleMaterialId = 0;
@@ -2327,18 +2975,15 @@ export class JsrWebGLRenderer {
         return { primitive: 0, parts: previous.parts, instanceCount: object.count };
       }
     }
-    const parts = simpleInstanced ? [{
+    const parts = partsOverride || (simpleInstanced ? [{
       geometryId: geometry.id, materialId: simpleMaterialId, offset: 0, count: geometry.drawCount
-    }] : this._ensureBatchParts(object, geometry, materials, commands);
+    }] : this._ensureBatchParts(object, geometry, materials, commands));
     const partSignature = parts.map(part => [part.geometryId, part.materialId, part.offset, part.count].join(':')).join('|');
     const signature = `${instance ? `1:${instance.count}:${instance.signature}` : '0:1:-'};${partSignature}`;
     const changed = this._nextVersion(this._state.batches, id, signature);
     if (changed) {
-      if (instance) {
-        for (let i = 0; i < instance.valueCount; i++) requireFinite(instance.array[i], 'instanceMatrix');
-        if (instance.colors) {
-          for (let i = 0; i < instance.colorCount; i++) requireFinite(instance.colors[i], 'instanceColor');
-        }
+      if (instance && instance.colors) {
+        for (let i = 0; i < instance.colorCount; i++) requireFinite(instance.colors[i], 'instanceColor');
       }
       const count = instance ? instance.count : 1;
       commands.push(drawBatchCommand(
@@ -2387,7 +3032,22 @@ export class JsrWebGLRenderer {
       };
     }
     const base = geometry._r1MorphBase;
-    const key = influences.join(',');
+    // MorphBlendMesh (MD2 characters) mutates ONE shared influences array per
+    // mesh in place every frame, so identity memoization is useless and the
+    // historical join(',') ran a 199-float Number→string conversion on every
+    // character mesh per frame (26 meshes in loader_md2_control). Compare
+    // element-wise against the cached set first and only pay for the string
+    // key when the weights actually moved.
+    let key = base.key;
+    const lastInfluences = base.lastInfluences;
+    if (!lastInfluences || lastInfluences.length !== influences.length) {
+      key = influences.join(',');
+    } else {
+      for (let i = 0; i < lastInfluences.length; i++) {
+        if (lastInfluences[i] !== influences[i]) { key = influences.join(','); break; }
+      }
+    }
+    base.lastInfluences = Array.prototype.slice.call(influences);
     // Cloned meshes commonly share both geometry and an AnimationObjectGroup
     // (601 horses / 25 distinct influence sets in shadowmap_performance).
     // Only the first shared-geometry submission is uploaded per frame, so
@@ -2407,23 +3067,153 @@ export class JsrWebGLRenderer {
     const relative = !!geometry.morphTargetsRelative;
     let baseInfluence = 1;
     if (!relative) for (let i = 0; i < influences.length; i++) baseInfluence -= influences[i];
+
+    const nativeMorph = globalThis.__jsrMorphBytes;
+    const positionAttribute = geometry.attributes.position;
+    const normalAttribute = geometry.attributes.normal;
+    if (typeof nativeMorph === 'function' && positionAttribute && positionAttribute.array.length % 3 === 0) {
+      const stride = positionAttribute.array.length;
+      const vertexCount = stride / 3;
+      const positionTargets = morphPositions || [];
+      const normalTargets = normalAttribute && base.normal && normalAttribute.array.length === stride &&
+        base.normal.length === stride ? (morphNormals || []) : [];
+      const positionTargetCount = Math.min(positionTargets.length, influences.length);
+      const normalTargetCount = Math.min(normalTargets.length, influences.length);
+      const weightOffset = 8;
+      const positionOffset = weightOffset + influences.length;
+      const normalOffset = positionOffset + stride;
+      const positionTargetOffset = normalOffset + (normalTargetCount ? stride : 0);
+      const normalTargetOffset = positionTargetOffset + positionTargetCount * stride;
+      const length = normalTargetOffset + normalTargetCount * stride;
+      let packet = base.nativePacket;
+      let rebuild = !packet || packet.length !== length || base.nativeRelative !== relative;
+      const checkTargets = (targets, count, versions, arrays) => {
+        if (!versions || !arrays || versions.length !== count) return false;
+        for (let i = 0; i < count; i++) {
+          if (versions[i] !== targets[i].version || arrays[i] !== targets[i].array ||
+              targets[i].array.length < stride) return false;
+        }
+        return true;
+      };
+      if (!rebuild) {
+        rebuild = !checkTargets(positionTargets, positionTargetCount, base.nativePositionVersions, base.nativePositionArrays) ||
+          !checkTargets(normalTargets, normalTargetCount, base.nativeNormalVersions, base.nativeNormalArrays) ||
+          base.position.length !== stride;
+      }
+      const storageValid = positionTargets.slice(0, positionTargetCount).every(item => item.array.length >= stride) &&
+        normalTargets.slice(0, normalTargetCount).every(item => item.array.length >= stride);
+      if (rebuild) {
+        packet = null;
+        base.nativePacket = null;
+        base.nativePacketBytes = null;
+      }
+      if (rebuild && storageValid && length <= 16777216) {
+        packet = new Float32Array(length);
+        base.nativePacket = packet;
+        base.nativePacketBytes = new Uint8Array(packet.buffer);
+        base.nativeRelative = relative;
+        base.nativePositionVersions = positionTargets.slice(0, positionTargetCount).map(item => item.version);
+        base.nativePositionArrays = positionTargets.slice(0, positionTargetCount).map(item => item.array);
+        base.nativeNormalVersions = normalTargets.slice(0, normalTargetCount).map(item => item.version);
+        base.nativeNormalArrays = normalTargets.slice(0, normalTargetCount).map(item => item.array);
+        for (let i = 0; i < positionTargetCount; i++) {
+          packet.set(positionTargets[i].array.subarray(0, stride), positionTargetOffset + i * stride);
+        }
+        for (let i = 0; i < normalTargetCount; i++) {
+          packet.set(normalTargets[i].array.subarray(0, stride), normalTargetOffset + i * stride);
+        }
+      }
+      if (packet && packet.length === length && base.position.length === stride) {
+        packet[0] = vertexCount;
+        packet[1] = influences.length;
+        packet[2] = positionTargetCount;
+        packet[3] = normalTargetCount;
+        packet[4] = relative ? 1 : 0;
+        packet[5] = 0;
+        packet.set(influences, weightOffset);
+        packet.set(base.position, positionOffset);
+        if (normalTargetCount) packet.set(base.normal, normalOffset);
+        nativeMorph('three.morph', base.nativePacketBytes);
+        if (packet[5] === 1) {
+          if (positionTargetCount) {
+            positionAttribute.array.set(packet.subarray(positionOffset, positionOffset + stride));
+            positionAttribute._r1DynamicContent = true;
+            positionAttribute.version++;
+            positionAttribute._r1FiniteVersion = positionAttribute.version;
+          }
+          if (normalTargetCount) {
+            normalAttribute.array.set(packet.subarray(normalOffset, normalOffset + stride));
+            normalAttribute._r1DynamicContent = true;
+            normalAttribute.version++;
+            normalAttribute._r1FiniteVersion = normalAttribute.version;
+          }
+          return;
+        }
+      }
+    }
+
     const blend = (attributeName, targets, baseArray) => {
       const attribute = geometry.attributes[attributeName];
       if (!attribute || !targets || !targets.length || !baseArray) return;
       const out = attribute.array;
       const count = out.length;
-      for (let i = 0; i < count; i++) {
-        let value = relative ? baseArray[i] : baseArray[i] * baseInfluence;
-        for (let t = 0; t < targets.length && t < influences.length; t++) {
-          const weight = influences[t];
-          if (weight === 0) continue;
-          const source = targets[t].array;
-          value += weight * (relative ? source[i] : source[i]);
+      // Upstream WebGLMorphtargets only touches influences !== 0, and real
+      // morph animation (MD2 characters, morphtargets examples) keeps at
+      // most two live targets per mesh while the storage holds EVERY
+      // animation frame (ogro.md2: 199 frame targets). Hoisting the active
+      // (weight, array) pairs once per blend turns the per-vertex inner scan
+      // from O(targets) into O(active): ~2.4M QuickJS inner iterations per
+      // frame collapse to ~36k, which moved loader_md2_control from ~12fps
+      // to the vsync ceiling. Blend order and arithmetic are unchanged, so
+      // output bytes are bit-identical for finite inputs; a non-finite
+      // influence falls back to the historical scan so the strict encode
+      // contract still sees the same NaN and fails (or neutralizes normals)
+      // exactly as before.
+      let finite = true;
+      const active = [];
+      for (let t = 0; t < targets.length && t < influences.length; t++) {
+        const weight = influences[t];
+        if (!Number.isFinite(weight)) { finite = false; continue; }
+        if (weight === 0) continue;
+        active.push(weight, targets[t]);
+      }
+      const canStamp = finite &&
+        // One-time finiteness scan per immutable morph target: blended
+        // output is finite only when the sources are, and the fast
+        // attributeFloats bulk-copy lane below skips its per-float check
+        // when the blend stamps _r1FiniteVersion (the CPU skinning lane
+        // already uses the same pattern).
+        baseSourceFinite(baseArray, count) &&
+        activeTargetsFinite(active, count);
+      if (finite && active.length === 0) {
+        // All-zero influences restore the pristine base; baseInfluence is
+        // exactly 1 (1 - 0) or the relative passthrough, so a bulk copy is
+        // bit-identical to the historical scan.
+        if (baseArray.length === count) out.set(baseArray);
+        else for (let i = 0; i < count; i++) out[i] = baseArray[i];
+      } else if (finite) {
+        for (let i = 0; i < count; i++) {
+          let value = relative ? baseArray[i] : baseArray[i] * baseInfluence;
+          for (let a = 0; a < active.length; a += 2) {
+            value += active[a] * active[a + 1].array[i];
+          }
+          out[i] = value;
         }
-        out[i] = value;
+      } else {
+        for (let i = 0; i < count; i++) {
+          let value = relative ? baseArray[i] : baseArray[i] * baseInfluence;
+          for (let t = 0; t < targets.length && t < influences.length; t++) {
+            const weight = influences[t];
+            if (weight === 0) continue;
+            const source = targets[t].array;
+            value += weight * (relative ? source[i] : source[i]);
+          }
+          out[i] = value;
+        }
       }
       attribute._r1DynamicContent = true;
       attribute.version++;
+      if (canStamp) attribute._r1FiniteVersion = attribute.version;
     };
     if (morphPositions && morphPositions.length) blend('position', morphPositions, base.position);
     if (morphNormals && morphNormals.length && base.normal) blend('normal', morphNormals, base.normal);
@@ -2468,9 +3258,58 @@ export class JsrWebGLRenderer {
         if (cache.boneMatrices[i] !== boneMatrices[i]) { unchanged = false; break; }
       }
     }
+    // Skinned-aware culling bound (R1 CPU skinning lane). CPU skinning
+    // rewrites the position attribute in place, which breaks both upstream
+    // bound sources at cull time: geometry.boundingSphere stays at bind
+    // pose, and the upstream SkinnedMesh.computeBoundingSphere that
+    // official IK examples re-run every frame (updateIK -> scene.traverse)
+    // applies bone transforms to the ALREADY-skinned attribute and
+    // publishes a sphere displaced by the full delta twice. Example
+    // (webgl_animation_skinning_ik head): published center (-1.36, 1.95,
+    // -0.15) vs drawn extents (~0, 0.06, -1.61) -> the head node is culled
+    // at camera angles where the drawn head is in full view. Refresh the
+    // sphere Frustum.intersectsObject prefers (object.boundingSphere,
+    // applied with matrixWorld) from the attribute as last skinned: the
+    // refresh must also run on paused or duplicate renders because the
+    // example's own per-frame recompute corrupts the sphere between
+    // renders, and the main and shadow cull checks later in this
+    // traverseVisible walk must always see the just-drawn extents.
+    // The refresh itself is memoized per changed attribute VERSION: within a
+    // frame (cube-camera faces, main pass, shadow passes) duplicate render
+    // calls see an identical attribute, so a memo hit cannot observe stale
+    // data. The changed-pose path re-invokes the refresh AFTER the skin write
+    // below, so the memo always records the post-skin version and the bound
+    // is exact for the frame being drawn (a pre-skin refresh would trail one
+    // attribute version behind and force one wasted scan per frame).
+    const refreshCullSphere = () => {
+      const skinned = geometry.attributes.position;
+      if (!skinned || skinned.count === 0) return;
+      const skinnedPositions = skinned.array;
+      const memo = object._r1CullSphereMemo;
+      if (!memo || memo.version !== skinned.version || memo.array !== skinnedPositions) {
+        const cullSphere = object.boundingSphere || (object.boundingSphere = new Sphere());
+        let minX = Infinity, minY = Infinity, minZ = Infinity;
+        let maxX = -Infinity, maxY = -Infinity, maxZ = -Infinity;
+        for (let v = 0, p3 = 0; v < skinned.count; v++, p3 += 3) {
+          const x = skinnedPositions[p3], y = skinnedPositions[p3 + 1], z = skinnedPositions[p3 + 2];
+          if (x < minX) minX = x;
+          if (x > maxX) maxX = x;
+          if (y < minY) minY = y;
+          if (y > maxY) maxY = y;
+          if (z < minZ) minZ = z;
+          if (z > maxZ) maxZ = z;
+        }
+        cullSphere.center.set((minX + maxX) / 2, (minY + maxY) / 2, (minZ + maxZ) / 2);
+        cullSphere.radius = 0.5 * Math.hypot(maxX - minX, maxY - minY, maxZ - minZ);
+        object._r1CullSphereMemo = { version: skinned.version, array: skinnedPositions };
+      }
+    };
     // Paused mixers and duplicate render() calls still invoke skeleton.update,
     // but identical bone/bind state must not re-skin and re-upload every vertex.
-    if (unchanged) return;
+    if (unchanged) {
+      refreshCullSphere();
+      return;
+    }
     const readAccessor = (attribute) => {
       const interleaved = !!attribute.isInterleavedBufferAttribute;
       let scale = 1;
@@ -2531,36 +3370,86 @@ export class JsrWebGLRenderer {
     const normal = geometry.attributes.normal;
     const baseNormal = base.normal;
     const outNormal = normal ? normal.array : null;
-    for (let v = 0, p3 = 0, w4 = 0; v < position.count; v++, p3 += 3, w4 += 4) {
-      const x = basePos[p3], y = basePos[p3 + 1], z = basePos[p3 + 2];
-      const nx = baseNormal ? baseNormal[p3] : 0;
-      const ny = baseNormal ? baseNormal[p3 + 1] : 0;
-      const nz = baseNormal ? baseNormal[p3 + 2] : 0;
-      let ox = 0, oy = 0, oz = 0, onx = 0, ony = 0, onz = 0;
-      for (let k = 0; k < 4; k++) {
-        const w = weights[w4 + k];
-        if (w === 0) continue;
-        const m = indices[w4 + k];
-        ox += w * (B[m] * x + B[m + 4] * y + B[m + 8] * z + B[m + 12]);
-        oy += w * (B[m + 1] * x + B[m + 5] * y + B[m + 9] * z + B[m + 13]);
-        oz += w * (B[m + 2] * x + B[m + 6] * y + B[m + 10] * z + B[m + 14]);
-        if (outNormal) {
-          onx += w * (B[m] * nx + B[m + 4] * ny + B[m + 8] * nz);
-          ony += w * (B[m + 1] * nx + B[m + 5] * ny + B[m + 9] * nz);
-          onz += w * (B[m + 2] * nx + B[m + 6] * ny + B[m + 10] * nz);
-        }
+    let nativeApplied = false;
+    const nativeSkin = globalThis.__jsrSkinBytes;
+    if (typeof nativeSkin === 'function') {
+      const matrixOffset = 4;
+      const indexOffset = matrixOffset + boneCount * 16;
+      const weightOffset = indexOffset + position.count * 4;
+      const positionOffset = weightOffset + position.count * 4;
+      const normalOffset = positionOffset + position.count * 3;
+      const length = normalOffset + (outNormal ? position.count * 3 : 0);
+      let packet = cache.packet;
+      if (!packet || packet.length !== length || cache.packetSkin !== skin) {
+        packet = new Float32Array(length);
+        cache.packet = packet;
+        cache.packetBytes = new Uint8Array(packet.buffer);
+        // The index/weight regions are immutable for a given skin (they
+        // rebuild only with the skin identity above) — fill them once.
+        // The position/normal regions are NOT static: they are in-place
+        // transform buffers the native call OVERWRITES with the skinned
+        // result, so the pristine bind pose is re-staged before EVERY call
+        // below (stale staging would skin the previous output and compound
+        // pose drift — the skining-morph parity pin catches exactly that).
+        packet[0] = position.count;
+        packet[1] = boneCount;
+        packet[2] = outNormal ? 1 : 0;
+        packet.set(indices, indexOffset);
+        packet.set(weights, weightOffset);
+        cache.packetSkin = skin;
       }
-      outPos[p3] = ox; outPos[p3 + 1] = oy; outPos[p3 + 2] = oz;
-      if (outNormal) {
-        const length = Math.sqrt(onx * onx + ony * ony + onz * onz) || 1;
-        outNormal[p3] = onx / length;
-        outNormal[p3 + 1] = ony / length;
-        outNormal[p3 + 2] = onz / length;
+      packet[3] = 0;
+      packet.set(B, matrixOffset);
+      packet.set(basePos, positionOffset);
+      if (outNormal) packet.set(baseNormal, normalOffset);
+      nativeSkin('three.skin', cache.packetBytes);
+      if (packet[3] === 1) {
+        outPos.set(packet.subarray(positionOffset, positionOffset + position.count * 3));
+        if (outNormal) outNormal.set(packet.subarray(normalOffset, normalOffset + position.count * 3));
+        nativeApplied = true;
+      }
+    }
+    if (!nativeApplied) {
+      for (let v = 0, p3 = 0, w4 = 0; v < position.count; v++, p3 += 3, w4 += 4) {
+        const x = basePos[p3], y = basePos[p3 + 1], z = basePos[p3 + 2];
+        const nx = baseNormal ? baseNormal[p3] : 0;
+        const ny = baseNormal ? baseNormal[p3 + 1] : 0;
+        const nz = baseNormal ? baseNormal[p3 + 2] : 0;
+        let ox = 0, oy = 0, oz = 0, onx = 0, ony = 0, onz = 0;
+        for (let k = 0; k < 4; k++) {
+          const w = weights[w4 + k];
+          if (w === 0) continue;
+          const m = indices[w4 + k];
+          ox += w * (B[m] * x + B[m + 4] * y + B[m + 8] * z + B[m + 12]);
+          oy += w * (B[m + 1] * x + B[m + 5] * y + B[m + 9] * z + B[m + 13]);
+          oz += w * (B[m + 2] * x + B[m + 6] * y + B[m + 10] * z + B[m + 14]);
+          if (outNormal) {
+            onx += w * (B[m] * nx + B[m + 4] * ny + B[m + 8] * nz);
+            ony += w * (B[m + 1] * nx + B[m + 5] * ny + B[m + 9] * nz);
+            onz += w * (B[m + 2] * nx + B[m + 6] * ny + B[m + 10] * nz);
+          }
+        }
+        outPos[p3] = ox; outPos[p3 + 1] = oy; outPos[p3 + 2] = oz;
+        if (outNormal) {
+          const length = Math.sqrt(onx * onx + ony * ony + onz * onz) || 1;
+          outNormal[p3] = onx / length;
+          outNormal[p3 + 1] = ony / length;
+          outNormal[p3 + 2] = onz / length;
+        }
       }
     }
     position._r1DynamicContent = true;
     position.version++;
     if (normal) { normal._r1DynamicContent = true; normal.version++; }
+    // The skinned attribute is final for this frame: refresh the culling
+    // bound from the just-written extents so the draw/cull checks below see
+    // the current pose (not the previous frame's), and the memo records the
+    // post-skin version (duplicate renders within the frame become hits).
+    refreshCullSphere();
+    if (nativeApplied) {
+      position._r1FiniteVersion = position.version;
+      if (normal) normal._r1FiniteVersion = normal.version;
+    }
     cache.geometry = geometry;
     cache.skinIndex = skinIndex; cache.skinIndexArray = skinIndex.array;
     cache.skinWeight = skinWeight; cache.skinWeightArray = skinWeight.array;
@@ -2647,7 +3536,7 @@ export class JsrWebGLRenderer {
         String(material.vertexShader).includes('gl_VertexID')) kind = 'procedural';
     else if (object.isLineSegments && attrs.position && attrs.vertColor && attrs.visible &&
         String(material.fragmentShader).includes('vVisible')) kind = 'selective';
-    else if (object.isPoints && attrs.position && (attrs.customColor || attrs.size || attrs.scale)) kind = 'points';
+    else if (object.isPoints && attrs.position && (attrs.customColor || attrs.ca || attrs.size || attrs.scale)) kind = 'points';
     else if (material.type === 'LightProbeHelperMaterial' && attrs.position && attrs.normal && uniforms.sh) kind = 'lightProbe';
     else if (object.isLine && attrs.position && attrs.customColor && attrs.displacement &&
         uniforms.amplitude && String(material.vertexShader).includes('amplitude')) kind = 'customLine';
@@ -2660,7 +3549,7 @@ export class JsrWebGLRenderer {
           previous.sourceMaterial === material && previous.signature === signature) {
         return { geometry: previous.geometry, material: previous.material };
       }
-      const adapted = adaptedShaderDraw(object);
+      const adapted = adaptedShaderDraw(object, this._frameViewMatrix || null);
       if (!adapted) return null;
       if (previous && previous.kind === 'bounded') {
         if (previous.geometry !== source) previous.geometry.dispose();
@@ -2674,13 +3563,25 @@ export class JsrWebGLRenderer {
     }
     const amplitude = kind === 'tessellation' || kind === 'customLine' ? Number(uniforms.amplitude.value) : 0;
     const sizeAttribute = kind === 'points' ? (attrs.size || attrs.scale || null) : null;
+    const pointColorAttribute = kind === 'points' ? (attrs.customColor || attrs.ca || null) : null;
     let meanSize = 1;
     if (sizeAttribute) {
+      // A plain typed array is read by direct indexing; one QuickJS method
+      // call per point (getComponent) dominated the 100k-point examples.
+      const sizeArray = sizeAttribute.isInterleavedBufferAttribute ? null : sizeAttribute.array;
       let total = 0;
-      for (let i = 0; i < sizeAttribute.count; i++) {
-        const value = sizeAttribute.getComponent(i, 0);
-        requireFinite(value, 'point size attribute');
-        total += value;
+      if (sizeArray instanceof Float32Array && sizeArray.length >= sizeAttribute.count) {
+        for (let i = 0; i < sizeAttribute.count; i++) {
+          const value = sizeArray[i];
+          if (value !== value || value === Infinity || value === -Infinity) requireFinite(value, 'point size attribute');
+          total += value;
+        }
+      } else {
+        for (let i = 0; i < sizeAttribute.count; i++) {
+          const value = sizeAttribute.getComponent(i, 0);
+          requireFinite(value, 'point size attribute');
+          total += value;
+        }
       }
       meanSize = sizeAttribute.count ? total / sizeAttribute.count : 1;
       if (!(meanSize > 0)) meanSize = 0.001;
@@ -2691,7 +3592,7 @@ export class JsrWebGLRenderer {
       : '';
     const signature = [
       kind, adaptedAttributeVersion(attrs.position), adaptedAttributeVersion(attrs.normal),
-      adaptedAttributeVersion(attrs.color), adaptedAttributeVersion(attrs.customColor),
+      adaptedAttributeVersion(attrs.color), adaptedAttributeVersion(pointColorAttribute),
       adaptedAttributeVersion(attrs.vertColor), adaptedAttributeVersion(attrs.visible),
       adaptedAttributeVersion(attrs.displacement), adaptedAttributeVersion(sizeAttribute),
       adaptedAttributeVersion(source.index), source.drawRange.start, source.drawRange.count,
@@ -2707,6 +3608,7 @@ export class JsrWebGLRenderer {
     }
     let geometry;
     let adaptedMaterial;
+    let materialKey;
     if (kind === 'procedural') {
       geometry = proceduralVertexGeometry(source);
       adaptedMaterial = new MeshBasicMaterial({ vertexColors: true, side: material.side, fog: material.fog });
@@ -2752,21 +3654,154 @@ export class JsrWebGLRenderer {
         geometry.setAttribute('color', new Float32BufferAttribute(new Float32Array(count * 3), 3));
         if (source.index) geometry.setIndex(source.index);
         geometry.setDrawRange(source.drawRange.start, source.drawRange.count);
-      } else geometry = previous.geometry;
+      } else {
+        geometry = previous.geometry;
+        geometry.setDrawRange(source.drawRange.start, source.drawRange.count);
+      }
       const positions = geometry.attributes.position;
       const colors = geometry.attributes.color;
-      for (let i = 0; i < count; i++) {
-        for (let c = 0; c < 3; c++) {
-          positions.array[i * 3 + c] = attrs.position.getComponent(i, c) +
-            attrs.displacement.getComponent(i, c) * amplitude;
-          colors.array[i * 3 + c] = attrs.customColor.getComponent(i, c);
+      // The customColor attribute is static across frames in the official
+      // lines example (written once at init). Skip the per-frame color
+      // rewrite and its needsUpdate bump when the source version key and
+      // backing array are unchanged, so the upload cache keeps returning the
+      // previously encoded color values instead of re-encoding them and
+      // revalidating every component each frame.
+      const colorSourceVersion = attributeVersionKey(attrs.customColor);
+      const colorStable = geometry._r1ColorSourceVersion === colorSourceVersion &&
+        geometry._r1ColorSourceArray === attrs.customColor.array;
+      const positionArray = positions.array;
+      const colorArray = colors.array;
+      const sourceArray = attrs.position.array;
+      const displacementArray = attrs.displacement.array;
+      const customColorArray = attrs.customColor.array;
+      const fastArrays = count > 0 &&
+        !attrs.position.isInterleavedBufferAttribute &&
+        !attrs.displacement.isInterleavedBufferAttribute &&
+        !attrs.customColor.isInterleavedBufferAttribute &&
+        sourceArray instanceof Float32Array && displacementArray instanceof Float32Array &&
+        customColorArray instanceof Float32Array && colorArray instanceof Float32Array &&
+        sourceArray.length >= count * 3 && displacementArray.length >= count * 3 &&
+        customColorArray.length >= count * 3 && positionArray.length >= count * 3 &&
+        colorArray.length >= count * 3;
+      if (fastArrays) {
+        // Direct typed-array writes over the whole interleaved extent. The
+        // strict position contract and the culling sphere are still honored,
+        // but with per-FRAME work instead of per-COMPONENT branching:
+        // - finiteness: source and displacement arrays are validated at load
+        //   (strict decode) and `amplitude` is a validated uniform, so a
+        //   non-finite product can only appear through overflow. The static
+        //   magnitude bounds built with the sphere meta decide per frame
+        //   whether |source| + sweep*|amplitude| can reach the float32
+        //   ceiling at all; when it cannot, no component can overflow and
+        //   the sweep runs with zero checks. When it can, the component sum
+        //   (NaN and both infinities always surface in it) gates a
+        //   per-component fallback that reproduces the exact requireFinite
+        //   diagnostics. A non-finite amplitude fails loudly up front.
+        // - culling: the sphere is derived once from the static source bounds
+        //   plus the displacement magnitude bound, then grown monotonically
+        //   when a larger |amplitude| appears. It always encloses every
+        //   displaced vertex (conservative, never smaller than the tight
+        //   per-frame sphere), so frustum/shadow culling stays honest without
+        //   a per-vertex min/max scan.
+        requireFinite(amplitude, 'amplitude uniform');
+        const n = count * 3;
+        const a = amplitude;
+        let meta = geometry._r1CustomLineSphere;
+        if (!meta || meta.count !== count || meta.source !== sourceArray ||
+            meta.displacement !== displacementArray) {
+          // (Re)build the static bound: the source AABB gives the center and
+          // the base radius; the longest displacement vector gives the sweep.
+          let minX = Infinity, minY = Infinity, minZ = Infinity;
+          let maxX = -Infinity, maxY = -Infinity, maxZ = -Infinity;
+          let maxDispSq = 0, maxAbsSource = 0;
+          for (let i3 = 0; i3 < n; i3 += 3) {
+            const x = sourceArray[i3], y = sourceArray[i3 + 1], z = sourceArray[i3 + 2];
+            requireFinite(x, 'position attribute');
+            requireFinite(y, 'position attribute');
+            requireFinite(z, 'position attribute');
+            if (x < minX) minX = x; if (x > maxX) maxX = x;
+            if (y < minY) minY = y; if (y > maxY) maxY = y;
+            if (z < minZ) minZ = z; if (z > maxZ) maxZ = z;
+            const ax = x < 0 ? -x : x, ay = y < 0 ? -y : y, az = z < 0 ? -z : z;
+            if (ax > maxAbsSource) maxAbsSource = ax;
+            if (ay > maxAbsSource) maxAbsSource = ay;
+            if (az > maxAbsSource) maxAbsSource = az;
+            const dx = displacementArray[i3], dy = displacementArray[i3 + 1], dz = displacementArray[i3 + 2];
+            requireFinite(dx, 'displacement attribute');
+            requireFinite(dy, 'displacement attribute');
+            requireFinite(dz, 'displacement attribute');
+            const d = dx * dx + dy * dy + dz * dz;
+            if (d > maxDispSq) maxDispSq = d;
+          }
+          const ex = (maxX - minX) / 2, ey = (maxY - minY) / 2, ez = (maxZ - minZ) / 2;
+          const sphere = geometry.boundingSphere || (geometry.boundingSphere = new Sphere());
+          sphere.center.set((minX + maxX) / 2, (minY + maxY) / 2, (minZ + maxZ) / 2);
+          meta = {
+            count, source: sourceArray, displacement: displacementArray,
+            sphere, baseRadius: Math.sqrt(ex * ex + ey * ey + ez * ez),
+            sweep: Math.sqrt(maxDispSq), maxAbsSource, maxAbsAmplitude: 0
+          };
+          geometry._r1CustomLineSphere = meta;
         }
+        if (!colorStable) {
+          for (let i3 = 0; i3 < n; i3 += 3) {
+            colorArray[i3] = customColorArray[i3];
+            colorArray[i3 + 1] = customColorArray[i3 + 1];
+            colorArray[i3 + 2] = customColorArray[i3 + 2];
+          }
+          colors._r1DynamicContent = true;
+          colors.needsUpdate = true;
+        }
+        const absA = a < 0 ? -a : a;
+        // Float32 ceiling: any |source| + sweep*|amplitude| below it cannot
+        // produce a non-finite float32 when written back.
+        if (meta.maxAbsSource + meta.sweep * absA < 3.4e38) {
+          for (let i3 = 0; i3 < n; i3 += 3) {
+            positionArray[i3] = sourceArray[i3] + displacementArray[i3] * a;
+            positionArray[i3 + 1] = sourceArray[i3 + 1] + displacementArray[i3 + 1] * a;
+            positionArray[i3 + 2] = sourceArray[i3 + 2] + displacementArray[i3 + 2] * a;
+          }
+        } else {
+          let sum = 0;
+          for (let i3 = 0; i3 < n; i3 += 3) {
+            const x = sourceArray[i3] + displacementArray[i3] * a;
+            const y = sourceArray[i3 + 1] + displacementArray[i3 + 1] * a;
+            const z = sourceArray[i3 + 2] + displacementArray[i3 + 2] * a;
+            positionArray[i3] = x; positionArray[i3 + 1] = y; positionArray[i3 + 2] = z;
+            sum += x + y + z;
+          }
+          if (!Number.isFinite(sum)) {
+            for (let i3 = 0; i3 < n; i3++) {
+              requireFinite(positionArray[i3], 'position attribute');
+            }
+          }
+        }
+        const sphere = meta.sphere;
+        if (absA > meta.maxAbsAmplitude) {
+          meta.maxAbsAmplitude = absA;
+          sphere.radius = meta.baseRadius + meta.sweep * absA;
+        }
+        positions._r1DynamicContent = true;
+        positions.needsUpdate = true;
+        // Every written component was validated above; the exact bumped
+        // version may take attributeFloats' bulk-copy lane.
+        positions._r1FiniteVersion = positions.version;
+        geometry._r1ColorSourceVersion = colorSourceVersion;
+        geometry._r1ColorSourceArray = attrs.customColor.array;
+      } else {
+        for (let i = 0; i < count; i++) {
+          for (let c = 0; c < 3; c++) {
+            positions.array[i * 3 + c] = attrs.position.getComponent(i, c) +
+              attrs.displacement.getComponent(i, c) * amplitude;
+            colors.array[i * 3 + c] = attrs.customColor.getComponent(i, c);
+          }
+        }
+        positions._r1DynamicContent = true;
+        colors._r1DynamicContent = true;
+        positions.needsUpdate = true;
+        colors.needsUpdate = true;
+        geometry.computeBoundingSphere();
       }
-      positions._r1DynamicContent = true;
-      colors._r1DynamicContent = true;
-      positions.needsUpdate = true;
-      colors.needsUpdate = true;
-      geometry.computeBoundingSphere();
       adaptedMaterial = previous && previous.kind === kind ? previous.material : new LineBasicMaterial({
         color: uniformColor && uniformColor.isColor ? uniformColor : new Color(0xffffff),
         opacity: uniforms.opacity ? Number(uniforms.opacity.value) : material.opacity,
@@ -2782,12 +3817,25 @@ export class JsrWebGLRenderer {
       adaptationWarn(material, '_r1CustomLineWarned',
         'R1 evaluates the custom line displacement/color shader on the CPU.');
     } else if (kind === 'points') {
-      if (attrs.customColor) {
-        geometry = new BufferGeometry();
-        geometry.setAttribute('position', attrs.position);
-        geometry.setAttribute('color', attrs.customColor);
-        geometry.setDrawRange(source.drawRange.start, source.drawRange.count);
-        geometry.boundingSphere = source.boundingSphere;
+      // The official points examples mutate only the per-point size
+      // attribute, whose mean rides the material lane. Rebuilding the
+      // adapted geometry (and a fresh resource id) on every signature
+      // change forced a full position/color re-upload, a new GPU buffer
+      // and a disposal of the previous one per presented frame.
+      if (pointColorAttribute) {
+        if (previous && previous.kind === kind && previous.geometry !== source &&
+            previous.geometry.attributes.position === attrs.position &&
+            previous.geometry.attributes.color === pointColorAttribute) {
+          geometry = previous.geometry;
+          geometry.setDrawRange(source.drawRange.start, source.drawRange.count);
+          if (source.boundingSphere) geometry.boundingSphere = source.boundingSphere;
+        } else {
+          geometry = new BufferGeometry();
+          geometry.setAttribute('position', attrs.position);
+          geometry.setAttribute('color', pointColorAttribute);
+          geometry.setDrawRange(source.drawRange.start, source.drawRange.count);
+          geometry.boundingSphere = source.boundingSphere;
+        }
       } else geometry = source;
       let map = uniforms.pointTexture && uniforms.pointTexture.value;
       let alphaTest = uniforms.alphaTest ? Number(uniforms.alphaTest.value) : 0;
@@ -2795,20 +3843,34 @@ export class JsrWebGLRenderer {
         map = pointDiscTexture();
         if (!alphaTest) alphaTest = 0.5;
       }
-      adaptedMaterial = new PointsMaterial({
-        color: uniformColor && uniformColor.isColor ? uniformColor : new Color(0xffffff),
-        size: meanSize,
-        sizeAttenuation: true,
-        map: map || null,
-        alphaTest,
-        vertexColors: !!(attrs.customColor || attrs.color),
-        transparent: !!material.transparent,
-        opacity: material.opacity,
-        depthTest: material.depthTest,
-        depthWrite: material.depthWrite,
-        blending: material.blending,
-        fog: material.fog
-      });
+      const materialKey = [
+        uniformColor && uniformColor.isColor ? `${uniformColor.r}:${uniformColor.g}:${uniformColor.b}` : '-',
+        map ? resourceId(map) : 0, alphaTest,
+        !(pointColorAttribute || attrs.color), !!material.transparent, material.opacity,
+        material.depthTest, material.depthWrite, material.blending, material.fog ? 1 : 0, material.side
+      ].join('|');
+      if (previous && previous.kind === kind && previous.materialKey === materialKey) {
+        adaptedMaterial = previous.material;
+        // The mean point size is the only per-frame change; it is part of
+        // the _ensureMaterial signature (pointSize), so the material
+        // command re-encodes without an artificial version bump.
+        adaptedMaterial.size = meanSize;
+      } else {
+        adaptedMaterial = new PointsMaterial({
+          color: uniformColor && uniformColor.isColor ? uniformColor : new Color(0xffffff),
+          size: meanSize,
+          sizeAttenuation: true,
+          map: map || null,
+          alphaTest,
+          vertexColors: !!(pointColorAttribute || attrs.color),
+          transparent: !!material.transparent,
+          opacity: material.opacity,
+          depthTest: material.depthTest,
+          depthWrite: material.depthWrite,
+          blending: material.blending,
+          fog: material.fog
+        });
+      }
       adaptationWarn(material, '_r1PointShaderWarned',
         'R1 lowers the bounded point shader; per-point sizes are represented by their current mean.');
     } else {
@@ -2848,7 +3910,7 @@ export class JsrWebGLRenderer {
       if (previous.geometry !== geometry && previous.geometry !== source) previous.geometry.dispose();
       if (previous.material !== adaptedMaterial) previous.material.dispose();
     }
-    this._adaptedShaderDraws.set(object, { kind, source, sourceMaterial: material, signature, geometry, material: adaptedMaterial });
+    this._adaptedShaderDraws.set(object, { kind, source, sourceMaterial: material, signature, geometry, material: adaptedMaterial, materialKey });
     return { geometry, material: adaptedMaterial, lineSegments: kind === 'selective' ? true : undefined };
   }
 
@@ -2856,17 +3918,178 @@ export class JsrWebGLRenderer {
     return this._adaptLineDraw(object) || this._adaptShaderDraw(object);
   }
 
+  _batchedGeometry(object, geometryId, record) {
+    const cached = record.geometries.get(geometryId);
+    if (cached) return cached;
+    const source = object.geometry;
+    const info = object._geometryInfo[geometryId];
+    const geometry = new BufferGeometry();
+    for (const name of ATTR_NAMES) {
+      const attribute = source.attributes[name];
+      if (!attribute) continue;
+      const values = new Float32Array(info.vertexCount * attribute.itemSize);
+      for (let vertex = 0; vertex < info.vertexCount; vertex++) {
+        for (let component = 0; component < attribute.itemSize; component++) {
+          values[vertex * attribute.itemSize + component] = attribute.getComponent(info.vertexStart + vertex, component);
+        }
+      }
+      geometry.setAttribute(name, new Float32BufferAttribute(values, attribute.itemSize, attribute.normalized));
+    }
+    const sourceIndex = source.index;
+    const indices = new Uint32Array(info.count);
+    for (let index = 0; index < info.count; index++) {
+      indices[index] = sourceIndex
+        ? sourceIndex.getX(info.indexStart + index) - info.vertexStart
+        : index;
+    }
+    geometry.setIndex(new BufferAttribute(indices, 1));
+    geometry.computeBoundingSphere();
+    record.geometries.set(geometryId, geometry);
+    return geometry;
+  }
+
+  _batchedMaterial(object, record) {
+    const source = object.material;
+    let hasLight = false;
+    if (!this._sceneEnvironment && !source.envMap && source.isMeshStandardMaterial && source.metalness === 1) {
+      let root = object;
+      while (root.parent) root = root.parent;
+      root.traverseVisible(child => { if (child.isLight) hasLight = true; });
+    }
+    const lightingKey = `${token(this._sceneEnvironment)}:${token(source.envMap)}:${hasLight ? 1 : 0}`;
+    if (record.materialSource === source && record.lightingKey === lightingKey) return record.material;
+    if (record.ownsMaterial) record.material.dispose();
+    let material = source;
+    if (!this._sceneEnvironment && !source.envMap && source.isMeshStandardMaterial &&
+        source.metalness === 1 && !hasLight &&
+        (!source.emissive || source.emissiveIntensity === 0 ||
+         (source.emissive.r === 0 && source.emissive.g === 0 && source.emissive.b === 0))) {
+      material = new MeshBasicMaterial({
+        color: source.color, map: source.map, alphaMap: source.alphaMap,
+        side: source.side, transparent: source.transparent, opacity: source.opacity,
+        depthTest: source.depthTest, depthWrite: source.depthWrite,
+        blending: source.blending, alphaTest: source.alphaTest,
+        vertexColors: source.vertexColors, wireframe: source.wireframe,
+        fog: source.fog
+      });
+      material.clippingPlanes = source.clippingPlanes;
+      material.clipIntersection = source.clipIntersection;
+      material.clipShadows = source.clipShadows;
+      adaptationWarn(source, '_r1BatchedUnlitMaterialWarned',
+        'R1 retains colors with an unlit BatchedMesh material because the omitted environment was the only illumination for fully metallic geometry.');
+    }
+    record.materialSource = source;
+    record.lightingKey = lightingKey;
+    record.material = material;
+    record.ownsMaterial = material !== source;
+    return material;
+  }
+
+  _syncBatchedMeshProxies(object) {
+    if (Array.isArray(object.material)) unsupported('multiMaterial', 'R1 BatchedMesh instancing requires a single material');
+    let record = this._batchedMeshProxies.get(object);
+    if (!record) {
+      record = { geometryKey: '', instanceKey: '', geometries: new Map(), proxies: [], materialSource: null, material: null, ownsMaterial: false };
+      this._batchedMeshProxies.set(object, record);
+    }
+    const material = this._batchedMaterial(object, record);
+    const source = object.geometry;
+    const infos = object._geometryInfo || [];
+    const geometryKey = [
+      ...ATTR_NAMES.map(name => attributeVersionKey(source.attributes[name])),
+      attributeVersionKey(source.index),
+      ...infos.map(info => [info.active, info.vertexStart, info.vertexCount, info.indexStart, info.count].join(':'))
+    ].join('|');
+    if (record.geometryKey !== geometryKey) {
+      for (const proxy of record.proxies) object.remove(proxy);
+      for (const geometry of record.geometries.values()) geometry.dispose();
+      record.proxies = [];
+      record.geometries.clear();
+      record.geometryKey = geometryKey;
+      record.instanceKey = '';
+    }
+    const matrices = object._matricesTexture;
+    const colors = object._colorsTexture;
+    const instanceKey = [matrices?.version || 0, colors?.version || 0].join(':');
+    for (const proxy of record.proxies) {
+      proxy.material = material;
+      proxy.castShadow = object.castShadow;
+      proxy.receiveShadow = object.receiveShadow;
+      proxy.frustumCulled = object.frustumCulled;
+    }
+    if ((record.instanceKey === instanceKey && !object._visibilityChanged) || !matrices?.image?.data) return;
+    for (const proxy of record.proxies) object.remove(proxy);
+    record.proxies = [];
+    const groups = new Map();
+    const instances = object._instanceInfo || [];
+    let retained = 0;
+    for (let id = 0; id < instances.length && retained < MAX_BATCHED_INSTANCES; id++) {
+      const instance = instances[id];
+      if (!instance || instance.active === false || instance.visible === false) continue;
+      const geometryId = instance.geometryIndex;
+      if (!infos[geometryId] || infos[geometryId].active === false || infos[geometryId].count <= 0) continue;
+      let group = groups.get(geometryId);
+      if (!group) { group = []; groups.set(geometryId, group); }
+      group.push(id);
+      retained++;
+    }
+    const matrixData = matrices.image.data;
+    const colorData = colors?.image?.data || null;
+    for (const [geometryId, ids] of groups) {
+      const geometry = this._batchedGeometry(object, geometryId, record);
+      const proxy = new InstancedMesh(geometry, material, ids.length);
+      const matrixArray = proxy.instanceMatrix.array;
+      const colorArray = colorData ? new Float32Array(ids.length * 3) : null;
+      for (let index = 0; index < ids.length; index++) {
+        const sourceId = ids[index];
+        for (let component = 0; component < 16; component++) {
+          matrixArray[index * 16 + component] = matrixData[sourceId * 16 + component];
+        }
+        if (colorArray) {
+          colorArray[index * 3] = colorData[sourceId * 4];
+          colorArray[index * 3 + 1] = colorData[sourceId * 4 + 1];
+          colorArray[index * 3 + 2] = colorData[sourceId * 4 + 2];
+        }
+      }
+      proxy.instanceMatrix.needsUpdate = true;
+      if (colorArray) proxy.instanceColor = new InstancedBufferAttribute(colorArray, 3);
+      proxy.castShadow = object.castShadow;
+      proxy.receiveShadow = object.receiveShadow;
+      proxy.frustumCulled = object.frustumCulled;
+      proxy.raycast = jsrBatchedMeshProxyRaycast;
+      proxy.userData.jsrBatchedMeshProxy = true;
+      object.add(proxy);
+      proxy.updateMatrixWorld(true);
+      record.proxies.push(proxy);
+    }
+    object._visibilityChanged = false;
+    record.instanceKey = instanceKey;
+  }
+
   _ensureNode(object, parentId, commands, drawVisible) {
     const id = resourceId(object);
     const materialVisible = !object.material || object.material.visible !== false;
     const visible = !!object.visible && materialVisible;
     const batched = !!object.isInstancedMesh || !!(object.isMesh && Array.isArray(object.material));
+    // GLBufferAttribute points draw-range lane. The official
+    // webgl_buffergeometry_glbufferattribute example re-routes setDrawRange
+    // every frame over a GPU-side buffer; slicing the moved window per frame
+    // re-sent up to ~140k points (~3.4MB) every frame (measured presentedFps
+    // 18 and falling). Upload the full vertex set once and move the window
+    // through a NON-instanced DRAW_BATCH part (offset/count), which the Dart
+    // planner already honors per part for the points primitive. The lane is
+    // keyed on the geometry shape, not the material, so every points drawable
+    // over such a geometry takes the same resource identity and signature.
+    const rangeLaneObject = !!(object.isPoints && !Array.isArray(object.material) &&
+      object.geometry && !object.geometry.index &&
+      object.geometry.attributes.position &&
+      object.geometry.attributes.position.isGLBufferAttribute);
     const spriteCenter = object.isSprite
       ? (object.center || { x: 0.5, y: 0.5 })
       : { x: 0.5, y: 0.5 };
     if ((!drawVisible || !materialVisible) && !object.isLight && !object.isCamera) {
       const objectKind = this._objectKind(object);
-      if (!batched) this._removeBatch(id, commands);
+      if (!batched && !rangeLaneObject) this._removeBatch(id, commands);
       this._updateNode(object, id, parentId, 0, 0, visible, objectKind, commands, spriteCenter);
       return { id, draw: null };
     }
@@ -2887,6 +4110,15 @@ export class JsrWebGLRenderer {
     let objectKind = 0;
     let draw = null;
     let batch = null;
+    let rangeLane = false;
+    if (object.isBatchedMesh) {
+      adaptationWarn(object, '_r1BatchedMeshWarned',
+        'R1 retains bounded BatchedMesh instances as per-geometry instanced draws; LOD selection and per-range sorting are omitted.');
+      this._syncBatchedMeshProxies(object);
+      this._removeBatch(id, commands);
+      this._updateNode(object, id, parentId, 0, 0, visible, 0, commands, spriteCenter);
+      return { id, draw: null };
+    }
     if (object.isSprite) {
       // R1 v5 sprite lane: the shared upstream quad (positions in
       // [-0.5, 0.5]², unit UVs) billboards against the camera in the vertex
@@ -2904,34 +4136,31 @@ export class JsrWebGLRenderer {
     } else if (object.isMesh || object.isLine || object.isLineSegments || object.isPoints) {
       const sourceGeometry = object.geometry;
       const sourcePosition = sourceGeometry && sourceGeometry.attributes.position;
-      if (sourcePosition && sourceRange(sourceGeometry, sourcePosition.count).count === 0) {
-        if (!batched) this._removeBatch(id, commands);
+      if (!batched && sourcePosition && sourceRange(sourceGeometry, sourcePosition.count).count === 0) {
+        this._removeBatch(id, commands);
         this._updateNode(object, id, parentId, 0, 0, visible, 0, commands, spriteCenter);
         return { id, draw: null };
       }
       this._applyMorphTargets(object);
       if (object.isSkinnedMesh) this._applySkining(object);
-      if (object.isBatchedMesh) {
-        adaptationWarn(object, '_r1BatchedMeshWarned',
-          'R1 draws the BatchedMesh shared geometry once; per-range visibility and per-instance transforms are not retained.');
-      }
       const adapted = this._sceneOverrideMaterial ? null : this._adaptDrawable(object);
       const material = this._sceneOverrideMaterial || (adapted ? adapted.material : object.material);
       const renderGeometry = adapted ? adapted.geometry : object.geometry;
+      rangeLane = rangeLaneObject && !adapted && renderGeometry === object.geometry;
       if (!adapted && !sourcePosition) {
         adaptationWarn(object, '_r1EmptyGeometryWarned', 'R1 retains an empty drawable as a no-draw node.');
-        if (!batched) this._removeBatch(id, commands);
+        if (!batched && !rangeLane) this._removeBatch(id, commands);
         this._updateNode(object, id, parentId, 0, 0, visible, 0, commands, spriteCenter);
         return { id, draw: null };
       }
       if (material._r1ProceduralTime) refreshProceduralRtt(renderGeometry, material._r1ProceduralTime.value);
       if (renderGeometry._r1TimeColor) refreshTimeColorGeometry(renderGeometry, Number(renderGeometry._r1Time?.value || 0));
       if (renderGeometry._r1Displaced) refreshDisplacedShaderGeometry(renderGeometry, Number(renderGeometry._r1Amplitude?.value || 0));
-      if (renderGeometry._r1Instanced) refreshInstancedShaderGeometry(renderGeometry, object.material.uniforms || {});
+      if (renderGeometry._r1Instanced) refreshInstancedShaderGeometry(renderGeometry, object.material.uniforms || {}, object, this._frameViewMatrix || null);
       if (adapted) {
         const adaptedPosition = renderGeometry.attributes.position;
         if (!adaptedPosition || sourceRange(renderGeometry, adaptedPosition.count).count === 0) {
-          if (!batched) this._removeBatch(id, commands);
+          if (!batched && !rangeLane) this._removeBatch(id, commands);
           this._updateNode(object, id, parentId, 0, 0, visible, 0, commands, spriteCenter);
           return { id, draw: null };
         }
@@ -2954,9 +4183,23 @@ export class JsrWebGLRenderer {
       const materials = Array.isArray(material) ? material : [material];
       const wireframe = primitive === 0 && materials.some(item => item.wireframe);
       if (batched && wireframe) unsupported('wireframeBatch', 'R1 wireframe requires a single-material non-instanced Mesh');
-      const geometry = this._ensureGeometry(renderGeometry, primitive, mode, commands, wireframe);
-      if (batched) {
-        batch = { geometry, materials };
+      const geometry = this._ensureGeometry(renderGeometry, primitive, mode, commands, wireframe, rangeLane);
+      if (batched || rangeLane) {
+        let parts = null;
+        if (rangeLane) {
+          const range = sourceRange(object.geometry, renderGeometry.attributes.position.count);
+          if (range.count === 0) {
+            this._removeBatch(id, commands);
+            this._updateNode(object, id, parentId, 0, 0, visible, 0, commands, spriteCenter);
+            return { id, draw: null };
+          }
+          parts = [{
+            geometryId: geometry.id,
+            materialId: this._ensureMaterial(materials[0], commands),
+            offset: range.start, count: range.count
+          }];
+        }
+        batch = { geometry, materials, parts };
       } else {
         geometryId = geometry.id;
         materialId = this._ensureMaterial(material, commands);
@@ -2967,9 +4210,9 @@ export class JsrWebGLRenderer {
     } else if (object.isInstancedMesh || object.isBatchedMesh) {
       unsupported('objectType', object.type);
     }
-    if (!batched) this._removeBatch(id, commands);
+    if (!batched && !rangeLane) this._removeBatch(id, commands);
     this._updateNode(object, id, parentId, geometryId, materialId, visible, objectKind, commands, spriteCenter);
-    if (batch) draw = this._ensureBatch(object, id, batch.geometry, batch.materials, commands);
+    if (batch) draw = this._ensureBatch(object, id, batch.geometry, batch.materials, commands, batch.parts);
     return { id, draw };
   }
 
@@ -3012,6 +4255,16 @@ export class JsrWebGLRenderer {
       // THREE uses the normalized world position as the hemisphere direction;
       // translation is directional state, not a point-light location/target.
       _direction.copy(_position).normalize();
+    } else if (light.isPointLight) {
+      // Point lights have no direction. R1 uses those otherwise-zero lanes
+      // for decay and cutoff distance; older decoders safely ignored them.
+      // Omitting decay made the upstream default (2) act as zero, so bright
+      // lights saturated every material instead of attenuating with distance.
+      if (!Number.isFinite(light.decay) || light.decay < 0 ||
+          !Number.isFinite(light.distance) || light.distance < 0) {
+        throw new Error('three.invalid: PointLight distance/decay');
+      }
+      _direction.set(light.decay, light.distance, 0);
     }
     let lightColor = light.color;
     if (light.isLightProbe && light.sh?.coefficients?.[0]) {
@@ -3079,6 +4332,14 @@ export class JsrWebGLRenderer {
       geometry.clearGroups(); // single-material skybox must not split into batch parts
       this._backgroundMesh = new Mesh(geometry, material);
       this._backgroundMesh.frustumCulled = false;
+      // Upstream WebGLBackground renders the skybox in a dedicated pass
+      // BEFORE the scene. R1 sorts the injected node among the opaque draws,
+      // so without a reserved renderOrder its position depends on material
+      // creation order: when the module's materials upsert first the skybox
+      // draws LAST and its near-plane fragments pass the depth test,
+      // painting the whole frame over (watch white-slab / clearcoat missing
+      // spheres). Pin it first like the upstream pass.
+      this._backgroundMesh.renderOrder = -1e6;
     }
     const mesh = this._backgroundMesh;
     mesh.material.envMap = background;
@@ -3210,12 +4471,27 @@ export class JsrWebGLRenderer {
     };
   }
 
-  _emit(commands) {
-    const canvas = this.domElement;
+  _flushBatch(batch) {
+    if (!batch || batch.commands.length === 0) return;
     const sequence = this._state.sequence + 1;
+    this._state.sequence = sequence;
+    this._sendCommands(batch.commands, sequence);
+  }
+
+  _sendCommands(commands, sequence) {
+    const canvas = this.domElement;
     const bytes = encodeEnvelope(commands, canvas.engineId, canvas.surfaceId, sequence);
     this.runtime.sendR1(bytes);
+  }
+
+  _emit(commands) {
+    if (this._animationBatch) {
+      this._animationBatch.commands.push(...commands);
+      return;
+    }
+    const sequence = this._state.sequence + 1;
     this._state.sequence = sequence;
+    this._sendCommands(commands, sequence);
   }
 
   _frameTargetSpec(commands) {
@@ -3229,6 +4505,10 @@ export class JsrWebGLRenderer {
     let flags = FRAME_TARGET_FLAGS.viewport | (scissorTest ? FRAME_TARGET_FLAGS.scissor : 0) | this._clearFlags;
     if (this.autoClear && this.autoClearColor) flags |= FRAME_TARGET_FLAGS.clearColor;
     if (this.autoClear && this.autoClearDepth) flags |= FRAME_TARGET_FLAGS.clearDepth;
+    // Upstream auto-clears the stencil at frame start (autoClearStencil
+    // defaults true). R1 sets the bit only when this frame actually touches
+    // stencil state, keeping stenciless frames' flags word byte-stable.
+    if (this.autoClear && this.autoClearStencil && this._frameStencilActivity) flags |= FRAME_TARGET_FLAGS.clearStencil;
     return {
       targetId,
       width: target ? Math.floor(target.width) : 0,
@@ -3250,17 +4530,57 @@ export class JsrWebGLRenderer {
   }
 
   render(scene, camera) {
+    const arrayCamera = !!(camera && camera.isArrayCamera);
+    let ownedBatch = null;
+    if (arrayCamera) {
+      if (!Array.isArray(camera.cameras) || camera.cameras.length > 64) {
+        throw new Error('three.invalid: ArrayCamera requires at most 64 subcameras');
+      }
+      if (!this._animationBatch) {
+        ownedBatch = { commands: [] };
+        this._animationBatch = ownedBatch;
+      }
+    }
     const previousPending = this._pendingDisposals.slice();
     const previousSequence = this._state.sequence;
     this._transaction = new Map();
     this._transactionListens = [];
     try {
-      const result = this._render(scene, camera);
+      let result;
+      if (arrayCamera) {
+        const previousViewport = this._viewport;
+        const previousScissor = this._scissor;
+        const previousScissorTest = this._scissorTest;
+        try {
+          for (const subcamera of camera.cameras) {
+            if (!subcamera || !subcamera.viewport) throw new Error('three.invalid: ArrayCamera subcamera viewport is required');
+            const rect = subcamera.viewport;
+            const scale = this._renderTarget ? 1 : this._pixelRatio;
+            const viewport = this._rectangle(rect.x / scale, rect.y / scale, rect.z / scale, rect.w / scale);
+            this._viewport = viewport;
+            this._scissor = viewport;
+            this._scissorTest = true;
+            result = this._render(scene, subcamera);
+          }
+        } finally {
+          this._viewport = previousViewport;
+          this._scissor = previousScissor;
+          this._scissorTest = previousScissorTest;
+        }
+      } else {
+        result = this._render(scene, camera);
+      }
+      if (ownedBatch) {
+        this._animationBatch = null;
+        this._flushBatch(ownedBatch);
+      }
       this._transaction = null;
       this._transactionListens = null;
       this.domElement._r1State = this._state;
       return result;
     } catch (error) {
+      if (ownedBatch) this._animationBatch = null;
+      this._walkCommands = null;
       const transaction = this._transaction;
       const listened = this._transactionListens;
       this._transaction = null;
@@ -3307,10 +4627,13 @@ export class JsrWebGLRenderer {
     }
     camera.matrixWorldInverse.copy(camera.matrixWorld).invert();
     this._frameGeometries = new Map();
+    this._frameViewMatrix = camera.matrixWorldInverse;
     this._frameMaterials = new Map();
     this._frameTextures = new Map();
     this._frameMorphKeys = new Map();
+    this._frameStencilActivity = false;
     const commands = [];
+    this._walkCommands = commands;
     const pending = this._pendingDisposals.splice(0);
     for (const item of pending) {
       if (item.batch) commands.push(removeBatchCommand(item.id));
@@ -3377,6 +4700,13 @@ export class JsrWebGLRenderer {
         if (result.draw && object.castShadow && !object.isSprite) shadowCandidates.push(object);
         const culled = result.draw && object.frustumCulled && !_frustum.intersectsObject(object);
         if (culled) culledNodeIds.push(result.id);
+        // v8: upstream calls object.onAfterRender after renderBufferDirect —
+        // i.e. only for unculled draws. Skip the upstream no-op prototype
+        // method so untouched scenes never enter the callback path.
+        if (!culled && result.draw && object.onAfterRender &&
+            object.onAfterRender !== Object3D.prototype.onAfterRender) {
+          this._runOnAfterRender(object, scene, camera, commands, result.id);
+        }
         if (!culled && result.draw && result.draw.parts) {
           if (result.draw.instanceCount > 0) {
             for (const part of result.draw.parts) {
@@ -3443,10 +4773,15 @@ export class JsrWebGLRenderer {
       throw new Error('three.invalid: point light shadow matrix is required');
     }
     commands.push(frameCommand(resourceId(scene), cameraId, background, this.toneMappingExposure, fog, shadow, culledNodeIds, culledShadowNodeIds, shadowLightType, this.toneMapping, pointShadow, this._frameTargetSpec(commands)));
+    this._walkCommands = null;
     this._emit(commands);
     this._clearFlags = 0;
-    this._lastScene = scene;
-    this._lastCamera = camera;
+    // Only canvas-target renders may seed the resize/refresh redraw: an
+    // offscreen pass must not be replayed onto the default framebuffer.
+    if (!this._renderTarget) {
+      this._lastScene = scene;
+      this._lastCamera = camera;
+    }
     for (const object of retiredNodes) this._unlisten(object);
     this.info.render.frame++;
     this.info.render.calls = draws;

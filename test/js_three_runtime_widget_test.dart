@@ -16,7 +16,7 @@ void main() {
     final host = createFlutterGpuThreeHost();
     addTearDown(() => host.disposeEngine('three-runtime-widget'));
     final threeSource = await tester.runAsync(
-      () => rootBundle.loadString('assets/three/three.native.js'),
+      () => rootBundle.loadString('assets/three/jsr_three_native.js'),
     );
     final config = threeTestConfig(
       engineId: 'three-runtime-widget',

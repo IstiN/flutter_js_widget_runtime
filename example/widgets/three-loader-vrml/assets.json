@@ -1,0 +1,18 @@
+{
+  "schema": "jsr-three-example-external-assets-v1",
+  "id": "three-loader-vrml",
+  "inlineMaxBytes": 1500000,
+  "assets": [
+    {
+      "url": "models/vrml/elevationGrid1.wrl",
+      "file": "models__vrml__elevationGrid1.wrl",
+      "mime": "application/json",
+      "width": 0,
+      "height": 0,
+      "bytes": 6832353,
+      "sha256": "27c5ad62957442d0c970f38ad4dd451b8d71e61af6ae9b51f8e3389f31b262a3",
+      "aliases": [],
+      "diagnostic": "auto:models/vrml/elevationGrid1.wrl"
+    }
+  ]
+}

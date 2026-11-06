@@ -1,0 +1,16 @@
+{
+  "auto_seeded": false,
+  "mae": 0.266981,
+  "official_id": "webgl_video_panorama_equirectangular",
+  "performance": {
+    "native": {
+      "presentedFps": 119.9400299850075,
+      "presentedFramesDelta": 240,
+      "sampleMs": 2001
+    },
+    "reference": {}
+  },
+  "status": "degraded-documented",
+  "summary": "Native uses a documented static video substitute instead of the official playing panoramic video.",
+  "updated": "2026-11-01T11:44:02.933389+00:00"
+}

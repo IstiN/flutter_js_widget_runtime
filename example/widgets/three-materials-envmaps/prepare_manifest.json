@@ -43,6 +43,47 @@
       "sha256": "716b6ebdabf9cf409fa7fee0bb67b5a4b742e3a4cdd088fe94e22a85cf5c463b"
     }
   },
+  "assetPolicy": {
+    "inlineMaxBytes": 1500000,
+    "externalAssets": [
+      {
+        "url": "textures/cube/Bridge2/negx.jpg",
+        "file": "bridge2-negx.jpg",
+        "bytes": 4194304,
+        "sha256": "59740642dcfe9c2527bc47883bd05ec849a41163ed335deb8f8fb768fb52ae07"
+      },
+      {
+        "url": "textures/cube/Bridge2/negy.jpg",
+        "file": "bridge2-negy.jpg",
+        "bytes": 4194304,
+        "sha256": "2d20edbc4fa9439f8d4152a00cfc97e6b72dfe1afbd36089a2c072c2657d9225"
+      },
+      {
+        "url": "textures/cube/Bridge2/negz.jpg",
+        "file": "bridge2-negz.jpg",
+        "bytes": 4194304,
+        "sha256": "1938953ad89ced2d73a7c93c4ad680ac035537f130ff68780437564c0e0bdfee"
+      },
+      {
+        "url": "textures/cube/Bridge2/posx.jpg",
+        "file": "bridge2-posx.jpg",
+        "bytes": 4194304,
+        "sha256": "4543e71968538092b646bfc56882802f2c7219b1615e50892e89854fd44cb55e"
+      },
+      {
+        "url": "textures/cube/Bridge2/posy.jpg",
+        "file": "bridge2-posy.jpg",
+        "bytes": 4194304,
+        "sha256": "0fb15d4923f799e217de28b34be02bc0f5e4064bac229fe8dd69d4f35077f588"
+      },
+      {
+        "url": "textures/cube/Bridge2/posz.jpg",
+        "file": "bridge2-posz.jpg",
+        "bytes": 4194304,
+        "sha256": "181c6b3b644673f2449b680e544fa49eaa6101ebf7b3a29010d9e16b4314644d"
+      }
+    ]
+  },
   "facade": {
     "global": "globalThis.THREE",
     "exports": [
@@ -214,6 +255,8 @@
       "InterpolationSamplingMode",
       "InterpolationSamplingType",
       "InvertStencilOp",
+      "JsrImageBitmapLoader",
+      "JsrPMREMGenerator",
       "JsrThreeCanvas",
       "KeepStencilOp",
       "KeyframeTrack",
@@ -488,9 +531,11 @@
       "ZeroFactor",
       "ZeroSlopeEnding",
       "ZeroStencilOp",
+      "createBoundedCSGEvaluator",
       "createCanvasElement",
       "error",
       "getConsoleFunction",
+      "getNativeCSGDiagnostics",
       "getNativeRaycastDiagnostics",
       "log",
       "setConsoleFunction",
@@ -498,18 +543,18 @@
       "warnOnce"
     ],
     "source": {
-      "bytes": 40388,
-      "sha256": "c898946c38eecbdaa8b8372b54672017b7dde951375287f26af39a31818f33b2"
+      "bytes": 40798,
+      "sha256": "060fa049acea8e5d87d412bffac20072eb250cc4a45a056042f075daddbf3dd1"
     }
   },
   "inputs": {
-    "assets/three/three.native.js": {
-      "bytes": 739470,
-      "sha256": "a0023c6c0503fb0936e939db9e1bf570c69393038dc6f529db69722f8517fae9"
+    "assets/three/jsr_three_native.js": {
+      "bytes": 838188,
+      "sha256": "774cd82da77974165fd9ec3122c1e4e4505bca3faa5003cb72afc6a59f5f4e5b"
     },
-    "assets/three/three.web.js": {
-      "bytes": 837486,
-      "sha256": "f6dc3ec1012bb86857b83551eefe978cec0ad9dd63137e842212d87678c919be"
+    "assets/three/jsr_three_web.js": {
+      "bytes": 857885,
+      "sha256": "8bf94959ca16ffd59b904e040edcf4ffe405eac56cf941285a2da0a5337fb878"
     },
     "source/LICENSE": {
       "bytes": 1081,
@@ -528,28 +573,28 @@
       "sha256": "3efa22071f3f84ec26248ee58aa05aba635a0a9d810bca93da5a94f33e907524"
     },
     "source/examples/textures/cube/Bridge2/negx.jpg": {
-      "bytes": 4194304,
-      "sha256": "59740642dcfe9c2527bc47883bd05ec849a41163ed335deb8f8fb768fb52ae07"
+      "bytes": 119967,
+      "sha256": "047052e77f698a819903f1d2fe27b40ee56930150fc38913da7e1c58e8dcae70"
     },
     "source/examples/textures/cube/Bridge2/negy.jpg": {
-      "bytes": 4194304,
-      "sha256": "2d20edbc4fa9439f8d4152a00cfc97e6b72dfe1afbd36089a2c072c2657d9225"
+      "bytes": 139902,
+      "sha256": "52b4b95125c777d48ac9ea568d79d55fd3fb62e24a7da37600720cdddb7ab333"
     },
     "source/examples/textures/cube/Bridge2/negz.jpg": {
-      "bytes": 4194304,
-      "sha256": "1938953ad89ced2d73a7c93c4ad680ac035537f130ff68780437564c0e0bdfee"
+      "bytes": 157978,
+      "sha256": "1bc79f442f31931576d734565821b41b331a017dd86f2ac6a60ac6d3bbbbe6ba"
     },
     "source/examples/textures/cube/Bridge2/posx.jpg": {
-      "bytes": 4194304,
-      "sha256": "4543e71968538092b646bfc56882802f2c7219b1615e50892e89854fd44cb55e"
+      "bytes": 134029,
+      "sha256": "bfea380ae3b2f2b44d3040c9fe7a8f3e325450a12b7a0f29561b5ca175f1a250"
     },
     "source/examples/textures/cube/Bridge2/posy.jpg": {
-      "bytes": 4194304,
-      "sha256": "0fb15d4923f799e217de28b34be02bc0f5e4064bac229fe8dd69d4f35077f588"
+      "bytes": 105686,
+      "sha256": "cc467777340037ee8f95460b19772a8ae6a71c125af1714bfd408db2c1c33d98"
     },
     "source/examples/textures/cube/Bridge2/posz.jpg": {
-      "bytes": 4194304,
-      "sha256": "181c6b3b644673f2449b680e544fa49eaa6101ebf7b3a29010d9e16b4314644d"
+      "bytes": 162661,
+      "sha256": "d56085e5da2e8f2cee13694519ed153995045f5a11b1d41d25be70380cf15548"
     },
     "source/examples/webgl_materials_envmaps.html": {
       "bytes": 4851,
@@ -560,28 +605,44 @@
       "sha256": "29492424209a17a723b3b0c8e9c83995697a4c466840d1b33ba6f6ff2b7542a4"
     },
     "tool/three/src/native_entry.js": {
-      "bytes": 913,
-      "sha256": "b9b00c4b65cdd8658ab989adcf05642faf00be796e0ab74656f28a47347c9c5f"
+      "bytes": 26368,
+      "sha256": "dac7dc374e1374499bc9e9a84593e7e1e848bfcde7bb916d7212ccd517e861d3"
+    },
+    "tool/three_example/asset_decode.mjs": {
+      "bytes": 42102,
+      "sha256": "81e15438074e820dc13552b267de326fab895bca729cc5db744da6bedb420a26"
+    },
+    "tool/three_example/asset_discovery.mjs": {
+      "bytes": 12424,
+      "sha256": "89a14e272cb1ddac5b555b4361af938764127ee069ac367a18262b8299643eca"
     },
     "tool/three_example/example_adapter.js": {
-      "bytes": 15014,
-      "sha256": "5857d34290e6655af3a005643dfd5d53c496c1785b6ce5214b133b563844289c"
+      "bytes": 49943,
+      "sha256": "1ab349ba0361871765f4351a6fc3228fb05c93315985fbbf07644592c96ad8c4"
     },
     "tool/three_example/example_canvas2d.js": {
-      "bytes": 14327,
-      "sha256": "a3273e88048b4e88269d6bf95016b9e6ebb81bd993dac863b86c40a435410c34"
+      "bytes": 22635,
+      "sha256": "3bb5bcd47d637e187e79fd7463ba4247e3cc7b5705e62229983e8e607fccf753"
     },
     "tool/three_example/lil_gui_adapter.js": {
-      "bytes": 28485,
-      "sha256": "de03987c75754c821c3e511a5edc819a1054ed73d95d09b7d65ec3dd69e0fa40"
+      "bytes": 32173,
+      "sha256": "2f83bde66c35db02a16eec3db21beae0e1198e04f1b0723f9b3dbda89c6675f7"
     },
     "tool/three_example/prepare.mjs": {
-      "bytes": 144051,
-      "sha256": "873bc8402bafce4c3dae3df9afcc58054727b0dc64a6a3efed1065e71c0ecc0d"
+      "bytes": 315738,
+      "sha256": "3b0289d8d7db92ec08e8c41644ccd934458c173e6a4c6f0a7c7856b3281466f5"
     },
     "tool/three_example/stats_adapter.js": {
       "bytes": 2107,
       "sha256": "98defe8785b259fdf70182c7d4a0a8e8e39ff8be901c3a9f93cd991240784086"
+    },
+    "tool/three_example/vendor/lock.json": {
+      "bytes": 3496,
+      "sha256": "684724e244c7042cbe7bd1fa0dace4e9a653a73d25c35f04c21b9d62d0eb6219"
+    },
+    "tool/three_example/vendor/xml_dom.js": {
+      "bytes": 18555,
+      "sha256": "b5ed0f0cfc690fc55c03280cc3c2ab67e39d09504b51d979a827306e00249182"
     }
   },
   "outputs": {
@@ -592,6 +653,10 @@
     "THREE_LICENSE": {
       "bytes": 1081,
       "sha256": "8b378ebe60e2fe500158cb0ac71cb5e8b7d92953c2abcc63a0eb90499653b5bc"
+    },
+    "assets.json": {
+      "bytes": 1943,
+      "sha256": "7a0454f326ef26f8559aff83d1d06d50a3d407c9bcae74dc7845c35237dcf378"
     },
     "bridge2-negx.jpg": {
       "bytes": 4194304,
@@ -630,8 +695,8 @@
       "sha256": "3b4e3e45ce13320ef29776ad1f1c41efd137e70842c9cc008922f60030c38dd4"
     },
     "widget.js": {
-      "bytes": 34642072,
-      "sha256": "0a6a7a042997adde440d604ac74964d1de94942cef6fd2db54989974c83d720f"
+      "bytes": 1119920,
+      "sha256": "2c6c598230aa74154c5381663767db734e65992e5f6564b058a91cf71284b40a"
     }
   }
 }

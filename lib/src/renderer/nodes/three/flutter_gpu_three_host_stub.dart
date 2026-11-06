@@ -5,4 +5,5 @@ import 'package:js_widget_runtime/src/renderer/nodes/three/js_three_host.dart';
 JsThreeHost createFlutterGpuThreeHost({
   JsThreeAssetLoader? assetLoader,
   String shaderAsset = '',
+  bool adaptiveShadowRefresh = true,
 }) => throw UnsupportedError('Flutter GPU THREE is available only natively');

@@ -1,1 +1,1 @@
-../../assets/three/three.web.js
+../../assets/three/jsr_three_web.js

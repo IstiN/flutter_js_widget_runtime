@@ -90,8 +90,18 @@ class JsWidgetEngine {
   /// Pushes a theme update into the running JS context.
   void updateTheme(Map<String, dynamic> colors) => _backend.updateTheme(colors);
 
-  /// Releases the backend.
-  Future<void> dispose() => _backend.dispose();
+  /// Releases the backend, then the media host.
+  ///
+  /// Execution has already stopped when the host is released (backend dispose
+  /// completes first), so a late worker host call can never resurrect a
+  /// player on a released host. The hook fires on every engine dispose —
+  /// widget switch and page close — and hosts must guard internally against
+  /// the framework's double-dispose.
+  Future<void> dispose() async {
+    await _backend.dispose();
+    final mediaHost = _config.mediaHost;
+    if (mediaHost != null) await mediaHost.dispose();
+  }
 
   /// Returns and clears the console log buffer.
   List<Map<String, dynamic>> flushLogs() => _backend.flushLogs();

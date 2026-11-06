@@ -46,78 +46,75 @@
   "assetDiscovery": [
     {
       "url": "luts/B&WLUT.png",
-      "output": "luts__B__WLUT.png",
-      "mime": "image/png",
-      "diagnostic": "auto:luts/B&WLUT.png",
-      "sha256": "916837b37872e3eb187a774b4f243b8e70717dcce222ed0adbb21f6b1e6d336b",
-      "discovered": true,
-      "rawRgba": true
+      "output": "luts__B__WLUT.png.jsrlut",
+      "mime": "application/octet-stream",
+      "diagnostic": "prebuiltLutBin",
+      "generated": "example/widgets/three-postprocessing-3dlut/luts__B__WLUT.png.jsrlut",
+      "sha256": "eead58f922a20ad6970928b1af93e564a9d5381ac18ac515836626fc55a95e20"
     },
     {
       "url": "luts/Bourbon 64.CUBE",
-      "output": "luts__Bourbon__64.CUBE",
+      "output": "luts__Bourbon__64.CUBE.jsrlut",
       "mime": "application/octet-stream",
-      "diagnostic": "auto:luts/Bourbon 64.CUBE",
-      "sha256": "4be6adb63f6d3de57593a266f3c0cffd6243a978ef156fc377f1c20fe5cf2bde",
-      "discovered": true
+      "diagnostic": "prebuiltLutBin",
+      "generated": "example/widgets/three-postprocessing-3dlut/luts__Bourbon__64.CUBE.jsrlut",
+      "sha256": "765dc6ee7bd867d21838cd1300c0994220d2170c0806b1572171d5fab9bd0bd9"
     },
     {
       "url": "luts/Chemical 168.CUBE",
-      "output": "luts__Chemical__168.CUBE",
+      "output": "luts__Chemical__168.CUBE.jsrlut",
       "mime": "application/octet-stream",
-      "diagnostic": "auto:luts/Chemical 168.CUBE",
-      "sha256": "c985bcfb12a8b6cafbad6990fc975e34e1e4a0bbe5c707df8f11e7a2dc2651f7",
-      "discovered": true
+      "diagnostic": "prebuiltLutBin",
+      "generated": "example/widgets/three-postprocessing-3dlut/luts__Chemical__168.CUBE.jsrlut",
+      "sha256": "6deb11aa813b93066d955dd4744770ac5d4e73b8ae6ddbe404933be1659e1901"
     },
     {
       "url": "luts/Clayton 33.CUBE",
-      "output": "luts__Clayton__33.CUBE",
+      "output": "luts__Clayton__33.CUBE.jsrlut",
       "mime": "application/octet-stream",
-      "diagnostic": "auto:luts/Clayton 33.CUBE",
-      "sha256": "a2cb244bed473ec14a9cc00cb135571b5d5e2910b50b848ee8fc5e203e1cfc6b",
-      "discovered": true
+      "diagnostic": "prebuiltLutBin",
+      "generated": "example/widgets/three-postprocessing-3dlut/luts__Clayton__33.CUBE.jsrlut",
+      "sha256": "95f97ed63e67fa9d21b1c145b3e7e7d32c4b35f8d7d87c2e8abf64eb5087a49e"
     },
     {
       "url": "luts/Cubicle 99.CUBE",
-      "output": "luts__Cubicle__99.CUBE",
+      "output": "luts__Cubicle__99.CUBE.jsrlut",
       "mime": "application/octet-stream",
-      "diagnostic": "auto:luts/Cubicle 99.CUBE",
-      "sha256": "514eac4b0361937ec3972c8bad14f16237efde41cd9e647a6497b1e45fdd775e",
-      "discovered": true
+      "diagnostic": "prebuiltLutBin",
+      "generated": "example/widgets/three-postprocessing-3dlut/luts__Cubicle__99.CUBE.jsrlut",
+      "sha256": "06882ddcbeed46b6372606191f9418881eb5aaaf7bfe854efb8526affecab654"
     },
     {
       "url": "luts/NeutralLUT.png",
-      "output": "luts__NeutralLUT.png",
-      "mime": "image/png",
-      "diagnostic": "auto:luts/NeutralLUT.png",
-      "sha256": "e61b4c8a89578925161f390cda9e1a361a16ff7166956241c58459a2296ab594",
-      "discovered": true,
-      "rawRgba": true
+      "output": "luts__NeutralLUT.png.jsrlut",
+      "mime": "application/octet-stream",
+      "diagnostic": "prebuiltLutBin",
+      "generated": "example/widgets/three-postprocessing-3dlut/luts__NeutralLUT.png.jsrlut",
+      "sha256": "9e5991d860c11aec2b8bff428f0380e0ffdb10fb7648d34ffa19a3e3f39d9102"
     },
     {
       "url": "luts/NightLUT.png",
-      "output": "luts__NightLUT.png",
-      "mime": "image/png",
-      "diagnostic": "auto:luts/NightLUT.png",
-      "sha256": "297c758f2ef1bbf92a77cadc97dcdf5f3e9117be3b557acbc081ba8279ed8fb5",
-      "discovered": true,
-      "rawRgba": true
+      "output": "luts__NightLUT.png.jsrlut",
+      "mime": "application/octet-stream",
+      "diagnostic": "prebuiltLutBin",
+      "generated": "example/widgets/three-postprocessing-3dlut/luts__NightLUT.png.jsrlut",
+      "sha256": "ced6d34d8bc23d303eeb490cd20676738eb96548bbafdffa8ab13f69c2177a8b"
     },
     {
       "url": "luts/Presetpro-Cinematic.3dl",
-      "output": "luts__Presetpro-Cinematic.3dl",
+      "output": "luts__Presetpro-Cinematic.3dl.jsrlut",
       "mime": "application/octet-stream",
-      "diagnostic": "auto:luts/Presetpro-Cinematic.3dl",
-      "sha256": "5829bb439f97b56993156ba038b687ed8a3f54ac857a4b72fdf2cfa1b05da66a",
-      "discovered": true
+      "diagnostic": "prebuiltLutBin",
+      "generated": "example/widgets/three-postprocessing-3dlut/luts__Presetpro-Cinematic.3dl.jsrlut",
+      "sha256": "49fc161dc1f8614616d56b7f4e1dfecccb542b9cac0116b4273d11e3024b8531"
     },
     {
       "url": "luts/Remy 24.CUBE",
-      "output": "luts__Remy__24.CUBE",
+      "output": "luts__Remy__24.CUBE.jsrlut",
       "mime": "application/octet-stream",
-      "diagnostic": "auto:luts/Remy 24.CUBE",
-      "sha256": "538d199fdb03b0973538bf8adb63219da587c30c82bba8327d3b2ccb0f6cdbd8",
-      "discovered": true
+      "diagnostic": "prebuiltLutBin",
+      "generated": "example/widgets/three-postprocessing-3dlut/luts__Remy__24.CUBE.jsrlut",
+      "sha256": "4f68e991a550970ed4648b3eb349153950a7082eedb29046840eda38515e4794"
     },
     {
       "url": "models/gltf/DamagedHelmet/glTF/DamagedHelmet.bin",
@@ -202,6 +199,113 @@
       "discovered": true
     }
   ],
+  "assetPolicy": {
+    "inlineMaxBytes": 0,
+    "externalAssets": [
+      {
+        "url": "luts/B&WLUT.png",
+        "file": "luts__B__WLUT.png.jsrlut",
+        "bytes": 131108,
+        "sha256": "eead58f922a20ad6970928b1af93e564a9d5381ac18ac515836626fc55a95e20"
+      },
+      {
+        "url": "luts/Bourbon 64.CUBE",
+        "file": "luts__Bourbon__64.CUBE.jsrlut",
+        "bytes": 131108,
+        "sha256": "765dc6ee7bd867d21838cd1300c0994220d2170c0806b1572171d5fab9bd0bd9"
+      },
+      {
+        "url": "luts/Chemical 168.CUBE",
+        "file": "luts__Chemical__168.CUBE.jsrlut",
+        "bytes": 131108,
+        "sha256": "6deb11aa813b93066d955dd4744770ac5d4e73b8ae6ddbe404933be1659e1901"
+      },
+      {
+        "url": "luts/Clayton 33.CUBE",
+        "file": "luts__Clayton__33.CUBE.jsrlut",
+        "bytes": 131108,
+        "sha256": "95f97ed63e67fa9d21b1c145b3e7e7d32c4b35f8d7d87c2e8abf64eb5087a49e"
+      },
+      {
+        "url": "luts/Cubicle 99.CUBE",
+        "file": "luts__Cubicle__99.CUBE.jsrlut",
+        "bytes": 131108,
+        "sha256": "06882ddcbeed46b6372606191f9418881eb5aaaf7bfe854efb8526affecab654"
+      },
+      {
+        "url": "luts/NeutralLUT.png",
+        "file": "luts__NeutralLUT.png.jsrlut",
+        "bytes": 131108,
+        "sha256": "9e5991d860c11aec2b8bff428f0380e0ffdb10fb7648d34ffa19a3e3f39d9102"
+      },
+      {
+        "url": "luts/NightLUT.png",
+        "file": "luts__NightLUT.png.jsrlut",
+        "bytes": 131108,
+        "sha256": "ced6d34d8bc23d303eeb490cd20676738eb96548bbafdffa8ab13f69c2177a8b"
+      },
+      {
+        "url": "luts/Presetpro-Cinematic.3dl",
+        "file": "luts__Presetpro-Cinematic.3dl.jsrlut",
+        "bytes": 131108,
+        "sha256": "49fc161dc1f8614616d56b7f4e1dfecccb542b9cac0116b4273d11e3024b8531"
+      },
+      {
+        "url": "luts/Remy 24.CUBE",
+        "file": "luts__Remy__24.CUBE.jsrlut",
+        "bytes": 131108,
+        "sha256": "4f68e991a550970ed4648b3eb349153950a7082eedb29046840eda38515e4794"
+      },
+      {
+        "url": "models/gltf/DamagedHelmet/glTF/DamagedHelmet.bin",
+        "file": "models__gltf__DamagedHelmet__glTF__DamagedHelmet.bin",
+        "bytes": 558504,
+        "sha256": "61b33ead6aa3de23f39f02aaf0965bc3988575716a768f45b15d5ea3fb783fdf"
+      },
+      {
+        "url": "models/gltf/DamagedHelmet/glTF/DamagedHelmet.gltf",
+        "file": "models__gltf__DamagedHelmet__glTF__DamagedHelmet.gltf",
+        "bytes": 4537,
+        "sha256": "efe99dfac198094a30c71dc02a4d3421f0eef6bf335aeb695daa4d62134cd93f"
+      },
+      {
+        "url": "models/gltf/DamagedHelmet/glTF/Default_albedo.jpg",
+        "file": "models__gltf__DamagedHelmet__glTF__Default_albedo.jpg",
+        "bytes": 935629,
+        "sha256": "2dc95e87aeb0cd7c8a65ef0eb8b23212388da0534ca379811427a9a8780511f5"
+      },
+      {
+        "url": "models/gltf/DamagedHelmet/glTF/Default_AO.jpg",
+        "file": "models__gltf__DamagedHelmet__glTF__Default_AO.jpg",
+        "bytes": 361678,
+        "sha256": "7024051b65ed2ead8d24ebc9bd5ea61d4c21639a57b15dab29870668bcc6b90f"
+      },
+      {
+        "url": "models/gltf/DamagedHelmet/glTF/Default_emissive.jpg",
+        "file": "models__gltf__DamagedHelmet__glTF__Default_emissive.jpg",
+        "bytes": 97499,
+        "sha256": "dd0057989f22f93a4ab796d06ebf85a7c12fbfae1d59a86ae8b0c54770dc1159"
+      },
+      {
+        "url": "models/gltf/DamagedHelmet/glTF/Default_metalRoughness.jpg",
+        "file": "models__gltf__DamagedHelmet__glTF__Default_metalRoughness.jpg",
+        "bytes": 1300661,
+        "sha256": "0f05e7ffbeaa974f7d2c83436b04109969966d64ab188cbc3a19a265a0a69ae0"
+      },
+      {
+        "url": "models/gltf/DamagedHelmet/glTF/Default_normal.jpg",
+        "file": "models__gltf__DamagedHelmet__glTF__Default_normal.jpg",
+        "bytes": 517757,
+        "sha256": "f253ba09a90a86ffd8a807dc45d7953111f8b3421e15d7a21d1e915b01dd33c1"
+      },
+      {
+        "url": "textures/equirectangular/royal_esplanade_2k.hdr.jpg",
+        "file": "textures__equirectangular__royal_esplanade_2k.hdr.jpg",
+        "bytes": 552463,
+        "sha256": "b05a664c5fb022ddc6104f253a6684570e99876d30b41a220c8dea4482df6d64"
+      }
+    ]
+  },
   "facade": {
     "global": "globalThis.THREE",
     "exports": [
@@ -373,6 +477,7 @@
       "InterpolationSamplingMode",
       "InterpolationSamplingType",
       "InvertStencilOp",
+      "JsrImageBitmapLoader",
       "JsrPMREMGenerator",
       "JsrThreeCanvas",
       "KeepStencilOp",
@@ -648,9 +753,11 @@
       "ZeroFactor",
       "ZeroSlopeEnding",
       "ZeroStencilOp",
+      "createBoundedCSGEvaluator",
       "createCanvasElement",
       "error",
       "getConsoleFunction",
+      "getNativeCSGDiagnostics",
       "getNativeRaycastDiagnostics",
       "log",
       "setConsoleFunction",
@@ -658,18 +765,18 @@
       "warnOnce"
     ],
     "source": {
-      "bytes": 40485,
-      "sha256": "e33ce24df1c25b009208318dc2a457f0f99c47d4db8418d0618dbdf559d00cb8"
+      "bytes": 40801,
+      "sha256": "c1c5f98e11224a54ea37a8540817cdaef77d2b5c4ff8e30ffe527d7197e0d647"
     }
   },
   "inputs": {
-    "assets/three/three.native.js": {
-      "bytes": 794350,
-      "sha256": "b0a22173ef8aedbe8821fb1c720b05acd177bb46820b37c2a1d2ca4ea7ea576d"
+    "assets/three/jsr_three_native.js": {
+      "bytes": 838188,
+      "sha256": "774cd82da77974165fd9ec3122c1e4e4505bca3faa5003cb72afc6a59f5f4e5b"
     },
-    "assets/three/three.web.js": {
-      "bytes": 855325,
-      "sha256": "973b78155b07710ece2f22e803cb25a8cb08da4f62b5f825dc676715f5859311"
+    "assets/three/jsr_three_web.js": {
+      "bytes": 857885,
+      "sha256": "8bf94959ca16ffd59b904e040edcf4ffe405eac56cf941285a2da0a5337fb878"
     },
     "source/LICENSE": {
       "bytes": 1081,
@@ -686,18 +793,6 @@
     "source/examples/jsm/loaders/GLTFLoader.js": {
       "bytes": 117570,
       "sha256": "131c0f78c01d19368ae495caa65b3adaa10487810a36a05bb5901b769a35ac16"
-    },
-    "source/examples/jsm/loaders/LUT3dlLoader.js": {
-      "bytes": 5077,
-      "sha256": "8efe28ea296f2d8b1c98a8e5fe289f0a522eb48b7d89ec47beda2b85441745a4"
-    },
-    "source/examples/jsm/loaders/LUTCubeLoader.js": {
-      "bytes": 4635,
-      "sha256": "a1b65ae4f6a27c636feefdf9d29acd3af0d97729c058b9bf6522e13a5836dffc"
-    },
-    "source/examples/jsm/loaders/LUTImageLoader.js": {
-      "bytes": 4184,
-      "sha256": "c8040476e51bf948317b8161a1c3f8e795ebcdbcdd70055c2f00619841760cf4"
     },
     "source/examples/jsm/postprocessing/EffectComposer.js": {
       "bytes": 8501,
@@ -744,40 +839,40 @@
       "sha256": "b1632a703206c3d830de9fcbe515696770d04b71a15ee6b50afa6d2c3298c86f"
     },
     "source/examples/luts/B&WLUT.png": {
-      "bytes": 4275,
-      "sha256": "916837b37872e3eb187a774b4f243b8e70717dcce222ed0adbb21f6b1e6d336b"
+      "bytes": 131108,
+      "sha256": "eead58f922a20ad6970928b1af93e564a9d5381ac18ac515836626fc55a95e20"
     },
     "source/examples/luts/Bourbon 64.CUBE": {
-      "bytes": 884952,
-      "sha256": "4be6adb63f6d3de57593a266f3c0cffd6243a978ef156fc377f1c20fe5cf2bde"
+      "bytes": 131108,
+      "sha256": "765dc6ee7bd867d21838cd1300c0994220d2170c0806b1572171d5fab9bd0bd9"
     },
     "source/examples/luts/Chemical 168.CUBE": {
-      "bytes": 884956,
-      "sha256": "c985bcfb12a8b6cafbad6990fc975e34e1e4a0bbe5c707df8f11e7a2dc2651f7"
+      "bytes": 131108,
+      "sha256": "6deb11aa813b93066d955dd4744770ac5d4e73b8ae6ddbe404933be1659e1901"
     },
     "source/examples/luts/Clayton 33.CUBE": {
-      "bytes": 884963,
-      "sha256": "a2cb244bed473ec14a9cc00cb135571b5d5e2910b50b848ee8fc5e203e1cfc6b"
+      "bytes": 131108,
+      "sha256": "95f97ed63e67fa9d21b1c145b3e7e7d32c4b35f8d7d87c2e8abf64eb5087a49e"
     },
     "source/examples/luts/Cubicle 99.CUBE": {
-      "bytes": 884953,
-      "sha256": "514eac4b0361937ec3972c8bad14f16237efde41cd9e647a6497b1e45fdd775e"
+      "bytes": 131108,
+      "sha256": "06882ddcbeed46b6372606191f9418881eb5aaaf7bfe854efb8526affecab654"
     },
     "source/examples/luts/NeutralLUT.png": {
-      "bytes": 295,
-      "sha256": "e61b4c8a89578925161f390cda9e1a361a16ff7166956241c58459a2296ab594"
+      "bytes": 131108,
+      "sha256": "9e5991d860c11aec2b8bff428f0380e0ffdb10fb7648d34ffa19a3e3f39d9102"
     },
     "source/examples/luts/NightLUT.png": {
-      "bytes": 12890,
-      "sha256": "297c758f2ef1bbf92a77cadc97dcdf5f3e9117be3b557acbc081ba8279ed8fb5"
+      "bytes": 131108,
+      "sha256": "ced6d34d8bc23d303eeb490cd20676738eb96548bbafdffa8ab13f69c2177a8b"
     },
     "source/examples/luts/Presetpro-Cinematic.3dl": {
-      "bytes": 450415,
-      "sha256": "5829bb439f97b56993156ba038b687ed8a3f54ac857a4b72fdf2cfa1b05da66a"
+      "bytes": 131108,
+      "sha256": "49fc161dc1f8614616d56b7f4e1dfecccb542b9cac0116b4273d11e3024b8531"
     },
     "source/examples/luts/Remy 24.CUBE": {
-      "bytes": 884956,
-      "sha256": "538d199fdb03b0973538bf8adb63219da587c30c82bba8327d3b2ccb0f6cdbd8"
+      "bytes": 131108,
+      "sha256": "4f68e991a550970ed4648b3eb349153950a7082eedb29046840eda38515e4794"
     },
     "source/examples/models/gltf/DamagedHelmet/glTF/DamagedHelmet.bin": {
       "bytes": 558504,
@@ -820,32 +915,48 @@
       "sha256": "29492424209a17a723b3b0c8e9c83995697a4c466840d1b33ba6f6ff2b7542a4"
     },
     "tool/three/src/native_entry.js": {
-      "bytes": 1951,
-      "sha256": "7852c54a706c19e98978c884aa9cd9bfd8d040a2d304c8e6d8cf973dd3554eaf"
+      "bytes": 26368,
+      "sha256": "dac7dc374e1374499bc9e9a84593e7e1e848bfcde7bb916d7212ccd517e861d3"
+    },
+    "tool/three_example/asset_decode.mjs": {
+      "bytes": 51435,
+      "sha256": "d50f35751ef355c71e49751079ea520f45025d5dba21212a79581c1d1e3dbecc"
     },
     "tool/three_example/asset_discovery.mjs": {
-      "bytes": 11580,
-      "sha256": "61df540ad93d367d071167057ad68a74c4526b7493ac1748a2b750e4c26ae0ea"
+      "bytes": 12424,
+      "sha256": "89a14e272cb1ddac5b555b4361af938764127ee069ac367a18262b8299643eca"
+    },
+    "tool/three_example/degrades/lut_prebuilt.mjs": {
+      "bytes": 4895,
+      "sha256": "bb45ff0b59988bb311bc15db57a6cb83817711dba6a77788e6b02ea2e5cd031c"
     },
     "tool/three_example/example_adapter.js": {
-      "bytes": 36310,
-      "sha256": "d4b30ea893767085c461138a82c7d1644c3311ad8e1a734712ad0c2be5ad0011"
+      "bytes": 49943,
+      "sha256": "1ab349ba0361871765f4351a6fc3228fb05c93315985fbbf07644592c96ad8c4"
     },
     "tool/three_example/example_canvas2d.js": {
-      "bytes": 20988,
-      "sha256": "ae6143c0400efcb2b9ca05c69416ea13519aa5c94a8e7d2e75ffe767ef4c8fba"
+      "bytes": 22635,
+      "sha256": "3bb5bcd47d637e187e79fd7463ba4247e3cc7b5705e62229983e8e607fccf753"
     },
     "tool/three_example/lil_gui_adapter.js": {
-      "bytes": 28916,
-      "sha256": "dc11346394f41bb4f385738d3afa6aa75e695ac80fe3be3a5fbf4201686376bf"
+      "bytes": 32173,
+      "sha256": "2f83bde66c35db02a16eec3db21beae0e1198e04f1b0723f9b3dbda89c6675f7"
     },
     "tool/three_example/prepare.mjs": {
-      "bytes": 252302,
-      "sha256": "e6f9fd556a40a617de3f0a8d75c6d76b21a2020d19e988e7b657f6034a647845"
+      "bytes": 330164,
+      "sha256": "8cc0c3e2d23fb5c9af7eaa9f6e6b57dc18da9bca55e9eb43c05ae35d249c8861"
     },
     "tool/three_example/stats_adapter.js": {
       "bytes": 2107,
       "sha256": "98defe8785b259fdf70182c7d4a0a8e8e39ff8be901c3a9f93cd991240784086"
+    },
+    "tool/three_example/vendor/lock.json": {
+      "bytes": 3496,
+      "sha256": "684724e244c7042cbe7bd1fa0dace4e9a653a73d25c35f04c21b9d62d0eb6219"
+    },
+    "tool/three_example/vendor/xml_dom.js": {
+      "bytes": 18555,
+      "sha256": "b5ed0f0cfc690fc55c03280cc3c2ab67e39d09504b51d979a827306e00249182"
     }
   },
   "outputs": {
@@ -853,41 +964,45 @@
       "bytes": 1081,
       "sha256": "8b378ebe60e2fe500158cb0ac71cb5e8b7d92953c2abcc63a0eb90499653b5bc"
     },
-    "luts__B__WLUT.png": {
-      "bytes": 131072,
-      "sha256": "ca515327895a824fffbd5e8c0ca2b6fb598655a1bc41f3464c6cb5586f023860"
+    "assets.json": {
+      "bytes": 7048,
+      "sha256": "0818f3e55808c64c8b67917afd18c3ba3e6b09053e29bd8fd1b3a9251b77b4ec"
     },
-    "luts__Bourbon__64.CUBE": {
-      "bytes": 884952,
-      "sha256": "4be6adb63f6d3de57593a266f3c0cffd6243a978ef156fc377f1c20fe5cf2bde"
+    "luts__B__WLUT.png.jsrlut": {
+      "bytes": 131108,
+      "sha256": "eead58f922a20ad6970928b1af93e564a9d5381ac18ac515836626fc55a95e20"
     },
-    "luts__Chemical__168.CUBE": {
-      "bytes": 884956,
-      "sha256": "c985bcfb12a8b6cafbad6990fc975e34e1e4a0bbe5c707df8f11e7a2dc2651f7"
+    "luts__Bourbon__64.CUBE.jsrlut": {
+      "bytes": 131108,
+      "sha256": "765dc6ee7bd867d21838cd1300c0994220d2170c0806b1572171d5fab9bd0bd9"
     },
-    "luts__Clayton__33.CUBE": {
-      "bytes": 884963,
-      "sha256": "a2cb244bed473ec14a9cc00cb135571b5d5e2910b50b848ee8fc5e203e1cfc6b"
+    "luts__Chemical__168.CUBE.jsrlut": {
+      "bytes": 131108,
+      "sha256": "6deb11aa813b93066d955dd4744770ac5d4e73b8ae6ddbe404933be1659e1901"
     },
-    "luts__Cubicle__99.CUBE": {
-      "bytes": 884953,
-      "sha256": "514eac4b0361937ec3972c8bad14f16237efde41cd9e647a6497b1e45fdd775e"
+    "luts__Clayton__33.CUBE.jsrlut": {
+      "bytes": 131108,
+      "sha256": "95f97ed63e67fa9d21b1c145b3e7e7d32c4b35f8d7d87c2e8abf64eb5087a49e"
     },
-    "luts__NeutralLUT.png": {
-      "bytes": 131072,
-      "sha256": "f42d0d3c3df49c74098c4ed41fe997e8402bfddd90f5b45e2ce2b087901d7369"
+    "luts__Cubicle__99.CUBE.jsrlut": {
+      "bytes": 131108,
+      "sha256": "06882ddcbeed46b6372606191f9418881eb5aaaf7bfe854efb8526affecab654"
     },
-    "luts__NightLUT.png": {
-      "bytes": 131072,
-      "sha256": "0b1cf88f1a7772327d50446530f90d29f270c344cd6340d508ebcc6ccc5d9087"
+    "luts__NeutralLUT.png.jsrlut": {
+      "bytes": 131108,
+      "sha256": "9e5991d860c11aec2b8bff428f0380e0ffdb10fb7648d34ffa19a3e3f39d9102"
     },
-    "luts__Presetpro-Cinematic.3dl": {
-      "bytes": 450415,
-      "sha256": "5829bb439f97b56993156ba038b687ed8a3f54ac857a4b72fdf2cfa1b05da66a"
+    "luts__NightLUT.png.jsrlut": {
+      "bytes": 131108,
+      "sha256": "ced6d34d8bc23d303eeb490cd20676738eb96548bbafdffa8ab13f69c2177a8b"
     },
-    "luts__Remy__24.CUBE": {
-      "bytes": 884956,
-      "sha256": "538d199fdb03b0973538bf8adb63219da587c30c82bba8327d3b2ccb0f6cdbd8"
+    "luts__Presetpro-Cinematic.3dl.jsrlut": {
+      "bytes": 131108,
+      "sha256": "49fc161dc1f8614616d56b7f4e1dfecccb542b9cac0116b4273d11e3024b8531"
+    },
+    "luts__Remy__24.CUBE.jsrlut": {
+      "bytes": 131108,
+      "sha256": "4f68e991a550970ed4648b3eb349153950a7082eedb29046840eda38515e4794"
     },
     "manifest.json": {
       "bytes": 344,
@@ -934,8 +1049,8 @@
       "sha256": "b05a664c5fb022ddc6104f253a6684570e99876d30b41a220c8dea4482df6d64"
     },
     "widget.js": {
-      "bytes": 17992897,
-      "sha256": "dde2e7147b65ddab27ea48cb61aa59c30be0372a4c18d9a051efb66b53b3a94e"
+      "bytes": 183644,
+      "sha256": "65c3a845af0f90d79aaab176e85528fb68aa536bdc41265cb31e5b344ef2d8b7"
     }
   }
 }

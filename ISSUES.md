@@ -18,6 +18,46 @@ physical-degrade/font/background increments. Status: OPEN unless noted.
 | 11 | skinning morph | Big hands detached from body | skinning/morph | CLOSED (upstream parity) — RobotExpressive hand pose matches official r186; all 1,108 hand vertices match THREE.getVertexPosition within 3.7e-9 and native/official captures match |
 | 12 | skinning blending | Only ~20 FPS | performance | FIXED — native skin weights/indices are precomputed per geometry instead of every frame; paused animation retains skin and command caches with flat texture/geometry counters |
 | 13 | shadow map performance | 0–5 FPS | performance | FIXED — morph normals and 1,600-equivalent draw state use native caches/dedup; shadow content signatures retain unaffected maps, and SunLight renders its single visible cascade |
+| 14 | animation keyframes | Empty sky; city absent | decoded GLB / transient skin bounds / PMREM lighting | FIXED (native visual verified) — `/tmp/three_visual/three-animation-keyframes/ours.png` shows the full Tokyo city at 106.39 presented FPS. The decoded GLB retains all 214 nodes / 71 meshes / 141,802 model triangles and official camera + 0.01 scale. The adapter avoids incompatible transient skin frustum bounds, supplies native hemisphere/directional lighting after the explicit PMREM omission, and bounds the fallback Sky inside the far plane; 72 draws / 141,814 triangles submit |
+| 15 | morph targets webcam | Distorted face, black eye holes, off-center tiny head | meshopt interleaving / morph storage / mirrored PBR eyes | PARTIAL / DOCUMENTED DEGRADE — morph base/targets are deinterleaved and converted to normalized Float32; all 52 morphs match upstream position/normal parity. Native capture `/tmp/three_visual/three-morphtargets-webcam/ours.png` is centered with no black holes at 119.88 presented FPS, and 8,044 triangles submit. Mirrored Standard eyes now retain their real atlas on Lambert, but render as white cartoon balls and are not visual parity with the official normal-shaded face; MediaPipe/video degrades and this remaining material/face-silhouette gap are explicit |
+| 16 | batch LOD BVH | Black scene despite planned triangles | bounded BatchedMesh / omitted PMREM | FIXED AS DOCUMENTED DEGRADE — centered sampling retains 128 visible instances with real matrices/colors; environment-only scenes receive a warned neutral environment and split diffuse/specular IBL. Native capture has 10 instanced calls / 2,097,152 triangles at 119.82 presented FPS. This is not 500k/full LOD/BVH parity |
+| 17 | geometry CSG | Low FPS from repeat CSG work | bounded CSG caching | IMPROVED, NOT FULL PARITY — exact-input cache hits and four-evaluation transform refresh avoid per-frame structural recompute. Native stable window: 27.96 presented FPS vs browser RAF 60.4; QuickJS work improved from roughly 166 to 57 ms/frame. Evaluation spikes remain |
+| 18 | points billboards | Completely black particle scene | Points fragment UV | FIXED (native visual verified) — mapped Points now sample per-fragment `gl_PointCoord`, not the absent mesh `uv` attribute (which selected the transparent sprite corner and discarded every particle). Native capture shows the particle field at 119.88 presented FPS |
+| 19 | geometry shapes | Most Phong solids black | PointLight attenuation | FIXED (native visual verified) — point-light `decay` rides the light uniform; official `decay=0` now disables inverse-square attenuation while decay 2 retains it. Native capture shows the colored solid shape zoo at 120.32 presented FPS |
+| 20 | morph targets / PLY / STL / displacement | Saturated or wrong material colors | PointLight attenuation | FIXED (native visual verified) — R1 v7 carries PointLight `decay` and cutoff distance instead of silently reducing decay to zero. Morphtargets, morphtargets-sphere (modulo animation phase), loader-ply, loader-stl and materials-displacementmap were manually reclassified as similar; morphtargets-face, marchingcubes and shadowmap-pointlight remain open |
+| 21 | loader SVG | Black tiger / incorrect transparent fill ordering | SVG inline style + renderOrder | FIXED (native visual verified) — the bounded XML DOM exposes inline `style` to SVGLoader, and R1 v7 preserves upstream `Object3D.renderOrder` through opaque/transparent sorting. Regression: 305 calls, 304 ordered transparent nodes and nonblack materials; native pair shows the colored tiger |
+| 22 | animation multiple / skinning blending | White, untextured shared models | bundled QuickJS Blob binding | FIXED (native visual verified) — the adapter's bundle-local `Blob` binding lets GLTFLoader load both embedded JPEGs. Regression verifies decoded textures and nonzero maps on every Standard-material Soldier draw; both native pairs now show textured models and were reclassified as similar |
+| 23 | animation walk | White metallic Soldier despite decoded maps | PMREM / metallic shading | OPEN — the official example intentionally sets metalness 1 and uses the base map as metalnessMap; embedded-image loading is fixed, but the native direct-light-only fallback still lacks the reference environment response. Do not reclassify this as a Blob fix |
+| 24 | multiple views / camera array | Only one view; ArrayCamera ignored subcameras; DPR-doubled viewports | animation batching / ArrayCamera / resize | FIXED (native visual verified) — each animation callback now sends one R1 envelope with one transport sequence, ArrayCamera expands to bounded scissored subcamera passes, and host resize synchronizes renderer/canvas DPR. The 64-pass composite retains the official 6×6 grid; both pairs are similar (multiple-views MAE 0.0183, camera-array modulo animation phase) |
+| 25 | loader collada skinning | Missing DAE/JPEG assets; production-isolate capture remains blocked | asset discovery / startup | PARTIAL — prepare now discovers and registers both Stormtrooper assets; the QuickJS draw-plan regression and a direct-engine native capture show the textured skinned mesh. The production-isolate capture still submitted no R1 frames within its 30-second first-frame window, so it is not reclassified as native production parity |
+| 26 | postprocessing godrays | Terminal point-shadow pump failure repeated until host teardown | point shadows / Metal encoding / pump lifecycle | FIXED (native visual verified) — point shadows use integer light-type selection, a 64-byte material ABI, explicit shader varying locations, a non-shadow fallback texture and separate front/back command buffers. Surface errors stop further pumps and retain their stack. Native steady window: 120 FPS with no pump errors. Real-GPU RGBA regressions cover both the official direct pass (red backdrop remains visible) and a cached 1024² point-shadow/basic-material scene. The direct scene is intentionally dark; `GodraysPass` and volumetric-light parity remain omitted |
+| 27 | loader glTF progressive LOD | Oversized/cropped local stand-ins | offline replacement framing | FIXED AS DOCUMENTED DEGRADE — the city and Horse now compose the official extra scales to final 0.01. Native capture shows the complete framed scene; remote Needle progressive content remains replaced |
+| 28 | loader glTF animation pointer | White and oversized Horse | environment-only IBL / offline replacement framing | FIXED AS DOCUMENTED DEGRADE — split diffuse/specular environment lighting preserves albedo at roughness 1, and the Horse stand-in composes to final 0.01. Native capture is centered, lit and fully framed |
+| 29 | materials texture HTML | Black/untextured cube | HTML texture placeholder / environment-only IBL | FIXED AS DOCUMENTED DEGRADE — the 256×256 checker RGBA placeholder is uploaded and visible after split diffuse/specular IBL. Browser HTML layout/rasterization remains unavailable |
+| 30 | loader texture lottie | Only 12–16 FPS despite cheap GPU frames | Canvas2D host readback | FIXED (native visual verified) — the bounded 12-rectangle animation uses a 192×192 canvas instead of 512×512, avoiding a 1 MiB RGBA host round trip 25 times/sec. Native capture shows 120 presented FPS; real Lottie vector playback remains a degrade |
+| 31 | animation skinning IK | `renderOrder=Infinity` rejected by the float32 protocol | native object traversal | FIXED — non-finite render order maps to finite 1e30 before encoding. Regression observes the f32 value above 9e29 and healthy consecutive frames; native 20-second run has no protocol errors |
+
+## Visual + presented-FPS matrix (2026-11-01)
+
+The corrected full-size native harness completed all 303 registered examples
+serially. Official references: 303 OK / 0 black-or-empty. Native captures:
+280 OK / 23 timeouts / 16 black-or-empty; no mass `-9` parallel-run failures.
+Every available pair was visually reviewed, rather than accepting normalized
+MAE as parity. Final accounting in `doc/three_visual/summary.json`:
+
+- **96 similar** (allowing animation phase / stochastic layouts);
+- **5 documented degrades**;
+- **163 materially different** (these remain rendering/presentation work, not
+  claimed fixes);
+- **39 blocked** by timeout, black/empty output, or unavailable pixels.
+
+The screenshot harness records a separate two-second steady-state window in
+`ours.json.performance`: `presentedFps`, `sampleMs`, and
+`presentedFramesDelta`. There are 236 native FPS measurements, median 119.88.
+Multi-canvas examples can aggregate presentations (the 942 FPS maximum is not
+single-scene vsync FPS), so compare per-example windows rather than treating
+the aggregate maximum as a renderer benchmark. Durable pairs and verdicts are
+in `doc/three_visual/`; `index.html` displays each native FPS beside its pair.
 
 ## Notes
 
@@ -28,6 +68,14 @@ physical-degrade/font/background increments. Status: OPEN unless noted.
   document listeners) — check `example_adapter.js` event fan-out.
 - Performance issues (#9/#12/#13) need per-frame diagnostics (triangles,
   uploads, plan cost) before optimizing.
+- #14/#15 A/B regression evidence: the original pinned widgets fail the new
+  probes (`frustumCulledMeshes=72`, interleaved morph attributes=true), while
+  `/tmp/keyframes-regression-after.log` and
+  `/tmp/webcam-regression-after.log` pass. Final two-case matrix:
+  `/tmp/three_matrix_models_after.jsonl` (72 and 5 draws, zero planner
+  warnings). Native AFTER evidence is `/tmp/three_models_fixed.jpg`: #14 is
+  visually resolved; #15 remains the explicitly documented non-parity degrade
+  above rather than a fixed-pending claim.
 
 ## Matrix baseline (2026-10-31, after 13-issue fixes)
 
@@ -257,15 +305,15 @@ example also passes a second `prepare --offline --verify` reproducibility check
 
 | Official example | Result |
 |---|---|
-| `webgl_batch_lod_bvh` | **Warned bounded degrade:** vendored `@three.ez/simplify-geometry`; native rendering reuses source geometry across LODs and omits radix/BVH acceleration. |
-| `webgl_geometry_csg` | Prepared/rendering; vendored `three-bvh-csg` with bounded native CSG evaluation. |
+| `webgl_batch_lod_bvh` | **Warned bounded degrade:** 128 centered, colored instances render as per-geometry native instanced draws; a warned neutral environment preserves Standard-material illumination without PMREM prefiltering. Source geometry is reused across LODs and radix/BVH acceleration is omitted. |
+| `webgl_geometry_csg` | Prepared/rendering; vendored `three-bvh-csg` uses a bounded single-entry evaluation cache with immediate structural invalidation. |
 | `webgl_loader_3dtiles` | **Warned bounded degrade:** surrounding scene renders with pinned local geometry; remote ion/tile traversal and the large renderer/plugin/WASM stack are not attempted. |
-| `webgl_loader_gltf_animation_pointer` | **Warned bounded degrade:** vendored Needle entry API, pinned local glTF stand-ins, native raycast/pointer fan-out; remote Needle payloads are not fetched. |
-| `webgl_loader_gltf_progressive_lod` | **Warned bounded degrade:** vendored Needle entry API and pinned local glTF stand-ins; remote progressive LOD payloads are not fetched. |
+| `webgl_loader_gltf_animation_pointer` | **Warned bounded degrade:** vendored Needle entry API, fully framed/lit pinned local glTF stand-ins, native raycast/pointer fan-out; remote Needle payloads are not fetched. |
+| `webgl_loader_gltf_progressive_lod` | **Warned bounded degrade:** vendored Needle entry API and fully framed pinned local glTF stand-ins; remote progressive LOD payloads are not fetched. |
 | `webgl_loader_ifc` | **Warned bounded degrade:** surrounding native mesh renders; web-ifc WASM parsing/execution is intentionally not bundled. |
-| `webgl_materials_texture_html` | Prepared/rendering; bounded native HTML surface rasterization through the existing local DOM/canvas path, no runtime CDN. |
+| `webgl_materials_texture_html` | **Warned bounded degrade:** a 256×256 checker RGBA placeholder uploads through the native texture path; browser HTML layout/rasterization is unavailable. |
 | `webgl_modifier_subdivision` | Prepared/rendering; vendored `three-subdivide`. |
-| `webgl_postprocessing_godrays` | Prepared/rendering; vendored `goodrays` (`three-good-godrays`). |
+| `webgl_postprocessing_godrays` | **Warned bounded degrade:** native point shadows and the official `RenderPass` render; `GodraysPass` is deliberately omitted (no native godrays-effect parity). |
 | `webgl_raycaster_bvh` | Prepared/rendering; vendored `three-mesh-bvh`, with native static indexed-mesh raycast acceleration. |
 | `webgl_renderer_pathtracer` | **Warned bounded degrade:** direct native scene rendering remains active; GPU path tracing and its large runtime are not attempted. |
 | `webgl_watch` | Prepared/rendering; vendored `@tweenjs/tween.js`. |
@@ -273,11 +321,54 @@ example also passes a second `prepare --offline --verify` reproducibility check
 | `webgl_tsl_instancing` | **Warned WebGL2 fallback:** equivalent instanced scene; no official WebGL fallback exists. |
 | `webgl_tsl_shadowmap` | **Warned WebGL2 fallback:** equivalent shadow scene; no official WebGL fallback exists. |
 | `webgl_tsl_skinning` | **Warned WebGL2 fallback:** equivalent skinned scene using the pinned official glTF; no official WebGL fallback exists. |
-| `webgl_loader_texture_lottie` | **Warned bounded degrade:** vendored `lottie-web` light HTML player API; browser vector rendering is replaced by native-canvas animation while retaining frame/transport behavior. |
+| `webgl_loader_texture_lottie` | **Warned bounded degrade:** vendored `lottie-web` light HTML player API; browser vector rendering is replaced by a 192×192 native-canvas animation while retaining frame/transport behavior. The cap avoids starving THREE RAF with 512×512 host RGBA readbacks. |
 | `webgl_loader_ttf` | Prepared/rendering; vendored `opentype.js`. |
 | `webgl_morphtargets_webcam` | **Warned bounded degrade:** pinned official face glTF and native morph animation render; MediaPipe/camera inference is not bundled. |
 | `webgl_worker_offscreencanvas` | Prepared/rendering; the second `build/three.module.js` import maps to the single-core facade and the Worker lane is bounded to one native canvas. |
 | `webgl_loader_svg` | Prepared/rendering; all pinned SVG assets are transcoded to PNG at prepare with `qlmanage`, with source/output SHA-256 pins. |
+
+### Visual correctness follow-up: batch LOD BVH and CSG (2026-11-01)
+
+The earlier matrix counted planned draws, which hid an empty presented batch
+scene. The 128-instance cap retained the first row of the official 500,000-item
+grid around z=-1940, so its aggregate bounding sphere was outside the camera;
+the native path also collapsed `BatchedMesh` to one ordinary shared-geometry
+mesh. Centered bounded sampling now retains 128 instances around the camera
+target, and native per-geometry `InstancedMesh` proxies preserve their matrices,
+colors, visibility and instance-aware culling. Before: renderer calls=0 and
+main triangles=0 (one planned draw, all culled). After: 10 presented instanced
+calls, 128 instances and 2,097,152 main triangles; geometry/batch uploads stay
+flat at 10/10 over 12 frames.
+
+A subsequent real-GPU capture exposed a second black-screen cause despite those
+valid draw counts. Camera-space diagnostics put sampled instances inside NDC
+with valid view Z and nonzero colors, but the submitted scene had black ambient,
+zero lights, and fully metallic `MeshStandardMaterial` with no environment map
+or emissive contribution. The official RoomEnvironment was its only illumination,
+so omitting PMREM produced black metal on a black clear. The bounded BatchedMesh
+path initially used an unlit fallback. The general native `fromScene` degrade
+now supplies a warned 1×1 neutral environment instead, and split diffuse /
+specular IBL retains the source Standard materials and their maps. The draw-plan
+regression pins meshStandard + nonzero environment ids with identical instance
+transforms, colors and triangle counts; this is not PMREM prefiltering parity.
+
+CSG was recomputing and uploading on every animation tick (12 frames produced
+11 additional geometry and batch uploads; about 166 ms/frame in the QuickJS
+harness). A bounded single-entry evaluator cache now returns identical results
+for unchanged inputs and refreshes animated transforms every four calls;
+operation, geometry, material, target and evaluator-option changes invalidate
+immediately. The official 12-frame run reports 3 evaluations + 8 transform
+skips, only 3 additional geometry/batch uploads, and about 57 ms/frame over the
+measured post-first-frame interval. Skipped frames have identical draw content
+and no geometry/batch upload. This remains a warned degrade: animated CSG
+refreshes at a bounded cadence and evaluation frames still have a CPU spike;
+neither full 500,000-instance LOD/BVH parity nor stock per-tick CSG is claimed.
+
+Focused evidence: `/tmp/three_batch_csg_before.jsonl`,
+`/tmp/three_batch_csg_after.jsonl`, `/tmp/three_batch_csg_after.log`.
+Regression coverage: `js_three_batch_csg_regression_test.dart` (4/4), including
+presented draw-plan triangles, instance colors/counts, stable static uploads,
+official CSG no-upload intervals and evaluator cache/invalidation counters.
 
 Vendored package versions, entry/license paths, and entry SHA-256 digests live in
 `tool/three_example/vendor/lock.json`; prepare import rewrites resolve only those
@@ -599,3 +690,15 @@ Matrix: 297 rendering + 6 host-harness cases covered by dedicated tests
 needs its #startButton gesture; 4 webaudio use the audio-host dedicated
 suites). Arbitrary-GLSL three-shader remains a bounded recognizer-based
 degrade. All quality gates green.
+
+## Visual artifact coverage (interrupted capture baseline)
+
+`doc/three_visual/` contains all 303 pairs and verdicts, but this is not a
+claim of 303 successful visual comparisons. Current reviewed accounting:
+6 similar, 35 different, 262 blocked, 0 degraded-documented; 43 verdicts have
+numeric normalized-MAE evidence. Raw captures under `/tmp/three_visual` were
+partially lost to a reboot. Preserve the surviving pairs/verdicts and rebuild
+only `summary.json`/`index.html` with `python3
+tool/three_visual/compose.py --accounting-only`.
+`test/three_visual_coverage_test.dart` checks registry coverage, documented
+differences, regeneration scripts, and exact summary/verdict count agreement.

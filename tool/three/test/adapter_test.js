@@ -35,11 +35,12 @@ function decode(packet) {
   const surfaceId = decoder.decode(bytes.subarray(32 + engineLength, headerBytes));
   const payload = bytes.subarray(headerBytes);
   assert.equal(payload.subarray(0, 4).toString(), 'JSR1');
-  // R1 envelope version: the native facade emits R1_VERSION (v5 at r186
-  // wave-3); the strict Dart decoder accepts v3..v5. Pin the accepted
-  // range, not one number, so a bump does not silently stale this suite.
+  // Pin the accepted range, not one number, so a bump does not silently
+  // stale this suite. R1 v7 carries renderOrder and PointLight decay;
+  // v8 carries the material stencil tail, colorWrite flag bit and
+  // OPCODE.STENCIL_CLEAR markers.
   const envelopeVersion = payload.readUInt16LE(4);
-  assert.ok(envelopeVersion >= 3 && envelopeVersion <= 5, `unexpected R1 envelope version ${envelopeVersion}`);
+  assert.ok(envelopeVersion >= 3 && envelopeVersion <= 8, `unexpected R1 envelope version ${envelopeVersion}`);
   assert.equal(payload.readUInt16LE(6), 0);
   const count = payload.readUInt32LE(8);
   const commands = [];
@@ -260,7 +261,7 @@ test('canonical mount, T1/R1 bytes, resize and dirty/no-reupload diffing', () =>
   assert.equal(packets[0].sequence, 1);
   assert.deepEqual(opcodes(packets[0]), [4, 1, 3, 4, 6, 8]);
   const frame = only(packets[0], 8)[0].body;
-  assert.equal(frame.length, 172); // v5 frame: v3 140 + v5 point-shadow block 32
+  assert.equal(frame.length, 244); // v7 frame plus the 60-byte target/viewport trailer
   assert.equal(u32(frame, 0), id(scene));
   assert.equal(u32(frame, 4), id(camera));
   near(f32(frame, 24), 1);
@@ -318,7 +319,7 @@ test('main-camera frustum culling is explicit and respects opt-out', () => {
   renderer.render(scene, camera);
   let packet = host.packets()[0];
   let frame = only(packet, 8)[0].body;
-  assert.equal(frame.length, 180); // 172 fixed + main-cull count/id
+  assert.equal(frame.length, 248); // v7 target frame plus one main-cull id
   assert.equal(u32(frame, 172), 1);
   assert.equal(u32(frame, 176), id(mesh));
   assert.equal(renderer.info.render.calls, 0);
@@ -328,7 +329,7 @@ test('main-camera frustum culling is explicit and respects opt-out', () => {
   renderer.render(scene, camera);
   packet = host.packets()[1];
   frame = only(packet, 8)[0].body;
-  assert.equal(frame.length, 172); // v5 frame: v3 140 + v5 point-shadow block 32
+  assert.equal(frame.length, 244); // v7 frame plus the 60-byte target/viewport trailer
   assert.equal(renderer.info.render.calls, 1);
 });
 
@@ -346,7 +347,7 @@ test('shadow-camera culling is independent from main-camera culling', () => {
   mesh.position.x = 100;
   renderer.render(scene, camera);
   let frame = only(host.packets()[0], 8)[0].body;
-  assert.equal(frame.length, 188); // 172 + main(4+4) + shadow(4+4) cull ids
+  assert.equal(frame.length, 252); // v7 target frame plus main and shadow cull ids
   assert.equal(u32(frame, 172), 1);
   assert.equal(u32(frame, 176), id(mesh));
   assert.equal(u32(frame, 180), 1);
@@ -355,7 +356,7 @@ test('shadow-camera culling is independent from main-camera culling', () => {
   mesh.position.x = 0;
   renderer.render(scene, camera);
   frame = only(host.packets()[1], 8)[0].body;
-  assert.equal(frame.length, 172); // v5 frame: v3 140 + v5 point-shadow block 32
+  assert.equal(frame.length, 244); // v7 frame plus the 60-byte target/viewport trailer
 });
 
 test('empty instanced meshes skip draw uploads and retain correct node lifetime', () => {
@@ -451,7 +452,7 @@ test('native execution needs no DOM and supplies UTF-8 codecs when host globals 
   assert.equal(typeof host.context.TextDecoder, 'function');
   assert.equal(new host.context.TextDecoder().decode(new host.context.TextEncoder().encode('Zażółć 😀')), 'Zażółć 😀');
   assert.equal(typeof host.context.document, 'undefined');
-  assert.equal(typeof host.context.Image, 'undefined');
+  assert.equal(typeof host.context.Image, 'function', 'the DOM-free registered-asset Image facade remains available');
   const canvas = host.jsr.three.createCanvas('μ😀');
   const renderer = new T.WebGLRenderer({ canvas });
   renderer.render(new T.Scene(), new T.PerspectiveCamera());
@@ -482,21 +483,21 @@ test('materials, cameras and ambient/directional/point lights have exact bodies 
   let packet = host.packets()[0];
   const materials = only(packet, 3).map(command => command.body);
   assert.deepEqual(materials.map(body => u32(body, 8)), [0, 1, 2, 5]);
-  assert.equal(materials[0].length, 164); // v4 slot + v5 matcap/gradient tails
-  assert.equal(materials[1].length, 180); // + emissive block
-  assert.equal(materials[2].length, 180); // + emissive block
+  assert.equal(materials[0].length, 304); // v4-v6 slots + v7 Dubois tail
+  assert.equal(materials[1].length, 320); // + emissive block
+  assert.equal(materials[2].length, 320); // + emissive block
   assert.equal(u32(materials[0], 20), 2);
   near(f32(materials[0], 36), 0.5);
   near(f32(materials[0], 48), 0.2);
   near(f32(materials[2], 40), 0.25);
   near(f32(materials[2], 44), 0.75);
   assert.equal(u32(materials[1], 16) & 2, 2);
-  assert.equal(materials[3].length, 196); // + specular + emissive after v4/v5 tails
+  assert.equal(materials[3].length, 336); // + specular + emissive + Dubois tail
   assert.equal(u32(materials[3], 16) & 3, 3);
-  near(f32(materials[3], 164), phong.specular.r); // v4/v5 tails precede specular
-  near(f32(materials[3], 168), phong.specular.g);
-  near(f32(materials[3], 172), phong.specular.b);
-  near(f32(materials[3], 176), 64);
+  near(f32(materials[3], 192), phong.specular.r); // v4-v6 tails precede specular
+  near(f32(materials[3], 196), phong.specular.g);
+  near(f32(materials[3], 200), phong.specular.b);
+  near(f32(materials[3], 204), 64);
   assert.notEqual(u32(materials[3], 8), u32(materials[1], 8), 'Phong must not alias Lambert');
   const lights = only(packet, 7).map(command => command.body);
   assert.deepEqual(lights.map(body => u32(body, 4)), [0, 1, 2]);
@@ -528,10 +529,10 @@ test('materials, cameras and ambient/directional/point lights have exact bodies 
   assert.deepEqual(opcodes(packet), [3, 8]);
   const changedPhong = only(packet, 3)[0].body;
   assert.equal(u32(changedPhong, 4), 2);
-  near(f32(changedPhong, 164), 0.25);
-  near(f32(changedPhong, 168), 0.5);
-  near(f32(changedPhong, 172), 0.75);
-  near(f32(changedPhong, 176), 12);
+  near(f32(changedPhong, 192), 0.25);
+  near(f32(changedPhong, 196), 0.5);
+  near(f32(changedPhong, 200), 0.75);
+  near(f32(changedPhong, 204), 12);
 });
 
 test('HemisphereLight has an exact additive payload, world direction and dirty/error updates', () => {
@@ -631,14 +632,14 @@ test('Normal and lit emissive materials have exact payloads, dirty updates and t
   assert.equal(u32(normalBody, 8), 6);
   assert.notEqual(u32(normalBody, 8), 0);
   assert.notEqual(u32(normalBody, 8), 5);
-  assert.equal(normalBody.length, 164); // v4 slot + v5 tails
+  assert.equal(normalBody.length, 304); // v4-v6 slots + v7 Dubois tail
   assert.equal(u32(normalBody, 20), 2);
   assert.equal(u32(normalBody, 16) & 6, 6);
   near(f32(normalBody, 36), 0.375);
   for (const material of lit) {
     const body = byId.get(id(material));
-    const offset = material.isMeshPhongMaterial ? 180 : 164; // after v4/v5 tails (+ specular for Phong)
-    assert.equal(body.length, offset + 16);
+    const offset = material.isMeshPhongMaterial ? 208 : 192; // v4-v6 tails (+ specular for Phong)
+    assert.equal(body.length, offset + 128); // emissive + Dubois tail
     near(f32(body, offset), material.emissive.r);
     near(f32(body, offset + 4), material.emissive.g);
     near(f32(body, offset + 8), material.emissive.b);
@@ -660,10 +661,10 @@ test('Normal and lit emissive materials have exact payloads, dirty updates and t
   assert.equal(changed.length, 4, 'Normal and every emissive edit must upload');
   assert.ok(changed.every(body => u32(body, 4) === 2));
   const changedLambert = changed.find(body => u32(body, 0) === id(lit[0]));
-  near(f32(changedLambert, 164), 0.125);
-  near(f32(changedLambert, 168), 0.25);
-  near(f32(changedLambert, 172), 0.5);
-  near(f32(changedLambert, 176), 5);
+  near(f32(changedLambert, 192), 0.125);
+  near(f32(changedLambert, 196), 0.25);
+  near(f32(changedLambert, 200), 0.5);
+  near(f32(changedLambert, 204), 5);
 
   const sent = host.rawPackets.length;
   lit[0].emissiveIntensity = -1;
@@ -881,6 +882,76 @@ test('missing asset rejection uses three.assetFailure without renaming the host 
   assert.throws(() => host.jsr.three.registerAsset('bad', { data: '!' }), error => error && error.code === 'three.assetFailure');
 });
 
+test('TextureLoader canonicalizes ./ host paths and decodes GIF through the native image lane', async () => {
+  const host = createHost();
+  const T = host.THREE;
+  const canvas = host.jsr.three.createCanvas('main');
+  const gif = Buffer.from('GIF89a').toString('base64');
+  const rgba = Buffer.from([12, 34, 56, 255]).toString('base64');
+  host.jsr.hostCall = async (name, args) => {
+    host.hostCalls.push({ name, args });
+    if (name === 'three.asset') return { data: gif, mime: 'image/gif' };
+    if (name === 'three.canvas2d') {
+      assert.equal(args.action, 'decodeImage');
+      return {
+        engineId: canvas.engineId, surfaceId: canvas.surfaceId,
+        canvasId: args.canvasId, generation: canvas.generation,
+        requestId: args.requestId, width: 1, height: 1, data: rgba
+      };
+    }
+    throw new Error(`unexpected host call ${name}`);
+  };
+  const texture = await new T.TextureLoader().loadAsync('./crate.gif');
+  assert.equal(host.hostCalls[0].args.url, 'crate.gif');
+  assert.equal(texture.image.encoding, 0);
+  assert.equal(texture.image.encoded, false);
+  assert.equal(texture.image.width, 1);
+  assert.equal(texture.image.height, 1);
+  assert.deepEqual(Array.from(texture.image.data), [12, 34, 56, 255]);
+});
+
+test('RenderTarget.setSize re-tracks through disposal so the resized upsert survives version gating', async () => {
+  const host = createHost();
+  const T = host.THREE;
+  const { renderer, scene, camera } = rendererScene(host);
+  const target = new T.WebGLRenderTarget(640, 360);
+  const targetId = () => target.texture.id === 0 ? 0xffffffff : target.texture.id;
+  const frameTarget = packet => {
+    const frame = only(packet, 8)[0].body;
+    const magic = frame.length - 60;
+    assert.equal(frame.readUInt32LE(magic), 0x4658534a, 'missing JSXF frame target trailer');
+    return { id: frame.readUInt32LE(magic + 8), width: frame.readUInt32LE(magic + 12), height: frame.readUInt32LE(magic + 16) };
+  };
+  renderer.setRenderTarget(target);
+  renderer.render(scene, camera);
+  let upserts = only(host.packets()[0], 14);
+  assert.equal(upserts.length, 1);
+  assert.equal(u32(upserts[0].body, 4), 1);
+  assert.deepEqual([u32(upserts[0].body, 8), u32(upserts[0].body, 12)], [640, 360]);
+  assert.deepEqual(frameTarget(host.packets()[0]), { id: targetId(), width: 640, height: 360 });
+  // r186 setSize() disposes; the re-track must deliver DISPOSE_RESOURCE before
+  // the fresh upsert so Dart's per-id version gate accepts the new dimensions.
+  target.setSize(2482, 1734);
+  renderer.setRenderTarget(target);
+  renderer.render(scene, camera);
+  const packet1 = host.packets()[1];
+  const disposal = only(packet1, 9).map(command => command.body)
+    .find(body => u32(body, 0) === targetId() && u32(body, 4) === 7);
+  assert.ok(disposal, 'resize must dispose the tracked target');
+  upserts = only(packet1, 14);
+  assert.equal(upserts.length, 1);
+  assert.deepEqual([u32(upserts[0].body, 8), u32(upserts[0].body, 12)], [2482, 1734]);
+  assert.deepEqual(frameTarget(packet1), { id: targetId(), width: 2482, height: 1734 });
+  const disposalIndex = packet1.commands.indexOf(packet1.commands.find(command => command.opcode === 9));
+  const upsertIndex = packet1.commands.indexOf(upserts[0]);
+  assert.ok(disposalIndex < upsertIndex, 'disposal must precede the re-tracked upsert');
+  target.setSize(2482, 1734);
+  renderer.setRenderTarget(target);
+  renderer.render(scene, camera);
+  assert.deepEqual(opcodes(host.packets()[2]).filter(opcode => opcode === 14 || opcode === 9), []);
+  assert.deepEqual(frameTarget(host.packets()[2]), { id: targetId(), width: 2482, height: 1734 });
+});
+
 test('surface disposal rejects in-flight texture loads before bytes enter a new generation', async () => {
   const host = createHost();
   const T = host.THREE;
@@ -936,7 +1007,8 @@ test('capability failures are loud, transactional and name 1B', () => {
   const canvas = host.jsr.three.createCanvas('main');
   const renderer = new T.WebGLRenderer({ canvas });
   assert.equal(renderer.capabilities.rawWebGL, false);
-  capability(() => renderer.getContext(), 'rawWebGL');
+  assert.equal(renderer.getContext().ARRAY_BUFFER, 34962,
+    'only the bounded buffer facade is exposed, not a raw WebGL context');
   capability(() => new T.WebGLRenderer({ context: {} }), 'rawWebGL');
   assert.throws(() => new T.WebGPURenderer(), error => error && error.code === 'three.unsupported' && error.message.includes('WebGPU'));
   capability(() => canvas.getContext('webgl2'), 'rawWebGL');
@@ -956,6 +1028,68 @@ test('capability failures are loud, transactional and name 1B', () => {
   // instead of failing loudly.
   renderer.render(scene, camera);
   assert.equal(host.rawPackets.length, 2);
+});
+
+test('one animation callback batches every render into one R1 envelope', () => {
+  const host = createHost();
+  const { renderer, scene, camera } = rendererScene(host);
+  renderer.setAnimationLoop(() => {
+    for (let view = 0; view < 3; view++) {
+      renderer.setViewport(view * 10, 0, 10, 10);
+      renderer.setScissor(view * 10, 0, 10, 10);
+      renderer.setScissorTest(true);
+      renderer.render(scene, camera);
+    }
+    assert.equal(host.rawPackets.length, 0, 'no partial view may present early');
+  });
+  const tick = host.rafs.values().next().value;
+  tick(16);
+  assert.equal(host.rawPackets.length, 1);
+  const packet = host.packets()[0];
+  assert.equal(only(packet, 8).length, 3);
+  assert.equal(packet.sequence, 1, 'transport sequence advances once per envelope');
+  renderer.dispose();
+});
+
+test('host resize keeps renderer and canvas pixel ratios synchronized', () => {
+  const host = createHost();
+  const { canvas, renderer } = rendererScene(host);
+  host.jsr.three._hostEvent('input:main', {
+    type: 'resize', width: 320, height: 180, pixelRatio: 2,
+  });
+  assert.equal(renderer.getPixelRatio(), 2);
+  assert.equal(canvas.pixelRatio, 2);
+  assert.equal(canvas.width, 640);
+  assert.equal(canvas.height, 360);
+  assert.equal(canvas.clientWidth, 320);
+  assert.equal(canvas.clientHeight, 180);
+  renderer.dispose();
+});
+
+test('ArrayCamera renders every subcamera into one scissored envelope', () => {
+  const host = createHost();
+  const { renderer, scene } = rendererScene(host);
+  const cameras = [];
+  for (let index = 0; index < 4; index++) {
+    const camera = new host.THREE.PerspectiveCamera();
+    camera.viewport = new host.THREE.Vector4(index * 10, 0, 10, 10);
+    cameras.push(camera);
+  }
+  renderer.setPixelRatio(2);
+  renderer.render(scene, new host.THREE.ArrayCamera(cameras));
+  assert.equal(host.rawPackets.length, 1, 'manual ArrayCamera rendering must not present partial views');
+  const packet = host.packets()[0];
+  const frames = only(packet, 8);
+  assert.equal(frames.length, 4);
+  for (let index = 0; index < frames.length; index++) {
+    near(f32(frames[index].body, 204), index * 5);
+    near(f32(frames[index].body, 212), 5);
+  }
+  assert.equal(packet.sequence, 1);
+  assert.equal(renderer.getScissorTest(), false, 'the renderer scissor state is restored');
+  const viewport = renderer.getViewport(new host.THREE.Vector4());
+  assert.deepEqual(Array.from(viewport.toArray()), [0, 0, 300, 150], 'the renderer viewport is restored');
+  renderer.dispose();
 });
 
 test('dispose is idempotent, cancels RAF, releases resources/surface and advances generation', () => {
@@ -1084,7 +1218,9 @@ test('web export retains upstream renderer and frame lane coalesces/acks/release
 });
 
 let passed = 0;
+const nameFilter = process.env.ADAPTER_TEST_FILTER || '';
 for (const { name, fn } of tests) {
+  if (nameFilter && !name.includes(nameFilter)) continue;
   try {
     await fn();
     passed++;
@@ -1094,5 +1230,5 @@ for (const { name, fn } of tests) {
     throw error;
   }
 }
-console.log(`1..${tests.length}`);
+console.log(`1..${passed}`);
 console.log(`# ${passed} deterministic adapter tests passed`);

@@ -1,0 +1,16 @@
+{
+  "auto_seeded": false,
+  "mae": 0.093787,
+  "official_id": "webgl_shadowmap_performance",
+  "performance": {
+    "native": {
+      "presentedFps": 19.47079380928607,
+      "presentedFramesDelta": 39,
+      "sampleMs": 2003
+    },
+    "reference": {}
+  },
+  "status": "similar",
+  "summary": "",
+  "updated": "2026-11-01T11:44:02.933389+00:00"
+}

@@ -1,0 +1,18 @@
+{
+  "schema": "jsr-three-example-external-assets-v1",
+  "id": "three-loader-texture-hdr",
+  "inlineMaxBytes": 1500000,
+  "assets": [
+    {
+      "url": "textures/memorial.hdr",
+      "file": "textures__memorial.hdr",
+      "mime": "application/x-rgba",
+      "width": 512,
+      "height": 768,
+      "bytes": 1572864,
+      "sha256": "4ac3ee3aebf246aa5f46df7828c000699c7bdf8c5fc51dcbf1daed52158c3ceb",
+      "aliases": [],
+      "diagnostic": "auto:textures/memorial.hdr"
+    }
+  ]
+}

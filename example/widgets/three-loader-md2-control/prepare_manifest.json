@@ -43,6 +43,153 @@
       "sha256": "dbe9112206694aec5aa2a723934783f134ebdf5e282b0a3824e54c5a5e0fb4b1"
     }
   },
+  "assetDiscovery": [
+    {
+      "url": "models/md2/ogro/ogro.md2",
+      "output": "models__md2__ogro__ogro.md2",
+      "mime": "application/octet-stream",
+      "diagnostic": "md2Model",
+      "sha256": "281523ecd28a072e210e313c2873d1ddb84cb72ecf1ab38bc9f677e007fd368b"
+    },
+    {
+      "url": "models/md2/ogro/skins/arboshak.png",
+      "output": "models__md2__ogro__skins__arboshak.png",
+      "mime": "image/png",
+      "diagnostic": "auto:models/md2/ogro/skins/arboshak.png",
+      "sha256": "483cbd8182fd483b3de4daa8128825b1b573dcd244afad3737aac42e29913e8d",
+      "discovered": true
+    },
+    {
+      "url": "models/md2/ogro/skins/ctf_b.png",
+      "output": "models__md2__ogro__skins__ctf_b.png",
+      "mime": "image/png",
+      "diagnostic": "auto:models/md2/ogro/skins/ctf_b.png",
+      "sha256": "1cc2f0ee11fc79d43a844960c0ebc22d3addb5e249179cab6f2855b7463aef43",
+      "discovered": true
+    },
+    {
+      "url": "models/md2/ogro/skins/ctf_r.png",
+      "output": "models__md2__ogro__skins__ctf_r.png",
+      "mime": "image/png",
+      "diagnostic": "auto:models/md2/ogro/skins/ctf_r.png",
+      "sha256": "45f4b48189abb56bdbea3b8aea6385f19fd0453190dd2e0239f948341fead42b",
+      "discovered": true
+    },
+    {
+      "url": "models/md2/ogro/skins/darkam.png",
+      "output": "models__md2__ogro__skins__darkam.png",
+      "mime": "image/png",
+      "diagnostic": "auto:models/md2/ogro/skins/darkam.png",
+      "sha256": "01fc0826b001da14a1eae8311e547f88f092949ed5eaad1ee45b9736d821a228",
+      "discovered": true
+    },
+    {
+      "url": "models/md2/ogro/skins/freedom.png",
+      "output": "models__md2__ogro__skins__freedom.png",
+      "mime": "image/png",
+      "diagnostic": "auto:models/md2/ogro/skins/freedom.png",
+      "sha256": "c89e220ceca0c43ed2e5d0a6a101e09c85fbd01b4788edff68e73fffa9027928",
+      "discovered": true
+    },
+    {
+      "url": "models/md2/ogro/skins/gib.png",
+      "output": "models__md2__ogro__skins__gib.png",
+      "mime": "image/png",
+      "diagnostic": "auto:models/md2/ogro/skins/gib.png",
+      "sha256": "85650e2ae1e27809d60e7ca16c8e387ed56230200fa8e775f5f3ca1d99491c32",
+      "discovered": true
+    },
+    {
+      "url": "models/md2/ogro/skins/gordogh.png",
+      "output": "models__md2__ogro__skins__gordogh.png",
+      "mime": "image/png",
+      "diagnostic": "auto:models/md2/ogro/skins/gordogh.png",
+      "sha256": "a893bc4889498cd2b8c102f33e2b7f74048327b2d3a4d51185421b5dc4c9f7e6",
+      "discovered": true
+    },
+    {
+      "url": "models/md2/ogro/skins/grok.jpg",
+      "output": "models__md2__ogro__skins__grok.jpg",
+      "mime": "image/jpeg",
+      "diagnostic": "auto:models/md2/ogro/skins/grok.jpg",
+      "sha256": "63c0d42ec37e65f599af47a5cc4f37f7623e79de515e5cdb56f98272c919cb2b",
+      "discovered": true
+    },
+    {
+      "url": "models/md2/ogro/skins/igdosh.png",
+      "output": "models__md2__ogro__skins__igdosh.png",
+      "mime": "image/png",
+      "diagnostic": "auto:models/md2/ogro/skins/igdosh.png",
+      "sha256": "7cca5f0f54a21fb635560c96f7d5132464b488d67526254f0b1cef10b4efb860",
+      "discovered": true
+    },
+    {
+      "url": "models/md2/ogro/skins/khorne.png",
+      "output": "models__md2__ogro__skins__khorne.png",
+      "mime": "image/png",
+      "diagnostic": "auto:models/md2/ogro/skins/khorne.png",
+      "sha256": "337b2dd37ae03c9737228fbb4ec3ce2fd2f0d1c4d93a7542267f694cc28563cb",
+      "discovered": true
+    },
+    {
+      "url": "models/md2/ogro/skins/nabogro.png",
+      "output": "models__md2__ogro__skins__nabogro.png",
+      "mime": "image/png",
+      "diagnostic": "auto:models/md2/ogro/skins/nabogro.png",
+      "sha256": "bff5901c16cf091c0c7244ff62a571f82fd232bd0323229fa686e437ac57f89f",
+      "discovered": true
+    },
+    {
+      "url": "models/md2/ogro/skins/ogrobase.png",
+      "output": "models__md2__ogro__skins__ogrobase.png",
+      "mime": "image/png",
+      "diagnostic": "auto:models/md2/ogro/skins/ogrobase.png",
+      "sha256": "53c367e78f9a59eb7807a19d3532b5c9ae5b90053d8f7b294cea88c89908735b",
+      "discovered": true
+    },
+    {
+      "url": "models/md2/ogro/skins/sharokh.png",
+      "output": "models__md2__ogro__skins__sharokh.png",
+      "mime": "image/png",
+      "diagnostic": "auto:models/md2/ogro/skins/sharokh.png",
+      "sha256": "d0d89e2ffb1efbcab3fab6ad7886927e4d73344968086afafa7efe65b8a0169d",
+      "discovered": true
+    },
+    {
+      "url": "models/md2/ogro/skins/weapon.jpg",
+      "output": "models__md2__ogro__skins__weapon.jpg",
+      "mime": "image/jpeg",
+      "diagnostic": "auto:models/md2/ogro/skins/weapon.jpg",
+      "sha256": "ca899df9cccd4602c8f8068318fc56d7ae7a06bb85b91b92c5dabf7eab53bee4",
+      "discovered": true
+    },
+    {
+      "url": "models/md2/ogro/weapon.md2",
+      "output": "models__md2__ogro__weapon.md2",
+      "mime": "application/octet-stream",
+      "diagnostic": "md2Model",
+      "sha256": "710f63bf1733295410654978539154689a4a296dbe3762e02bb242ae59f2362d"
+    },
+    {
+      "url": "textures/terrain/grasslight-big.jpg",
+      "output": "textures__terrain__grasslight-big.jpg",
+      "mime": "image/jpeg",
+      "diagnostic": "auto:textures/terrain/grasslight-big.jpg",
+      "sha256": "23bd506b94e40a9de435375c2be6280eb088dc637fb64c331e325c7472f47177",
+      "discovered": true
+    }
+  ],
+  "assetPolicy": {
+    "inlineMaxBytes": 1500000,
+    "externalAssets": [
+      {
+        "url": "textures/terrain/grasslight-big.jpg",
+        "file": "textures__terrain__grasslight-big.jpg",
+        "bytes": 2595150,
+        "sha256": "23bd506b94e40a9de435375c2be6280eb088dc637fb64c331e325c7472f47177"
+      }
+    ]
+  },
   "facade": {
     "global": "globalThis.THREE",
     "exports": [
@@ -214,6 +361,7 @@
       "InterpolationSamplingMode",
       "InterpolationSamplingType",
       "InvertStencilOp",
+      "JsrImageBitmapLoader",
       "JsrPMREMGenerator",
       "JsrThreeCanvas",
       "KeepStencilOp",
@@ -489,9 +637,11 @@
       "ZeroFactor",
       "ZeroSlopeEnding",
       "ZeroStencilOp",
+      "createBoundedCSGEvaluator",
       "createCanvasElement",
       "error",
       "getConsoleFunction",
+      "getNativeCSGDiagnostics",
       "getNativeRaycastDiagnostics",
       "log",
       "setConsoleFunction",
@@ -499,18 +649,18 @@
       "warnOnce"
     ],
     "source": {
-      "bytes": 40483,
-      "sha256": "b37adad32755723bda830bb7a643ca79022b7443b68cb3e98760c225fbe2aa2e"
+      "bytes": 40799,
+      "sha256": "d18efeb7d6fecacf778eafd0fe600c6e5943da4fa1b24bc63ebb8e7e8bba6f5e"
     }
   },
   "inputs": {
-    "assets/three/three.native.js": {
-      "bytes": 777104,
-      "sha256": "5adcb8e7c2d94dd83748134c4d13b9fcfcba9b671445fe27de895575402241b0"
+    "assets/three/jsr_three_native.js": {
+      "bytes": 838188,
+      "sha256": "774cd82da77974165fd9ec3122c1e4e4505bca3faa5003cb72afc6a59f5f4e5b"
     },
-    "assets/three/three.web.js": {
-      "bytes": 855325,
-      "sha256": "973b78155b07710ece2f22e803cb25a8cb08da4f62b5f825dc676715f5859311"
+    "assets/three/jsr_three_web.js": {
+      "bytes": 857885,
+      "sha256": "8bf94959ca16ffd59b904e040edcf4ffe405eac56cf941285a2da0a5337fb878"
     },
     "source/LICENSE": {
       "bytes": 1081,
@@ -544,6 +694,74 @@
       "bytes": 8091,
       "sha256": "6fc95720ed341943284326466cde932a951a785589a091f2fe5ebcda413f86a9"
     },
+    "source/examples/models/md2/ogro/ogro.md2": {
+      "bytes": 317276,
+      "sha256": "281523ecd28a072e210e313c2873d1ddb84cb72ecf1ab38bc9f677e007fd368b"
+    },
+    "source/examples/models/md2/ogro/skins/arboshak.png": {
+      "bytes": 42871,
+      "sha256": "483cbd8182fd483b3de4daa8128825b1b573dcd244afad3737aac42e29913e8d"
+    },
+    "source/examples/models/md2/ogro/skins/ctf_b.png": {
+      "bytes": 33976,
+      "sha256": "1cc2f0ee11fc79d43a844960c0ebc22d3addb5e249179cab6f2855b7463aef43"
+    },
+    "source/examples/models/md2/ogro/skins/ctf_r.png": {
+      "bytes": 33162,
+      "sha256": "45f4b48189abb56bdbea3b8aea6385f19fd0453190dd2e0239f948341fead42b"
+    },
+    "source/examples/models/md2/ogro/skins/darkam.png": {
+      "bytes": 33998,
+      "sha256": "01fc0826b001da14a1eae8311e547f88f092949ed5eaad1ee45b9736d821a228"
+    },
+    "source/examples/models/md2/ogro/skins/freedom.png": {
+      "bytes": 39091,
+      "sha256": "c89e220ceca0c43ed2e5d0a6a101e09c85fbd01b4788edff68e73fffa9027928"
+    },
+    "source/examples/models/md2/ogro/skins/gib.png": {
+      "bytes": 37940,
+      "sha256": "85650e2ae1e27809d60e7ca16c8e387ed56230200fa8e775f5f3ca1d99491c32"
+    },
+    "source/examples/models/md2/ogro/skins/gordogh.png": {
+      "bytes": 35274,
+      "sha256": "a893bc4889498cd2b8c102f33e2b7f74048327b2d3a4d51185421b5dc4c9f7e6"
+    },
+    "source/examples/models/md2/ogro/skins/grok.jpg": {
+      "bytes": 23954,
+      "sha256": "63c0d42ec37e65f599af47a5cc4f37f7623e79de515e5cdb56f98272c919cb2b"
+    },
+    "source/examples/models/md2/ogro/skins/igdosh.png": {
+      "bytes": 38330,
+      "sha256": "7cca5f0f54a21fb635560c96f7d5132464b488d67526254f0b1cef10b4efb860"
+    },
+    "source/examples/models/md2/ogro/skins/khorne.png": {
+      "bytes": 42264,
+      "sha256": "337b2dd37ae03c9737228fbb4ec3ce2fd2f0d1c4d93a7542267f694cc28563cb"
+    },
+    "source/examples/models/md2/ogro/skins/nabogro.png": {
+      "bytes": 39925,
+      "sha256": "bff5901c16cf091c0c7244ff62a571f82fd232bd0323229fa686e437ac57f89f"
+    },
+    "source/examples/models/md2/ogro/skins/ogrobase.png": {
+      "bytes": 21112,
+      "sha256": "53c367e78f9a59eb7807a19d3532b5c9ae5b90053d8f7b294cea88c89908735b"
+    },
+    "source/examples/models/md2/ogro/skins/sharokh.png": {
+      "bytes": 40108,
+      "sha256": "d0d89e2ffb1efbcab3fab6ad7886927e4d73344968086afafa7efe65b8a0169d"
+    },
+    "source/examples/models/md2/ogro/skins/weapon.jpg": {
+      "bytes": 8833,
+      "sha256": "ca899df9cccd4602c8f8068318fc56d7ae7a06bb85b91b92c5dabf7eab53bee4"
+    },
+    "source/examples/models/md2/ogro/weapon.md2": {
+      "bytes": 71708,
+      "sha256": "710f63bf1733295410654978539154689a4a296dbe3762e02bb242ae59f2362d"
+    },
+    "source/examples/textures/terrain/grasslight-big.jpg": {
+      "bytes": 2595150,
+      "sha256": "23bd506b94e40a9de435375c2be6280eb088dc637fb64c331e325c7472f47177"
+    },
     "source/examples/webgl_loader_md2_control.html": {
       "bytes": 7648,
       "sha256": "e7af43b29f8e44893eff1ed92da36554e1b458e951ff6686251d3d9e464781da"
@@ -553,28 +771,44 @@
       "sha256": "29492424209a17a723b3b0c8e9c83995697a4c466840d1b33ba6f6ff2b7542a4"
     },
     "tool/three/src/native_entry.js": {
-      "bytes": 1951,
-      "sha256": "7852c54a706c19e98978c884aa9cd9bfd8d040a2d304c8e6d8cf973dd3554eaf"
+      "bytes": 26368,
+      "sha256": "dac7dc374e1374499bc9e9a84593e7e1e848bfcde7bb916d7212ccd517e861d3"
+    },
+    "tool/three_example/asset_decode.mjs": {
+      "bytes": 42102,
+      "sha256": "81e15438074e820dc13552b267de326fab895bca729cc5db744da6bedb420a26"
+    },
+    "tool/three_example/asset_discovery.mjs": {
+      "bytes": 12424,
+      "sha256": "89a14e272cb1ddac5b555b4361af938764127ee069ac367a18262b8299643eca"
     },
     "tool/three_example/example_adapter.js": {
-      "bytes": 20723,
-      "sha256": "9c713a0daa93289f0aeb2d75de6c067569ca4bc2235c24f3bb2bc8feab03336c"
+      "bytes": 49943,
+      "sha256": "1ab349ba0361871765f4351a6fc3228fb05c93315985fbbf07644592c96ad8c4"
     },
     "tool/three_example/example_canvas2d.js": {
-      "bytes": 20988,
-      "sha256": "ae6143c0400efcb2b9ca05c69416ea13519aa5c94a8e7d2e75ffe767ef4c8fba"
+      "bytes": 22635,
+      "sha256": "3bb5bcd47d637e187e79fd7463ba4247e3cc7b5705e62229983e8e607fccf753"
     },
     "tool/three_example/lil_gui_adapter.js": {
-      "bytes": 28916,
-      "sha256": "dc11346394f41bb4f385738d3afa6aa75e695ac80fe3be3a5fbf4201686376bf"
+      "bytes": 32173,
+      "sha256": "2f83bde66c35db02a16eec3db21beae0e1198e04f1b0723f9b3dbda89c6675f7"
     },
     "tool/three_example/prepare.mjs": {
-      "bytes": 247876,
-      "sha256": "4ed1752612b57fb4ac32f62717e772e9a85f4e8a0f7e51a764443b68af0b8aac"
+      "bytes": 315738,
+      "sha256": "3b0289d8d7db92ec08e8c41644ccd934458c173e6a4c6f0a7c7856b3281466f5"
     },
     "tool/three_example/stats_adapter.js": {
       "bytes": 2107,
       "sha256": "98defe8785b259fdf70182c7d4a0a8e8e39ff8be901c3a9f93cd991240784086"
+    },
+    "tool/three_example/vendor/lock.json": {
+      "bytes": 3496,
+      "sha256": "684724e244c7042cbe7bd1fa0dace4e9a653a73d25c35f04c21b9d62d0eb6219"
+    },
+    "tool/three_example/vendor/xml_dom.js": {
+      "bytes": 18555,
+      "sha256": "b5ed0f0cfc690fc55c03280cc3c2ab67e39d09504b51d979a827306e00249182"
     }
   },
   "outputs": {
@@ -582,9 +816,77 @@
       "bytes": 1081,
       "sha256": "8b378ebe60e2fe500158cb0ac71cb5e8b7d92953c2abcc63a0eb90499653b5bc"
     },
+    "assets.json": {
+      "bytes": 521,
+      "sha256": "d7e5064aab7814edbb7e47e37745f3d7815b580f7c6fb8435ef145f899fa0498"
+    },
     "manifest.json": {
       "bytes": 360,
       "sha256": "d4530d2f094450df11de3e69ac1d48e9220c56f4f005a35c82e5777285231565"
+    },
+    "models__md2__ogro__ogro.md2": {
+      "bytes": 317276,
+      "sha256": "281523ecd28a072e210e313c2873d1ddb84cb72ecf1ab38bc9f677e007fd368b"
+    },
+    "models__md2__ogro__skins__arboshak.png": {
+      "bytes": 42871,
+      "sha256": "483cbd8182fd483b3de4daa8128825b1b573dcd244afad3737aac42e29913e8d"
+    },
+    "models__md2__ogro__skins__ctf_b.png": {
+      "bytes": 33976,
+      "sha256": "1cc2f0ee11fc79d43a844960c0ebc22d3addb5e249179cab6f2855b7463aef43"
+    },
+    "models__md2__ogro__skins__ctf_r.png": {
+      "bytes": 33162,
+      "sha256": "45f4b48189abb56bdbea3b8aea6385f19fd0453190dd2e0239f948341fead42b"
+    },
+    "models__md2__ogro__skins__darkam.png": {
+      "bytes": 33998,
+      "sha256": "01fc0826b001da14a1eae8311e547f88f092949ed5eaad1ee45b9736d821a228"
+    },
+    "models__md2__ogro__skins__freedom.png": {
+      "bytes": 39091,
+      "sha256": "c89e220ceca0c43ed2e5d0a6a101e09c85fbd01b4788edff68e73fffa9027928"
+    },
+    "models__md2__ogro__skins__gib.png": {
+      "bytes": 37940,
+      "sha256": "85650e2ae1e27809d60e7ca16c8e387ed56230200fa8e775f5f3ca1d99491c32"
+    },
+    "models__md2__ogro__skins__gordogh.png": {
+      "bytes": 35274,
+      "sha256": "a893bc4889498cd2b8c102f33e2b7f74048327b2d3a4d51185421b5dc4c9f7e6"
+    },
+    "models__md2__ogro__skins__grok.jpg": {
+      "bytes": 23954,
+      "sha256": "63c0d42ec37e65f599af47a5cc4f37f7623e79de515e5cdb56f98272c919cb2b"
+    },
+    "models__md2__ogro__skins__igdosh.png": {
+      "bytes": 38330,
+      "sha256": "7cca5f0f54a21fb635560c96f7d5132464b488d67526254f0b1cef10b4efb860"
+    },
+    "models__md2__ogro__skins__khorne.png": {
+      "bytes": 42264,
+      "sha256": "337b2dd37ae03c9737228fbb4ec3ce2fd2f0d1c4d93a7542267f694cc28563cb"
+    },
+    "models__md2__ogro__skins__nabogro.png": {
+      "bytes": 39925,
+      "sha256": "bff5901c16cf091c0c7244ff62a571f82fd232bd0323229fa686e437ac57f89f"
+    },
+    "models__md2__ogro__skins__ogrobase.png": {
+      "bytes": 21112,
+      "sha256": "53c367e78f9a59eb7807a19d3532b5c9ae5b90053d8f7b294cea88c89908735b"
+    },
+    "models__md2__ogro__skins__sharokh.png": {
+      "bytes": 40108,
+      "sha256": "d0d89e2ffb1efbcab3fab6ad7886927e4d73344968086afafa7efe65b8a0169d"
+    },
+    "models__md2__ogro__skins__weapon.jpg": {
+      "bytes": 8833,
+      "sha256": "ca899df9cccd4602c8f8068318fc56d7ae7a06bb85b91b92c5dabf7eab53bee4"
+    },
+    "models__md2__ogro__weapon.md2": {
+      "bytes": 71708,
+      "sha256": "710f63bf1733295410654978539154689a4a296dbe3762e02bb242ae59f2362d"
     },
     "official_module.js": {
       "bytes": 6512,
@@ -594,9 +896,13 @@
       "bytes": 7648,
       "sha256": "e7af43b29f8e44893eff1ed92da36554e1b458e951ff6686251d3d9e464781da"
     },
+    "textures__terrain__grasslight-big.jpg": {
+      "bytes": 2595150,
+      "sha256": "23bd506b94e40a9de435375c2be6280eb088dc637fb64c331e325c7472f47177"
+    },
     "widget.js": {
-      "bytes": 74361,
-      "sha256": "9451a8cc35641f3392b87c86032ad28debdd7f70ac6eb2495b0bd2fac7688e84"
+      "bytes": 1247355,
+      "sha256": "014eb8b83b49d58520e8d119dc199c65f31d58a31431b7e3d4157a0f0fe1f8c8"
     }
   }
 }

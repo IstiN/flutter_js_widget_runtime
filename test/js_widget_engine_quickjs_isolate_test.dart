@@ -3,32 +3,11 @@ import 'dart:typed_data';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:js_widget_runtime/js_widget_runtime.dart';
-import 'package:quickjs_runtime/quickjs_runtime.dart';
-
-final bool _hasNativeLib = QuickjsFfi.isAvailable;
-final List<JsWidgetEngineBackend> _backends = [];
-
-JsWidgetEngineBackend _backend({
-  void Function(Map<String, dynamic> tree)? onRender,
-  void Function(String message)? onLog,
-  void Function(String name, Uint8List data)? onBinary,
-}) {
-  final backend = createQuickjsIsolateWidgetEngineBackend(
-    JsRuntimeConfig(
-      widgetId: 'isolate-test',
-      onRender: onRender ?? (_) {},
-      onSetTitle: (_) {},
-      onStorageUpdate: (_) {},
-      onLog: onLog,
-      onHostCallBinary: onBinary,
-    ),
-  );
-  _backends.add(backend);
-  return backend;
-}
+import 'support/quickjs_isolate_backend_factory.dart';
 
 void main() {
-  if (!_hasNativeLib) {
+  const widgetId = 'isolate-test';
+  if (!isolateNativeLibAvailable) {
     test(
       'QuickJS isolate suite',
       () {},
@@ -37,19 +16,14 @@ void main() {
     return;
   }
 
-  tearDown(() async {
-    for (final backend in _backends) {
-      await backend.dispose();
-    }
-    _backends.clear();
-    await pumpEventQueue();
-  });
+  teardownIsolateBackends();
 
   test('startup, events, logs and binary messages cross the isolate', () async {
     final renders = <Map<String, dynamic>>[];
     final logs = <String>[];
     final binaries = <Uint8List>[];
-    final backend = _backend(
+    final backend = buildIsolateBackend(
+      widgetId,
       onRender: renders.add,
       onLog: logs.add,
       onBinary: (_, data) => binaries.add(data),
@@ -75,8 +49,24 @@ jsr.render({type: 'text', text: 'isolated'});
     expect(backend.exportedState, {'action': 'select', 'value': 42});
   });
 
+  test('worker copy lane owns subviews and skips the JS encoder', () async {
+    final binaries = <Uint8List>[];
+    final backend = buildIsolateBackend(
+      widgetId,
+      onBinary: (_, data) => binaries.add(data),
+    );
+    await backend.run('''
+jsr.b64encode = function() { throw new Error('JS fallback called'); };
+var source = new Uint8Array([9, 0, 1, 2, 253, 254, 255, 9]);
+jsr.hostCallBinary('test.bytes', source.subarray(1, 7));
+source.fill(0);
+''');
+    await pumpEventQueue();
+    expect(binaries.single, orderedEquals(<int>[0, 1, 2, 253, 254, 255]));
+  });
+
   test('synchronous JS startup does not block main-isolate timers', () async {
-    final backend = _backend();
+    final backend = buildIsolateBackend(widgetId);
     var ticks = 0;
     final timer = Timer.periodic(const Duration(milliseconds: 20), (_) {
       ticks++;
@@ -108,7 +98,7 @@ jsr.render({type: 'text', text: 'done'});
         },
       ),
     );
-    _backends.add(backend);
+    trackIsolateBackend(backend);
     await backend.run('''
 jsr.onKey(function(event) {
   jsr.exportState({key: event.key, accent: jsr.theme.accent});
@@ -134,7 +124,7 @@ jsr.loadAsset('demo.txt').then(function(value) {
 
   test('dispose during worker startup allows a clean restart', () async {
     final renders = <Map<String, dynamic>>[];
-    final backend = _backend(onRender: renders.add);
+    final backend = buildIsolateBackend(widgetId, onRender: renders.add);
     final starting = backend.run('''
 var end = Date.now() + 300;
 while (Date.now() < end) {}
@@ -165,7 +155,7 @@ jsr.render({type: 'text', text: 'stale'});
         backendFactory: (effective) {
           received = effective;
           final backend = createQuickjsIsolateWidgetEngineBackend(effective);
-          _backends.add(backend);
+          trackIsolateBackend(backend);
           return backend;
         },
       ).copyWith(onRender: renders.add),

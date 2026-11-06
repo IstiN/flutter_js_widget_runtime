@@ -31,6 +31,9 @@
     .links { display: flex; gap: 16px; flex-wrap: wrap; align-items: center; }
     .links a { color: var(--accent); text-decoration: none; font-size: 14px; }
     .links a:hover { text-decoration: underline; }
+    .tab { padding: 6px 14px; border-radius: 8px; border: 1px solid var(--border); }
+    .tab[aria-current="true"] { background: var(--surface-alt); border-color: var(--accent); }
+    .card .icon span { font-size: 28px; }
     #themeToggle {
       margin-left: auto; background: var(--surface); color: var(--text);
       border: 1px solid var(--border); border-radius: 8px; padding: 6px 12px;
@@ -77,6 +80,11 @@
     </div>
   </header>
   <main>
+    <div class="links" style="padding: 0 0 20px; max-width: none;">
+      <a class="tab" id="tab-widgets" href="#widgets" aria-current="true">JS Widgets</a>
+      <a class="tab" id="tab-three" href="#three">Three.js Reference</a>
+      <span id="count" style="margin-left:auto;color:var(--muted);font-size:12px;"></span>
+    </div>
     <div id="status">Loading widget catalog…</div>
     <div class="grid" id="grid"></div>
   </main>
@@ -84,11 +92,14 @@
     Demos are served by the Flutter-web preview runner built from this repo
     (<code>example/lib/preview.dart</code>), loading widget sources from
     <a href="https://github.com/IstiN/fa_widgets">IstiN/fa_widgets</a>.
+    Three.js examples are upstream r186 official modules on the WebGL2
+    worker host — reference material, not part of the SDK bundle.
     Widgets needing a GPU (flame_3d/GLB) render an empty scene on the web.
   </footer>
   <script>
     var CATALOG = 'https://raw.githubusercontent.com/IstiN/fa_widgets/main/catalog.json';
     var RAW = 'https://raw.githubusercontent.com/IstiN/fa_widgets/main/widgets/';
+    # JSR = 'https://raw.githubusercontent.com/IstiN/flutter_js_widget_runtime/main/example/widgets';
     // Used when the catalog fetch fails (offline / rate-limited).
     var FALLBACK = [
       { id: 'yolo-hello', name: 'Yolo Hello', description: 'Animated gradient + bounce' },
@@ -100,6 +111,41 @@
       { id: 'crypto', name: 'Crypto', description: 'Price tickers' },
       { id: 'map', name: 'Map', description: 'OpenStreetMap landmarks' },
       { id: '3d-game', name: '3D Dodge Game', description: 'Dodge the falling blocks in 3D' }
+    ];
+    // Curated Three.js reference subset — full list lives in
+    // example/lib/three_example.dart (303 examples upstream).
+    var THREE_EXAMPLES = [
+      { id: 'three-geometry-colors', name: 'Vertex Colors' },
+      { id: 'three-buffergeometry', name: 'BufferGeometry' },
+      { id: 'three-buffergeometry-uint', name: 'Integer BufferGeometry' },
+      { id: 'three-buffergeometry-indexed', name: 'Indexed BufferGeometry' },
+      { id: 'three-buffergeometry-lines-indexed', name: 'Indexed BufferGeometry Lines' },
+      { id: 'three-camera', name: 'Camera (O/P keys)' },
+      { id: 'three-clipping', name: 'Clipping' },
+      { id: 'three-clipping-advanced', name: 'Clipping Advanced' },
+      { id: 'three-lights-spotlights', name: 'Spotlights' },
+      { id: 'three-helpers', name: 'Helpers' },
+      { id: 'three-interactive-cubes', name: 'Interactive Cubes' },
+      { id: 'three-interactive-cubes-ortho', name: 'Interactive Cubes (Ortho)' },
+      { id: 'three-interactive-buffergeometry', name: 'Interactive BufferGeometry' },
+      { id: 'three-instancing-scatter', name: 'Instancing Scatter' },
+      { id: 'three-instancing-raycast', name: 'Instancing Raycast' },
+      { id: 'three-extrude-shapes', name: 'Extrude Shapes' },
+      { id: 'three-geometry-extrude-splines', name: 'Extrude Splines' },
+      { id: 'three-geometry-spline-editor', name: 'Spline Editor' },
+      { id: 'three-geometry-terrain-raycast', name: 'Terrain Raycast' },
+      { id: 'three-math-orientation-transform', name: 'Orientation Transform' },
+      { id: 'three-minecraft', name: 'Minecraft (Analytic MipGeometry)' },
+      { id: 'three-lines-colors', name: 'Line Colors' },
+      { id: 'three-buffergeometry-points', name: 'Points' },
+      { id: 'three-buffergeometry-points-interleaved', name: 'Points Interleaved' },
+      { id: 'three-postprocessing-unreal-bloom', name: 'Unreal Bloom' },
+      { id: 'three-shadowmap-pointlight', name: 'Shadowmap Pointlight' },
+      { id: 'three-materials-physical-clearcoat', name: 'Physical Clearcoat' },
+      { id: 'three-materials-toon', name: 'Toon Material' },
+      { id: 'three-materials-wireframe', name: 'Wireframe' },
+      { id: 'three-animation-keyframes', name: 'Animation Keyframes' },
+      { id: 'three-tsl-clearcoat', name: 'TSL Clearcoat' }
     ];
 
     var theme = 'dark';
@@ -120,8 +166,11 @@
       });
     }
 
-    function render(widgets) {
-      document.getElementById('status').style.display = 'none';
+    function widgetUrl(id) {
+      return 'preview/?widget=' + encodeURIComponent(id) + '&theme=' + theme;
+    }
+
+    function renderWidgets(widgets) {
       var grid = document.getElementById('grid');
       var html = '';
       for (var i = 0; i < widgets.length; i++) {
@@ -132,7 +181,7 @@
           return '<span class="tag">' + esc(t) + '</span>';
         }).join('');
         html +=
-          '<a class="card" href="preview/?widget=' + encodeURIComponent(id) + '&theme=' + theme + '">' +
+          '<a class="card" href="' + widgetUrl(id) + '">' +
             '<div class="icon">' +
               '<img src="' + RAW + encodeURIComponent(id) + '/icon.svg" alt="" ' +
                 'onerror="this.outerHTML=\'🧩\'">' +
@@ -143,12 +192,65 @@
           '</a>';
       }
       grid.innerHTML = html;
+      document.getElementById('count').textContent = widgets.length + ' widgets';
     }
 
-    fetch(CATALOG)
-      .then(function (r) { return r.ok ? r.json() : Promise.reject(r.status); })
-      .then(function (data) { render(data.widgets || FALLBACK); })
-      .catch(function () { render(FALLBACK); });
+    function renderThree() {
+      document.getElementById('status').style.display = 'none';
+      var grid = document.getElementById('grid');
+      var html = '';
+      for (var i = 0; i < THREE_EXAMPLES.length; i++) {
+        var w = THREE_EXAMPLES[i];
+        if (!/^[A-Za-z0-9_-]+$/.test(w.id)) continue;
+        html +=
+          '<a class="card" href="' + widgetUrl(w.id) + '">' +
+            '<div class="icon"><span>△</span></div>' +
+            '<h2>' + esc(w.name) + '</h2>' +
+            '<p>Official three.js r186 example on the WebGL2 worker host.</p>' +
+            '<div class="tags"><span class="tag">three.js</span><span class="tag">r186</span><span class="tag">reference</span></div>' +
+          '</a>';
+      }
+      grid.innerHTML = html;
+      document.getElementById('count').textContent =
+        THREE_EXAMPLES.length + ' of 303 examples';
+    }
+
+    function setTab(three) {
+      var widgets = document.getElementById('tab-widgets');
+      var threeTab = document.getElementById('tab-three');
+      widgets.setAttribute('aria-current', three ? 'false' : 'true');
+      threeTab.setAttribute('aria-current', three ? 'true' : 'false');
+      widgets.classList.toggle('active', !three);
+      threeTab.classList.toggle('active', three);
+      if (three) {
+        history.replaceState(null, '', '#three');
+        renderThree();
+      } else {
+        history.replaceState(null, '', '#widgets');
+        loadCatalog();
+      }
+    }
+
+    document.getElementById('tab-widgets').addEventListener('click', function (e) { e.preventDefault(); setTab(false); });
+    document.getElementById('tab-three').addEventListener('click', function (e) { e.preventDefault(); setTab(true); });
+
+    function loadCatalog() {
+      var status = document.getElementById('status');
+      status.style.display = '';
+      fetch(CATALOG)
+        .then(function (r) { return r.ok ? r.json() : Promise.reject(r.status); })
+        .then(function (data) { renderWidgets(data.widgets || FALLBACK); })
+        .catch(function () { renderWidgets(FALLBACK); });
+    }
+
+    document.addEventListener('DOMContentLoaded', function () {
+      document.querySelectorAll('.tab').forEach(function (t) { t.classList.add('tab'); });
+      if (location.hash === '#three') {
+        setTab(true);
+      } else {
+        setTab(false);
+      }
+    });
   </script>
 </body>
 </html>

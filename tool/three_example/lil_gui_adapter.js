@@ -6,8 +6,15 @@ const MAX_CONTROLLERS = 64;
 const MAX_FOLDERS = 8;
 const roots = new Set();
 const controllers = new Map();
+// Title tap-toggles: browser lil-gui collapses/expands roots and folders via
+// a title-bar click. Official modules ship gui.close()/folder.close() panels
+// (webgl_postprocessing_dof, webgl_gpgpu_birds, ...), so without a gesture
+// those controls would be permanently unreachable in the native facade. Each
+// entry maps a synthetic `three.gui.toggle.N` action to the closed state.
+const toggles = new Map();
 let nextRoot = 0;
 let nextController = 0;
+let nextToggle = 0;
 let eventsInstalled = false;
 let delegatedHandler = null;
 let changes = 0;
@@ -22,6 +29,10 @@ function snapshot() {
     native: true,
     roots: roots.size,
     controllers: controllers.size,
+    toggles: toggles.size,
+    // Action ids of the title tap-toggles (three.gui.toggle.N) so hosts can
+    // expand closed official panels through the same event lane as taps.
+    toggleActions: Array.from(toggles.keys()),
     changes,
     finishes,
     values: Array.from(controllers.values()).map(controller => ({
@@ -105,24 +116,40 @@ function controllerRow(controller) {
   unsupported(`render(${controller.kind})`);
 }
 
+function toggleRow(target, title, closed, style) {
+  let entry = null;
+  for (const candidate of toggles.values()) {
+    if (candidate.target === target) { entry = candidate; break; }
+  }
+  if (!entry) {
+    if (toggles.size >= MAX_CONTROLLERS) unsupported('toggle quota');
+    entry = { action: `three.gui.toggle.${++nextToggle}`, target };
+    toggles.set(entry.action, entry);
+  }
+  entry.closed = closed;
+  return {
+    type: 'gestureDetector',
+    onTap: entry.action,
+    child: {
+      type: 'text',
+      data: (closed ? '▸ ' : '▾ ') + title,
+      style
+    }
+  };
+}
+
 function rootTree(root) {
   if (root._hidden) return null;
-  const children = [{
-    type: 'text',
-    data: root._title,
-    style: { color: '#FFEBEBEB', fontSize: 12, fontWeight: 'w600' }
-  }];
+  const children = [toggleRow(root, root._title, root._closed,
+    { color: '#FFEBEBEB', fontSize: 12, fontWeight: 'w600' })];
   if (!root._closed) {
     for (const controller of root.controllers) {
       if (!controller._hidden) children.push(controllerRow(controller));
     }
     for (const folder of root.folders) {
       if (folder._hidden) continue;
-      children.push({
-        type: 'text',
-        data: folder._title,
-        style: { color: '#FF9E9EA6', fontSize: 11, fontWeight: 'w600' }
-      });
+      children.push(toggleRow(folder, folder._title, folder._closed,
+        { color: '#FF9E9EA6', fontSize: 11, fontWeight: 'w600' }));
       if (folder._closed) continue;
       for (const controller of folder.controllers) {
         if (!controller._hidden) children.push(controllerRow(controller));
@@ -169,6 +196,12 @@ function installEvents(JSR) {
     delegatedHandler = typeof handler === 'function' ? handler : null;
   };
   register.call(JSR, (action, payload) => {
+    const toggle = toggles.get(String(action));
+    if (toggle) {
+      toggle.target._closed = !toggle.target._closed;
+      reportRoots();
+      return;
+    }
     const controller = controllers.get(String(action));
     if (controller) {
       const container = controller.container;
@@ -268,9 +301,17 @@ export class Controller {
   }
   updateDisplay() { reportRoots(); return this; }
   reset() { this.setValue(this.initialValue); this._callOnFinishChange(); reportRoots(); return this; }
-  show(value = true) { this._hidden = !value; reportRoots(); return this; }
+  show(value = true) {
+    const hidden = !value;
+    if (this._hidden !== hidden) { this._hidden = hidden; reportRoots(); }
+    return this;
+  }
   hide() { return this.show(false); }
-  enable(value = true) { this._disabled = !value; reportRoots(); return this; }
+  enable(value = true) {
+    const disabled = !value;
+    if (this._disabled !== disabled) { this._disabled = disabled; reportRoots(); }
+    return this;
+  }
   disable(value = true) { return this.enable(!value); }
   save() { return this.getValue(); }
   load(value) { this.setValue(value); this._callOnFinishChange(); reportRoots(); return this; }
@@ -597,6 +638,9 @@ class NativeFolder {
     this.root._callOnFinishChange(controller);
   }
   reset() { for (const controller of this.controllers) controller.reset(); return this; }
+  // Upstream lil-gui keeps one flat `.children` array per GUI/folder; official
+  // modules (webgl_loader_fbx) iterate it with `forEach(child => child.destroy())`.
+  get children() { return this.controllers.concat(this.folders); }
   controllersRecursive() { return this.controllers.slice(); }
   foldersRecursive() { return []; }
   save() { unsupported('save'); }
@@ -612,6 +656,9 @@ class NativeFolder {
     for (const controller of this.controllers.slice()) controller.destroy();
     const index = this.root.folders.indexOf(this);
     if (index >= 0) this.root.folders.splice(index, 1);
+    for (const [action, entry] of [...toggles]) {
+      if (entry.target === this) toggles.delete(action);
+    }
     reportRoots();
   }
 }
@@ -716,6 +763,8 @@ class NativeGUI {
     ];
   }
   foldersRecursive() { return this.folders.slice(); }
+  // Upstream `.children` parity (webgl_loader_fbx destroys folder contents).
+  get children() { return this.controllers.concat(this.folders); }
   save() { unsupported('save'); }
   load() { unsupported('load'); }
   addColor(object, property) {
@@ -736,6 +785,9 @@ class NativeGUI {
   destroy() {
     for (const controller of this.controllers.slice()) controller.destroy();
     for (const folder of this.folders.slice()) folder.destroy();
+    for (const [action, entry] of [...toggles]) {
+      if (entry.target === this) toggles.delete(action);
+    }
     roots.delete(this);
     reportRoots();
   }

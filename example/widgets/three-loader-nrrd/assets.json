@@ -1,0 +1,18 @@
+{
+  "schema": "jsr-three-example-external-assets-v1",
+  "id": "three-loader-nrrd",
+  "inlineMaxBytes": 1500000,
+  "assets": [
+    {
+      "url": "models/nrrd/I.nrrd",
+      "file": "models__nrrd__I.nrrd",
+      "mime": "application/octet-stream",
+      "width": 0,
+      "height": 0,
+      "bytes": 7120975,
+      "sha256": "741e36154074b3834be49c0554e1b49875a9a96d8ed1e466d7614758f2a8f726",
+      "aliases": [],
+      "diagnostic": "auto:models/nrrd/I.nrrd"
+    }
+  ]
+}

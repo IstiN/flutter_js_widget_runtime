@@ -1,0 +1,17 @@
+{
+  "schema": "jsr-three-example-external-assets-v1",
+  "id": "three-animation-multiple",
+  "inlineMaxBytes": 1500000,
+  "assets": [
+    {
+      "url": "models/gltf/Soldier.glb",
+      "file": "Soldier.glb",
+      "mime": "model/gltf-binary",
+      "width": 0,
+      "height": 0,
+      "bytes": 2160468,
+      "sha256": "dfb230fc1f942f259dd00281a1186953ad602fc5d69067ce63e24b2aa439736b",
+      "aliases": []
+    }
+  ]
+}

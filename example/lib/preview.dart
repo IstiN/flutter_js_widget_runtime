@@ -35,6 +35,7 @@ import 'package:flutter/material.dart';
 import 'package:js_widget_runtime/js_widget_runtime.dart';
 
 import 'web_asr_handler.dart';
+import 'web_camera_host.dart';
 import 'package:web/web.dart' as web;
 
 /// Default widget source: the fa_widgets gallery repo, raw main branch.
@@ -360,11 +361,19 @@ class _PreviewPageState extends State<PreviewPage> {
     // functional in the web preview where the browser offers the same
     // capability (getUserMedia + MediaRecorder for the mic, main thread).
     hostBootstrapJs: _kWebPlatformShims,
-    onHostCall: _asrHandler.call,
+    onHostCall: _webCameraHost.chainedWith(_asrHandler.call),
     // Honor the manifest: widgets that did not opt into network access
     // get no fetch capability in the preview either.
     isPermissionAllowed: (capability) =>
         capability != 'fetch' || manifest.networkEnabled,
+    // Three.js reference catalog (three-* widgets): these run the real
+    // upstream WebGL2 renderer on a Worker OffscreenCanvas — reference
+    // material, not bundled into the SDK. The preview stays light: no
+    // Flutter-GPU bundles, only the worker + widget sources.
+    threeEnabled: manifest.id.startsWith('three-'),
+    threeHost: manifest.id.startsWith('three-')
+        ? createWebThreeHost()
+        : null,
   );
 
   @override
@@ -414,6 +423,7 @@ class _PreviewPageState extends State<PreviewPage> {
 /// equivalent stay undefined, so guarded widgets keep rendering their
 /// "Runs in the Fa app" stubs.
 final WebAsrHandler _asrHandler = WebAsrHandler();
+final WebCameraHost _webCameraHost = WebCameraHost();
 
 const String _kWebPlatformShims = r'''
 jsr.fa = jsr.fa || {};

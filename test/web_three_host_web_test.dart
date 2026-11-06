@@ -328,7 +328,7 @@ void main() {
   test('real worker renders upstream WebGL2 and disposes normally', () async {
     // The web test server exposes test/, not build/unit_test_assets. This
     // fixture symlinks to the real generated bundle instead of copying it.
-    final source = await _fetchText('/assets/three.web.js');
+    final source = await _fetchText('/assets/jsr_three_web.js');
     final host = WebThreeHost(diagnosticsEnabled: true);
     final engine = _workerEngine(
       id: 'worker-webgl-test',
@@ -368,7 +368,7 @@ jsr.render({type: 'three', canvasId: 'main', width: 2, height: 2});
 
   test('real worker renders the prepared official Minecraft module', () async {
     final sources = await Future.wait([
-      _fetchText('/assets/three.web.js'),
+      _fetchText('/assets/jsr_three_web.js'),
       _fetchText('/assets/three_minecraft_widget.js'),
     ]);
     final host = WebThreeHost(diagnosticsEnabled: true);

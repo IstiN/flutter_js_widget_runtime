@@ -1,0 +1,16 @@
+{
+  "auto_seeded": false,
+  "mae": 0.059608,
+  "official_id": "webgl_reversed_depth_buffer",
+  "performance": {
+    "native": {
+      "presentedFps": 360.4593110334498,
+      "presentedFramesDelta": 722,
+      "sampleMs": 2003
+    },
+    "reference": {}
+  },
+  "status": "different",
+  "summary": "Visual pair review: reference and native scenes differ materially in content, materials, lighting, layout, or presentation; inspect pair before assigning a root cause.",
+  "updated": "2026-11-01T11:44:02.933389+00:00"
+}

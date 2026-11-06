@@ -430,6 +430,59 @@ void main() {
       );
       raf.dispose(); // inside the body: teardown runs after the no-ticker check
     });
+    testWidgets(
+      'requests while frames are disabled do not restart an active ticker',
+      (tester) async {
+        final ticks = <int>[];
+        final raf = JsRafScheduler(onTick: (_, ms) => ticks.add(ms));
+        addTearDown(raf.dispose);
+        tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.hidden);
+        addTearDown(
+          () => tester.binding.handleAppLifecycleStateChanged(
+            AppLifecycleState.resumed,
+          ),
+        );
+        raf.requestFrame('a');
+        raf.requestFrame('b');
+        tester.binding.handleAppLifecycleStateChanged(
+          AppLifecycleState.resumed,
+        );
+        await tester.pump(const Duration(milliseconds: 16));
+        expect(ticks, hasLength(2));
+        raf.dispose();
+      },
+    );
+    testWidgets('late RAF requests after dispose do not restart a ticker', (
+      tester,
+    ) async {
+      final raf = JsRafScheduler(onTick: (_, __) {});
+      raf.requestFrame('a');
+      raf.dispose();
+      // A JS tick still draining on the QuickJS FFI callback thread can ask
+      // for another frame after the host tree is gone. The scheduler must
+      // drop it: starting a fresh Ticker here is a leaked transient callback
+      // ("an animation is still running even after the widget tree was
+      // disposed").
+      raf.requestFrame('a');
+      await tester.pump(const Duration(milliseconds: 16));
+      expect(tester.binding.transientCallbackCount, 0);
+    });
+    testWidgets('reset() keeps the lane alive across widget reloads', (
+      tester,
+    ) async {
+      final ticks = <int>[];
+      final raf = JsRafScheduler(onTick: (_, ms) => ticks.add(ms));
+      addTearDown(raf.dispose);
+      raf.requestFrame('a');
+      await tester.pump(const Duration(milliseconds: 16));
+      // QuickjsWidgetEngineBackend.run resets the bridge between runs: the
+      // NEXT run's widget must be able to request frames again.
+      raf.reset();
+      raf.requestFrame('a');
+      await tester.pump(const Duration(milliseconds: 16));
+      expect(ticks, hasLength(2));
+      raf.dispose(); // inside the body: teardown runs after the no-ticker check
+    });
   });
 
   group('hostCall', () {

@@ -1,0 +1,16 @@
+{
+  "auto_seeded": true,
+  "mae": 0.43349,
+  "official_id": "webgl_panorama_cube",
+  "performance": {
+    "native": {
+      "presentedFps": 0.0,
+      "presentedFramesDelta": 0,
+      "sampleMs": 2001
+    },
+    "reference": {}
+  },
+  "status": "blocked",
+  "summary": "ours: empty/near-uniform capture",
+  "updated": "2026-11-01T15:07:08+00:00"
+}

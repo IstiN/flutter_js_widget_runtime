@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:js_widget_runtime/js_widget_runtime.dart';
 
 import 'media_host.dart';
+import 'three_widget_assets.dart';
 import 'webview_host.dart';
 
 void main() {
@@ -58,6 +59,16 @@ class _DemoHomeState extends State<DemoHome> {
     'charts-showcase',
     'map',
     'voxel-sandbox',
+    // Official three.js examples running through the R1 pipeline (`three`
+    // node + jsr.three). Procedural cases only — no network/model fetches.
+    'three-geometry-colors',
+    'three-buffergeometry',
+    'three-camera',
+    'three-clipping',
+    'three-lights-spotlights',
+    'three-helpers',
+    'three-interactive-cubes',
+    'three-postprocessing-unreal-bloom',
   ];
 
   @override
@@ -90,7 +101,35 @@ class _DemoHomeState extends State<DemoHome> {
     }
   }
 
-  JsRuntimeConfig _makeConfig() => JsRuntimeConfig(
+  @override
+  Widget build(BuildContext context) {
+    if (_loading) {
+      return const Scaffold(body: Center(child: CircularProgressIndicator()));
+    }
+    final error = _error;
+    if (error != null) {
+      return Scaffold(body: Center(child: Text('Error: $error')));
+    }
+    return JsWidgetDemoMenu(
+      title: 'JS Widget Runtime Demo',
+      manifests: _manifests,
+      reader: const AssetWidgetFileReader('widgets'),
+      makeConfig: buildDemoConfig,
+    );
+  }
+}
+
+/// Config builder used by [DemoApp] and the demo tests. [widgetId] lets
+/// three.js cases (`three-*`) bind a flutter_gpu three host whose asset
+/// lane resolves the widget's externalized assets from the bundle.
+JsRuntimeConfig buildDemoConfig([String? widgetId]) {
+  // Official three.js examples run through the R1 pipeline: enable the
+  // `three` node and bind a flutter_gpu host whose asset lane resolves the
+  // widget's externalized assets (assets.json sidecars) from the bundle.
+  final String? threeId = (widgetId != null && widgetId.startsWith('three-'))
+      ? widgetId
+      : null;
+  return JsRuntimeConfig(
     widgetId: 'demo',
     onRender: (_) {},
     onSetTitle: (_) {},
@@ -98,6 +137,12 @@ class _DemoHomeState extends State<DemoHome> {
     js3dHost: createJs3dHost(),
     mediaHost: const ExampleMediaHost(),
     webViewHost: const ExampleWebViewHost(),
+    threeEnabled: threeId != null,
+    threeHost: threeId != null
+        ? createFlutterGpuThreeHost(
+            assetLoader: WidgetBundleThreeAssets.forWidget(threeId).load,
+          )
+        : null,
     fetchHandler: (id, url, method, headers) async {
       // Demo fetch: only allow GET to a few public APIs used by weather/stocks.
       if (method != 'GET') {
@@ -116,25 +161,4 @@ class _DemoHomeState extends State<DemoHome> {
       }
     },
   );
-
-  @override
-  Widget build(BuildContext context) {
-    if (_loading) {
-      return const Scaffold(
-        body: Center(child: CircularProgressIndicator()),
-      );
-    }
-    final error = _error;
-    if (error != null) {
-      return Scaffold(
-        body: Center(child: Text('Error: $error')),
-      );
-    }
-    return JsWidgetDemoMenu(
-      title: 'JS Widget Runtime Demo',
-      manifests: _manifests,
-      reader: const AssetWidgetFileReader('widgets'),
-      makeConfig: _makeConfig,
-    );
-  }
 }

@@ -1,12 +1,20 @@
 import { createHash } from 'node:crypto';
 import { execFileSync } from 'node:child_process';
-import { readFile, readdir, stat, mkdir, writeFile, realpath } from 'node:fs/promises';
+import { readFile, readdir, stat, mkdir, writeFile, realpath, rm } from 'node:fs/promises';
 import path from 'node:path';
 import { createRequire } from 'node:module';
 import { fileURLToPath } from 'node:url';
 import { helperFastPathPlugin } from './helper_fast_path_plugin.mjs';
+import { applyIkMirrorStaticPatch } from './degrades/ik_mirror_static.mjs';
+import { applyTexture3dSlice2dPatch } from './degrades/texture3d_slice2d.mjs';
+import { applyGpgpuBirdsGltfCpuFlockPatch } from './degrades/gpgpu_birds_gltf_cpu_flock.mjs';
+import { applyVrmlDeferredSwapPatch } from './degrades/vrml_deferred_swap.mjs';
+import { mergeGlbByMaterial } from './degrades/glb_material_merge.mjs';
+import { applyPointsDynamicDirectRenderPatch } from './degrades/points_dynamic_direct_render.mjs';
+import { applyPointsDynamicLoaderPatch } from './degrades/points_dynamic_loader_patch.mjs';
+import { applyWidgetTextDecodeJoinPatch } from './degrades/widget_text_decode_join.mjs';
 import { assetDependencyAlias, assetOutputName, discoverAssets } from './asset_discovery.mjs';
-import { decodeColladaAsset, decodeDracoAsset, decodeGlbAsset, decodeKtx2Asset, decodeVrmlAsset } from './asset_decode.mjs';
+import { decodeColladaAsset, decodeDdsAsset, decodeDracoAsset, decodeGlbAsset, decodeKtx2Asset, decodeVrmlAsset } from './asset_decode.mjs';
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.resolve(HERE, '../..');
@@ -1807,7 +1815,14 @@ webgl_geometry_shapes: {
       html: 'b1031a5d9a62176dcace1dc7bcf19ff4a0cf425fe1b1698e07765aca7980ddda',
       module: 'd53ea50c9309ba933c0c017e16109fe1d3324b1677954aa474f4654e3f0015fa'
     },
-    assets: []
+        assets: [
+      {
+        'url': 'textures/uv_grid_opengl.jpg',
+        'mime': 'image/jpeg',
+        'output': 'uv_grid_opengl.jpg',
+        'sha256': '909d9a1eb2a5d5de9d221a5e8de4e9119d409decddf522d48896bd51523d354d'
+      }
+    ]
   },
   webgl_modifier_tessellation: {
     id: 'three-modifier-tessellation',
@@ -2217,7 +2232,8 @@ webgl_geometry_shapes: {
       html: '19b9ddb7e5eab66fd40ee01367d90294e0652cb496ca1e4e8faea7be522233ba',
       module: 'fb725b30632b4f3d5bed7c31445f489498d4d4e7d36479abe8282c6b6ce77171'
     },
-    assets: []
+    assets: [],
+    importOverrides: { 'three-bvh-csg': 'degrades/csg_cached.mjs' }
   },
   webgl_decals: {
     id: 'three-decals',
@@ -2737,6 +2753,7 @@ webgl_geometry_shapes: {
       html: '81fe03ae043999f28c4201250feab05387a8555afdc0d46706ffdf3e71708de0',
       module: '19574be3bb978c4f746937300813c521730f5cb756848ec74ab54988e381eac7'
     },
+    ikMirrorStatic: true,
     discoverAssets: true,
     assets: []
   },
@@ -2763,17 +2780,102 @@ webgl_geometry_shapes: {
       html: '4bdcb5a0f3075db8d9905fcf1de3b116b6945d1fcabf1982ea731027e7b74016',
       module: '9c8b90bc8a3de418e52aeddce94979f04a4ffee95f91500ceeef04689c46974e'
     },
+    dragThrottleHover: true,
     importOverrides: {
       '@three.ez/batched-mesh-extensions': 'degrades/batch_lod_native.mjs',
       '@three.ez/simplify-geometry': 'degrades/batch_lod_native.mjs'
     },
     facadeWraps: {
-      BatchedMesh: `(Base) => class extends Base {
-        constructor(maximum, ...rest) { const cap = Math.min(maximum, 128); super(cap, ...rest); this._jsrCap = cap; this._jsrNextId = 0; }
-        addInstance(geometryId) { const id = this._jsrNextId++; return id < this._jsrCap ? super.addInstance(geometryId) : id; }
-        setMatrixAt(id, matrix) { if (id < this._jsrCap) return super.setMatrixAt(id, matrix); }
-        setColorAt(id, color) { if (id < this._jsrCap) return super.setColorAt(id, color); }
-        getColorAt(id, color) { if (id < this._jsrCap) return super.getColorAt(id, color); return color; }
+      BatchedMesh: `Base => class extends Base {
+        constructor(maximum, ...rest) {
+          const cap = Math.min(maximum, 128);
+          super(cap, ...rest);
+          this._jsrCap = cap;
+          this._jsrNextId = 0;
+          this._jsrReal = new Map();
+          this._jsrReverse = new Map();
+          this._jsrDist = new Map();
+          this._jsrGeom = new Uint16Array(1024);
+          this._jsrWorstId = -1;
+          this._jsrWorstDistance = -Infinity;
+        }
+        _jsrGeomSlot(id) {
+          let buffer = this._jsrGeom;
+          if (id < buffer.length) return buffer;
+          let size = buffer.length;
+          while (size <= id) size *= 2;
+          buffer = new Uint16Array(size);
+          buffer.set(this._jsrGeom);
+          this._jsrGeom = buffer;
+          return buffer;
+        }
+        addInstance(geometryId) {
+          const id = this._jsrNextId++;
+          this._jsrGeomSlot(id)[id] = geometryId;
+          return id;
+        }
+        _jsrAdmit(id, matrix) {
+          const real = super.addInstance(this._jsrGeom[id]);
+          super.setMatrixAt(real, matrix);
+          const distance = this._jsrDist.get(id) || 0;
+          this._jsrReal.set(id, real);
+          this._jsrReverse.set(real, id);
+          if (distance > this._jsrWorstDistance) {
+            this._jsrWorstDistance = distance;
+            this._jsrWorstId = id;
+          }
+        }
+        setMatrixAt(id, matrix) {
+          const e = matrix.elements;
+          const dx = e[12], dy = e[13], dz = e[14];
+          const distance = dx * dx + dy * dy + dz * dz;
+          const safeDistance = Number.isFinite(distance) ? distance : Infinity;
+          const real = this._jsrReal.get(id);
+          if (real !== undefined) {
+            super.setMatrixAt(real, matrix);
+            this._jsrDist.set(id, safeDistance);
+            if (safeDistance > this._jsrWorstDistance) {
+              this._jsrWorstDistance = safeDistance;
+              this._jsrWorstId = id;
+            }
+            return;
+          }
+          if (this._jsrReal.size < this._jsrCap) {
+            this._jsrDist.set(id, safeDistance);
+            this._jsrAdmit(id, matrix);
+            return;
+          }
+          if (!(safeDistance < this._jsrWorstDistance)) return;
+          super.deleteInstance(this._jsrReal.get(this._jsrWorstId));
+          this._jsrReverse.delete(this._jsrReal.get(this._jsrWorstId));
+          this._jsrReal.delete(this._jsrWorstId);
+          this._jsrDist.delete(this._jsrWorstId);
+          let worstId = -1;
+          let worstDistance = -1;
+          for (const [keptId, keptDistance] of this._jsrDist) {
+            if (keptDistance > worstDistance) {
+              worstDistance = keptDistance;
+              worstId = keptId;
+            }
+          }
+          this._jsrWorstId = worstId;
+          this._jsrWorstDistance = worstDistance === -1 ? Infinity : worstDistance;
+          this._jsrDist.set(id, safeDistance);
+          this._jsrAdmit(id, matrix);
+        }
+        _jsrResolve(id) {
+          const synthetic = this._jsrReverse.get(id);
+          return this._jsrReal.get(synthetic === undefined ? id : synthetic);
+        }
+        setColorAt(id, color) {
+          const real = this._jsrResolve(id);
+          if (real === undefined) return;
+          super.setColorAt(real, color);
+        }
+        getColorAt(id, color) {
+          const real = this._jsrResolve(id);
+          return real === undefined ? color : super.getColorAt(real, color);
+        }
       }`
     },
     assets: []
@@ -2800,6 +2902,7 @@ webgl_geometry_shapes: {
       html: '83097a9599d17b6609bb4ad10b25136ea4b6378a74174152f20448bf53496ecb',
       module: 'f750b7828f14d05a5ee5ef6c1489e4dd9f0ec03d8c24a2f36c21c7768f93eaab'
     },
+    discoverAssets: true,
     assets: []
   },
   webgl_buffergeometry_glbufferattribute: {
@@ -2836,7 +2939,14 @@ webgl_geometry_shapes: {
       html: 'e8db25806997271bf21769007435b59d870afeb410a98a64de7dbf9e71ec84b0',
       module: 'f09361e8bf87e5fb1efd20e914ace560cdc301b835d3aade4e8f1c92fc5c94e9'
     },
-    assets: []
+        assets: [
+      {
+        'url': 'textures/sprites/circle.png',
+        'mime': 'image/png',
+        'output': 'circle.png',
+        'sha256': '05fff2c8a01602cd4d8099cf456386ab28498093d084d5ca3805d16ebc71d3f8'
+      }
+    ]
   },
   webgl_buffergeometry_instancing_interleaved: {
     id: 'three-buffergeometry-instancing-interleaved',
@@ -2848,7 +2958,15 @@ webgl_geometry_shapes: {
       html: '5998700f98e8a22888c354f9119409bed8a13dcaebcecd6887a2d719f66e8047',
       module: '2f87c044532dfc3f7c6c2bdd01a708dee49913b7a4f1a31274a720ddfe2a3bfa'
     },
-    assets: []
+        assets: [
+      {
+        'url': 'textures/crate.gif',
+        'mime': 'image/gif',
+        'convertToPng': true,
+        'output': 'crate.gif',
+        'sha256': 'a890f0a89eadc083cb39bfbe597c1395d7acf47a19f673b5643d4a9c174ea52f'
+      }
+    ]
   },
   webgl_buffergeometry_rawshader: {
     id: 'three-buffergeometry-rawshader',
@@ -2896,7 +3014,14 @@ webgl_geometry_shapes: {
       html: 'ff29b98376651e2b6342f930e09c3c52ffc12cb4091158fe5cd436fa25ae2811',
       module: 'f4401c81c0f63a37036350401bc0aeafa0aad52d87fb25ff1c9d3dc9617b0c39'
     },
-    assets: []
+        assets: [
+      {
+        'url': 'textures/water.jpg',
+        'mime': 'image/jpeg',
+        'output': 'water.jpg',
+        'sha256': '43847c5fff3f80551dda41c68bb8ebb00938e625c5acb2c11acc4e3221b17402'
+      }
+    ]
   },
   webgl_custom_attributes_lines: {
     id: 'three-custom-attributes-lines',
@@ -2921,7 +3046,14 @@ webgl_geometry_shapes: {
       html: '5316fb3913d1c75d097c1be1808d0ad6cfe3a093da4bd4a7e511f20794245445',
       module: '421a70a3d955daf5142cbca35c22227c5f223eeaca6e6c29a5940c1eecb28cd0'
     },
-    assets: []
+        assets: [
+      {
+        'url': 'textures/sprites/spark1.png',
+        'mime': 'image/png',
+        'output': 'spark1.png',
+        'sha256': '2f5195c64dbf2216fa5b9ac8d334536dca11bf04fedeac4ffd68d94e0bfefb91'
+      }
+    ]
   },
   webgl_custom_attributes_points2: {
     id: 'three-custom-attributes-points2',
@@ -2957,6 +3089,11 @@ webgl_geometry_shapes: {
       html: '8ee23ac45ac3233941f6e3e6a8832770a966c6ac2db376fbc166f470f3dfe4e3',
       module: '26a0b443827147c6cb2af9912f1e9f882f12d97d331cc56f7ef26fece9b92968'
     },
+    // DepthTexture is aliased onto the RT color attachment in the bounded R1
+    // lane, so the RT scene pass renders through scene.overrideMaterial =
+    // MeshDepthMaterial (R1 v7 kind 12) and the depth rides the color
+    // channel. GUI format/type/samples toggles are documented no-ops there.
+    compat: "import { installDepthTextureVisualization } from './degrades/depth_texture_visualization.mjs'; installDepthTextureVisualization();",
     assets: []
   },
   webgl_effects_ascii: {
@@ -3030,6 +3167,7 @@ webgl_geometry_shapes: {
       module: '372a4c0a61ee4edf3fd4fda45fb584812ae698268a11ddba0d627e4adc5a8bb6'
     },
     discoverAssets: true,
+    cpuFlockDegrade: true,
     assets: []
   },
   webgl_gpgpu_protoplanet: {
@@ -3267,8 +3405,87 @@ webgl_geometry_shapes: {
       html: '404fb62573b07e3eb01c9f8b4a00f6bf4d4051d9a83b905adc9bf0819c7492e4',
       module: 'aca96938eb251d4d2ca88da45cad39ee7e3b11320ce006fe1a4911b54e79b7f1'
     },
+    importOverrides: {
+      'three/addons/loaders/3MFLoader.js': 'degrades/loader_3mf_prebuilt.mjs'
+    },
     discoverAssets: true,
-    assets: []
+    // QuickJS spends 45-80s per boot inside the 3MF lane's xml_dom parse.
+    // generate_3mf_scenes.mjs runs the pinned r186 ThreeMFLoader offline and
+    // serializes every parsed group; the pinned .3mf URLs now carry those
+    // prebuilt documents and degrades/loader_3mf_prebuilt.mjs rebuilds
+    // Group/Mesh/Materials from zero-copy views. Texture-referencing assets
+    // (multipletextures) keep their PNGs as separate pinned assets through
+    // the runtime JsrImageLoader lane. The spinal implant (loader crash) and
+    // volumetric (too large) sources stay on their raw discovered pins and
+    // fail LOUDLY through the shim if a GUI switch reaches them.
+    assets: [
+      {
+        url: 'models/3mf/cube_gears.3mf', output: 'models__3mf__cube_gears.3mf',
+        mime: 'application/octet-stream', diagnostic: 'generated:cubeGearsScene',
+        generated: 'example/widgets/three-loader-3mf/models__3mf__cube_gears.3mf',
+        sha256: '2c78ba1850067e79127977550a27713dcb3d2d3a71fa2eccb0a896bac8265531'
+      },
+      {
+        url: 'models/3mf/truck.3mf', output: 'models__3mf__truck.3mf',
+        mime: 'application/octet-stream', diagnostic: 'generated:truckScene',
+        generated: 'example/widgets/three-loader-3mf/models__3mf__truck.3mf',
+        sha256: 'ab6d2d3889747406466fe3d4467d56b719c75094ee8339808eb3fc83e00d7441'
+      },
+      {
+        url: 'models/3mf/multipletextures.3mf', output: 'models__3mf__multipletextures.3mf',
+        mime: 'application/octet-stream', diagnostic: 'generated:multipleTexturesScene',
+        generated: 'example/widgets/three-loader-3mf/models__3mf__multipletextures.3mf',
+        sha256: '010724fc7f5f1b7e1a7e992749479c1abebfa7ea87cdd20a12b886d31cb9d874'
+      },
+      {
+        url: 'models/3mf/facecolors.3mf', output: 'models__3mf__facecolors.3mf',
+        mime: 'application/octet-stream', diagnostic: 'generated:faceColorsScene',
+        generated: 'example/widgets/three-loader-3mf/models__3mf__facecolors.3mf',
+        sha256: 'abcaa0a83129af7b9b8b60dd56c66d9b51b435977eaf1291d954e65b596b4da1'
+      },
+      {
+        url: 'models/3mf/vertexcolors.3mf', output: 'models__3mf__vertexcolors.3mf',
+        mime: 'application/octet-stream', diagnostic: 'generated:vertexColorsScene',
+        generated: 'example/widgets/three-loader-3mf/models__3mf__vertexcolors.3mf',
+        sha256: 'b98507b1058ae4dbd321a931a0e66cd2ee957f33206b8d33a96eda2a90e144ea'
+      },
+      {
+        url: 'models/3mf/pyramid.3mf', output: 'models__3mf__pyramid.3mf',
+        mime: 'application/octet-stream', diagnostic: 'generated:pyramidScene',
+        generated: 'example/widgets/three-loader-3mf/models__3mf__pyramid.3mf',
+        sha256: 'd1307a808650087f2cfa3084dd84ff67916b392ed34ca76daa342dbc5737254b'
+      },
+      {
+        url: 'models/3mf/variable voronoi.3mf', output: 'models__3mf__variable__voronoi.3mf',
+        mime: 'application/octet-stream', diagnostic: 'generated:variableVoronoiScene',
+        generated: 'example/widgets/three-loader-3mf/models__3mf__variable__voronoi.3mf',
+        sha256: 'a82deafa43a69ae4d304a3aee9178ae974ac57af9ef644600443fba64637436e'
+      },
+      // Textures extracted from the 3MF zips by generate_3mf_scenes.mjs; the
+      // prebuilt documents reference them by these runtime fetch keys and the
+      // degrade loads them through the JsrImageLoader lane.
+      {
+        url: 'models/3mf/tex/multipletextures/3d2d603896dab242b33cda23984fd550.jpg',
+        output: 'models__3mf__tex__multipletextures__3d2d603896dab242b33cda23984fd550.jpg',
+        mime: 'image/jpeg', diagnostic: 'generated:multipletexturesTexture',
+        generated: 'example/widgets/three-loader-3mf/models__3mf__tex__multipletextures__3d2d603896dab242b33cda23984fd550.jpg',
+        sha256: '169ed36f2f21ec9a4d2de41560cad6ee8392f68913e57319351ce24fd03f3555'
+      },
+      {
+        url: 'models/3mf/tex/multipletextures/0aad9e3740f17f4eb353f3b3dc1defe4.jpg',
+        output: 'models__3mf__tex__multipletextures__0aad9e3740f17f4eb353f3b3dc1defe4.jpg',
+        mime: 'image/jpeg', diagnostic: 'generated:multipletexturesTexture',
+        generated: 'example/widgets/three-loader-3mf/models__3mf__tex__multipletextures__0aad9e3740f17f4eb353f3b3dc1defe4.jpg',
+        sha256: '3f98ee9f03f20e031c5ba61c9715a9072af67718796cde81320bce9898794310'
+      },
+      {
+        url: 'models/3mf/tex/truck/CMC_LOGO_COLOR.png',
+        output: 'models__3mf__tex__truck__cmc_logo_color.png',
+        mime: 'image/png', diagnostic: 'generated:truckTexture',
+        generated: 'example/widgets/three-loader-3mf/models__3mf__tex__truck__cmc_logo_color.png',
+        sha256: '6f82405b12690c3d81a97451bb3a8c140d221d06b4dd29cdc5b0332f8e19d999'
+      }
+    ]
   },
   webgl_loader_3mf_materials: {
     id: 'three-loader-3mf-materials',
@@ -3280,7 +3497,27 @@ webgl_geometry_shapes: {
       html: 'acac936c0f0ff8820c4263ce2db6aeca8a8f8317aca1aac948b59cb60b7d5d5a',
       module: 'c965fce51ad887da0165531b5dbb5bee2ba6d68e46650d16a4da8d3a365bd9b7'
     },
-    assets: []
+    importOverrides: {
+      'three/addons/loaders/3MFLoader.js': 'degrades/loader_3mf_prebuilt.mjs'
+    },
+    discoverAssets: true,
+    // Same prebuilt lane as webgl_loader_3mf: the 20MB truck document never
+    // finishes its QuickJS xml_dom parse in a usable time. The pinned truck
+    // bytes carry the prebuilt scene; texture references stay on the runtime
+    // JsrImageLoader lane.
+    assets: [{
+      url: 'models/3mf/truck.3mf', output: 'models__3mf__truck.3mf',
+      mime: 'application/octet-stream', diagnostic: 'generated:truckScene',
+      generated: 'example/widgets/three-loader-3mf-materials/models__3mf__truck.3mf',
+      sha256: 'ab6d2d3889747406466fe3d4467d56b719c75094ee8339808eb3fc83e00d7441'
+    },
+    {
+      url: 'models/3mf/tex/truck/CMC_LOGO_COLOR.png',
+      output: 'models__3mf__tex__truck__cmc_logo_color.png',
+      mime: 'image/png', diagnostic: 'generated:truckTexture',
+      generated: 'example/widgets/three-loader-3mf-materials/models__3mf__tex__truck__cmc_logo_color.png',
+      sha256: '6f82405b12690c3d81a97451bb3a8c140d221d06b4dd29cdc5b0332f8e19d999'
+    }]
   },
   webgl_loader_amf: {
     id: 'three-loader-amf',
@@ -3292,6 +3529,7 @@ webgl_geometry_shapes: {
       html: '46cbdd7584fd70475b5c080b228f1aa679606b73c2392a43e2665d7cd63ef53e',
       module: '3375334d856c407f28732896efbda843b90e5135328110cf3a6342e8341a0dfe'
     },
+    discoverAssets: true,
     assets: []
   },
   webgl_loader_bvh: {
@@ -3304,6 +3542,7 @@ webgl_geometry_shapes: {
       html: 'f62d0300f6d1660ae1e7e5efb1998d03c3c563f598ee593e84034fe88f08794c',
       module: '972f3ebdec06dc61dd4e63ea24304105830549e83d82feec3e42a0973807e2ce'
     },
+    discoverAssets: true,
     assets: []
   },
   webgl_loader_collada: {
@@ -3316,8 +3555,21 @@ webgl_geometry_shapes: {
       html: 'bbb4970bad5d35034e44dfaa529408be5462eaef71cc5732957abf41f399639e',
       module: '97168a046a02998d9e680d9fc51f056b0e17e0dc27794e12553b657e3115a22f'
     },
+    addonShims: {
+      'three/addons/loaders/ColladaLoader.js': colladaPrebuiltLoaderShim()
+    },
     discoverAssets: true,
-    assets: []
+    // The 1.94MB elf DAE never finishes its XML DOM parse inside QuickJS (the
+    // module also passes no onError, so the boot just stays black). Pin the
+    // GLB produced offline by decodeColladaAsset instead; the JPEGs stay
+    // pinned/inlined via the DAE's image references and are attached as GLB
+    // uri references.
+    assets: [{
+      url: 'models/collada/elf/elf.dae',
+      output: 'models__collada__elf__elf.dae',
+      mime: 'application/xml', prepareCollada: true, colladaExternalImages: true,
+      sha256: '14ce50b81a4da5798a7971063c57a6421fcffe0236f64c2ab6b50de5a6d5ccd5'
+    }]
   },
   webgl_loader_collada_kinematics: {
     id: 'three-loader-collada-kinematics',
@@ -3350,7 +3602,20 @@ webgl_geometry_shapes: {
       html: '8be3ad01914e8d2ce4eb81a630f31a61c8c9912af52eb68195240fd75703e368',
       module: '5785fcc9370fac33b9b4e81de23ade1a277f9a56c117ade882771144efe15372'
     },
-    assets: []
+    addonShims: {
+      'three/addons/loaders/ColladaLoader.js': colladaPrebuiltLoaderShim()
+    },
+    discoverAssets: true,
+    // Same offline GLB lane as webgl_loader_collada; this module also plays
+    // the imported animation clips, so the exporter keeps them and the shim
+    // wires gltf.animations into the module's AnimationMixer exactly like the
+    // original handler.
+    assets: [{
+      url: 'models/collada/stormtrooper/stormtrooper.dae',
+      output: 'models__collada__stormtroper__stormtroper.dae',
+      mime: 'application/xml', prepareCollada: true, colladaAnimations: true, colladaExternalImages: true,
+      sha256: '6b44b1f8b6442b0bc81d643487a2f66654d60dc3e3f82b12aa812727a846c54b'
+    }]
   },
   webgl_loader_draco: {
     id: 'three-loader-draco',
@@ -3375,7 +3640,18 @@ webgl_geometry_shapes: {
       html: '9ad3920575e7a36a2a7797f9ed520d901eccca50de17ec016c3ab1070fe0b839',
       module: 'fdf0048c372f466499603a4e5a9d1dc835080b20df3764c8d172f326100a005f'
     },
-    assets: []
+    // Discovery sweeps every .fbx string literal in the module's GUI dropdown
+    // (22 models, ~23 MB of binaries → a 29 MB embedded widget source that the
+    // isolate runtime cannot carry). Bounded lane: pin only the module's
+    // default `Samba Dancing` model; switching to another dropdown entry
+    // degrades loudly via three.assetFailure at runtime.
+    discoverAssets: false,
+    assets: [{
+      url: 'models/fbx/Samba Dancing.fbx',
+      output: 'models__fbx__Samba__Dancing.fbx',
+      mime: 'application/octet-stream', diagnostic: 'fbxDefaultModel',
+      sha256: 'b9003ee562c87bf03051c3a502411b0808d3513f1d74a2011f7530d9f067069f'
+    }]
   },
   webgl_loader_fbx_nurbs: {
     id: 'three-loader-fbx-nurbs',
@@ -3387,6 +3663,7 @@ webgl_geometry_shapes: {
       html: '14e1f463464a16ef4552171c516da45edca62a4b9503aa4991390aa0d73c76df',
       module: 'ee31f759454be8b6e9e18dad180a90ac1ba10c5a59f2c3427e9d613b9bb142b9'
     },
+    discoverAssets: true,
     assets: []
   },
   webgl_loader_gcode: {
@@ -3399,8 +3676,38 @@ webgl_geometry_shapes: {
       html: '4dfd6074651e2a95658679539d869e4d92fd4c53d336ff431b201cee7f8fb642',
       module: 'e2267ffbe56df1d6c11e2ab94ec7b90381f5f50db4f9aabf8f5fc7ee2d6edaad'
     },
-    discoverAssets: true,
-    assets: []
+    importOverrides: {
+      'three/addons/loaders/GCodeLoader.js': 'degrades/gcode_prebuilt.mjs'
+    },
+    // QuickJS never finishes the stock GCode parse (benchy.gcode is 1.9MB of
+    // text; the per-line token walk + JS number-array pushes keep the widget
+    // off its first frame for minutes — screenshot harness never presented).
+    // generate_gcode_scenes.mjs runs the pinned r186 GCodeLoader offline and
+    // serializes each Group to a header + Float32 blob; the pinned URLs below
+    // carry those prebuilt bytes and degrades/gcode_prebuilt.mjs rebuilds the
+    // two LineSegments from zero-copy views. The GUI dropdown's test_m82/83
+    // switch through the same lane. No raw .gcode pins: the shim only fetches
+    // '<asset>_scene.bin' siblings.
+    assets: [
+      {
+        url: 'models/gcode/benchy_scene.bin', output: 'models__gcode__benchy_scene.bin',
+        mime: 'application/octet-stream', diagnostic: 'generated:benchyGcodeScene',
+        generated: 'example/widgets/three-loader-gcode/models__gcode__benchy_scene.bin',
+        sha256: '0746835f027445db2797016485be698361abacf099ef2f8673c0ebb4a2da6dc5'
+      },
+      {
+        url: 'models/gcode/test_m82_scene.bin', output: 'models__gcode__test_m82_scene.bin',
+        mime: 'application/octet-stream', diagnostic: 'generated:testM82GcodeScene',
+        generated: 'example/widgets/three-loader-gcode/models__gcode__test_m82_scene.bin',
+        sha256: '8c6da526d55dc7b8d068845e6f595de145e7747be47418f26bacf6a47429b54b'
+      },
+      {
+        url: 'models/gcode/test_m83_scene.bin', output: 'models__gcode__test_m83_scene.bin',
+        mime: 'application/octet-stream', diagnostic: 'generated:testM83GcodeScene',
+        generated: 'example/widgets/three-loader-gcode/models__gcode__test_m83_scene.bin',
+        sha256: '8c6da526d55dc7b8d068845e6f595de145e7747be47418f26bacf6a47429b54b'
+      }
+    ]
   },
   webgl_loader_gltf: {
     id: 'three-loader-gltf',
@@ -3591,6 +3898,37 @@ webgl_geometry_shapes: {
       html: '3616505634c77365a36f6d7a4c6445357df244df8aa14daa13509a827ec33d24',
       module: 'cb3546dfc28d1dfc4444cbc1b0ba683f9304256133daebc3a86efd6518221589'
     },
+    // The native runtime has no createImageBitmap; the same bounded facade as
+    // three-worker-offscreencanvas feeds TextureLoader's decoded image to the
+    // module's ImageBitmapLoader callback and lowers CanvasTexture to a plain
+    // texture (the renderer's canvas2d.source lane stays host-canvas-only).
+    // The example uploads six planet textures at its first bind; with default
+    // mipmap state every upload also paid host-side CPU mip generation and the
+    // staged-mip lane, which showed as one first-bind hitch. This example only
+    // ever samples its spinning cubes at ~1:1, so textures produced HERE
+    // (both ImageLoader and ImageBitmapLoader lanes route through this wrap)
+    // are flagged mipless: base-level linear sampling, no mip chain to build.
+    // Scoped to this entry — every other widget keeps default mipmap state.
+    facadeWraps: {
+      ImageBitmapLoader: `(Base) => class extends Base {
+        load(url, onLoad, onProgress, onError) {
+          const loader = new __three.TextureLoader();
+          loader.path = this.path;
+          return loader.load(url, texture => onLoad(texture.image), onProgress, error => {
+            console.error(error); if (onError) onError(error);
+          });
+        }
+      }`,
+      CanvasTexture: `(Base) => class extends __three.Texture {
+        constructor(image) {
+          super(image);
+          this.generateMipmaps = false;
+          this.minFilter = __three.LinearFilter;
+          this.needsUpdate = true;
+        }
+      }`
+    },
+    discoverAssets: true,
     assets: []
   },
   webgl_loader_kmz: {
@@ -3629,7 +3967,23 @@ webgl_geometry_shapes: {
       html: '633e5d216df5ccfbbc00f12fab48842df9649685005c7d0e1ac886573871061b',
       module: '6b3d809722cb7838f3b287f49d89e9b67f9f58dac2f58d3c70c988ac8cfc6b2b'
     },
-    assets: []
+    // `.md2` is absent from discovery's pinned EXTENSIONS (image-first list),
+    // so the model binaries need explicit pins; discovery keeps the skins.
+    discoverAssets: true,
+    assets: [
+      { url: 'models/md2/ratamahatta/ratamahatta.md2', output: 'models__md2__ratamahatta__ratamahatta.md2', mime: 'application/octet-stream', diagnostic: 'md2Model', sha256: 'a23640ddbade6be3337bb1735db9826d2ef5e389186efb33752a697f28f2329c' },
+      { url: 'models/md2/ratamahatta/w_bfg.md2', output: 'models__md2__ratamahatta__w_bfg.md2', mime: 'application/octet-stream', diagnostic: 'md2Model', sha256: 'fb7820d5cf14409490411a2682af87009eda72d94720f2db423fefa2fbee0460' },
+      { url: 'models/md2/ratamahatta/w_blaster.md2', output: 'models__md2__ratamahatta__w_blaster.md2', mime: 'application/octet-stream', diagnostic: 'md2Model', sha256: '29ee9eb08e02198ccfd480aeac211e17a4bdefbdd04814a5c0f29d0c8488dafa' },
+      { url: 'models/md2/ratamahatta/w_chaingun.md2', output: 'models__md2__ratamahatta__w_chaingun.md2', mime: 'application/octet-stream', diagnostic: 'md2Model', sha256: '5ae6c4e3cbe8746fc9d80bdf28c2993e39ded63f78d2b0b3cb654941182c22c1' },
+      { url: 'models/md2/ratamahatta/w_glauncher.md2', output: 'models__md2__ratamahatta__w_glauncher.md2', mime: 'application/octet-stream', diagnostic: 'md2Model', sha256: 'd1386a39c74f1a56e94f64865809af7874471d9c640647d75f51bf7d001a0b07' },
+      { url: 'models/md2/ratamahatta/w_hyperblaster.md2', output: 'models__md2__ratamahatta__w_hyperblaster.md2', mime: 'application/octet-stream', diagnostic: 'md2Model', sha256: '72892da87ff2bfdde2edcc03e3c8b9134598101418a5e4b84fd683fd9e9b2f5e' },
+      { url: 'models/md2/ratamahatta/w_machinegun.md2', output: 'models__md2__ratamahatta__w_machinegun.md2', mime: 'application/octet-stream', diagnostic: 'md2Model', sha256: '0c4802d50ed6b5a769e51bc59498d1d7ed2a9fea3f8b8e12efdb4cd3bc7ab88d' },
+      { url: 'models/md2/ratamahatta/w_railgun.md2', output: 'models__md2__ratamahatta__w_railgun.md2', mime: 'application/octet-stream', diagnostic: 'md2Model', sha256: '74f6402073837ba069de26f71cbca5727c735c031e456382fdcca8c47897d262' },
+      { url: 'models/md2/ratamahatta/w_rlauncher.md2', output: 'models__md2__ratamahatta__w_rlauncher.md2', mime: 'application/octet-stream', diagnostic: 'md2Model', sha256: '6c73ff93b449ec892fabae564ccf3ce77a30fdf352f79e56d1b831e6733fc7a4' },
+      { url: 'models/md2/ratamahatta/w_shotgun.md2', output: 'models__md2__ratamahatta__w_shotgun.md2', mime: 'application/octet-stream', diagnostic: 'md2Model', sha256: '9b75edf3070c3dff5fc6f0f607c09e1c5016a100559539c0ea9a180c9317fba5' },
+      { url: 'models/md2/ratamahatta/w_sshotgun.md2', output: 'models__md2__ratamahatta__w_sshotgun.md2', mime: 'application/octet-stream', diagnostic: 'md2Model', sha256: 'f94b7f71c3f86568c5798722a985fb46e39841705cb5965b68c69fab20bc4cd5' },
+      { url: 'models/md2/ratamahatta/weapon.md2', output: 'models__md2__ratamahatta__weapon.md2', mime: 'application/octet-stream', diagnostic: 'md2Model', sha256: '30dc26938737f7b577c9af22dff1de22be9a8f96a55beafadc6b620888de147e' }
+    ]
   },
   webgl_loader_md2_control: {
     id: 'three-loader-md2-control',
@@ -3641,7 +3995,12 @@ webgl_geometry_shapes: {
       html: 'e7af43b29f8e44893eff1ed92da36554e1b458e951ff6686251d3d9e464781da',
       module: 'dbe9112206694aec5aa2a723934783f134ebdf5e282b0a3824e54c5a5e0fb4b1'
     },
-    assets: []
+    // `.md2` is absent from discovery's pinned EXTENSIONS; explicit model pins.
+    discoverAssets: true,
+    assets: [
+      { url: 'models/md2/ogro/ogro.md2', output: 'models__md2__ogro__ogro.md2', mime: 'application/octet-stream', diagnostic: 'md2Model', sha256: '281523ecd28a072e210e313c2873d1ddb84cb72ecf1ab38bc9f677e007fd368b' },
+      { url: 'models/md2/ogro/weapon.md2', output: 'models__md2__ogro__weapon.md2', mime: 'application/octet-stream', diagnostic: 'md2Model', sha256: '710f63bf1733295410654978539154689a4a296dbe3762e02bb242ae59f2362d' }
+    ]
   },
   webgl_loader_mdd: {
     id: 'three-loader-mdd',
@@ -3692,7 +4051,34 @@ webgl_geometry_shapes: {
       html: '124c55dfa997841b4ed3b0b27cd1e2ce871fa4d4db1f703bbae764872411b672',
       module: 'f818496949c2090c0e995662c7dfc916b3b85d826527f57e1c2fc24166867d46'
     },
-    assets: []
+    // R1 keeps stock CompressedTextures unbound (white meshes), so
+    // asset_decode.mjs decodeDdsAsset decodes BC1/BC2/BC3 + uncompressed
+    // A8R8G8B8/R8G8B8 to base-mip RGBA inside the JSRKTEX2 container at
+    // prepare time and automaticAssetAddonShims swaps in the matching
+    // DDSLoader shim. BC6H (the four DX10 dx10_bc6h disturbs) and the three
+    // Mountains cube-face DDS stay UNSUPPORTED (R1 has no BCn/HDR or DDS
+    // cube lane): their pins carry a header error that fails LOUDLY through
+    // the shim, leaving materials 5/6/9-12 unbound as documented gaps.
+    // inlineMaxBytes 0 externalizes every decoded asset (the 3dlut
+    // slow-boot precedent): ~6MB of inlined base64 would be evaluated +
+    // registered in QuickJS before the first frame otherwise.
+    inlineMaxBytes: 0,
+    assets: [
+      { url: 'textures/compressed/disturb_dxt1_nomip.dds', output: 'textures__compressed__disturb_dxt1_nomip.dds', mime: 'application/octet-stream', diagnostic: 'ddsDxt1Nomip', prepareDds: true, sha256: '6626a8c11b1fdd37371cf21182242e51551645ee3f05477c318ab7e014c0a435' },
+      { url: 'textures/compressed/disturb_dxt1_mip.dds', output: 'textures__compressed__disturb_dxt1_mip.dds', mime: 'application/octet-stream', diagnostic: 'ddsDxt1Mip', prepareDds: true, sha256: '83e59177ef9c3b8613c4b83e84cbafd7502c4d54103a246e82f359d5bd6905a1' },
+      { url: 'textures/compressed/hepatica_dxt3_mip.dds', output: 'textures__compressed__hepatica_dxt3_mip.dds', mime: 'application/octet-stream', diagnostic: 'ddsDxt3Mip', prepareDds: true, sha256: 'a4e3cea3c090e89e61acbcbca4543a4207113ea03b9e48071ae5ff6e444d4929' },
+      { url: 'textures/compressed/explosion_dxt5_mip.dds', output: 'textures__compressed__explosion_dxt5_mip.dds', mime: 'application/octet-stream', diagnostic: 'ddsDxt5Mip', prepareDds: true, sha256: '0ff0f06b11e360abdac66a70acfc3130f66313064def9b1dd75cdd9f81469272' },
+      { url: 'textures/compressed/disturb_argb_nomip.dds', output: 'textures__compressed__disturb_argb_nomip.dds', mime: 'application/octet-stream', diagnostic: 'ddsArgbNomip', prepareDds: true, sha256: 'b5d83c0f5ce7bffe5ecaa5c708ec4e3dcf208b0ccebe4ecf00a282c6230168e6' },
+      { url: 'textures/compressed/disturb_argb_mip.dds', output: 'textures__compressed__disturb_argb_mip.dds', mime: 'application/octet-stream', diagnostic: 'ddsArgbMip', prepareDds: true, sha256: '810b506b5d090f5a1483449f83998f886edd5fa20dcc9cb2b0756d68c31903af' },
+      { url: 'textures/wave_normals_24bit_uncompressed.dds', output: 'textures__wave_normals_24bit_uncompressed.dds', mime: 'application/octet-stream', diagnostic: 'ddsRgb24', prepareDds: true, sha256: '943b5d189997f460ff8d4a35f5259d36809a5c6669a440d99b4f8b5abe0d8e4b' },
+      { url: 'textures/compressed/disturb_dx10_bc6h_signed_nomip.dds', output: 'textures__compressed__disturb_dx10_bc6h_signed_nomip.dds', mime: 'application/octet-stream', diagnostic: 'ddsBc6hSignedNomip', prepareDds: true, sha256: '588f8954158e68c3eae4cc02c0603bea5be917aa94b9b785d7ab418264c641c7' },
+      { url: 'textures/compressed/disturb_dx10_bc6h_signed_mip.dds', output: 'textures__compressed__disturb_dx10_bc6h_signed_mip.dds', mime: 'application/octet-stream', diagnostic: 'ddsBc6hSignedMip', prepareDds: true, sha256: '96e751643db35292ac8cbb356fadd05bb3c468e18ca6f1d5db75ac0d45128598' },
+      { url: 'textures/compressed/disturb_dx10_bc6h_unsigned_nomip.dds', output: 'textures__compressed__disturb_dx10_bc6h_unsigned_nomip.dds', mime: 'application/octet-stream', diagnostic: 'ddsBc6hUnsignedNomip', prepareDds: true, sha256: '0ca36e2a14eee476c13b35393a8f4e140cf2e4cc2f1de9495d873aae9f2afaa7' },
+      { url: 'textures/compressed/disturb_dx10_bc6h_unsigned_mip.dds', output: 'textures__compressed__disturb_dx10_bc6h_unsigned_mip.dds', mime: 'application/octet-stream', diagnostic: 'ddsBc6hUnsignedMip', prepareDds: true, sha256: 'e207948823b49a97ded61202f068a9044fa84ae5c96197cf7d538a462c72c1da' },
+      { url: 'textures/compressed/Mountains.dds', output: 'textures__compressed__Mountains.dds', mime: 'application/octet-stream', diagnostic: 'ddsCubeDxt1', prepareDds: true, sha256: 'b280c9c775121fc403434a8dc9aed1483766ea6b97c5a951b70f8f9d3d2d7bc0' },
+      { url: 'textures/compressed/Mountains_argb_mip.dds', output: 'textures__compressed__Mountains_argb_mip.dds', mime: 'application/octet-stream', diagnostic: 'ddsCubeArgbMip', prepareDds: true, sha256: 'ae86f2e19efa56af1e0d553f81ca1d366b632f732a1c200f62a9fd3577550c88' },
+      { url: 'textures/compressed/Mountains_argb_nomip.dds', output: 'textures__compressed__Mountains_argb_nomip.dds', mime: 'application/octet-stream', diagnostic: 'ddsCubeArgbNomip', prepareDds: true, sha256: '30b5b1c7d753b7a8eeea7928a16d1a06b17e7a702635055f89fbbe687edcec13' }
+    ]
   },
   webgl_loader_texture_exr: {
     id: 'three-loader-texture-exr',
@@ -3794,7 +4180,17 @@ webgl_geometry_shapes: {
       html: 'f6dccb386d35cd18f347b9af471022e2ac32d5c3bc373eeced650b5bfb67a872',
       module: '9c292884c6082f4702792046adce6ab7d8cbcf7a5148215147325b859e8006ce'
     },
-    assets: []
+    // textures/equirectangular is a discovery-excluded broad directory, so the
+    // runtime-selected `spruit_sunrise_${resolution}.hdr.jpg` needs an explicit
+    // pin. The automaticAssetAddonShims .hdr.jpg lane keeps UltraHDRLoader as
+    // TextureLoader: the pinned JPEG stays a valid SDR environment without the
+    // gain map (documented bounded degrade, same as gltf-transmission).
+    assets: [{
+      url: 'textures/equirectangular/spruit_sunrise_2k.hdr.jpg',
+      output: 'textures__equirectangular__spruit_sunrise_2k.hdr.jpg',
+      mime: 'image/jpeg', diagnostic: 'ultrahdrSdrBase',
+      sha256: '867a853b9076fd7e6a6e0f38ca5f613ff6bbc672191720bf24af828e6384b62d'
+    }]
   },
   webgl_loader_ttf: {
     id: 'three-loader-ttf',
@@ -3842,6 +4238,9 @@ webgl_geometry_shapes: {
     name: 'loaders - VRML loader — three.js r186',
     description: 'Unmodified official webgl_loader_vrml module on the JSR THREE R1/WebGL2 runtime.',
     icon: '🧊',
+    vrmlDeferredSwap: true,
+    fastTextDecodeJoin: true,
+    compat: "import { installVrmlSwitchTiming } from './degrades/vrml_switch_timing.mjs'; installVrmlSwitchTiming();",
     expected: {
       html: '2fcc9406cffb725ee89f140037b5d825449f4d1c516d469e7da065391085d065',
       module: '347a5492a0d8947a8815b9b04f030129b5c575460f00575bc18636a3762dcafd'
@@ -3859,7 +4258,14 @@ webgl_geometry_shapes: {
       html: 'c2aca655ee42782de978c974a2f8d8a6b07a6bbba3416e4b88283b552525359c',
       module: '0d997e00627a867dcc61feebeb5cb9e0f355db3a73d20bc622afb0c3a50e44dc'
     },
-    assets: []
+        assets: [
+      {
+        'url': 'textures/uv_grid_opengl.jpg',
+        'mime': 'image/jpeg',
+        'output': 'uv_grid_opengl.jpg',
+        'sha256': '909d9a1eb2a5d5de9d221a5e8de4e9119d409decddf522d48896bd51523d354d'
+      }
+    ]
   },
   webgl_materials_alphahash: {
     id: 'three-materials-alphahash',
@@ -4033,6 +4439,7 @@ webgl_geometry_shapes: {
       html: 'ebb175bc77ccc8b493c49f7c15ccaba5e70d39bbc5634c407d59e943b454e8e3',
       module: '8ad16204df62a961c7e4f1a1e8701e1fbb4298f2b8fc636fa94851fc72da39a1'
     },
+    discoverAssets: true,
     assets: []
   },
   webgl_materials_texture_html: {
@@ -4082,6 +4489,10 @@ webgl_geometry_shapes: {
     expected: {
       html: '5e31f0edbe18c6bc30d521443eccff058af9e6a7fe655539ebef5213c75a069a',
       module: '024a661b385e0d0ae89594c3eb6fe1152e580874f672280ff748b77dd2007bd9'
+    },
+    compat: "import { installWebcamHostCompat } from './degrades/webcam_host.mjs'; installWebcamHostCompat();",
+    facadeWraps: {
+      VideoTexture: `Base => { const wrap = globalThis.__jsrWebcamHostVideoTexture; return typeof wrap === 'function' ? wrap(Base) : Base; }`
     },
     assets: []
   },
@@ -4174,8 +4585,32 @@ webgl_geometry_shapes: {
     target: 'es2022',
     stripTopLevelAwait: true,
     discoverAssets: true,
+    compat: "import { installWebcamHostCompat } from './degrades/webcam_host.mjs'; installWebcamHostCompat();\n" +
+      "import { installMediapipeWebCompat } from './degrades/mediapipe_web.mjs'; installMediapipeWebCompat();",
+    facadeWraps: {
+      VideoTexture: `Base => {
+        let Cls = Base;
+        const host = globalThis.__jsrWebcamHostVideoTexture;
+        if (typeof host === 'function') Cls = host(Cls);
+        const web = globalThis.__jsrWebcamWebVideoTexture;
+        if (typeof web === 'function') Cls = web(Cls);
+        return Cls;
+      }`,
+      // Native face tracking: every loader-built mesh registers with the
+      // webcam host so the Vision lane can find the Face Cap head (mesh_2)
+      // and the two eye meshes. GLTFLoader constructs nodes through this
+      // binding, and the morph dictionary is filled right after
+      // construction, so the host resolves face/eyes lazily per apply.
+      Mesh: `Base => { const capture = globalThis.__jsrWebcamHostMorphMesh; return typeof capture === 'function' ? class extends Base { constructor(...args) { super(...args); capture(this); } } : Base; }`
+    },
     importOverrides: {
-      'https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.35': 'degrades/mediapipe_static.mjs'
+      // Web lane (webgl2 backend): the CDN module resolves to the online
+      // MediaPipe stand-in; offline/CDN failure keeps the static-stub
+      // behavior with one bounded warn. Native (flutterGpu) keeps the
+      // static stub semantics through the same module.
+      'https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.35': 'degrades/mediapipe_web.mjs',
+      // Group the 52 flat morph sliders into bounded facade folders.
+      'three/addons/libs/lil-gui.module.min.js': 'degrades/webcam_gui_folders.mjs'
     },
     addonShims: { 'three/addons/loaders/KTX2Loader.js': "export { KTX2Loader } from './degrades/ktx2_predecoded.mjs';" },
     assets: [{ url: 'models/gltf/facecap.glb', output: 'models__gltf__facecap.glb', mime: 'model/gltf-binary', diagnostic: 'auto:models/gltf/facecap.glb', sha256: '6bfce6d0fcbb5839f5102b79733007859fef7c5df6d9eb49e2264542810b5f64', discovered: true, predecodeGlb: true, externalizeImages: true }]
@@ -4202,6 +4637,13 @@ webgl_geometry_shapes: {
       html: 'b308c6d9e82e01a21b9373c8aef92860ede881d038cb30be4e476378c53f7781',
       module: 'afc2bed0e3ca62750c111374eb6cdb3ac2ef22a797569814df0229272787c59a'
     },
+    // Low-fps fix: the official module displaces ~50.5k points per frame
+    // (4x balls³=800 random views + 2x (balls+1)³=9261 lattice views) and
+    // ships a ~207KB R1 packet per frame; QuickJS collapses to low-teens
+    // fps. capElementPoints caps the official grid constant (20 -> 12) with
+    // a documented density deviation; all six views and the text layout
+    // stay intact.
+    capElementPoints: 12,
     assets: []
   },
   webgl_multiple_rendertargets: {
@@ -4239,7 +4681,23 @@ webgl_geometry_shapes: {
       html: '06af6ab15d64cf9fc424c955067243646810c6be9d6ed12b753a032c75db9664',
       module: 'c300ddf94f7e231a250bdd024ae85bdb20d58f0e67e1733e0a2f829efc0ec9a2'
     },
+    mergeGlbByMaterial: { match: 'dungeon_warkarma.glb' },
     discoverAssets: true,
+    // The GLB JSON chunk (~0.86MB) and GLTFLoader's decodeText go through the
+    // runtime's per-codepoint TextDecoder shim; the chunked widget-local
+    // decoder removes that QuickJS stall from the boot path.
+    // Static material-merge of the dungeon GLB (degrades/glb_material_merge.mjs):
+    // 798 single-primitive meshes over 25 materials -> 25 draw envelopes.
+    compat: "import { installFastTextDecoder } from './degrades/fast_text_decode.mjs'; installFastTextDecoder();",
+    // Measured bounded degrade: 17 pinned 2048px textures (16 dungeon maps +
+    // the equirect env) decode to ~350MB of RGBA round trips on the QuickJS
+    // asset lane; the 11s between the first (empty) presented frame and the
+    // fully textured scene collapses to seconds at 1024px. Documented
+    // texture-resolution deviation. The resampled payloads sit under the
+    // 1.5MB inline threshold, so externalize every asset to keep widget.js
+    // small (the resampled set measured 21.8MB of inlined base64).
+    textureMaxSize: 1024,
+    inlineMaxBytes: 1000,
     assets: []
   },
   webgl_pmrem_cubemap: {
@@ -4287,11 +4745,20 @@ webgl_geometry_shapes: {
     name: 'particles - dynamic - postprocessing — three.js r186',
     description: 'Unmodified official webgl_points_dynamic module on the JSR THREE R1/WebGL2 runtime.',
     icon: '🧊',
+    pointsDynamicDirectRender: true,
+    pointsDynamicLoaderPatch: true,
     expected: {
       html: 'e58edb41d59f4936e0f992fb079b0155d88e9b2ebe274117ec898ee59f7aa491',
       module: '924b88f2ccc330175252a55890b2cac8ab04199390843a8eac49f11f1f39ee8e'
     },
     discoverAssets: true,
+    // Fast OBJ fetch (bypasses the per-codepoint decodeUtf8 boot stall) plus
+    // the measured stride-2 point-count degrade — see
+    // degrades/points_dynamic_compat.mjs for the split and the deviation.
+    compat: "import { installPointsDynamicCompat } from './degrades/points_dynamic_compat.mjs'; installPointsDynamicCompat();",
+    facadeWraps: {
+      OBJLoader: `Base => (typeof globalThis.__jsrPointsObjLoaderWrap === 'function' ? globalThis.__jsrPointsObjLoaderWrap(Base) : Base)`
+    },
     assets: []
   },
   webgl_portal: {
@@ -4328,8 +4795,32 @@ webgl_geometry_shapes: {
       html: '3f57b9d77cee8978fcf614285016bf76a3de40c529aada12a238afc0fe7f68e3',
       module: '3cc7d3eca9c59b868e5acc9cea17735cc61c42912d4e82f5ebbf90bc4f00d6de'
     },
+    // Slow-boot fix ("3d luts долго грузит"): (a) inlineMaxBytes 0
+    // externalizes ALL assets — the 13MB fully-inlined widget.js evaluated +
+    // registered its base64 payload in QuickJS before the first frame; (b)
+    // the three LUT loaders are overridden by degrades/lut_prebuilt.mjs,
+    // which fetches the nine offline 'J3LT' bins (generate_lut_bins.mjs;
+    // byte-parity verified against the official parses) under the original
+    // urls and rebuilds the Data3DTexture from a zero-copy view instead of
+    // regex-walking ~1.6M text lines on the QuickJS main thread.
+    inlineMaxBytes: 0,
+    importOverrides: {
+      'three/addons/loaders/LUTCubeLoader.js': 'degrades/lut_prebuilt.mjs',
+      'three/addons/loaders/LUT3dlLoader.js': 'degrades/lut_prebuilt.mjs',
+      'three/addons/loaders/LUTImageLoader.js': 'degrades/lut_prebuilt.mjs'
+    },
     discoverAssets: true,
-    assets: []
+    assets: [
+      { url: 'luts/Bourbon 64.CUBE', output: 'luts__Bourbon__64.CUBE.jsrlut', mime: 'application/octet-stream', diagnostic: 'prebuiltLutBin', generated: 'example/widgets/three-postprocessing-3dlut/luts__Bourbon__64.CUBE.jsrlut', sha256: '765dc6ee7bd867d21838cd1300c0994220d2170c0806b1572171d5fab9bd0bd9' },
+      { url: 'luts/Chemical 168.CUBE', output: 'luts__Chemical__168.CUBE.jsrlut', mime: 'application/octet-stream', diagnostic: 'prebuiltLutBin', generated: 'example/widgets/three-postprocessing-3dlut/luts__Chemical__168.CUBE.jsrlut', sha256: '6deb11aa813b93066d955dd4744770ac5d4e73b8ae6ddbe404933be1659e1901' },
+      { url: 'luts/Clayton 33.CUBE', output: 'luts__Clayton__33.CUBE.jsrlut', mime: 'application/octet-stream', diagnostic: 'prebuiltLutBin', generated: 'example/widgets/three-postprocessing-3dlut/luts__Clayton__33.CUBE.jsrlut', sha256: '95f97ed63e67fa9d21b1c145b3e7e7d32c4b35f8d7d87c2e8abf64eb5087a49e' },
+      { url: 'luts/Cubicle 99.CUBE', output: 'luts__Cubicle__99.CUBE.jsrlut', mime: 'application/octet-stream', diagnostic: 'prebuiltLutBin', generated: 'example/widgets/three-postprocessing-3dlut/luts__Cubicle__99.CUBE.jsrlut', sha256: '06882ddcbeed46b6372606191f9418881eb5aaaf7bfe854efb8526affecab654' },
+      { url: 'luts/Remy 24.CUBE', output: 'luts__Remy__24.CUBE.jsrlut', mime: 'application/octet-stream', diagnostic: 'prebuiltLutBin', generated: 'example/widgets/three-postprocessing-3dlut/luts__Remy__24.CUBE.jsrlut', sha256: '4f68e991a550970ed4648b3eb349153950a7082eedb29046840eda38515e4794' },
+      { url: 'luts/Presetpro-Cinematic.3dl', output: 'luts__Presetpro-Cinematic.3dl.jsrlut', mime: 'application/octet-stream', diagnostic: 'prebuiltLutBin', generated: 'example/widgets/three-postprocessing-3dlut/luts__Presetpro-Cinematic.3dl.jsrlut', sha256: '49fc161dc1f8614616d56b7f4e1dfecccb542b9cac0116b4273d11e3024b8531' },
+      { url: 'luts/NeutralLUT.png', output: 'luts__NeutralLUT.png.jsrlut', mime: 'application/octet-stream', diagnostic: 'prebuiltLutBin', generated: 'example/widgets/three-postprocessing-3dlut/luts__NeutralLUT.png.jsrlut', sha256: '9e5991d860c11aec2b8bff428f0380e0ffdb10fb7648d34ffa19a3e3f39d9102' },
+      { url: 'luts/B&WLUT.png', output: 'luts__B__WLUT.png.jsrlut', mime: 'application/octet-stream', diagnostic: 'prebuiltLutBin', generated: 'example/widgets/three-postprocessing-3dlut/luts__B__WLUT.png.jsrlut', sha256: 'eead58f922a20ad6970928b1af93e564a9d5381ac18ac515836626fc55a95e20' },
+      { url: 'luts/NightLUT.png', output: 'luts__NightLUT.png.jsrlut', mime: 'application/octet-stream', diagnostic: 'prebuiltLutBin', generated: 'example/widgets/three-postprocessing-3dlut/luts__NightLUT.png.jsrlut', sha256: 'ced6d34d8bc23d303eeb490cd20676738eb96548bbafdffa8ab13f69c2177a8b' }
+    ]
   },
   webgl_postprocessing_advanced: {
     id: 'three-postprocessing-advanced',
@@ -4366,7 +4857,14 @@ webgl_geometry_shapes: {
       html: '59cfe9f960efd98fe03f6ed3bcaebcf2d301d5314f87de344186bed78f622528',
       module: '9d5e88a362aa49029109fcb7af61477712dce54531c7495c7044d5c00860ef50'
     },
-    assets: []
+        assets: [
+      {
+        'url': 'textures/hardwood2_diffuse.jpg',
+        'mime': 'image/jpeg',
+        'output': 'hardwood2_diffuse.jpg',
+        'sha256': '3986fe3bd7d3c24b18e7da17ae72bbef9385dbc355c931c52a04dbfe1412c802'
+      }
+    ]
   },
   webgl_postprocessing_dof: {
     id: 'three-postprocessing-dof',
@@ -4378,7 +4876,15 @@ webgl_geometry_shapes: {
       html: 'fb11d4701c625832db304996ebe8fcf70c04da92b6bc3c19b6c61e1fe83e4462',
       module: '9ff7ab803a200f9b3691e37a1c585ce36e3eaaaf10a9400ab2f28039338adbc0'
     },
-    assets: []
+    importOverrides: { 'three/addons/postprocessing/BokehPass.js': 'degrades/bokeh_palette_freeze.mjs' },
+    assets: [
+      { rawRgba: true, url: 'textures/cube/SwedishRoyalCastle/px.jpg', output: 'castle-px.jpg', mime: 'image/jpeg', sha256: '10a786132bc7eef6b142bd0d4b00ea94ffc1a1bfccfb1a6ec0baedf966d80734' },
+      { rawRgba: true, url: 'textures/cube/SwedishRoyalCastle/nx.jpg', output: 'castle-nx.jpg', mime: 'image/jpeg', sha256: '53a8d90cea6bab188d462c44676b84e5993424e465785c93829d810bbf7c5076' },
+      { rawRgba: true, url: 'textures/cube/SwedishRoyalCastle/py.jpg', output: 'castle-py.jpg', mime: 'image/jpeg', sha256: '8b88f7f9af85fa5b442f28fb27532e534a197aba68ae60548bf4b3750f0d50f0' },
+      { rawRgba: true, url: 'textures/cube/SwedishRoyalCastle/ny.jpg', output: 'castle-ny.jpg', mime: 'image/jpeg', sha256: '17953cc33b9fec703c286266d4aca6033d758edd17ba0384fb3ebd7630085fd4' },
+      { rawRgba: true, url: 'textures/cube/SwedishRoyalCastle/pz.jpg', output: 'castle-pz.jpg', mime: 'image/jpeg', sha256: 'cc9252ba994a79c320ac4aed03aac9000f810c1358179e70a69b598d56e129db' },
+      { rawRgba: true, url: 'textures/cube/SwedishRoyalCastle/nz.jpg', output: 'castle-nz.jpg', mime: 'image/jpeg', sha256: '10149242ae21ba4c00663a0673f01a6722da63f201511fdc01941930d800ccff' }
+    ]
   },
   webgl_postprocessing_dof2: {
     id: 'three-postprocessing-dof2',
@@ -4390,7 +4896,15 @@ webgl_geometry_shapes: {
       html: 'c68085e65ad3192e205aa5b7900d9bc597f2ba272ee09af693d340997c267d59',
       module: '7d453ac6fc7c29d0c7721366c79c971b2f92f8e90ddc456baaca8c7a30fe2323'
     },
-    assets: []
+    assets: [
+      { url: 'models/json/suzanne_buffergeometry.json', output: 'suzanne_buffergeometry.json', mime: 'application/json', sha256: '8aa6f692a08b2ec0991b7903914cfa3154e2f553a4ca72ca3fb5d7e6c16f839f' },
+      { rawRgba: true, url: 'textures/cube/Bridge2/posx.jpg', output: 'bridge2-posx.jpg', mime: 'image/jpeg', sha256: 'bfea380ae3b2f2b44d3040c9fe7a8f3e325450a12b7a0f29561b5ca175f1a250' },
+      { rawRgba: true, url: 'textures/cube/Bridge2/negx.jpg', output: 'bridge2-negx.jpg', mime: 'image/jpeg', sha256: '047052e77f698a819903f1d2fe27b40ee56930150fc38913da7e1c58e8dcae70' },
+      { rawRgba: true, url: 'textures/cube/Bridge2/posy.jpg', output: 'bridge2-posy.jpg', mime: 'image/jpeg', sha256: 'cc467777340037ee8f95460b19772a8ae6a71c125af1714bfd408db2c1c33d98' },
+      { rawRgba: true, url: 'textures/cube/Bridge2/negy.jpg', output: 'bridge2-negy.jpg', mime: 'image/jpeg', sha256: '52b4b95125c777d48ac9ea568d79d55fd3fb62e24a7da37600720cdddb7ab333' },
+      { rawRgba: true, url: 'textures/cube/Bridge2/posz.jpg', output: 'bridge2-posz.jpg', mime: 'image/jpeg', sha256: 'd56085e5da2e8f2cee13694519ed153995045f5a11b1d41d25be70380cf15548' },
+      { rawRgba: true, url: 'textures/cube/Bridge2/negz.jpg', output: 'bridge2-negz.jpg', mime: 'image/jpeg', sha256: '1bc79f442f31931576d734565821b41b331a017dd86f2ac6a60ac6d3bbbbe6ba' }
+    ]
   },
   webgl_postprocessing_fxaa: {
     id: 'three-postprocessing-fxaa',
@@ -4456,7 +4970,17 @@ webgl_geometry_shapes: {
       html: 'dff6f7d8f8267cb5f6c90784056238dca42541591ea03646c83ad402e5000de6',
       module: 'ee8d6fd5e46b3c15a5c21d691abeb980a27a2d1570a3a84a1b36afceea4021e5'
     },
-    assets: []
+    importOverrides: {
+      'three/addons/postprocessing/EffectComposer.js': 'degrades/masking_scissor.mjs',
+      'three/addons/postprocessing/TexturePass.js': 'degrades/masking_scissor.mjs',
+      'three/addons/postprocessing/ClearPass.js': 'degrades/masking_scissor.mjs',
+      'three/addons/postprocessing/MaskPass.js': 'degrades/masking_scissor.mjs',
+      'three/addons/postprocessing/OutputPass.js': 'degrades/masking_scissor.mjs'
+    },
+    assets: [
+      { url: 'textures/758px-Canestra_di_frutta_(Caravaggio).jpg', output: 'canestra.jpg', mime: 'image/jpeg', sha256: '3f9a556c4e12583981427e2d6b7fa268c1a46c9036a23514acd9e179c22ae37f' },
+      { url: 'textures/2294472375_24a3b8ef46_o.jpg', output: 'mask-photo.jpg', mime: 'image/jpeg', sha256: '3efa22071f3f84ec26248ee58aa05aba635a0a9d810bca93da5a94f33e907524' }
+    ]
   },
   webgl_postprocessing_outline: {
     id: 'three-postprocessing-outline',
@@ -4468,6 +4992,12 @@ webgl_geometry_shapes: {
       html: '56908a1236290fc58d727bb87cb3c98f9ba40a73db9185eb17024b362f5b6206',
       module: 'dc8ee0c75e27e3f403144bad943dffb5c68be2682b466d7549121a2b086c34f4'
     },
+    // R1 lowers the official five-RT OutlinePass ShaderMaterial chain to
+    // bounded texture blits (postprocess math dropped — lil-gui params had no
+    // visible effect). degrades/outline_r1_native.mjs replaces the pass with
+    // an R1-native inverted-hull implementation that keeps the public API and
+    // makes every GUI control visibly change the outline.
+    importOverrides: { 'three/addons/postprocessing/OutlinePass.js': 'degrades/outline_r1_native.mjs' },
     discoverAssets: true,
     assets: []
   },
@@ -4529,7 +5059,14 @@ webgl_geometry_shapes: {
       html: '3cf9050ca04ef58d74bc65627227bef3bd538d05d3338f4020aaa4339dfe676d',
       module: '5a4db606c93e9a17530c20ffa4ca0b85deb23f10323c75f7f23f6e9fa099e30e'
     },
-    assets: []
+        assets: [
+      {
+        'url': 'textures/brick_diffuse.jpg',
+        'mime': 'image/jpeg',
+        'output': 'brick_diffuse.jpg',
+        'sha256': 'b49b0ab13aa4455cc7348cb4bfbbffcb344f2f81b17121eb1e57bcd3b387febe'
+      }
+    ]
   },
   webgl_postprocessing_sobel: {
     id: 'three-postprocessing-sobel',
@@ -4630,6 +5167,12 @@ webgl_geometry_shapes: {
       html: '55e63e413e2d38f4f6b2b7153e6ea63742906b5258038abb4f8b5ffa3e911edb',
       module: 'f2656158135ed99b18140c154397f92804d0882939c9c44b8794f75069204df5'
     },
+    importOverrides: {
+      'three/addons/postprocessing/EffectComposer.js': 'degrades/bloom_selective_direct.mjs',
+      'three/addons/postprocessing/UnrealBloomPass.js': 'degrades/bloom_selective_direct.mjs',
+      'three/addons/postprocessing/ShaderPass.js': 'degrades/bloom_selective_direct.mjs',
+      'three/addons/postprocessing/OutputPass.js': 'degrades/bloom_selective_direct.mjs'
+    },
     assets: []
   },
   webgl_random_uv: {
@@ -4696,8 +5239,24 @@ webgl_geometry_shapes: {
       module: 'ea81d81d1ce58c7ba65d2c453139d3b1ad78264242bcd9a0768d093dc1939f5f'
     },
     discoverAssets: true,
-    importOverrides: { 'three-gpu-pathtracer': 'degrades/pathtracer_native.mjs' },
-    assets: []
+    importOverrides: {
+      'three-gpu-pathtracer': 'degrades/pathtracer_native.mjs',
+      'three/addons/loaders/LDrawLoader.js': 'degrades/ldraw_xwing_prebuilt.mjs',
+      'three/addons/utils/LDrawUtils.js': 'degrades/ldraw_xwing_prebuilt.mjs'
+    },
+    assets: [{
+      // Offline prebuilt merged X-wing (generate_ldraw_xwing_scene.mjs): the
+      // pinned LDrawLoader + LDrawUtils.mergeObject output serialized to a
+      // header + Float32 blob, consumed by degrades/ldraw_xwing_prebuilt.mjs
+      // through the runtime host asset lane. Not an r186 file — read from the
+      // repo path below and sha-pinned like every other asset.
+      url: 'models/ldraw/officialLibrary/ldraw_xwing_scene.bin',
+      output: 'ldraw_xwing_scene.bin',
+      mime: 'application/octet-stream',
+      diagnostic: 'ldrawXwingScene',
+      generated: 'example/widgets/three-renderer-pathtracer/ldraw_xwing_scene.bin',
+      sha256: '3f011e53a75fba20ee2d28da999a2f6d70ca4f44258744923b97f17a2a2f133b'
+    }]
   },
   webgl_rendertarget_texture2darray: {
     id: 'three-rendertarget-texture2darray',
@@ -4746,7 +5305,19 @@ webgl_geometry_shapes: {
       html: '2747fd426279ead3cc5c68fa8253c547fc3e8c53e9dadb3772449bdad051c74e',
       module: '6715974dabc7010d7efd634340181b9e2598613fbbb6ec934a21cbc483ebe163'
     },
-    assets: []
+    assets: [{
+      url: 'textures/lava/cloud.png',
+      output: 'lava-cloud.png',
+      mime: 'image/png',
+      diagnostic: 'lavaCloud',
+      sha256: '0534be6a67b3da22ad7dff90ed7ef2fdd62588d57e39f535677758b36dc1aa08'
+    }, {
+      url: 'textures/lava/lavatile.jpg',
+      output: 'lavatile.jpg',
+      mime: 'image/jpeg',
+      diagnostic: 'lavatile',
+      sha256: '8dd33ecfacd108323888479a85cdf10a2159fe82daa247c2f46978952730e76f'
+    }]
   },
   webgl_shaders_ocean: {
     id: 'three-shaders-ocean',
@@ -4818,6 +5389,12 @@ webgl_geometry_shapes: {
       html: '33f541b5d3187752ed863fbefc746ef5c15fb9ab3daba33b6c8bce3f8eff5f7d',
       module: 'ec13c2c8448fa7ecd702665424f42ffa7a68e9afe9d97d4b3f05f5dea7a0ee7e'
     },
+    // R1 drops material.lightMap + onBeforeCompile, so the module's lightmap
+    // accumulation never converges — its per-frame 8-light jitter showed as
+    // pure shimmer (every frame re-randomized light positions AND the shadow
+    // scan winner). The override freezes the jitter structurally, keeps one
+    // stable shadow caster, and stops the dead RT pass after its first frame.
+    importOverrides: { 'three/addons/misc/ProgressiveLightMap.js': 'degrades/progressive_lightmap_static.mjs' },
     discoverAssets: true,
     assets: []
   },
@@ -4956,6 +5533,13 @@ webgl_geometry_shapes: {
       html: 'b3c8fcd8b2eb0ee60a903023b81be1de88a9c9d833d90fe834636c444a8b3241',
       module: 'f6a311017a3abff6854a6b09c54bbb3043c4139e4f1d9bc12952c402e42f0c17'
     },
+    // White-square fix: Data3DTexture is web-only (engine_coverage "no native
+    // analog") and R1's lowered shader never uploads the 3D texture, so the
+    // raymarch box rendered the white fallback. The anchored patch keeps the
+    // official CPU volume (R1's copyTextureToTexture R8 lane accumulates the
+    // blocks) and displays its middle z slice as a 2D DataTexture — the one
+    // texture lane the lowered pass-through shader can sample.
+    texture3dSlice2d: true,
     assets: []
   },
   webgl_tonemapping: {
@@ -5177,14 +5761,21 @@ const sha = bytes => createHash('sha256').update(bytes).digest('hex');
 const record = bytes => ({ bytes: bytes.length, sha256: sha(bytes) });
 const json = value => Buffer.from(`${JSON.stringify(value, null, 2)}\n`);
 
+// Assets at or below this size stay inlined as base64 constants the facade
+// registers at init (byte-identical legacy behavior). Larger assets ship as
+// separate widget files and load through the runtime host asset lane on
+// first request; see --inline-max-bytes.
+const DEFAULT_INLINE_MAX_BYTES = 1_500_000;
+
 function usage() {
-  return `Usage: node tool/three_example/prepare.mjs <${Object.keys(EXAMPLES).join('|')}> [--source <dir>] [--offline] [--verify]`;
+  return `Usage: node tool/three_example/prepare.mjs <${Object.keys(EXAMPLES).join('|')}> [--source <dir>] [--offline] [--verify] [--inline-max-bytes <bytes>]`;
 }
 
 function parseArgs(argv) {
   const positional = [];
   let source = null;
   let verify = false;
+  let inlineMaxBytes = DEFAULT_INLINE_MAX_BYTES;
   for (let i = 0; i < argv.length; i++) {
     const arg = argv[i];
     if (arg === '--source') {
@@ -5197,12 +5788,20 @@ function parseArgs(argv) {
       // Resolution is local-only whether or not this explicit flag is present.
     } else if (arg === '--verify') {
       verify = true;
+    } else if (arg === '--inline-max-bytes') {
+      if (++i >= argv.length) throw new Error('--inline-max-bytes requires a byte count');
+      inlineMaxBytes = Number(argv[i]);
+    } else if (arg.startsWith('--inline-max-bytes=')) {
+      inlineMaxBytes = Number(arg.slice('--inline-max-bytes='.length));
     } else if (arg === '--help' || arg === '-h') {
       console.log(usage());
       process.exit(0);
     } else {
       positional.push(arg);
     }
+  }
+  if (!Number.isSafeInteger(inlineMaxBytes) || inlineMaxBytes < 0) {
+    throw new Error('--inline-max-bytes expects a non-negative byte count');
   }
   if (positional.length !== 1 || !Object.hasOwn(EXAMPLES, positional[0])) {
     throw new Error(`Expected exactly one supported example\n${usage()}`);
@@ -5212,7 +5811,8 @@ function parseArgs(argv) {
     example,
     definition: EXAMPLES[example],
     source: path.resolve(source || process.env.THREE_SRC || '/tmp/jsr-three-r186'),
-    verify
+    verify,
+    inlineMaxBytes
   };
 }
 
@@ -5435,6 +6035,10 @@ function localOnlyPlugin({ source, facadeSource = null, officialBytes = null, fi
         if (!final || args.importer === path.join(HERE, 'lil_gui_adapter.js')) {
           return { path: path.join(jsmRoot, 'libs/lil-gui.module.min.js') };
         }
+        // Example-specific lil-gui override (the webcam lane groups its 52
+        // morph sliders into facade folders through webcam_gui_folders.mjs).
+        const guiOverride = importOverrides && importOverrides[args.path];
+        if (guiOverride) return { path: path.join(HERE, guiOverride) };
         return { path: path.join(HERE, 'lil_gui_adapter.js') };
       });
       build.onResolve({ filter: /^three\/examples\/jsm\// }, args => (
@@ -5452,6 +6056,14 @@ function localOnlyPlugin({ source, facadeSource = null, officialBytes = null, fi
         }
         if (final && shimNames.includes(args.path)) {
           return { path: args.path, namespace: 'jsr-addon-shim' };
+        }
+        // Final-build addon override (importOverrides keyed by the addon
+        // specifier, e.g. the LDraw prebuilt lane). An override module that
+        // needs the real addon resolves through the same map, so skip the
+        // redirect when the importer is the override target itself.
+        const addonOverride = final && importOverrides && importOverrides[args.path];
+        if (addonOverride && args.importer !== path.join(HERE, addonOverride)) {
+          return { path: path.join(HERE, addonOverride) };
         }
         return { path: addonPath(jsmRoot, args.path) };
       });
@@ -5506,6 +6118,34 @@ function localOnlyPlugin({ source, facadeSource = null, officialBytes = null, fi
       });
     }
   };
+}
+
+// Prepare-time transform for webgl_multiple_elements_text (capElementPoints):
+// the official module animates ~50.5k points per frame (4 random views at
+// balls³=800 + 2 lattice views at (balls/2*2+1)³=9261 points), rebuilding
+// every position attribute each tick. QuickJS evaluates the displacement loop
+// an order of magnitude slower than V8 and the full re-encode ships a
+// ~207KB R1 packet per frame — the interactive fps collapses (measured
+// presentedFps in the low teens). Capping the official `const balls = 20`
+// grid constant keeps all six views, the text layout and the per-point
+// sprite size intact while cutting per-frame work ~4.5x; documented bounded
+// deviation: the atom clouds are sparser than upstream.
+const ELEMENT_POINTS_BALLS_ANCHOR = `\t\t\t\tconst balls = 20;`;
+
+function applyElementPointsCap(sourceBytes, cap) {
+  const anchor = ELEMENT_POINTS_BALLS_ANCHOR;
+  const index = sourceBytes.indexOf(anchor);
+  if (index < 0) {
+    throw new Error('capElementPoints: official module drifted (const balls anchor missing)');
+  }
+  const replacement = `\t\t\t\t// JSR point cap (capElementPoints): official balls grid 20 -> ${cap}; keeps the
+\t\t\t\t// six animated views and text layout while cutting the per-frame point
+\t\t\t\t// displacement + R1 re-encode ~4.5x for QuickJS interactive fps.
+\t\t\t\tconst balls = ${cap};`;
+  const patched = sourceBytes.subarray(0, index) +
+    Buffer.from(replacement, 'utf8') +
+    sourceBytes.subarray(index + anchor.length);
+  return patched;
 }
 
 async function discoverExports(source) {
@@ -5609,7 +6249,15 @@ function bmpToRgba(bytes, url) {
   const signedHeight = bytes.readInt32LE(22);
   const bpp = bytes.readUInt16LE(28);
   const compression = bytes.readUInt32LE(30);
-  if (compression !== 0 || (bpp !== 24 && bpp !== 32)) throw new Error(`${url}: unsupported BMP layout`);
+  // sips emits a 32bpp BI_BITFIELDS (compression 3, V4 header) BMP for PNGs
+  // with alpha (e.g. the discovered /sprites/ spark1.png). The field masks
+  // below are the standard little-endian BGRA layout the 32bpp path already
+  // decodes, so accept exactly that shape and nothing else.
+  const bitfieldBgra = compression === 3 && bpp === 32 &&
+    (bytes.readUInt32LE(54) >>> 0) === 0x00ff0000 && (bytes.readUInt32LE(58) >>> 0) === 0x0000ff00 &&
+    (bytes.readUInt32LE(62) >>> 0) === 0x000000ff && (bytes.readUInt32LE(66) >>> 0) === 0xff000000;
+  if (compression !== 0 && !bitfieldBgra) throw new Error(`${url}: unsupported BMP layout`);
+  if (compression === 0 && bpp !== 24 && bpp !== 32) throw new Error(`${url}: unsupported BMP layout`);
   const height = Math.abs(signedHeight);
   const bottomUp = signedHeight > 0;
   const rowSize = Math.floor((bpp * width + 31) / 32) * 4;
@@ -5644,6 +6292,40 @@ async function imageToRgba(bytes, url, stamp) {
 // and rewrite only the generated GLB JSON to relative URIs. The original GLB
 // is still sha256-verified before this transformation; official module bytes
 // are untouched.
+// textureMaxSize bounded degrade (measured): resample pinned raster textures
+// above the bound with macOS sips so the QuickJS asset lane stops paying the
+// 2048px RGBA decode round trips (see the webgl_performance entry comment).
+// Dimensions and sha256 re-pin to the RESAMPLED bytes; the manifest keeps the
+// original sourceRecord and names the degrade in the diagnostic field.
+async function downscalePreparedTextures(assets, maxSize) {
+  for (let index = 0; index < assets.length; index++) {
+    const asset = assets[index];
+    if (asset.mime !== 'image/png' && asset.mime !== 'image/jpeg') continue;
+    if ((asset.width ?? 0) <= maxSize && (asset.height ?? 0) <= maxSize) continue;
+    const stamp = `${process.pid}-${index}`;
+    const extension = asset.mime === 'image/png' ? 'png' : 'jpg';
+    const tmpIn = path.join(process.env.TMPDIR || '/tmp', `jsr-texture-${stamp}.${extension}`);
+    const tmpOut = path.join(process.env.TMPDIR || '/tmp', `jsr-texture-${stamp}-out.${extension}`);
+    await writeFile(tmpIn, asset.bytes);
+    execFileSync('sips', ['-Z', String(maxSize), tmpIn, '--out', tmpOut], { stdio: 'pipe' });
+    const bytes = await readFile(tmpOut);
+    const dimensions = asset.mime === 'image/png'
+      ? pngDimensions(bytes, asset.url)
+      : jpegDimensions(bytes, asset.url);
+    assets[index] = {
+      ...asset,
+      bytes,
+      width: dimensions.width,
+      height: dimensions.height,
+      diagnostic: [asset.diagnostic, `textureMaxSize:${maxSize}`].filter(Boolean).join(', ')
+    };
+    console.warn(`three.prepare: textureMaxSize(${maxSize}) resampled ${asset.url} ` +
+      `${asset.width}x${asset.height} -> ${dimensions.width}x${dimensions.height}`);
+    await rm(tmpIn, { force: true });
+    await rm(tmpOut, { force: true });
+  }
+}
+
 async function externalizeGlbImages(bytes, definition) {
   if (bytes.length < 20 || bytes.toString('latin1', 0, 4) !== 'glTF') {
     throw new Error(`${definition.url} is not a binary glTF asset`);
@@ -5883,6 +6565,54 @@ export class ColladaLoader extends Loader {
 }`;
 }
 
+// webgl_loader_collada / webgl_loader_collada_skinning consume the GLB that
+// decodeColladaAsset produced offline from the pinned DAE (the ColladaLoader
+// XML DOM parse never completes inside QuickJS). GLTFLoader.parse rehydrates
+// the exact scene the offline lane serialized — including skinned meshes and,
+// for the skinning module, the animation clips — so the module's own
+// loadAsset/onLoad path (mixer wiring, scene attach, render loop) runs
+// unmodified. Failures surface through onError + manager.itemError instead of
+// the module's silent no-onError black screen.
+function colladaPrebuiltLoaderShim() {
+  return `import { FileLoader, GLTFLoader, Loader } from 'three';
+export class ColladaLoader extends Loader {
+  load(url, onLoad, onProgress, onError) {
+    const loader = new FileLoader(this.manager);
+    loader.setPath(this.path).setRequestHeader(this.requestHeader).setResponseType('arraybuffer');
+    loader.load(url, buffer => {
+      // Keep the module's LoadingManager busy across the GLTF rehydration.
+      // The stock ColladaLoader parses synchronously inside the FileLoader
+      // callback, so manager.onLoad (the module's scene attach + render
+      // trigger) always ran after its handler assigned the scene; the async
+      // GLTFLoader.parse would let manager.onLoad fire on a half-built scene.
+      const parseItem = url + '#jsr-gltf-parse';
+      this.manager.itemStart(parseItem);
+      console.time('jsr.collada.prebuilt');
+      new GLTFLoader(this.manager).parse(buffer, '', gltf => {
+        console.timeEnd('jsr.collada.prebuilt');
+        // Stock ColladaLoader attaches the parsed clips onto the returned
+        // scene (webgl_loader_collada_skinning reads avatar.animations), and
+        // GLTFLoader only exposes them at the top level.
+        gltf.scene.animations = gltf.animations || [];
+        // Module handler first (it stores gltf.scene), then release the
+        // manager so manager.onLoad observes the fully built scene — the same
+        // ordering the stock lane produced.
+        onLoad({ scene: gltf.scene, animations: gltf.scene.animations });
+        this.manager.itemEnd(parseItem);
+      }, error => {
+        console.error('three: collada prebuilt lane failed for ' + url, error);
+        this.manager.itemError(parseItem);
+        this.manager.itemEnd(parseItem);
+        if (onError) onError(error);
+      });
+    }, onProgress, error => {
+      console.error('three: collada prebuilt fetch failed for ' + url, error);
+      if (onError) onError(error);
+    });
+  }
+}`;
+}
+
 function rhino3dmLoaderShim() {
   return `import { BoxGeometry, FileLoader, Group, Loader, Mesh, MeshStandardMaterial } from 'three';
 export class Rhino3dmLoader extends Loader {
@@ -5897,11 +6627,16 @@ export class Rhino3dmLoader extends Loader {
       const group = new Group();
       group.name = 'Rhino 3DM decoder-unavailable placeholder';
       const material = new MeshStandardMaterial({ color: 0x4b9b75, roughness: 0.55 });
-      const sizes = [[18, 4, 5], [5, 12, 5], [12, 3, 5]];
-      const positions = [[0, 0, 2.5], [-6, 7, 2.5], [3, 12, 2.5]];
+      // The official camera orbits at (26,-40,5) in the module's Z-up frame, so
+      // it sees mostly -Y faces; plates stay tilted 60° about X so their lit
+      // +Z faces (module directional light at (0,0,2)) read from that angle.
+      const tilt = -Math.PI / 3;
+      const sizes = [[18, 4, 1], [5, 10, 1], [12, 3, 1]];
+      const positions = [[0, 0, 1.2], [-6, 7, 1.2], [3, 12, 1.2]];
       for (let index = 0; index < sizes.length; index++) {
         const mesh = new Mesh(new BoxGeometry(...sizes[index]), material);
         mesh.position.set(...positions[index]);
+        mesh.rotation.x = tilt;
         group.add(mesh);
       }
       group.userData.layers = [];
@@ -6005,6 +6740,69 @@ export class KTX2Loader extends Loader {
 }`;
 }
 
+function dsLoaderShim() {
+  // Mirrors the stock CompressedTextureLoader contract over the shared
+  // JSRKTEX2 container that asset_decode.mjs decodeDdsAsset emits: load()
+  // returns an empty CompressedTexture synchronously (the official module
+  // sets filters on it right away) and R1 keeps it unbound until the
+  // prepare-decoded payload lands. On success the SAME texture object flips
+  // to a data texture (or a six-face cube for the Mountains envmaps — R1's
+  // cube lane consumes raw RGBA8 face data). BC6H/BC7/BC4/BC5 carry a header
+  // error: loud warning + onError, texture stays unbound (documented gap).
+  // Mip chains collapse to the base level; the official module keeps
+  // authority over colorSpace/anisotropy/alphaTest.
+  return `import { CompressedTexture, CubeReflectionMapping, FileLoader, LinearFilter, Loader, RGBAFormat } from 'three';
+export class DDSLoader extends Loader {
+  load(url, onLoad, onProgress, onError) {
+    const texture = new CompressedTexture();
+    texture.format = RGBAFormat;
+    const loader = new FileLoader(this.manager);
+    loader.setPath(this.path).setRequestHeader(this.requestHeader).setResponseType('arraybuffer');
+    loader.load(url, buffer => {
+      try {
+        const bytes = new Uint8Array(buffer);
+        const magic = 'JSRKTEX2\\0';
+        if (bytes.length < 13 || String.fromCharCode(...bytes.subarray(0, 9)) !== magic) {
+          throw new Error(url + ': expected prepare-decoded JSRKTEX2 bytes');
+        }
+        const view = new DataView(buffer);
+        const headerLength = view.getUint32(9, true);
+        if (headerLength > 4096 || 13 + headerLength > bytes.length) throw new Error(url + ': invalid JSRKTEX2 header');
+        const header = JSON.parse(new TextDecoder().decode(bytes.subarray(13, 13 + headerLength)));
+        if (header.error) throw new Error(header.error);
+        const data = bytes.subarray(13 + headerLength);
+        const faceCount = header.cube ? 6 : 1;
+        const faceBytes = header.width * header.height * 4;
+        if (!header.width || !header.height || data.length !== faceBytes * faceCount) {
+          throw new Error(url + ': invalid prepare-decoded RGBA dimensions');
+        }
+        console.warn('three: R1 renders DDS via the prepare-time RGBA decode lane (BC1/BC2/BC3 + uncompressed); mip chains collapse to the base level with LinearFilter.');
+        if (header.cube) {
+          const faces = [];
+          for (let face = 0; face < 6; face++) faces.push({ data: data.subarray(face * faceBytes, (face + 1) * faceBytes), width: header.width, height: header.height });
+          texture.image = faces;
+          texture.isCubeTexture = true;
+          texture.mapping = CubeReflectionMapping;
+          texture.needsUpdate = true;
+        } else {
+          texture.image = { data, width: header.width, height: header.height };
+          texture.needsUpdate = true;
+        }
+        texture.isCompressedTexture = false;
+        texture.minFilter = LinearFilter;
+        texture.magFilter = LinearFilter;
+        texture.generateMipmaps = false;
+        if (onLoad) onLoad(texture);
+      } catch (error) {
+        console.warn('three: ' + error.message);
+        if (onError) onError(error);
+      }
+    }, onProgress, onError);
+    return texture;
+  }
+}`;
+}
+
 function vrmlLoaderShim() {
   return "export { VRMLoader } from './vrml_loader_adapter.js';";
 }
@@ -6017,6 +6815,9 @@ function automaticAssetAddonShims(definitions) {
   if (definitions.some(definition => definition.prepareKtx2 || definition.predecodeGlb)) {
     shims['three/addons/loaders/KTX2Loader.js'] = ktx2LoaderShim();
   }
+  if (definitions.some(definition => definition.prepareDds)) {
+    shims['three/addons/loaders/DDSLoader.js'] = dsLoaderShim();
+  }
   if (definitions.some(definition => definition.prepareVrml)) {
     shims['three/addons/loaders/VRMLLoader.js'] = vrmlLoaderShim();
   }
@@ -6027,8 +6828,18 @@ function automaticAssetAddonShims(definitions) {
   }
   // UltraHDRLoader's gain-map metadata uses DOMParser. The pinned base JPEG
   // remains a valid SDR environment, so keep that image without the gain map.
+  // The official module calls setDataType() before load() — accept it and
+  // ignore the HDR data type in the bounded SDR lane.
   if (definitions.some(definition => definition.url.endsWith('.hdr.jpg'))) {
-    shims['three/addons/loaders/UltraHDRLoader.js'] = "export { TextureLoader as UltraHDRLoader } from 'three';";
+    shims['three/addons/loaders/UltraHDRLoader.js'] = `
+import { TextureLoader } from 'three';
+export class UltraHDRLoader extends TextureLoader {
+  setDataType() {
+    console.warn('three: UltraHDRLoader SDR lane ignores the HDR data type; the gain map is not applied.');
+    return this;
+  }
+}
+`;
   }
   return shims;
 }
@@ -6037,11 +6848,23 @@ async function prepareAssets(source, definitions) {
   const assets = [];
   for (const pinned of definitions) {
     let definition = pinned;
-    let bytes = await readFile(path.join(source, 'examples', definition.url));
-    if (sha(bytes) !== definition.sha256) throw new Error(`${definition.url} differs from the pinned r186 bytes`);
+    let bytes;
+    if (definition.generated) {
+      // Offline-generated payload (e.g. the merged LDraw scene): read it from
+      // the repo-relative path pinned in the entry instead of the r186 source
+      // tree. The sha256 field stays the integrity gate for generated bytes.
+      bytes = await readFile(path.join(ROOT, definition.generated));
+      if (sha(bytes) !== definition.sha256) throw new Error(`${definition.generated} differs from the pinned generated bytes`);
+    } else {
+      bytes = await readFile(path.join(source, 'examples', definition.url));
+      if (sha(bytes) !== definition.sha256) throw new Error(`${definition.url} differs from the pinned r186 bytes`);
+    }
     definition = { ...definition, sourceRecord: record(bytes) };
     if (definition.prepareCollada) {
-      bytes = await decodeColladaAsset(source, bytes, definition.url);
+      bytes = await decodeColladaAsset(source, bytes, definition.url, {
+        animations: definition.colladaAnimations === true,
+        externalImages: definition.colladaExternalImages === true
+      });
       assets.push({ ...definition, bytes, mime: 'model/gltf-binary' });
       continue;
     }
@@ -6052,6 +6875,11 @@ async function prepareAssets(source, definitions) {
     }
     if (definition.prepareKtx2) {
       bytes = await decodeKtx2Asset(source, bytes, definition.url);
+      assets.push({ ...definition, bytes, mime: 'application/x-jsr-ktx2-rgba' });
+      continue;
+    }
+    if (definition.prepareDds) {
+      bytes = await decodeDdsAsset(source, bytes, definition.url);
       assets.push({ ...definition, bytes, mime: 'application/x-jsr-ktx2-rgba' });
       continue;
     }
@@ -6130,6 +6958,148 @@ function sortedRecordMap(values) {
   return Object.fromEntries(Object.keys(values).sort().map(key => [key, values[key]]));
 }
 
+// Prepare-time transform for webgl_batch_lod_bvh (dragThrottleHover): the
+// official module raycasts the ~500k-instance BatchedMesh on EVERY pointermove
+// for hover highlighting. During drags (any pointer down) that raycast is
+// pure waste on top of the simultaneous map-controls pan, and hover storms
+// re-enter the QuickJS BVH lane per event. Gate hover raycasts: skip while
+// pointers are down (one converge raycast on release when skipped), otherwise
+// coalesce to a <=33ms trailing edge (leading edge fires immediately when the
+// 33ms window has elapsed; every-event fallback when no timer exists). The
+// document pointerdown/pointerup/pointercancel registrations keep the
+// pointer-count gate exact across multi-touch and heal a stuck gate through
+// the runtime's synthetic pointercancel (_clearInput).
+const DRAG_THROTTLE_ON_POINTER_MOVE_ANCHOR = `\t\t\tfunction onPointerMove( event ) {
+
+\t\t\t\tevent.preventDefault();
+
+\t\t\t\tmouse.x = ( event.clientX / window.innerWidth ) * 2 - 1;
+\t\t\t\tmouse.y = - ( event.clientY / window.innerHeight ) * 2 + 1;
+
+\t\t\t\traycast();
+
+\t\t\t}`;
+
+const DRAG_THROTTLE_ON_POINTER_MOVE_REPLACEMENT = `\t\t\tfunction onPointerMove( event ) {
+
+\t\t\t\tevent.preventDefault();
+
+\t\t\t\tmouse.x = ( event.clientX / window.innerWidth ) * 2 - 1;
+\t\t\t\tmouse.y = - ( event.clientY / window.innerHeight ) * 2 + 1;
+
+\t\t\t\tqueueHoverRaycast();
+
+\t\t\t}`;
+
+const DRAG_THROTTLE_LISTENER_ANCHOR = `\t\t\tdocument.addEventListener( 'pointermove', onPointerMove );`;
+
+const DRAG_THROTTLE_LISTENER_REPLACEMENT = `\t\t\tdocument.addEventListener( 'pointermove', onPointerMove );
+
+\t\t\t// JSR drag throttle (dragThrottleHover): exact pointer count across
+\t\t\t// multi-touch; _clearInput synthesizes pointercancel, which heals a
+\t\t\t// stuck gate when the host force-clears input.
+\t\t\tdocument.addEventListener( 'pointerdown', jsrPointerDown );
+\t\t\tdocument.addEventListener( 'pointerup', jsrPointerUp );
+\t\t\tdocument.addEventListener( 'pointercancel', jsrPointerUp );`;
+
+const DRAG_THROTTLE_INSERT_AFTER_ANCHOR = `\t\t\tlastHoveredInstance = batchId;
+
+\t\t\t}`;
+
+const DRAG_THROTTLE_INSERT_AFTER = `\t\t\tlastHoveredInstance = batchId;
+
+\t\t\t}
+
+\t\t\t// JSR drag throttle (dragThrottleHover): hover raycasts are coalesced
+\t\t\t// (<=33ms trailing, leading edge when idle) and fully gated while any
+\t\t\t// pointer is down; release converges exactly one raycast when events
+\t\t\t// were skipped. With no timer available every event raycasts.
+\t\t\tconst jsrHover = { down: 0, pending: null, last: -Infinity, dirty: false };
+
+\t\t\tfunction queueHoverRaycast() {
+
+\t\t\t\tif ( jsrHover.down > 0 ) {
+
+\t\t\t\t\tjsrHover.dirty = true;
+\t\t\t\t\treturn;
+
+\t\t\t\t}
+
+\t\t\t\tif ( typeof setTimeout !== 'function' ) {
+
+\t\t\t\t\traycast();
+\t\t\t\t\treturn;
+
+\t\t\t\t}
+
+\t\t\t\tif ( jsrHover.pending !== null ) return;
+
+\t\t\t\tconst now = typeof performance !== 'undefined' ? performance.now() : Date.now();
+\t\t\t\tconst wait = 33 - ( now - jsrHover.last );
+
+\t\t\t\tif ( wait > 0 ) {
+
+\t\t\t\t\tjsrHover.pending = setTimeout( () => {
+
+\t\t\t\t\t\tjsrHover.pending = null;
+\t\t\t\t\t\tjsrHover.last = typeof performance !== 'undefined' ? performance.now() : Date.now();
+\t\t\t\t\t\traycast();
+
+\t\t\t\t\t}, wait );
+
+\t\t\t\t} else {
+
+\t\t\t\t\tjsrHover.last = now;
+\t\t\t\t\traycast();
+
+\t\t\t\t}
+
+\t\t\t}
+
+\t\t\tfunction jsrPointerDown() {
+
+\t\t\t\tjsrHover.down += 1;
+\t\t\t\tif ( jsrHover.pending !== null ) {
+
+\t\t\t\t\tclearTimeout( jsrHover.pending );
+\t\t\t\t\tjsrHover.pending = null;
+
+\t\t\t\t}
+
+\t\t\t}
+
+\t\t\tfunction jsrPointerUp() {
+
+\t\t\t\tjsrHover.down = Math.max( 0, jsrHover.down - 1 );
+\t\t\t\tif ( jsrHover.down === 0 && jsrHover.dirty ) {
+
+\t\t\t\t\tjsrHover.dirty = false;
+\t\t\t\t\tqueueHoverRaycast();
+
+\t\t\t\t}
+
+\t\t\t}`;
+
+function applyDragThrottleHover(bytes) {
+  const source = bytes.toString('utf8');
+  const anchors = [
+    ['onPointerMove block', DRAG_THROTTLE_ON_POINTER_MOVE_ANCHOR],
+    ['listener block', DRAG_THROTTLE_LISTENER_ANCHOR],
+    ['raycast() definition tail', DRAG_THROTTLE_INSERT_AFTER_ANCHOR]
+  ];
+  for (const [name, anchor] of anchors) {
+    const count = source.split(anchor).length - 1;
+    if (count !== 1) {
+      throw new Error(`drag throttle anchor drifted (${name}): expected exactly 1 occurrence, got ${count} — pinned three source changed`);
+    }
+  }
+  const transformed = source
+    .replace(DRAG_THROTTLE_ON_POINTER_MOVE_ANCHOR, DRAG_THROTTLE_ON_POINTER_MOVE_REPLACEMENT)
+    .replace(DRAG_THROTTLE_LISTENER_ANCHOR, DRAG_THROTTLE_LISTENER_REPLACEMENT)
+    .replace(DRAG_THROTTLE_INSERT_AFTER_ANCHOR, DRAG_THROTTLE_INSERT_AFTER);
+  return Buffer.from(transformed, 'utf8');
+}
+
 async function main() {
   const options = parseArgs(process.argv.slice(2));
   const definition = options.definition;
@@ -6160,6 +7130,57 @@ async function main() {
     }
     officialBuildBytes = Buffer.from(transformed);
   }
+  if (definition.ikMirrorStatic) {
+    // Bounded degrade: swap the official dynamic CubeCamera mirror ball for a
+    // static baked cube texture (degrades/ik_mirror_static.mjs). Anchored
+    // patch throws on drift; official_module.js keeps the pinned bytes.
+    officialBuildBytes = applyIkMirrorStaticPatch(officialBuildBytes);
+  }
+  if (definition.texture3dSlice2d) {
+    // Bounded degrade: display the updating cloud volume's middle z slice as
+    // a 2D DataTexture (degrades/texture3d_slice2d.mjs). Anchored patch
+    // throws on drift; official_module.js keeps the pinned bytes.
+    officialBuildBytes = applyTexture3dSlice2dPatch(officialBuildBytes);
+  }
+  if (definition.dragThrottleHover) {
+    // Bounded degrade: coalesce the official per-pointermove hover raycast
+    // (see applyDragThrottleHover). Anchored patch throws on drift;
+    // official_module.js keeps the pinned bytes.
+    officialBuildBytes = applyDragThrottleHover(officialBuildBytes);
+  }
+  if (definition.capElementPoints) {
+    // Bounded degrade: cap the official per-frame point grid (see
+    // applyElementPointsCap). Anchored patch throws on drift;
+    // official_module.js keeps the pinned bytes.
+    officialBuildBytes = applyElementPointsCap(officialBuildBytes, definition.capElementPoints);
+  }
+  if (definition.cpuFlockDegrade) {
+    // Bounded degrade: (a) no-op the GPGPU sim passes after detection and
+    // (b) replace the merged static bird mesh with a CPU-boids InstancedMesh
+    // flock (see applyGpgpuBirdsGltfCpuFlockPatch). Anchored patch throws on
+    // drift; official_module.js keeps the pinned bytes.
+    officialBuildBytes = applyGpgpuBirdsGltfCpuFlockPatch(officialBuildBytes);
+  }
+  if (definition.vrmlDeferredSwap) {
+    // Bounded degrade: defer the asset-switch dispose+remove into the load
+    // callback (see applyVrmlDeferredSwapPatch) so switching VRML scenes never
+    // renders the official empty-canvas gap. Anchored patch throws on drift;
+    // official_module.js keeps the pinned bytes.
+    officialBuildBytes = applyVrmlDeferredSwapPatch(officialBuildBytes);
+  }
+  if (definition.pointsDynamicDirectRender) {
+    // Bounded degrade: render the points scene directly instead of through
+    // the lowered composer RT chain (see
+    // degrades/points_dynamic_direct_render.mjs). Anchored patch throws on
+    // drift; official_module.js keeps the pinned bytes.
+    officialBuildBytes = applyPointsDynamicDirectRenderPatch(officialBuildBytes);
+  }
+  if (definition.pointsDynamicLoaderPatch) {
+    // Bounded degrade: route the bundled OBJLoader addon instance through the
+    // compat wrap (see degrades/points_dynamic_loader_patch.mjs). Anchored
+    // patch throws on drift; official_module.js keeps the pinned bytes.
+    officialBuildBytes = applyPointsDynamicLoaderPatch(officialBuildBytes);
+  }
   const assetDefinitions = definition.discoverAssets
     ? await discoverAssets({
         source,
@@ -6173,24 +7194,101 @@ async function main() {
     officialBuildBytes = await readFile(path.join(HERE, definition.moduleOverride));
   }
   const assets = await prepareAssets(source, assetDefinitions);
+  if (definition.mergeGlbByMaterial) {
+    // Bounded degrade: static material-merge of a prepared GLB (see
+    // degrades/glb_material_merge.mjs). webgl_performance's dungeon scene
+    // is 798 single-primitive meshes over 25 materials; baking the node
+    // transforms and merging by material cuts the R1 draw envelope from
+    // 798 planned draws per frame to one per material (measured 30.6 ->
+    // presented-fps gain below) without touching the official module.
+    const match = definition.mergeGlbByMaterial.match;
+    const targets = assets.filter(asset => asset.url.includes(match));
+    if (targets.length !== 1) {
+      throw new Error(`mergeGlbByMaterial: expected exactly one asset matching ${match}, got ${targets.length}`);
+    }
+    const merged = mergeGlbByMaterial(targets[0].bytes);
+    const gltfJson = JSON.parse(
+      merged.subarray(20, 20 + merged.readUInt32LE(12)).toString('utf8')
+    );
+    if (gltfJson.meshes.length === 0 || !gltfJson.buffers?.[0]?.byteLength) {
+      throw new Error('mergeGlbByMaterial: merged GLB has no meshes');
+    }
+    targets[0].bytes = merged;
+    // eslint-disable-next-line no-console
+    console.log(
+      `three-example: merged ${targets[0].url} by material -> ` +
+        `${gltfJson.meshes.length} meshes, ` +
+        `${(merged.length / 1024 / 1024).toFixed(1)}MB`
+    );
+  }
+  if (definition.textureMaxSize) {
+    await downscalePreparedTextures(assets, definition.textureMaxSize);
+  }
   const addonShims = {
     ...automaticAssetAddonShims(assetDefinitions),
     ...(definition.addonShims || {})
   };
   const exportNames = await discoverExports(source);
   const facadeSource = facadeModule(exportNames, definition.id, definition.facadeWraps || null);
-  const adapterAssets = assets.flatMap(asset => [
+  // Above-threshold assets are NOT inlined: they ship as separate widget
+  // files (pinned bytes, verified above) and the facade resolves their URL
+  // through the runtime host asset lane on first request. Aliases stay
+  // registered as redirects so host requests keep the canonical pinned name.
+  const inlineAssets = [];
+  const externalAssets = [];
+  // Per-example override of the CLI --inline-max-bytes threshold: slow-boot
+  // widgets (e.g. webgl_postprocessing_3dlut's 13MB of inlined LUT/HDR/GLTF
+  // registrations) externalize every asset so QuickJS boots a small module
+  // and streams pinned bytes through the host asset lane instead.
+  const inlineMaxBytes = definition.inlineMaxBytes ?? options.inlineMaxBytes;
+  for (const asset of assets) {
+    if (asset.bytes.length > inlineMaxBytes) externalAssets.push(asset);
+    else inlineAssets.push(asset);
+  }
+  const adapterAssetsRaw = inlineAssets.flatMap(asset => [
     asset,
     ...(asset.aliases || []).map(url => ({ ...asset, url }))
-  ]).map(asset => ({
+  ]);
+  // Alias entries share their bytes with the canonical entry. Emit one base64
+  // constant per unique payload and reference it by index — otherwise every
+  // aliased asset duplicates its full base64 literal in widget.js.
+  const assetData = [];
+  const assetDataIndex = new Map();
+  const adapterAssets = adapterAssetsRaw.map(asset => {
+    const data = asset.bytes.toString('base64');
+    let ref = assetDataIndex.get(data);
+    if (ref === undefined) {
+      ref = assetData.length;
+      assetDataIndex.set(data, ref);
+      assetData.push(data);
+    }
+    return {
+      url: asset.url,
+      ref,
+      mime: asset.mime,
+      width: asset.width ?? 0,
+      height: asset.height ?? 0,
+      bytes: asset.bytes.length,
+      diagnostic: asset.diagnostic
+    };
+  });
+  const externalDescriptors = externalAssets.map(asset => ({
     url: asset.url,
-    data: asset.bytes.toString('base64'),
+    file: asset.output || assetOutputName(asset.url),
     mime: asset.mime,
     width: asset.width ?? 0,
     height: asset.height ?? 0,
     bytes: asset.bytes.length,
+    sha256: sha(asset.bytes),
+    aliases: [...(asset.aliases || [])].sort(),
     diagnostic: asset.diagnostic
-  }));
+  })).sort((a, b) => a.url.localeCompare(b.url));
+  const externalAssetsJson = Buffer.from(`${JSON.stringify({
+    schema: 'jsr-three-example-external-assets-v1',
+    id: definition.id,
+    inlineMaxBytes,
+    assets: externalDescriptors
+  }, null, 2)}\n`);
 
   const result = await esbuild.build({
     absWorkingDir: ROOT,
@@ -6239,12 +7337,21 @@ async function main() {
       __JSR_THREE_EXAMPLE_ID__: JSON.stringify(options.example),
       __JSR_THREE_WIDGET_ID__: JSON.stringify(definition.id),
       __JSR_THREE_EXAMPLE_ASSETS_JSON__: JSON.stringify(JSON.stringify(adapterAssets)),
+      __JSR_THREE_EXAMPLE_ASSET_DATA_JSON__: JSON.stringify(JSON.stringify(assetData)),
+      __JSR_THREE_EXAMPLE_EXTERNAL_ASSETS_JSON__: JSON.stringify(JSON.stringify(externalDescriptors)),
       __JSR_THREE_EXAMPLE_SCRIPTS_JSON__: JSON.stringify(JSON.stringify(extracted.inlineScripts)),
       __JSR_THREE_EXAMPLE_AUDIO_JSON__: JSON.stringify(JSON.stringify(extracted.audioElements))
     }
   });
   if (result.outputFiles.length !== 1) throw new Error(`Expected one widget output, got ${result.outputFiles.length}`);
   const widget = Buffer.from(result.outputFiles[0].contents);
+  let widgetBytes = widget;
+  if (definition.fastTextDecodeJoin) {
+    // Bounded degrade: linearize the bundled ASCII text-decode accumulate
+    // (see degrades/widget_text_decode_join.mjs). Anchored on the prepared
+    // bundle; throws on drift so a silent miss is impossible.
+    widgetBytes = applyWidgetTextDecodeJoinPatch(widgetBytes);
+  }
   for (const input of Object.keys(result.metafile.inputs)) {
     if (input.startsWith('jsr-') || path.basename(input) === entryName) continue;
     const absolute = path.isAbsolute(input) ? input : path.resolve(ROOT, input);
@@ -6268,9 +7375,18 @@ async function main() {
     'manifest.json': manifest,
     'official_module.js': extracted.moduleBytes,
     'original.html': html,
-    'widget.js': widget
+    'widget.js': widgetBytes
   };
-  for (const asset of assets) outputBytes[asset.output] = asset.bytes;
+  // Inline assets keep the exact legacy output naming. Externalized assets
+  // always land under a deterministic file name: the pinned `output` when the
+  // definition declares one, otherwise the canonical url flattened with the
+  // assetOutputName convention (an `undefined` literal name was the
+  // historical failure mode here).
+  for (const asset of inlineAssets) outputBytes[asset.output] = asset.bytes;
+  for (const asset of externalAssets) {
+    outputBytes[asset.output || assetOutputName(asset.url)] = asset.bytes;
+  }
+  if (externalDescriptors.length > 0) outputBytes['assets.json'] = externalAssetsJson;
 
   const inputs = {};
   async function addInput(label, bytes) {
@@ -6288,7 +7404,7 @@ async function main() {
   for (const file of ['source-pin.json', 'src/native_entry.js']) {
     await addInput(`tool/three/${file}`, await readFile(path.join(CORE, file)));
   }
-  for (const file of ['assets/three/three.native.js', 'assets/three/three.web.js']) {
+  for (const file of ['assets/three/jsr_three_native.js', 'assets/three/jsr_three_web.js']) {
     await addInput(file, await readFile(path.join(ROOT, file)));
   }
   for (const input of Object.keys(result.metafile.inputs)) {
@@ -6331,9 +7447,23 @@ async function main() {
         ? `explicit bounded native replacement: ${definition.moduleOverride}`
         : definition.stripTopLevelAwait
           ? 'removed two awaits only from synchronous static MediaPipe adapters'
-          : undefined
+          : definition.ikMirrorStatic
+            ? 'anchored patch: static baked mirror-room cube replaces the dynamic CubeCamera render target (degrades/ik_mirror_static.mjs)'
+            : definition.dragThrottleHover
+              ? 'anchored patch: hover raycasts gated while pointers are down and coalesced to a <=33ms trailing edge otherwise'
+              : definition.cpuFlockDegrade
+                ? 'anchored patch: (a) GPUComputationRenderer.compute() replaced by a no-op after detection — the two per-tick RT sim passes and their lowered blit materials are skipped, RTs keep the init() textures for the guarded reads; (b) the 4096-copy merged 2.2M-vertex static bird mesh (R1 drops material.onBeforeCompile so all birds froze at the base position) is replaced by ONE bird geometry from the same pinned GLB in a 4096-instance InstancedMesh driven by a CPU boids integration mirroring the official velocity/position shader formulas (grid-bucket neighbor scan capped at 48 candidates/bird, predator + center gravity + SPEED_LIMIT 9, position += velocity*delta*15, matrices every 3rd frame ≈30Hz, wing flap = per-instance roll + wobble; GUI sliders, pointer predator, lights, colors unchanged) (degrades/gpgpu_birds_gltf_cpu_flock.mjs)'
+                : undefined
     },
     assetDiscovery: definition.discoverAssets ? assetDefinitions : undefined,
+    assetPolicy: externalDescriptors.length > 0
+      ? {
+          inlineMaxBytes,
+          externalAssets: externalDescriptors.map(asset => ({
+            url: asset.url, file: asset.file, bytes: asset.bytes, sha256: asset.sha256
+          }))
+        }
+      : undefined,
     facade: {
       global: 'globalThis.THREE',
       exports: exportNames,

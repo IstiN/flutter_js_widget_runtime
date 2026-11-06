@@ -43,6 +43,39 @@
       "sha256": "5785fcc9370fac33b9b4e81de23ade1a277f9a56c117ade882771144efe15372"
     }
   },
+  "assetDiscovery": [
+    {
+      "url": "models/collada/stormtrooper/Stormtrooper_D.jpg",
+      "output": "models__collada__stormtrooper__Stormtrooper_D.jpg",
+      "mime": "image/jpeg",
+      "diagnostic": "auto:models/collada/stormtrooper/Stormtrooper_D.jpg",
+      "sha256": "0f3a4e444d48849b4fa6bdbbeedae79c36feba1dc8ff56549cde22282c45d12b",
+      "discovered": true,
+      "aliases": [
+        "models/collada/stormtrooper/./Stormtrooper_D.jpg"
+      ]
+    },
+    {
+      "url": "models/collada/stormtrooper/stormtrooper.dae",
+      "output": "models__collada__stormtroper__stormtroper.dae",
+      "mime": "application/xml",
+      "prepareCollada": true,
+      "colladaAnimations": true,
+      "colladaExternalImages": true,
+      "sha256": "6b44b1f8b6442b0bc81d643487a2f66654d60dc3e3f82b12aa812727a846c54b"
+    }
+  ],
+  "assetPolicy": {
+    "inlineMaxBytes": 1500000,
+    "externalAssets": [
+      {
+        "url": "models/collada/stormtrooper/stormtrooper.dae",
+        "file": "models__collada__stormtroper__stormtroper.dae",
+        "bytes": 1614200,
+        "sha256": "19163c07d9cbebb119c3e867548ba1c29f4f5c68a53ec568ede3ac90b90ee059"
+      }
+    ]
+  },
   "facade": {
     "global": "globalThis.THREE",
     "exports": [
@@ -214,6 +247,7 @@
       "InterpolationSamplingMode",
       "InterpolationSamplingType",
       "InvertStencilOp",
+      "JsrImageBitmapLoader",
       "JsrPMREMGenerator",
       "JsrThreeCanvas",
       "KeepStencilOp",
@@ -489,9 +523,11 @@
       "ZeroFactor",
       "ZeroSlopeEnding",
       "ZeroStencilOp",
+      "createBoundedCSGEvaluator",
       "createCanvasElement",
       "error",
       "getConsoleFunction",
+      "getNativeCSGDiagnostics",
       "getNativeRaycastDiagnostics",
       "log",
       "setConsoleFunction",
@@ -499,18 +535,18 @@
       "warnOnce"
     ],
     "source": {
-      "bytes": 40488,
-      "sha256": "3f85e96c9f075a30d07a8fbb32c801bdd024743f172918f5d09410d400bd9235"
+      "bytes": 40804,
+      "sha256": "7e0432c4c74d3b3a12c50a5983c3097cfd19e0628a35d1620806feb9b4c9fbea"
     }
   },
   "inputs": {
-    "assets/three/three.native.js": {
-      "bytes": 777104,
-      "sha256": "5adcb8e7c2d94dd83748134c4d13b9fcfcba9b671445fe27de895575402241b0"
+    "assets/three/jsr_three_native.js": {
+      "bytes": 838188,
+      "sha256": "774cd82da77974165fd9ec3122c1e4e4505bca3faa5003cb72afc6a59f5f4e5b"
     },
-    "assets/three/three.web.js": {
-      "bytes": 855325,
-      "sha256": "973b78155b07710ece2f22e803cb25a8cb08da4f62b5f825dc676715f5859311"
+    "assets/three/jsr_three_web.js": {
+      "bytes": 857885,
+      "sha256": "8bf94959ca16ffd59b904e040edcf4ffe405eac56cf941285a2da0a5337fb878"
     },
     "source/LICENSE": {
       "bytes": 1081,
@@ -520,21 +556,13 @@
       "bytes": 40755,
       "sha256": "3d79d07ecb686b4e5d93232eedab255331c1beef711e13164eaa1f68655a5f2b"
     },
-    "source/examples/jsm/loaders/ColladaLoader.js": {
-      "bytes": 3988,
-      "sha256": "b150c67c4bf98ed1eec3cf291e1bd00fc53016488bcefadd7a24f659e86e52d9"
+    "source/examples/models/collada/stormtrooper/Stormtrooper_D.jpg": {
+      "bytes": 275729,
+      "sha256": "0f3a4e444d48849b4fa6bdbbeedae79c36feba1dc8ff56549cde22282c45d12b"
     },
-    "source/examples/jsm/loaders/TGALoader.js": {
-      "bytes": 11792,
-      "sha256": "da4cfa0c050b8076a63596f36f6e5a54a4a8271774a5301482996be030505c43"
-    },
-    "source/examples/jsm/loaders/collada/ColladaComposer.js": {
-      "bytes": 66711,
-      "sha256": "d96f4dcf36bc6a30a4d385bce511ed10e27893d1824074daa97ac863df1232e8"
-    },
-    "source/examples/jsm/loaders/collada/ColladaParser.js": {
-      "bytes": 36839,
-      "sha256": "d9532ab17f1d9e2919deba8029d759d5dcaed2f21195ded9e29491f719b1a0c6"
+    "source/examples/models/collada/stormtrooper/stormtrooper.dae": {
+      "bytes": 2189585,
+      "sha256": "6b44b1f8b6442b0bc81d643487a2f66654d60dc3e3f82b12aa812727a846c54b"
     },
     "source/examples/webgl_loader_collada_skinning.html": {
       "bytes": 3765,
@@ -545,28 +573,44 @@
       "sha256": "29492424209a17a723b3b0c8e9c83995697a4c466840d1b33ba6f6ff2b7542a4"
     },
     "tool/three/src/native_entry.js": {
-      "bytes": 1951,
-      "sha256": "7852c54a706c19e98978c884aa9cd9bfd8d040a2d304c8e6d8cf973dd3554eaf"
+      "bytes": 26368,
+      "sha256": "dac7dc374e1374499bc9e9a84593e7e1e848bfcde7bb916d7212ccd517e861d3"
+    },
+    "tool/three_example/asset_decode.mjs": {
+      "bytes": 42102,
+      "sha256": "81e15438074e820dc13552b267de326fab895bca729cc5db744da6bedb420a26"
+    },
+    "tool/three_example/asset_discovery.mjs": {
+      "bytes": 12424,
+      "sha256": "89a14e272cb1ddac5b555b4361af938764127ee069ac367a18262b8299643eca"
     },
     "tool/three_example/example_adapter.js": {
-      "bytes": 20723,
-      "sha256": "9c713a0daa93289f0aeb2d75de6c067569ca4bc2235c24f3bb2bc8feab03336c"
+      "bytes": 49943,
+      "sha256": "1ab349ba0361871765f4351a6fc3228fb05c93315985fbbf07644592c96ad8c4"
     },
     "tool/three_example/example_canvas2d.js": {
-      "bytes": 20988,
-      "sha256": "ae6143c0400efcb2b9ca05c69416ea13519aa5c94a8e7d2e75ffe767ef4c8fba"
+      "bytes": 22635,
+      "sha256": "3bb5bcd47d637e187e79fd7463ba4247e3cc7b5705e62229983e8e607fccf753"
     },
     "tool/three_example/lil_gui_adapter.js": {
-      "bytes": 28916,
-      "sha256": "dc11346394f41bb4f385738d3afa6aa75e695ac80fe3be3a5fbf4201686376bf"
+      "bytes": 32173,
+      "sha256": "2f83bde66c35db02a16eec3db21beae0e1198e04f1b0723f9b3dbda89c6675f7"
     },
     "tool/three_example/prepare.mjs": {
-      "bytes": 247876,
-      "sha256": "4ed1752612b57fb4ac32f62717e772e9a85f4e8a0f7e51a764443b68af0b8aac"
+      "bytes": 315738,
+      "sha256": "3b0289d8d7db92ec08e8c41644ccd934458c173e6a4c6f0a7c7856b3281466f5"
     },
     "tool/three_example/stats_adapter.js": {
       "bytes": 2107,
       "sha256": "98defe8785b259fdf70182c7d4a0a8e8e39ff8be901c3a9f93cd991240784086"
+    },
+    "tool/three_example/vendor/lock.json": {
+      "bytes": 3496,
+      "sha256": "684724e244c7042cbe7bd1fa0dace4e9a653a73d25c35f04c21b9d62d0eb6219"
+    },
+    "tool/three_example/vendor/xml_dom.js": {
+      "bytes": 18555,
+      "sha256": "b5ed0f0cfc690fc55c03280cc3c2ab67e39d09504b51d979a827306e00249182"
     }
   },
   "outputs": {
@@ -574,9 +618,21 @@
       "bytes": 1081,
       "sha256": "8b378ebe60e2fe500158cb0ac71cb5e8b7d92953c2abcc63a0eb90499653b5bc"
     },
+    "assets.json": {
+      "bytes": 480,
+      "sha256": "a077f77bf625a9bdeb849135a7a593019f6bc8dd32d911448ca63b691bd1a845"
+    },
     "manifest.json": {
       "bytes": 361,
       "sha256": "2f91de96335d09053a4cc750174bafa6817dae54c1265727c332d073f5c471bf"
+    },
+    "models__collada__stormtrooper__Stormtrooper_D.jpg": {
+      "bytes": 275729,
+      "sha256": "0f3a4e444d48849b4fa6bdbbeedae79c36feba1dc8ff56549cde22282c45d12b"
+    },
+    "models__collada__stormtroper__stormtroper.dae": {
+      "bytes": 1614200,
+      "sha256": "19163c07d9cbebb119c3e867548ba1c29f4f5c68a53ec568ede3ac90b90ee059"
     },
     "official_module.js": {
       "bytes": 2522,
@@ -587,8 +643,8 @@
       "sha256": "8be3ad01914e8d2ce4eb81a630f31a61c8c9912af52eb68195240fd75703e368"
     },
     "widget.js": {
-      "bytes": 107632,
-      "sha256": "4edd50aec266748462ab1db37a4e694fc89dab90f11a46b8041180342d0b4d1d"
+      "bytes": 445594,
+      "sha256": "8700d0a1834fc02f79f2364d33c908bbbf23a6adc4ecbbd2f1ddb815a30c33e5"
     }
   }
 }

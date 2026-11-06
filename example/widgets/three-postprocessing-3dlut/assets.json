@@ -1,0 +1,206 @@
+{
+  "schema": "jsr-three-example-external-assets-v1",
+  "id": "three-postprocessing-3dlut",
+  "inlineMaxBytes": 0,
+  "assets": [
+    {
+      "url": "luts/B&WLUT.png",
+      "file": "luts__B__WLUT.png.jsrlut",
+      "mime": "application/octet-stream",
+      "width": 0,
+      "height": 0,
+      "bytes": 131108,
+      "sha256": "eead58f922a20ad6970928b1af93e564a9d5381ac18ac515836626fc55a95e20",
+      "aliases": [],
+      "diagnostic": "prebuiltLutBin"
+    },
+    {
+      "url": "luts/Bourbon 64.CUBE",
+      "file": "luts__Bourbon__64.CUBE.jsrlut",
+      "mime": "application/octet-stream",
+      "width": 0,
+      "height": 0,
+      "bytes": 131108,
+      "sha256": "765dc6ee7bd867d21838cd1300c0994220d2170c0806b1572171d5fab9bd0bd9",
+      "aliases": [],
+      "diagnostic": "prebuiltLutBin"
+    },
+    {
+      "url": "luts/Chemical 168.CUBE",
+      "file": "luts__Chemical__168.CUBE.jsrlut",
+      "mime": "application/octet-stream",
+      "width": 0,
+      "height": 0,
+      "bytes": 131108,
+      "sha256": "6deb11aa813b93066d955dd4744770ac5d4e73b8ae6ddbe404933be1659e1901",
+      "aliases": [],
+      "diagnostic": "prebuiltLutBin"
+    },
+    {
+      "url": "luts/Clayton 33.CUBE",
+      "file": "luts__Clayton__33.CUBE.jsrlut",
+      "mime": "application/octet-stream",
+      "width": 0,
+      "height": 0,
+      "bytes": 131108,
+      "sha256": "95f97ed63e67fa9d21b1c145b3e7e7d32c4b35f8d7d87c2e8abf64eb5087a49e",
+      "aliases": [],
+      "diagnostic": "prebuiltLutBin"
+    },
+    {
+      "url": "luts/Cubicle 99.CUBE",
+      "file": "luts__Cubicle__99.CUBE.jsrlut",
+      "mime": "application/octet-stream",
+      "width": 0,
+      "height": 0,
+      "bytes": 131108,
+      "sha256": "06882ddcbeed46b6372606191f9418881eb5aaaf7bfe854efb8526affecab654",
+      "aliases": [],
+      "diagnostic": "prebuiltLutBin"
+    },
+    {
+      "url": "luts/NeutralLUT.png",
+      "file": "luts__NeutralLUT.png.jsrlut",
+      "mime": "application/octet-stream",
+      "width": 0,
+      "height": 0,
+      "bytes": 131108,
+      "sha256": "9e5991d860c11aec2b8bff428f0380e0ffdb10fb7648d34ffa19a3e3f39d9102",
+      "aliases": [],
+      "diagnostic": "prebuiltLutBin"
+    },
+    {
+      "url": "luts/NightLUT.png",
+      "file": "luts__NightLUT.png.jsrlut",
+      "mime": "application/octet-stream",
+      "width": 0,
+      "height": 0,
+      "bytes": 131108,
+      "sha256": "ced6d34d8bc23d303eeb490cd20676738eb96548bbafdffa8ab13f69c2177a8b",
+      "aliases": [],
+      "diagnostic": "prebuiltLutBin"
+    },
+    {
+      "url": "luts/Presetpro-Cinematic.3dl",
+      "file": "luts__Presetpro-Cinematic.3dl.jsrlut",
+      "mime": "application/octet-stream",
+      "width": 0,
+      "height": 0,
+      "bytes": 131108,
+      "sha256": "49fc161dc1f8614616d56b7f4e1dfecccb542b9cac0116b4273d11e3024b8531",
+      "aliases": [],
+      "diagnostic": "prebuiltLutBin"
+    },
+    {
+      "url": "luts/Remy 24.CUBE",
+      "file": "luts__Remy__24.CUBE.jsrlut",
+      "mime": "application/octet-stream",
+      "width": 0,
+      "height": 0,
+      "bytes": 131108,
+      "sha256": "4f68e991a550970ed4648b3eb349153950a7082eedb29046840eda38515e4794",
+      "aliases": [],
+      "diagnostic": "prebuiltLutBin"
+    },
+    {
+      "url": "models/gltf/DamagedHelmet/glTF/DamagedHelmet.bin",
+      "file": "models__gltf__DamagedHelmet__glTF__DamagedHelmet.bin",
+      "mime": "application/octet-stream",
+      "width": 0,
+      "height": 0,
+      "bytes": 558504,
+      "sha256": "61b33ead6aa3de23f39f02aaf0965bc3988575716a768f45b15d5ea3fb783fdf",
+      "aliases": [
+        "models/gltf/DamagedHelmet/glTF/./DamagedHelmet.bin"
+      ],
+      "diagnostic": "auto:models/gltf/DamagedHelmet/glTF/DamagedHelmet.bin"
+    },
+    {
+      "url": "models/gltf/DamagedHelmet/glTF/DamagedHelmet.gltf",
+      "file": "models__gltf__DamagedHelmet__glTF__DamagedHelmet.gltf",
+      "mime": "application/json",
+      "width": 0,
+      "height": 0,
+      "bytes": 4537,
+      "sha256": "efe99dfac198094a30c71dc02a4d3421f0eef6bf335aeb695daa4d62134cd93f",
+      "aliases": [],
+      "diagnostic": "auto:models/gltf/DamagedHelmet/glTF/DamagedHelmet.gltf"
+    },
+    {
+      "url": "models/gltf/DamagedHelmet/glTF/Default_albedo.jpg",
+      "file": "models__gltf__DamagedHelmet__glTF__Default_albedo.jpg",
+      "mime": "image/jpeg",
+      "width": 2048,
+      "height": 2048,
+      "bytes": 935629,
+      "sha256": "2dc95e87aeb0cd7c8a65ef0eb8b23212388da0534ca379811427a9a8780511f5",
+      "aliases": [
+        "models/gltf/DamagedHelmet/glTF/./Default_albedo.jpg"
+      ],
+      "diagnostic": "auto:models/gltf/DamagedHelmet/glTF/Default_albedo.jpg"
+    },
+    {
+      "url": "models/gltf/DamagedHelmet/glTF/Default_AO.jpg",
+      "file": "models__gltf__DamagedHelmet__glTF__Default_AO.jpg",
+      "mime": "image/jpeg",
+      "width": 2048,
+      "height": 2048,
+      "bytes": 361678,
+      "sha256": "7024051b65ed2ead8d24ebc9bd5ea61d4c21639a57b15dab29870668bcc6b90f",
+      "aliases": [
+        "models/gltf/DamagedHelmet/glTF/./Default_AO.jpg"
+      ],
+      "diagnostic": "auto:models/gltf/DamagedHelmet/glTF/Default_AO.jpg"
+    },
+    {
+      "url": "models/gltf/DamagedHelmet/glTF/Default_emissive.jpg",
+      "file": "models__gltf__DamagedHelmet__glTF__Default_emissive.jpg",
+      "mime": "image/jpeg",
+      "width": 2048,
+      "height": 2048,
+      "bytes": 97499,
+      "sha256": "dd0057989f22f93a4ab796d06ebf85a7c12fbfae1d59a86ae8b0c54770dc1159",
+      "aliases": [
+        "models/gltf/DamagedHelmet/glTF/./Default_emissive.jpg"
+      ],
+      "diagnostic": "auto:models/gltf/DamagedHelmet/glTF/Default_emissive.jpg"
+    },
+    {
+      "url": "models/gltf/DamagedHelmet/glTF/Default_metalRoughness.jpg",
+      "file": "models__gltf__DamagedHelmet__glTF__Default_metalRoughness.jpg",
+      "mime": "image/jpeg",
+      "width": 2048,
+      "height": 2048,
+      "bytes": 1300661,
+      "sha256": "0f05e7ffbeaa974f7d2c83436b04109969966d64ab188cbc3a19a265a0a69ae0",
+      "aliases": [
+        "models/gltf/DamagedHelmet/glTF/./Default_metalRoughness.jpg"
+      ],
+      "diagnostic": "auto:models/gltf/DamagedHelmet/glTF/Default_metalRoughness.jpg"
+    },
+    {
+      "url": "models/gltf/DamagedHelmet/glTF/Default_normal.jpg",
+      "file": "models__gltf__DamagedHelmet__glTF__Default_normal.jpg",
+      "mime": "image/jpeg",
+      "width": 2048,
+      "height": 2048,
+      "bytes": 517757,
+      "sha256": "f253ba09a90a86ffd8a807dc45d7953111f8b3421e15d7a21d1e915b01dd33c1",
+      "aliases": [
+        "models/gltf/DamagedHelmet/glTF/./Default_normal.jpg"
+      ],
+      "diagnostic": "auto:models/gltf/DamagedHelmet/glTF/Default_normal.jpg"
+    },
+    {
+      "url": "textures/equirectangular/royal_esplanade_2k.hdr.jpg",
+      "file": "textures__equirectangular__royal_esplanade_2k.hdr.jpg",
+      "mime": "image/jpeg",
+      "width": 2048,
+      "height": 1024,
+      "bytes": 552463,
+      "sha256": "b05a664c5fb022ddc6104f253a6684570e99876d30b41a220c8dea4482df6d64",
+      "aliases": [],
+      "diagnostic": "auto:textures/equirectangular/royal_esplanade_2k.hdr.jpg"
+    }
+  ]
+}

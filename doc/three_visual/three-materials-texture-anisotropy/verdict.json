@@ -1,0 +1,16 @@
+{
+  "auto_seeded": false,
+  "mae": 0.466974,
+  "official_id": "webgl_materials_texture_anisotropy",
+  "performance": {
+    "native": {
+      "presentedFps": 239.76023976023976,
+      "presentedFramesDelta": 480,
+      "sampleMs": 2002
+    },
+    "reference": {}
+  },
+  "status": "different",
+  "summary": "Visual pair review: reference and native scenes differ materially in content, materials, lighting, layout, or presentation; inspect pair before assigning a root cause.",
+  "updated": "2026-11-01T11:44:02.933389+00:00"
+}

@@ -10,18 +10,22 @@ in vec4 instanceModel2;
 in vec4 instanceModel3;
 in vec4 instanceColor;
 
-out vec3 worldPosition;
-out vec3 worldNormal;
+layout(location = 0) out vec3 worldPosition;
+layout(location = 1) out vec3 worldNormal;
 layout(location = 6) out vec3 viewNormal;
 layout(location = 7) out vec3 viewPosition;
 layout(location = 8) out vec2 materialState;
-out vec2 textureUv;
-out vec4 vertexColor;
+layout(location = 2) out vec2 textureUv;
+layout(location = 3) out vec4 vertexColor;
 layout(location = 9) out vec4 instanceDiffuse;
-out float viewDepth;
+layout(location = 4) out float viewDepth;
 layout(location = 5) out vec4 shadowPosition;
 // R1 v5: light-space position for the point-light dual-paraboloid shadow pass.
 layout(location = 10) out vec3 pointShadowPosition;
+// R1 v7: MeshDepthMaterial (kind 12) depth-viz lane — view depth normalized
+// to [0, 1] over the camera's near..far range. The range is recovered here
+// from the projection matrix because FrameInfo carries no camera near/far.
+layout(location = 11) out float depthLinear01;
 
 uniform VertexInfo {
   mat4 model;
@@ -37,6 +41,20 @@ uniform VertexInfo {
   // shadowNormalBiasReserved.w.
   vec4 spriteParams;
 } vertex_info;
+
+// R1 v7 MeshDepthMaterial: recover (near, far) from the column-major
+// projection matrix. Perspective (projection[2][3] = -1): m[2][2] =
+// (f+n)/(n-f), m[3][2] = 2fn/(n-f), so near = B/(A-1), far = B/(A+1).
+// Orthographic (projection[2][3] = 0): m[2][2] = 2/(n-f), m[3][2] =
+// (f+n)/(n-f), so near = (B+1)/A, far = (B-1)/A.
+vec2 jsrDepthClipRange() {
+  float a = vertex_info.projection[2][2];
+  float b = vertex_info.projection[3][2];
+  bool perspective = vertex_info.projection[2][3] < -0.5;
+  float near = perspective ? b / (a - 1.0) : (b + 1.0) / a;
+  float far = perspective ? b / (a + 1.0) : (b - 1.0) / a;
+  return vec2(near, far);
+}
 
 void main() {
   mat4 instanceModel = mat4(
@@ -71,6 +89,7 @@ void main() {
     vertexColor = color;
     instanceDiffuse = instanceColor;
     viewDepth = 0.0;
+    depthLinear01 = 0.0;
     shadowPosition = vec4(0.0);
     return;
   }
@@ -111,6 +130,8 @@ void main() {
     gl_Position = vertex_info.projection * mvPosition;
     viewPosition = -mvPosition.xyz;
     viewDepth = -mvPosition.z;
+    depthLinear01 = (viewDepth - jsrDepthClipRange().x) /
+        max(jsrDepthClipRange().y - jsrDepthClipRange().x, 0.0001);
     gl_Position.z = 0.5 * (gl_Position.z + gl_Position.w);
     gl_PointSize = vertex_info.pointSize.x;
     return;
@@ -124,6 +145,8 @@ void main() {
   }
   viewPosition = -viewPosition4.xyz;
   viewDepth = -viewPosition4.z;
+  vec2 depthRange = jsrDepthClipRange();
+  depthLinear01 = (viewDepth - depthRange.x) / max(depthRange.y - depthRange.x, 0.0001);
   gl_Position = vertex_info.projection * viewPosition4;
   // WebGL clips Z to [-w, w], while Flutter GPU expects [0, w].
   // Remap both perspective and orthographic projections before the shadow

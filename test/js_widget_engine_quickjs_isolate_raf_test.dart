@@ -41,7 +41,9 @@ void main() {
     }
     final late = harness.state!.submittedFrameCount;
     // ignore: avoid_print
-    print('RAF-LIVENESS early=$early late=$late lastTree=${harness.renderTrees.isNotEmpty ? harness.renderTrees.last['type'] : 'none'}');
+    print(
+      'RAF-LIVENESS early=$early late=$late lastTree=${harness.renderTrees.isNotEmpty ? harness.renderTrees.last['type'] : 'none'}',
+    );
     expect(late, greaterThan(early + 20));
     await harness.dispose(tester);
   }, timeout: const Timeout(Duration(seconds: 180)));

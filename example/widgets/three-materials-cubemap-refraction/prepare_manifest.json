@@ -43,6 +43,53 @@
       "sha256": "7c9a1e3b6319307f4b87b415565b71b93e0d978a2e87bb28168de8b05146b213"
     }
   },
+  "assetPolicy": {
+    "inlineMaxBytes": 1500000,
+    "externalAssets": [
+      {
+        "url": "models/ply/binary/Lucy100k.ply",
+        "file": "Lucy100k.ply",
+        "bytes": 1900227,
+        "sha256": "837f769e67155dc4a6e9a90683a61d6f6b4571a2a97d79586831011f450e66e2"
+      },
+      {
+        "url": "textures/cube/Park3Med/nx.jpg",
+        "file": "textures__cube__Park3Med__nx.jpg",
+        "bytes": 4194304,
+        "sha256": "e09cf158b0d207e30730596f3370145a71382e5c4e0714d736920e16177d2a19"
+      },
+      {
+        "url": "textures/cube/Park3Med/ny.jpg",
+        "file": "textures__cube__Park3Med__ny.jpg",
+        "bytes": 4194304,
+        "sha256": "c7336e3ac5e6b44f635788bf165e424c5c585d18301b485c573208bb6c872157"
+      },
+      {
+        "url": "textures/cube/Park3Med/nz.jpg",
+        "file": "textures__cube__Park3Med__nz.jpg",
+        "bytes": 4194304,
+        "sha256": "db32c611119f472b2f47a296ee29df7adbd26a7acd7b0123bf5ad2f68a123185"
+      },
+      {
+        "url": "textures/cube/Park3Med/px.jpg",
+        "file": "textures__cube__Park3Med__px.jpg",
+        "bytes": 4194304,
+        "sha256": "7302c1c5842109b38c1ef54c3098eeace233d1bc683bab0b86d839f3bf3235ca"
+      },
+      {
+        "url": "textures/cube/Park3Med/py.jpg",
+        "file": "textures__cube__Park3Med__py.jpg",
+        "bytes": 4194304,
+        "sha256": "42b947f6aa66501fb1faa93a25b5abe97dfae63b26573257aa738b5e43dd9342"
+      },
+      {
+        "url": "textures/cube/Park3Med/pz.jpg",
+        "file": "textures__cube__Park3Med__pz.jpg",
+        "bytes": 4194304,
+        "sha256": "89a67b7a371b1ed470162598bd9fd9e761a3731bd40bcce5dbad9169bff4a1ff"
+      }
+    ]
+  },
   "facade": {
     "global": "globalThis.THREE",
     "exports": [
@@ -214,6 +261,8 @@
       "InterpolationSamplingMode",
       "InterpolationSamplingType",
       "InvertStencilOp",
+      "JsrImageBitmapLoader",
+      "JsrPMREMGenerator",
       "JsrThreeCanvas",
       "KeepStencilOp",
       "KeyframeTrack",
@@ -488,9 +537,11 @@
       "ZeroFactor",
       "ZeroSlopeEnding",
       "ZeroStencilOp",
+      "createBoundedCSGEvaluator",
       "createCanvasElement",
       "error",
       "getConsoleFunction",
+      "getNativeCSGDiagnostics",
       "getNativeRaycastDiagnostics",
       "log",
       "setConsoleFunction",
@@ -498,18 +549,18 @@
       "warnOnce"
     ],
     "source": {
-      "bytes": 40399,
-      "sha256": "fa79870aad43d2239a8963ebe68e592b20fa16f238714dc0f6e8727394e2b795"
+      "bytes": 40809,
+      "sha256": "570c19c181df7416b41371a19a5d8aa226c89c75edb290aa7df9b9f8129f152d"
     }
   },
   "inputs": {
-    "assets/three/three.native.js": {
-      "bytes": 729395,
-      "sha256": "fac454c7680a7d75270a41f8dbd42076c94aad607ece3f37fcd12556954b57b4"
+    "assets/three/jsr_three_native.js": {
+      "bytes": 838188,
+      "sha256": "774cd82da77974165fd9ec3122c1e4e4505bca3faa5003cb72afc6a59f5f4e5b"
     },
-    "assets/three/three.web.js": {
-      "bytes": 835134,
-      "sha256": "9fc36cb776a1a4a8c0ef3e2e7fdefa7943967d4e525014b339f9e7417edc625a"
+    "assets/three/jsr_three_web.js": {
+      "bytes": 857885,
+      "sha256": "8bf94959ca16ffd59b904e040edcf4ffe405eac56cf941285a2da0a5337fb878"
     },
     "source/LICENSE": {
       "bytes": 1081,
@@ -524,28 +575,28 @@
       "sha256": "837f769e67155dc4a6e9a90683a61d6f6b4571a2a97d79586831011f450e66e2"
     },
     "source/examples/textures/cube/Park3Med/nx.jpg": {
-      "bytes": 4194304,
-      "sha256": "e09cf158b0d207e30730596f3370145a71382e5c4e0714d736920e16177d2a19"
+      "bytes": 168826,
+      "sha256": "6e27cd535b8ce0400dfec87298f1d7b009aeca54a69b38c8b00834c9d52ce438"
     },
     "source/examples/textures/cube/Park3Med/ny.jpg": {
-      "bytes": 4194304,
-      "sha256": "c7336e3ac5e6b44f635788bf165e424c5c585d18301b485c573208bb6c872157"
+      "bytes": 52653,
+      "sha256": "9c58ffbc9a0a71a61f6b71c002f9367abf3a77e01bea8c6ba7e008c01695ab90"
     },
     "source/examples/textures/cube/Park3Med/nz.jpg": {
-      "bytes": 4194304,
-      "sha256": "db32c611119f472b2f47a296ee29df7adbd26a7acd7b0123bf5ad2f68a123185"
+      "bytes": 235970,
+      "sha256": "ee32866c05c8221121856b5027d52d1ce0dbcd57185c2295135a5bab656d7503"
     },
     "source/examples/textures/cube/Park3Med/px.jpg": {
-      "bytes": 4194304,
-      "sha256": "7302c1c5842109b38c1ef54c3098eeace233d1bc683bab0b86d839f3bf3235ca"
+      "bytes": 153341,
+      "sha256": "271ef2f791ff6b6f7e5ab45347279ac7195d5f8dab38eb08880036e4bac7d157"
     },
     "source/examples/textures/cube/Park3Med/py.jpg": {
-      "bytes": 4194304,
-      "sha256": "42b947f6aa66501fb1faa93a25b5abe97dfae63b26573257aa738b5e43dd9342"
+      "bytes": 119491,
+      "sha256": "27588b1f84b2b7075c56681b2b4893b01ff6c81ab50638884fa9ca8e40266af1"
     },
     "source/examples/textures/cube/Park3Med/pz.jpg": {
-      "bytes": 4194304,
-      "sha256": "89a67b7a371b1ed470162598bd9fd9e761a3731bd40bcce5dbad9169bff4a1ff"
+      "bytes": 115398,
+      "sha256": "f97d0a20187c419622949a4bdb2afb652742bedb6924b9771d00e01d9fd428c7"
     },
     "source/examples/webgl_materials_cubemap_refraction.html": {
       "bytes": 4661,
@@ -556,28 +607,44 @@
       "sha256": "29492424209a17a723b3b0c8e9c83995697a4c466840d1b33ba6f6ff2b7542a4"
     },
     "tool/three/src/native_entry.js": {
-      "bytes": 882,
-      "sha256": "5fb8a476137d36328693c1d75c0754075b673f0f18acdfeafe12c6b4426cf57f"
+      "bytes": 26368,
+      "sha256": "dac7dc374e1374499bc9e9a84593e7e1e848bfcde7bb916d7212ccd517e861d3"
+    },
+    "tool/three_example/asset_decode.mjs": {
+      "bytes": 42102,
+      "sha256": "81e15438074e820dc13552b267de326fab895bca729cc5db744da6bedb420a26"
+    },
+    "tool/three_example/asset_discovery.mjs": {
+      "bytes": 12424,
+      "sha256": "89a14e272cb1ddac5b555b4361af938764127ee069ac367a18262b8299643eca"
     },
     "tool/three_example/example_adapter.js": {
-      "bytes": 14048,
-      "sha256": "261e6a04cba2e8e727062af9a8a3cedba03980bd955a0a3437ef87dd795a5748"
+      "bytes": 49943,
+      "sha256": "1ab349ba0361871765f4351a6fc3228fb05c93315985fbbf07644592c96ad8c4"
     },
     "tool/three_example/example_canvas2d.js": {
-      "bytes": 12314,
-      "sha256": "f44f052a653ea254ae30b04cbeda1ed2476dd455bcd1055970970980ec94c53f"
+      "bytes": 22635,
+      "sha256": "3bb5bcd47d637e187e79fd7463ba4247e3cc7b5705e62229983e8e607fccf753"
     },
     "tool/three_example/lil_gui_adapter.js": {
-      "bytes": 28485,
-      "sha256": "de03987c75754c821c3e511a5edc819a1054ed73d95d09b7d65ec3dd69e0fa40"
+      "bytes": 32173,
+      "sha256": "2f83bde66c35db02a16eec3db21beae0e1198e04f1b0723f9b3dbda89c6675f7"
     },
     "tool/three_example/prepare.mjs": {
-      "bytes": 131556,
-      "sha256": "c6c4030cc5230ac219b478e83f181e7a4f91af19539efbe1314c209ba2cd6c97"
+      "bytes": 315738,
+      "sha256": "3b0289d8d7db92ec08e8c41644ccd934458c173e6a4c6f0a7c7856b3281466f5"
     },
     "tool/three_example/stats_adapter.js": {
       "bytes": 2107,
       "sha256": "98defe8785b259fdf70182c7d4a0a8e8e39ff8be901c3a9f93cd991240784086"
+    },
+    "tool/three_example/vendor/lock.json": {
+      "bytes": 3496,
+      "sha256": "684724e244c7042cbe7bd1fa0dace4e9a653a73d25c35f04c21b9d62d0eb6219"
+    },
+    "tool/three_example/vendor/xml_dom.js": {
+      "bytes": 18555,
+      "sha256": "b5ed0f0cfc690fc55c03280cc3c2ab67e39d09504b51d979a827306e00249182"
     }
   },
   "outputs": {
@@ -588,6 +655,10 @@
     "THREE_LICENSE": {
       "bytes": 1081,
       "sha256": "8b378ebe60e2fe500158cb0ac71cb5e8b7d92953c2abcc63a0eb90499653b5bc"
+    },
+    "assets.json": {
+      "bytes": 2341,
+      "sha256": "fc08c640d0f32a0f64d16ea8a94b24381b3ece753884b6a03f879c43a91b7d56"
     },
     "manifest.json": {
       "bytes": 381,
@@ -601,13 +672,33 @@
       "bytes": 4661,
       "sha256": "db2a94274dc1b4092856947bd65910dbcdcf044f2442eb69d28db901f7afeb10"
     },
-    "undefined": {
+    "textures__cube__Park3Med__nx.jpg": {
+      "bytes": 4194304,
+      "sha256": "e09cf158b0d207e30730596f3370145a71382e5c4e0714d736920e16177d2a19"
+    },
+    "textures__cube__Park3Med__ny.jpg": {
+      "bytes": 4194304,
+      "sha256": "c7336e3ac5e6b44f635788bf165e424c5c585d18301b485c573208bb6c872157"
+    },
+    "textures__cube__Park3Med__nz.jpg": {
       "bytes": 4194304,
       "sha256": "db32c611119f472b2f47a296ee29df7adbd26a7acd7b0123bf5ad2f68a123185"
     },
+    "textures__cube__Park3Med__px.jpg": {
+      "bytes": 4194304,
+      "sha256": "7302c1c5842109b38c1ef54c3098eeace233d1bc683bab0b86d839f3bf3235ca"
+    },
+    "textures__cube__Park3Med__py.jpg": {
+      "bytes": 4194304,
+      "sha256": "42b947f6aa66501fb1faa93a25b5abe97dfae63b26573257aa738b5e43dd9342"
+    },
+    "textures__cube__Park3Med__pz.jpg": {
+      "bytes": 4194304,
+      "sha256": "89a67b7a371b1ed470162598bd9fd9e761a3731bd40bcce5dbad9169bff4a1ff"
+    },
     "widget.js": {
-      "bytes": 36122872,
-      "sha256": "1d51bda24fe8791cad15debfe37d0ff91704cd1a6ff702a6d4ac164d2ac0c664"
+      "bytes": 67201,
+      "sha256": "8840816f29246aede7b849f46cc41aaa828d77f6336189260f3d9c550d5a0e7a"
     }
   }
 }

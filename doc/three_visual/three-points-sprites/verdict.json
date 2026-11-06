@@ -1,0 +1,16 @@
+{
+  "auto_seeded": false,
+  "mae": 0.079749,
+  "official_id": "webgl_points_sprites",
+  "performance": {
+    "native": {
+      "presentedFps": 120.37962037962038,
+      "presentedFramesDelta": 241,
+      "sampleMs": 2002
+    },
+    "reference": {}
+  },
+  "status": "similar",
+  "summary": "",
+  "updated": "2026-11-01T11:44:02.933389+00:00"
+}

@@ -48,6 +48,14 @@
   },
   "assetDiscovery": [
     {
+      "url": "models/ldraw/officialLibrary/ldraw_xwing_scene.bin",
+      "output": "ldraw_xwing_scene.bin",
+      "mime": "application/octet-stream",
+      "diagnostic": "ldrawXwingScene",
+      "generated": "example/widgets/three-renderer-pathtracer/ldraw_xwing_scene.bin",
+      "sha256": "3f011e53a75fba20ee2d28da999a2f6d70ca4f44258744923b97f17a2a2f133b"
+    },
+    {
       "url": "models/ldraw/officialLibrary/models/7140-1-X-wingFighter.mpd_Packed.mpd",
       "output": "models__ldraw__officialLibrary__models__7140-1-X-wingFighter.mpd_Packed.mpd",
       "mime": "application/octet-stream",
@@ -64,6 +72,17 @@
       "discovered": true
     }
   ],
+  "assetPolicy": {
+    "inlineMaxBytes": 1500000,
+    "externalAssets": [
+      {
+        "url": "models/ldraw/officialLibrary/ldraw_xwing_scene.bin",
+        "file": "ldraw_xwing_scene.bin",
+        "bytes": 19358808,
+        "sha256": "3f011e53a75fba20ee2d28da999a2f6d70ca4f44258744923b97f17a2a2f133b"
+      }
+    ]
+  },
   "facade": {
     "global": "globalThis.THREE",
     "exports": [
@@ -511,9 +530,11 @@
       "ZeroFactor",
       "ZeroSlopeEnding",
       "ZeroStencilOp",
+      "createBoundedCSGEvaluator",
       "createCanvasElement",
       "error",
       "getConsoleFunction",
+      "getNativeCSGDiagnostics",
       "getNativeRaycastDiagnostics",
       "log",
       "setConsoleFunction",
@@ -521,18 +542,18 @@
       "warnOnce"
     ],
     "source": {
-      "bytes": 40584,
-      "sha256": "fd9d4734248ac5977109b1c2f7433b6cee4ff734707a8d20b37ddf9b756ac970"
+      "bytes": 40800,
+      "sha256": "05566726c1327b76ad83199376b5bfbb4717138e589b55a4df4ce6e5c215894a"
     }
   },
   "inputs": {
-    "assets/three/three.native.js": {
-      "bytes": 802458,
-      "sha256": "9ff90acc979d07b81db2e35f66e09cf28ebb5309332e896ce9c84e61a3dc8f10"
+    "assets/three/jsr_three_native.js": {
+      "bytes": 838188,
+      "sha256": "774cd82da77974165fd9ec3122c1e4e4505bca3faa5003cb72afc6a59f5f4e5b"
     },
-    "assets/three/three.web.js": {
-      "bytes": 855325,
-      "sha256": "973b78155b07710ece2f22e803cb25a8cb08da4f62b5f825dc676715f5859311"
+    "assets/three/jsr_three_web.js": {
+      "bytes": 857885,
+      "sha256": "8bf94959ca16ffd59b904e040edcf4ffe405eac56cf941285a2da0a5337fb878"
     },
     "source/LICENSE": {
       "bytes": 1081,
@@ -546,21 +567,13 @@
       "bytes": 29526,
       "sha256": "5e31e7fc4d3a1268550b948463eabe06c7a6c03c158ccb99c78616d2c9682518"
     },
-    "source/examples/jsm/loaders/LDrawLoader.js": {
-      "bytes": 61141,
-      "sha256": "dbc5877629f24f8a740152cc25b4d2acb1adae698278d4b380338626186451d5"
-    },
     "source/examples/jsm/materials/LDrawConditionalLineMaterial.js": {
       "bytes": 4472,
       "sha256": "efc0b194f69d2cb9e364f203754181e28c6dd645604a0b3d282c56c0f0c7fe40"
     },
-    "source/examples/jsm/utils/BufferGeometryUtils.js": {
-      "bytes": 37712,
-      "sha256": "9fb63427ce6641fa14fd0baff9cc4d1b5f9c3d85fd084bf2e90e803c44ec1797"
-    },
-    "source/examples/jsm/utils/LDrawUtils.js": {
-      "bytes": 6055,
-      "sha256": "aaf8a11994c2e3a2e435d5e95842a5bb5501747ee4bcb59aa62fe4d2cea55dde"
+    "source/examples/models/ldraw/officialLibrary/ldraw_xwing_scene.bin": {
+      "bytes": 19358808,
+      "sha256": "3f011e53a75fba20ee2d28da999a2f6d70ca4f44258744923b97f17a2a2f133b"
     },
     "source/examples/models/ldraw/officialLibrary/models/7140-1-X-wingFighter.mpd_Packed.mpd": {
       "bytes": 1423317,
@@ -579,36 +592,40 @@
       "sha256": "29492424209a17a723b3b0c8e9c83995697a4c466840d1b33ba6f6ff2b7542a4"
     },
     "tool/three/src/native_entry.js": {
-      "bytes": 7731,
-      "sha256": "22359f8d27e9a43832eb6aeefdb98530423f6bba63daab535814efc3cd1c4bb6"
+      "bytes": 26368,
+      "sha256": "dac7dc374e1374499bc9e9a84593e7e1e848bfcde7bb916d7212ccd517e861d3"
     },
     "tool/three_example/asset_decode.mjs": {
-      "bytes": 29549,
-      "sha256": "647895d330fc1fe04f0b3e63e836b5e6dfb28b45288596d08efa08be109fdfc7"
+      "bytes": 42102,
+      "sha256": "81e15438074e820dc13552b267de326fab895bca729cc5db744da6bedb420a26"
     },
     "tool/three_example/asset_discovery.mjs": {
       "bytes": 12424,
       "sha256": "89a14e272cb1ddac5b555b4361af938764127ee069ac367a18262b8299643eca"
     },
+    "tool/three_example/degrades/ldraw_xwing_prebuilt.mjs": {
+      "bytes": 5681,
+      "sha256": "8d2003db4a78741f9ae1cf3ab8c69fccf71c47c673abae7a4ea4b08e82ffedae"
+    },
     "tool/three_example/degrades/pathtracer_native.mjs": {
-      "bytes": 1848,
-      "sha256": "e453598a13ebd83e04c004be65ddf7d791ddc4e27b2bddbf7035f421e96e672c"
+      "bytes": 3106,
+      "sha256": "fa58093d2d0fbf87561e308554a4ee3a6012aafe399a9750d9489d49495a9fd1"
     },
     "tool/three_example/example_adapter.js": {
-      "bytes": 42964,
-      "sha256": "6a14e543e6fc0d029f245c95615a9a061ab15c746346d0eddacfe8da6e55f993"
+      "bytes": 49943,
+      "sha256": "1ab349ba0361871765f4351a6fc3228fb05c93315985fbbf07644592c96ad8c4"
     },
     "tool/three_example/example_canvas2d.js": {
-      "bytes": 20988,
-      "sha256": "ae6143c0400efcb2b9ca05c69416ea13519aa5c94a8e7d2e75ffe767ef4c8fba"
+      "bytes": 22635,
+      "sha256": "3bb5bcd47d637e187e79fd7463ba4247e3cc7b5705e62229983e8e607fccf753"
     },
     "tool/three_example/lil_gui_adapter.js": {
-      "bytes": 30051,
-      "sha256": "b94db40b13b8d6c8bfb64dfee3238a189aec54474cfef1a021fffc12e168204a"
+      "bytes": 32173,
+      "sha256": "2f83bde66c35db02a16eec3db21beae0e1198e04f1b0723f9b3dbda89c6675f7"
     },
     "tool/three_example/prepare.mjs": {
-      "bytes": 276800,
-      "sha256": "780e6758a9bff6a904be5d508e5fd62948de0c87713efc32902482d4effe2e12"
+      "bytes": 315738,
+      "sha256": "3b0289d8d7db92ec08e8c41644ccd934458c173e6a4c6f0a7c7856b3281466f5"
     },
     "tool/three_example/stats_adapter.js": {
       "bytes": 2107,
@@ -619,14 +636,22 @@
       "sha256": "684724e244c7042cbe7bd1fa0dace4e9a653a73d25c35f04c21b9d62d0eb6219"
     },
     "tool/three_example/vendor/xml_dom.js": {
-      "bytes": 15539,
-      "sha256": "4de33465eee57c254cb20293e87d69b903a897913c8caaee4f61c006589c4f67"
+      "bytes": 18555,
+      "sha256": "b5ed0f0cfc690fc55c03280cc3c2ab67e39d09504b51d979a827306e00249182"
     }
   },
   "outputs": {
     "THREE_LICENSE": {
       "bytes": 1081,
       "sha256": "8b378ebe60e2fe500158cb0ac71cb5e8b7d92953c2abcc63a0eb90499653b5bc"
+    },
+    "assets.json": {
+      "bytes": 505,
+      "sha256": "14dc4d21702e3355367535f11df504f5e722467fb1218df8521a044d8f204ab3"
+    },
+    "ldraw_xwing_scene.bin": {
+      "bytes": 19358808,
+      "sha256": "3f011e53a75fba20ee2d28da999a2f6d70ca4f44258744923b97f17a2a2f133b"
     },
     "manifest.json": {
       "bytes": 355,
@@ -649,8 +674,8 @@
       "sha256": "b05a664c5fb022ddc6104f253a6684570e99876d30b41a220c8dea4482df6d64"
     },
     "widget.js": {
-      "bytes": 2783374,
-      "sha256": "f2355f1eb4afe50561c68225944704f73d5a2de1b169f40d39be148159322e80"
+      "bytes": 2764951,
+      "sha256": "23e34a31a54567ba9bea1a169ed6324b95c7b94c0ac5dbe8514d54120dc41e39"
     }
   }
 }

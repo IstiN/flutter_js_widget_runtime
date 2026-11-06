@@ -1,0 +1,16 @@
+{
+  "auto_seeded": false,
+  "mae": 0.018307,
+  "official_id": "webgl_multiple_views",
+  "performance": {
+    "native": {
+      "presentedFps": 119.88011988011988,
+      "presentedFramesDelta": 240,
+      "sampleMs": 2002
+    },
+    "reference": {}
+  },
+  "status": "similar",
+  "summary": "Visual pair review: all three scissored views are preserved in one animation-callback envelope; scene, colors, layout and animation match modulo phase/GUI.",
+  "updated": "2026-11-01T15:02:56.760213+00:00"
+}

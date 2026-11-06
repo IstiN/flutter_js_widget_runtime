@@ -1,0 +1,12 @@
+{
+  "auto_seeded": true,
+  "mae": 0.106496,
+  "official_id": "webgl_postprocessing_glitch",
+  "performance": {
+    "native": {},
+    "reference": {}
+  },
+  "status": "blocked",
+  "summary": "ours: empty/near-uniform capture",
+  "updated": "2026-11-01T15:07:33+00:00"
+}

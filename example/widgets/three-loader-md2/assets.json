@@ -1,0 +1,18 @@
+{
+  "schema": "jsr-three-example-external-assets-v1",
+  "id": "three-loader-md2",
+  "inlineMaxBytes": 1500000,
+  "assets": [
+    {
+      "url": "textures/terrain/grasslight-big.jpg",
+      "file": "textures__terrain__grasslight-big.jpg",
+      "mime": "image/jpeg",
+      "width": 2048,
+      "height": 2048,
+      "bytes": 2595150,
+      "sha256": "23bd506b94e40a9de435375c2be6280eb088dc637fb64c331e325c7472f47177",
+      "aliases": [],
+      "diagnostic": "auto:textures/terrain/grasslight-big.jpg"
+    }
+  ]
+}

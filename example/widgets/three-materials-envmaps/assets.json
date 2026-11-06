@@ -1,0 +1,67 @@
+{
+  "schema": "jsr-three-example-external-assets-v1",
+  "id": "three-materials-envmaps",
+  "inlineMaxBytes": 1500000,
+  "assets": [
+    {
+      "url": "textures/cube/Bridge2/negx.jpg",
+      "file": "bridge2-negx.jpg",
+      "mime": "application/x-rgba",
+      "width": 1024,
+      "height": 1024,
+      "bytes": 4194304,
+      "sha256": "59740642dcfe9c2527bc47883bd05ec849a41163ed335deb8f8fb768fb52ae07",
+      "aliases": []
+    },
+    {
+      "url": "textures/cube/Bridge2/negy.jpg",
+      "file": "bridge2-negy.jpg",
+      "mime": "application/x-rgba",
+      "width": 1024,
+      "height": 1024,
+      "bytes": 4194304,
+      "sha256": "2d20edbc4fa9439f8d4152a00cfc97e6b72dfe1afbd36089a2c072c2657d9225",
+      "aliases": []
+    },
+    {
+      "url": "textures/cube/Bridge2/negz.jpg",
+      "file": "bridge2-negz.jpg",
+      "mime": "application/x-rgba",
+      "width": 1024,
+      "height": 1024,
+      "bytes": 4194304,
+      "sha256": "1938953ad89ced2d73a7c93c4ad680ac035537f130ff68780437564c0e0bdfee",
+      "aliases": []
+    },
+    {
+      "url": "textures/cube/Bridge2/posx.jpg",
+      "file": "bridge2-posx.jpg",
+      "mime": "application/x-rgba",
+      "width": 1024,
+      "height": 1024,
+      "bytes": 4194304,
+      "sha256": "4543e71968538092b646bfc56882802f2c7219b1615e50892e89854fd44cb55e",
+      "aliases": []
+    },
+    {
+      "url": "textures/cube/Bridge2/posy.jpg",
+      "file": "bridge2-posy.jpg",
+      "mime": "application/x-rgba",
+      "width": 1024,
+      "height": 1024,
+      "bytes": 4194304,
+      "sha256": "0fb15d4923f799e217de28b34be02bc0f5e4064bac229fe8dd69d4f35077f588",
+      "aliases": []
+    },
+    {
+      "url": "textures/cube/Bridge2/posz.jpg",
+      "file": "bridge2-posz.jpg",
+      "mime": "application/x-rgba",
+      "width": 1024,
+      "height": 1024,
+      "bytes": 4194304,
+      "sha256": "181c6b3b644673f2449b680e544fa49eaa6101ebf7b3a29010d9e16b4314644d",
+      "aliases": []
+    }
+  ]
+}

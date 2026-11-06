@@ -1,0 +1,16 @@
+{
+  "auto_seeded": true,
+  "mae": 0.114931,
+  "official_id": "webgl_multiple_elements",
+  "performance": {
+    "native": {
+      "presentedFps": 942.0289855072464,
+      "presentedFramesDelta": 1885,
+      "sampleMs": 2001
+    },
+    "reference": {}
+  },
+  "status": "blocked",
+  "summary": "ours: empty/near-uniform capture",
+  "updated": "2026-11-01T15:07:30+00:00"
+}

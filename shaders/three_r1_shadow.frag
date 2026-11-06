@@ -1,7 +1,7 @@
 #version 460 core
 
 layout(location = 5) in vec4 shadowPosition;
-in vec3 worldPosition;
+layout(location = 0) in vec3 worldPosition;
 out vec4 outColor;
 
 uniform ClippingInfo {

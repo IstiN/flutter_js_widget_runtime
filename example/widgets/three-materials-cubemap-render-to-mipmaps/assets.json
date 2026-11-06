@@ -1,0 +1,73 @@
+{
+  "schema": "jsr-three-example-external-assets-v1",
+  "id": "three-materials-cubemap-render-to-mipmaps",
+  "inlineMaxBytes": 1500000,
+  "assets": [
+    {
+      "url": "textures/cube/Park3Med/nx.jpg",
+      "file": "textures__cube__Park3Med__nx.jpg",
+      "mime": "application/x-rgba",
+      "width": 1024,
+      "height": 1024,
+      "bytes": 4194304,
+      "sha256": "e09cf158b0d207e30730596f3370145a71382e5c4e0714d736920e16177d2a19",
+      "aliases": [],
+      "diagnostic": "auto:textures/cube/Park3Med/nx.jpg"
+    },
+    {
+      "url": "textures/cube/Park3Med/ny.jpg",
+      "file": "textures__cube__Park3Med__ny.jpg",
+      "mime": "application/x-rgba",
+      "width": 1024,
+      "height": 1024,
+      "bytes": 4194304,
+      "sha256": "c7336e3ac5e6b44f635788bf165e424c5c585d18301b485c573208bb6c872157",
+      "aliases": [],
+      "diagnostic": "auto:textures/cube/Park3Med/ny.jpg"
+    },
+    {
+      "url": "textures/cube/Park3Med/nz.jpg",
+      "file": "textures__cube__Park3Med__nz.jpg",
+      "mime": "application/x-rgba",
+      "width": 1024,
+      "height": 1024,
+      "bytes": 4194304,
+      "sha256": "db32c611119f472b2f47a296ee29df7adbd26a7acd7b0123bf5ad2f68a123185",
+      "aliases": [],
+      "diagnostic": "auto:textures/cube/Park3Med/nz.jpg"
+    },
+    {
+      "url": "textures/cube/Park3Med/px.jpg",
+      "file": "textures__cube__Park3Med__px.jpg",
+      "mime": "application/x-rgba",
+      "width": 1024,
+      "height": 1024,
+      "bytes": 4194304,
+      "sha256": "7302c1c5842109b38c1ef54c3098eeace233d1bc683bab0b86d839f3bf3235ca",
+      "aliases": [],
+      "diagnostic": "auto:textures/cube/Park3Med/px.jpg"
+    },
+    {
+      "url": "textures/cube/Park3Med/py.jpg",
+      "file": "textures__cube__Park3Med__py.jpg",
+      "mime": "application/x-rgba",
+      "width": 1024,
+      "height": 1024,
+      "bytes": 4194304,
+      "sha256": "42b947f6aa66501fb1faa93a25b5abe97dfae63b26573257aa738b5e43dd9342",
+      "aliases": [],
+      "diagnostic": "auto:textures/cube/Park3Med/py.jpg"
+    },
+    {
+      "url": "textures/cube/Park3Med/pz.jpg",
+      "file": "textures__cube__Park3Med__pz.jpg",
+      "mime": "application/x-rgba",
+      "width": 1024,
+      "height": 1024,
+      "bytes": 4194304,
+      "sha256": "89a67b7a371b1ed470162598bd9fd9e761a3731bd40bcce5dbad9169bff4a1ff",
+      "aliases": [],
+      "diagnostic": "auto:textures/cube/Park3Med/pz.jpg"
+    }
+  ]
+}

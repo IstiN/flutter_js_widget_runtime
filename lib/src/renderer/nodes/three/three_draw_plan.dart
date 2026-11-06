@@ -13,6 +13,84 @@ typedef ThreeRgb = ({double r, double g, double b});
 typedef ThreeRgba = ({double r, double g, double b, double a});
 typedef ThreeXyz = ({double x, double y, double z});
 
+/// Per-draw stencil/color-write state resolved from an R1 v8 material
+/// (flag bits 10/11 plus the 32-byte stencil tail). Null for stenciless
+/// draws: neither the tail nor the colorWrite-off flag is present, which
+/// keeps every pre-v8 draw byte-identical downstream.
+final class ThreeDrawStencilState {
+  const ThreeDrawStencilState({
+    required this.writeEnabled,
+    required this.compareFunction,
+    required this.reference,
+    required this.readMask,
+    required this.writeMask,
+    required this.failOperation,
+    required this.zFailOperation,
+    required this.zPassOperation,
+    required this.colorWrite,
+  });
+
+  /// Upstream gates the whole stencil block on Material.stencilWrite
+  /// (WebGLState.setMaterial); false means the draw applies no stencil
+  /// test and no stencil write.
+  final bool writeEnabled;
+  final JsThreeStencilFunc compareFunction;
+  final int reference;
+  final int readMask;
+  final int writeMask;
+  final JsThreeStencilOp failOperation;
+  final JsThreeStencilOp zFailOperation;
+  final JsThreeStencilOp zPassOperation;
+
+  /// Upstream Material.colorWrite (R1 flag bit 10); false keeps depth and
+  /// stencil writes but must not disturb the color attachment.
+  final bool colorWrite;
+
+  /// Null unless the material carries stencil or colorWrite-off state.
+  static ThreeDrawStencilState? of(JsThreeMaterialUpsert material) {
+    if (!material.hasStencil && material.colorWrite) return null;
+    return ThreeDrawStencilState(
+      writeEnabled: material.stencilWrite,
+      compareFunction: material.stencilFunc,
+      reference: material.stencilRef,
+      readMask: material.stencilFuncMask,
+      writeMask: material.stencilWriteMask,
+      failOperation: material.stencilFailOp,
+      zFailOperation: material.stencilZFailOp,
+      zPassOperation: material.stencilZPassOp,
+      colorWrite: material.colorWrite,
+    );
+  }
+}
+
+/// A decoded R1 v8 STENCIL_CLEAR marker placed into the ordered main-pass
+/// stream. [nodeId] anchors the clear after the last draw of that node;
+/// zero anchors it before the first draw ("at stream position").
+final class ThreeStencilClearMarker {
+  const ThreeStencilClearMarker(this.nodeId, this.value);
+
+  final int nodeId;
+  final int value;
+}
+
+/// One entry of the ordered main-pass draw stream: either a draw or an
+/// applied-in-order stencil-clear marker.
+sealed class ThreeDrawStreamEntry {
+  const ThreeDrawStreamEntry();
+}
+
+final class ThreeDrawStreamDraw extends ThreeDrawStreamEntry {
+  const ThreeDrawStreamDraw(this.draw);
+
+  final ThreeDrawItem draw;
+}
+
+final class ThreeDrawStreamStencilClear extends ThreeDrawStreamEntry {
+  const ThreeDrawStreamStencilClear(this.clear);
+
+  final ThreeStencilClearMarker clear;
+}
+
 /// One validated draw. References point into the immutable protocol state.
 final class ThreeDrawItem {
   const ThreeDrawItem({
@@ -49,6 +127,12 @@ final class ThreeDrawItem {
   /// Empty for ordinary and explicitly instanced draws.
   final List<ThreeDrawItem> autoInstanceDraws;
   final int? _drawCount;
+
+  /// Stencil/color-write state resolved from the material (R1 v8); null
+  /// when the draw is stenciless (no tail and colorWrite enabled). Computed
+  /// per access — stenciless draws return null without allocating, and
+  /// stencil scenes hold only a handful of draws.
+  ThreeDrawStencilState? get stencil => ThreeDrawStencilState.of(material);
 
   int get drawCount =>
       _drawCount ??
@@ -102,6 +186,7 @@ final class ThreeDrawPlan {
     required this.textures,
     required this.renderTargets,
     required this.diagnostics,
+    required this.stream,
   });
 
   final JsThreeSubmitFrame? frame;
@@ -119,6 +204,19 @@ final class ThreeDrawPlan {
   final Map<int, JsThreeTextureUpsert> textures;
   final Map<int, JsThreeRenderTargetUpsert> renderTargets;
   final ThreeDrawPlanDiagnostics diagnostics;
+
+  /// Ordered main-pass stream: draws (opaque then transparent, matching
+  /// [draws]) with R1 v8 STENCIL_CLEAR markers woven in at their anchor
+  /// positions. Stenciless plans contain exactly one draw entry per draw —
+  /// byte-identical to the pre-v8 iteration order.
+  final List<ThreeDrawStreamEntry> stream;
+
+  /// [stream] entries that survive main-pass culling: draws drop when
+  /// culled from the main camera, markers always stay.
+  Iterable<ThreeDrawStreamEntry> get mainStream => stream.where(
+    (entry) =>
+        entry is! ThreeDrawStreamDraw || !entry.draw.culledFromMain,
+  );
 
   Iterable<ThreeDrawItem> get draws sync* {
     yield* opaque;
@@ -185,6 +283,8 @@ final class ThreeDrawPlanException implements Exception {
 }
 
 int _compareOpaqueDraws(ThreeDrawItem a, ThreeDrawItem b) {
+  final byRenderOrder = a.node.renderOrder.compareTo(b.node.renderOrder);
+  if (byRenderOrder != 0) return byRenderOrder;
   final byMaterial = a.material.materialId.compareTo(b.material.materialId);
   if (byMaterial != 0) return byMaterial;
   final byNode = a.node.nodeId.compareTo(b.node.nodeId);
@@ -192,6 +292,8 @@ int _compareOpaqueDraws(ThreeDrawItem a, ThreeDrawItem b) {
 }
 
 int _compareTransparentDraws(ThreeDrawItem a, ThreeDrawItem b) {
+  final byRenderOrder = a.node.renderOrder.compareTo(b.node.renderOrder);
+  if (byRenderOrder != 0) return byRenderOrder;
   final byDepth = a.viewDepth.compareTo(b.viewDepth);
   if (byDepth != 0) return byDepth;
   final byNode = a.node.nodeId.compareTo(b.node.nodeId);
@@ -259,6 +361,8 @@ const _meshMaterialKinds = {
   JsThreeMaterialKind.shadow,
   JsThreeMaterialKind.background,
   JsThreeMaterialKind.anaglyph,
+  // R1 v7: depth-viz lane (MeshDepthMaterial, BasicDepthPacking).
+  JsThreeMaterialKind.meshDepth,
 };
 
 const _autoInstanceMaterialKinds = {
@@ -268,6 +372,9 @@ const _autoInstanceMaterialKinds = {
   JsThreeMaterialKind.meshPhong,
   JsThreeMaterialKind.meshTon,
   JsThreeMaterialKind.meshMatcap,
+  // Depth prepass overrides batch across plain meshes the same way the
+  // unlit kinds do (the output is view depth, not lit shading).
+  JsThreeMaterialKind.meshDepth,
 };
 
 bool _eligibleAutoInstanceDraw(ThreeDrawItem draw) =>
@@ -276,6 +383,10 @@ bool _eligibleAutoInstanceDraw(ThreeDrawItem draw) =>
     !draw.transparent &&
     !draw.wireframe &&
     draw.node.objectKind != JsThreeObjectKind.sprite &&
+    // R1 v8 stencil-tail materials carry per-draw stencil state that must
+    // not be merged across distinct draw references; colorWrite-off is
+    // already excluded by flags inequality inside the merge checks.
+    !draw.material.hasStencil &&
     _autoInstanceMaterialKinds.contains(draw.material.kind);
 
 bool _sameAutoInstanceState(
@@ -285,6 +396,7 @@ bool _sameAutoInstanceState(
 ) {
   if (!identical(a.geometry, b.geometry) ||
       a.culledFromMain != b.culledFromMain ||
+      a.node.renderOrder != b.node.renderOrder ||
       a.node.castShadow != b.node.castShadow ||
       a.node.receiveShadow != b.node.receiveShadow ||
       culledShadowNodeIds.contains(a.node.nodeId) !=
@@ -394,7 +506,7 @@ final class ThreeDrawPlanner {
   static const int maxSpotLights = 4;
 
   ThreeDrawPlan plan(
-    JsThreeSurfaceState state, {
+    JsThreeFrameResources state, {
     JsThreeSubmitFrame? frame,
     ThreeLineMode lineMode = ThreeLineMode.lines,
   }) {
@@ -465,7 +577,78 @@ final class ThreeDrawPlanner {
       textures: Map.unmodifiable(state.textures),
       renderTargets: Map.unmodifiable(state.renderTargets),
       diagnostics: diagnostics,
+      stream: _weaveStencilClears(
+        submissions,
+        transparent,
+        state.stencilClears,
+        state,
+      ),
     );
+  }
+
+  /// Weaves R1 v8 STENCIL_CLEAR markers into the ordered draw stream.
+  /// Marker anchors, in stream order: after the LAST draw of the owned node
+  /// (matching the native "after all draws of nodeId in sorted renderOrder"
+  /// rule); before the first draw sorting strictly after the node's
+  /// renderOrder when the node has no draws here (frustum-culled owner);
+  /// before the first draw for unbound markers (nodeId 0 = "at stream
+  /// position"). Markers sharing an anchor keep their stream order.
+  List<ThreeDrawStreamEntry> _weaveStencilClears(
+    List<ThreeDrawItem> opaque,
+    List<ThreeDrawItem> transparent,
+    List<JsThreeStencilClear> clears,
+    JsThreeFrameResources state,
+  ) {
+    final draws = [...opaque, ...transparent];
+    if (clears.isEmpty) {
+      return List.unmodifiable([
+        for (final draw in draws) ThreeDrawStreamDraw(draw),
+      ]);
+    }
+    final anchored = <(int, int)>[
+      for (var index = 0; index < clears.length; index++)
+        (_stencilClearAnchor(draws, clears[index], state), index),
+    ]..sort((a, b) => a.$1 != b.$1 ? a.$1 - b.$1 : a.$2 - b.$2);
+    final entries = <ThreeDrawStreamEntry>[];
+    var marker = 0;
+    for (var index = 0; index <= draws.length; index++) {
+      while (marker < anchored.length && anchored[marker].$1 == index) {
+        final clear = clears[anchored[marker].$2];
+        entries.add(
+          ThreeDrawStreamStencilClear(
+            ThreeStencilClearMarker(clear.nodeId, clear.value),
+          ),
+        );
+        marker++;
+      }
+      if (index == draws.length) break;
+      entries.add(ThreeDrawStreamDraw(draws[index]));
+    }
+    return List.unmodifiable(entries);
+  }
+
+  int _stencilClearAnchor(
+    List<ThreeDrawItem> draws,
+    JsThreeStencilClear clear,
+    JsThreeFrameResources state,
+  ) {
+    if (clear.nodeId == 0) return 0;
+    var afterLastOwnedDraw = -1;
+    for (var index = 0; index < draws.length; index++) {
+      if (draws[index].node.nodeId == clear.nodeId) {
+        afterLastOwnedDraw = index + 1;
+      }
+    }
+    if (afterLastOwnedDraw >= 0) return afterLastOwnedDraw;
+    // The owned node has no draws here (frustum-culled or absent): anchor
+    // before the first draw sorting strictly after its renderOrder, or at
+    // the stream start when nothing sorts before it.
+    final renderOrder = state.nodes[clear.nodeId]?.renderOrder ?? 0;
+    var anchor = 0;
+    for (var index = 0; index < draws.length; index++) {
+      if (draws[index].node.renderOrder < renderOrder) anchor = index + 1;
+    }
+    return anchor;
   }
 
   ({
@@ -476,7 +659,7 @@ final class ThreeDrawPlanner {
     List<JsThreeLightUpsert> spots,
   })
   _selectLights(
-    JsThreeSurfaceState state,
+    JsThreeFrameResources state,
     ThreeDrawPlanDiagnostics diagnostics,
   ) {
     final lights = state.lights.values.toList()
@@ -587,10 +770,11 @@ final class ThreeDrawPlanner {
     textures: const {},
     renderTargets: const {},
     diagnostics: diagnostics,
+    stream: const [],
   );
 
   void _collectDraws(
-    JsThreeSurfaceState state,
+    JsThreeFrameResources state,
     JsThreeNodeUpsert root,
     JsThreeCameraUpsert camera,
     ThreeLineMode lineMode,
@@ -629,7 +813,7 @@ final class ThreeDrawPlanner {
     }
   }
 
-  Map<int, List<int>> _childrenByParent(JsThreeSurfaceState state) {
+  Map<int, List<int>> _childrenByParent(JsThreeFrameResources state) {
     final children = <int, List<int>>{};
     for (final node in state.nodes.values) {
       if (node.parentId != 0) {
@@ -704,12 +888,18 @@ final class ThreeDrawPlanner {
     JsThreeDrawBatchUpsert batch,
   ) {
     final diagnostics = context.diagnostics;
-    if (node.objectKind != JsThreeObjectKind.mesh ||
-        node.geometryId != 0 ||
-        node.materialId != 0) {
+    // Points drawables may back a batch node too: the GLBufferAttribute
+    // draw-range lane (webgl_buffergeometry_glbufferattribute) uploads the
+    // full point set once and moves the visible window through a
+    // non-instanced batch part (offset/count). The points primitive is
+    // validated per part below exactly like mesh parts.
+    if (node.geometryId != 0 ||
+        node.materialId != 0 ||
+        (node.objectKind != JsThreeObjectKind.mesh &&
+            node.objectKind != JsThreeObjectKind.points)) {
       diagnostics.invalidBatchCount++;
       diagnostics.warn(
-        'batch node ${node.nodeId} must be a mesh with zero direct resources',
+        'batch node ${node.nodeId} must be a mesh or points node with zero direct resources',
       );
       return false;
     }
@@ -996,7 +1186,7 @@ final class _DrawContext {
     this.diagnostics,
   );
 
-  final JsThreeSurfaceState state;
+  final JsThreeFrameResources state;
   final JsThreeCameraUpsert camera;
   final ThreeLineMode lineMode;
   final Set<int> culledNodeIds;

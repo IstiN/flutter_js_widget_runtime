@@ -1,0 +1,18 @@
+{
+  "schema": "jsr-three-example-external-assets-v1",
+  "id": "three-renderer-pathtracer",
+  "inlineMaxBytes": 1500000,
+  "assets": [
+    {
+      "url": "models/ldraw/officialLibrary/ldraw_xwing_scene.bin",
+      "file": "ldraw_xwing_scene.bin",
+      "mime": "application/octet-stream",
+      "width": 0,
+      "height": 0,
+      "bytes": 19358808,
+      "sha256": "3f011e53a75fba20ee2d28da999a2f6d70ca4f44258744923b97f17a2a2f133b",
+      "aliases": [],
+      "diagnostic": "ldrawXwingScene"
+    }
+  ]
+}

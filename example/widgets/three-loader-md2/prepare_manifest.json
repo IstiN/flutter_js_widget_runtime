@@ -43,6 +43,239 @@
       "sha256": "6b3d809722cb7838f3b287f49d89e9b67f9f58dac2f58d3c70c988ac8cfc6b2b"
     }
   },
+  "assetDiscovery": [
+    {
+      "url": "models/md2/ratamahatta/ratamahatta.md2",
+      "output": "models__md2__ratamahatta__ratamahatta.md2",
+      "mime": "application/octet-stream",
+      "diagnostic": "md2Model",
+      "sha256": "a23640ddbade6be3337bb1735db9826d2ef5e389186efb33752a697f28f2329c"
+    },
+    {
+      "url": "models/md2/ratamahatta/skins/ctf_b.png",
+      "output": "models__md2__ratamahatta__skins__ctf_b.png",
+      "mime": "image/png",
+      "diagnostic": "auto:models/md2/ratamahatta/skins/ctf_b.png",
+      "sha256": "bb4e73c88f453c1a20b75bfcbed58620ed4541d0a10b4f20e596167b8d16a3c0",
+      "discovered": true
+    },
+    {
+      "url": "models/md2/ratamahatta/skins/ctf_r.png",
+      "output": "models__md2__ratamahatta__skins__ctf_r.png",
+      "mime": "image/png",
+      "diagnostic": "auto:models/md2/ratamahatta/skins/ctf_r.png",
+      "sha256": "7b8100b7e2a8b3b58207d3196e44c4ad1866d07d7f30c86e8ffb1cdd47150aa1",
+      "discovered": true
+    },
+    {
+      "url": "models/md2/ratamahatta/skins/dead.png",
+      "output": "models__md2__ratamahatta__skins__dead.png",
+      "mime": "image/png",
+      "diagnostic": "auto:models/md2/ratamahatta/skins/dead.png",
+      "sha256": "25d2e022edb7ca5eef75e3907c9f3c0173add6e224aac08e81a000e7f4a6cdd9",
+      "discovered": true
+    },
+    {
+      "url": "models/md2/ratamahatta/skins/gearwhore.png",
+      "output": "models__md2__ratamahatta__skins__gearwhore.png",
+      "mime": "image/png",
+      "diagnostic": "auto:models/md2/ratamahatta/skins/gearwhore.png",
+      "sha256": "738900efca1b558757e558fb4f37e10a8a72a5347b8630b02345fc65c98ef5dc",
+      "discovered": true
+    },
+    {
+      "url": "models/md2/ratamahatta/skins/ratamahatta.png",
+      "output": "models__md2__ratamahatta__skins__ratamahatta.png",
+      "mime": "image/png",
+      "diagnostic": "auto:models/md2/ratamahatta/skins/ratamahatta.png",
+      "sha256": "25506b71bdd40a897311581302e22d8bc958dd603acb45c4750349a8f5ec4210",
+      "discovered": true
+    },
+    {
+      "url": "models/md2/ratamahatta/skins/w_bfg.png",
+      "output": "models__md2__ratamahatta__skins__w_bfg.png",
+      "mime": "image/png",
+      "diagnostic": "auto:models/md2/ratamahatta/skins/w_bfg.png",
+      "sha256": "2bb8e5ba05909ee60434fb647629416d44f6dd7489fa6088a643a4c59c201f71",
+      "discovered": true
+    },
+    {
+      "url": "models/md2/ratamahatta/skins/w_blaster.png",
+      "output": "models__md2__ratamahatta__skins__w_blaster.png",
+      "mime": "image/png",
+      "diagnostic": "auto:models/md2/ratamahatta/skins/w_blaster.png",
+      "sha256": "3737844cb08ca2ae531231053de127a3325195f2925d5694846a954faf8e049e",
+      "discovered": true
+    },
+    {
+      "url": "models/md2/ratamahatta/skins/w_chaingun.png",
+      "output": "models__md2__ratamahatta__skins__w_chaingun.png",
+      "mime": "image/png",
+      "diagnostic": "auto:models/md2/ratamahatta/skins/w_chaingun.png",
+      "sha256": "ae81264368ede5481ab3b00620d4dc3729f596744b641eb3d0ba878cf5c23afc",
+      "discovered": true
+    },
+    {
+      "url": "models/md2/ratamahatta/skins/w_glauncher.png",
+      "output": "models__md2__ratamahatta__skins__w_glauncher.png",
+      "mime": "image/png",
+      "diagnostic": "auto:models/md2/ratamahatta/skins/w_glauncher.png",
+      "sha256": "8dcf555107e265b82359df1f362d3041e661ad7943cda265f2e90e80e7ee5f79",
+      "discovered": true
+    },
+    {
+      "url": "models/md2/ratamahatta/skins/w_hyperblaster.png",
+      "output": "models__md2__ratamahatta__skins__w_hyperblaster.png",
+      "mime": "image/png",
+      "diagnostic": "auto:models/md2/ratamahatta/skins/w_hyperblaster.png",
+      "sha256": "54a5c65d29d70a2a1634ab3de0e7eb35d16b939ea07f703d3a752b2480c7883c",
+      "discovered": true
+    },
+    {
+      "url": "models/md2/ratamahatta/skins/w_machinegun.png",
+      "output": "models__md2__ratamahatta__skins__w_machinegun.png",
+      "mime": "image/png",
+      "diagnostic": "auto:models/md2/ratamahatta/skins/w_machinegun.png",
+      "sha256": "b9cb8ac869df4fa91fb9d71f3515167ca9c5ca4103e1ab73ee8f58fecfab5fee",
+      "discovered": true
+    },
+    {
+      "url": "models/md2/ratamahatta/skins/w_railgun.png",
+      "output": "models__md2__ratamahatta__skins__w_railgun.png",
+      "mime": "image/png",
+      "diagnostic": "auto:models/md2/ratamahatta/skins/w_railgun.png",
+      "sha256": "2ad9dd65aa079f76c5e2e69ab516fa2221b8669f88592eda8a0cba3fb6fc0652",
+      "discovered": true
+    },
+    {
+      "url": "models/md2/ratamahatta/skins/w_rlauncher.png",
+      "output": "models__md2__ratamahatta__skins__w_rlauncher.png",
+      "mime": "image/png",
+      "diagnostic": "auto:models/md2/ratamahatta/skins/w_rlauncher.png",
+      "sha256": "2288258cb81c753f1d84e276ff09f02228384f8fb50c2ef973c5c400861d43a2",
+      "discovered": true
+    },
+    {
+      "url": "models/md2/ratamahatta/skins/w_shotgun.png",
+      "output": "models__md2__ratamahatta__skins__w_shotgun.png",
+      "mime": "image/png",
+      "diagnostic": "auto:models/md2/ratamahatta/skins/w_shotgun.png",
+      "sha256": "1633e9afa0a087c35392bff89486ac3d0e2d7eb89aa7ee9c4d99385d402ba0f0",
+      "discovered": true
+    },
+    {
+      "url": "models/md2/ratamahatta/skins/w_sshotgun.png",
+      "output": "models__md2__ratamahatta__skins__w_sshotgun.png",
+      "mime": "image/png",
+      "diagnostic": "auto:models/md2/ratamahatta/skins/w_sshotgun.png",
+      "sha256": "25b55b4c403e6a2e7e040ff913324b7e8d3e6141751bfcdc8201ddb576c8ffbb",
+      "discovered": true
+    },
+    {
+      "url": "models/md2/ratamahatta/skins/weapon.png",
+      "output": "models__md2__ratamahatta__skins__weapon.png",
+      "mime": "image/png",
+      "diagnostic": "auto:models/md2/ratamahatta/skins/weapon.png",
+      "sha256": "ca24d52dfb56d3d2beda2d34e3caa87b0fa3125e97f1000c04a65be8e5b1048c",
+      "discovered": true
+    },
+    {
+      "url": "models/md2/ratamahatta/w_bfg.md2",
+      "output": "models__md2__ratamahatta__w_bfg.md2",
+      "mime": "application/octet-stream",
+      "diagnostic": "md2Model",
+      "sha256": "fb7820d5cf14409490411a2682af87009eda72d94720f2db423fefa2fbee0460"
+    },
+    {
+      "url": "models/md2/ratamahatta/w_blaster.md2",
+      "output": "models__md2__ratamahatta__w_blaster.md2",
+      "mime": "application/octet-stream",
+      "diagnostic": "md2Model",
+      "sha256": "29ee9eb08e02198ccfd480aeac211e17a4bdefbdd04814a5c0f29d0c8488dafa"
+    },
+    {
+      "url": "models/md2/ratamahatta/w_chaingun.md2",
+      "output": "models__md2__ratamahatta__w_chaingun.md2",
+      "mime": "application/octet-stream",
+      "diagnostic": "md2Model",
+      "sha256": "5ae6c4e3cbe8746fc9d80bdf28c2993e39ded63f78d2b0b3cb654941182c22c1"
+    },
+    {
+      "url": "models/md2/ratamahatta/w_glauncher.md2",
+      "output": "models__md2__ratamahatta__w_glauncher.md2",
+      "mime": "application/octet-stream",
+      "diagnostic": "md2Model",
+      "sha256": "d1386a39c74f1a56e94f64865809af7874471d9c640647d75f51bf7d001a0b07"
+    },
+    {
+      "url": "models/md2/ratamahatta/w_hyperblaster.md2",
+      "output": "models__md2__ratamahatta__w_hyperblaster.md2",
+      "mime": "application/octet-stream",
+      "diagnostic": "md2Model",
+      "sha256": "72892da87ff2bfdde2edcc03e3c8b9134598101418a5e4b84fd683fd9e9b2f5e"
+    },
+    {
+      "url": "models/md2/ratamahatta/w_machinegun.md2",
+      "output": "models__md2__ratamahatta__w_machinegun.md2",
+      "mime": "application/octet-stream",
+      "diagnostic": "md2Model",
+      "sha256": "0c4802d50ed6b5a769e51bc59498d1d7ed2a9fea3f8b8e12efdb4cd3bc7ab88d"
+    },
+    {
+      "url": "models/md2/ratamahatta/w_railgun.md2",
+      "output": "models__md2__ratamahatta__w_railgun.md2",
+      "mime": "application/octet-stream",
+      "diagnostic": "md2Model",
+      "sha256": "74f6402073837ba069de26f71cbca5727c735c031e456382fdcca8c47897d262"
+    },
+    {
+      "url": "models/md2/ratamahatta/w_rlauncher.md2",
+      "output": "models__md2__ratamahatta__w_rlauncher.md2",
+      "mime": "application/octet-stream",
+      "diagnostic": "md2Model",
+      "sha256": "6c73ff93b449ec892fabae564ccf3ce77a30fdf352f79e56d1b831e6733fc7a4"
+    },
+    {
+      "url": "models/md2/ratamahatta/w_shotgun.md2",
+      "output": "models__md2__ratamahatta__w_shotgun.md2",
+      "mime": "application/octet-stream",
+      "diagnostic": "md2Model",
+      "sha256": "9b75edf3070c3dff5fc6f0f607c09e1c5016a100559539c0ea9a180c9317fba5"
+    },
+    {
+      "url": "models/md2/ratamahatta/w_sshotgun.md2",
+      "output": "models__md2__ratamahatta__w_sshotgun.md2",
+      "mime": "application/octet-stream",
+      "diagnostic": "md2Model",
+      "sha256": "f94b7f71c3f86568c5798722a985fb46e39841705cb5965b68c69fab20bc4cd5"
+    },
+    {
+      "url": "models/md2/ratamahatta/weapon.md2",
+      "output": "models__md2__ratamahatta__weapon.md2",
+      "mime": "application/octet-stream",
+      "diagnostic": "md2Model",
+      "sha256": "30dc26938737f7b577c9af22dff1de22be9a8f96a55beafadc6b620888de147e"
+    },
+    {
+      "url": "textures/terrain/grasslight-big.jpg",
+      "output": "textures__terrain__grasslight-big.jpg",
+      "mime": "image/jpeg",
+      "diagnostic": "auto:textures/terrain/grasslight-big.jpg",
+      "sha256": "23bd506b94e40a9de435375c2be6280eb088dc637fb64c331e325c7472f47177",
+      "discovered": true
+    }
+  ],
+  "assetPolicy": {
+    "inlineMaxBytes": 1500000,
+    "externalAssets": [
+      {
+        "url": "textures/terrain/grasslight-big.jpg",
+        "file": "textures__terrain__grasslight-big.jpg",
+        "bytes": 2595150,
+        "sha256": "23bd506b94e40a9de435375c2be6280eb088dc637fb64c331e325c7472f47177"
+      }
+    ]
+  },
   "facade": {
     "global": "globalThis.THREE",
     "exports": [
@@ -214,6 +447,7 @@
       "InterpolationSamplingMode",
       "InterpolationSamplingType",
       "InvertStencilOp",
+      "JsrImageBitmapLoader",
       "JsrPMREMGenerator",
       "JsrThreeCanvas",
       "KeepStencilOp",
@@ -489,9 +723,11 @@
       "ZeroFactor",
       "ZeroSlopeEnding",
       "ZeroStencilOp",
+      "createBoundedCSGEvaluator",
       "createCanvasElement",
       "error",
       "getConsoleFunction",
+      "getNativeCSGDiagnostics",
       "getNativeRaycastDiagnostics",
       "log",
       "setConsoleFunction",
@@ -499,18 +735,18 @@
       "warnOnce"
     ],
     "source": {
-      "bytes": 40475,
-      "sha256": "8e239e68520893e36689b2372984e6e254dc5e6569d2078fe9ce67a19ee0e38b"
+      "bytes": 40791,
+      "sha256": "1d5572d43979358af7bf833b051728df7b877e3484974a1f801bf5dbbb7d52e4"
     }
   },
   "inputs": {
-    "assets/three/three.native.js": {
-      "bytes": 777104,
-      "sha256": "5adcb8e7c2d94dd83748134c4d13b9fcfcba9b671445fe27de895575402241b0"
+    "assets/three/jsr_three_native.js": {
+      "bytes": 838188,
+      "sha256": "774cd82da77974165fd9ec3122c1e4e4505bca3faa5003cb72afc6a59f5f4e5b"
     },
-    "assets/three/three.web.js": {
-      "bytes": 855325,
-      "sha256": "973b78155b07710ece2f22e803cb25a8cb08da4f62b5f825dc676715f5859311"
+    "assets/three/jsr_three_web.js": {
+      "bytes": 857885,
+      "sha256": "8bf94959ca16ffd59b904e040edcf4ffe405eac56cf941285a2da0a5337fb878"
     },
     "source/LICENSE": {
       "bytes": 1081,
@@ -532,6 +768,122 @@
       "bytes": 7389,
       "sha256": "4f95d34b885241323370dd07c8f6c2177e508085bd70bd1062fa4173f24d9361"
     },
+    "source/examples/models/md2/ratamahatta/ratamahatta.md2": {
+      "bytes": 303388,
+      "sha256": "a23640ddbade6be3337bb1735db9826d2ef5e389186efb33752a697f28f2329c"
+    },
+    "source/examples/models/md2/ratamahatta/skins/ctf_b.png": {
+      "bytes": 31370,
+      "sha256": "bb4e73c88f453c1a20b75bfcbed58620ed4541d0a10b4f20e596167b8d16a3c0"
+    },
+    "source/examples/models/md2/ratamahatta/skins/ctf_r.png": {
+      "bytes": 32757,
+      "sha256": "7b8100b7e2a8b3b58207d3196e44c4ad1866d07d7f30c86e8ffb1cdd47150aa1"
+    },
+    "source/examples/models/md2/ratamahatta/skins/dead.png": {
+      "bytes": 34957,
+      "sha256": "25d2e022edb7ca5eef75e3907c9f3c0173add6e224aac08e81a000e7f4a6cdd9"
+    },
+    "source/examples/models/md2/ratamahatta/skins/gearwhore.png": {
+      "bytes": 31904,
+      "sha256": "738900efca1b558757e558fb4f37e10a8a72a5347b8630b02345fc65c98ef5dc"
+    },
+    "source/examples/models/md2/ratamahatta/skins/ratamahatta.png": {
+      "bytes": 25712,
+      "sha256": "25506b71bdd40a897311581302e22d8bc958dd603acb45c4750349a8f5ec4210"
+    },
+    "source/examples/models/md2/ratamahatta/skins/w_bfg.png": {
+      "bytes": 7719,
+      "sha256": "2bb8e5ba05909ee60434fb647629416d44f6dd7489fa6088a643a4c59c201f71"
+    },
+    "source/examples/models/md2/ratamahatta/skins/w_blaster.png": {
+      "bytes": 4080,
+      "sha256": "3737844cb08ca2ae531231053de127a3325195f2925d5694846a954faf8e049e"
+    },
+    "source/examples/models/md2/ratamahatta/skins/w_chaingun.png": {
+      "bytes": 5862,
+      "sha256": "ae81264368ede5481ab3b00620d4dc3729f596744b641eb3d0ba878cf5c23afc"
+    },
+    "source/examples/models/md2/ratamahatta/skins/w_glauncher.png": {
+      "bytes": 4768,
+      "sha256": "8dcf555107e265b82359df1f362d3041e661ad7943cda265f2e90e80e7ee5f79"
+    },
+    "source/examples/models/md2/ratamahatta/skins/w_hyperblaster.png": {
+      "bytes": 7877,
+      "sha256": "54a5c65d29d70a2a1634ab3de0e7eb35d16b939ea07f703d3a752b2480c7883c"
+    },
+    "source/examples/models/md2/ratamahatta/skins/w_machinegun.png": {
+      "bytes": 5411,
+      "sha256": "b9cb8ac869df4fa91fb9d71f3515167ca9c5ca4103e1ab73ee8f58fecfab5fee"
+    },
+    "source/examples/models/md2/ratamahatta/skins/w_railgun.png": {
+      "bytes": 7850,
+      "sha256": "2ad9dd65aa079f76c5e2e69ab516fa2221b8669f88592eda8a0cba3fb6fc0652"
+    },
+    "source/examples/models/md2/ratamahatta/skins/w_rlauncher.png": {
+      "bytes": 9808,
+      "sha256": "2288258cb81c753f1d84e276ff09f02228384f8fb50c2ef973c5c400861d43a2"
+    },
+    "source/examples/models/md2/ratamahatta/skins/w_shotgun.png": {
+      "bytes": 1830,
+      "sha256": "1633e9afa0a087c35392bff89486ac3d0e2d7eb89aa7ee9c4d99385d402ba0f0"
+    },
+    "source/examples/models/md2/ratamahatta/skins/w_sshotgun.png": {
+      "bytes": 4197,
+      "sha256": "25b55b4c403e6a2e7e040ff913324b7e8d3e6141751bfcdc8201ddb576c8ffbb"
+    },
+    "source/examples/models/md2/ratamahatta/skins/weapon.png": {
+      "bytes": 7287,
+      "sha256": "ca24d52dfb56d3d2beda2d34e3caa87b0fa3125e97f1000c04a65be8e5b1048c"
+    },
+    "source/examples/models/md2/ratamahatta/w_bfg.md2": {
+      "bytes": 109440,
+      "sha256": "fb7820d5cf14409490411a2682af87009eda72d94720f2db423fefa2fbee0460"
+    },
+    "source/examples/models/md2/ratamahatta/w_blaster.md2": {
+      "bytes": 82132,
+      "sha256": "29ee9eb08e02198ccfd480aeac211e17a4bdefbdd04814a5c0f29d0c8488dafa"
+    },
+    "source/examples/models/md2/ratamahatta/w_chaingun.md2": {
+      "bytes": 81704,
+      "sha256": "5ae6c4e3cbe8746fc9d80bdf28c2993e39ded63f78d2b0b3cb654941182c22c1"
+    },
+    "source/examples/models/md2/ratamahatta/w_glauncher.md2": {
+      "bytes": 91788,
+      "sha256": "d1386a39c74f1a56e94f64865809af7874471d9c640647d75f51bf7d001a0b07"
+    },
+    "source/examples/models/md2/ratamahatta/w_hyperblaster.md2": {
+      "bytes": 83232,
+      "sha256": "72892da87ff2bfdde2edcc03e3c8b9134598101418a5e4b84fd683fd9e9b2f5e"
+    },
+    "source/examples/models/md2/ratamahatta/w_machinegun.md2": {
+      "bytes": 75948,
+      "sha256": "0c4802d50ed6b5a769e51bc59498d1d7ed2a9fea3f8b8e12efdb4cd3bc7ab88d"
+    },
+    "source/examples/models/md2/ratamahatta/w_railgun.md2": {
+      "bytes": 107928,
+      "sha256": "74f6402073837ba069de26f71cbca5727c735c031e456382fdcca8c47897d262"
+    },
+    "source/examples/models/md2/ratamahatta/w_rlauncher.md2": {
+      "bytes": 110396,
+      "sha256": "6c73ff93b449ec892fabae564ccf3ce77a30fdf352f79e56d1b831e6733fc7a4"
+    },
+    "source/examples/models/md2/ratamahatta/w_shotgun.md2": {
+      "bytes": 44508,
+      "sha256": "9b75edf3070c3dff5fc6f0f607c09e1c5016a100559539c0ea9a180c9317fba5"
+    },
+    "source/examples/models/md2/ratamahatta/w_sshotgun.md2": {
+      "bytes": 97476,
+      "sha256": "f94b7f71c3f86568c5798722a985fb46e39841705cb5965b68c69fab20bc4cd5"
+    },
+    "source/examples/models/md2/ratamahatta/weapon.md2": {
+      "bytes": 79832,
+      "sha256": "30dc26938737f7b577c9af22dff1de22be9a8f96a55beafadc6b620888de147e"
+    },
+    "source/examples/textures/terrain/grasslight-big.jpg": {
+      "bytes": 2595150,
+      "sha256": "23bd506b94e40a9de435375c2be6280eb088dc637fb64c331e325c7472f47177"
+    },
     "source/examples/webgl_loader_md2.html": {
       "bytes": 7802,
       "sha256": "633e5d216df5ccfbbc00f12fab48842df9649685005c7d0e1ac886573871061b"
@@ -541,28 +893,44 @@
       "sha256": "29492424209a17a723b3b0c8e9c83995697a4c466840d1b33ba6f6ff2b7542a4"
     },
     "tool/three/src/native_entry.js": {
-      "bytes": 1951,
-      "sha256": "7852c54a706c19e98978c884aa9cd9bfd8d040a2d304c8e6d8cf973dd3554eaf"
+      "bytes": 26368,
+      "sha256": "dac7dc374e1374499bc9e9a84593e7e1e848bfcde7bb916d7212ccd517e861d3"
+    },
+    "tool/three_example/asset_decode.mjs": {
+      "bytes": 42102,
+      "sha256": "81e15438074e820dc13552b267de326fab895bca729cc5db744da6bedb420a26"
+    },
+    "tool/three_example/asset_discovery.mjs": {
+      "bytes": 12424,
+      "sha256": "89a14e272cb1ddac5b555b4361af938764127ee069ac367a18262b8299643eca"
     },
     "tool/three_example/example_adapter.js": {
-      "bytes": 20723,
-      "sha256": "9c713a0daa93289f0aeb2d75de6c067569ca4bc2235c24f3bb2bc8feab03336c"
+      "bytes": 49943,
+      "sha256": "1ab349ba0361871765f4351a6fc3228fb05c93315985fbbf07644592c96ad8c4"
     },
     "tool/three_example/example_canvas2d.js": {
-      "bytes": 20988,
-      "sha256": "ae6143c0400efcb2b9ca05c69416ea13519aa5c94a8e7d2e75ffe767ef4c8fba"
+      "bytes": 22635,
+      "sha256": "3bb5bcd47d637e187e79fd7463ba4247e3cc7b5705e62229983e8e607fccf753"
     },
     "tool/three_example/lil_gui_adapter.js": {
-      "bytes": 28916,
-      "sha256": "dc11346394f41bb4f385738d3afa6aa75e695ac80fe3be3a5fbf4201686376bf"
+      "bytes": 32173,
+      "sha256": "2f83bde66c35db02a16eec3db21beae0e1198e04f1b0723f9b3dbda89c6675f7"
     },
     "tool/three_example/prepare.mjs": {
-      "bytes": 247876,
-      "sha256": "4ed1752612b57fb4ac32f62717e772e9a85f4e8a0f7e51a764443b68af0b8aac"
+      "bytes": 315738,
+      "sha256": "3b0289d8d7db92ec08e8c41644ccd934458c173e6a4c6f0a7c7856b3281466f5"
     },
     "tool/three_example/stats_adapter.js": {
       "bytes": 2107,
       "sha256": "98defe8785b259fdf70182c7d4a0a8e8e39ff8be901c3a9f93cd991240784086"
+    },
+    "tool/three_example/vendor/lock.json": {
+      "bytes": 3496,
+      "sha256": "684724e244c7042cbe7bd1fa0dace4e9a653a73d25c35f04c21b9d62d0eb6219"
+    },
+    "tool/three_example/vendor/xml_dom.js": {
+      "bytes": 18555,
+      "sha256": "b5ed0f0cfc690fc55c03280cc3c2ab67e39d09504b51d979a827306e00249182"
     }
   },
   "outputs": {
@@ -570,9 +938,125 @@
       "bytes": 1081,
       "sha256": "8b378ebe60e2fe500158cb0ac71cb5e8b7d92953c2abcc63a0eb90499653b5bc"
     },
+    "assets.json": {
+      "bytes": 513,
+      "sha256": "dd81aafa8707e629451ea37bd69d09810b96b2656f0c8459543333edb99e5b99"
+    },
     "manifest.json": {
       "bytes": 335,
       "sha256": "9b881fcb098e539dad43d7f09a6ca8422c7b631ef007c77cf202f5e866e9e141"
+    },
+    "models__md2__ratamahatta__ratamahatta.md2": {
+      "bytes": 303388,
+      "sha256": "a23640ddbade6be3337bb1735db9826d2ef5e389186efb33752a697f28f2329c"
+    },
+    "models__md2__ratamahatta__skins__ctf_b.png": {
+      "bytes": 31370,
+      "sha256": "bb4e73c88f453c1a20b75bfcbed58620ed4541d0a10b4f20e596167b8d16a3c0"
+    },
+    "models__md2__ratamahatta__skins__ctf_r.png": {
+      "bytes": 32757,
+      "sha256": "7b8100b7e2a8b3b58207d3196e44c4ad1866d07d7f30c86e8ffb1cdd47150aa1"
+    },
+    "models__md2__ratamahatta__skins__dead.png": {
+      "bytes": 34957,
+      "sha256": "25d2e022edb7ca5eef75e3907c9f3c0173add6e224aac08e81a000e7f4a6cdd9"
+    },
+    "models__md2__ratamahatta__skins__gearwhore.png": {
+      "bytes": 31904,
+      "sha256": "738900efca1b558757e558fb4f37e10a8a72a5347b8630b02345fc65c98ef5dc"
+    },
+    "models__md2__ratamahatta__skins__ratamahatta.png": {
+      "bytes": 25712,
+      "sha256": "25506b71bdd40a897311581302e22d8bc958dd603acb45c4750349a8f5ec4210"
+    },
+    "models__md2__ratamahatta__skins__w_bfg.png": {
+      "bytes": 7719,
+      "sha256": "2bb8e5ba05909ee60434fb647629416d44f6dd7489fa6088a643a4c59c201f71"
+    },
+    "models__md2__ratamahatta__skins__w_blaster.png": {
+      "bytes": 4080,
+      "sha256": "3737844cb08ca2ae531231053de127a3325195f2925d5694846a954faf8e049e"
+    },
+    "models__md2__ratamahatta__skins__w_chaingun.png": {
+      "bytes": 5862,
+      "sha256": "ae81264368ede5481ab3b00620d4dc3729f596744b641eb3d0ba878cf5c23afc"
+    },
+    "models__md2__ratamahatta__skins__w_glauncher.png": {
+      "bytes": 4768,
+      "sha256": "8dcf555107e265b82359df1f362d3041e661ad7943cda265f2e90e80e7ee5f79"
+    },
+    "models__md2__ratamahatta__skins__w_hyperblaster.png": {
+      "bytes": 7877,
+      "sha256": "54a5c65d29d70a2a1634ab3de0e7eb35d16b939ea07f703d3a752b2480c7883c"
+    },
+    "models__md2__ratamahatta__skins__w_machinegun.png": {
+      "bytes": 5411,
+      "sha256": "b9cb8ac869df4fa91fb9d71f3515167ca9c5ca4103e1ab73ee8f58fecfab5fee"
+    },
+    "models__md2__ratamahatta__skins__w_railgun.png": {
+      "bytes": 7850,
+      "sha256": "2ad9dd65aa079f76c5e2e69ab516fa2221b8669f88592eda8a0cba3fb6fc0652"
+    },
+    "models__md2__ratamahatta__skins__w_rlauncher.png": {
+      "bytes": 9808,
+      "sha256": "2288258cb81c753f1d84e276ff09f02228384f8fb50c2ef973c5c400861d43a2"
+    },
+    "models__md2__ratamahatta__skins__w_shotgun.png": {
+      "bytes": 1830,
+      "sha256": "1633e9afa0a087c35392bff89486ac3d0e2d7eb89aa7ee9c4d99385d402ba0f0"
+    },
+    "models__md2__ratamahatta__skins__w_sshotgun.png": {
+      "bytes": 4197,
+      "sha256": "25b55b4c403e6a2e7e040ff913324b7e8d3e6141751bfcdc8201ddb576c8ffbb"
+    },
+    "models__md2__ratamahatta__skins__weapon.png": {
+      "bytes": 7287,
+      "sha256": "ca24d52dfb56d3d2beda2d34e3caa87b0fa3125e97f1000c04a65be8e5b1048c"
+    },
+    "models__md2__ratamahatta__w_bfg.md2": {
+      "bytes": 109440,
+      "sha256": "fb7820d5cf14409490411a2682af87009eda72d94720f2db423fefa2fbee0460"
+    },
+    "models__md2__ratamahatta__w_blaster.md2": {
+      "bytes": 82132,
+      "sha256": "29ee9eb08e02198ccfd480aeac211e17a4bdefbdd04814a5c0f29d0c8488dafa"
+    },
+    "models__md2__ratamahatta__w_chaingun.md2": {
+      "bytes": 81704,
+      "sha256": "5ae6c4e3cbe8746fc9d80bdf28c2993e39ded63f78d2b0b3cb654941182c22c1"
+    },
+    "models__md2__ratamahatta__w_glauncher.md2": {
+      "bytes": 91788,
+      "sha256": "d1386a39c74f1a56e94f64865809af7874471d9c640647d75f51bf7d001a0b07"
+    },
+    "models__md2__ratamahatta__w_hyperblaster.md2": {
+      "bytes": 83232,
+      "sha256": "72892da87ff2bfdde2edcc03e3c8b9134598101418a5e4b84fd683fd9e9b2f5e"
+    },
+    "models__md2__ratamahatta__w_machinegun.md2": {
+      "bytes": 75948,
+      "sha256": "0c4802d50ed6b5a769e51bc59498d1d7ed2a9fea3f8b8e12efdb4cd3bc7ab88d"
+    },
+    "models__md2__ratamahatta__w_railgun.md2": {
+      "bytes": 107928,
+      "sha256": "74f6402073837ba069de26f71cbca5727c735c031e456382fdcca8c47897d262"
+    },
+    "models__md2__ratamahatta__w_rlauncher.md2": {
+      "bytes": 110396,
+      "sha256": "6c73ff93b449ec892fabae564ccf3ce77a30fdf352f79e56d1b831e6733fc7a4"
+    },
+    "models__md2__ratamahatta__w_shotgun.md2": {
+      "bytes": 44508,
+      "sha256": "9b75edf3070c3dff5fc6f0f607c09e1c5016a100559539c0ea9a180c9317fba5"
+    },
+    "models__md2__ratamahatta__w_sshotgun.md2": {
+      "bytes": 97476,
+      "sha256": "f94b7f71c3f86568c5798722a985fb46e39841705cb5965b68c69fab20bc4cd5"
+    },
+    "models__md2__ratamahatta__weapon.md2": {
+      "bytes": 79832,
+      "sha256": "30dc26938737f7b577c9af22dff1de22be9a8f96a55beafadc6b620888de147e"
     },
     "official_module.js": {
       "bytes": 6870,
@@ -582,9 +1066,13 @@
       "bytes": 7802,
       "sha256": "633e5d216df5ccfbbc00f12fab48842df9649685005c7d0e1ac886573871061b"
     },
+    "textures__terrain__grasslight-big.jpg": {
+      "bytes": 2595150,
+      "sha256": "23bd506b94e40a9de435375c2be6280eb088dc637fb64c331e325c7472f47177"
+    },
     "widget.js": {
-      "bytes": 107535,
-      "sha256": "83aadbb80b175670e892f1de849dced6810b0bc984bba3387e323020ec34d150"
+      "bytes": 2125731,
+      "sha256": "a0f579da39363e9695013f92092959de397621c297d47d53ac4b8107ad47f858"
     }
   }
 }

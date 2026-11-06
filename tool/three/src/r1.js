@@ -2,8 +2,16 @@ import { checkedU32 } from './errors.js';
 import { utf8 } from './runtime.js';
 
 export const T1_VERSION = 1;
-export const R1_VERSION = 6;
+// v8: material stencil tail (last 32 bytes when MATERIAL_FLAG_STENCIL is set),
+// the material colorWrite flag bit, OPCODE.STENCIL_CLEAR mid-stream markers
+// and the FRAME_TARGET_FLAGS.clearStencil frame-start bit (see the v8 block
+// above materialCommand). v7: node renderOrder tail. v6: normal/bump/PBR map
+// slots and the Dubois anaglyph tail. v5: matcap/gradient slots, sprite
+// rotation, point-shadow block, cube texture flag. v4: alpha/env texture
+// slots, UV transforms, tone mapping + FogExp2 density.
+export const R1_VERSION = 8;
 export const STREAM_R1 = 1;
+const NATIVE_U32_LITTLE_ENDIAN = new Uint8Array(new Uint32Array([1]).buffer)[0] === 1;
 export const MAX_ENVELOPE = 64 * 1024 * 1024;
 export const OPCODE = Object.freeze({
   GEOMETRY: 1,
@@ -19,7 +27,14 @@ export const OPCODE = Object.freeze({
   DRAW_BATCH: 11,
   REMOVE_BATCH: 12,
   CLIPPING: 13,
-  RENDER_TARGET: 14
+  RENDER_TARGET: 14,
+  // v8: mid-stream stencil-buffer clear (u32 nodeId, u32 value). Emitted
+  // where upstream executes renderer.clearStencil(value) — usually an
+  // object.onAfterRender callback right after that object's draw. The native
+  // side applies the clear after ALL draws of nodeId in its sorted draw
+  // order (renderOrder), so the marker stays correct under re-sorting;
+  // nodeId 0 means "at this stream position" (no owning draw).
+  STENCIL_CLEAR: 15
 });
 
 export const NODE_SHADOW_FLAGS = Object.freeze({ cast: 1, receive: 2 });
@@ -73,13 +88,17 @@ export function encodeEnvelope(commands, engineId, surfaceId, sequence) {
   const engine = utf8(engineId);
   const surface = utf8(surfaceId);
   if (!engine.length || engine.length > 128 || !surface.length || surface.length > 128) throw new Error('three.invalid: T1 identity length');
-  const payload = new ByteWriter(12 + commands.length * 16);
+  let payloadSize = 12;
+  for (const item of commands) {
+    if (!item || !Number.isInteger(item.opcode) || item.opcode < 1 || item.opcode > 255) throw new Error('three.invalid: R1 opcode');
+    payloadSize += 8 + item.body.length;
+  }
+  const payload = new ByteWriter(payloadSize);
   payload.bytes(new Uint8Array([0x4a, 0x53, 0x52, 0x31]));
   payload.u16(R1_VERSION);
   payload.u16(0);
   payload.u32(commands.length);
   for (const item of commands) {
-    if (!item || !Number.isInteger(item.opcode) || item.opcode < 1 || item.opcode > 255) throw new Error('three.invalid: R1 opcode');
     payload.u8(item.opcode);
     payload.u8(0);
     payload.u16(0);
@@ -116,7 +135,12 @@ export function geometryCommand(id, version, primitive, vertexCount, attributes,
   for (let i = 0; i < names.length; i++) if (attributes[names[i]]) mask |= 1 << i;
   if (wireIndices && (primitive !== 0 || wireIndices.length % 2 !== 0)) throw new Error('three.invalid: wire indices require complete triangle-mesh edges');
   const wireBytes = wireIndices ? 4 + wireIndices.length * 4 : 0;
-  const body = new ByteWriter(28 + indexCount * 4 + wireBytes + 64);
+  let attributeBytes = 0;
+  for (const name of names) {
+    const values = attributes[name];
+    if (values) attributeBytes += 4 + values.byteLength;
+  }
+  const body = new ByteWriter(28 + attributeBytes + indexCount * 4 + wireBytes);
   body.u32(id);
   body.u32(version);
   body.u32(mask);
@@ -130,7 +154,15 @@ export function geometryCommand(id, version, primitive, vertexCount, attributes,
     body.u32(values.byteLength);
     body.bytes(new Uint8Array(values.buffer, values.byteOffset, values.byteLength));
   }
-  if (indices) for (let i = 0; i < indices.length; i++) body.u32(indices[i]);
+  if (indices) {
+    if (indices instanceof Uint32Array && NATIVE_U32_LITTLE_ENDIAN) {
+      // Dynamic position/normal uploads must not reserialize an unchanged
+      // index buffer through one QuickJS DataView call per index.
+      body.bytes(new Uint8Array(indices.buffer, indices.byteOffset, indices.byteLength));
+    } else {
+      for (let i = 0; i < indices.length; i++) body.u32(indices[i]);
+    }
+  }
   if (wireIndices) {
     body.u32(wireIndices.length);
     for (let i = 0; i < wireIndices.length; i++) body.u32(wireIndices[i]);
@@ -157,6 +189,53 @@ export const TEXTURE_FLAG_CUBE = 0x80;
 
 export const MATERIAL_CLIP_FLAGS = Object.freeze({ intersection: 1, shadows: 2 });
 
+// --- R1 v8 stencil lane -----------------------------------------------------
+// Upstream Material.stencil*/colorWrite state is encoded as raw WebGL enum
+// values so the native pass can forward them straight to gl.stencilFunc /
+// gl.stencilOp without a mapping table. Material flag bits (u32 at body
+// offset 16): bits 0..9 pre-exist (vertexColors..blending<<7), bit 10 marks
+// upstream colorWrite === false (default true, so the bit is absent — and
+// the encoding byte-stable — for stenciless materials), bit 11 marks the v8
+// stencil tail as the LAST 32 bytes of the material body:
+//   -32 u32 stencilWrite     upstream material.stencilWrite (test+write enable)
+//   -28 u32 stencilFunc      STENCIL_FUNC value (default always)
+//   -24 u32 stencilRef       upstream material.stencilRef
+//   -20 u32 stencilFuncMask  compare mask (default 255)
+//   -16 u32 stencilWriteMask write mask (default 255)
+//   -12 u32 stencilFailOp    STENCIL_OP value (default keep)
+//    -8 u32 stencilZFailOp   STENCIL_OP value (default keep)
+//    -4 u32 stencilZPassOp   STENCIL_OP value (default keep)
+// The tail exists only when some stencil property leaves its upstream
+// default; absent tail + clear bit 11 keeps pre-v8 bodies byte-identical.
+// Frame-start stencil clears ride FRAME_TARGET_FLAGS.clearStencil in the
+// FRAME frame-target flags (value is always 0); every other clear — the
+// upstream renderer.clearStencil() path, typically object.onAfterRender —
+// uses OPCODE.STENCIL_CLEAR markers with the exact value.
+export const MATERIAL_FLAG_COLOR_WRITE_OFF = 0x400;
+export const MATERIAL_FLAG_STENCIL = 0x800;
+// Raw GL stencil test functions (upstream THREE.NeverStencilFunc..AlwaysStencilFunc).
+export const STENCIL_FUNC = Object.freeze({
+  never: 0x0200, less: 0x0201, equal: 0x0202, lessEqual: 0x0203,
+  greater: 0x0204, notEqual: 0x0205, greaterEqual: 0x0206, always: 0x0207
+});
+// Raw GL stencil operations (upstream THREE.ZeroStencilOp..DecrementWrapStencilOp).
+export const STENCIL_OP = Object.freeze({
+  zero: 0, keep: 0x1e00, replace: 0x1e01, increment: 0x1e02,
+  decrement: 0x1e03, invert: 0x150a, incrementWrap: 0x8507, decrementWrap: 0x8508
+});
+
+function stencilEnum(map, value, label) {
+  for (const name of Object.keys(map)) if (map[name] === value) return value;
+  throw new Error(`three.invalid: material ${label} is not a stencil enum value`);
+}
+
+export function stencilClearCommand(nodeId = 0, value = 0) {
+  const body = new ByteWriter(8);
+  body.u32(checkedU32(nodeId, 'stencilClear.nodeId'));
+  body.u32(checkedU32(value, 'stencilClear.value'));
+  return command(OPCODE.STENCIL_CLEAR, body.finish());
+}
+
 export function renderTargetCommand(id, version, width, height, textureId, flags) {
   const body = new ByteWriter(28);
   body.u32(checkedU32(id, 'renderTarget.id'));
@@ -169,7 +248,7 @@ export function renderTargetCommand(id, version, width, height, textureId, flags
   return command(OPCODE.RENDER_TARGET, body.finish());
 }
 
-export function materialCommand(id, version, kind, mapId, flags, side, color, opacity, roughness, metalness, alphaTest, pointSize, specular = null, shininess = 0, emissive = null, emissiveIntensity = 1, clipId = 0, clipFlags = 0, textureSlots = null, v5Slots = null, v6Slots = null, dubois = null) {
+export function materialCommand(id, version, kind, mapId, flags, side, color, opacity, roughness, metalness, alphaTest, pointSize, specular = null, shininess = 0, emissive = null, emissiveIntensity = 1, clipId = 0, clipFlags = 0, textureSlots = null, v5Slots = null, v6Slots = null, dubois = null, stencil = null) {
   if ((kind === 5) !== (specular !== null)) throw new Error('three.invalid: Phong material requires exactly one specular payload');
   if (emissive !== null && kind !== 1 && kind !== 2 && kind !== 5 && kind !== 8) throw new Error('three.invalid: emissive payload requires a lit mesh material');
   if (!Number.isInteger(clipId) || clipId < 0) throw new Error('three.invalid: material clip id');
@@ -188,7 +267,7 @@ export function materialCommand(id, version, kind, mapId, flags, side, color, op
   const normal = v6Slots || { normalMapId: 0, normalScaleX: 1, normalScaleY: 1, bumpMapId: 0, bumpScale: 1, roughnessMapId: 0, metalnessMapId: 0 };
   if (!Number.isFinite(normal.normalScaleX) || !Number.isFinite(normal.normalScaleY)) throw new Error('three.invalid: material normalScale must be finite');
   if (!Number.isFinite(normal.bumpScale)) throw new Error('three.invalid: material bumpScale must be finite');
-  const body = new ByteWriter(192 + (specular ? 16 : 0) + (emissive ? 16 : 0));
+  const body = new ByteWriter(192 + (specular ? 16 : 0) + (emissive ? 16 : 0) + (stencil ? 32 : 0));
   body.u32(id);
   body.u32(version);
   body.u32(kind);
@@ -243,6 +322,21 @@ export function materialCommand(id, version, kind, mapId, flags, side, color, op
   body.u32(0); body.u32(0); body.u32(0);
   writeDuboisMatrix(body, dubois?.left);
   writeDuboisMatrix(body, dubois?.right);
+  if (stencil) {
+    // v8 stencil tail — always the LAST 32 bytes of the body (see the v8
+    // block above). Presence is announced by MATERIAL_FLAG_STENCIL in flags.
+    if (!(flags & MATERIAL_FLAG_STENCIL)) {
+      throw new Error('three.invalid: stencil tail requires MATERIAL_FLAG_STENCIL in flags');
+    }
+    body.u32(stencil.stencilWrite ? 1 : 0);
+    body.u32(stencilEnum(STENCIL_FUNC, stencil.stencilFunc, 'stencilFunc'));
+    body.u32(checkedU32(stencil.stencilRef, 'material stencilRef'));
+    body.u32(checkedU32(stencil.stencilFuncMask, 'material stencilFuncMask'));
+    body.u32(checkedU32(stencil.stencilWriteMask, 'material stencilWriteMask'));
+    body.u32(stencilEnum(STENCIL_OP, stencil.stencilFailOp, 'stencilFail'));
+    body.u32(stencilEnum(STENCIL_OP, stencil.stencilZFailOp, 'stencilZFail'));
+    body.u32(stencilEnum(STENCIL_OP, stencil.stencilZPassOp, 'stencilZPass'));
+  }
   return command(OPCODE.MATERIAL, body.finish());
 }
 
@@ -258,7 +352,7 @@ function writeDuboisMatrix(body, matrix) {
   }
 }
 
-export function nodeCommand(id, parentId, geometryId, materialId, visible, objectKind, matrixWorld, shadows = {}, spriteCenter = null) {
+export function nodeCommand(id, parentId, geometryId, materialId, visible, objectKind, matrixWorld, shadows = {}, spriteCenter = null, renderOrder = 0) {
   const center = spriteCenter || { x: 0.5, y: 0.5 };
   const body = new ByteWriter(108);
   body.u32(id);
@@ -273,7 +367,9 @@ export function nodeCommand(id, parentId, geometryId, materialId, visible, objec
   // v5 tail: upstream Sprite.center (R1 sprites billboard around it).
   body.f32(center.x);
   body.f32(center.y);
-  body.u32(0);
+  // v7 tail: upstream Object3D.renderOrder, reusing the v5 reserved word.
+  if (!Number.isFinite(renderOrder)) throw new Error('three.invalid: node renderOrder must be finite');
+  body.f32(renderOrder);
   return command(OPCODE.NODE, body.finish());
 }
 
@@ -316,6 +412,18 @@ export function drawBatchCommand(id, version, instanceCount, flags, parts, matri
     body.u32(part.count);
   }
   if (ArrayBuffer.isView(matrices)) {
+    // Interleaved perf: the finiteness gate rides the encode pass as one
+    // inline NaN/±Inf scan (sourceFiniteStrict shape, zero function calls)
+    // instead of one requireFinite call per float — 80k calls per
+    // instanceMatrix version bump on 5000-instance scenes. Rejection
+    // semantics are identical: same check, same message, and the command is
+    // still never pushed when any component is non-finite.
+    for (let i = 0; i < matrixLength; i++) {
+      const value = matrices[i];
+      if (value !== value || value === Infinity || value === -Infinity) {
+        throw new Error('three.invalid: instanceMatrix must be finite');
+      }
+    }
     body.bytes(new Uint8Array(matrices.buffer, matrices.byteOffset, matrixLength * 4));
   } else {
     for (let i = 0; i < matrixLength; i++) body.f32(matrices[i]);

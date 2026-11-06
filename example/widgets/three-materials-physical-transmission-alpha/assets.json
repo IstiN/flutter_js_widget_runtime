@@ -1,0 +1,18 @@
+{
+  "schema": "jsr-three-example-external-assets-v1",
+  "id": "three-materials-physical-transmission-alpha",
+  "inlineMaxBytes": 1500000,
+  "assets": [
+    {
+      "url": "models/gltf/DragonAttenuation.glb",
+      "file": "models__gltf__DragonAttenuation.glb",
+      "mime": "model/gltf-binary",
+      "width": 0,
+      "height": 0,
+      "bytes": 6566672,
+      "sha256": "7450ad58ffa7a860726d6d54120dac1e9594f35aef881cbb9b11e4a43371014d",
+      "aliases": [],
+      "diagnostic": "auto:models/gltf/DragonAttenuation.glb"
+    }
+  ]
+}

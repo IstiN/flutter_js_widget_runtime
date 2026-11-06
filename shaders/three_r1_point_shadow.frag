@@ -13,9 +13,9 @@
 // raw geometry UVs.
 
 layout(location = 10) in vec3 pointShadowPosition;
-in vec3 worldPosition;
-in vec2 textureUv;
-in vec4 vertexColor;
+layout(location = 0) in vec3 worldPosition;
+layout(location = 2) in vec2 textureUv;
+layout(location = 3) in vec4 vertexColor;
 layout(location = 9) in vec4 instanceDiffuse;
 
 out vec4 outColor;
@@ -30,12 +30,34 @@ uniform ClippingInfo {
 
 uniform MaterialInfo {
   vec4 colorOpacity;
-  // z: alphaTest.
   vec4 roughnessMetalnessAlphaTestKind;
-  // x: vertexColors flag.
   vec4 vertexColorsFlatShadingHasMapReserved;
-  // x: hasAlphaMap.
+  vec4 specularShininess;
+  vec4 emissiveIntensity;
+  // x: has alphaMap, y: has envMap, z: envMapIntensity.
   vec4 alphaEnvIntensity;
+  // Per-map UV transforms (R1 v4), three.js Matrix3 column-major with one
+  // vec4 per column; w padding is unused.
+  vec4 mapUvColumn0;
+  vec4 mapUvColumn1;
+  vec4 mapUvColumn2;
+  vec4 alphaMapUvColumn0;
+  vec4 alphaMapUvColumn1;
+  vec4 alphaMapUvColumn2;
+  // R1 v5 tail: x = has matcap, y = has gradientMap, z = cube envMap atlas,
+  // w = cube atlas width in texels (textureSize() is unusable: it crashes
+  // the bundled spirv-cross, so dims ride the uniform).
+  vec4 matcapGradientCube;
+  // x = cube atlas height in texels; yzw reserved.
+  vec4 atlasParams;
+  // Recognized Dubois composite: right texture presence and two std140 mat3s.
+  vec4 mapRightHas;
+  vec4 duboisLeft0;
+  vec4 duboisLeft1;
+  vec4 duboisLeft2;
+  vec4 duboisRight0;
+  vec4 duboisRight1;
+  vec4 duboisRight2;
 } material_info;
 
 void main() {

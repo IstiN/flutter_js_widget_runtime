@@ -1,0 +1,18 @@
+{
+  "schema": "jsr-three-example-external-assets-v1",
+  "id": "three-animation-skinning-additive-blending",
+  "inlineMaxBytes": 1500000,
+  "assets": [
+    {
+      "url": "models/gltf/Xbot.glb",
+      "file": "models__gltf__Xbot.glb",
+      "mime": "model/gltf-binary",
+      "width": 0,
+      "height": 0,
+      "bytes": 2930032,
+      "sha256": "002f8d269de68e5dce3d25195caf390d1aa359bbfaae3fcf4c8dc78ec36c3ba5",
+      "aliases": [],
+      "diagnostic": "auto:models/gltf/Xbot.glb"
+    }
+  ]
+}

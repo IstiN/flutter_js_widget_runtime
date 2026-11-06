@@ -1,6 +1,31 @@
 import 'dart:async';
 
+import 'package:js_widget_runtime/js_widget_runtime.dart';
 import 'package:js_widget_runtime/src/runtime/js_widget_engine_quickjs.dart';
+
+/// Delivers a synthetic mouse pointer event through the `three.input:main`
+/// channel with the canonical pointer payload (jscpd: one payload shape for
+/// the interaction suites).
+void dispatchThreePointerEvent(
+  JsWidgetEngineBackend backend,
+  String type, {
+  required double x,
+  required double y,
+  int buttons = 0,
+}) {
+  backend.dispatchHostEvent('three.input:main', <String, dynamic>{
+    'type': type,
+    'pointerId': 7,
+    'pointerType': 'mouse',
+    'isPrimary': true,
+    'button': 0,
+    'buttons': buttons,
+    'clientX': x,
+    'clientY': y,
+    'pageX': x,
+    'pageY': y,
+  });
+}
 
 /// A running widget engine plus its render log — lets tests drive host
 /// events and capture the resulting tree. Shared by the golden suite and

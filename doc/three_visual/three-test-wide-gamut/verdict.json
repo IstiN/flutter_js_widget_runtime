@@ -1,0 +1,16 @@
+{
+  "auto_seeded": false,
+  "mae": 0.072839,
+  "official_id": "webgl_test_wide_gamut",
+  "performance": {
+    "native": {
+      "presentedFps": 240.0,
+      "presentedFramesDelta": 480,
+      "sampleMs": 2000
+    },
+    "reference": {}
+  },
+  "status": "similar",
+  "summary": "",
+  "updated": "2026-11-01T11:44:02.933389+00:00"
+}

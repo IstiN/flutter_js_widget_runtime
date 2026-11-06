@@ -13,7 +13,7 @@ const REQUIRE_R1 = process.env.JSR_STRESS_REQUIRE_R1 === '1';
 const sha = bytes => createHash('sha256').update(bytes).digest('hex');
 const [widget, native, prepareBytes, manifestBytes] = await Promise.all([
   readFile(path.join(OUT, 'widget.js'), 'utf8'),
-  readFile(path.join(ROOT, 'assets/three/three.native.js'), 'utf8'),
+  readFile(path.join(ROOT, 'assets/three/jsr_three_native.js'), 'utf8'),
   readFile(path.join(OUT, 'prepare_manifest.json')),
   readFile(path.join(OUT, 'manifest.json'))
 ]);
@@ -92,7 +92,7 @@ const context = vm.createContext({
   },
   clearInterval(id) { timers.delete(id); }
 });
-vm.runInContext(native, context, { filename: 'three.native.js' });
+vm.runInContext(native, context, { filename: 'jsr_three_native.js' });
 vm.runInContext('globalThis.THREE = THREE;', context);
 
 const renderErrors = [];

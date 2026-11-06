@@ -274,22 +274,56 @@ export class JsrTextureLoader extends Loader {
     const generation = canvas ? canvas.generation : 0;
     const guard = canvas ? { canvas, generation, epoch: canvas._assetEpoch } : null;
     this.manager.itemStart(url);
-    runtime.loadAsset(url, guard).then(record => {
+    runtime.loadAsset(url, guard).then(async record => {
       if (canvas && (canvas.disposed || canvas.generation !== generation || canvas._assetEpoch !== guard.epoch)) throw assetFailure(url, 'surface was disposed during texture load');
-      const format = encoding(record);
-      texture.image = {
-        data: record.bytes,
-        width: record.width || 0,
-        height: record.height || 0,
-        mime: record.mime || '',
-        encoding: format.encoding,
-        encoded: format.encoded
-      };
+      let format;
+      try {
+        format = encoding(record);
+      } catch (error) {
+        const bytes = record.bytes;
+        const gif = bytes && bytes.length >= 6 && bytes[0] === 71 && bytes[1] === 73 &&
+          bytes[2] === 70 && bytes[3] === 56 && (bytes[4] === 55 || bytes[4] === 57) && bytes[5] === 97;
+        if (!gif || !canvas || !runtime.jsr || typeof runtime.jsr.hostCall !== 'function') throw error;
+        // Flutter's image codec already decodes GIF. R1 intentionally retains
+        // the first frame as a static native texture, just like the bounded
+        // ImageLoader lane, rather than rejecting an otherwise valid local
+        // asset (webgl_buffergeometry_instancing_interleaved uses crate.gif).
+        const requestId = ++JsrImageLoader._requestId;
+        const canvasId = `texture-decode-${requestId}`;
+        const result = await runtime.jsr.hostCall('three.canvas2d', {
+          action: 'decodeImage', engineId: runtime.engineId, surfaceId: canvas.surfaceId,
+          canvasId, generation, requestId, width: 0, height: 0, commands: [], data: record.data
+        });
+        if (!result || result.stale || result.engineId !== runtime.engineId ||
+            result.surfaceId !== canvas.surfaceId || result.canvasId !== canvasId ||
+            result.generation !== generation || result.requestId !== requestId ||
+            !Number.isInteger(result.width) || !Number.isInteger(result.height) ||
+            result.width <= 0 || result.height <= 0 || typeof result.data !== 'string') {
+          throw new Error('three.canvas2d: invalid decoded image response');
+        }
+        const rgba = decodeBase64(result.data);
+        if (rgba.length !== result.width * result.height * 4) throw new Error('three.canvas2d: decoded image RGBA length');
+        texture.image = {
+          data: rgba, width: result.width, height: result.height,
+          mime: 'application/octet-stream', encoding: 0, encoded: false
+        };
+      }
+      if (!texture.image) {
+        texture.image = {
+          data: record.bytes,
+          width: record.width || 0,
+          height: record.height || 0,
+          mime: record.mime || '',
+          encoding: format.encoding,
+          encoded: format.encoded
+        };
+      }
       texture.needsUpdate = true;
       texture.userData.jsrAssetUrl = url;
       if (onLoad) onLoad(texture);
     }).catch(error => {
       if (onError) onError(error);
+      else if (typeof console !== 'undefined' && console.error) console.error(error);
       this.manager.itemError(url);
     }).finally(() => this.manager.itemEnd(url));
     return texture;

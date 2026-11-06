@@ -3,6 +3,7 @@ import 'dart:convert';
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter/scheduler.dart';
+import 'package:flutter/widgets.dart';
 
 import 'package:js_widget_runtime/src/renderer/nodes/js_3d_host.dart';
 import 'package:js_widget_runtime/src/renderer/nodes/js_voxel_node.dart';
@@ -305,9 +306,26 @@ class JsWidgetBridge {
   }
 
   /// Releases all timers, tickers and 3D scene controllers owned by the bridge.
+  /// The bridge is dead afterwards: late RAF requests (a JS tick still
+  /// draining on the QuickJS FFI callback thread) are dropped permanently.
+  /// For the pre-run reset used by widget reloads see [resetForRun].
   void dispose() {
     _intervals.dispose();
     _raf.dispose();
+    _resetSceneState();
+  }
+
+  /// Resets per-run state while keeping the bridge usable. The QuickJS
+  /// backend calls this at the top of [run] so a widget reload on the same
+  /// engine starts with fresh timers and scenes; a later RAF request
+  /// restarts the ticker normally.
+  void resetForRun() {
+    _intervals.dispose();
+    _raf.reset();
+    _resetSceneState();
+  }
+
+  void _resetSceneState() {
     for (final controller in _sceneControllers.values) {
       controller.dispose();
     }
@@ -321,11 +339,12 @@ class JsWidgetBridge {
   }
 
   /// Test seam: stops interval timers and the RAF ticker without disposing
-  /// scene controllers (see QuickjsWidgetEngineBackend.debugStopTimers).
+  /// scene controllers or ending the RAF lane (see
+  /// QuickjsWidgetEngineBackend.debugStopTimers).
   @visibleForTesting
   void debugStopTimers() {
     _intervals.dispose();
-    _raf.dispose();
+    _raf.reset();
   }
 
   Map<String, dynamic> _parseArgs(dynamic args) {
@@ -415,10 +434,17 @@ class JsWidgetBridge {
   void _submitThree(Uint8List data) {
     final host = threeHost;
     if (host == null) return;
+    final ssw = Stopwatch()..start();
     try {
       // Native typed-array views are call-scoped. The host may retain data
       // for coalescing/GPU upload, so ownership crosses with an explicit copy.
       host.submit(threeEngineId, Uint8List.fromList(data));
+      if (data.length > 200000) {
+        debugPrint(
+          '[lane-prof] three.r1 submit ${data.length}B '
+          'copy+submit=${ssw.elapsedMilliseconds}ms',
+        );
+      }
     } catch (error) {
       // The lossy fire-and-forget lane rejects malformed/untrusted packets
       // without tearing down JS execution or logging their raw bytes.
@@ -515,8 +541,14 @@ class JsWidgetBridge {
       final url = arguments['url'] as String? ?? '';
       _validateThreeAssetUrl(url);
       final asset = await host.loadAsset(threeEngineId, url);
+      final bsw = Stopwatch()..start();
+      final encoded = base64Encode(asset.data);
+      debugPrint(
+        '[lane-prof] three.asset $url ${asset.data.length}B '
+        'b64Encode=${bsw.elapsedMilliseconds}ms',
+      );
       resolveCallback(id, {
-        'data': base64Encode(asset.data),
+        'data': encoded,
         'mimeType': asset.mimeType,
         'width': asset.width,
         'height': asset.height,
@@ -861,7 +893,7 @@ class JsIntervalScheduler {
 /// Drives `requestAnimationFrame` callbacks through a [Ticker]: frames are
 /// requested by id, fired once per tick in registration order, and the
 /// ticker stops itself when no frames are pending.
-class JsRafScheduler {
+class JsRafScheduler with WidgetsBindingObserver {
   JsRafScheduler({this.onTick, this.shouldStop});
 
   /// Fires `(id, elapsedMs)` for each requested frame.
@@ -871,6 +903,18 @@ class JsRafScheduler {
   bool Function()? shouldStop;
 
   Ticker? _ticker;
+
+  /// Set by [dispose]. Late RAF requests (a JS tick still draining on the
+  /// QuickJS FFI callback thread while the host tree is tearing down) must
+  /// not restart a ticker on a disposed tree — the scheduler binding treats
+  /// that as a leaked transient callback.
+  bool _disposed = false;
+
+  /// Whether the lifecycle observer is registered with the binding. The
+  /// scheduler is constructed as a plain field (possibly before any binding
+  /// exists in plain `test()` bodies), so registration is deferred to the
+  /// first frame request.
+  bool _observerRegistered = false;
   final _pending = <String, bool>{};
 
   // Monotonic timestamp folding. The Ticker's elapsed resets when the
@@ -896,6 +940,7 @@ class JsRafScheduler {
   static const int _stopAfterEmptyTicks = 60;
 
   void requestFrame(String id) {
+    if (_disposed) return;
     _pending[id] = true;
     _ensureTicker();
   }
@@ -905,13 +950,60 @@ class JsRafScheduler {
     if (_pending.isEmpty) _ticker?.stop();
   }
 
-  void dispose() {
+  /// Stops the ticker and clears pending frames WITHOUT ending the lane:
+  /// a later [requestFrame] restarts ticking. Used for widget reloads on
+  /// the same engine (run() resets the bridge between runs — including
+  /// reviving a lane a previous dispose() ended) and for the
+  /// debugStopTimers test seam.
+  void reset() {
+    _disposed = false;
     _ticker?.dispose();
     _ticker = null;
     _pending.clear();
   }
 
+  /// Ends the lane permanently: late RAF requests (a JS tick still draining
+  /// on the QuickJS FFI callback thread while the host tree tears down) are
+  /// dropped instead of restarting a ticker on a disposed tree.
+  void dispose() {
+    _disposed = true;
+    if (_observerRegistered) {
+      WidgetsBinding.instance.removeObserver(this);
+      _observerRegistered = false;
+    }
+    _ticker?.dispose();
+    _ticker = null;
+    _pending.clear();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    // While the app is hidden/paused the binding refuses to schedule frames
+    // (framesEnabled == false): a Ticker started then is active but never
+    // ticks, and a later requestFrame would double-start it. Requests made
+    // in that state stay queued in _pending; on resume the ticker restarts
+    // and they deliver.
+    if (state == AppLifecycleState.resumed &&
+        _pending.isNotEmpty &&
+        !_disposed) {
+      _ensureTicker();
+    }
+  }
+
   void _ensureTicker() {
+    if (_disposed) return;
+    if (!_observerRegistered) {
+      // Registered lazily: the scheduler is constructed as a plain field and
+      // plain `test()` bodies may run before any binding exists.
+      WidgetsBinding.instance.addObserver(this);
+      _observerRegistered = true;
+    }
+    if (!SchedulerBinding.instance.framesEnabled) {
+      // App hidden/paused: a Ticker started now is active but never ticks
+      // and a later requestFrame would double-start it. Keep the request
+      // queued; didChangeAppLifecycleState resumes the ticker.
+      return;
+    }
     final existing = _ticker;
     if (existing != null) {
       if (!existing.isTicking) existing.start();

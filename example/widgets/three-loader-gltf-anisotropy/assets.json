@@ -1,0 +1,30 @@
+{
+  "schema": "jsr-three-example-external-assets-v1",
+  "id": "three-loader-gltf-anisotropy",
+  "inlineMaxBytes": 1500000,
+  "assets": [
+    {
+      "url": "models/gltf/AnisotropyBarnLamp.glb",
+      "file": "models__gltf__AnisotropyBarnLamp.glb",
+      "mime": "model/gltf-binary",
+      "width": 0,
+      "height": 0,
+      "bytes": 5146748,
+      "sha256": "f3ccc927bdfd8d1ef85228b22a9ad7cb046776d48b5bc9b33f99f2a26a498794",
+      "aliases": [],
+      "diagnostic": "auto:models/gltf/AnisotropyBarnLamp.glb"
+    },
+    {
+      "url": "models/gltf/embedded-2.png",
+      "file": "models__gltf__embedded-2.png",
+      "mime": "image/png",
+      "width": 2048,
+      "height": 2048,
+      "bytes": 2794184,
+      "sha256": "f83a6d6f6dd224a1a65999a1f3f5d4b3d56174860cd2d8c5c4255f07581fe226",
+      "aliases": [
+        "models/gltf/./embedded-2.png"
+      ]
+    }
+  ]
+}

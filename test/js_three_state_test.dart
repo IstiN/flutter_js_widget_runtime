@@ -207,8 +207,13 @@ Uint8List _light(
   return out;
 }
 
-Uint8List _frame(int scene, int camera, {double exposure = 1}) {
-  final out = Uint8List(140);
+Uint8List _frame(
+  int scene,
+  int camera, {
+  double exposure = 1,
+  bool scissor = false,
+}) {
+  final out = Uint8List(scissor ? 244 : 140);
   _u32(out, 0, scene);
   _u32(out, 4, camera);
   _f32(out, 8, 0.1);
@@ -216,8 +221,18 @@ Uint8List _frame(int scene, int camera, {double exposure = 1}) {
   _f32(out, 16, 0.3);
   _f32(out, 20, 1);
   _f32(out, 24, exposure);
-  _f32(out, 68, 1);
-  _u32(out, 136, 0);
+  if (scissor) {
+    _f32(out, 100, 1);
+    _u32(out, 184, 0x4658534a);
+    _u32(out, 188, 1);
+    for (var index = 0; index < 8; index++) {
+      _f32(out, 204 + index * 4, index % 4 < 2 ? 0 : 100);
+    }
+    _u32(out, 236, 15);
+  } else {
+    _f32(out, 68, 1);
+    _u32(out, 136, 0);
+  }
   return out;
 }
 
@@ -594,6 +609,19 @@ void main() {
     },
   );
 
+  test('scissored multi-view submissions retain every bounded pass', () {
+    final store = JsThreeStateStore();
+    for (var scene = 1; scene <= 3; scene++) {
+      store.apply(
+        _envelope(scene, [(8, _frame(scene, 9, scissor: true))], version: 7),
+      );
+    }
+    final state = store.surface('engine', 'surface')!;
+    expect(state.pendingFrames.map((frame) => frame.sceneId), [1, 2, 3]);
+    expect(state.coalescedFrameCount, 0);
+    expect(state.pendingFrames.every((frame) => frame.scissorTest), isTrue);
+  });
+
   test(
     'sequence ordering is per engine and surface with no mutation on rejection',
     () {
@@ -709,6 +737,22 @@ void main() {
       expect(state.renderTargets[2]!.width, 128);
       store.apply(_envelope(4, [(9, _dispose(2, 7))], version: 6));
       expect(state.renderTargets, isEmpty);
+      // r186 RenderTarget.setSize() disposes; the R1 renderer then re-tracks
+      // the target with a reset version. The disposal must clear the per-id
+      // gate so the same-version upsert with new dimensions is not dropped.
+      store.apply(
+        _envelope(5, [
+          (9, _dispose(2, 7)),
+          (14, _target(2, 1, width: 2482)),
+        ], version: 6),
+      );
+      expect(state.renderTargets[2]!.width, 2482);
+      store.apply(_envelope(6, [(14, _target(2, 1, width: 512))], version: 6));
+      expect(
+        state.renderTargets[2]!.width,
+        2482,
+        reason: 'reset version without a disposal stays gated',
+      );
 
       final quotaStore = JsThreeStateStore();
       _bad(
@@ -777,4 +821,77 @@ void main() {
       expect(state.lastSequence, 4);
     },
   );
+
+  group('R1 v8 stencil-clear routing', () {
+    // Full v8 frame body: the v4 tone tail, the v5 point-shadow tail and
+    // the shifted shadow block, ending at the shadow light type (no culled
+    // lists, no target trailer). 172 bytes with radius=1.
+    Uint8List _frameV8(int scene, int camera) {
+      final out = Uint8List(172);
+      _u32(out, 0, scene);
+      _u32(out, 4, camera);
+      _f32(out, 8, 0.1);
+      _f32(out, 12, 0.2);
+      _f32(out, 16, 0.3);
+      _f32(out, 20, 1);
+      _f32(out, 24, 1);
+      _f32(out, 100, 1);
+      for (final index in [0, 5, 10, 15]) {
+        _f32(out, 104 + index * 4, 1);
+      }
+      return out;
+    }
+
+    Uint8List _clear(int nodeId, int value) {
+      final out = Uint8List(8);
+      _u32(out, 0, nodeId);
+      _u32(out, 4, value);
+      return out;
+    }
+
+    test('markers accumulate into their envelope frame in stream order', () {
+      final store = JsThreeStateStore();
+      final result = store.apply(
+        _envelope(1, [
+          (15, _clear(7, 2)),
+          (15, _clear(9, 255)),
+          (15, _clear(0, 0)),
+          (8, _frameV8(1, 9)),
+        ], version: 8),
+      );
+      final state = store.surface('engine', 'surface')!;
+      expect(
+        result.stencilClears.map((clear) => (clear.nodeId, clear.value)),
+        [(7, 2), (9, 255), (0, 0)],
+      );
+      expect(
+        state.stencilClears.map((clear) => (clear.nodeId, clear.value)),
+        [(7, 2), (9, 255), (0, 0)],
+      );
+      final view = state.takePendingFrameView();
+      expect(view, isNotNull);
+      expect(view!.stencilClears, hasLength(3));
+      expect(view.stencilClears.first.value, 2);
+      // A stenciless frame resets the frame's marker list.
+      final plain = store.apply(
+        _envelope(2, [(8, _frameV8(1, 9))], version: 8),
+      );
+      expect(plain.stencilClears, isEmpty);
+      expect(state.stencilClears, isEmpty);
+    });
+
+    test('markers without a frame carry into the next frame', () {
+      final store = JsThreeStateStore();
+      store.apply(_envelope(1, [(15, _clear(4, 1))], version: 8));
+      final state = store.surface('engine', 'surface')!;
+      expect(state.currentFrame, isNull);
+      final framed = store.apply(
+        _envelope(2, [(8, _frameV8(1, 9))], version: 8),
+      );
+      // The carried marker is a frame-snapshot fact, not an envelope change.
+      expect(framed.stencilClears, isEmpty);
+      expect(state.stencilClears.single.nodeId, 4);
+      expect(state.takePendingFrameView()!.stencilClears.single.nodeId, 4);
+    });
+  });
 }

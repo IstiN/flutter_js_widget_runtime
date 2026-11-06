@@ -3,6 +3,57 @@ import { installNativeAudio } from './native_audio.js';
 
 const ROOT = typeof globalThis !== 'undefined' ? globalThis : {};
 
+// Hosts deliver key events with Flutter-flavored labels (`jsr.onKey` payloads:
+// `key: 'arrowUp'`, `code: physicalKey.debugName` → 'Arrow Up'/'Shift Left').
+// Official three.js modules switch on DOM KeyboardEvent.code values with no
+// whitespace ('ArrowUp', 'ShiftLeft', 'KeyW'). Without this normalization a
+// correct-but-unmatched code silently drops every keypress in examples that
+// drive AnimationActions or OrbitControls from event.code — the animation
+// never starts and nothing warns. Normalization is bounded: whitespace is
+// removed and a fixed label map covers the non-alphanumeric named keys.
+const DOM_CODE_LABELS = Object.freeze({
+  arrowup: 'ArrowUp',
+  arrowdown: 'ArrowDown',
+  arrowleft: 'ArrowLeft',
+  arrowright: 'ArrowRight',
+  space: 'Space',
+  enter: 'Enter',
+  escape: 'Escape',
+  tab: 'Tab',
+  backspace: 'Backspace',
+  delete: 'Delete',
+  shift: 'ShiftLeft',
+  control: 'ControlLeft',
+  alt: 'AltLeft',
+  meta: 'MetaLeft',
+  capslock: 'CapsLock',
+  contextmenu: 'ContextMenu',
+  home: 'Home',
+  end: 'End',
+  insert: 'Insert',
+  pageup: 'PageUp',
+  pagedown: 'PageDown',
+  scrolllock: 'ScrollLock',
+  numlock: 'NumLock',
+  pause: 'Pause',
+  printscreen: 'PrintScreen'
+});
+
+function domKeyCode(value) {
+  const raw = String(value === undefined || value === null ? '' : value);
+  if (!raw) return '';
+  const compact = raw.replace(/[\s_-]+/g, '');
+  const mapped = DOM_CODE_LABELS[compact.toLowerCase()];
+  if (mapped !== undefined) return mapped;
+  if (compact.length === 1) {
+    const code = compact.charCodeAt(0);
+    if (code >= 65 && code <= 90) return `Key${compact}`;
+    if (code >= 97 && code <= 122) return `Key${compact.toUpperCase()}`;
+    if (code >= 48 && code <= 57) return `Digit${compact}`;
+  }
+  return compact;
+}
+
 // three r186 FileLoader constructs an AbortController eagerly. QuickJS has
 // none; a minimal spec-shaped shim keeps upstream loaders working (abort
 // still notifies listeners and rejects through the loader's own handling).
@@ -125,6 +176,8 @@ function installOfflineFetch() {
 }
 const BASE64 = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/';
 let activeRuntime = null;
+let _b64First = null;
+let _b64Pair = null;
 
 function utf8(value, useNative = true) {
   const string = String(value);
@@ -147,7 +200,37 @@ function utf8(value, useNative = true) {
   return new Uint8Array(bytes);
 }
 
+// Chunked UTF-8 decode: byte-exact with the historical per-codepoint loop
+// (invalid sequences -> U+FFFD, truncated tails -> U+FFFD, no BOM stripping)
+// but accumulates into bounded string chunks joined once. QuickJS strings are
+// flat, so `result += piece` copied the whole accumulated string per append:
+// decoding the 6.8MB prepared elevationGrid1 VRML JSON inside the
+// loadAsset/FileLoader promise job was ~6.6GB of quadratic memcpy on the
+// QuickJS thread (>6 CPU-minutes, in-app white screen). Chunks are flushed at
+// DECODE_CHUNK chars, so every append copies at most ~2x the chunk size and
+// the total is linear; the final join builds the flat string once.
+export const DECODE_CHUNK = 8192;
+
 export function decodeUtf8(bytes) {
+  const len = bytes.length;
+  if (bytes instanceof Uint8Array || bytes instanceof Int8Array || bytes instanceof Uint8ClampedArray) {
+    // Fast path: pure-ASCII payloads (the pinned JSON/VRML/OBJ/GLB-chunk
+    // assets) decode as chunked String.fromCharCode over array + join —
+    // linear on QuickJS flat strings.
+    let ascii = true;
+    for (let i = 0; i < len; i++) {
+      if (bytes[i] >= 0x80) { ascii = false; break; }
+    }
+    if (ascii) {
+      const parts = new Array(1 + (len / DECODE_CHUNK | 0));
+      let n = 0;
+      for (let i = 0; i < len; i += DECODE_CHUNK) {
+        parts[n++] = String.fromCharCode.apply(null, bytes.subarray(i, Math.min(i + DECODE_CHUNK, len)));
+      }
+      return parts.join('');
+    }
+  }
+  const parts = [];
   let result = '';
   for (let i = 0; i < bytes.length;) {
     const first = bytes[i++];
@@ -171,8 +254,12 @@ export function decodeUtf8(bytes) {
     }
     if (!valid || code < minimum || code > 0x10ffff || (code >= 0xd800 && code <= 0xdfff)) result += '\ufffd';
     else result += String.fromCodePoint(code);
+    if (result.length >= DECODE_CHUNK) {
+      parts.push(result);
+      result = '';
+    }
   }
-  return result;
+  return parts.length === 0 ? result : parts.join('') + result;
 }
 
 function installTextEncoding() {
@@ -199,40 +286,102 @@ export function decodeBase64(value) {
   if (value instanceof ArrayBuffer) return new Uint8Array(value.slice(0));
   if (ArrayBuffer.isView(value)) return new Uint8Array(value.buffer.slice(value.byteOffset, value.byteOffset + value.byteLength));
   if (typeof value !== 'string') throw assetFailure('<bytes>', 'expected base64 or a typed array');
+  // Reverse lookup over the shared alphabet, built once per runtime. The
+  // original loop paid a BASE64.indexOf linear scan, a single-char string
+  // allocation and an output.push per byte, and every large host decode
+  // response (e.g. a 45 MB panorama atlas decodeImage payload) stalled the
+  // QuickJS worker for seconds on top of three full-string regex passes.
+  // The paired-table fast path fuses whitespace skipping, url-safe remaps
+  // and '=' padding into one charCodeAt scan; the first irregular character
+  // bails to the strict scalar pass, so exotic inputs keep the exact
+  // historical semantics (cleaned length % 4, charset validation, decode
+  // stops at the first '=').
+  if (_b64First === null) {
+    _b64First = new Int8Array(128).fill(-1);
+    _b64Pair = new Int32Array(16384).fill(-1);
+    for (let hi = 0; hi < 64 && hi < BASE64.length; hi++) {
+      _b64First[BASE64.charCodeAt(hi)] = hi;
+      for (let lo = 0; lo < 64 && lo < BASE64.length; lo++) {
+        _b64Pair[(BASE64.charCodeAt(hi) << 8) | BASE64.charCodeAt(lo)] = (hi << 6) | lo;
+      }
+    }
+  }
+  const first = _b64First;
+  const pair = _b64Pair;
+  const len = value.length;
+  const out = new Uint8Array(Math.max(0, Math.floor(len * 3 / 4)));
+  let written = 0;
+  let buffer = 0;
+  let bits = 0;
+  let i = 0;
+  let bailed = false;
+  while (i < len) {
+    const c0 = value.charCodeAt(i);
+    if (c0 === 61) break; // '='
+    const hi = c0 < 128 ? first[c0] : -1;
+    if (hi < 0 || i + 1 >= len) { bailed = true; break; }
+    const c1 = value.charCodeAt(i + 1);
+    const lo = c1 < 128 ? first[c1] : -1;
+    if (lo < 0) { bailed = true; break; }
+    buffer = (buffer << 12) | (hi << 6) | lo;
+    bits += 12;
+    while (bits >= 8) {
+      bits -= 8;
+      out[written++] = (buffer >> bits) & 255;
+    }
+    i += 2;
+  }
+  if (!bailed) {
+    if (len % 4 === 1) throw assetFailure('<bytes>', 'invalid base64');
+    return written === out.length ? out : out.subarray(0, written);
+  }
+  return decodeBase64Slow(value, first);
+}
+
+function decodeBase64Slow(value, first) {
   const clean = value.replace(/\s/g, '');
   if (clean.length % 4 === 1 || /[^A-Za-z0-9+/=_-]/.test(clean)) throw assetFailure('<bytes>', 'invalid base64');
   const normalized = clean.replace(/-/g, '+').replace(/_/g, '/');
-  const output = [];
+  const out = new Uint8Array(Math.max(0, Math.floor(normalized.length * 3 / 4)));
+  let written = 0;
   let buffer = 0;
   let bits = 0;
   for (let i = 0; i < normalized.length; i++) {
-    const char = normalized[i];
-    if (char === '=') break;
-    const index = BASE64.indexOf(char);
+    const code = normalized.charCodeAt(i);
+    if (code === 61) break; // '='
+    const index = code < 128 ? first[code] : -1;
     if (index < 0) throw assetFailure('<bytes>', 'invalid base64');
     buffer = (buffer << 6) | index;
     bits += 6;
     if (bits >= 8) {
       bits -= 8;
-      output.push((buffer >> bits) & 255);
+      out[written++] = (buffer >> bits) & 255;
     }
   }
-  return new Uint8Array(output);
+  return written === out.length ? out : out.subarray(0, written);
 }
 
 export function encodeBase64(value) {
   const bytes = decodeBase64(value);
-  let result = '';
+  // Chunk-array join (decodeUtf8 precedent): QuickJS flat strings make
+  // `result += quad` quadratic over multi-megabyte payloads.
+  const parts = [];
+  let piece = '';
   for (let i = 0; i < bytes.length; i += 3) {
     const a = bytes[i];
     const b = i + 1 < bytes.length ? bytes[i + 1] : 0;
     const c = i + 2 < bytes.length ? bytes[i + 2] : 0;
     const n = (a << 16) | (b << 8) | c;
-    result += BASE64[(n >> 18) & 63] + BASE64[(n >> 12) & 63] +
+    piece += BASE64[(n >> 18) & 63] + BASE64[(n >> 12) & 63] +
       (i + 1 < bytes.length ? BASE64[(n >> 6) & 63] : '=') +
       (i + 2 < bytes.length ? BASE64[n & 63] : '=');
+    if (piece.length >= 8192) {
+      parts.push(piece);
+      piece = '';
+    }
   }
-  return result;
+  if (piece.length > 0) parts.push(piece);
+  return parts.length === 0 ? '' : parts.join('');
 }
 
 function identity(value, name, max) {
@@ -276,6 +425,8 @@ function eventTarget(target) {
   return target;
 }
 
+class JsrThreeDomElement {}
+
 class JsrThreeDocument {
   constructor(runtime) {
     this.runtime = runtime;
@@ -283,8 +434,20 @@ class JsrThreeDocument {
     this.hidden = false;
     this.activeElement = null;
     this.documentElement = { style: {} };
+    // Bounded DOM element marker. Upstream DOM-touching code type-checks shim
+    // elements against `document.defaultView` constructors — CSS2DObject's
+    // 'removed' listener runs
+    // `element instanceof element.ownerDocument.defaultView.Element`, and
+    // without the constructor that instanceof throws right inside
+    // Object3D.remove(), aborting any scene teardown that detaches labelled
+    // nodes (webgl_loader_pdb molecule switching). One marker class serves
+    // Element/HTMLElement/Node: the runtime never implements DOM class
+    // hierarchies, it only needs the instanceof contract to hold.
     this.defaultView = {
       Math: ROOT.Math,
+      Element: JsrThreeDomElement,
+      HTMLElement: JsrThreeDomElement,
+      Node: JsrThreeDomElement,
       get devicePixelRatio() { return runtime.pixelRatio; },
       get innerWidth() { return runtime.width; },
       get innerHeight() { return runtime.height; },
@@ -505,6 +668,7 @@ export class ThreeCompatibilityRuntime {
     this.canvases = new Map();
     this.assets = new Map();
     this.generations = new Map();
+    this.assetRedirects = new Map();
     this.presentHook = null;
     this.heldKeys = new Map();
     this.activeCanvas = null;
@@ -579,7 +743,7 @@ export class ThreeCompatibilityRuntime {
       type: down ? 'keydown' : 'keyup',
       down,
       key: payload.key || '',
-      code: payload.code || payload.key || '',
+      code: domKeyCode(payload.code) || domKeyCode(payload.key),
       repeat: !!payload.repeat
     });
     const key = event.code || event.key;
@@ -644,9 +808,21 @@ export class ThreeCompatibilityRuntime {
     }
     if (type === 'resize') {
       if (Number.isFinite(event.width) && Number.isFinite(event.height)) {
-        if (event.pixelRatio !== undefined || event.dpr !== undefined) canvas.setPixelRatio(event.pixelRatio || event.dpr);
-        if (canvas.renderer) canvas.renderer.setSize(event.width, event.height, false);
-        else canvas.setSize(event.width, event.height, false);
+        const ratio = event.pixelRatio || event.dpr;
+        if (canvas.renderer) {
+          if (ratio !== undefined) canvas.renderer.setPixelRatio(ratio);
+          canvas.renderer.setSize(event.width, event.height, false);
+        } else {
+          if (ratio !== undefined) canvas.setPixelRatio(ratio);
+          canvas.setSize(event.width, event.height, false);
+        }
+        // Change-driven widgets (OrbitControls 'change', no animation loop)
+        // submit their only frames before the host surface attaches, where
+        // the bounded lane drops them. Re-present the last canvas scene so
+        // an attach-time resize paints instead of leaving a black surface.
+        if (canvas.renderer && typeof canvas.renderer._scheduleCanvasRefresh === 'function') {
+          canvas.renderer._scheduleCanvasRefresh();
+        }
       }
       this._setViewport(event.width, event.height, event.pixelRatio || event.dpr);
       return canvas.dispatchEvent(event);
@@ -688,15 +864,40 @@ export class ThreeCompatibilityRuntime {
     return this._assetRecord(url, { data: url.slice(comma + 1), mime });
   }
 
+  registerAssetRedirect(alias, target) {
+    alias = String(alias);
+    target = String(target);
+    if (!alias || !target) throw assetFailure(alias, 'asset redirect needs an alias and a target url');
+    if (alias === target) throw assetFailure(alias, 'asset redirect cannot alias itself');
+    this.assetRedirects.set(alias, target);
+  }
+
+  _redirectTarget(url) {
+    let current = url;
+    // Bounded chain walk: an alias must resolve to a concrete asset url, and
+    // a cycle is a prepare bug that would otherwise spin forever.
+    for (let seen = 0; seen < 8 && this.assetRedirects.has(current); seen++) {
+      current = this.assetRedirects.get(current);
+    }
+    return current;
+  }
+
   _assetRecord(url, asset) {
     if (asset === undefined || asset === null) throw assetFailure(url, 'missing asset bytes');
     const source = typeof asset === 'object' && !(asset instanceof Uint8Array) && !(asset instanceof ArrayBuffer) && !ArrayBuffer.isView(asset) ? asset : { data: asset };
     const raw = source.data !== undefined ? source.data : source.bytes;
     const bytes = decodeBase64(raw);
     if (bytes.length > 64 * 1024 * 1024) throw assetFailure(url, 'asset exceeds 64 MiB');
+    let dataCache = typeof raw === 'string' ? raw : null;
     return {
       url,
-      data: typeof raw === 'string' ? raw : encodeBase64(bytes),
+      // Base64 is a compatibility shim for legacy `.data` readers: bytes
+      // sources encode lazily so warm assets (raw typed data) never pay the
+      // encode unless a consumer actually reads `.data`.
+      get data() {
+        if (dataCache === null) dataCache = encodeBase64(bytes);
+        return dataCache;
+      },
       bytes,
       mime: source.mime || source.mimeType || '',
       width: Number.isFinite(source.width) ? source.width : 0,
@@ -710,7 +911,16 @@ export class ThreeCompatibilityRuntime {
       if (!this.assets.has(url)) this.registerAsset(url);
       return this.assets.get(url);
     }
-    return this.assets.get(url) || this.assets.get(url.replace(/^\.\//, '')) || null;
+    // Cache-busting suffixes (`tex.jpg?<timestamp>` in webgl_loader_imagebitmap)
+    // name the same bundled asset; resolve them against the canonical URL.
+    // Aliases (`registerAssetRedirect`, e.g. the remote URL an official module
+    // fetches pointing at the pinned offline file) resolve through the same
+    // table, so both the registered-asset and host lanes see one canonical name.
+    const stripped = this._redirectTarget(url.replace(/[?#].*$/, ''));
+    const bare = this._redirectTarget(stripped.replace(/^\.\//, ''));
+    return this.assets.get(url) || this.assets.get(url.replace(/^\.\//, '')) ||
+      this.assets.get(bare) || this.assets.get(`./${bare}`) ||
+      this.assets.get(stripped) || null;
   }
 
   _checkAssetGuard(url, guard) {
@@ -723,9 +933,34 @@ export class ThreeCompatibilityRuntime {
     const local = this.resolveAsset(url);
     if (local) return local;
     let result;
+    // `./textures/a.png` and `textures/a.png` name the same bundled asset.
+    // Local lookup already accepted both forms; canonicalize the host request
+    // too instead of making offline loading depend on the official example's
+    // spelling. Keep the requested URL as the cache key on registration.
+    // Redirects resolve BEFORE the host lane so alias requests (e.g. a remote
+    // progressive-LOD url pinned to a local GLB) never leave the runtime as a
+    // remote host fetch; the host lane only ever sees the canonical asset url.
+    const redirected = this._redirectTarget(url);
+    const hostUrl = redirected.replace(/^\.\//, '').replace(/[?#].*$/, '');
+    // Warm lane: the engine pre-shipped these bytes as raw typed data (one
+    // isolate transfer at boot) and `__jsrAssetFill` memcpy's them into this
+    // JS-owned array. A big external texture therefore costs one in-worker
+    // copy instead of a host round trip with a multi-megabyte base64 string
+    // in both directions. The fill callback cannot throw across the FFI
+    // boundary — a miss/short fill leaves the array zeroed, which every
+    // pinned format (PNG/JPEG/GLB magic) rejects, and `__JSR_WARM_LAST__`
+    // reports the outcome explicitly.
+    const warm = ROOT.__JSR_WARM_ASSETS__ && (ROOT.__JSR_WARM_ASSETS__[url] || ROOT.__JSR_WARM_ASSETS__[hostUrl]);
+    if (warm && typeof ROOT.__jsrAssetFill === 'function') {
+      const bytes = new Uint8Array(warm.size);
+      ROOT.__jsrAssetFill(hostUrl, bytes);
+      if (ROOT.__JSR_WARM_LAST__ === hostUrl && bytes[0] !== 0) {
+        return this.registerAsset(url, { bytes, mime: warm.mime, width: warm.width, height: warm.height });
+      }
+    }
     try {
-      if (this.hostAssetLoader) result = await this.hostAssetLoader(url);
-      else if (this.jsr && typeof this.jsr.hostCall === 'function') result = await this.jsr.hostCall('three.asset', { url });
+      if (this.hostAssetLoader) result = await this.hostAssetLoader(hostUrl);
+      else if (this.jsr && typeof this.jsr.hostCall === 'function') result = await this.jsr.hostCall('three.asset', { url: hostUrl });
       else throw assetFailure(url, 'asset is not registered and no host asset loader is available');
     } catch (error) {
       if (error && error.code === 'three.assetFailure') throw error;
@@ -878,6 +1113,7 @@ export class ThreeCompatibilityRuntime {
       getCanvas: id => runtime.getCanvas(id),
       registerAsset: (url, asset) => runtime.registerAsset(url, asset),
       resolveAsset: url => runtime.resolveAsset(url),
+      registerAssetRedirect: (alias, target) => runtime.registerAssetRedirect(alias, target),
       loadAsset: url => runtime.loadAsset(url),
       loadAssetBytes: url => runtime.loadAsset(url),
       getCapabilities: () => runtime.getCapabilities(),

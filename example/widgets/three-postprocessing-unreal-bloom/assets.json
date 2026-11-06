@@ -1,0 +1,18 @@
+{
+  "schema": "jsr-three-example-external-assets-v1",
+  "id": "three-postprocessing-unreal-bloom",
+  "inlineMaxBytes": 1500000,
+  "assets": [
+    {
+      "url": "models/gltf/PrimaryIonDrive.glb",
+      "file": "models__gltf__PrimaryIonDrive.glb",
+      "mime": "model/gltf-binary",
+      "width": 0,
+      "height": 0,
+      "bytes": 5800408,
+      "sha256": "4da2bc76db5a1f639866f05219426c9fde0ece3239c3cb054b5675a8dc1cde21",
+      "aliases": [],
+      "diagnostic": "auto:models/gltf/PrimaryIonDrive.glb"
+    }
+  ]
+}

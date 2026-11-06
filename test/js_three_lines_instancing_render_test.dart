@@ -67,7 +67,8 @@ void main() {
     expect(draw.instanceCount, greaterThan(1));
     expect(draw.material.kind, JsThreeMaterialKind.meshStandard);
     expect(draw.material.mapTextureId, greaterThan(0));
-    expect(harness.state!.textureUploadCount, 1);
+    expect(draw.material.envMapTextureId, greaterThan(0));
+    expect(harness.state!.textureUploadCount, 2);
     final textureUploads = harness.state!.textureUploadCount;
     await harness.pumpFrames(tester, 5);
     expect(harness.state!.textureUploadCount, textureUploads);

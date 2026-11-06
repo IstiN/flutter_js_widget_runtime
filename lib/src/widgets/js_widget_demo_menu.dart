@@ -14,7 +14,12 @@ class JsWidgetDemoMenu extends StatelessWidget {
 
   final List<WidgetManifest> manifests;
   final WidgetFileReader reader;
-  final JsRuntimeConfig Function() makeConfig;
+
+  /// Builds the runtime config for a widget about to open. The [widgetId]
+  /// positional parameter lets hosts specialize per-widget wiring (e.g. a
+  /// `three` host bound to the widget's asset lane); zero-argument builders
+  /// still conform.
+  final JsRuntimeConfig Function([String widgetId]) makeConfig;
   final String title;
 
   @override
@@ -37,7 +42,7 @@ class JsWidgetDemoMenu extends StatelessWidget {
                   body: JsWidgetApp(
                     manifest: manifest,
                     reader: reader,
-                    config: makeConfig(),
+                    config: makeConfig(manifest.id),
                   ),
                 ),
               ),

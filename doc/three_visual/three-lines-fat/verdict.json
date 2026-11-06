@@ -1,0 +1,12 @@
+{
+  "auto_seeded": true,
+  "mae": null,
+  "official_id": "webgl_lines_fat",
+  "performance": {
+    "native": {},
+    "reference": {}
+  },
+  "status": "blocked",
+  "summary": "ours: Screenshot harness timed out after 45s",
+  "updated": "2026-11-01T15:07:11+00:00"
+}

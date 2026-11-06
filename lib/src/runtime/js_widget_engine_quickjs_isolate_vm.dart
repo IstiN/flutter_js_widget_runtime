@@ -5,6 +5,7 @@ import 'dart:isolate';
 import 'package:flutter/foundation.dart';
 import 'package:js_widget_runtime/src/defaults/vm_default_handlers.dart';
 import 'package:js_widget_runtime/src/model/js_runtime_config.dart';
+import 'package:js_widget_runtime/src/renderer/nodes/three/three_skinning_native.dart';
 import 'package:js_widget_runtime/src/runtime/js_widget_bootstrap.dart';
 import 'package:js_widget_runtime/src/runtime/js_widget_bridge.dart';
 import 'package:js_widget_runtime/src/runtime/js_widget_engine_backend.dart';
@@ -47,7 +48,7 @@ class QuickjsIsolateWidgetEngineBackend
       isPermissionAllowed: config.isPermissionAllowed ?? _allowAll,
       resolveCallback:
           config.resolveCallback ??
-          (id, value) => _post({'type': 'resolve', 'id': id, 'value': value}),
+          (id, value) => _resolveWithWarmBytes(id, value),
       fetchHandler: _handleFetch,
       secretsGetHandler: (id, key) async {
         await _config.secretsGetHandler?.call(id, key);
@@ -99,6 +100,48 @@ class QuickjsIsolateWidgetEngineBackend
   int _generation = 0;
   bool _disposed = false;
 
+  /// Grace for the shutdown ack before dispose() gives up waiting and
+  /// ORPHANS the worker (never kills it — see [_shutdownWorkerLocked]).
+  /// Exposed so tests can shrink the grace to exercise the stuck path fast.
+  @visibleForTesting
+  static Duration shutdownAckGrace = const Duration(seconds: 10);
+
+  /// One FFI binding per process for the drain-stop probes below. The flag
+  /// itself is a process-global atomic inside the bridge, so any instance
+  /// sees and flips the same state.
+  static final QuickjsFfi? _drainStopFfi = _bindDrainStopFfi();
+
+  static QuickjsFfi? _bindDrainStopFfi() {
+    if (!QuickjsFfi.isAvailable) return null;
+    try {
+      final ffi = QuickjsFfi();
+      return ffi.hasDrainStop ? ffi : null;
+    } catch (_) {
+      return null;
+    }
+  }
+
+  /// Whether the loaded bridge exports `qjs_request_drain_stop` (the
+  /// cooperative drain stop the app-exit fix depends on). Suites that need
+  /// the flag skip with an explanation when this is false.
+  @visibleForTesting
+  static bool get debugDrainStopSupported => _drainStopFfi != null;
+
+  @visibleForTesting
+  static bool get debugDrainStopRequested =>
+      _drainStopFfi?.drainStopRequested ?? false;
+
+  @visibleForTesting
+  static void debugSetDrainStop({required bool active}) {
+    final ffi = _drainStopFfi;
+    if (ffi == null) return;
+    if (active) {
+      ffi.requestDrainStop();
+    } else {
+      ffi.clearDrainStop();
+    }
+  }
+
   @override
   void setEngineInstanceId(String instanceId) {
     _config = _config.copyWith(instanceId: instanceId);
@@ -129,6 +172,10 @@ class QuickjsIsolateWidgetEngineBackend
     await dispose();
     final disposeMs = runSw.elapsedMilliseconds;
     _disposed = false;
+    // dispose() above ended the RAF lane permanently (late-request drop
+    // guard); this run's widget needs frames again — revive the lane while
+    // keeping the full worker teardown the dispose did.
+    _bridge.resetForRun();
     quickjsConsoleLogs.clear();
     final generation = ++_generation;
     try {
@@ -192,14 +239,20 @@ class QuickjsIsolateWidgetEngineBackend
   Future<void> dispose() async {
     _disposed = true;
     ++_generation;
-    // Sequence matters: the worker must be FULLY stopped (graceful ack, or
-    // kill as the stuck-eval backstop) before any bridge FFI callable is
-    // closed. Tearing the bridge down while the worker still runs leaves
-    // its qjs_dispatch trampolines pointing at closed NativeCallables —
-    // the exact family of corruption behind the documented SIGBUS
-    // bytes-lane incident (marker.cc crash), here surfacing as a SIGSEGV
-    // in the MAIN isolate's concurrent marker during rapid module
-    // switching. Only a dead worker makes closing the bridge safe.
+    // Ordering invariant (crash 2026-11-03 13:49): stop the worker's
+    // pending-job drain FIRST (drain stop armed inside _shutdownWorkerLocked
+    // before the 'shutdown' message is queued), THEN resolve the handshake.
+    // The worker stops touching Dart receivers within ~one queued job even
+    // mid-drain, which is what VM teardown needs.
+    //
+    // The worker is never killed while it may be inside native eval code:
+    // a mid-native kill corrupts the shared FFI callback registry (SIGSEGV
+    // in the main isolate's concurrent marker, or dart::FfiCallbackThreadChecks
+    // SIGABRT on the next engine). A worker that misses the ack grace is
+    // ORPHANED instead: its ports are closed so later messages are dropped,
+    // generation guards protect the replacement engine, and the orphan
+    // drains its current eval, processes the queued shutdown, closes its
+    // runtime and exits by itself.
     await _shutdownWorker();
     _bridge.dispose();
     for (final pending in _pending.values) {
@@ -211,7 +264,6 @@ class QuickjsIsolateWidgetEngineBackend
       ready.completeError(StateError('QuickJS worker disposed during startup'));
     }
 
-    await _shutdownWorker();
     await _messageSubscription?.cancel();
     await _exitSubscription?.cancel();
     _messagePort?.close();
@@ -229,21 +281,24 @@ class QuickjsIsolateWidgetEngineBackend
   /// Stops the worker isolate: graceful shutdown handshake first (the ack
   /// can only arrive once the worker's CURRENT command finished — typically
   /// the synchronous JS_Eval of a freshly booted widget bundle, which can
-  /// take many seconds when several modules boot concurrently), then
-  /// kill(immediate) purely as the stuck-eval backstop (infinite JS loop).
-  /// Killing earlier rips the isolate apart with qjs_dispatch /
+  /// take many seconds when several modules boot concurrently). When the
+  /// ack misses the grace the worker is ORPHANED, never killed: killing
+  /// rips the isolate apart with qjs_dispatch /
   /// DLRT_GetFfiCallbackMetadata on the C stack, corrupting the shared FFI
   /// callback registry; the concurrent GC marker then walks a torn native
   /// transition frame and SIGSEGVs (marker.cc), or the next engine trips
   /// dart::FfiCallbackThreadChecks and SIGABRTs (rapid sidebar clicking
-  /// crashes). The window is deliberately generous: a leaked worker on a
-  /// stuck eval is recoverable (process exit), a corrupted registry is not.
-  /// Root fix is an interrupt handler in quickjs_runtime (see memory).
+  /// crashes, SIGABRT 2026-11-02). An orphan is safe: its main-side ports
+  /// are closed by dispose() so further messages are dropped, generation
+  /// guards protect the replacement engine, and the worker drains its
+  /// eval, processes the queued shutdown, closes its runtime and exits.
+  /// The ONLY remaining kill is the spawn-handshake path in _startWorker
+  /// (no 'run' was ever sent, so no runtime / FFI callbacks exist yet).
   Future<void> _shutdownWorker() async {
     // Idempotent: a second dispose() on an already-stopped backend must NOT
     // send another 'shutdown' into the (exiting) isolate — the ack would
-    // never arrive and the 10s timeout would stall the global engine
-    // lifecycle gate (observed as the 10-second module switch hang).
+    // never arrive and the grace timeout would stall the engine lifecycle
+    // (observed as the 10-second module switch hang, fixed in 3e4fc7a).
     if (_workerStopped) return;
     if (_shutdownInFlight != null) return await _shutdownInFlight;
     final isolate = _isolate;
@@ -264,25 +319,42 @@ class QuickjsIsolateWidgetEngineBackend
     final shutdown = Completer<void>();
     _shutdown = shutdown;
     final sw2 = Stopwatch()..start();
-    commands.send(const {'type': 'shutdown'});
-    final acked = shutdown.future
-        .then((_) => true)
-        .timeout(const Duration(seconds: 10), onTimeout: () => false);
-    final ack = await acked;
-    _switchLog(
-      'JSSHUT id=${_config.instanceId ?? _config.widgetId} '
-      'acked=$ack ms=${sw2.elapsedMilliseconds}',
-    );
-    if (ack == true) {
-      // The worker dequeued 'shutdown': it will run NO further evals, so
-      // the bridge can be disposed immediately. Its JS_FreeRuntime may
-      // still be unwinding on the worker thread — do NOT kill the
-      // isolate now (same mid-native-call hazard as killing mid-eval);
-      // it exits by itself once close() finishes.
-      return;
+    // App-exit race (crash 2026-11-03 13:49): a worker inside a pending-job
+    // drain cannot see the queued 'shutdown' for seconds (up to 100k promise
+    // reactions, each entering an FFI trampoline) while VM teardown invalidates
+    // every receiver it touches. Arm the process-global cooperative drain stop
+    // BEFORE queuing the message: both qjs_execute_pending_jobs* loops return
+    // early (remaining jobs stay pending and are freed by close()), so the
+    // worker reaches 'shutdown' within ~one job. Bridges without the export
+    // degrade to the plain handshake below.
+    debugSetDrainStop(active: true);
+    try {
+      commands.send(const {'type': 'shutdown'});
+      final acked = shutdown.future
+          .then((_) => true)
+          .timeout(shutdownAckGrace, onTimeout: () => false);
+      final ack = await acked;
+      _switchLog(
+        'JSSHUT id=${_config.instanceId ?? _config.widgetId} '
+        'acked=$ack ms=${sw2.elapsedMilliseconds}',
+      );
+      if (ack == true) {
+        // The worker dequeued 'shutdown': it will run NO further evals, so
+        // the bridge can be disposed immediately. Its JS_FreeRuntime may
+        // still be unwinding on the worker thread — do NOT kill the
+        // isolate now (same mid-native-call hazard as killing mid-eval);
+        // it exits by itself once close() finishes.
+        return;
+      }
+      // Stuck worker (infinite JS loop / eval outliving the grace):
+      // ORPHAN it. Never kill here — see the doc comment above.
+    } finally {
+      // The flag is process-global: a leaked arm would freeze every other
+      // engine's drains. The orphan (if any) has already been instructed to
+      // shut down; whatever it still evaluates is plain JS (not a job
+      // drain) and finishes on its own.
+      debugSetDrainStop(active: false);
     }
-    // Stuck worker (infinite JS loop): last-resort teardown.
-    isolate.kill(priority: Isolate.immediate);
   }
 
   Future<SendPort> _startWorker() async {
@@ -359,8 +431,24 @@ class QuickjsIsolateWidgetEngineBackend
 
   void _dispatchWorkerMessage(Map<dynamic, dynamic> raw) {
     final channel = raw['channel'] as String;
+    final payload = raw['payload'];
+    final pLen = payload is String
+        ? payload.length
+        : payload is Uint8List
+        ? payload.length
+        : -1;
+    final sw = Stopwatch()..start();
     unawaited(
-      _bridge.dispatch(channel, unwrapQuickjsPayload(raw['payload'], channel)),
+      _bridge
+          .dispatch(channel, unwrapQuickjsPayload(payload, channel))
+          .whenComplete(() {
+            if (pLen > 200000 || sw.elapsedMilliseconds > 50) {
+              debugPrint(
+                '[lane-prof] <-$channel len=$pLen '
+                'dispatch=${sw.elapsedMilliseconds}ms',
+              );
+            }
+          }),
     );
   }
 
@@ -448,6 +536,32 @@ class QuickjsIsolateWidgetEngineBackend
     appendQuickjsLog(message);
     _config.onLog?.call(message);
   }
+
+  /// Base64 payloads at or above this size cross to the worker as raw typed
+  /// data instead of a base64 string literal (QuickJS parses a 20MB JS
+  /// literal in ~3.4s measured; the same bytes ride the port in ~10ms).
+  static const int _kWarmBytesMinB64 = 256 * 1024;
+
+  /// Resolve fast lane: big base64 host-call results (three.asset GLBs,
+  /// decoded RGBA textures) are decoded ONCE here and shipped as raw
+  /// [Uint8List] next to the resolve message. The worker's 'resolve'
+  /// handler rebuilds `{..value, bytes: Uint8Array}` via the registered
+  /// `__jsrWarmFill` bytes host function — the three runtime accepts a
+  /// `bytes` typed array straight through (`hr()` passes it unmodified),
+  /// so no base64 string literal is ever parsed or decoded in QuickJS.
+  /// Engines with their own resolveCallback and all small payloads keep
+  /// the exact previous behavior.
+  void _resolveWithWarmBytes(String id, Object? value) {
+    if (value is Map &&
+        value['data'] is String &&
+        (value['data'] as String).length >= _kWarmBytesMinB64) {
+      final bytes = base64Decode(value['data'] as String);
+      final lite = <String, dynamic>{...value}..remove('data');
+      _post({'type': 'resolve', 'id': id, 'value': lite, 'warmBytes': bytes});
+      return;
+    }
+    _post({'type': 'resolve', 'id': id, 'value': value});
+  }
 }
 
 Future<void> _quickJsWorkerMain(SendPort mainPort) async {
@@ -481,7 +595,14 @@ final class _QuickJsWorker {
   QuickjsRuntime? _runtime;
   var _generation = 0;
 
-  void close() => _runtime?.close();
+  /// Resolve ids whose raw bytes arrived with the resolve message and are
+  /// waiting for the JS `__jsrWarmFill` pull (see [_run]).
+  final Map<String, Uint8List> _warmPending = {};
+
+  void close() {
+    _runtime?.close();
+    _runtime = null;
+  }
 
   void handle(Map<dynamic, dynamic> raw) {
     switch (raw['type']) {
@@ -517,11 +638,52 @@ final class _QuickJsWorker {
         );
       case 'resolve':
         final id = jsonEncode(raw['id']);
+        final rsw = Stopwatch()..start();
         final value = jsonEncode(raw['value']);
-        _eval(
-          'if(__cbs[$id]){__cbs[$id]($value);delete __cbs[$id];}',
-          '<js_widget_resolve>',
-        );
+        if (value.length > 200000) {
+          debugPrint(
+            '[lane-prof] resolve jsonEncode=${rsw.elapsedMilliseconds}ms '
+            'len=${value.length}',
+          );
+        }
+        final esw = Stopwatch()..start();
+        final warm = raw['warmBytes'];
+        final runtime = _runtime;
+        if (warm is Uint8List &&
+            warm.isNotEmpty &&
+            runtime != null &&
+            runtime.hasBytesFn) {
+          // Warm lane: raw bytes ride the port; the eval only carries the
+          // small metadata literal plus the size, and __jsrWarmResolve
+          // pulls the bytes through the __jsrWarmFill host function.
+          _warmPending[raw['id'] as String] = warm;
+          _eval(
+            '__jsrWarmResolve($id,$value,${warm.length})',
+            '<js_widget_resolve_warm>',
+          );
+        } else {
+          // Legacy engines without the bytes export re-encode to the
+          // previous inline-base64 literal path.
+          if (warm is Uint8List && warm.isNotEmpty && value.length < 200000) {
+            final restored = Map<String, dynamic>.from(raw['value'] as Map);
+            restored['data'] = base64Encode(warm);
+            _eval(
+              'if(__cbs[$id]){__cbs[$id](${jsonEncode(restored)});delete __cbs[$id];}',
+              '<js_widget_resolve>',
+            );
+            break;
+          }
+          _eval(
+            'if(__cbs[$id]){__cbs[$id]($value);delete __cbs[$id];}',
+            '<js_widget_resolve>',
+          );
+        }
+        if (value.length > 200000) {
+          debugPrint(
+            '[lane-prof] resolve eval=${esw.elapsedMilliseconds}ms '
+            'len=${value.length}',
+          );
+        }
     }
   }
 
@@ -532,6 +694,13 @@ final class _QuickJsWorker {
     _generation = raw['generation'] as int;
     final runtime = QuickjsRuntime();
     final createMs = sw.elapsedMilliseconds;
+    // A replaced runtime (this worker saw two 'run' commands without a
+    // shutdown in between) must be CLOSED, not dropped: dropping leaks the
+    // whole QuickJS heap and leaves its registered host callbacks alive.
+    final replaced = _runtime;
+    if (replaced != null) {
+      replaced.close();
+    }
     _runtime = runtime;
     runtime.registerHostFunction('sendMessage', _sendMessage);
     // The NATIVE bytes lane stays DISABLED in the persistent worker: under
@@ -541,6 +710,48 @@ final class _QuickJsWorker {
     // bootstrap detects a missing __JSR_RAW_BINARY__ and falls back to the
     // b64 JSON lane — slower per frame, but safe.
     const nativeBytes = false;
+    // CPU skining + R1 fast lanes: registerHostBytesFn (qjs_register_bytes_fn)
+    // is a different mechanism from the disabled TransferableTypedData lane
+    // above — the C bridge hands the callback a call-scoped view of the
+    // QuickJS-owned bytes and the callback runs synchronously on THIS isolate.
+    // (1) three.skin: the R1 renderer's _applySkining hands over (bone
+    //     matrices, indices, weights, bind pose) and reads the skinned
+    //     positions/normals back IN PLACE; without it a 16k-vertex rig
+    //     spends ~14ms/frame in the QuickJS per-vertex loop.
+    // (2) __jsrSendBytes: the bootstrap's native-lane branch routes per-frame
+    //     R1 envelopes (name, bytes) here — zero b64, zero JSON. The view is
+    //     call-scoped, so it is COPIED before crossing the port back to the
+    //     main isolate (plain SendPort.send of an owned copy — the transfer
+    //     variant is what raced the marker above). The b64 lane measured
+    //     ~40ms/frame just to encode an 868KB envelope in QuickJS; the copy
+    //     crossing the port costs well under a millisecond.
+    if (runtime.hasBytesFn) {
+      runtime.registerHostBytesFn('__jsrSkinBytes', (name, data) {
+        if (name == 'three.skin') applyThreeSkinningPacket(data);
+      });
+      runtime.registerHostBytesFn('__jsrSendBytes', (name, data) {
+        _mainPort.send({
+          'type': 'binary',
+          'generation': _generation,
+          'name': name,
+          'bytes': Uint8List.fromList(data),
+        });
+      });
+      // Warm-asset resolve lane: JS preallocates the array and this fills
+      // the call-scoped view from the bytes that crossed with the resolve
+      // message — no base64 literal is ever parsed in QuickJS. See
+      // _resolveWithWarmBytes on the main isolate and __jsrWarmResolve in
+      // the bootstrap.
+      runtime.registerHostBytesFn('__jsrWarmFill', (name, data) {
+        final pending = _warmPending.remove(name);
+        if (pending == null || data.isEmpty) return;
+        data.setRange(
+          0,
+          pending.length < data.length ? pending.length : data.length,
+          pending,
+        );
+      });
+    }
     runtime.setGlobal('__IID', raw['instanceId']);
     runtime.setGlobal('__JSR_RAW_BINARY__', nativeBytes);
     _mainPort.send({

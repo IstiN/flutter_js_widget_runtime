@@ -2,6 +2,23 @@ import { BoxGeometry, Matrix4 } from 'three';
 
 console.warn('three: web-ifc WASM decoding is unavailable in QuickJS; the IFC example renders a bounded native proxy building while preserving its camera, lights and merge path.');
 
+// The proxy below never reads the model bytes: OpenModel/StreamAllMeshes
+// ignore their payloads. The pinned 42.8 MB rac_advanced_sample_project.ifc
+// still ships next to the widget (byte-verified at prepare time) so the
+// asset stays available to a real decoder, but serving it through the
+// runtime host lane would spend seconds copying+base64-decoding bytes that
+// nothing consumes. Intercept exactly that URL and serve an empty 200 body
+// instead; the official module keeps its fetch/await shape unchanged.
+const IFC_PROXY_STUB_URL = 'models/ifc/rac_advanced_sample_project.ifc';
+const proxyHostFetch = globalThis.fetch;
+globalThis.fetch = input => {
+  const requested = typeof input === 'string' ? input : input && input.url;
+  const clean = String(requested || '').replace(/^\.\//, '').replace(/[?#].*$/, '');
+  if (clean !== IFC_PROXY_STUB_URL) return proxyHostFetch(input);
+  console.warn('three: IFC proxy serves an empty body for the pinned rac_advanced_sample_project.ifc — the degrade consumes no model bytes.');
+  return Promise.resolve(new Response(new Uint8Array(0), { status: 200, url: IFC_PROXY_STUB_URL }));
+};
+
 export class IfcAPI {
   SetWasmPath() {}
   async Init() { return this; }

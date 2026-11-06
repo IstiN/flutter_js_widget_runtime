@@ -86,7 +86,7 @@ function findCheckbox(tree, label) {
   return null;
 }
 
-const native = await readFile(path.join(ROOT, 'assets/three/three.native.js'), 'utf8');
+const native = await readFile(path.join(ROOT, 'assets/three/jsr_three_native.js'), 'utf8');
 const license = await readFile(path.join(SOURCE, 'LICENSE'));
 const results = [];
 for (const definition of examples) {
@@ -161,7 +161,7 @@ for (const definition of examples) {
     setTimeout,
     clearTimeout
   });
-  vm.runInContext(native, context, { filename: 'three.native.js' });
+  vm.runInContext(native, context, { filename: 'jsr_three_native.js' });
   vm.runInContext('globalThis.THREE = THREE;', context);
   vm.runInContext(widget, context, { filename: `${definition.example}.widget.js` });
 
@@ -193,8 +193,10 @@ for (const definition of examples) {
   for (const [key, value] of Object.entries(definition.render)) {
     assert.equal(state.renderer[key], value, `${definition.example}: renderer.${key}`);
   }
-  assert.equal(state.stats.frames, definition.packets);
-  assert.equal(state.stats.updates, definition.packets);
+  // Only the official animation callback calls Stats.update(); an additional
+  // initialization render can contribute a packet without advancing Stats.
+  assert.equal(state.stats.frames, 1);
+  assert.equal(state.stats.updates, 1);
   if (definition.hemisphere) {
     const lights = packets.flatMap(commands).filter(command => command.opcode === 7);
     assert.equal(lights.length, 1);

@@ -1,0 +1,16 @@
+{
+  "auto_seeded": true,
+  "mae": 0.39638,
+  "official_id": "webgl_read_float_buffer",
+  "performance": {
+    "native": {
+      "presentedFps": 119.82026959560659,
+      "presentedFramesDelta": 240,
+      "sampleMs": 2003
+    },
+    "reference": {}
+  },
+  "status": "blocked",
+  "summary": "ours: empty/near-uniform capture",
+  "updated": "2026-11-01T15:07:36+00:00"
+}

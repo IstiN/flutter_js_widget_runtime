@@ -1,0 +1,16 @@
+{
+  "auto_seeded": false,
+  "mae": 0.178211,
+  "official_id": "webgl_points_billboards",
+  "performance": {
+    "native": {
+      "presentedFps": 119.88011988011988,
+      "presentedFramesDelta": 240,
+      "sampleMs": 2002
+    },
+    "reference": {}
+  },
+  "status": "similar",
+  "summary": "",
+  "updated": "2026-11-01T11:44:02.933389+00:00"
+}

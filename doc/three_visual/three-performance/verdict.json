@@ -1,0 +1,12 @@
+{
+  "auto_seeded": true,
+  "mae": 0.002653,
+  "official_id": "webgl_performance",
+  "performance": {
+    "native": {},
+    "reference": {}
+  },
+  "status": "blocked",
+  "summary": "ours: black capture",
+  "updated": "2026-11-01T15:07:31+00:00"
+}

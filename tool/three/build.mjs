@@ -102,9 +102,7 @@ const web = await makeBundle('web', false);
 const license = await readFile(path.join(SOURCE, 'LICENSE'));
 const outputs = {
   'jsr_three_native.js': native,
-  'jsr_three_web.js': web,
-  'three.native.js': native,
-  'three.web.js': web
+  'jsr_three_web.js': web
 };
 const manifestOutputs = {};
 if (!verify) await mkdir(OUT, { recursive: true });

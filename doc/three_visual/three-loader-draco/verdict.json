@@ -1,0 +1,16 @@
+{
+  "auto_seeded": false,
+  "mae": 0.048446,
+  "official_id": "webgl_loader_draco",
+  "performance": {
+    "native": {
+      "presentedFps": 119.38061938061938,
+      "presentedFramesDelta": 239,
+      "sampleMs": 2002
+    },
+    "reference": {}
+  },
+  "status": "similar",
+  "summary": "",
+  "updated": "2026-11-01T11:44:02.933389+00:00"
+}

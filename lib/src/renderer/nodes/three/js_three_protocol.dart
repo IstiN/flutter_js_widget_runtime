@@ -37,7 +37,12 @@ enum JsThreeMaterialKind {
   meshTon(8),
   meshMatcap(9),
   background(10),
-  anaglyph(11);
+  anaglyph(11),
+  // R1 v7: MeshDepthMaterial (BasicDepthPacking only) — the fragment lane
+  // writes grayscale linearized view depth into the color attachment so the
+  // bounded RT lane (DepthTexture aliased to RT color) still renders depth
+  // visualizations through the color channel.
+  meshDepth(12);
 
   const JsThreeMaterialKind(this.wireValue);
   final int wireValue;
@@ -117,6 +122,60 @@ enum JsThreeShadowLightType {
   const JsThreeShadowLightType(this.wireValue);
   final int wireValue;
 }
+
+/// Raw GL stencil test functions (R1 v8 material stencil tail): the
+/// upstream THREE.NeverStencilFunc..AlwaysStencilFunc constants forwarded
+/// verbatim so the native pass can map them straight onto the platform
+/// stencil state. The wire values are sparse GL enums, so decoding uses the
+/// [tryWire] table instead of [enumValue].
+enum JsThreeStencilFunc {
+  never(0x0200),
+  less(0x0201),
+  equal(0x0202),
+  lessEqual(0x0203),
+  greater(0x0204),
+  notEqual(0x0205),
+  greaterEqual(0x0206),
+  always(0x0207);
+
+  const JsThreeStencilFunc(this.wireValue);
+  final int wireValue;
+
+  static final Map<int, JsThreeStencilFunc> _byWire = {
+    for (final value in values) value.wireValue: value,
+  };
+
+  /// Null for any value outside the GL table; decoders reject loudly.
+  static JsThreeStencilFunc? tryWire(int wireValue) => _byWire[wireValue];
+}
+
+/// Raw GL stencil operations (R1 v8 material stencil tail): the upstream
+/// THREE.ZeroStencilOp..DecrementWrapStencilOp constants forwarded verbatim.
+enum JsThreeStencilOp {
+  zero(0x0000),
+  keep(0x1e00),
+  replace(0x1e01),
+  increment(0x1e02),
+  decrement(0x1e03),
+  invert(0x150a),
+  incrementWrap(0x8507),
+  decrementWrap(0x8508);
+
+  const JsThreeStencilOp(this.wireValue);
+  final int wireValue;
+
+  static final Map<int, JsThreeStencilOp> _byWire = {
+    for (final value in values) value.wireValue: value,
+  };
+
+  /// Null for any value outside the GL table; decoders reject loudly.
+  static JsThreeStencilOp? tryWire(int wireValue) => _byWire[wireValue];
+}
+
+/// The bounded GPU lane's stencil attachments are 8-bit, so reference
+/// values, masks and clear values must fit one byte; anything wider would be
+/// silently truncated by the platform stencil state.
+const int maxStencilByteValue = 0xff;
 
 /// Identity UV transform (three.js `Matrix3().setUvTransform(0,0,1,1,0,0,0,0)`
 /// / untouched `texture.matrix`), column-major like `Matrix3.elements`.
@@ -353,6 +412,14 @@ class JsThreeMaterialUpsert extends JsThreeCommand {
     this.bumpScale = 1.0,
     this.roughnessMapTextureId = 0,
     this.metalnessMapTextureId = 0,
+    this.stencilWrite = false,
+    this.stencilFunc = JsThreeStencilFunc.always,
+    this.stencilRef = 0,
+    this.stencilFuncMask = 255,
+    this.stencilWriteMask = 255,
+    this.stencilFailOp = JsThreeStencilOp.keep,
+    this.stencilZFailOp = JsThreeStencilOp.keep,
+    this.stencilZPassOp = JsThreeStencilOp.keep,
   }) : super._(3);
 
   final int materialId;
@@ -429,6 +496,19 @@ class JsThreeMaterialUpsert extends JsThreeCommand {
   final int roughnessMapTextureId;
   final int metalnessMapTextureId;
 
+  /// R1 v8 stencil tail (upstream `Material.stencil*`); the neutral
+  /// defaults below match a stenciless material exactly. Upstream gates the
+  /// whole stencil block on [stencilWrite] (WebGLState.setMaterial), so
+  /// consumers must gate both test and write on it as well.
+  final bool stencilWrite;
+  final JsThreeStencilFunc stencilFunc;
+  final int stencilRef;
+  final int stencilFuncMask;
+  final int stencilWriteMask;
+  final JsThreeStencilOp stencilFailOp;
+  final JsThreeStencilOp stencilZFailOp;
+  final JsThreeStencilOp stencilZPassOp;
+
   bool get hasAlphaMap => alphaMapTextureId != 0;
   bool get hasEnvMap => envMapTextureId != 0;
   bool get hasClipping => clipId != 0;
@@ -446,6 +526,13 @@ class JsThreeMaterialUpsert extends JsThreeCommand {
   bool get depthWrite => flags & 0x10 != 0;
   bool get wireframe => flags & 0x20 != 0;
   bool get sizeAttenuation => flags & 0x40 == 0;
+
+  /// Upstream `Material.colorWrite` (R1 v8 flag bit 10): false disables all
+  /// color-attachment writes for draws using this material.
+  bool get colorWrite => flags & 0x400 == 0;
+
+  /// R1 v8: the stencil tail is present (flag bit 11).
+  bool get hasStencil => flags & 0x800 != 0;
 }
 
 final class JsThreeNodeUpsert extends JsThreeCommand {
@@ -460,6 +547,7 @@ final class JsThreeNodeUpsert extends JsThreeCommand {
     required this.shadowFlags,
     required this.spriteCenterX,
     required this.spriteCenterY,
+    required this.renderOrder,
   }) : super._(4);
 
   final int nodeId;
@@ -475,6 +563,9 @@ final class JsThreeNodeUpsert extends JsThreeCommand {
   /// default to 0.5 for v3/v4 streams and non-sprite nodes.
   final double spriteCenterX;
   final double spriteCenterY;
+
+  /// Upstream Object3D.renderOrder (R1 v7), zero for older streams.
+  final double renderOrder;
 
   bool get visible => flags & 1 != 0;
   bool get castShadow => shadowFlags & 1 != 0;
@@ -590,6 +681,7 @@ final class JsThreeSubmitFrame extends JsThreeCommand {
     this.scissorWidth = 0,
     this.scissorHeight = 0,
     this.frameFlags = 3,
+    this.frameStartClearStencil = true,
   }) : super._(8);
 
   final int sceneId;
@@ -652,6 +744,13 @@ final class JsThreeSubmitFrame extends JsThreeCommand {
   final double scissorWidth;
   final double scissorHeight;
   final int frameFlags;
+
+  /// Frame-start stencil clear to 0 (R1 v8 FRAME_TARGET_FLAGS bit 0x10 =
+  /// upstream autoClearStencil / clear(color, depth, stencil); the encoder
+  /// emits the bit only when the frame touches stencil state). Streams
+  /// below v8 predate the bit and default to true, preserving the bounded
+  /// lane's legacy always-clear attachment behavior.
+  final bool frameStartClearStencil;
 
   bool get clearColor => frameFlags & 1 != 0;
   bool get clearDepth => frameFlags & 2 != 0;
@@ -754,6 +853,24 @@ final class JsThreeClippingUpsert extends JsThreeCommand {
   int get planeCount => planes.length ~/ 4;
 }
 
+/// A mid-stream stencil-buffer clear (R1 v8, OPCODE.STENCIL_CLEAR): the
+/// body is `u32 nodeId + u32 value`. The backend applies the clear after
+/// all draws of [nodeId] in its sorted draw order (renderOrder);
+/// [nodeId] 0 means "at this stream position" (no owning draw). [value]
+/// must fit the bounded lane's 8-bit stencil attachment.
+final class JsThreeStencilClear extends JsThreeCommand {
+  const JsThreeStencilClear._({
+    required this.nodeId,
+    required this.value,
+  }) : super._(15);
+
+  /// Owning node id; zero when the clear is not bound to a node's draws.
+  final int nodeId;
+
+  /// Stencil buffer clear value (0..255).
+  final int value;
+}
+
 /// Checked T1/R1 decoding. Legacy v1 and additive v2 streams are accepted.
 /// No surface state is changed by this class.
 final class JsThreeProtocolDecoder {
@@ -773,7 +890,9 @@ final class JsThreeProtocolDecoder {
 
   static const int t1HeaderBytes = 32;
   static const int r1HeaderBytes = 12;
-  static const int latestR1Version = 6;
+  // v8: material stencil tail + colorWrite flag bit, OPCODE.STENCIL_CLEAR
+  // mid-stream markers and the FRAME_TARGET_FLAGS.clearStencil frame bit.
+  static const int latestR1Version = 8;
   static const int defaultMaxEnvelopeBytes = 64 * 1024 * 1024;
   static const int maxEncodedTextureBytes = 64 * 1024 * 1024;
   static const int maxCommandCount = 100000;
@@ -1107,7 +1226,10 @@ final class JsThreeProtocolDecoder {
     );
     final mapTextureId = body.u32('map texture id');
     final flags = body.u32('material flags');
-    if (flags & ~0x3ff != 0)
+    // v8 adds the colorWrite-off flag (bit 10) and the stencil-tail marker
+    // (bit 11); older streams keep the pre-v8 mask word.
+    final flagMask = streamVersion >= 8 ? 0xfff : 0x3ff;
+    if (flags & ~flagMask != 0)
       body.fail('unknown material flag'); // bits 7..9: THREE blending
     _validateMaterialWireframeFlag(body, flags, kind);
     final side = body.enumValue(
@@ -1155,8 +1277,9 @@ final class JsThreeProtocolDecoder {
         metalnessMapTextureId: 0,
       ),
     };
-    final phong = _phongMaterial(body, kind);
-    final emissive = _emissiveMaterial(body, kind);
+    final stencilBytes = _materialStencilBytes(streamVersion, flags);
+    final phong = _phongMaterial(body, kind, stencilBytes);
+    final emissive = _emissiveMaterial(body, kind, stencilBytes);
     final dubois = switch (streamVersion) {
       >= 6 => _materialDuboisTail(body, kind, mapTextureId),
       _ => (
@@ -1165,6 +1288,7 @@ final class JsThreeProtocolDecoder {
         right: Float32List(12).asUnmodifiableView(),
       ),
     };
+    final stencil = _materialStencilTail(body, stencilBytes);
     return JsThreeMaterialUpsert._(
       materialId: id,
       version: version,
@@ -1208,7 +1332,100 @@ final class JsThreeProtocolDecoder {
       bumpScale: v6.bumpScale,
       roughnessMapTextureId: v6.roughnessMapTextureId,
       metalnessMapTextureId: v6.metalnessMapTextureId,
+      stencilWrite: stencil?.stencilWrite ?? false,
+      stencilFunc: stencil?.stencilFunc ?? JsThreeStencilFunc.always,
+      stencilRef: stencil?.stencilRef ?? 0,
+      stencilFuncMask: stencil?.stencilFuncMask ?? 255,
+      stencilWriteMask: stencil?.stencilWriteMask ?? 255,
+      stencilFailOp: stencil?.stencilFailOp ?? JsThreeStencilOp.keep,
+      stencilZFailOp: stencil?.stencilZFailOp ?? JsThreeStencilOp.keep,
+      stencilZPassOp: stencil?.stencilZPassOp ?? JsThreeStencilOp.keep,
     );
+  }
+
+  /// The v8 stencil tail size (32 bytes, the LAST bytes of the material
+  /// body) or 0: the tail exists only on v8 streams with flag bit 11, and
+  /// stenciless v8 bodies stay byte-identical to v7.
+  static int _materialStencilBytes(int streamVersion, int flags) =>
+      streamVersion >= 8 && flags & 0x800 != 0 ? 32 : 0;
+
+  /// Decodes the R1 v8 stencil tail: the last 32 bytes of the material body
+  /// (upstream `Material.stencil*` as raw GL enums). The GL enum tables are
+  /// sparse, so unknown encodings are rejected loudly; reference values and
+  /// masks must fit the bounded lane's 8-bit stencil attachment.
+  ({
+    bool stencilWrite,
+    JsThreeStencilFunc stencilFunc,
+    int stencilRef,
+    int stencilFuncMask,
+    int stencilWriteMask,
+    JsThreeStencilOp stencilFailOp,
+    JsThreeStencilOp stencilZFailOp,
+    JsThreeStencilOp stencilZPassOp,
+  })?
+  _materialStencilTail(_Reader body, int stencilBytes) {
+    if (stencilBytes == 0) return null;
+    if (body.remaining != stencilBytes) {
+      body.fail('material stencil tail must be the last $stencilBytes body bytes');
+    }
+    final stencilWrite = body.u32('material stencil write');
+    if (stencilWrite > 1) body.fail('material stencil write must be 0 or 1');
+    final stencilFunc = _stencilEnum(
+      body,
+      JsThreeStencilFunc.tryWire,
+      'material stencil func',
+    );
+    final stencilRef = _stencilByte(body, 'material stencil reference');
+    final stencilFuncMask = _stencilByte(body, 'material stencil func mask');
+    final stencilWriteMask = _stencilByte(body, 'material stencil write mask');
+    final stencilFailOp = _stencilEnum(
+      body,
+      JsThreeStencilOp.tryWire,
+      'material stencil fail op',
+    );
+    final stencilZFailOp = _stencilEnum(
+      body,
+      JsThreeStencilOp.tryWire,
+      'material stencil zfail op',
+    );
+    final stencilZPassOp = _stencilEnum(
+      body,
+      JsThreeStencilOp.tryWire,
+      'material stencil zpass op',
+    );
+    return (
+      stencilWrite: stencilWrite == 1,
+      stencilFunc: stencilFunc,
+      stencilRef: stencilRef,
+      stencilFuncMask: stencilFuncMask,
+      stencilWriteMask: stencilWriteMask,
+      stencilFailOp: stencilFailOp,
+      stencilZFailOp: stencilZFailOp,
+      stencilZPassOp: stencilZPassOp,
+    );
+  }
+
+  /// Reads one u32 GL enum through [tryWire]; unknown encodings fail loudly.
+  static T _stencilEnum<T extends Enum>(
+    _Reader body,
+    T? Function(int wireValue) tryWire,
+    String label,
+  ) {
+    final wire = body.u32(label);
+    final value = tryWire(wire);
+    if (value == null) {
+      body.fail('unknown $label 0x${wire.toRadixString(16)}');
+    }
+    return value;
+  }
+
+  /// Reads one u32 that must fit the 8-bit stencil attachment.
+  static int _stencilByte(_Reader body, String label) {
+    final value = body.u32(label);
+    if (value > maxStencilByteValue) {
+      body.fail('$label must fit an 8-bit stencil buffer');
+    }
+    return value;
   }
 
   ({int clipId, int clipFlags}) _materialClipTail(_Reader body) {
@@ -1319,14 +1536,18 @@ final class JsThreeProtocolDecoder {
   ({double r, double g, double b, double shininess}) _phongMaterial(
     _Reader body,
     JsThreeMaterialKind kind,
+    int stencilBytes,
   ) {
     if (kind != JsThreeMaterialKind.meshPhong) {
       return (r: 0.0, g: 0.0, b: 0.0, shininess: 0.0);
     }
-    if (body.remaining != 16 &&
-        body.remaining != 32 &&
-        body.remaining != 128 &&
-        body.remaining != 144) {
+    // The v8 stencil tail rides AFTER this payload; compare against the
+    // pre-tail size so the stencil extension never rewrites these checks.
+    final payloadBytes = body.remaining - stencilBytes;
+    if (payloadBytes != 16 &&
+        payloadBytes != 32 &&
+        payloadBytes != 128 &&
+        payloadBytes != 144) {
       body.fail('Phong material requires specular RGB and shininess');
     }
     final r = body.finiteFloat('material specular red');
@@ -1340,8 +1561,10 @@ final class JsThreeProtocolDecoder {
   ({double r, double g, double b, double intensity}) _emissiveMaterial(
     _Reader body,
     JsThreeMaterialKind kind,
+    int stencilBytes,
   ) {
-    if (body.remaining == 0 || body.remaining == 112) {
+    final payloadBytes = body.remaining - stencilBytes;
+    if (payloadBytes == 0 || payloadBytes == 112) {
       return (r: 0.0, g: 0.0, b: 0.0, intensity: 1.0);
     }
     if (kind != JsThreeMaterialKind.meshLambert &&
@@ -1350,7 +1573,7 @@ final class JsThreeProtocolDecoder {
         kind != JsThreeMaterialKind.meshTon) {
       body.fail('emissive payload requires a lit mesh material');
     }
-    if (body.remaining != 16 && body.remaining != 128) {
+    if (payloadBytes != 16 && payloadBytes != 128) {
       body.fail('emissive payload requires RGB and intensity');
     }
     final r = body.finiteFloat('material emissive red');
@@ -1380,10 +1603,13 @@ final class JsThreeProtocolDecoder {
     if (shadowFlags & ~3 != 0) body.fail('invalid node shadow flags');
     var centerX = 0.5;
     var centerY = 0.5;
+    var renderOrder = 0.0;
     if (streamVersion >= 5) {
       centerX = body.finiteFloat('node sprite center x');
       centerY = body.finiteFloat('node sprite center y');
-      if (body.u32('node reserved') != 0) {
+      if (streamVersion >= 7) {
+        renderOrder = body.finiteFloat('node render order');
+      } else if (body.u32('node reserved') != 0) {
         body.fail('node reserved field must be zero');
       }
       if (kind != JsThreeObjectKind.sprite &&
@@ -1406,6 +1632,7 @@ final class JsThreeProtocolDecoder {
       shadowFlags: shadowFlags,
       spriteCenterX: centerX,
       spriteCenterY: centerY,
+      renderOrder: renderOrder,
     );
   }
 
@@ -1538,6 +1765,16 @@ final class JsThreeProtocolDecoder {
       spotPenumbra = spot.penumbra;
       spotDistance = spot.distance;
       spotDecay = spot.decay;
+    }
+    if (type == JsThreeLightType.point && version >= 7) {
+      // Point lights have no world direction: R1 v7 uses those legacy zero
+      // lanes for decay and cutoff distance. Older streams retain their
+      // direction payload verbatim and the previous zero-decay behavior.
+      spotDecay = direction[0];
+      spotDistance = direction[1];
+      if (spotDecay < 0 || spotDistance < 0) {
+        body.fail('point light distance/decay must be nonnegative');
+      }
     }
     return JsThreeLightUpsert._(
       lightId: id,
@@ -1676,6 +1913,7 @@ final class JsThreeProtocolDecoder {
       scissorWidth: target.scissorWidth,
       scissorHeight: target.scissorHeight,
       frameFlags: target.flags,
+      frameStartClearStencil: target.clearStencil,
     );
   }
 
@@ -1692,6 +1930,7 @@ final class JsThreeProtocolDecoder {
     scissorWidth: 0,
     scissorHeight: 0,
     flags: 3,
+    clearStencil: true,
   );
 
   _FrameTarget _frameTargetTail(_Reader body, int streamVersion) {
@@ -1710,7 +1949,10 @@ final class JsThreeProtocolDecoder {
     final viewport = _frameRect(body, 'viewport');
     final scissor = _frameRect(body, 'scissor');
     final flags = body.u32('frame target flags');
-    if (flags & ~0x0f != 0 || flags & 8 == 0) {
+    // v8 adds the frame-start stencil-clear bit; older streams keep the
+    // pre-v8 mask word.
+    final flagMask = streamVersion >= 8 ? 0x1f : 0x0f;
+    if (flags & ~flagMask != 0 || flags & 8 == 0) {
       body.fail('invalid frame target flags');
     }
     if (body.u32('frame target reserved') != 0) {
@@ -1730,6 +1972,7 @@ final class JsThreeProtocolDecoder {
       scissorWidth: scissor.width,
       scissorHeight: scissor.height,
       flags: flags,
+      clearStencil: streamVersion >= 8 ? flags & 0x10 != 0 : true,
     );
   }
 
@@ -1985,9 +2228,23 @@ extension _JsThreeR1CommandDecoder on JsThreeProtocolDecoder {
     if (opcode == 8) return _frame(body, version);
     if (opcode == 13) return _clipping(body, version);
     if (opcode == 14) return _renderTarget(body, version);
+    if (opcode == 15) return _stencilClear(body, version);
     final decode = _r1CommandDecoders[opcode];
     if (decode == null) body.fail('unknown R1 opcode $opcode');
     return decode(this, body);
+  }
+
+  /// R1 v8 OPCODE.STENCIL_CLEAR: `u32 nodeId + u32 value`. nodeId 0 is
+  /// meaningful ("at this stream position"), so unlike resource ids it is
+  /// not rejected; the value must fit the 8-bit stencil attachment.
+  JsThreeStencilClear _stencilClear(_Reader body, int version) {
+    if (version < 8) body.fail('stencil clear requires R1 version 8');
+    final nodeId = body.u32('stencil clear node id');
+    final value = body.u32('stencil clear value');
+    if (value > maxStencilByteValue) {
+      body.fail('stencil clear value must fit an 8-bit stencil buffer');
+    }
+    return JsThreeStencilClear._(nodeId: nodeId, value: value);
   }
 
   JsThreeClippingUpsert _clipping(_Reader body, int version) {
@@ -2057,6 +2314,7 @@ final class _FrameTarget {
     required this.scissorWidth,
     required this.scissorHeight,
     required this.flags,
+    this.clearStencil = true,
   });
 
   final int targetId;
@@ -2071,6 +2329,11 @@ final class _FrameTarget {
   final double scissorWidth;
   final double scissorHeight;
   final int flags;
+
+  /// Frame-start stencil clear (v8 flag bit 0x10, value always 0). Streams
+  /// below v8 predate the bit and keep the bounded lane's legacy
+  /// always-clear attachment behavior.
+  final bool clearStencil;
 }
 
 final class _GeometryHeader {

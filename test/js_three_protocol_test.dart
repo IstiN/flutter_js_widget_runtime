@@ -336,6 +336,41 @@ Uint8List _materialV6({
   return out;
 }
 
+/// R1 v8 material body: the full v6 layout with flag bits 10/11 in the
+/// flags word and the optional 32-byte stencil tail appended LAST
+/// (matches materialCommand in tool/three/src/r1.js). The tail exists only
+/// when [stencil] is set and its flag bit is present.
+Uint8List _materialV8({
+  bool stencil = false,
+  bool colorWriteOff = false,
+  int stencilWrite = 1,
+  int func = 0x0205,
+  int ref = 3,
+  int funcMask = 15,
+  int writeMask = 240,
+  int failOp = 0x1e00,
+  int zFailOp = 0x1e01,
+  int zPassOp = 0x8507,
+}) {
+  final base = _materialV6();
+  final flags =
+      31 | (stencil ? 0x800 : 0) | (colorWriteOff ? 0x400 : 0);
+  setU32(base, 16, flags);
+  if (!stencil) return base;
+  final out = Uint8List(base.length + 32);
+  out.setAll(0, base);
+  final tail = out.length - 32;
+  setU32(out, tail, stencilWrite);
+  setU32(out, tail + 4, func);
+  setU32(out, tail + 8, ref);
+  setU32(out, tail + 12, funcMask);
+  setU32(out, tail + 16, writeMask);
+  setU32(out, tail + 20, failOp);
+  setU32(out, tail + 24, zFailOp);
+  setU32(out, tail + 28, zPassOp);
+  return out;
+}
+
 Uint8List _renderTarget({
   int id = 2,
   int version = 1,
@@ -1555,7 +1590,7 @@ void main() {
       }
       _bad(() => _decoder.decodeR1(Uint8List.fromList([...valid, 0])));
       _bad(() => _decoder.decodeR1(_r1(const [], version: 0)));
-      _bad(() => _decoder.decodeR1(_r1(const [], version: 7)));
+      _bad(() => _decoder.decodeR1(_r1(const [], version: 9)));
       _bad(() => _decoder.decodeR1(_r1(const [], flags: 1)));
       _bad(() => _decoder.decodeR1(_r1(const [], commandCount: 100001)));
       _bad(() => _decoder.decodeR1(_r1([(13, Uint8List(0))])));
@@ -1785,7 +1820,7 @@ void main() {
       final cases = <(int, Uint8List, int, int)>[
         (3, _material(), 0, 0),
         (3, _material(), 4, 0),
-        (3, _material(), 8, 12),
+        (3, _material(), 8, 13), // 13 is invalid; 12 is the v7 meshDepth kind
         (
           3,
           _material(),
@@ -2060,6 +2095,189 @@ void main() {
         () => _decoder.decodeR1(
           _r1([(8, _frame(shadowLightType: 1))], version: 3),
         ),
+      );
+    });
+  });
+
+  group('R1 v8', () {
+    Uint8List _stencilClear({int nodeId = 0, int value = 0}) {
+      final out = Uint8List(8);
+      setU32(out, 0, nodeId);
+      setU32(out, 4, value);
+      return out;
+    }
+
+    test('decodes the material stencil tail and the colorWrite flag', () {
+      final decoded = _decoder.decodeR1(
+        _r1([(3, _materialV8(stencil: true))], version: 8),
+      );
+      final material = decoded.commands.whereType<JsThreeMaterialUpsert>().single;
+      expect(material.flags & 0x800, 0x800);
+      expect(material.hasStencil, isTrue);
+      expect(material.colorWrite, isTrue);
+      expect(material.stencilWrite, isTrue);
+      expect(material.stencilFunc, JsThreeStencilFunc.notEqual);
+      expect(material.stencilRef, 3);
+      expect(material.stencilFuncMask, 15);
+      expect(material.stencilWriteMask, 240);
+      expect(material.stencilFailOp, JsThreeStencilOp.keep);
+      expect(material.stencilZFailOp, JsThreeStencilOp.replace);
+      expect(material.stencilZPassOp, JsThreeStencilOp.incrementWrap);
+    });
+
+    test('colorWrite-off flag decodes without a stencil tail', () {
+      final decoded = _decoder.decodeR1(
+        _r1([(3, _materialV8(colorWriteOff: true))], version: 8),
+      );
+      final material = decoded.commands.whereType<JsThreeMaterialUpsert>().single;
+      expect(material.colorWrite, isFalse);
+      expect(material.hasStencil, isFalse);
+      expect(material.stencilWrite, isFalse);
+      expect(material.stencilFunc, JsThreeStencilFunc.always);
+      expect(material.stencilRef, 0);
+      expect(material.stencilFuncMask, 255);
+      expect(material.stencilWriteMask, 255);
+      expect(material.stencilFailOp, JsThreeStencilOp.keep);
+      expect(material.stencilZFailOp, JsThreeStencilOp.keep);
+      expect(material.stencilZPassOp, JsThreeStencilOp.keep);
+    });
+
+    test('stenciless v8 materials decode like v7 (byte-identical defaults)', () {
+      final v7 = _decoder
+          .decodeR1(_r1([(3, _materialV6())], version: 7))
+          .commands
+          .whereType<JsThreeMaterialUpsert>()
+          .single;
+      final v8 = _decoder
+          .decodeR1(_r1([(3, _materialV8())], version: 8))
+          .commands
+          .whereType<JsThreeMaterialUpsert>()
+          .single;
+      expect(v8.flags, v7.flags);
+      expect(v8.colorWrite, isTrue);
+      expect(v8.hasStencil, isFalse);
+      expect(v8.stencilWrite, v7.stencilWrite);
+      expect(v8.stencilFunc, v7.stencilFunc);
+      expect(v8.stencilRef, v7.stencilRef);
+      expect(v8.stencilFuncMask, v7.stencilFuncMask);
+      expect(v8.stencilWriteMask, v7.stencilWriteMask);
+      expect(v8.stencilFailOp, v7.stencilFailOp);
+      expect(v8.stencilZFailOp, v7.stencilZFailOp);
+      expect(v8.stencilZPassOp, v7.stencilZPassOp);
+      // bits 10/11 stay invalid below v8.
+      _bad(
+        () => _decoder.decodeR1(
+          _r1([(3, _materialV8(colorWriteOff: true))], version: 7),
+        ),
+      );
+      _bad(
+        () => _decoder.decodeR1(
+          _r1([(3, _materialV8(stencil: true))], version: 7),
+        ),
+      );
+    });
+
+    test('validates the stencil tail: presence, enums, and 8-bit ranges', () {
+      // Flag bit 11 without the 32-byte tail.
+      final flaggedNoTail = _materialV8();
+      setU32(flaggedNoTail, 16, 31 | 0x800);
+      _bad(() => _decoder.decodeR1(_r1([(3, flaggedNoTail)], version: 8)));
+      // Tail without flag bit 11 (emissive range check rejects the bytes).
+      final tailless = _materialV8(stencil: true);
+      setU32(tailless, 16, 31);
+      _bad(() => _decoder.decodeR1(_r1([(3, tailless)], version: 8)));
+      for (final (offset, value) in [
+        (4, 0x0208), // unknown stencil func
+        (4, 0x0000), // 0 is GL_NEVER-adjacent junk, not in the GL table
+        (8, 256), // reference outside the 8-bit attachment
+        (12, 256), // func mask outside the 8-bit attachment
+        (16, 256), // write mask outside the 8-bit attachment
+        (20, 0x0001), // unknown fail op
+        (24, 0x150b), // unknown zfail op
+        (28, 0x8509), // unknown zpass op
+        (0, 2), // stencil write must be 0 or 1
+      ]) {
+        final body = _materialV8(stencil: true);
+        final tail = body.length - 32;
+        setU32(body, tail + offset, value);
+        _bad(() => _decoder.decodeR1(_r1([(3, body)], version: 8)));
+      }
+    });
+
+    test('decodes STENCIL_CLEAR markers and their stream order', () {
+      final decoded = _decoder.decodeR1(
+        _r1([
+          (15, _stencilClear(nodeId: 7, value: 2)),
+          (15, _stencilClear()),
+          (15, _stencilClear(nodeId: 9, value: 255)),
+        ], version: 8),
+      );
+      final clears = decoded.commands.whereType<JsThreeStencilClear>().toList();
+      expect(clears, hasLength(3));
+      expect(clears[0].nodeId, 7);
+      expect(clears[0].value, 2);
+      // nodeId 0 is meaningful ("at this stream position").
+      expect(clears[1].nodeId, 0);
+      expect(clears[1].value, 0);
+      expect(clears[2].nodeId, 9);
+      expect(clears[2].value, 255);
+    });
+
+    test('STENCIL_CLEAR requires v8, a short body, and an 8-bit value', () {
+      _bad(
+        () => _decoder.decodeR1(
+          _r1([(15, _stencilClear(value: 1))], version: 7),
+        ),
+      );
+      _bad(
+        () => _decoder.decodeR1(
+          _r1([(15, _stencilClear(value: 256))], version: 8),
+        ),
+      );
+      _bad(
+        () => _decoder.decodeR1(
+          _r1([(15, Uint8List(4))], version: 8),
+        ),
+      );
+      _bad(
+        () => _decoder.decodeR1(
+          _r1([(15, Uint8List(9))], version: 8),
+        ),
+      );
+    });
+
+    test('frame-target flag bit 0x10 decodes the frame-start stencil clear', () {
+      final cleared = _decoder
+          .decodeR1(_r1([(8, _frameV6Target(flags: 0x1f))], version: 8))
+          .commands
+          .whereType<JsThreeSubmitFrame>()
+          .single;
+      expect(cleared.frameStartClearStencil, isTrue);
+      final persisting = _decoder
+          .decodeR1(_r1([(8, _frameV6Target(flags: 0x0f))], version: 8))
+          .commands
+          .whereType<JsThreeSubmitFrame>()
+          .single;
+      expect(persisting.frameStartClearStencil, isFalse);
+      // v7 keeps the legacy always-clear default and rejects the new bit.
+      final legacy = _decoder
+          .decodeR1(_r1([(8, _frameV6Target(flags: 0x0f))], version: 7))
+          .commands
+          .whereType<JsThreeSubmitFrame>()
+          .single;
+      expect(legacy.frameStartClearStencil, isTrue);
+      _bad(
+        () => _decoder.decodeR1(
+          _r1([(8, _frameV6Target(flags: 0x1f))], version: 7),
+        ),
+      );
+    });
+
+    test('latestR1Version is 8', () {
+      expect(JsThreeProtocolDecoder.latestR1Version, 8);
+      expect(
+        _decoder.decodeR1(_r1(const [], version: 8)).version,
+        8,
       );
     });
   });

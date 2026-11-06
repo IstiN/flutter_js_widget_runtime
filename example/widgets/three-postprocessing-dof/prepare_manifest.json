@@ -214,6 +214,7 @@
       "InterpolationSamplingMode",
       "InterpolationSamplingType",
       "InvertStencilOp",
+      "JsrImageBitmapLoader",
       "JsrPMREMGenerator",
       "JsrThreeCanvas",
       "KeepStencilOp",
@@ -489,9 +490,11 @@
       "ZeroFactor",
       "ZeroSlopeEnding",
       "ZeroStencilOp",
+      "createBoundedCSGEvaluator",
       "createCanvasElement",
       "error",
       "getConsoleFunction",
+      "getNativeCSGDiagnostics",
       "getNativeRaycastDiagnostics",
       "log",
       "setConsoleFunction",
@@ -499,18 +502,18 @@
       "warnOnce"
     ],
     "source": {
-      "bytes": 40483,
-      "sha256": "f27162e1ba40dece89d58dd0caff0e9d2c776e68cc80e2f466bb7d980f05bb41"
+      "bytes": 40799,
+      "sha256": "723bc3dbc176a0175cbd41d686e460b7e083ceda5e92095f8c035f2451ab63e3"
     }
   },
   "inputs": {
-    "assets/three/three.native.js": {
-      "bytes": 777104,
-      "sha256": "5adcb8e7c2d94dd83748134c4d13b9fcfcba9b671445fe27de895575402241b0"
+    "assets/three/jsr_three_native.js": {
+      "bytes": 838188,
+      "sha256": "774cd82da77974165fd9ec3122c1e4e4505bca3faa5003cb72afc6a59f5f4e5b"
     },
-    "assets/three/three.web.js": {
-      "bytes": 855325,
-      "sha256": "973b78155b07710ece2f22e803cb25a8cb08da4f62b5f825dc676715f5859311"
+    "assets/three/jsr_three_web.js": {
+      "bytes": 857885,
+      "sha256": "8bf94959ca16ffd59b904e040edcf4ffe405eac56cf941285a2da0a5337fb878"
     },
     "source/LICENSE": {
       "bytes": 1081,
@@ -560,6 +563,30 @@
       "bytes": 1876,
       "sha256": "353479f77a8d7e2629d49ccac9fc2f5dbfdda5442e0adf867b00377a2fcb0cb2"
     },
+    "source/examples/textures/cube/SwedishRoyalCastle/nx.jpg": {
+      "bytes": 55087,
+      "sha256": "53a8d90cea6bab188d462c44676b84e5993424e465785c93829d810bbf7c5076"
+    },
+    "source/examples/textures/cube/SwedishRoyalCastle/ny.jpg": {
+      "bytes": 26281,
+      "sha256": "17953cc33b9fec703c286266d4aca6033d758edd17ba0384fb3ebd7630085fd4"
+    },
+    "source/examples/textures/cube/SwedishRoyalCastle/nz.jpg": {
+      "bytes": 55926,
+      "sha256": "10149242ae21ba4c00663a0673f01a6722da63f201511fdc01941930d800ccff"
+    },
+    "source/examples/textures/cube/SwedishRoyalCastle/px.jpg": {
+      "bytes": 43656,
+      "sha256": "10a786132bc7eef6b142bd0d4b00ea94ffc1a1bfccfb1a6ec0baedf966d80734"
+    },
+    "source/examples/textures/cube/SwedishRoyalCastle/py.jpg": {
+      "bytes": 6204,
+      "sha256": "8b88f7f9af85fa5b442f28fb27532e534a197aba68ae60548bf4b3750f0d50f0"
+    },
+    "source/examples/textures/cube/SwedishRoyalCastle/pz.jpg": {
+      "bytes": 75549,
+      "sha256": "cc9252ba994a79c320ac4aed03aac9000f810c1358179e70a69b598d56e129db"
+    },
     "source/examples/webgl_postprocessing_dof.html": {
       "bytes": 6545,
       "sha256": "fb11d4701c625832db304996ebe8fcf70c04da92b6bc3c19b6c61e1fe83e4462"
@@ -569,34 +596,78 @@
       "sha256": "29492424209a17a723b3b0c8e9c83995697a4c466840d1b33ba6f6ff2b7542a4"
     },
     "tool/three/src/native_entry.js": {
-      "bytes": 1951,
-      "sha256": "7852c54a706c19e98978c884aa9cd9bfd8d040a2d304c8e6d8cf973dd3554eaf"
+      "bytes": 26368,
+      "sha256": "dac7dc374e1374499bc9e9a84593e7e1e848bfcde7bb916d7212ccd517e861d3"
+    },
+    "tool/three_example/asset_decode.mjs": {
+      "bytes": 51634,
+      "sha256": "273d0f8261829418eb08a93177990de1fb76cda9211852d578439a39ceb61af1"
+    },
+    "tool/three_example/asset_discovery.mjs": {
+      "bytes": 12424,
+      "sha256": "89a14e272cb1ddac5b555b4361af938764127ee069ac367a18262b8299643eca"
+    },
+    "tool/three_example/degrades/bokeh_palette_freeze.mjs": {
+      "bytes": 1094,
+      "sha256": "df205a3205320e5c7fa8ae8695f062a43577beb4e54fa3fd8f119439439449c3"
     },
     "tool/three_example/example_adapter.js": {
-      "bytes": 20723,
-      "sha256": "9c713a0daa93289f0aeb2d75de6c067569ca4bc2235c24f3bb2bc8feab03336c"
+      "bytes": 49943,
+      "sha256": "1ab349ba0361871765f4351a6fc3228fb05c93315985fbbf07644592c96ad8c4"
     },
     "tool/three_example/example_canvas2d.js": {
-      "bytes": 20988,
-      "sha256": "ae6143c0400efcb2b9ca05c69416ea13519aa5c94a8e7d2e75ffe767ef4c8fba"
+      "bytes": 22635,
+      "sha256": "3bb5bcd47d637e187e79fd7463ba4247e3cc7b5705e62229983e8e607fccf753"
     },
     "tool/three_example/lil_gui_adapter.js": {
-      "bytes": 28916,
-      "sha256": "dc11346394f41bb4f385738d3afa6aa75e695ac80fe3be3a5fbf4201686376bf"
+      "bytes": 32173,
+      "sha256": "2f83bde66c35db02a16eec3db21beae0e1198e04f1b0723f9b3dbda89c6675f7"
     },
     "tool/three_example/prepare.mjs": {
-      "bytes": 247876,
-      "sha256": "4ed1752612b57fb4ac32f62717e772e9a85f4e8a0f7e51a764443b68af0b8aac"
+      "bytes": 343806,
+      "sha256": "a7cf614c376874943f28a9e4bdf43e29433786636ba18d0f4e11d1cd22d0257b"
     },
     "tool/three_example/stats_adapter.js": {
       "bytes": 2107,
       "sha256": "98defe8785b259fdf70182c7d4a0a8e8e39ff8be901c3a9f93cd991240784086"
+    },
+    "tool/three_example/vendor/lock.json": {
+      "bytes": 3496,
+      "sha256": "684724e244c7042cbe7bd1fa0dace4e9a653a73d25c35f04c21b9d62d0eb6219"
+    },
+    "tool/three_example/vendor/xml_dom.js": {
+      "bytes": 18555,
+      "sha256": "b5ed0f0cfc690fc55c03280cc3c2ab67e39d09504b51d979a827306e00249182"
     }
   },
   "outputs": {
     "THREE_LICENSE": {
       "bytes": 1081,
       "sha256": "8b378ebe60e2fe500158cb0ac71cb5e8b7d92953c2abcc63a0eb90499653b5bc"
+    },
+    "castle-nx.jpg": {
+      "bytes": 1048576,
+      "sha256": "aaab3be3d93a0d95377d5b0355fd988014b71ff91392dbb4e0d0daaf063ca225"
+    },
+    "castle-ny.jpg": {
+      "bytes": 1048576,
+      "sha256": "22cb97de83b76707a8eeead8914a46a5ffa6d510c102f90001491fc9c1a2626d"
+    },
+    "castle-nz.jpg": {
+      "bytes": 1048576,
+      "sha256": "36bf4030b29ce5c4bbc960824ed011255a5275f65e23bedfd6fc4f553f2c3256"
+    },
+    "castle-px.jpg": {
+      "bytes": 1048576,
+      "sha256": "9d4a6e96ad6042fcb266849ea7b56f26b3a4b331f52c9a37f70a92890b8d6b21"
+    },
+    "castle-py.jpg": {
+      "bytes": 1048576,
+      "sha256": "a4c508858ac636bc41744eae6553fc9c97dc403adc438b4ebbb1ae867a2a7e76"
+    },
+    "castle-pz.jpg": {
+      "bytes": 1048576,
+      "sha256": "9a1b84872e9ba8f72c76d701457b04caa8fab9957a2e9a4be219b0bd360a8697"
     },
     "manifest.json": {
       "bytes": 364,
@@ -611,8 +682,8 @@
       "sha256": "fb11d4701c625832db304996ebe8fcf70c04da92b6bc3c19b6c61e1fe83e4462"
     },
     "widget.js": {
-      "bytes": 93884,
-      "sha256": "b8529bbc07df77a953030d7c6e055af20ab17a1c5b465c65547c796990731d67"
+      "bytes": 8508526,
+      "sha256": "21cd7af08f69a3935db6779f52f2b512767c82b5dbe381bfab4715815e33686b"
     }
   }
 }

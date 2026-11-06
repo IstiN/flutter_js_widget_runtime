@@ -43,32 +43,17 @@
       "sha256": "e2267ffbe56df1d6c11e2ab94ec7b90381f5f50db4f9aabf8f5fc7ee2d6edaad"
     }
   },
-  "assetDiscovery": [
-    {
-      "url": "models/gcode/benchy.gcode",
-      "output": "models__gcode__benchy.gcode",
-      "mime": "application/octet-stream",
-      "diagnostic": "auto:models/gcode/benchy.gcode",
-      "sha256": "046739dbdb991016f12a905e2660364434ebd773fe63138b3fd66b6875c94215",
-      "discovered": true
-    },
-    {
-      "url": "models/gcode/test_m82.gcode",
-      "output": "models__gcode__test_m82.gcode",
-      "mime": "application/octet-stream",
-      "diagnostic": "auto:models/gcode/test_m82.gcode",
-      "sha256": "b36c5f3cca7cbee6f55fff5bdd5a79d78f549a5756f2a86192d4055aad5c6d46",
-      "discovered": true
-    },
-    {
-      "url": "models/gcode/test_m83.gcode",
-      "output": "models__gcode__test_m83.gcode",
-      "mime": "application/octet-stream",
-      "diagnostic": "auto:models/gcode/test_m83.gcode",
-      "sha256": "d2b75d9e03cc1bc992e88198d4e7339f2398d9dfa5f9247412ad514612c88ebe",
-      "discovered": true
-    }
-  ],
+  "assetPolicy": {
+    "inlineMaxBytes": 1500000,
+    "externalAssets": [
+      {
+        "url": "models/gcode/benchy_scene.bin",
+        "file": "models__gcode__benchy_scene.bin",
+        "bytes": 1551508,
+        "sha256": "0746835f027445db2797016485be698361abacf099ef2f8673c0ebb4a2da6dc5"
+      }
+    ]
+  },
   "facade": {
     "global": "globalThis.THREE",
     "exports": [
@@ -240,6 +225,7 @@
       "InterpolationSamplingMode",
       "InterpolationSamplingType",
       "InvertStencilOp",
+      "JsrImageBitmapLoader",
       "JsrPMREMGenerator",
       "JsrThreeCanvas",
       "KeepStencilOp",
@@ -515,9 +501,11 @@
       "ZeroFactor",
       "ZeroSlopeEnding",
       "ZeroStencilOp",
+      "createBoundedCSGEvaluator",
       "createCanvasElement",
       "error",
       "getConsoleFunction",
+      "getNativeCSGDiagnostics",
       "getNativeRaycastDiagnostics",
       "log",
       "setConsoleFunction",
@@ -525,18 +513,18 @@
       "warnOnce"
     ],
     "source": {
-      "bytes": 40477,
-      "sha256": "8bcf595ad2b429b6b0db53de11193934d6209dea7d57630a17b70de68984156d"
+      "bytes": 40793,
+      "sha256": "205af3e1f9c783c4874ab3fa75cad7af36fb08ab326b547d01bf28ce7a831fa9"
     }
   },
   "inputs": {
-    "assets/three/three.native.js": {
-      "bytes": 791598,
-      "sha256": "58efdde0f4795a978fdf0a9ed9a4f606264aff39bb4e164aaaf00f5542c280e8"
+    "assets/three/jsr_three_native.js": {
+      "bytes": 838188,
+      "sha256": "774cd82da77974165fd9ec3122c1e4e4505bca3faa5003cb72afc6a59f5f4e5b"
     },
-    "assets/three/three.web.js": {
-      "bytes": 855325,
-      "sha256": "973b78155b07710ece2f22e803cb25a8cb08da4f62b5f825dc676715f5859311"
+    "assets/three/jsr_three_web.js": {
+      "bytes": 857885,
+      "sha256": "8bf94959ca16ffd59b904e040edcf4ffe405eac56cf941285a2da0a5337fb878"
     },
     "source/LICENSE": {
       "bytes": 1081,
@@ -550,21 +538,17 @@
       "bytes": 29526,
       "sha256": "5e31e7fc4d3a1268550b948463eabe06c7a6c03c158ccb99c78616d2c9682518"
     },
-    "source/examples/jsm/loaders/GCodeLoader.js": {
-      "bytes": 7199,
-      "sha256": "47ae92508ba78c4148b3a3ee9182a2f47c4ca8bf3cc622d49dd29cdfb9a579c7"
+    "source/examples/models/gcode/benchy_scene.bin": {
+      "bytes": 1551508,
+      "sha256": "0746835f027445db2797016485be698361abacf099ef2f8673c0ebb4a2da6dc5"
     },
-    "source/examples/models/gcode/benchy.gcode": {
-      "bytes": 1940664,
-      "sha256": "046739dbdb991016f12a905e2660364434ebd773fe63138b3fd66b6875c94215"
+    "source/examples/models/gcode/test_m82_scene.bin": {
+      "bytes": 936,
+      "sha256": "8c6da526d55dc7b8d068845e6f595de145e7747be47418f26bacf6a47429b54b"
     },
-    "source/examples/models/gcode/test_m82.gcode": {
-      "bytes": 1652,
-      "sha256": "b36c5f3cca7cbee6f55fff5bdd5a79d78f549a5756f2a86192d4055aad5c6d46"
-    },
-    "source/examples/models/gcode/test_m83.gcode": {
-      "bytes": 1658,
-      "sha256": "d2b75d9e03cc1bc992e88198d4e7339f2398d9dfa5f9247412ad514612c88ebe"
+    "source/examples/models/gcode/test_m83_scene.bin": {
+      "bytes": 936,
+      "sha256": "8c6da526d55dc7b8d068845e6f595de145e7747be47418f26bacf6a47429b54b"
     },
     "source/examples/webgl_loader_gcode.html": {
       "bytes": 3238,
@@ -575,32 +559,48 @@
       "sha256": "29492424209a17a723b3b0c8e9c83995697a4c466840d1b33ba6f6ff2b7542a4"
     },
     "tool/three/src/native_entry.js": {
-      "bytes": 1951,
-      "sha256": "7852c54a706c19e98978c884aa9cd9bfd8d040a2d304c8e6d8cf973dd3554eaf"
+      "bytes": 26368,
+      "sha256": "dac7dc374e1374499bc9e9a84593e7e1e848bfcde7bb916d7212ccd517e861d3"
+    },
+    "tool/three_example/asset_decode.mjs": {
+      "bytes": 50163,
+      "sha256": "92540fcc2f8e0c36e8d84519c270df6b1d320a20883871442e52ea8a230d00e7"
     },
     "tool/three_example/asset_discovery.mjs": {
-      "bytes": 11532,
-      "sha256": "5219e6b747041382d9e40edc33901f04140df1cfb0454b181d8145414a75ee9e"
+      "bytes": 12424,
+      "sha256": "89a14e272cb1ddac5b555b4361af938764127ee069ac367a18262b8299643eca"
+    },
+    "tool/three_example/degrades/gcode_prebuilt.mjs": {
+      "bytes": 4543,
+      "sha256": "9fa4d46a71d65d888f70574ff5391ce7332f18b3c3d692e741eb5e6d6d863051"
     },
     "tool/three_example/example_adapter.js": {
-      "bytes": 36267,
-      "sha256": "c604a1842689cfaf43e2bdf335b55f2384780c7b163cd41ab6e91e3912704b61"
+      "bytes": 49943,
+      "sha256": "1ab349ba0361871765f4351a6fc3228fb05c93315985fbbf07644592c96ad8c4"
     },
     "tool/three_example/example_canvas2d.js": {
-      "bytes": 20988,
-      "sha256": "ae6143c0400efcb2b9ca05c69416ea13519aa5c94a8e7d2e75ffe767ef4c8fba"
+      "bytes": 22635,
+      "sha256": "3bb5bcd47d637e187e79fd7463ba4247e3cc7b5705e62229983e8e607fccf753"
     },
     "tool/three_example/lil_gui_adapter.js": {
-      "bytes": 28916,
-      "sha256": "dc11346394f41bb4f385738d3afa6aa75e695ac80fe3be3a5fbf4201686376bf"
+      "bytes": 32173,
+      "sha256": "2f83bde66c35db02a16eec3db21beae0e1198e04f1b0723f9b3dbda89c6675f7"
     },
     "tool/three_example/prepare.mjs": {
-      "bytes": 252492,
-      "sha256": "544095661162d33d5b6e91b6b744f7eb60b97c1ff9ea1f4ae297b2f39044af43"
+      "bytes": 325734,
+      "sha256": "9fc357076592ee9e19b737fd13cf43f6567ba6249aabb4b9452d4b10e3d2c7c0"
     },
     "tool/three_example/stats_adapter.js": {
       "bytes": 2107,
       "sha256": "98defe8785b259fdf70182c7d4a0a8e8e39ff8be901c3a9f93cd991240784086"
+    },
+    "tool/three_example/vendor/lock.json": {
+      "bytes": 3496,
+      "sha256": "684724e244c7042cbe7bd1fa0dace4e9a653a73d25c35f04c21b9d62d0eb6219"
+    },
+    "tool/three_example/vendor/xml_dom.js": {
+      "bytes": 18555,
+      "sha256": "b5ed0f0cfc690fc55c03280cc3c2ab67e39d09504b51d979a827306e00249182"
     }
   },
   "outputs": {
@@ -608,21 +608,25 @@
       "bytes": 1081,
       "sha256": "8b378ebe60e2fe500158cb0ac71cb5e8b7d92953c2abcc63a0eb90499653b5bc"
     },
+    "assets.json": {
+      "bytes": 497,
+      "sha256": "0ab878e7bccd959e787f36646a62e3a61d646bdd07e5b7bfb43219f258c75e83"
+    },
     "manifest.json": {
       "bytes": 343,
       "sha256": "1fae2f1600598dbdbd9811cf6ab064b17401236c5c028bdb7259d7766a1d322f"
     },
-    "models__gcode__benchy.gcode": {
-      "bytes": 1940664,
-      "sha256": "046739dbdb991016f12a905e2660364434ebd773fe63138b3fd66b6875c94215"
+    "models__gcode__benchy_scene.bin": {
+      "bytes": 1551508,
+      "sha256": "0746835f027445db2797016485be698361abacf099ef2f8673c0ebb4a2da6dc5"
     },
-    "models__gcode__test_m82.gcode": {
-      "bytes": 1652,
-      "sha256": "b36c5f3cca7cbee6f55fff5bdd5a79d78f549a5756f2a86192d4055aad5c6d46"
+    "models__gcode__test_m82_scene.bin": {
+      "bytes": 936,
+      "sha256": "8c6da526d55dc7b8d068845e6f595de145e7747be47418f26bacf6a47429b54b"
     },
-    "models__gcode__test_m83.gcode": {
-      "bytes": 1658,
-      "sha256": "d2b75d9e03cc1bc992e88198d4e7339f2398d9dfa5f9247412ad514612c88ebe"
+    "models__gcode__test_m83_scene.bin": {
+      "bytes": 936,
+      "sha256": "8c6da526d55dc7b8d068845e6f595de145e7747be47418f26bacf6a47429b54b"
     },
     "official_module.js": {
       "bytes": 2292,
@@ -633,8 +637,8 @@
       "sha256": "4dfd6074651e2a95658679539d869e4d92fd4c53d336ff431b201cee7f8fb642"
     },
     "widget.js": {
-      "bytes": 2697762,
-      "sha256": "277f5a4be7d5e6da4a46c5f82e996929e9e83865669c11ccd2df16ee58fb9420"
+      "bytes": 123102,
+      "sha256": "677c35162eb6c3f96c8d02cca9bf601cff632de700e19b28b7f6dea0f10f896b"
     }
   }
 }

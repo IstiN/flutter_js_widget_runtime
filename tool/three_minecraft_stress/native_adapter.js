@@ -8,7 +8,7 @@ const MAX_BLOB_URLS = 16;
 
 if (!JSR || !JSR.three || typeof JSR.three.createCanvas !== 'function' ||
     typeof JSR.three.registerAsset !== 'function') {
-  throw new Error(`${ID}: evaluate the pinned three.native.js bundle first`);
+  throw new Error(`${ID}: evaluate the pinned jsr_three_native.js bundle first`);
 }
 for (const method of ['render', 'exportState', 'onEvent']) {
   if (typeof JSR[method] !== 'function') throw new Error(`${ID}: jsr.${method} is required`);

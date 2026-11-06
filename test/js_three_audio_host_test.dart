@@ -133,6 +133,8 @@ void main() {
         'pause',
         'pause',
         'seek:0',
+        // Teardown mutes the player before the bookkeeping dispose.
+        'pause',
         'dispose',
       ]);
       expect(await host.handleCall('three.audio', update), {'updated': false});

@@ -202,6 +202,20 @@ identity lives in `ThreeUpstreamBundle`, `tool/three/source-pin.json` and
   `dart:ui.Canvas` and returns owned raw RGBA. Readiness adopts a new texture
   version and schedules a transactional render even for static scenes;
   stale/disposed completions carry no pixels. Web remains on OffscreenCanvas.
+- Asset/textures: `runtime.loadAsset` strips a leading `./` for host asset
+  requests (`./textures/a.jpg` and `textures/a.jpg` are the same bundled
+  asset, matching web URL resolution); the requested URL stays the cache key.
+  `JsrTextureLoader` falls back to the `three.canvas2d` decode lane for GIF
+  bytes (Flutter's image codec, first frame, static native texture) because
+  the encoded-texture path only accepts PNG/JPEG; prepared examples pin GIF
+  assets with `convertToPng: true`. An example whose official module loads a
+  texture MUST pin it in its `prepare.mjs` asset list — `assets: []` plus a
+  texture load fails at runtime with `no host asset loader is configured`.
+  r186 `WebGLRenderTarget.setSize()` disposes; the R1 dispose listener must
+  queue the kind-7 disposal through `_pendingDisposals` (never `_queueDisposal`,
+  which does not exist) so Dart sees DISPOSE_RESOURCE before the re-tracked
+  same-version upsert — otherwise Dart's per-id version gate drops the resized
+  target and the frame fails with `stale dimensions`.
 - HemisphereLight is an independent R1-v2 light kind with sky/ground colors,
   intensity and normalized world-position direction. It contributes diffuse
   irradiance to Lambert/Standard/Phong, never Basic/Normal or shadow maps;
@@ -230,6 +244,15 @@ identity lives in `ThreeUpstreamBundle`, `tool/three/source-pin.json` and
   version changes invalidate the cache. Skinned/morph/non-indexed/material-
   array/bounded-draw-range meshes must use the stock path. Keep the QuickJS
   face-id/invalidation regression and a real Terrain pointermove FPS smoke.
+- Native skinning and morphing use bounded `__jsrSkinBytes` /
+  `__jsrMorphBytes` packets. Morph target contents are cached by attribute
+  identity/version; weights and base regions are refreshed per call. Native
+  output is copied back to ordinary dynamic attributes, and only revisions
+  whose finite values were validated natively may bypass the JS finite loop.
+  Malformed or non-finite packets retain the original upstream JS fallback.
+- `webgl_marchingcubes` is a documented prepare-time degrade: its field still
+  animates every frame, but bundled resolution and the GUI range are capped
+  at 20. The pinned official bytes remain unchanged in `official_module.js`.
 - Web uses the REAL upstream `WebGLRenderer` on a Worker-owned
   `OffscreenCanvas`. Canvas/WebGL2 creation is synchronous in the Worker;
   no proxy GL and no main-canvas reservation. A separate structured-clone
@@ -301,7 +324,18 @@ R1 v4 carries tone mapping + exposure + anisotropy end-to-end),
 `copyTextureToTexture` API. Wave-3 batch 1-2 (R1 v5) closed three of the
 wave-2 gaps: `webgl_sprites` / `webgl_raycaster_sprite` now run stock on
 the real sprite billboard kind, and `webgl_shadowmap_pointlight` renders
-point-light shadows through the dual-paraboloid map (per-light v5 tail);
+point-light shadows through the dual-paraboloid map (per-light v5 tail).
+Point-shadow draws have a dedicated 64-byte material uniform (alphaMap flags
+at byte 48), do not sample the projected-shadow texture, and record front/back
+paraboloid faces in separate Metal command buffers. Shared vertex/fragment
+varyings keep explicit locations 0–4. Native object traversal maps non-finite
+`renderOrder` to finite `1e30` before float32 encoding. Terminal surface errors
+stop pump rescheduling; failed presentation counts must remain flat.
+`webgl_postprocessing_godrays` renders only its official direct `RenderPass`;
+without `GodraysPass` that scene is intentionally very dark, so use the GPU
+RGBA regressions (`js_three_godrays_golden_test.dart` and
+`js_three_r1_point_shadow_golden_test.dart`) rather than treating darkness or
+FPS alone as proof of a lost/restored main pass.
 `webgl_materials_matcap` / `webgl_materials_toon` run stock on the new
 matcap/ton material kinds (EXR decode is pure JS feeding data textures;
 the toon OutlineEffect is bounded — exact GLSL outlines stay web-lane).
@@ -337,7 +371,11 @@ stay 0 — the snapshot test fails otherwise). GLSL passes, render targets,
 postprocessing, PMREM, VSM, fat lines and CubeCamera capture are DELIBERATE
 web-lane `no` entries (`webLane: true`, documented reason): the native lane
 presents one surface and will not implement them; the Web (1B) lane serves
-100% of the API. Entries marked `unverified` (pure-JS decode loaders —
+100% of the API. The explicit native `PMREMGenerator.fromScene` degrade is a
+warned 1×1 neutral equirectangular environment without prefiltering, not PMREM
+parity; Standard/Physical split diffuse/specular IBL so roughness 1 preserves
+albedo instead of adding an environment-only white reflection. Entries marked
+`unverified` (pure-JS decode loaders —
 EXR graduated to bounded via the matcap stock boot — DragControls,
 SelectionBox) stay unknown-api with the probe they need —
 never promote one without a real module boot. Regenerate both snapshots
@@ -347,7 +385,7 @@ binding NEGATES the constant (`discard where dot(n,p) < -constant`) —
 pinned by the draw-plan uniform test and the spot-clipping golden. The lil-gui facade supports boolean/number/
 function/options controllers, chained `.step()/.min()/.max()`,
 `listen()` pass-through and `new GUI({width})`. After ANY `tool/three/src/**` change,
-rebuild `assets/three/three.native.js` (`node tool/three/build.mjs`) and
+rebuild `assets/three/jsr_three_native.js` (`node tool/three/build.mjs`) and
 re-prepare every example — the facade is baked into each widget.js and
 prepare manifests pin its inputs. Late RAF/timer/promise callback JS
 exceptions surface as widget error cards
@@ -359,8 +397,11 @@ smokes; native compatibility still has to pass the actual R1 gates.
 For nonblocking native startup, opt in with
 `backendFactory: createQuickjsIsolateWidgetEngineBackend`. The persistent
 isolate owns QuickJS and JS-side R1 encoding; the main isolate retains the
-bridge, scheduler, Promise resolvers and hosts. Binary payloads cross as
-owned `TransferableTypedData`, never as a retained native pointer. Use the
+bridge, scheduler, Promise resolvers and hosts. Binary payloads cross through
+`__jsrSendCopy`: the worker synchronously creates an owned
+`Uint8List.fromList(data)` and sends it through the ordinary isolate message
+copier, never as a retained native pointer, base64 string or JS-side encoder.
+`TransferableTypedData` is not required on this worker-copy path. Use the
 factory (not a preconstructed `backend`) so `JsWidgetRuntimeWidget`'s final
 `onRender` wrapper reaches the backend. Keep direct-backend timing tests
 unchanged and use `tester.runAsync` for real isolate startup/disposal in

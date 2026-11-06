@@ -8,7 +8,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:js_widget_runtime/js_widget_runtime.dart';
 
+import 'camera_host.dart';
 import 'media_host.dart';
+import 'three_load_time_hints.dart';
+import 'three_widget_assets.dart';
 
 /// Generated official examples exposed by this runner.
 enum ThreeExampleSelection {
@@ -2283,6 +2286,32 @@ class _ThreeExampleAppState extends State<ThreeExampleApp> {
   }
 }
 
+/// Muted first-paint expectation for catalog entries measured above 5s
+/// ("≈8s — collada XML parse in QuickJS"). Data-driven: the line renders only
+/// for widget ids listed in `three_load_time_hints.dart` (regenerated from
+/// tool/three_example/three_first_present.json); fast widgets render nothing.
+class ThreeLoadTimeHintLine extends StatelessWidget {
+  const ThreeLoadTimeHintLine({super.key, required this.widgetId});
+
+  final String widgetId;
+
+  @override
+  Widget build(BuildContext context) {
+    final hint = threeLoadTimeHint(widgetId);
+    if (hint == null) return const SizedBox.shrink();
+    return Text(
+      '${hint.label} — ${hint.reason}',
+      maxLines: 2,
+      overflow: TextOverflow.ellipsis,
+      style: const TextStyle(
+        color: Color(0xFF64748B),
+        fontSize: 10,
+        height: 1.2,
+      ),
+    );
+  }
+}
+
 class _ThreeExampleSidebar extends StatelessWidget {
   const _ThreeExampleSidebar({
     required this.selection,
@@ -2333,6 +2362,7 @@ class _ThreeExampleSidebar extends StatelessWidget {
                       selected: example == selection,
                     ),
                     title: Text(example.label),
+                    subtitle: ThreeLoadTimeHintLine(widgetId: example.widgetId),
                     onTap: () => onChanged(example),
                   ),
               ],
@@ -2405,12 +2435,17 @@ class _ThreeExamplePageState extends State<ThreeExamplePage> {
   late final String _engineId = '${widget.selection.widgetId}-example';
   late final JsThreeHost _threeHost = kIsWeb
       ? createWebThreeHost(diagnosticsEnabled: true)
-      : createFlutterGpuThreeHost();
+      : createFlutterGpuThreeHost(
+          assetLoader: WidgetBundleThreeAssets.forWidget(
+            widget.selection.widgetId,
+          ).load,
+        );
   late final JsThreeAudioHost _audioHost = JsThreeAudioHost(
     engineId: _engineId,
     mediaHost: const ExampleMediaHost(),
     onError: (error) => debugPrint('THREE audio: $error'),
   );
+  final ExampleCameraHost _cameraHost = ExampleCameraHost();
   late final Future<String> _source = _loadSource();
   late final JsRuntimeConfig _config = JsRuntimeConfig(
     widgetId: widget.selection.widgetId,
@@ -2418,7 +2453,7 @@ class _ThreeExamplePageState extends State<ThreeExamplePage> {
     threeEnabled: true,
     threeHost: _threeHost,
     backendFactory: kIsWeb ? null : createQuickjsIsolateWidgetEngineBackend,
-    onHostCall: _audioHost.handleCall,
+    onHostCall: _cameraHost.chainedWith(_audioHost.handleCall),
     onRender: (_) {},
     onSetTitle: (_) {},
     onStorageUpdate: (_) {},
@@ -2452,6 +2487,20 @@ class _ThreeExamplePageState extends State<ThreeExamplePage> {
       _error = error;
       _ready = false;
     });
+  }
+
+  Future<void> _copyExampleId() async {
+    final exampleId = widget.selection.exampleId;
+    await Clipboard.setData(ClipboardData(text: exampleId));
+    if (!mounted) return;
+    ScaffoldMessenger.of(context)
+      ..clearSnackBars()
+      ..showSnackBar(
+        SnackBar(
+          content: Text('Copied scene ID: $exampleId'),
+          duration: const Duration(seconds: 1),
+        ),
+      );
   }
 
   @override
@@ -2497,8 +2546,20 @@ class _ThreeExamplePageState extends State<ThreeExamplePage> {
   @override
   void dispose() {
     _diagnosticsTimer?.cancel();
-    unawaited(_audioHost.dispose());
-    _threeHost.disposeEngine(_engineId);
+    // Release the webcam capture session so the macOS camera indicator
+    // turns off as soon as the example page closes.
+    unawaited(_cameraHost.handleCall('camera.stop', const <String, dynamic>{}));
+    // Ordered teardown: release every audio player (pause mutes first,
+    // bounded so a hung audioplayers dispose cannot defer engine
+    // teardown forever) BEFORE the engine goes away. On timeout or
+    // failure the host dispose keeps draining unawaited — the sources
+    // are already paused by then.
+    unawaited(
+      _audioHost.dispose().timeout(const Duration(seconds: 2)).then(
+            (_) => _threeHost.disposeEngine(_engineId),
+            onError: (Object _) => _threeHost.disposeEngine(_engineId),
+          ),
+    );
     super.dispose();
   }
 
@@ -2544,34 +2605,43 @@ class _ThreeExamplePageState extends State<ThreeExamplePage> {
         Positioned(
           right: 16,
           top: 16,
-          child: IgnorePointer(
-            child: DecoratedBox(
-              decoration: BoxDecoration(
-                color: const Color(0xB8000000),
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: Padding(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 12,
-                  vertical: 8,
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.end,
-                  children: [
-                    Text(
-                      widget.selection.label,
-                      style: const TextStyle(fontWeight: FontWeight.w600),
+          child: DecoratedBox(
+            decoration: BoxDecoration(
+              color: const Color(0xB8000000),
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(12, 4, 4, 4),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  IgnorePointer(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.end,
+                      children: [
+                        Text(
+                          widget.selection.label,
+                          style: const TextStyle(fontWeight: FontWeight.w600),
+                        ),
+                        Text(
+                          widget.selection.exampleId,
+                          style: const TextStyle(
+                            color: Color(0xFF94A3B8),
+                            fontFamily: 'monospace',
+                            fontSize: 9,
+                          ),
+                        ),
+                      ],
                     ),
-                    Text(
-                      widget.selection.exampleId,
-                      style: const TextStyle(
-                        color: Color(0xFF94A3B8),
-                        fontFamily: 'monospace',
-                        fontSize: 9,
-                      ),
-                    ),
-                  ],
-                ),
+                  ),
+                  IconButton(
+                    tooltip: 'Copy scene ID',
+                    onPressed: _copyExampleId,
+                    visualDensity: VisualDensity.compact,
+                    color: const Color(0xFFE0F2FE),
+                    icon: const Icon(Icons.copy_rounded, size: 16),
+                  ),
+                ],
               ),
             ),
           ),
