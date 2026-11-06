@@ -4697,7 +4697,7 @@ webgl_geometry_shapes: {
     // 1.5MB inline threshold, so externalize every asset to keep widget.js
     // small (the resampled set measured 21.8MB of inlined base64).
     textureMaxSize: 1024,
-    inlineMaxBytes: 1000,
+    inlineMaxBytes: 0,
     assets: []
   },
   webgl_pmrem_cubemap: {

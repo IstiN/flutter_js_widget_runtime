@@ -1,7 +1,7 @@
 {
   "schema": "jsr-three-example-external-assets-v1",
   "id": "three-performance",
-  "inlineMaxBytes": 1000,
+  "inlineMaxBytes": 0,
   "assets": [
     {
       "url": "models/gltf/Cloth_Red_metallicRoughness",

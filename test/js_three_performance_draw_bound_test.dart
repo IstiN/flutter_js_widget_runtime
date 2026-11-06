@@ -29,11 +29,11 @@ void main() {
       );
       addTearDown(() => harness.dispose(tester));
 
-      // The dungeon GLB + UltraHDR env parse over several seconds of real work;
-      // wait for the full model (hundreds of single-material mesh draws).
+      // The dungeon GLB is material-merged at prepare time (798 meshes -> 25
+      // materials), so the steady-state plan is ~25 draws; wait for it.
       final plan = await harness.pumpUntil(
         tester,
-        (state, plan) => plan.draws.length >= 400,
+        (state, plan) => plan.draws.length >= 20,
         attempts: 600,
       );
       expect(plan, isNotNull, reason: 'dungeon scene must reach a drawn plan');
@@ -73,7 +73,7 @@ void main() {
         drawsWarm,
         reason: 'static scene must not change its per-frame draw count',
       );
-      expect(laterPlan.draws.length, greaterThanOrEqualTo(400));
+      expect(laterPlan.draws.length, greaterThanOrEqualTo(20));
       expect(
         laterPlan.diagnostics.warnings,
         isEmpty,
@@ -106,9 +106,10 @@ void main() {
         steady.batchVersions,
         reason: 'static batches must not re-upsert per frame',
       );
-      // Sanity on the scale of the pin: the dungeon is a many-draw scene.
-      expect(drawsWarm, greaterThanOrEqualTo(400));
-      expect(trianglesWarm, greaterThan(10000));
+      // Sanity on the scale of the pin: the material-merged dungeon still
+      // plans one draw per material (25 materials).
+      expect(drawsWarm, greaterThanOrEqualTo(20));
+      expect(trianglesWarm, greaterThan(1000));
 
       // Dispose inside the body: the scheduler binding asserts no transient
       // callbacks survive the test body, and tearDowns run after that check.

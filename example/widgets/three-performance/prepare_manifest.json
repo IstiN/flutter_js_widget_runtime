@@ -63,7 +63,7 @@
     }
   ],
   "assetPolicy": {
-    "inlineMaxBytes": 1000,
+    "inlineMaxBytes": 0,
     "externalAssets": [
       {
         "url": "models/gltf/Cloth_Red_metallicRoughness",
@@ -694,8 +694,8 @@
   },
   "inputs": {
     "assets/three/jsr_three_native.js": {
-      "bytes": 838773,
-      "sha256": "af83dafee1db2d7e13a065f781011a97938b694a552d09c8f62c16fc791b6b2f"
+      "bytes": 838869,
+      "sha256": "d98185603557e8158618706167d7bfef45ebaeddfef90c156658d069b56bf6f9"
     },
     "assets/three/jsr_three_web.js": {
       "bytes": 858448,
@@ -866,8 +866,8 @@
       "sha256": "2f83bde66c35db02a16eec3db21beae0e1198e04f1b0723f9b3dbda89c6675f7"
     },
     "tool/three_example/prepare.mjs": {
-      "bytes": 344397,
-      "sha256": "8258265969c64a9629cbf0a49c3273f1222238fb404f654a028a6128f366dfa8"
+      "bytes": 344394,
+      "sha256": "2ffcfe48673c656a7ce7bb9f642782d3447c0a323fb69cf92b268bda53bb3a87"
     },
     "tool/three_example/stats_adapter.js": {
       "bytes": 2107,
@@ -888,8 +888,8 @@
       "sha256": "8b378ebe60e2fe500158cb0ac71cb5e8b7d92953c2abcc63a0eb90499653b5bc"
     },
     "assets.json": {
-      "bytes": 11679,
-      "sha256": "7f387f3df7c9090b621591e25f4bb4d5d705f4678de82b01104874afb2c1d00c"
+      "bytes": 11676,
+      "sha256": "b45fcae15efabbcfeafb205d537b7a3861b637883298ddbadc5278b0eb0b93fe"
     },
     "manifest.json": {
       "bytes": 329,
