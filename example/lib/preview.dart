@@ -28,7 +28,9 @@
 ///   convention applies.
 library;
 
+import 'dart:convert';
 import 'dart:js_interop';
+import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
 
@@ -98,6 +100,19 @@ class HttpWidgetFileReader implements WidgetFileReader {
       return response.ok;
     } catch (_) {
       return false;
+    }
+  }
+
+  /// Binary reads for pinned three.js assets (GLB/textures); [readString]
+  /// would corrupt non-UTF-8 payloads.
+  Future<Uint8List?> readBytes(String path) async {
+    try {
+      final response = await web.window.fetch('$baseUrl/$path'.toJS).toDart;
+      if (!response.ok) return null;
+      final buffer = await response.arrayBuffer().toDart;
+      return buffer.toDart.asUint8List();
+    } catch (_) {
+      return null;
     }
   }
 }
@@ -265,6 +280,58 @@ class _PreviewPageState extends State<PreviewPage> {
   WidgetManifest? _manifest;
   String? _error;
 
+  /// Binary asset lane for the three.js reference catalog. three-* widgets
+  /// ship their big payloads as separate pinned files next to widget.js
+  /// (`assets.json` sidecar, url -> file mapping); on the web preview those
+  /// bytes are fetched from the canonical repo over HTTP because the
+  /// preview build intentionally does NOT bundle the widget files.
+  final HttpWidgetFileReader _assetReader =
+      HttpWidgetFileReader(_canonicalBaseUrl);
+  final Map<String, Future<Map<String, Map<String, dynamic>>>>
+  _threeAssetEntries = {};
+
+  Future<Map<String, Map<String, dynamic>>> _threeAssetIndex(
+    String widgetId,
+  ) =>
+      _threeAssetEntries.putIfAbsent(widgetId, () async {
+        final raw = await _assetReader.readString('$widgetId/assets.json');
+        if (raw == null) return const {};
+        final decoded = jsonDecode(raw) as Map<String, dynamic>;
+        final assets = decoded['assets'] as List? ?? const [];
+        return {
+          for (final entry in assets.cast<Map<String, dynamic>>())
+            entry['url'] as String: entry,
+        };
+      });
+
+  /// [JsThreeAssetLoader] for `createWebThreeHost(assetLoader: ...)`; the
+  /// runtime resolves module fetches to the canonical pinned asset URL, so
+  /// this only ever sees names registered in the widget's assets.json.
+  Future<JsThreeAsset> _loadThreeAsset(String widgetId, String url) async {
+    final entries = await _threeAssetIndex(widgetId);
+    final entry = entries[url];
+    if (entry == null) {
+      throw StateError(
+        'three.assetFailure: $url is not pinned in '
+        '$widgetId/assets.json',
+      );
+    }
+    final bytes = await _assetReader.readBytes(
+      '$widgetId/${entry['file']}',
+    );
+    if (bytes == null) {
+      throw StateError(
+        'three.assetFailure: missing pinned file ${entry['file']}',
+      );
+    }
+    return JsThreeAsset(
+      data: bytes,
+      mimeType: entry['mime'] as String? ?? 'application/octet-stream',
+      width: (entry['width'] as num? ?? 0).toInt(),
+      height: (entry['height'] as num? ?? 0).toInt(),
+    );
+  }
+
   @override
   void initState() {
     super.initState();
@@ -372,7 +439,10 @@ class _PreviewPageState extends State<PreviewPage> {
     // Flutter-GPU bundles, only the worker + widget sources.
     threeEnabled: manifest.id.startsWith('three-'),
     threeHost: manifest.id.startsWith('three-')
-        ? createWebThreeHost()
+        ? createWebThreeHost(
+            assetLoader: (engineId, url) =>
+                _loadThreeAsset(manifest.id, url),
+          )
         : null,
   );
 
