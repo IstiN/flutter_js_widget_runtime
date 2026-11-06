@@ -998,15 +998,17 @@ class JsRafScheduler with WidgetsBindingObserver {
       WidgetsBinding.instance.addObserver(this);
       _observerRegistered = true;
     }
-    if (!SchedulerBinding.instance.framesEnabled) {
-      // App hidden/paused: a Ticker started now is active but never ticks
-      // and a later requestFrame would double-start it. Keep the request
-      // queued; didChangeAppLifecycleState resumes the ticker.
-      return;
-    }
+    // Note: ticker startup is NOT gated on SchedulerBinding.framesEnabled.
+    // scheduleFrameCallback is not gated on it either, so the ticker fires
+    // whenever the binding produces a frame (vsync in a live app,
+    // handleBeginFrame in flutter_test — AutomatedTestWidgetsFlutterBinding
+    // on chrome reports framesEnabled == false while still pumping frames;
+    // gating here deadlocked RAF in real-worker web tests). A hidden app
+    // simply produces no frames and the ticker idles. The guard below only
+    // prevents double-starting an already-active ticker (asserts in debug).
     final existing = _ticker;
     if (existing != null) {
-      if (!existing.isTicking) existing.start();
+      if (!existing.isTicking && !existing.isActive) existing.start();
       return;
     }
     _ticker = Ticker(_onTick)..start();
