@@ -128,6 +128,27 @@ function installOfflineFetch() {
         this.signal = options.signal || (input && input.signal);
       }
     };
+  } else if (!ROOT.Request.__jsrPinnedAware) {
+    // Web workers are spawned from blob: URLs, so the native Request
+    // constructor rejects a relative pinned asset url ('models/x.glb') —
+    // upstream FileLoader builds `new Request(url)` BEFORE fetch is ever
+    // called. Delegate absolute urls to the native Request (real URL
+    // semantics for the network path) and keep the pinned name unparsed
+    // for relative urls; the fetch shim below routes those through the
+    // registered-asset + host lanes.
+    const NativeRequest = ROOT.Request;
+    ROOT.Request = class Request {
+      constructor(input, options = {}) {
+        const url = String(input && input.url !== undefined ? input.url : input);
+        if (/^[a-zA-Z][a-zA-Z0-9+.-]*:/.test(url)) return new NativeRequest(input, options);
+        this.url = url;
+        this.headers = new ROOT.Headers(input && input.headers ? input.headers : options.headers || {});
+        this.credentials = options.credentials || 'same-origin';
+        this.signal = options.signal || (input && input.signal);
+        this.method = options.method || 'GET';
+      }
+    };
+    ROOT.Request.__jsrPinnedAware = true;
   }
   const bytesOf = body => {
     if (body === undefined || body === null) return new Uint8Array();
@@ -154,24 +175,33 @@ function installOfflineFetch() {
       async blob() { return typeof Blob === 'undefined' ? this._bytes : new Blob([this._bytes], { type: this.headers.get('Content-Type') || '' }); }
     };
   }
-  if (typeof ROOT.fetch === 'undefined') {
-    ROOT.fetch = input => {
-      const request = input && input.url !== undefined ? input : new ROOT.Request(input);
-      const runtime = activeRuntime;
-      if (!runtime) return Promise.reject(new Error('three.assetFailure: THREE runtime is not initialized'));
-      if (request.signal && request.signal.aborted) return Promise.reject(request.signal.reason || new Error('request aborted'));
-      return runtime.loadAsset(request.url).then(record => {
-        if (request.signal && request.signal.aborted) throw request.signal.reason || new Error('request aborted');
-        return new ROOT.Response(record.bytes, {
-          status: 200,
-          url: request.url,
-          headers: {
-            'Content-Type': record.mime || 'application/octet-stream',
-            'Content-Length': String(record.bytes.length)
-          }
+  if (!ROOT.fetch || !ROOT.fetch.__jsrPinnedAware) {
+    const nativeFetch = ROOT.fetch;
+    const wrapped = (input, init) => {
+      const request = input && input.url !== undefined ? input : new ROOT.Request(input, init);
+      const url = String(request.url || '');
+      const relative = url !== '' && !/^[a-zA-Z][a-zA-Z0-9+.-]*:/.test(url);
+      if (relative) {
+        const runtime = activeRuntime;
+        if (!runtime) return Promise.reject(new Error('three.assetFailure: THREE runtime is not initialized'));
+        if (request.signal && request.signal.aborted) return Promise.reject(request.signal.reason || new Error('request aborted'));
+        return runtime.loadAsset(url).then(record => {
+          if (request.signal && request.signal.aborted) throw request.signal.reason || new Error('request aborted');
+          return new ROOT.Response(record.bytes, {
+            status: 200,
+            url,
+            headers: {
+              'Content-Type': record.mime || 'application/octet-stream',
+              'Content-Length': String(record.bytes.length)
+            }
+          });
         });
-      });
+      }
+      if (nativeFetch) return nativeFetch(input, init);
+      return Promise.reject(new Error('three.assetFailure: network fetch is unavailable for ' + url));
     };
+    wrapped.__jsrPinnedAware = true;
+    ROOT.fetch = wrapped;
   }
 }
 const BASE64 = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/';

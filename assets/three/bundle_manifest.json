@@ -33,7 +33,7 @@
       "tool/three/src/native_renderer.js": "cef239f3c09cf9c1be72a6ccd6a74015e8339a84badb2c28ba3a8a4711abfa63",
       "tool/three/src/native_three_shim.js": "3f29d9215d19ec495af2e3aab9ac785429a471e4867fe3fbd4784f38515ea096",
       "tool/three/src/r1.js": "ff9e854c0b286505cb7de3aeaa0fefb4cd9f108b1fcd08e6e98f0d713908f6bf",
-      "tool/three/src/runtime.js": "c297b2a97a101938fa2bafcf05e78c482f6fb5bde3514aa88689a8ba86fce139",
+      "tool/three/src/runtime.js": "b8ce8b1c74a0f1b2d9cc90e81ecf6785fd66d20ca153a887a36032b73dbe0318",
       "tool/three/src/web_entry.js": "538a1625cffb9539d70055b173c98320799457a9c5e7b5a4c0577c22841cd3ad",
       "tool/three/src/web_renderer.js": "2b808b22123fce8e49b9ed8d76f75872199efb527b477e202f295ed6a244819c",
       "tool/three/build.mjs": "d9c5d1a43e472c489ecd43c4009c46d1254edb3de882c57fb59a0f08bec599a3",
@@ -45,12 +45,12 @@
   },
   "outputs": {
     "jsr_three_native.js": {
-      "bytes": 838869,
-      "sha256": "d98185603557e8158618706167d7bfef45ebaeddfef90c156658d069b56bf6f9"
+      "bytes": 839509,
+      "sha256": "ffd8349983c276c4c9b1730c84376dd7ca1279ec511aac32c9655461d65472d8"
     },
     "jsr_three_web.js": {
-      "bytes": 858448,
-      "sha256": "437fc270ea8663d61d9abb8ffed6e6814cd6239f36eb78785fc54176f75cb4a1"
+      "bytes": 859088,
+      "sha256": "531f814ecd558117a6d7febe5c36da04ec63cb86b710ec8c5fc50c4ad19d3e11"
     }
   }
 }
