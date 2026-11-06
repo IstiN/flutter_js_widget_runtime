@@ -1,3 +1,7 @@
+## 0.4.192
+
+- Automated patch bump.
+
 ## 0.4.193
 
 - Add spot lights, perspective spot shadows and plane clipping to native R1
