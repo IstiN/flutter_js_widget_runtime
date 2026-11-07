@@ -637,54 +637,57 @@ final class _QuickJsWorker {
           '<js_widget_raf>',
         );
       case 'resolve':
-        final id = jsonEncode(raw['id']);
-        final rsw = Stopwatch()..start();
-        final value = jsonEncode(raw['value']);
-        if (value.length > 200000) {
-          debugPrint(
-            '[lane-prof] resolve jsonEncode=${rsw.elapsedMilliseconds}ms '
-            'len=${value.length}',
-          );
-        }
-        final esw = Stopwatch()..start();
-        final warm = raw['warmBytes'];
-        final runtime = _runtime;
-        if (warm is Uint8List &&
-            warm.isNotEmpty &&
-            runtime != null &&
-            runtime.hasBytesFn) {
-          // Warm lane: raw bytes ride the port; the eval only carries the
-          // small metadata literal plus the size, and __jsrWarmResolve
-          // pulls the bytes through the __jsrWarmFill host function.
-          _warmPending[raw['id'] as String] = warm;
-          _eval(
-            '__jsrWarmResolve($id,$value,${warm.length})',
-            '<js_widget_resolve_warm>',
-          );
-        } else {
-          // Legacy engines without the bytes export re-encode to the
-          // previous inline-base64 literal path.
-          if (warm is Uint8List && warm.isNotEmpty && value.length < 200000) {
-            final restored = Map<String, dynamic>.from(raw['value'] as Map);
-            restored['data'] = base64Encode(warm);
-            _eval(
-              'if(__cbs[$id]){__cbs[$id](${jsonEncode(restored)});delete __cbs[$id];}',
-              '<js_widget_resolve>',
-            );
-            break;
-          }
-          _eval(
-            'if(__cbs[$id]){__cbs[$id]($value);delete __cbs[$id];}',
-            '<js_widget_resolve>',
-          );
-        }
-        if (value.length > 200000) {
-          debugPrint(
-            '[lane-prof] resolve eval=${esw.elapsedMilliseconds}ms '
-            'len=${value.length}',
-          );
-        }
+        _handleResolve(raw);
     }
+  }
+
+  void _handleResolve(Map<dynamic, dynamic> raw) {
+    final id = jsonEncode(raw['id']);
+    final rsw = Stopwatch()..start();
+    final value = jsonEncode(raw['value']);
+    _profileResolve(rsw, 'jsonEncode', value.length);
+    final esw = Stopwatch()..start();
+    final warm = raw['warmBytes'];
+    final runtime = _runtime;
+    if (warm is Uint8List &&
+        warm.isNotEmpty &&
+        runtime != null &&
+        runtime.hasBytesFn) {
+      // Warm lane: raw bytes ride the port; the eval only carries the
+      // small metadata literal plus the size, and __jsrWarmResolve
+      // pulls the bytes through the __jsrWarmFill host function.
+      _warmPending[raw['id'] as String] = warm;
+      _eval(
+        '__jsrWarmResolve($id,$value,${warm.length})',
+        '<js_widget_resolve_warm>',
+      );
+      _profileResolve(esw, 'eval', value.length);
+    } else if (warm is Uint8List &&
+        warm.isNotEmpty &&
+        value.length < 200000) {
+      // Legacy engines without the bytes export re-encode to the
+      // previous inline-base64 literal path; like the historical `break`,
+      // it skips the eval-time profile line below.
+      final restored = Map<String, dynamic>.from(raw['value'] as Map);
+      restored['data'] = base64Encode(warm);
+      _eval(
+        'if(__cbs[$id]){__cbs[$id](${jsonEncode(restored)});delete __cbs[$id];}',
+        '<js_widget_resolve>',
+      );
+    } else {
+      _eval(
+        'if(__cbs[$id]){__cbs[$id]($value);delete __cbs[$id];}',
+        '<js_widget_resolve>',
+      );
+      _profileResolve(esw, 'eval', value.length);
+    }
+  }
+
+  void _profileResolve(Stopwatch sw, String stage, int length) {
+    if (length <= 200000) return;
+    debugPrint(
+      '[lane-prof] resolve $stage=${sw.elapsedMilliseconds}ms len=$length',
+    );
   }
 
   void _run(Map<dynamic, dynamic> raw) {

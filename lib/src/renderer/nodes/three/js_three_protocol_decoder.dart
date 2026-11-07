@@ -731,22 +731,7 @@ final class JsThreeProtocolDecoder {
     final matrixWorld = body.float32List(16, 'world matrix');
     final shadowFlags = body.u32('node shadow flags');
     if (shadowFlags & ~3 != 0) body.fail('invalid node shadow flags');
-    var centerX = 0.5;
-    var centerY = 0.5;
-    var renderOrder = 0.0;
-    if (streamVersion >= 5) {
-      centerX = body.finiteFloat('node sprite center x');
-      centerY = body.finiteFloat('node sprite center y');
-      if (streamVersion >= 7) {
-        renderOrder = body.finiteFloat('node render order');
-      } else if (body.u32('node reserved') != 0) {
-        body.fail('node reserved field must be zero');
-      }
-      if (kind != JsThreeObjectKind.sprite &&
-          (centerX != 0.5 || centerY != 0.5)) {
-        body.fail('sprite center requires a sprite node');
-      }
-    }
+    final sprite = _spriteCenter(body, streamVersion, kind);
     if (kind == JsThreeObjectKind.sprite &&
         (geometryId == 0 || materialId == 0)) {
       body.fail('sprite node requires geometry and material ids');
@@ -760,10 +745,34 @@ final class JsThreeProtocolDecoder {
       objectKind: kind,
       matrixWorld: matrixWorld,
       shadowFlags: shadowFlags,
-      spriteCenterX: centerX,
-      spriteCenterY: centerY,
-      renderOrder: renderOrder,
+      spriteCenterX: sprite.x,
+      spriteCenterY: sprite.y,
+      renderOrder: sprite.renderOrder,
     );
+  }
+
+  /// Reads the sprite center and render order (R1 v5+, render order from
+  /// v7) and validates the center is only customized on sprites.
+  ({double x, double y, double renderOrder}) _spriteCenter(
+    _Reader body,
+    int streamVersion,
+    JsThreeObjectKind kind,
+  ) {
+    var x = 0.5;
+    var y = 0.5;
+    var renderOrder = 0.0;
+    if (streamVersion < 5) return (x: x, y: y, renderOrder: renderOrder);
+    x = body.finiteFloat('node sprite center x');
+    y = body.finiteFloat('node sprite center y');
+    if (streamVersion >= 7) {
+      renderOrder = body.finiteFloat('node render order');
+    } else if (body.u32('node reserved') != 0) {
+      body.fail('node reserved field must be zero');
+    }
+    if (kind != JsThreeObjectKind.sprite && (x != 0.5 || y != 0.5)) {
+      body.fail('sprite center requires a sprite node');
+    }
+    return (x: x, y: y, renderOrder: renderOrder);
   }
 
   JsThreeDrawBatchUpsert _drawBatch(_Reader body) {
@@ -861,12 +870,7 @@ final class JsThreeProtocolDecoder {
       body.u32('light type'),
       'light type',
     );
-    if (type == JsThreeLightType.hemisphere && version < 2) {
-      body.fail('hemisphere lights require R1 version 2');
-    }
-    if (type == JsThreeLightType.spot && version < 3) {
-      body.fail('spot lights require R1 version 3');
-    }
+    _checkLightVersion(type, version, body);
     final red = body.finiteFloat('light color red');
     final green = body.finiteFloat('light color green');
     final blue = body.finiteFloat('light color blue');
@@ -882,12 +886,10 @@ final class JsThreeProtocolDecoder {
     var spotDistance = 0.0;
     var spotDecay = 0.0;
     if (type == JsThreeLightType.hemisphere) {
-      groundRed = body.finiteFloat('light ground color red');
-      groundGreen = body.finiteFloat('light ground color green');
-      groundBlue = body.finiteFloat('light ground color blue');
-      if (body.u32('light reserved') != 0) {
-        body.fail('light reserved field must be zero');
-      }
+      final ground = _hemisphereGround(body);
+      groundRed = ground.r;
+      groundGreen = ground.g;
+      groundBlue = ground.b;
     }
     if (type == JsThreeLightType.spot) {
       final spot = _spotLightParams(body);
@@ -900,11 +902,9 @@ final class JsThreeProtocolDecoder {
       // Point lights have no world direction: R1 v7 uses those legacy zero
       // lanes for decay and cutoff distance. Older streams retain their
       // direction payload verbatim and the previous zero-decay behavior.
-      spotDecay = direction[0];
-      spotDistance = direction[1];
-      if (spotDecay < 0 || spotDistance < 0) {
-        body.fail('point light distance/decay must be nonnegative');
-      }
+      final point = _pointLightDistanceDecay(direction, body);
+      spotDecay = point.decay;
+      spotDistance = point.distance;
     }
     return JsThreeLightUpsert._(
       lightId: id,
@@ -923,6 +923,45 @@ final class JsThreeProtocolDecoder {
       spotDistance: spotDistance,
       spotDecay: spotDecay,
     );
+  }
+
+  /// Fails the stream when the light type needs a newer R1 version.
+  void _checkLightVersion(
+    JsThreeLightType type,
+    int version,
+    _Reader body,
+  ) {
+    final minVersion = switch (type) {
+      JsThreeLightType.hemisphere => 2,
+      JsThreeLightType.spot => 3,
+      _ => 0,
+    };
+    if (minVersion == 0 || version >= minVersion) return;
+    body.fail('${type.name} lights require R1 version $minVersion');
+  }
+
+  ({double r, double g, double b}) _hemisphereGround(_Reader body) {
+    final red = body.finiteFloat('light ground color red');
+    final green = body.finiteFloat('light ground color green');
+    final blue = body.finiteFloat('light ground color blue');
+    if (body.u32('light reserved') != 0) {
+      body.fail('light reserved field must be zero');
+    }
+    return (r: red, g: green, b: blue);
+  }
+
+  /// R1 v7 point lights reuse the direction lanes for decay and cutoff
+  /// distance; both must be nonnegative.
+  ({double decay, double distance}) _pointLightDistanceDecay(
+    Float32List direction,
+    _Reader body,
+  ) {
+    final decay = direction[0];
+    final distance = direction[1];
+    if (decay < 0 || distance < 0) {
+      body.fail('point light distance/decay must be nonnegative');
+    }
+    return (decay: decay, distance: distance);
   }
 
   ({double angle, double penumbra, double distance, double decay})

@@ -403,17 +403,26 @@ extension _JsThreeSurfaceStateOperations on JsThreeSurfaceState {
 
   void _applyCommand(JsThreeCommand command, _ApplyBatch batch) {
     if (_applyUploadCommand(command, batch)) return;
+    if (_applyIndexedUpsert(command, batch)) return;
+    if (_applyRemovalCommand(command, batch)) return;
     switch (command) {
-      case final JsThreeRemoveBatch value:
-        _recordRemoval(_removeBatch(value.nodeId), value, batch);
       case final JsThreeNodeUpsert value:
         _upsertNode(value, batch);
-      case final JsThreeRemoveNode value:
-        _recordRemoval(
-          _disposeResource(JsThreeResourceKind.node, value.nodeId),
-          value,
-          batch,
-        );
+      case final JsThreeSubmitFrame value:
+        _recordFrame(value, batch);
+      case final JsThreeStencilClear value:
+        _recordStencilClear(value, batch);
+      case final JsThreeDisposeSurface value:
+        batch.surfaceDispose = value;
+      default:
+        throw StateError('Unhandled THREE command ${command.runtimeType}');
+    }
+  }
+
+  /// Camera and light upserts land in an id-indexed map plus the change
+  /// list; lights also dirty the shadow pass.
+  bool _applyIndexedUpsert(JsThreeCommand command, _ApplyBatch batch) {
+    switch (command) {
       case final JsThreeCameraUpsert value:
         _cameras[value.cameraId] = value;
         batch.changes.add(value);
@@ -421,21 +430,34 @@ extension _JsThreeSurfaceStateOperations on JsThreeSurfaceState {
         _markShadow(batch, 'light:${value.lightId}');
         _lights[value.lightId] = value;
         batch.changes.add(value);
-      case final JsThreeSubmitFrame value:
-        _recordFrame(value, batch);
-      case final JsThreeStencilClear value:
-        _recordStencilClear(value, batch);
+      default:
+        return false;
+    }
+    return true;
+  }
+
+  /// Node/batch removals and generic resource disposals free the matching
+  /// resource and record the removal for host notification.
+  bool _applyRemovalCommand(JsThreeCommand command, _ApplyBatch batch) {
+    switch (command) {
+      case final JsThreeRemoveBatch value:
+        _recordRemoval(_removeBatch(value.nodeId), value, batch);
+      case final JsThreeRemoveNode value:
+        _recordRemoval(
+          _disposeResource(JsThreeResourceKind.node, value.nodeId),
+          value,
+          batch,
+        );
       case final JsThreeDisposeResource value:
         _recordRemoval(
           _disposeResource(value.resourceKind, value.resourceId),
           value,
           batch,
         );
-      case final JsThreeDisposeSurface value:
-        batch.surfaceDispose = value;
       default:
-        throw StateError('Unhandled THREE command ${command.runtimeType}');
+        return false;
     }
+    return true;
   }
 
   void _upsertRenderTarget(JsThreeRenderTargetUpsert value, _ApplyBatch batch) {

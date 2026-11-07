@@ -8,6 +8,20 @@ final class _GpuBatch {
   final gpu.BufferView view;
 }
 
+/// Whether the point-shadow texture pair may be bound for a frame. Pure
+/// predicate over plain values — extracted from the encoder so the policy
+/// is unit-testable without a GPU device.
+bool threePointShadowLaneActive(
+  bool shadowFrameActive,
+  int hasPointShadow,
+  bool frontTextureReady,
+  bool backTextureReady,
+) =>
+    shadowFrameActive &&
+    hasPointShadow != 0 &&
+    frontTextureReady &&
+    backTextureReady;
+
 final class _ThreeUniformSlots {
   const _ThreeUniformSlots(
     this.frame,
@@ -74,11 +88,12 @@ final class _ThreeFrameEncoder {
   final double pointSizeScale;
   final double viewportHeight;
 
-  bool _pointShadowActive() =>
-      backend._shadowFrameActive &&
-      plan.frame!.hasPointShadow != 0 &&
-      backend._pointShadowFrontColorTexture != null &&
-      backend._pointShadowBackColorTexture != null;
+  bool _pointShadowActive() => threePointShadowLaneActive(
+        backend._shadowFrameActive,
+        plan.frame!.hasPointShadow,
+        backend._pointShadowFrontColorTexture != null,
+        backend._pointShadowBackColorTexture != null,
+      );
 
   void _bindPointShadowTextures(_ThreeUniformSlots slots, gpu.RenderPass pass) {
     final active = _pointShadowActive();

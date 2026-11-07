@@ -541,4 +541,14 @@ void main() {
     expect(debugThreeUniformFillerLength(1024000, 512, 1024000), 0);
     expect(debugThreeUniformFillerLength(0, 1024001, 1024000), 0);
   });
+
+  group('threePointShadowLaneActive', () {
+    test('requires an active shadow frame and both textures', () {
+      expect(threePointShadowLaneActive(true, 1, true, true), isTrue);
+      expect(threePointShadowLaneActive(false, 1, true, true), isFalse);
+      expect(threePointShadowLaneActive(true, 0, true, true), isFalse);
+      expect(threePointShadowLaneActive(true, 1, false, true), isFalse);
+      expect(threePointShadowLaneActive(true, 1, true, false), isFalse);
+    });
+  });
 }
