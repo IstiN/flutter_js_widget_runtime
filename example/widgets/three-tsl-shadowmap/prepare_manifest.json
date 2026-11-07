@@ -511,12 +511,12 @@
   },
   "inputs": {
     "assets/three/jsr_three_native.js": {
-      "bytes": 838188,
-      "sha256": "774cd82da77974165fd9ec3122c1e4e4505bca3faa5003cb72afc6a59f5f4e5b"
+      "bytes": 839509,
+      "sha256": "ffd8349983c276c4c9b1730c84376dd7ca1279ec511aac32c9655461d65472d8"
     },
     "assets/three/jsr_three_web.js": {
-      "bytes": 857885,
-      "sha256": "8bf94959ca16ffd59b904e040edcf4ffe405eac56cf941285a2da0a5337fb878"
+      "bytes": 859088,
+      "sha256": "531f814ecd558117a6d7febe5c36da04ec63cb86b710ec8c5fc50c4ad19d3e11"
     },
     "source/LICENSE": {
       "bytes": 1081,
@@ -539,8 +539,8 @@
       "sha256": "dac7dc374e1374499bc9e9a84593e7e1e848bfcde7bb916d7212ccd517e861d3"
     },
     "tool/three_example/asset_decode.mjs": {
-      "bytes": 42102,
-      "sha256": "81e15438074e820dc13552b267de326fab895bca729cc5db744da6bedb420a26"
+      "bytes": 51634,
+      "sha256": "273d0f8261829418eb08a93177990de1fb76cda9211852d578439a39ceb61af1"
     },
     "tool/three_example/asset_discovery.mjs": {
       "bytes": 12424,
@@ -559,8 +559,8 @@
       "sha256": "19436e79da3924f2be6601a8ae17b48a853f6bbb2271712222aaadc6abffa95e"
     },
     "tool/three_example/degrades/webgl_nodes_handler.mjs": {
-      "bytes": 265,
-      "sha256": "3a2b06fddb1f593dd2cda1dc2eeba248114d586aca6270a295f00577356e7982"
+      "bytes": 490,
+      "sha256": "e521d696b4ccf9129ef5a837e3f90dc5fb54aef6d3c90168aad508470d93197e"
     },
     "tool/three_example/example_adapter.js": {
       "bytes": 49943,
@@ -575,8 +575,8 @@
       "sha256": "2f83bde66c35db02a16eec3db21beae0e1198e04f1b0723f9b3dbda89c6675f7"
     },
     "tool/three_example/prepare.mjs": {
-      "bytes": 315738,
-      "sha256": "3b0289d8d7db92ec08e8c41644ccd934458c173e6a4c6f0a7c7856b3281466f5"
+      "bytes": 344394,
+      "sha256": "2ffcfe48673c656a7ce7bb9f642782d3447c0a323fb69cf92b268bda53bb3a87"
     },
     "tool/three_example/stats_adapter.js": {
       "bytes": 2107,
@@ -609,8 +609,8 @@
       "sha256": "bb76403130c73d93a1e4ee1937e862ddbc4269eca45fb829898e770593f5c451"
     },
     "widget.js": {
-      "bytes": 77371,
-      "sha256": "47ee699bbc70cc3d4153cc4bd7dc01726b2777b1bb018173416d8d9809f791dc"
+      "bytes": 77402,
+      "sha256": "80e05e7ac7e4a3e93c515f7ddadc560eedfa6c1701e32c485af6477850abe06d"
     }
   }
 }
