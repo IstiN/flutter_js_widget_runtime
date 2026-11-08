@@ -167,10 +167,19 @@ void main() {
     // Coalescing bound: each pump frame delivers one 5-move burst, which
     // produces at most one leading-edge immediate raycast plus one trailing
     // raycast — never one raycast per storm event (that per-event storm is
-    // exactly the QuickJS hover cost this transform removes).
+    // exactly the QuickJS hover cost this transform removes). The leading
+    // edge fires when >=33ms of REAL time elapsed since the last raycast
+    // (queueHoverRaycast reads performance.now(), which is wall time in the
+    // QuickJS engine): on a loaded CI runner the harness's 20ms runAsync
+    // window stretches past 33ms, so EVERY frame then yields leading +
+    // trailing (2/frame), plus the initial -Infinity leading edge and one
+    // timer/pump boundary stray have been observed (61 for stormFrames=30).
+    // The bound keeps a small slack for those legitimate paths; the
+    // regression signature it guards against is one raycast PER EVENT
+    // (150 here), so any value far below `events` preserves the guard.
     expect(
       findings['raycastCalls'],
-      lessThanOrEqualTo(2 * stormFrames),
+      lessThanOrEqualTo(2 * stormFrames + 4),
       reason:
           'hover raycasts are back to per-event cost: ${findings['raycastCalls']} '
           'raycasts for $events storm events — the dragThrottleHover '
