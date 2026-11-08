@@ -136,5 +136,11 @@ jobs:
             exit 1
           fi
 
+      - name: Install crap4dart
+        run: dart pub global activate crap4dart '>=0.15.0 <0.16.0'
+
       - name: CRAP ratchet
-        run: dart run crap4dart analyze
+        run: crap4dart analyze
+
+      - name: Similarity gate
+        run: crap4dart check --only similarity --config crap4dart.yaml

@@ -93,3 +93,18 @@ gates:
 
   folder_structure:
     enabled: false
+
+  # File-level near-duplicate detection over docs and Dart sources
+  # (copied files that drifted apart, twin templates). Explore with
+  # `crap4dart similarity`; tuned for md+dart with docs-corpora thresholds.
+  similarity:
+    enabled: true
+    include: ['**/*.md', '**/*.dart']
+    jaccard: 0.5
+    containment: 0.85
+    exclude:
+      - '.git/**'
+      - '**/ephemeral/**'
+      - '**/build/**'
+      - '**/node_modules/**'
+      - '**/.dart_tool/**'
