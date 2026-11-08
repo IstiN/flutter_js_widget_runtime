@@ -356,11 +356,7 @@ final class JsThreeProtocolDecoder {
     );
     final mapTextureId = body.u32('map texture id');
     final flags = body.u32('material flags');
-    // v8 adds the colorWrite-off flag (bit 10) and the stencil-tail marker
-    // (bit 11); older streams keep the pre-v8 mask word.
-    final flagMask = streamVersion >= 8 ? 0xfff : 0x3ff;
-    if (flags & ~flagMask != 0)
-      body.fail('unknown material flag'); // bits 7..9: THREE blending
+    _validateMaterialFlags(body, flags, streamVersion);
     _validateMaterialWireframeFlag(body, flags, kind);
     final side = body.enumValue(
       JsThreeSide.values,

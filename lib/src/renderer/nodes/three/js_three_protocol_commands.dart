@@ -188,6 +188,16 @@ final Float32List _threeIdentityUvMatrix = Float32List.fromList(
   _threeIdentityUvMatrixRows,
 ).asUnmodifiableView();
 
+/// Material flag word validation. v8 adds the colorWrite-off flag (bit 10)
+/// and the stencil-tail marker (bit 11); older streams keep the pre-v8 mask
+/// word. Bits 7..9 stay THREE blending flags on every version.
+void _validateMaterialFlags(_Reader body, int flags, int streamVersion) {
+  final flagMask = streamVersion >= 8 ? 0xfff : 0x3ff;
+  if (flags & ~flagMask != 0) {
+    body.fail('unknown material flag');
+  }
+}
+
 /// Wireframe only applies to mesh material kinds (R1 v5 adds ton/matcap to
 /// the allowed set alongside the v3 mesh kinds).
 void _validateMaterialWireframeFlag(
