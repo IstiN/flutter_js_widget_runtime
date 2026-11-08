@@ -69,6 +69,7 @@ class _DemoHomeState extends State<DemoHome> {
     'three-helpers',
     'three-interactive-cubes',
     'three-postprocessing-unreal-bloom',
+    'three-cinematic-showcase',
   ];
 
   @override
