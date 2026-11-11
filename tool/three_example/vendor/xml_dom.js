@@ -249,7 +249,7 @@ function addAttribute(element, name, value) {
   };
   element.attributes.push(attribute);
   // Named access is used by a few XML consumers alongside indexed access.
-  if (!Object.hasOwn(element.attributes, name)) element.attributes[name] = attribute;
+  if (!Object.prototype.hasOwnProperty.call(element.attributes, name)) element.attributes[name] = attribute;
 }
 
 function decodeEntities(value) {

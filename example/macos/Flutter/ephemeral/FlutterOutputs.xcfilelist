@@ -321,7 +321,7 @@
 /Users/Uladzimir_Klyshevich/git/flutter_js_widget_runtime/example/build/macos/Build/Products/Release/App.framework/Versions/A/Resources/flutter_assets/packages/js_widget_runtime/assets/three/three_r1.shaderbundle
 /Users/Uladzimir_Klyshevich/git/flutter_js_widget_runtime/example/build/macos/Build/Products/Release/App.framework/Versions/A/Resources/flutter_assets/packages/js_widget_runtime/test/assets/coach_anny.glb
 /Users/Uladzimir_Klyshevich/git/flutter_js_widget_runtime/example/build/macos/Build/Products/Release/App.framework/Versions/A/Resources/flutter_assets/packages/js_widget_runtime/test/assets/hello.txt
-/Users/Uladzimir_Klyshevich/git/flutter_js_widget_runtime/example/build/macos/Build/Products/Release/App.framework/Versions/A/Resources/flutter_assets/packages/js_widget_runtime/test/assets/three.web.js
+/Users/Uladzimir_Klyshevich/git/flutter_js_widget_runtime/example/build/macos/Build/Products/Release/App.framework/Versions/A/Resources/flutter_assets/packages/js_widget_runtime/test/assets/jsr_three_web.js
 /Users/Uladzimir_Klyshevich/git/flutter_js_widget_runtime/example/build/macos/Build/Products/Release/App.framework/Versions/A/Resources/flutter_assets/packages/js_widget_runtime/test/assets/three_minecraft_widget.js
 /Users/Uladzimir_Klyshevich/git/flutter_js_widget_runtime/example/build/macos/Build/Products/Release/App.framework/Versions/A/Resources/flutter_assets/shaders/ink_sparkle.frag
 /Users/Uladzimir_Klyshevich/git/flutter_js_widget_runtime/example/build/macos/Build/Products/Release/App.framework/Versions/A/Resources/flutter_assets/shaders/stretch_effect.frag
@@ -540,6 +540,10 @@
 /Users/Uladzimir_Klyshevich/git/flutter_js_widget_runtime/example/build/macos/Build/Products/Release/App.framework/Versions/A/Resources/flutter_assets/widgets/three-camera/original.html
 /Users/Uladzimir_Klyshevich/git/flutter_js_widget_runtime/example/build/macos/Build/Products/Release/App.framework/Versions/A/Resources/flutter_assets/widgets/three-camera/prepare_manifest.json
 /Users/Uladzimir_Klyshevich/git/flutter_js_widget_runtime/example/build/macos/Build/Products/Release/App.framework/Versions/A/Resources/flutter_assets/widgets/three-camera/widget.js
+/Users/Uladzimir_Klyshevich/git/flutter_js_widget_runtime/example/build/macos/Build/Products/Release/App.framework/Versions/A/Resources/flutter_assets/widgets/three-cinematic-showcase/build.mjs
+/Users/Uladzimir_Klyshevich/git/flutter_js_widget_runtime/example/build/macos/Build/Products/Release/App.framework/Versions/A/Resources/flutter_assets/widgets/three-cinematic-showcase/cinematic_bundle.mjs
+/Users/Uladzimir_Klyshevich/git/flutter_js_widget_runtime/example/build/macos/Build/Products/Release/App.framework/Versions/A/Resources/flutter_assets/widgets/three-cinematic-showcase/manifest.json
+/Users/Uladzimir_Klyshevich/git/flutter_js_widget_runtime/example/build/macos/Build/Products/Release/App.framework/Versions/A/Resources/flutter_assets/widgets/three-cinematic-showcase/widget.js
 /Users/Uladzimir_Klyshevich/git/flutter_js_widget_runtime/example/build/macos/Build/Products/Release/App.framework/Versions/A/Resources/flutter_assets/widgets/three-clipculldistance/THREE_LICENSE
 /Users/Uladzimir_Klyshevich/git/flutter_js_widget_runtime/example/build/macos/Build/Products/Release/App.framework/Versions/A/Resources/flutter_assets/widgets/three-clipculldistance/manifest.json
 /Users/Uladzimir_Klyshevich/git/flutter_js_widget_runtime/example/build/macos/Build/Products/Release/App.framework/Versions/A/Resources/flutter_assets/widgets/three-clipculldistance/official_module.js

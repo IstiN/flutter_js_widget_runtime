@@ -5,6 +5,7 @@ import 'dart:isolate';
 import 'package:flutter/foundation.dart';
 import 'package:js_widget_runtime/src/defaults/vm_default_handlers.dart';
 import 'package:js_widget_runtime/src/model/js_runtime_config.dart';
+import 'package:js_widget_runtime/src/renderer/nodes/three/three_morph_native.dart';
 import 'package:js_widget_runtime/src/renderer/nodes/three/three_skinning_native.dart';
 import 'package:js_widget_runtime/src/runtime/js_widget_bootstrap.dart';
 import 'package:js_widget_runtime/src/runtime/js_widget_bridge.dart';
@@ -731,6 +732,14 @@ final class _QuickJsWorker {
     if (runtime.hasBytesFn) {
       runtime.registerHostBytesFn('__jsrSkinBytes', (name, data) {
         if (name == 'three.skin') applyThreeSkinningPacket(data);
+      });
+      // CPU morph-target fast lane: mirrors the main-isolate wiring in
+      // js_widget_engine_quickjs.dart. The isolate port crosses a COPY for
+      // __jsrSendBytes, but the morph packet must mutate in place for the
+      // JS readback contract — keep the morph lane registered only where
+      // the bytes fn is synchronous (this VM's registerHostBytesFn is).
+      runtime.registerHostBytesFn('__jsrMorphBytes', (name, data) {
+        if (name == 'three.morph') applyThreeMorphPacket(data);
       });
       runtime.registerHostBytesFn('__jsrSendBytes', (name, data) {
         _mainPort.send({

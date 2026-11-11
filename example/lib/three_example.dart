@@ -1835,6 +1835,15 @@ enum ThreeExampleSelection {
     label: 'WebAudio Orientation',
     widgetId: 'three-webaudio-orientation',
     assetPath: 'widgets/three-webaudio-orientation/widget.js',
+  ),
+  cinematicShowcase(
+    // Custom (non-upstream) module: its own exampleId namespace, consumed
+    // only via JSR_THREE_EXAMPLE / JSR_*_LIST so it never collides with the
+    // official prepare-manifest lookups keyed by upstream example ids.
+    exampleId: 'custom_cinematic_showcase',
+    label: 'Cinematic Showcase',
+    widgetId: 'three-cinematic-showcase',
+    assetPath: 'widgets/three-cinematic-showcase/widget.js',
   );
 
   const ThreeExampleSelection({
@@ -1864,6 +1873,7 @@ enum ThreeExampleSelection {
   /// lightsHemisphere and interactivePoints render a ShaderMaterial
   /// (skydome / point sprites) that native R1 does not provide by design.
   static final List<ThreeExampleSelection> sidebarOrder = [
+    cinematicShowcase,
     morphtargetsWebcam,
     batchLodBvh,
     geometryCsg,
@@ -2312,7 +2322,7 @@ class ThreeLoadTimeHintLine extends StatelessWidget {
   }
 }
 
-class _ThreeExampleSidebar extends StatelessWidget {
+class _ThreeExampleSidebar extends StatefulWidget {
   const _ThreeExampleSidebar({
     required this.selection,
     required this.onChanged,
@@ -2320,6 +2330,28 @@ class _ThreeExampleSidebar extends StatelessWidget {
 
   final ThreeExampleSelection selection;
   final ValueChanged<ThreeExampleSelection> onChanged;
+
+  @override
+  State<_ThreeExampleSidebar> createState() => _ThreeExampleSidebarState();
+}
+
+class _ThreeExampleSidebarState extends State<_ThreeExampleSidebar> {
+  final TextEditingController _filterController = TextEditingController();
+  String _filter = '';
+
+  @override
+  void dispose() {
+    _filterController.dispose();
+    super.dispose();
+  }
+
+  /// Case-insensitive substring match over the widget id and the human label.
+  bool _matches(ThreeExampleSelection example) {
+    final query = _filter.trim().toLowerCase();
+    if (query.isEmpty) return true;
+    return example.widgetId.toLowerCase().contains(query) ||
+        example.label.toLowerCase().contains(query);
+  }
 
   @override
   Widget build(BuildContext context) => Material(
@@ -2348,23 +2380,63 @@ class _ThreeExampleSidebar extends StatelessWidget {
               ),
             ),
           ),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(20, 0, 20, 12),
+            child: TextField(
+              controller: _filterController,
+              onChanged: (value) => setState(() => _filter = value),
+              style: const TextStyle(fontSize: 13, color: Color(0xFFE2E8F0)),
+              decoration: InputDecoration(
+                isDense: true,
+                hintText: 'Search examples…',
+                hintStyle: const TextStyle(
+                  color: Color(0xFF64748B),
+                  fontSize: 13,
+                ),
+                prefixIcon: const Icon(Icons.search, size: 16),
+                suffixIcon: _filter.isEmpty
+                    ? null
+                    : IconButton(
+                        visualDensity: VisualDensity.compact,
+                        icon: const Icon(Icons.close, size: 14),
+                        onPressed: () {
+                          _filterController.clear();
+                          setState(() => _filter = '');
+                        },
+                      ),
+                filled: true,
+                fillColor: const Color(0xFF1F2937),
+                contentPadding: const EdgeInsets.symmetric(
+                  vertical: 8,
+                  horizontal: 10,
+                ),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(8),
+                  borderSide: BorderSide.none,
+                ),
+              ),
+            ),
+          ),
           Expanded(
             child: ListView(
               children: [
                 for (final example in ThreeExampleSelection.sidebarOrder)
-                  ListTile(
-                    dense: true,
-                    selected: example == selection,
-                    selectedColor: const Color(0xFFE0F2FE),
-                    selectedTileColor: const Color(0xFF164E63),
-                    leading: _ThreeExamplePreview(
-                      widgetId: example.widgetId,
-                      selected: example == selection,
+                  if (_matches(example))
+                    ListTile(
+                      dense: true,
+                      selected: example == widget.selection,
+                      selectedColor: const Color(0xFFE0F2FE),
+                      selectedTileColor: const Color(0xFF164E63),
+                      leading: _ThreeExamplePreview(
+                        widgetId: example.widgetId,
+                        selected: example == widget.selection,
+                      ),
+                      title: Text(example.label),
+                      subtitle: ThreeLoadTimeHintLine(
+                        widgetId: example.widgetId,
+                      ),
+                      onTap: () => widget.onChanged(example),
                     ),
-                    title: Text(example.label),
-                    subtitle: ThreeLoadTimeHintLine(widgetId: example.widgetId),
-                    onTap: () => onChanged(example),
-                  ),
               ],
             ),
           ),
@@ -2555,7 +2627,10 @@ class _ThreeExamplePageState extends State<ThreeExamplePage> {
     // failure the host dispose keeps draining unawaited — the sources
     // are already paused by then.
     unawaited(
-      _audioHost.dispose().timeout(const Duration(seconds: 2)).then(
+      _audioHost
+          .dispose()
+          .timeout(const Duration(seconds: 2))
+          .then(
             (_) => _threeHost.disposeEngine(_engineId),
             onError: (Object _) => _threeHost.disposeEngine(_engineId),
           ),

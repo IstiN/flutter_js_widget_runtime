@@ -523,6 +523,9 @@ _ThreeRenderRequest? _nextThreeRenderRequest(FlutterGpuThreeSurface surface) {
 _ThreeRenderRequest? _createThreeRenderRequest(FlutterGpuThreeSurface surface) {
   final current = surface.state;
   if (current == null || current.pendingFrameCount == 0) return null;
+  // Whole-tick dropping: superseded composer ticks never render.
+  current.retainLatestThreeBatch();
+  if (current.pendingFrameCount == 0) return null;
   return _threeRequestForFrames(
     surface,
     current,
@@ -532,12 +535,22 @@ _ThreeRenderRequest? _createThreeRenderRequest(FlutterGpuThreeSurface surface) {
 
 /// Drains every render() submitted during the same JS tick so they present
 /// as ONE composited image (perspective + ortho HUD in webgl_sprites).
-List<JsThreeSubmitFrame> _drainThreePendingFrames(JsThreeSurfaceState state) {
-  final frames = <JsThreeSubmitFrame>[];
-  JsThreeSubmitFrame? next = state.takePendingFrame();
+///
+/// Each entry is the planning SNAPSHOT paired with its frame, not the live
+/// state: multi-pass composer ticks re-ensure the SAME shared quad node with
+/// a fresh per-pass material (e.g. UnrealBloomPass's single FullScreenQuad
+/// renders highPass/blur/composite/blend). Planning every pass against the
+/// live node table gave every pass the LAST pass's material, which sampled
+/// the wrong render target (the visible bloom feedback errors and washed-out
+/// passes). The view's nodes are frozen at the frame's decode position, so
+/// pass k draws with exactly the material upstream bound for pass k.
+List<JsThreeFramePlanView> _drainThreePendingFrames(JsThreeSurfaceState state) {
+  final frames = <JsThreeFramePlanView>[];
+  ({JsThreeSubmitFrame frame, JsThreeFramePlanView view})? next =
+      state.takePendingFrameWithView();
   while (next != null) {
-    frames.add(next);
-    next = state.takePendingFrame();
+    frames.add(next.view);
+    next = state.takePendingFrameWithView();
   }
   return frames;
 }
@@ -545,7 +558,7 @@ List<JsThreeSubmitFrame> _drainThreePendingFrames(JsThreeSurfaceState state) {
 _ThreeRenderRequest? _threeRequestForFrames(
   FlutterGpuThreeSurface surface,
   JsThreeSurfaceState state,
-  List<JsThreeSubmitFrame> frames,
+  List<JsThreeFramePlanView> frames,
 ) {
   if (frames.isEmpty) return null;
   return _ThreeRenderRequest(
@@ -667,7 +680,7 @@ final class _ThreeRenderRequest {
   });
 
   final JsThreeSurfaceState state;
-  final List<JsThreeSubmitFrame> frames;
+  final List<JsThreeFramePlanView> frames;
   final int width;
   final int height;
   final int generation;

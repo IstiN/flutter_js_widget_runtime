@@ -37,8 +37,13 @@ void main() {
       expect(state.geometryUploadCount, 1);
       expect(state.textureUploadCount, 0);
       expect(state.materialUploadCount, 1);
+      // Per-task envelope batching: the smoke scene's 300 same-task renders
+      // cross the bridge as ONE envelope; the decoder still applies all 300
+      // frameCommands (frame semantics preserved). The envelope-crossing
+      // count collapses by design; the churn invariants below (uploads
+      // 1/0/1, bounded pending queue) are the actual guard.
       expect(state.submittedFrameCount, 300);
-      expect(state.appliedEnvelopeCount, 300);
+      expect(state.appliedEnvelopeCount, 1);
       expect(state.pendingFrameCount, lessThanOrEqualTo(2));
       expect(state.geometries, hasLength(1));
       expect(state.currentFrame, isNotNull);

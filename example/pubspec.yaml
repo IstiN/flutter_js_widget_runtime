@@ -73,6 +73,7 @@ flutter:
     - widgets/three-buffergeometry-lines/
     - widgets/three-materials-displacementmap/
     - widgets/three-camera/
+    - widgets/three-cinematic-showcase/
     - widgets/three-clipping-advanced/
     - widgets/three-geometry-teapot/
     - widgets/three-geometry-extrude-splines/

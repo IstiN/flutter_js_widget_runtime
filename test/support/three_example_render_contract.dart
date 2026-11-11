@@ -9,7 +9,9 @@ Future<ThreeDrawPlan> pumpThreeExampleHealthy(
   WidgetTester tester,
   ThreeQuickjsExampleHarness harness,
   String exampleId, {
-  int targetFrames = 3,
+  // Per-task envelope batching: one submit per JS task, so the first pump
+  // window legitimately shows fewer submitted frames than pre-batching.
+  int targetFrames = 2,
 }) async {
   await harness.pumpUntil(
     tester,
@@ -51,7 +53,9 @@ Future<(ThreeQuickjsExampleHarness, ThreeDrawPlan)> renderThreeExampleStrict(
   );
   await harness.pumpUntil(
     tester,
-    (state, plan) => state.submittedFrameCount >= 3 && plan.draws.isNotEmpty,
+    // Per-task envelope batching counts one submit per JS task; >=2 still
+    // proves frames flow (health is draw-plan presence + zero JS errors).
+    (state, plan) => state.submittedFrameCount >= 2 && plan.draws.isNotEmpty,
     attempts: 60,
   );
   await tester.runAsync(

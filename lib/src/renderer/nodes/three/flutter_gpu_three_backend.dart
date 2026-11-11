@@ -47,6 +47,11 @@ final class FlutterGpuThreeBackend {
   static const String defaultShaderAsset = 'assets/three/three_r1.shaderbundle';
   static const int maxPendingPresentations = 2;
 
+  /// Offscreen (composer) pass submits in flight. Bounded well above any
+  /// real chain length (bloom ~14, SAO ~10) yet capped so a pathological
+  /// render-many-times-per-tick widget cannot queue unbounded GPU work.
+  static const int maxPendingTargetSubmits = 24;
+
   final String engineId;
   final String surfaceId;
   final ThreeLineMode lineMode;
@@ -97,6 +102,7 @@ final class FlutterGpuThreeBackend {
   var _uniformOffset = 0;
   var _renderedShadowDrawCount = 0;
   var _pendingPresentations = 0;
+  var _pendingTargetSubmits = 0;
 
   var _renderedFrameCount = 0;
   var _renderedDrawCount = 0;
@@ -225,7 +231,7 @@ final class FlutterGpuThreeBackend {
     required int width,
     required int height,
     JsThreeSubmitFrame? frame,
-    List<JsThreeSubmitFrame>? frames,
+    List<JsThreeFramePlanView>? frames,
     double pointSizeScale = 1.0,
   }) {
     final validationError = _threeRenderError(
@@ -259,12 +265,17 @@ final class FlutterGpuThreeBackend {
   List<ThreeDrawPlan> _planThreeFrames(
     JsThreeSurfaceState state,
     JsThreeSubmitFrame? frame,
-    List<JsThreeSubmitFrame>? frames,
+    List<JsThreeFramePlanView>? frames,
   ) {
-    final frameList = frames ?? <JsThreeSubmitFrame?>[frame];
+    final List<({JsThreeFrameResources state, JsThreeSubmitFrame? frame})>
+    frameList = frames != null
+        ? [for (final view in frames) (state: view, frame: view.frame)]
+        : <({JsThreeFrameResources state, JsThreeSubmitFrame? frame})>[
+            (state: state, frame: frame),
+          ];
     final plans = [
       for (final item in frameList)
-        _planner.plan(state, frame: item, lineMode: lineMode),
+        _planner.plan(item.state, frame: item.frame, lineMode: lineMode),
     ];
     for (final current in plans) {
       for (final warning in current.diagnostics.warnings) {
@@ -289,7 +300,7 @@ final class FlutterGpuThreeBackend {
     required int width,
     required int height,
     required JsThreeSubmitFrame? frame,
-    required List<JsThreeSubmitFrame>? frames,
+    required List<JsThreeFramePlanView>? frames,
     required double pointSizeScale,
   }) async {
     _checkDisposed();
@@ -378,7 +389,8 @@ final class FlutterGpuThreeBackend {
   }
 
   Future<void> _waitForPresentationSlot() async {
-    while (_pendingPresentations >= maxPendingPresentations) {
+    while (_pendingPresentations >= maxPendingPresentations ||
+        _pendingTargetSubmits >= maxPendingTargetSubmits) {
       final waiter = Completer<void>();
       _presentationWaiters.add(waiter);
       await waiter.future;
@@ -517,7 +529,7 @@ final class FlutterGpuThreeBackend {
     final command = _context.createCommandBuffer();
     final pass = _createThreeTargetPass(plan, target, command, pointSizeScale);
     final draws = encoder.record(pass);
-    _submitThreeFrame(this, command);
+    _submitThreeFrame(this, command, targetPass: true);
     return draws;
   }
 

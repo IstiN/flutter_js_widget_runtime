@@ -1,0 +1,1825 @@
+{
+  "comment": "G1 method table \u2014 source of truth for tool/three/build_1b_bindings.py (M2a). Locked ABI: [u32 opcode LE][args...]; format chars u=u32 i=i32 f=f32 s=u32 len+UTF-8 (also emits aK_len u32) b=u32 len+raw bytes (a number instead of a typed array writes the length ONLY = size-only/null-data convention; the decoder sees a NULL pointer; a zero-length blob at the end of the buffer is also NULL, so JS null == empty upload). ret: void|i32|u32|name|scratch. name = C glue allocates via glGen/glCreate and sets rv to the GL name. scratch = data written into the 64 KB per-context scratch, fetched via a1b_gl_result. 'c' is the C case-body glue (locals a0..aN per format, rv preset 0, sc/sc_len = scratch). WebGL -1 uniform locations arrive as 0xFFFFFFFF and are guarded no-ops in glue.",
+  "methods": [
+    {
+      "name": "getError",
+      "opcode": 1,
+      "cat": "context",
+      "args": "",
+      "ret": "i32",
+      "c": "rv = (int64_t)g_GetError();",
+      "doc": "GL error passthrough; the decoder never auto-clears."
+    },
+    {
+      "name": "flush",
+      "opcode": 2,
+      "cat": "context",
+      "args": "",
+      "ret": "void",
+      "c": "g_Flush();"
+    },
+    {
+      "name": "finish",
+      "opcode": 3,
+      "cat": "context",
+      "args": "",
+      "ret": "void",
+      "c": "g_Finish();"
+    },
+    {
+      "name": "viewport",
+      "opcode": 4,
+      "cat": "context",
+      "args": "iiii",
+      "ret": "void",
+      "c": "g_Viewport(a0, a1, a2, a3);"
+    },
+    {
+      "name": "scissor",
+      "opcode": 5,
+      "cat": "context",
+      "args": "iiii",
+      "ret": "void",
+      "c": "g_Scissor(a0, a1, a2, a3);"
+    },
+    {
+      "name": "enable",
+      "opcode": 6,
+      "cat": "context",
+      "args": "u",
+      "ret": "void",
+      "c": "g_Enable(a0);"
+    },
+    {
+      "name": "disable",
+      "opcode": 7,
+      "cat": "context",
+      "args": "u",
+      "ret": "void",
+      "c": "g_Disable(a0);"
+    },
+    {
+      "name": "isEnabled",
+      "opcode": 8,
+      "cat": "context",
+      "args": "u",
+      "ret": "i32",
+      "c": "rv = (int64_t)g_IsEnabled(a0);"
+    },
+    {
+      "name": "lineWidth",
+      "opcode": 9,
+      "cat": "context",
+      "args": "f",
+      "ret": "void",
+      "c": "g_LineWidth(a0);"
+    },
+    {
+      "name": "polygonOffset",
+      "opcode": 10,
+      "cat": "context",
+      "args": "ff",
+      "ret": "void",
+      "c": "g_PolygonOffset(a0, a1);"
+    },
+    {
+      "name": "depthRange",
+      "opcode": 11,
+      "cat": "context",
+      "args": "ff",
+      "ret": "void",
+      "c": "g_DepthRangef(a0, a1);"
+    },
+    {
+      "name": "depthFunc",
+      "opcode": 12,
+      "cat": "context",
+      "args": "u",
+      "ret": "void",
+      "c": "g_DepthFunc(a0);"
+    },
+    {
+      "name": "depthMask",
+      "opcode": 13,
+      "cat": "context",
+      "args": "u",
+      "ret": "void",
+      "c": "g_DepthMask((unsigned char)a0);"
+    },
+    {
+      "name": "colorMask",
+      "opcode": 14,
+      "cat": "context",
+      "args": "uuuu",
+      "ret": "void",
+      "c": "g_ColorMask((unsigned char)a0, (unsigned char)a1, (unsigned char)a2, (unsigned char)a3);"
+    },
+    {
+      "name": "cullFace",
+      "opcode": 15,
+      "cat": "context",
+      "args": "u",
+      "ret": "void",
+      "c": "g_CullFace(a0);"
+    },
+    {
+      "name": "frontFace",
+      "opcode": 16,
+      "cat": "context",
+      "args": "u",
+      "ret": "void",
+      "c": "g_FrontFace(a0);"
+    },
+    {
+      "name": "hint",
+      "opcode": 17,
+      "cat": "context",
+      "args": "uu",
+      "ret": "void",
+      "c": "g_Hint(a0, a1);"
+    },
+    {
+      "name": "pixelStorei",
+      "opcode": 18,
+      "cat": "context",
+      "args": "ui",
+      "ret": "void",
+      "c": "g_PixelStorei(a0, a1);"
+    },
+    {
+      "name": "blendColor",
+      "opcode": 19,
+      "cat": "context",
+      "args": "ffff",
+      "ret": "void",
+      "c": "g_BlendColor(a0, a1, a2, a3);"
+    },
+    {
+      "name": "blendEquation",
+      "opcode": 20,
+      "cat": "context",
+      "args": "u",
+      "ret": "void",
+      "c": "g_BlendEquation(a0);"
+    },
+    {
+      "name": "blendEquationSeparate",
+      "opcode": 21,
+      "cat": "context",
+      "args": "uu",
+      "ret": "void",
+      "c": "g_BlendEquationSeparate(a0, a1);"
+    },
+    {
+      "name": "blendFunc",
+      "opcode": 22,
+      "cat": "context",
+      "args": "uu",
+      "ret": "void",
+      "c": "g_BlendFunc(a0, a1);"
+    },
+    {
+      "name": "blendFuncSeparate",
+      "opcode": 23,
+      "cat": "context",
+      "args": "uuuu",
+      "ret": "void",
+      "c": "g_BlendFuncSeparate(a0, a1, a2, a3);"
+    },
+    {
+      "name": "sampleCoverage",
+      "opcode": 24,
+      "cat": "context",
+      "args": "fu",
+      "ret": "void",
+      "c": "g_SampleCoverage(a0, (unsigned char)a1);"
+    },
+    {
+      "name": "stencilFunc",
+      "opcode": 25,
+      "cat": "context",
+      "args": "uiu",
+      "ret": "void",
+      "c": "g_StencilFunc(a0, a1, a2);"
+    },
+    {
+      "name": "stencilFuncSeparate",
+      "opcode": 26,
+      "cat": "context",
+      "args": "uuiu",
+      "ret": "void",
+      "c": "g_StencilFuncSeparate(a0, a1, a2, a3);"
+    },
+    {
+      "name": "stencilOp",
+      "opcode": 27,
+      "cat": "context",
+      "args": "uuu",
+      "ret": "void",
+      "c": "g_StencilOp(a0, a1, a2);"
+    },
+    {
+      "name": "stencilOpSeparate",
+      "opcode": 28,
+      "cat": "context",
+      "args": "uuuu",
+      "ret": "void",
+      "c": "g_StencilOpSeparate(a0, a1, a2, a3);"
+    },
+    {
+      "name": "stencilMask",
+      "opcode": 29,
+      "cat": "context",
+      "args": "u",
+      "ret": "void",
+      "c": "g_StencilMask(a0);"
+    },
+    {
+      "name": "stencilMaskSeparate",
+      "opcode": 30,
+      "cat": "context",
+      "args": "uu",
+      "ret": "void",
+      "c": "g_StencilMaskSeparate(a0, a1);"
+    },
+    {
+      "name": "getParameter",
+      "opcode": 31,
+      "cat": "context",
+      "args": "u",
+      "ret": "u32",
+      "c": "rv = g1_get_parameter(a0);",
+      "doc": "Scalar in rv; strings (VENDOR/VERSION/RENDERER/SHADING_LANGUAGE_VERSION/UNMASKED_*) and int/float vectors (VIEWPORT, SCISSOR_BOX, DEPTH_RANGE, ranges, COLOR_CLEAR_VALUE, BLEND_COLOR, COMPRESSED_TEXTURE_FORMATS) in scratch: strings = exact UTF-8 bytes (a NUL is appended past sc_len for C-style readers); vectors = little-endian array of i32/f32 (this C builds LE explicitly, portable across host endianness)."
+    },
+    {
+      "name": "getExtension",
+      "opcode": 32,
+      "cat": "context",
+      "args": "s",
+      "ret": "i32",
+      "c": "rv = g1_get_extension(a0, a0_len);",
+      "doc": "rv != 0 means ANGLE advertises the extension; the facade grants its JS object then."
+    },
+    {
+      "name": "createBuffer",
+      "opcode": 33,
+      "cat": "buffer",
+      "args": "",
+      "ret": "name",
+      "c": "{ unsigned n = 0; g_GenBuffers(1, &n); rv = (int64_t)n; }"
+    },
+    {
+      "name": "deleteBuffer",
+      "opcode": 34,
+      "cat": "buffer",
+      "args": "u",
+      "ret": "void",
+      "c": "g_DeleteBuffers(1, (const unsigned *)&a0);"
+    },
+    {
+      "name": "isBuffer",
+      "opcode": 35,
+      "cat": "buffer",
+      "args": "u",
+      "ret": "i32",
+      "c": "rv = (int64_t)g_IsBuffer(a0);"
+    },
+    {
+      "name": "bindBuffer",
+      "opcode": 36,
+      "cat": "buffer",
+      "args": "uu",
+      "ret": "void",
+      "c": "g_BindBuffer(a0, a1);"
+    },
+    {
+      "name": "bufferData",
+      "opcode": 37,
+      "cat": "buffer",
+      "args": "ubu",
+      "ret": "void",
+      "c": "g_BufferData(a0, (ptrdiff_t)a1_len, a1, a2);",
+      "doc": "Second arg is the blob: a typed array uploads its bytes; a bare number or null is the size-only convention (decoder sees NULL pointer)."
+    },
+    {
+      "name": "bufferSubData",
+      "opcode": 38,
+      "cat": "buffer",
+      "args": "uib",
+      "ret": "void",
+      "c": "g_BufferSubData(a0, a1, (ptrdiff_t)a2_len, a2);"
+    },
+    {
+      "name": "copyBufferSubData",
+      "opcode": 39,
+      "cat": "buffer",
+      "args": "uiiii",
+      "ret": "void",
+      "c": "g_CopyBufferSubData(a0, a1, (ptrdiff_t)a2, (ptrdiff_t)a3, (ptrdiff_t)a4);"
+    },
+    {
+      "name": "getBufferParameter",
+      "opcode": 40,
+      "cat": "buffer",
+      "args": "uu",
+      "ret": "i32",
+      "c": "{ int v = 0; g_GetBufferParameteriv(a0, a1, &v); rv = (int64_t)v; }"
+    },
+    {
+      "name": "getIndexedBufferParameter",
+      "opcode": 41,
+      "cat": "buffer",
+      "args": "uu",
+      "ret": "u32",
+      "c": "{ int64_t v = 0; g_GetInteger64i_v(a0, a1, &v); rv = (int64_t)(uint32_t)v; }",
+      "doc": "64-bit indexed value; low 32 bits in rv (WebGL getIndexedBufferParameter returns Number)."
+    },
+    {
+      "name": "bindBufferBase",
+      "opcode": 42,
+      "cat": "buffer",
+      "args": "uuu",
+      "ret": "void",
+      "c": "g_BindBufferBase(a0, a1, a2);"
+    },
+    {
+      "name": "bindBufferRange",
+      "opcode": 43,
+      "cat": "buffer",
+      "args": "uuuii",
+      "ret": "void",
+      "c": "g_BindBufferRange(a0, a1, a2, (ptrdiff_t)a3, (ptrdiff_t)a4);"
+    },
+    {
+      "name": "getBufferSubData",
+      "opcode": 44,
+      "cat": "buffer",
+      "args": "uib",
+      "ret": "scratch",
+      "c": "{ (void)a2; g1_get_buffer_subdata(a0, a1, a2_len); }",
+      "doc": "Scratch = raw bytes. Implemented via glMapBufferRange/glUnmapBuffer (this ANGLE build exports no glGetBufferSubData)."
+    },
+    {
+      "name": "createShader",
+      "opcode": 45,
+      "cat": "shader",
+      "args": "u",
+      "ret": "name",
+      "c": "rv = (int64_t)g_CreateShader(a0);"
+    },
+    {
+      "name": "shaderSource",
+      "opcode": 46,
+      "cat": "shader",
+      "args": "us",
+      "ret": "void",
+      "c": "{ int sl = (int)a1_len; g_ShaderSource(a0, 1, &a1, &sl); }",
+      "doc": "Source is one string arg without NUL; passed with explicit length."
+    },
+    {
+      "name": "compileShader",
+      "opcode": 47,
+      "cat": "shader",
+      "args": "u",
+      "ret": "void",
+      "c": "g_CompileShader(a0);"
+    },
+    {
+      "name": "deleteShader",
+      "opcode": 48,
+      "cat": "shader",
+      "args": "u",
+      "ret": "void",
+      "c": "g_DeleteShader(a0);"
+    },
+    {
+      "name": "isShader",
+      "opcode": 49,
+      "cat": "shader",
+      "args": "u",
+      "ret": "i32",
+      "c": "rv = (int64_t)g_IsShader(a0);"
+    },
+    {
+      "name": "getShaderParameter",
+      "opcode": 50,
+      "cat": "shader",
+      "args": "uu",
+      "ret": "i32",
+      "c": "{ int v = 0; g_GetShaderiv(a0, a1, &v); rv = (int64_t)v; }"
+    },
+    {
+      "name": "getShaderInfoLog",
+      "opcode": 51,
+      "cat": "shader",
+      "args": "u",
+      "ret": "scratch",
+      "c": "{ g_GetShaderInfoLog(a0, (int)sc_cap - 1, NULL, (char *)sc); sc_len = (int)strlen((const char *)sc); }",
+      "doc": "Scratch = exact info-log bytes (no NUL counted in sc_len)."
+    },
+    {
+      "name": "getShaderSource",
+      "opcode": 52,
+      "cat": "shader",
+      "args": "u",
+      "ret": "scratch",
+      "c": "{ g_GetShaderSource(a0, (int)sc_cap - 1, NULL, (char *)sc); sc_len = (int)strlen((const char *)sc); }"
+    },
+    {
+      "name": "getShaderPrecisionFormat",
+      "opcode": 53,
+      "cat": "shader",
+      "args": "uu",
+      "ret": "scratch",
+      "c": "{ int r[3] = {0, 0, 0}; g_GetShaderPrecisionFormat(a0, a1, &r[1], &r[2]); g1_sc_write(r, sizeof(r)); }",
+      "doc": "Scratch = 3 x i32 LE: [rangeMin, rangeMax, precision]."
+    },
+    {
+      "name": "createProgram",
+      "opcode": 54,
+      "cat": "program",
+      "args": "",
+      "ret": "name",
+      "c": "rv = (int64_t)g_CreateProgram();"
+    },
+    {
+      "name": "deleteProgram",
+      "opcode": 55,
+      "cat": "program",
+      "args": "u",
+      "ret": "void",
+      "c": "g_DeleteProgram(a0);"
+    },
+    {
+      "name": "isProgram",
+      "opcode": 56,
+      "cat": "program",
+      "args": "u",
+      "ret": "i32",
+      "c": "rv = (int64_t)g_IsProgram(a0);"
+    },
+    {
+      "name": "useProgram",
+      "opcode": 57,
+      "cat": "program",
+      "args": "u",
+      "ret": "void",
+      "c": "g_UseProgram(a0);"
+    },
+    {
+      "name": "attachShader",
+      "opcode": 58,
+      "cat": "program",
+      "args": "uu",
+      "ret": "void",
+      "c": "g_AttachShader(a0, a1);"
+    },
+    {
+      "name": "detachShader",
+      "opcode": 59,
+      "cat": "program",
+      "args": "uu",
+      "ret": "void",
+      "c": "g_DetachShader(a0, a1);"
+    },
+    {
+      "name": "linkProgram",
+      "opcode": 60,
+      "cat": "program",
+      "args": "u",
+      "ret": "void",
+      "c": "g_LinkProgram(a0);"
+    },
+    {
+      "name": "validateProgram",
+      "opcode": 61,
+      "cat": "program",
+      "args": "u",
+      "ret": "void",
+      "c": "g_ValidateProgram(a0);"
+    },
+    {
+      "name": "getProgramParameter",
+      "opcode": 62,
+      "cat": "program",
+      "args": "uu",
+      "ret": "i32",
+      "c": "{ int v = 0; g_GetProgramiv(a0, a1, &v); rv = (int64_t)v; }"
+    },
+    {
+      "name": "getProgramInfoLog",
+      "opcode": 63,
+      "cat": "program",
+      "args": "u",
+      "ret": "scratch",
+      "c": "{ g_GetProgramInfoLog(a0, (int)sc_cap - 1, NULL, (char *)sc); sc_len = (int)strlen((const char *)sc); }"
+    },
+    {
+      "name": "getActiveUniform",
+      "opcode": 64,
+      "cat": "program",
+      "args": "uu",
+      "ret": "scratch",
+      "c": "g1_get_active(a0, a1, 0);"
+    },
+    {
+      "name": "getActiveAttrib",
+      "opcode": 65,
+      "cat": "program",
+      "args": "uu",
+      "ret": "scratch",
+      "c": "g1_get_active(a0, a1, 1);"
+    },
+    {
+      "name": "getUniformLocation",
+      "opcode": 66,
+      "cat": "program",
+      "args": "us",
+      "ret": "i32",
+      "c": "{ rv = (int64_t)g_GetUniformLocation(a0, a1); g1_sc_write(a1, a1_len); }",
+      "doc": "rv = location index or -1 (facade maps -1 to null). Contract: the scratch holds the queried uniform NAME as exact UTF-8 bytes (NUL appended past sc_len), so the facade can resolve name->location pairs."
+    },
+    {
+      "name": "getAttribLocation",
+      "opcode": 67,
+      "cat": "program",
+      "args": "us",
+      "ret": "i32",
+      "c": "rv = (int64_t)g_GetAttribLocation(a0, a1);"
+    },
+    {
+      "name": "getFragDataLocation",
+      "opcode": 68,
+      "cat": "program",
+      "args": "us",
+      "ret": "i32",
+      "c": "rv = (int64_t)g_GetFragDataLocation(a0, a1);"
+    },
+    {
+      "name": "getUniformIndices",
+      "opcode": 69,
+      "cat": "program",
+      "args": "us",
+      "ret": "scratch",
+      "c": "g1_get_uniform_indices(a0, a1, a1_len);",
+      "doc": "The names string carries multiple uniform names separated by NUL. Scratch = n x u32 LE indices."
+    },
+    {
+      "name": "getActiveUniforms",
+      "opcode": 70,
+      "cat": "program",
+      "args": "ubu",
+      "ret": "scratch",
+      "c": "{ uint32_t n = a1_len / 4; if (n) g_GetActiveUniformsiv(a0, n, (const unsigned *)a1, a2, (int *)sc); sc_len = (int)n * 4; }",
+      "doc": "Indices arg = blob of u32. Scratch = n x i32 LE."
+    },
+    {
+      "name": "getUniformBlockIndex",
+      "opcode": 71,
+      "cat": "program",
+      "args": "us",
+      "ret": "u32",
+      "c": "rv = (int64_t)g_GetUniformBlockIndex(a0, a1);"
+    },
+    {
+      "name": "getActiveUniformBlockParameter",
+      "opcode": 72,
+      "cat": "program",
+      "args": "uuu",
+      "ret": "scratch",
+      "c": "g1_get_uibp(a0, a1, a2);",
+      "doc": "Scratch = i32, or n x i32 for UNIFORM_BLOCK_ACTIVE_UNIFORM_INDICES."
+    },
+    {
+      "name": "getActiveUniformBlockName",
+      "opcode": 73,
+      "cat": "program",
+      "args": "uu",
+      "ret": "scratch",
+      "c": "{ g_GetActiveUniformBlockName(a0, a1, (int)sc_cap - 1, NULL, (char *)sc); sc_len = (int)strlen((const char *)sc); }"
+    },
+    {
+      "name": "uniformBlockBinding",
+      "opcode": 74,
+      "cat": "program",
+      "args": "uuu",
+      "ret": "void",
+      "c": "g_UniformBlockBinding(a0, a1, a2);"
+    },
+    {
+      "name": "getTransformFeedbackVarying",
+      "opcode": 75,
+      "cat": "program",
+      "args": "uu",
+      "ret": "scratch",
+      "c": "g1_get_active(a0, a1, 2);",
+      "doc": "Same packed format as getActiveUniform."
+    },
+    {
+      "name": "transformFeedbackVaryings",
+      "opcode": 76,
+      "cat": "program",
+      "args": "usu",
+      "ret": "void",
+      "c": "g1_transform_feedback_varyings(a0, a1, a1_len, a2);",
+      "doc": "Varyings string = NUL-separated names."
+    },
+    {
+      "name": "bindAttribLocation",
+      "opcode": 77,
+      "cat": "program",
+      "args": "uus",
+      "ret": "void",
+      "c": "g_BindAttribLocation(a0, a1, a2);"
+    },
+    {
+      "name": "createTexture",
+      "opcode": 78,
+      "cat": "texture",
+      "args": "",
+      "ret": "name",
+      "c": "{ unsigned n = 0; g_GenTextures(1, &n); rv = (int64_t)n; }"
+    },
+    {
+      "name": "deleteTexture",
+      "opcode": 79,
+      "cat": "texture",
+      "args": "u",
+      "ret": "void",
+      "c": "g_DeleteTextures(1, (const unsigned *)&a0);"
+    },
+    {
+      "name": "isTexture",
+      "opcode": 80,
+      "cat": "texture",
+      "args": "u",
+      "ret": "i32",
+      "c": "rv = (int64_t)g_IsTexture(a0);"
+    },
+    {
+      "name": "bindTexture",
+      "opcode": 81,
+      "cat": "texture",
+      "args": "uu",
+      "ret": "void",
+      "c": "g_BindTexture(a0, a1);"
+    },
+    {
+      "name": "activeTexture",
+      "opcode": 82,
+      "cat": "texture",
+      "args": "u",
+      "ret": "void",
+      "c": "g_ActiveTexture(a0);"
+    },
+    {
+      "name": "texImage2D",
+      "opcode": 83,
+      "cat": "texture",
+      "args": "uiuiiiiub",
+      "ret": "void",
+      "c": "g_TexImage2D(a0, a1, a2, a3, a4, a5, a6, a7, a8);",
+      "doc": "ArrayBufferView overload: (target, level, internalformat, width, height, border, format, type, pixels|null)."
+    },
+    {
+      "name": "texSubImage2D",
+      "opcode": 84,
+      "cat": "texture",
+      "args": "uiiiiiuub",
+      "ret": "void",
+      "c": "g_TexSubImage2D(a0, a1, a2, a3, a4, a5, a6, a7, a8);",
+      "doc": "(target, level, xoffset, yoffset, width, height, format, type, pixels|null)."
+    },
+    {
+      "name": "texImage3D",
+      "opcode": 85,
+      "cat": "texture",
+      "args": "uiuiiiiuub",
+      "ret": "void",
+      "c": "g_TexImage3D(a0, a1, a2, a3, a4, a5, a6, a7, a8, a9);"
+    },
+    {
+      "name": "texSubImage3D",
+      "opcode": 86,
+      "cat": "texture",
+      "args": "uiiiiiiiuub",
+      "ret": "void",
+      "c": "g_TexSubImage3D(a0, a1, a2, a3, a4, a5, a6, a7, a8, a9, a10);"
+    },
+    {
+      "name": "copyTexImage2D",
+      "opcode": 87,
+      "cat": "texture",
+      "args": "uiuiiiii",
+      "ret": "void",
+      "c": "g_CopyTexImage2D(a0, a1, a2, a3, a4, a5, a6, a7);"
+    },
+    {
+      "name": "copyTexSubImage2D",
+      "opcode": 88,
+      "cat": "texture",
+      "args": "uiiiiiii",
+      "ret": "void",
+      "c": "g_CopyTexSubImage2D(a0, a1, a2, a3, a4, a5, a6, a7);"
+    },
+    {
+      "name": "copyTexSubImage3D",
+      "opcode": 89,
+      "cat": "texture",
+      "args": "uiiiiiiii",
+      "ret": "void",
+      "c": "g_CopyTexSubImage3D(a0, a1, a2, a3, a4, a5, a6, a7, a8);"
+    },
+    {
+      "name": "texParameteri",
+      "opcode": 90,
+      "cat": "texture",
+      "args": "uui",
+      "ret": "void",
+      "c": "g_TexParameteri(a0, a1, a2);"
+    },
+    {
+      "name": "texParameterf",
+      "opcode": 91,
+      "cat": "texture",
+      "args": "uuf",
+      "ret": "void",
+      "c": "g_TexParameterf(a0, a1, a2);"
+    },
+    {
+      "name": "getTexParameter",
+      "opcode": 92,
+      "cat": "texture",
+      "args": "uu",
+      "ret": "i32",
+      "c": "{ int v = 0; g_GetTexParameteriv(a0, a1, &v); rv = (int64_t)v; }"
+    },
+    {
+      "name": "texStorage2D",
+      "opcode": 93,
+      "cat": "texture",
+      "args": "uiuii",
+      "ret": "void",
+      "c": "g_TexStorage2D(a0, a1, a2, a3, a4);"
+    },
+    {
+      "name": "texStorage3D",
+      "opcode": 94,
+      "cat": "texture",
+      "args": "uiuiii",
+      "ret": "void",
+      "c": "g_TexStorage3D(a0, a1, a2, a3, a4, a5);"
+    },
+    {
+      "name": "generateMipmap",
+      "opcode": 95,
+      "cat": "texture",
+      "args": "u",
+      "ret": "void",
+      "c": "g_GenerateMipmap(a0);"
+    },
+    {
+      "name": "compressedTexImage2D",
+      "opcode": 96,
+      "cat": "texture",
+      "args": "uiuiiib",
+      "ret": "void",
+      "c": "g_CompressedTexImage2D(a0, a1, a2, a3, a4, a5, (int)a6_len, a6);"
+    },
+    {
+      "name": "compressedTexImage3D",
+      "opcode": 97,
+      "cat": "texture",
+      "args": "uiuiiiib",
+      "ret": "void",
+      "c": "g_CompressedTexImage3D(a0, a1, a2, a3, a4, a5, a6, (int)a7_len, a7);"
+    },
+    {
+      "name": "compressedTexSubImage2D",
+      "opcode": 98,
+      "cat": "texture",
+      "args": "uiiiiiub",
+      "ret": "void",
+      "c": "g_CompressedTexSubImage2D(a0, a1, a2, a3, a4, a5, a6, (int)a7_len, a7);"
+    },
+    {
+      "name": "compressedTexSubImage3D",
+      "opcode": 99,
+      "cat": "texture",
+      "args": "uiiiiiiiub",
+      "ret": "void",
+      "c": "g_CompressedTexSubImage3D(a0, a1, a2, a3, a4, a5, a6, a7, a8, (int)a9_len, a9);"
+    },
+    {
+      "name": "getCompressedTexImage",
+      "opcode": 100,
+      "cat": "texture",
+      "args": "uib",
+      "ret": "scratch",
+      "c": "{ int n = g1_get_compressed_tex_image(a0, a1); (void)a2; sc_len = n; }",
+      "doc": "Scratch = [u32 byteSize LE][payload]."
+    },
+    {
+      "name": "getInternalformatParameter",
+      "opcode": 101,
+      "cat": "texture",
+      "args": "uuu",
+      "ret": "scratch",
+      "c": "{ int buf[8]; g_GetInternalformativ(a0, a1, a2, 8, buf); g1_sc_write(buf, 8 * 4); }",
+      "doc": "Scratch = up to 8 x i32 LE."
+    },
+    {
+      "name": "createSampler",
+      "opcode": 102,
+      "cat": "sampler",
+      "args": "",
+      "ret": "name",
+      "c": "{ unsigned n = 0; g_GenSamplers(1, &n); rv = (int64_t)n; }"
+    },
+    {
+      "name": "deleteSampler",
+      "opcode": 103,
+      "cat": "sampler",
+      "args": "u",
+      "ret": "void",
+      "c": "g_DeleteSamplers(1, (const unsigned *)&a0);"
+    },
+    {
+      "name": "isSampler",
+      "opcode": 104,
+      "cat": "sampler",
+      "args": "u",
+      "ret": "i32",
+      "c": "rv = (int64_t)g_IsSampler(a0);"
+    },
+    {
+      "name": "bindSampler",
+      "opcode": 105,
+      "cat": "sampler",
+      "args": "uu",
+      "ret": "void",
+      "c": "g_BindSampler(a0, a1);"
+    },
+    {
+      "name": "samplerParameteri",
+      "opcode": 106,
+      "cat": "sampler",
+      "args": "uui",
+      "ret": "void",
+      "c": "g_SamplerParameteri(a0, a1, a2);"
+    },
+    {
+      "name": "samplerParameterf",
+      "opcode": 107,
+      "cat": "sampler",
+      "args": "uuf",
+      "ret": "void",
+      "c": "g_SamplerParameterf(a0, a1, a2);"
+    },
+    {
+      "name": "getSamplerParameter",
+      "opcode": 108,
+      "cat": "sampler",
+      "args": "uu",
+      "ret": "i32",
+      "c": "{ int v = 0; g_GetSamplerParameteriv(a0, a1, &v); rv = (int64_t)v; }"
+    },
+    {
+      "name": "createVertexArray",
+      "opcode": 109,
+      "cat": "vao",
+      "args": "",
+      "ret": "name",
+      "c": "{ unsigned n = 0; g_GenVertexArrays(1, &n); rv = (int64_t)n; }"
+    },
+    {
+      "name": "deleteVertexArray",
+      "opcode": 110,
+      "cat": "vao",
+      "args": "u",
+      "ret": "void",
+      "c": "g_DeleteVertexArrays(1, (const unsigned *)&a0);"
+    },
+    {
+      "name": "isVertexArray",
+      "opcode": 111,
+      "cat": "vao",
+      "args": "u",
+      "ret": "i32",
+      "c": "rv = (int64_t)g_IsVertexArray(a0);"
+    },
+    {
+      "name": "bindVertexArray",
+      "opcode": 112,
+      "cat": "vao",
+      "args": "u",
+      "ret": "void",
+      "c": "g_BindVertexArray(a0);"
+    },
+    {
+      "name": "enableVertexAttribArray",
+      "opcode": 113,
+      "cat": "vao",
+      "args": "u",
+      "ret": "void",
+      "c": "g_EnableVertexAttribArray(a0);"
+    },
+    {
+      "name": "disableVertexAttribArray",
+      "opcode": 114,
+      "cat": "vao",
+      "args": "u",
+      "ret": "void",
+      "c": "g_DisableVertexAttribArray(a0);"
+    },
+    {
+      "name": "vertexAttribPointer",
+      "opcode": 115,
+      "cat": "vao",
+      "args": "uiuiii",
+      "ret": "void",
+      "c": "g_VertexAttribPointer(a0, a1, a2, (unsigned char)a3, a4, (const void *)(intptr_t)a5);"
+    },
+    {
+      "name": "vertexAttribIPointer",
+      "opcode": 116,
+      "cat": "vao",
+      "args": "uiuii",
+      "ret": "void",
+      "c": "g_VertexAttribIPointer(a0, a1, a2, a3, (const void *)(intptr_t)a4);"
+    },
+    {
+      "name": "vertexAttribDivisor",
+      "opcode": 117,
+      "cat": "vao",
+      "args": "uu",
+      "ret": "void",
+      "c": "g_VertexAttribDivisor(a0, a1);"
+    },
+    {
+      "name": "vertexAttrib1f",
+      "opcode": 118,
+      "cat": "vao",
+      "args": "uf",
+      "ret": "void",
+      "c": "g_VertexAttrib1f(a0, a1);"
+    },
+    {
+      "name": "vertexAttrib2f",
+      "opcode": 119,
+      "cat": "vao",
+      "args": "uff",
+      "ret": "void",
+      "c": "g_VertexAttrib2f(a0, a1, a2);"
+    },
+    {
+      "name": "vertexAttrib3f",
+      "opcode": 120,
+      "cat": "vao",
+      "args": "ufff",
+      "ret": "void",
+      "c": "g_VertexAttrib3f(a0, a1, a2, a3);"
+    },
+    {
+      "name": "vertexAttrib4f",
+      "opcode": 121,
+      "cat": "vao",
+      "args": "uffff",
+      "ret": "void",
+      "c": "g_VertexAttrib4f(a0, a1, a2, a3, a4);"
+    },
+    {
+      "name": "vertexAttrib1fv",
+      "opcode": 122,
+      "cat": "vao",
+      "args": "ub",
+      "ret": "void",
+      "c": "g_VertexAttrib1fv(a0, (const float *)a1);"
+    },
+    {
+      "name": "vertexAttrib2fv",
+      "opcode": 123,
+      "cat": "vao",
+      "args": "ub",
+      "ret": "void",
+      "c": "g_VertexAttrib2fv(a0, (const float *)a1);"
+    },
+    {
+      "name": "vertexAttrib3fv",
+      "opcode": 124,
+      "cat": "vao",
+      "args": "ub",
+      "ret": "void",
+      "c": "g_VertexAttrib3fv(a0, (const float *)a1);"
+    },
+    {
+      "name": "vertexAttrib4fv",
+      "opcode": 125,
+      "cat": "vao",
+      "args": "ub",
+      "ret": "void",
+      "c": "g_VertexAttrib4fv(a0, (const float *)a1);"
+    },
+    {
+      "name": "vertexAttribI4i",
+      "opcode": 126,
+      "cat": "vao",
+      "args": "uiiii",
+      "ret": "void",
+      "c": "g_VertexAttribI4i(a0, a1, a2, a3, a4);"
+    },
+    {
+      "name": "vertexAttribI4ui",
+      "opcode": 127,
+      "cat": "vao",
+      "args": "uuuuu",
+      "ret": "void",
+      "c": "g_VertexAttribI4ui(a0, a1, a2, a3, a4);"
+    },
+    {
+      "name": "vertexAttribI4iv",
+      "opcode": 128,
+      "cat": "vao",
+      "args": "ub",
+      "ret": "void",
+      "c": "g_VertexAttribI4iv(a0, (const int *)a1);"
+    },
+    {
+      "name": "vertexAttribI4uiv",
+      "opcode": 129,
+      "cat": "vao",
+      "args": "ub",
+      "ret": "void",
+      "c": "g_VertexAttribI4uiv(a0, (const unsigned *)a1);"
+    },
+    {
+      "name": "getVertexAttrib",
+      "opcode": 130,
+      "cat": "vao",
+      "args": "uu",
+      "ret": "u32",
+      "c": "{ int v[4] = {0, 0, 0, 0}; g_GetVertexAttribiv(a0, a1, v); g1_sc_write(v, sizeof(v)); rv = (uint32_t)v[0]; }"
+    },
+    {
+      "name": "getVertexAttribOffset",
+      "opcode": 131,
+      "cat": "vao",
+      "args": "uu",
+      "ret": "i32",
+      "c": "{ void *p = NULL; g_GetVertexAttribPointerv(a0, a1, &p); rv = (int64_t)(int32_t)(intptr_t)p; }"
+    },
+    {
+      "name": "createFramebuffer",
+      "opcode": 132,
+      "cat": "fbo",
+      "args": "",
+      "ret": "name",
+      "c": "{ unsigned n = 0; g_GenFramebuffers(1, &n); rv = (int64_t)n; }"
+    },
+    {
+      "name": "deleteFramebuffer",
+      "opcode": 133,
+      "cat": "fbo",
+      "args": "u",
+      "ret": "void",
+      "c": "g_DeleteFramebuffers(1, (const unsigned *)&a0);"
+    },
+    {
+      "name": "isFramebuffer",
+      "opcode": 134,
+      "cat": "fbo",
+      "args": "u",
+      "ret": "i32",
+      "c": "rv = (int64_t)g_IsFramebuffer(a0);"
+    },
+    {
+      "name": "bindFramebuffer",
+      "opcode": 135,
+      "cat": "fbo",
+      "args": "uu",
+      "ret": "void",
+      "c": "g_BindFramebuffer(a0, a1);"
+    },
+    {
+      "name": "framebufferTexture2D",
+      "opcode": 136,
+      "cat": "fbo",
+      "args": "uuuii",
+      "ret": "void",
+      "c": "g_FramebufferTexture2D(a0, a1, a2, a3, a4);"
+    },
+    {
+      "name": "framebufferTextureLayer",
+      "opcode": 137,
+      "cat": "fbo",
+      "args": "uuiii",
+      "ret": "void",
+      "c": "g_FramebufferTextureLayer(a0, a1, a2, a3, a4);"
+    },
+    {
+      "name": "framebufferRenderbuffer",
+      "opcode": 138,
+      "cat": "fbo",
+      "args": "uuuu",
+      "ret": "void",
+      "c": "g_FramebufferRenderbuffer(a0, a1, a2, a3);"
+    },
+    {
+      "name": "createRenderbuffer",
+      "opcode": 139,
+      "cat": "fbo",
+      "args": "",
+      "ret": "name",
+      "c": "{ unsigned n = 0; g_GenRenderbuffers(1, &n); rv = (int64_t)n; }"
+    },
+    {
+      "name": "deleteRenderbuffer",
+      "opcode": 140,
+      "cat": "fbo",
+      "args": "u",
+      "ret": "void",
+      "c": "g_DeleteRenderbuffers(1, (const unsigned *)&a0);"
+    },
+    {
+      "name": "isRenderbuffer",
+      "opcode": 141,
+      "cat": "fbo",
+      "args": "u",
+      "ret": "i32",
+      "c": "rv = (int64_t)g_IsRenderbuffer(a0);"
+    },
+    {
+      "name": "bindRenderbuffer",
+      "opcode": 142,
+      "cat": "fbo",
+      "args": "uu",
+      "ret": "void",
+      "c": "g_BindRenderbuffer(a0, a1);"
+    },
+    {
+      "name": "renderbufferStorage",
+      "opcode": 143,
+      "cat": "fbo",
+      "args": "uuii",
+      "ret": "void",
+      "c": "g_RenderbufferStorage(a0, a1, a2, a3);"
+    },
+    {
+      "name": "renderbufferStorageMultisample",
+      "opcode": 144,
+      "cat": "fbo",
+      "args": "uiuii",
+      "ret": "void",
+      "c": "g_RenderbufferStorageMultisample(a0, a1, a2, a3, a4);"
+    },
+    {
+      "name": "getRenderbufferParameter",
+      "opcode": 145,
+      "cat": "fbo",
+      "args": "uu",
+      "ret": "i32",
+      "c": "{ int v = 0; g_GetRenderbufferParameteriv(a0, a1, &v); rv = (int64_t)v; }"
+    },
+    {
+      "name": "checkFramebufferStatus",
+      "opcode": 146,
+      "cat": "fbo",
+      "args": "u",
+      "ret": "u32",
+      "c": "rv = (int64_t)g_CheckFramebufferStatus(a0);"
+    },
+    {
+      "name": "getFramebufferAttachmentParameter",
+      "opcode": 147,
+      "cat": "fbo",
+      "args": "uuu",
+      "ret": "i32",
+      "c": "{ int v = 0; g_GetFramebufferAttachmentParameteriv(a0, a1, a2, &v); rv = (int64_t)v; }"
+    },
+    {
+      "name": "invalidateFramebuffer",
+      "opcode": 148,
+      "cat": "fbo",
+      "args": "ub",
+      "ret": "void",
+      "c": "g_InvalidateFramebuffer(a0, (int)(a1_len / 4), (const unsigned *)a1);"
+    },
+    {
+      "name": "invalidateSubFramebuffer",
+      "opcode": 149,
+      "cat": "fbo",
+      "args": "ubiiii",
+      "ret": "void",
+      "c": "g_InvalidateSubFramebuffer(a0, (int)(a1_len / 4), (const unsigned *)a1, a2, a3, a4, a5);"
+    },
+    {
+      "name": "uniform1f",
+      "opcode": 150,
+      "cat": "uniform",
+      "args": "if",
+      "ret": "void",
+      "c": "if ((int32_t)a0 != -1) g_Uniform1f((int)a0, a1);"
+    },
+    {
+      "name": "uniform2f",
+      "opcode": 151,
+      "cat": "uniform",
+      "args": "iff",
+      "ret": "void",
+      "c": "if ((int32_t)a0 != -1) g_Uniform2f((int)a0, a1, a2);"
+    },
+    {
+      "name": "uniform3f",
+      "opcode": 152,
+      "cat": "uniform",
+      "args": "ifff",
+      "ret": "void",
+      "c": "if ((int32_t)a0 != -1) g_Uniform3f((int)a0, a1, a2, a3);"
+    },
+    {
+      "name": "uniform4f",
+      "opcode": 153,
+      "cat": "uniform",
+      "args": "iffff",
+      "ret": "void",
+      "c": "if ((int32_t)a0 != -1) g_Uniform4f((int)a0, a1, a2, a3, a4);"
+    },
+    {
+      "name": "uniform1i",
+      "opcode": 154,
+      "cat": "uniform",
+      "args": "ii",
+      "ret": "void",
+      "c": "if ((int32_t)a0 != -1) g_Uniform1i((int)a0, a1);"
+    },
+    {
+      "name": "uniform2i",
+      "opcode": 155,
+      "cat": "uniform",
+      "args": "iii",
+      "ret": "void",
+      "c": "if ((int32_t)a0 != -1) g_Uniform2i((int)a0, a1, a2);"
+    },
+    {
+      "name": "uniform3i",
+      "opcode": 156,
+      "cat": "uniform",
+      "args": "iiii",
+      "ret": "void",
+      "c": "if ((int32_t)a0 != -1) g_Uniform3i((int)a0, a1, a2, a3);"
+    },
+    {
+      "name": "uniform4i",
+      "opcode": 157,
+      "cat": "uniform",
+      "args": "iiiii",
+      "ret": "void",
+      "c": "if ((int32_t)a0 != -1) g_Uniform4i((int)a0, a1, a2, a3, a4);"
+    },
+    {
+      "name": "uniform1ui",
+      "opcode": 158,
+      "cat": "uniform",
+      "args": "iu",
+      "ret": "void",
+      "c": "if ((int32_t)a0 != -1) g_Uniform1ui((int)a0, a1);"
+    },
+    {
+      "name": "uniform2ui",
+      "opcode": 159,
+      "cat": "uniform",
+      "args": "iuu",
+      "ret": "void",
+      "c": "if ((int32_t)a0 != -1) g_Uniform2ui((int)a0, a1, a2);"
+    },
+    {
+      "name": "uniform3ui",
+      "opcode": 160,
+      "cat": "uniform",
+      "args": "iuuu",
+      "ret": "void",
+      "c": "if ((int32_t)a0 != -1) g_Uniform3ui((int)a0, a1, a2, a3);"
+    },
+    {
+      "name": "uniform4ui",
+      "opcode": 161,
+      "cat": "uniform",
+      "args": "iuuuu",
+      "ret": "void",
+      "c": "if ((int32_t)a0 != -1) g_Uniform4ui((int)a0, a1, a2, a3, a4);"
+    },
+    {
+      "name": "uniform1fv",
+      "opcode": 162,
+      "cat": "uniform",
+      "args": "ib",
+      "ret": "void",
+      "c": "if ((int32_t)a0 != -1) g_Uniform1fv((int)a0, (int)(a1_len / 4), (const float *)a1);"
+    },
+    {
+      "name": "uniform2fv",
+      "opcode": 163,
+      "cat": "uniform",
+      "args": "ib",
+      "ret": "void",
+      "c": "if ((int32_t)a0 != -1) g_Uniform2fv((int)a0, (int)(a1_len / 8), (const float *)a1);"
+    },
+    {
+      "name": "uniform3fv",
+      "opcode": 164,
+      "cat": "uniform",
+      "args": "ib",
+      "ret": "void",
+      "c": "if ((int32_t)a0 != -1) g_Uniform3fv((int)a0, (int)(a1_len / 12), (const float *)a1);"
+    },
+    {
+      "name": "uniform4fv",
+      "opcode": 165,
+      "cat": "uniform",
+      "args": "ib",
+      "ret": "void",
+      "c": "if ((int32_t)a0 != -1) g_Uniform4fv((int)a0, (int)(a1_len / 16), (const float *)a1);"
+    },
+    {
+      "name": "uniform1iv",
+      "opcode": 166,
+      "cat": "uniform",
+      "args": "ib",
+      "ret": "void",
+      "c": "if ((int32_t)a0 != -1) g_Uniform1iv((int)a0, (int)(a1_len / 4), (const int *)a1);"
+    },
+    {
+      "name": "uniform2iv",
+      "opcode": 167,
+      "cat": "uniform",
+      "args": "ib",
+      "ret": "void",
+      "c": "if ((int32_t)a0 != -1) g_Uniform2iv((int)a0, (int)(a1_len / 8), (const int *)a1);"
+    },
+    {
+      "name": "uniform3iv",
+      "opcode": 168,
+      "cat": "uniform",
+      "args": "ib",
+      "ret": "void",
+      "c": "if ((int32_t)a0 != -1) g_Uniform3iv((int)a0, (int)(a1_len / 12), (const int *)a1);"
+    },
+    {
+      "name": "uniform4iv",
+      "opcode": 169,
+      "cat": "uniform",
+      "args": "ib",
+      "ret": "void",
+      "c": "if ((int32_t)a0 != -1) g_Uniform4iv((int)a0, (int)(a1_len / 16), (const int *)a1);"
+    },
+    {
+      "name": "uniform1uiv",
+      "opcode": 170,
+      "cat": "uniform",
+      "args": "ib",
+      "ret": "void",
+      "c": "if ((int32_t)a0 != -1) g_Uniform1uiv((int)a0, (int)(a1_len / 4), (const unsigned *)a1);"
+    },
+    {
+      "name": "uniform2uiv",
+      "opcode": 171,
+      "cat": "uniform",
+      "args": "ib",
+      "ret": "void",
+      "c": "if ((int32_t)a0 != -1) g_Uniform2uiv((int)a0, (int)(a1_len / 8), (const unsigned *)a1);"
+    },
+    {
+      "name": "uniform3uiv",
+      "opcode": 172,
+      "cat": "uniform",
+      "args": "ib",
+      "ret": "void",
+      "c": "if ((int32_t)a0 != -1) g_Uniform3uiv((int)a0, (int)(a1_len / 12), (const unsigned *)a1);"
+    },
+    {
+      "name": "uniform4uiv",
+      "opcode": 173,
+      "cat": "uniform",
+      "args": "ib",
+      "ret": "void",
+      "c": "if ((int32_t)a0 != -1) g_Uniform4uiv((int)a0, (int)(a1_len / 16), (const unsigned *)a1);"
+    },
+    {
+      "name": "uniformMatrix2fv",
+      "opcode": 174,
+      "cat": "uniform",
+      "args": "iub",
+      "ret": "void",
+      "c": "if ((int32_t)a0 != -1) g_UniformMatrix2fv((int)a0, (int)(a2_len / 16), (unsigned char)a1, (const float *)a2);"
+    },
+    {
+      "name": "uniformMatrix3fv",
+      "opcode": 175,
+      "cat": "uniform",
+      "args": "iub",
+      "ret": "void",
+      "c": "if ((int32_t)a0 != -1) g_UniformMatrix3fv((int)a0, (int)(a2_len / 36), (unsigned char)a1, (const float *)a2);"
+    },
+    {
+      "name": "uniformMatrix4fv",
+      "opcode": 176,
+      "cat": "uniform",
+      "args": "iub",
+      "ret": "void",
+      "c": "if ((int32_t)a0 != -1) g_UniformMatrix4fv((int)a0, (int)(a2_len / 64), (unsigned char)a1, (const float *)a2);"
+    },
+    {
+      "name": "uniformMatrix2x3fv",
+      "opcode": 177,
+      "cat": "uniform",
+      "args": "iub",
+      "ret": "void",
+      "c": "if ((int32_t)a0 != -1) g_UniformMatrix2x3fv((int)a0, (int)(a2_len / 24), (unsigned char)a1, (const float *)a2);"
+    },
+    {
+      "name": "uniformMatrix3x2fv",
+      "opcode": 178,
+      "cat": "uniform",
+      "args": "iub",
+      "ret": "void",
+      "c": "if ((int32_t)a0 != -1) g_UniformMatrix3x2fv((int)a0, (int)(a2_len / 24), (unsigned char)a1, (const float *)a2);"
+    },
+    {
+      "name": "uniformMatrix2x4fv",
+      "opcode": 179,
+      "cat": "uniform",
+      "args": "iub",
+      "ret": "void",
+      "c": "if ((int32_t)a0 != -1) g_UniformMatrix2x4fv((int)a0, (int)(a2_len / 32), (unsigned char)a1, (const float *)a2);"
+    },
+    {
+      "name": "uniformMatrix4x2fv",
+      "opcode": 180,
+      "cat": "uniform",
+      "args": "iub",
+      "ret": "void",
+      "c": "if ((int32_t)a0 != -1) g_UniformMatrix4x2fv((int)a0, (int)(a2_len / 32), (unsigned char)a1, (const float *)a2);"
+    },
+    {
+      "name": "uniformMatrix3x4fv",
+      "opcode": 181,
+      "cat": "uniform",
+      "args": "iub",
+      "ret": "void",
+      "c": "if ((int32_t)a0 != -1) g_UniformMatrix3x4fv((int)a0, (int)(a2_len / 48), (unsigned char)a1, (const float *)a2);"
+    },
+    {
+      "name": "uniformMatrix4x3fv",
+      "opcode": 182,
+      "cat": "uniform",
+      "args": "iub",
+      "ret": "void",
+      "c": "if ((int32_t)a0 != -1) g_UniformMatrix4x3fv((int)a0, (int)(a2_len / 48), (unsigned char)a1, (const float *)a2);"
+    },
+    {
+      "name": "drawArrays",
+      "opcode": 183,
+      "cat": "draw",
+      "args": "uii",
+      "ret": "void",
+      "c": "g_DrawArrays(a0, a1, a2);"
+    },
+    {
+      "name": "drawElements",
+      "opcode": 184,
+      "cat": "draw",
+      "args": "uiui",
+      "ret": "void",
+      "c": "g_DrawElements(a0, a1, a2, (const void *)(intptr_t)a3);"
+    },
+    {
+      "name": "drawArraysInstanced",
+      "opcode": 185,
+      "cat": "draw",
+      "args": "uiii",
+      "ret": "void",
+      "c": "g_DrawArraysInstanced(a0, a1, a2, a3);"
+    },
+    {
+      "name": "drawElementsInstanced",
+      "opcode": 186,
+      "cat": "draw",
+      "args": "uiuii",
+      "ret": "void",
+      "c": "g_DrawElementsInstanced(a0, a1, a2, (const void *)(intptr_t)a3, a4);"
+    },
+    {
+      "name": "drawRangeElements",
+      "opcode": 187,
+      "cat": "draw",
+      "args": "uuiuii",
+      "ret": "void",
+      "c": "g_DrawRangeElements(a0, a1, a2, a3, a4, (const void *)(intptr_t)a5);"
+    },
+    {
+      "name": "drawBuffers",
+      "opcode": 188,
+      "cat": "draw",
+      "args": "b",
+      "ret": "void",
+      "c": "g_DrawBuffers((int)(a0_len / 4), (const unsigned *)a0);"
+    },
+    {
+      "name": "clearColor",
+      "opcode": 189,
+      "cat": "clear",
+      "args": "ffff",
+      "ret": "void",
+      "c": "g_ClearColor(a0, a1, a2, a3);"
+    },
+    {
+      "name": "clearDepth",
+      "opcode": 190,
+      "cat": "clear",
+      "args": "f",
+      "ret": "void",
+      "c": "g_ClearDepthf(a0);"
+    },
+    {
+      "name": "clearStencil",
+      "opcode": 191,
+      "cat": "clear",
+      "args": "i",
+      "ret": "void",
+      "c": "g_ClearStencil(a0);"
+    },
+    {
+      "name": "clear",
+      "opcode": 192,
+      "cat": "clear",
+      "args": "u",
+      "ret": "void",
+      "c": "g_Clear(a0);"
+    },
+    {
+      "name": "clearBufferfv",
+      "opcode": 193,
+      "cat": "clear",
+      "args": "uib",
+      "ret": "void",
+      "c": "g_ClearBufferfv(a0, a1, (const float *)a2);"
+    },
+    {
+      "name": "clearBufferiv",
+      "opcode": 194,
+      "cat": "clear",
+      "args": "uib",
+      "ret": "void",
+      "c": "g_ClearBufferiv(a0, a1, (const int *)a2);"
+    },
+    {
+      "name": "clearBufferuiv",
+      "opcode": 195,
+      "cat": "clear",
+      "args": "uib",
+      "ret": "void",
+      "c": "g_ClearBufferuiv(a0, a1, (const unsigned *)a2);"
+    },
+    {
+      "name": "clearBufferfi",
+      "opcode": 196,
+      "cat": "clear",
+      "args": "uifi",
+      "ret": "void",
+      "c": "g_ClearBufferfi(a0, a1, a2, a3);"
+    },
+    {
+      "name": "readPixels",
+      "opcode": 197,
+      "cat": "read",
+      "args": "iiiiuu",
+      "ret": "scratch",
+      "c": "g1_read_pixels(a0, a1, a2, a3, a4, a5);",
+      "doc": "Scratch = raw pixel bytes (row-tight). Facade copies out into the caller's typed array."
+    },
+    {
+      "name": "readBuffer",
+      "opcode": 198,
+      "cat": "read",
+      "args": "u",
+      "ret": "void",
+      "c": "g_ReadBuffer(a0);"
+    },
+    {
+      "name": "blitFramebuffer",
+      "opcode": 199,
+      "cat": "copy",
+      "args": "iiiiiiiiuu",
+      "ret": "void",
+      "c": "g_BlitFramebuffer(a0, a1, a2, a3, a4, a5, a6, a7, a8, a9);"
+    },
+    {
+      "name": "fenceSync",
+      "opcode": 200,
+      "cat": "misc",
+      "args": "uu",
+      "ret": "name",
+      "c": "rv = g1_fence_sync(a0, a1);",
+      "doc": "GLsync opaque pointers are mapped to small u32 ids in a C-side table (1-based); 0 = failure."
+    },
+    {
+      "name": "clientWaitSync",
+      "opcode": 201,
+      "cat": "misc",
+      "args": "uuu",
+      "ret": "i32",
+      "c": "rv = g1_client_wait_sync(a0, a1, a2);",
+      "doc": "timeout is the low 32 bits of the WebGL GLuint64 (sufficient: ANGLE MAX_CLIENT_WAIT_TIMEOUT is 0)."
+    },
+    {
+      "name": "waitSync",
+      "opcode": 202,
+      "cat": "misc",
+      "args": "uuu",
+      "ret": "void",
+      "c": "g1_wait_sync(a0, a1, a2);"
+    },
+    {
+      "name": "deleteSync",
+      "opcode": 203,
+      "cat": "misc",
+      "args": "u",
+      "ret": "void",
+      "c": "g1_delete_sync(a0);"
+    },
+    {
+      "name": "isSync",
+      "opcode": 204,
+      "cat": "misc",
+      "args": "u",
+      "ret": "i32",
+      "c": "rv = g1_is_sync(a0);"
+    },
+    {
+      "name": "getSyncParameter",
+      "opcode": 205,
+      "cat": "misc",
+      "args": "uu",
+      "ret": "i32",
+      "c": "rv = g1_get_sync_parameter(a0, a1);"
+    },
+    {
+      "name": "createQuery",
+      "opcode": 206,
+      "cat": "misc",
+      "args": "",
+      "ret": "name",
+      "c": "{ unsigned n = 0; g_GenQueries(1, &n); rv = (int64_t)n; }"
+    },
+    {
+      "name": "deleteQuery",
+      "opcode": 207,
+      "cat": "misc",
+      "args": "u",
+      "ret": "void",
+      "c": "g_DeleteQueries(1, (const unsigned *)&a0);"
+    },
+    {
+      "name": "isQuery",
+      "opcode": 208,
+      "cat": "misc",
+      "args": "u",
+      "ret": "i32",
+      "c": "rv = (int64_t)g_IsQuery(a0);"
+    },
+    {
+      "name": "beginQuery",
+      "opcode": 209,
+      "cat": "misc",
+      "args": "uu",
+      "ret": "void",
+      "c": "g_BeginQuery(a0, a1);"
+    },
+    {
+      "name": "endQuery",
+      "opcode": 210,
+      "cat": "misc",
+      "args": "u",
+      "ret": "void",
+      "c": "g_EndQuery(a0);"
+    },
+    {
+      "name": "getQuery",
+      "opcode": 211,
+      "cat": "misc",
+      "args": "uu",
+      "ret": "u32",
+      "c": "rv = g1_get_query(a0, a1);",
+      "doc": "CURRENT_QUERY; rv = 0 when no query is active (IDL: null)."
+    },
+    {
+      "name": "getQueryParameter",
+      "opcode": 212,
+      "cat": "misc",
+      "args": "uu",
+      "ret": "u32",
+      "c": "rv = g1_get_query_parameter(a0, a1);",
+      "doc": "QUERY_RESULT_AVAILABLE via glGetQueryObjectivEXT; QUERY_RESULT low 32 bits via glGetQueryObjectui64vEXT (this ANGLE build exports the EXT spellings only)."
+    },
+    {
+      "name": "createTransformFeedback",
+      "opcode": 213,
+      "cat": "misc",
+      "args": "",
+      "ret": "name",
+      "c": "{ unsigned n = 0; g_GenTransformFeedbacks(1, &n); rv = (int64_t)n; }"
+    },
+    {
+      "name": "deleteTransformFeedback",
+      "opcode": 214,
+      "cat": "misc",
+      "args": "u",
+      "ret": "void",
+      "c": "g_DeleteTransformFeedbacks(1, (const unsigned *)&a0);"
+    },
+    {
+      "name": "isTransformFeedback",
+      "opcode": 215,
+      "cat": "misc",
+      "args": "u",
+      "ret": "i32",
+      "c": "rv = (int64_t)g_IsTransformFeedback(a0);"
+    },
+    {
+      "name": "bindTransformFeedback",
+      "opcode": 216,
+      "cat": "misc",
+      "args": "uu",
+      "ret": "void",
+      "c": "g_BindTransformFeedback(a0, a1);"
+    },
+    {
+      "name": "beginTransformFeedback",
+      "opcode": 217,
+      "cat": "misc",
+      "args": "u",
+      "ret": "void",
+      "c": "g_BeginTransformFeedback(a0);"
+    },
+    {
+      "name": "endTransformFeedback",
+      "opcode": 218,
+      "cat": "misc",
+      "args": "",
+      "ret": "void",
+      "c": "g_EndTransformFeedback();"
+    },
+    {
+      "name": "pauseTransformFeedback",
+      "opcode": 219,
+      "cat": "misc",
+      "args": "",
+      "ret": "void",
+      "c": "g_PauseTransformFeedback();"
+    },
+    {
+      "name": "resumeTransformFeedback",
+      "opcode": 220,
+      "cat": "misc",
+      "args": "",
+      "ret": "void",
+      "c": "g_ResumeTransformFeedback();"
+    },
+    {
+      "name": "getContextAttributes",
+      "opcode": 221,
+      "cat": "misc",
+      "args": "",
+      "ret": "i32",
+      "stub": "webgl.getContextAttributes",
+      "doc": "Handled facade-side (stores context attrs); decoder returns -1."
+    },
+    {
+      "name": "isContextLost",
+      "opcode": 222,
+      "cat": "misc",
+      "args": "",
+      "ret": "i32",
+      "stub": "webgl.isContextLost",
+      "doc": "Handled facade-side (always false in M2); decoder returns -1."
+    },
+    {
+      "name": "makeXRCompatible",
+      "opcode": 223,
+      "cat": "misc",
+      "args": "",
+      "ret": "i32",
+      "stub": "webgl.makeXRCompatible",
+      "doc": "No XR in M2; decoder returns -1."
+    },
+    {
+      "name": "getSupportedExtensions",
+      "opcode": 224,
+      "cat": "misc",
+      "args": "",
+      "ret": "scratch",
+      "stub": "webgl.getSupportedExtensions",
+      "doc": "Handled facade-side (static list); decoder returns -1."
+    }
+  ]
+}

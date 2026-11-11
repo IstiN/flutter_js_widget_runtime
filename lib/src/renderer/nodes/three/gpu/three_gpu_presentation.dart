@@ -746,15 +746,35 @@ gpu.RenderPass _createThreeTargetPass(
 
 void _submitThreeFrame(
   FlutterGpuThreeBackend backend,
-  gpu.CommandBuffer command,
-) {
-  backend._pendingPresentations++;
+  gpu.CommandBuffer command, {
+  bool targetPass = false,
+}) {
+  // Offscreen composer passes (renderTargetId != 0) submit into the SAME
+  // Metal queue but do NOT occupy a presentation slot: counting them in
+  // _pendingPresentations serialized every pass of a multi-pass tick behind
+  // maxPendingPresentations (2), so a 14-pass bloom chain paid one full
+  // GPU round-trip per pass (~25 ms/tick, 39.9 fps presented). They share
+  // the same waiter release so either counter's completions wake waiters.
+  if (targetPass) {
+    backend._pendingTargetSubmits++;
+  } else {
+    backend._pendingPresentations++;
+  }
   final sequence = backend._lastSequence;
   _traceThreeShadow('main submit sequence=$sequence');
   command.submit(
     completionCallback: (success) {
       _traceThreeShadow('main complete sequence=$sequence success=$success');
-      _threePresentationCompleted(backend, success);
+      if (targetPass) {
+        if (backend._pendingTargetSubmits > 0) backend._pendingTargetSubmits--;
+        if (!success) {
+          backend._failedPresentationCount++;
+          backend._note('GPU target-pass completion reported failure');
+        }
+        _releaseThreePresentationWaiters(backend);
+      } else {
+        _threePresentationCompleted(backend, success);
+      }
     },
   );
 }

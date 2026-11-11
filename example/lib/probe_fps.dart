@@ -43,6 +43,7 @@ final _kStorm = Platform.environment['JSR_STORM'] == '1';
 // Attribution flag: short-circuit Raycaster.intersectObject so the storm
 // measures everything EXCEPT the official module's own BVH hover raycast.
 final _kSkipRaycast = Platform.environment['JSR_SKIP_RAYCAST'] == '1';
+final _kRafTrace = Platform.environment['JSR_RAF_TRACE'] == '1';
 
 void probeDiag(String line) {
   // ignore: avoid_print
@@ -81,6 +82,43 @@ return r;
 })();
 ''';
 
+/// JSR_RAF_TRACE=1: wrap the runtime's RAF/setAnimationLoop so per-tick JS
+/// errors surface as [raf-trace] console lines instead of dying silently.
+const _kRafTracePrelude = '''
+(function(){
+var __origRaf=globalThis.requestAnimationFrame;
+if(typeof __origRaf==='function'){
+  globalThis.requestAnimationFrame=function(cb){
+    if(typeof cb!=='function')return __origRaf(cb);
+    return __origRaf(function(ms){
+      try{cb(ms);}catch(e){
+        console.log('[raf-trace] tick error: '+(e&&e.message?e.message:e));
+        throw e;
+      }
+    });
+  };
+}
+if(THREE&&THREE.WebGLRenderer&&THREE.WebGLRenderer.prototype){
+  var rp=THREE.WebGLRenderer.prototype;
+  var origLoop=rp.setAnimationLoop;
+  if(origLoop){
+    rp.setAnimationLoop=function(cb){
+      if(typeof cb==='function'){
+        var wrapped=function(ms){
+          try{cb(ms);}catch(e){
+            console.log('[raf-trace] loop error: '+(e&&e.message?e.message:e));
+            throw e;
+          }
+        };
+        return origLoop.call(this,wrapped);
+      }
+      return origLoop.call(this,cb);
+    };
+  }
+}
+})();
+''';
+
 /// Attribution probe (JSR_SKIP_RAYCAST=1): returns an empty hit list from
 /// every Raycaster.intersectObject call so the storm window measures the
 /// input lane + render loop without the official module's BVH hover raycast.
@@ -88,6 +126,45 @@ const _kSkipRaycastPrelude = '''
 (function(){
 if(!globalThis.THREE||!THREE.Raycaster) return;
 THREE.Raycaster.prototype.intersectObject=function(){return [];};
+})();
+''';
+
+/// JSR_R1_TIMING=1: per-window renderer timing export. Wraps the R1
+/// renderer's frame path and re-exports cumulative counters through
+/// jsr.exportProbe so the probe can attach renderMs/renderN/loopMs/loopN/
+/// fastNodeMs/fastNodeN to each measurement window.
+const _kR1TimingPrelude = '''
+(function(){
+if(!globalThis.THREE||!THREE.WebGLRenderer) return;
+var rp=THREE.WebGLRenderer.prototype;
+if(!rp.render) return;
+var acc=globalThis.__jsrR1Acc={renderMs:0,renderN:0,loopMs:0,loopN:0,fastNodeMs:0,fastNodeN:0};
+var origRender=rp.render;
+rp.render=function(scene,camera){
+  var t0=Date.now();
+  try{ return origRender.call(this,scene,camera); }
+  finally{ acc.renderMs+=Date.now()-t0; acc.renderN++; }
+};
+var origLoop=rp.setAnimationLoop;
+if(origLoop){
+  rp.setAnimationLoop=function(cb){
+    if(typeof cb!=='function') return origLoop.call(this,cb);
+    return origLoop.call(this,function(ms){
+      var t0=Date.now();
+      try{ return cb(ms); }
+      finally{ acc.loopMs+=Date.now()-t0; acc.loopN++; }
+    });
+  };
+}
+var __jsr=globalThis.jsr;
+if(__jsr&&typeof __jsr.exportState==='function'){
+  var origExport=__jsr.exportState;
+  __jsr.exportState=function(st){
+    st=st||{};
+    try{ st.probe={renderMs:acc.renderMs,renderN:acc.renderN,loopMs:acc.loopMs,loopN:acc.loopN,fastNodeMs:acc.fastNodeMs,fastNodeN:acc.fastNodeN}; }catch(e){}
+    return origExport.call(__jsr,st);
+  };
+}
 })();
 ''';
 
@@ -109,11 +186,11 @@ Future<void> main() async {
               return const Center(child: CircularProgressIndicator());
             }
             return _ProbeFrame(
-              jsSource: _kSkipRaycast
+              jsSource: '${_kRafTrace ? "$_kRafTracePrelude\n" : ''}$_kR1TimingPrelude\n${_kSkipRaycast
                   ? '$_kSkipRaycastPrelude\n${snap.data!}'
                   : _kNoStub
                   ? '$_kNoStubPrelude\n${snap.data!}'
-                  : snap.data!,
+                  : snap.data!}',
             );
           },
         ),
@@ -141,6 +218,8 @@ class _ProbeFrameState extends State<_ProbeFrame> {
   int? _windowStartFrames;
   int _windowStartMs = 0;
   Timer? _stormTimer;
+  int _bootStablePresented = -1;
+  int _bootStableSinceMs = 0;
   int _stormEvents = 0;
   int _stormDispatchUs = 0;
   double _stormPhase = 0;
@@ -155,8 +234,25 @@ class _ProbeFrameState extends State<_ProbeFrame> {
     Timer.periodic(const Duration(milliseconds: 100), (timer) {
       final surface = _surface;
       final presented = surface?.diagnostics['presentedFrames'] ?? 0;
-      if (presented >= 3) {
+      // Render-on-demand widgets (webgl_clipping_intersection and the other
+      // GUI-driven examples) present exactly once at boot and then wait for
+      // input; requiring presented>=3 deadlocks the probe before the storm
+      // window can drive them. A stable single presented frame for 3s is a
+      // valid boot for that class: the storm window measures their
+      // event-driven presented fps.
+      final stable = presented >= 1 &&
+          presented == _bootStablePresented &&
+          _clock.elapsedMilliseconds - _bootStableSinceMs > 3000;
+      if (presented != _bootStablePresented) {
+        _bootStablePresented = presented is int ? presented : int.tryParse('$presented') ?? 0;
+        _bootStableSinceMs = _clock.elapsedMilliseconds;
+      }
+      if (presented >= 3 || stable) {
         timer.cancel();
+        // Sweep metric: boot-to-first-presented-frame.
+        probeDiag(
+          'THREE probe boot: ${jsonEncode({'bootMs': _clock.elapsedMilliseconds, 'presentedFrames': presented, 'onDemand': presented < 3})}',
+        );
         _startWindow();
       } else if (_clock.elapsedMilliseconds > 45000) {
         timer.cancel();
@@ -208,20 +304,25 @@ class _ProbeFrameState extends State<_ProbeFrame> {
         final x = (400 + 300 * _stormPhase) % 700;
         final y = 150 + 250 * (0.5 + 0.5 * (_stormPhase % 1));
         final sw = Stopwatch()..start();
-        _engine?.dispatchHostEvent('three.input:main', <String, dynamic>{
-          'type': 'pointermove',
-          'pointerId': 7,
-          'pointerType': 'mouse',
-          'isPrimary': true,
-          'button': 0,
-          'buttons': 0,
-          'clientX': x,
-          'clientY': y,
-          'pageX': x,
-          'pageY': y,
-        });
+        // 4 back-to-back events per tick (~100 Hz): real OS mice flood the
+        // pointer channel between frames; a single event per tick would be
+        // frame-rate limited and never reproduce a handler-cost collapse.
+        for (var i = 0; i < 4; i++) {
+          _engine?.dispatchHostEvent('three.input:main', <String, dynamic>{
+            'type': 'pointermove',
+            'pointerId': 7,
+            'pointerType': 'mouse',
+            'isPrimary': true,
+            'button': 0,
+            'buttons': 0,
+            'clientX': x + i,
+            'clientY': y,
+            'pageX': x + i,
+            'pageY': y,
+          });
+        }
         _stormDispatchUs += sw.elapsedMicroseconds;
-        _stormEvents++;
+        _stormEvents += 4;
       });
       Timer(const Duration(seconds: 2), _finishWindow);
       return;
@@ -247,6 +348,22 @@ class _ProbeFrameState extends State<_ProbeFrame> {
   Future<void> _captureAndExit() async {
     final surface = _surface;
     probeDiag('THREE probe diagnostics: ${surface?.diagnostics}');
+    // Widget self-reported status (cinematic-style widgets exportState their
+    // lane/error status) — sweep error signal.
+    try {
+      final exported = _engine?.exportedState;
+      if (exported != null) {
+        final status = exported['status'];
+        if (status != null) probeDiag('THREE probe widgetStatus: $status');
+      }
+    } catch (_) {}
+    // TEMPORARY attribution lane: dump the JS-side R1 timing accumulator.
+    try {
+      final exported = _engine?.exportedState;
+      probeDiag('THREE probe r1timing: ${exported?['probe']}');
+    } catch (e) {
+      probeDiag('THREE probe r1timing error: $e');
+    }
     // Direct backend-image capture (PUMPDBG lane): what did the GPU render?
     try {
       final direct = await surface?.capture();
@@ -330,10 +447,16 @@ class _ProbeFrameState extends State<_ProbeFrame> {
       onSetTitle: (_) {},
       onStorageUpdate: (_) {},
     );
-    final backend = QuickjsWidgetEngineBackend(config: config);
+    // JSR_ISOLATE=1: worker-isolate backend (the catalog app lane) instead
+    // of the direct in-process QuickJS backend.
+    final backend = Platform.environment['JSR_ISOLATE'] == '1'
+        ? createQuickjsIsolateWidgetEngineBackend(config)
+        : QuickjsWidgetEngineBackend(config: config);
     final engine = JsWidgetEngine(config: config.copyWith(backend: backend));
     _engine = engine;
     await engine.init();
-    await engine.run(widget.jsSource).catchError((Object _) {});
+    await engine.run(widget.jsSource).catchError((Object error) {
+      probeDiag('THREE probe runError: $error');
+    });
   }
 }

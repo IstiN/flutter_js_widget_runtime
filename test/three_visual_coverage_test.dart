@@ -9,12 +9,18 @@ void main() {
     final entries = RegExp(
       r"exampleId:\s*'([^']+)'[\s\S]*?widgetId:\s*'([^']+)'",
     ).allMatches(registry).toList();
-    final widgetIds = entries.map((match) => match.group(2)!).toSet();
+    // Custom (non-upstream) widgets ship without a reference page; they are
+    // catalog citizens but sit outside the official visual corpus.
+    const customWidgetIds = {'three-cinematic-showcase'};
+    final widgetIds = entries
+        .map((match) => match.group(2)!)
+        .where((id) => !customWidgetIds.contains(id))
+        .toSet();
 
     expect(
       entries,
-      hasLength(303),
-      reason: 'The THREE registry parser drifted.',
+      hasLength(304),
+      reason: '303 official examples + the custom cinematic showcase.',
     );
     expect(
       widgetIds,

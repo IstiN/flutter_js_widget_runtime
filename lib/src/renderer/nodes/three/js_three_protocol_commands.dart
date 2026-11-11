@@ -646,7 +646,8 @@ final class JsThreeLightUpsert extends JsThreeCommand {
 }
 
 final class JsThreeSubmitFrame extends JsThreeCommand {
-  const JsThreeSubmitFrame._({
+  // Not const: batchSequence is stamped per envelope at decode-apply time.
+  JsThreeSubmitFrame._({
     required this.sceneId,
     required this.cameraId,
     required this.backgroundR,
@@ -692,6 +693,10 @@ final class JsThreeSubmitFrame extends JsThreeCommand {
     this.frameFlags = 3,
     this.frameStartClearStencil = true,
   }) : super._(8);
+
+  /// Envelope sequence this frame was decoded from. Frames of one JS tick
+  /// share the value, letting the pump drop whole superseded ticks.
+  int batchSequence = 0;
 
   final int sceneId;
   final int cameraId;

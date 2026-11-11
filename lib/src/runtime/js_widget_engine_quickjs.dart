@@ -5,6 +5,7 @@ import 'package:flutter/foundation.dart';
 
 import 'package:js_widget_runtime/src/defaults/vm_default_handlers.dart';
 import 'package:js_widget_runtime/src/model/js_runtime_config.dart';
+import 'package:js_widget_runtime/src/renderer/nodes/three/three_morph_native.dart';
 import 'package:js_widget_runtime/src/renderer/nodes/three/three_skinning_native.dart';
 import 'package:js_widget_runtime/src/runtime/js_widget_bootstrap.dart';
 import 'package:js_widget_runtime/src/runtime/js_widget_bridge.dart';
@@ -300,6 +301,13 @@ class QuickjsWidgetEngineBackend
       // runs in QuickJS (16k-vertex rigs cost ~14ms/frame there).
       rt.registerHostBytesFn('__jsrSkinBytes', (name, data) {
         if (name == 'three.skin') applyThreeSkinningPacket(data);
+      });
+      // CPU morph-target fast lane: same in-place packet contract as the
+      // skinning lane. facecap-style rigs (52 ARKit blendshapes) cost
+      // ~2.2ms/frame in the QuickJS blend loop; the Dart blend is >10x
+      // cheaper and bit-identical (same arithmetic, same packet layout).
+      rt.registerHostBytesFn('__jsrMorphBytes', (name, data) {
+        if (name == 'three.morph') applyThreeMorphPacket(data);
       });
     }
   }

@@ -46,6 +46,8 @@ class MainFlutterWindow: NSWindow {
     self.setFrame(windowFrame, display: true)
 
     RegisterGeneratedPlugins(registry: flutterViewController)
+    Angle1bTexturePlugin.register(
+      with: flutterViewController.registrar(forPlugin: "Angle1bTexturePlugin"))
     configurePointerLock(flutterViewController)
     configureCamera(flutterViewController)
 

@@ -75,6 +75,8 @@ final class JsThreeApplyResult {
 }
 
 final class _ApplyBatch {
+  _ApplyBatch(this.sequence);
+  final int sequence;
   final List<JsThreeCommand> changes = <JsThreeCommand>[];
   var shadowChanged = false;
   var unchanged = 0;
@@ -301,7 +303,108 @@ final class JsThreeSurfaceState implements JsThreeFrameResources {
     return _pendingFrameViews.removeAt(0);
   }
 
+  /// Pops the oldest pending frame TOGETHER with its planning snapshot so the
+  /// two queues stay in lockstep. The GPU pump previously drained only the
+  /// views, stranding frames in [takePendingFrame]'s queue: pendingFrameCount
+  /// never reached zero, every later pump built an empty request and the
+  /// surface spun in a microtask loop that starved the port (no presents, no
+  /// envelopes). A desynced queue falls back to a fresh snapshot of the
+  /// popped frame.
+  ({JsThreeSubmitFrame frame, JsThreeFramePlanView view})?
+  takePendingFrameWithView() {
+    if (_pendingFrames.isEmpty) return null;
+    final frame = _pendingFrames.removeAt(0);
+    final view = _pendingFrameViews.isEmpty
+        ? JsThreeFramePlanView.snapshot(this, frame, const [])
+        : _pendingFrameViews.removeAt(0);
+    return (frame: frame, view: view);
+  }
+
   int get pendingFrameViewCount => _pendingFrameViews.length;
+
+  var _droppedStaleFrameCount = 0;
+  int get droppedStaleFrameCount => _droppedStaleFrameCount;
+
+  /// Drops pending frames whose whole envelope tick is superseded by the
+  /// newest pending tick. Multi-pass composer widgets render ~15 frames per
+  /// JS tick; when the pump lags the producer (120 Hz ticks vs ~30 ms pump
+  /// batches of queued ticks), older TICKS accumulated in the queue and were
+  /// rendered in full just to be over-presented — 84 presents drained ~3600
+  /// queued frames (measured 1117 coalesced drops + starved presents,
+  /// presentedFps pinned at vsync/3 on the bloom chain). The newest tick of
+  /// an offscreen composer chain is visually self-sufficient, so an older
+  /// batch is dropped only when it (a) ends with a surface present — its
+  /// presentation is obsolete — and (b) every render target it wrote is
+  /// rewritten by the newest batch. Ticks writing targets the newest tick
+  /// does not refresh (scene-once + HUD-every-tick cadences) are kept.
+  int retainLatestThreeBatch() {
+    if (_pendingFrames.length < 2) return 0;
+    final newestBatch = _pendingFrames.last.batchSequence;
+    var start = _pendingFrames.length - 1;
+    while (start > 0 && _pendingFrames[start - 1].batchSequence == newestBatch) {
+      start--;
+    }
+    if (start == 0) return 0;
+    var newestSurface = false;
+    final newestTargets = <int>{};
+    for (var i = start; i < _pendingFrames.length; i++) {
+      final frame = _pendingFrames[i];
+      if (frame.renderTargetId == 0) {
+        newestSurface = true;
+      } else {
+        newestTargets.add(frame.renderTargetId);
+      }
+    }
+    if (!newestSurface) return 0;
+    var dropped = 0;
+    final keptFrames = <JsThreeSubmitFrame>[];
+    final keptViews = <JsThreeFramePlanView>[];
+    var index = 0;
+    while (index < start) {
+      final batch = _pendingFrames[index].batchSequence;
+      var end = index;
+      var surface = false;
+      final targets = <int>{};
+      while (end < start && _pendingFrames[end].batchSequence == batch) {
+        final frame = _pendingFrames[end];
+        if (frame.renderTargetId == 0) {
+          surface = true;
+        } else {
+          targets.add(frame.renderTargetId);
+        }
+        end++;
+      }
+      final superseded = surface && newestTargets.containsAll(targets);
+      if (superseded) {
+        dropped += end - index;
+      } else {
+        // takePendingFrame() (canvas2d-style consumers) pops frames without
+        // their views, so the two queues can desync; clamp to stay safe.
+        keptFrames.addAll(_pendingFrames.getRange(index, end));
+        keptViews.addAll(_pendingFrameViews.getRange(
+          index,
+          end.clamp(0, _pendingFrameViews.length),
+        ));
+      }
+      index = end;
+    }
+    if (dropped == 0) return 0;
+    keptFrames.addAll(_pendingFrames.getRange(start, _pendingFrames.length));
+    if (start < _pendingFrameViews.length) {
+      keptViews.addAll(_pendingFrameViews.getRange(
+        start,
+        _pendingFrames.length.clamp(0, _pendingFrameViews.length),
+      ));
+    }
+    _pendingFrames
+      ..clear()
+      ..addAll(keptFrames);
+    _pendingFrameViews
+      ..clear()
+      ..addAll(keptViews);
+    _droppedStaleFrameCount += dropped;
+    return dropped;
+  }
 
   int get geometryUploadCount => _geometryUploadCount;
   int get textureUploadCount => _textureUploadCount;
@@ -371,7 +474,7 @@ extension _JsThreeSurfaceStateOperations on JsThreeSurfaceState {
 
   JsThreeApplyResult _apply(JsThreeR1Stream stream, int sequence) {
     _validateApplication(stream);
-    final batch = _ApplyBatch();
+    final batch = _ApplyBatch(sequence);
     for (final command in stream.commands) {
       _applyCommand(command, batch);
     }
@@ -528,6 +631,7 @@ extension _JsThreeSurfaceStateOperations on JsThreeSurfaceState {
   }
 
   void _recordFrame(JsThreeSubmitFrame frame, _ApplyBatch batch) {
+    frame.batchSequence = batch.sequence;
     _currentFrameStencilClears = List.unmodifiable(_pendingStencilClears);
     _pendingStencilClears.clear();
     if (_submitFrame(frame)) batch.coalesced++;

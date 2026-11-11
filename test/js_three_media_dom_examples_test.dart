@@ -32,7 +32,9 @@ Future<(ThreeQuickjsExampleHarness, ThreeDrawPlan)> _render(
   }
   await harness.pumpUntil(
     tester,
-    (state, plan) => state.submittedFrameCount >= 3 && plan.draws.isNotEmpty,
+    // Per-task envelope batching counts one submit per JS task, not per
+    // sub-render; >=2 still proves frames flow through the composer.
+    (state, plan) => state.submittedFrameCount >= 2 && plan.draws.isNotEmpty,
     attempts: 80,
   );
   await tester.runAsync(() => Future<void>.delayed(const Duration(seconds: 2)));

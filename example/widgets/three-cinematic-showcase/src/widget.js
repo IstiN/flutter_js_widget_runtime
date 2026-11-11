@@ -12,7 +12,9 @@ import { createShowcaseScene, updateShowcaseScene } from './scene.js';
 
   var state = {
     frame: 0,
-    fps: 24,
+    // Presentation default: the owner bar asks for >=60 presented fps. The
+    // 24 fps 'draft' cinematic preset stays available via the fps chips.
+    fps: 60,
     shutter: 0.5,
     samples: 1,
     preset: 'draft',

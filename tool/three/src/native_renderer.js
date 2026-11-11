@@ -99,6 +99,20 @@ function attributeContentHash(array) {
   if (!array || !array.length) return 0;
   let hash = 0x811c9dc5;
   const n = array.length;
+  // Exact float32 bits when the storage is a 4-byte typed array: the previous
+  // `array[i] | 0` truncation mapped EVERY sub-1.0 element to 0, so fractional
+  // vertex edits (the common animated-geometry case — positions in the unit
+  // cube) produced an unchanged hash and the frame skipped a REQUIRED
+  // re-upload (stale geometry on screen).
+  if (array.BYTES_PER_ELEMENT === 4 && array.buffer instanceof ArrayBuffer &&
+      array.byteOffset % 4 === 0) {
+    const words = new Uint32Array(array.buffer, array.byteOffset, array.length);
+    for (let i = 0; i < n; i++) {
+      hash ^= words[i];
+      hash = (hash * 0x01000193) | 0;
+    }
+    return hash >>> 0;
+  }
   for (let i = 0; i < n; i++) {
     hash ^= array[i] | 0;
     hash = (hash * 0x01000193) | 0;
@@ -395,6 +409,17 @@ function uvTransformElements(texture) {
   if (!texture.isRenderTargetTexture) return elements;
   const e = elements;
   return [e[0], -e[1], e[2], e[3], -e[4], e[5], e[6], 1 - e[7], e[8]];
+}
+
+// Snapshot-tier companion of uvTransformElements: both null (identity) or
+// element-wise equal. Arrays are the ones produced by uvTransformElements.
+function uvElementsEqual(a, b) {
+  if (a === b) return true;
+  if (a === null || b === null || a.length !== b.length) return false;
+  for (let i = 0; i < a.length; i++) {
+    if (a[i] !== b[i]) return false;
+  }
+  return true;
 }
 
 function materialKind(material) {
@@ -1635,6 +1660,8 @@ export class JsrWebGLRenderer {
     this._animationLoop = null;
     this._animationHandle = null;
     this._animationBatch = null;
+    // Pending per-task envelope batch (see _emit); null outside a task.
+    this._renderBatch = null;
     this._pendingDisposals = [];
     this._resources = new Map();
     this._renderTargets = new Map();
@@ -1661,7 +1688,12 @@ export class JsrWebGLRenderer {
     this._canvasRefreshHandle = null;
     this._adaptedLineDraws = new WeakMap();
     this._adaptedShaderDraws = new WeakMap();
+    // Per-source-material bounded-shader lowering cache (see _adaptShaderDraw).
+    this._adaptedBoundedShaderDraws = new WeakMap();
     this._batchedMeshProxies = new WeakMap();
+    this._nodeFast = new WeakMap();
+    this._frameGeometryGate = new Map();
+    this._geometryGateStamp = new WeakMap();
     this._lastScene = null;
     this._lastCamera = null;
     this._state = canvas._r1State || (canvas._r1State = {
@@ -2458,8 +2490,6 @@ export class JsrWebGLRenderer {
       material.envMap = this._sceneEnvironment;
       material._r1EnvFromScene = true;
     }
-    const kind = material._r1NativeKind === 'anaglyph' ? 11 : materialKind(material);
-    validateMaterial(material);
     const id = resourceId(material);
     // v8 stencil tail (null for upstream-default stencil state). Computed
     // before the frame cache so per-frame stencil activity tracking stays
@@ -2468,6 +2498,15 @@ export class JsrWebGLRenderer {
     if (stencil) this._frameStencilActivity = true;
     const frameCached = this._frameMaterials.get(id);
     if (frameCached !== undefined) return frameCached;
+    // Per-material snapshot tier: when every signature input of a previously
+    // ensured material is unchanged, skip materialKind()/validateMaterial()
+    // and the full texture-scan + 40-element signature join. This is the
+    // dominant per-visible-mesh cost in many-mesh scenes (every frustum-
+    // visible mesh re-ensures its material each frame); any changed input
+    // falls through to the full body, which revalidates and emits the exact
+    // same command as before — rendered results identical.
+    const kind = material._r1NativeKind === 'anaglyph' ? 11 : materialKind(material);
+    validateMaterial(material);
     this._listen(material, 'materials', this._state.materials, id);
     let shaderMap = material.map || null;
     if (material._r1ShaderTextures && shaderMap?.renderTarget === this._renderTarget) {
@@ -2542,6 +2581,7 @@ export class JsrWebGLRenderer {
     this._frameMaterials.set(id, id);
     return id;
   }
+
 
   _resolveClipping(material, commands) {
     const localPlanes = this.localClippingEnabled && Array.isArray(material.clippingPlanes)
@@ -3544,21 +3584,37 @@ export class JsrWebGLRenderer {
         uniforms.amplitude && String(material.vertexShader).includes('amplitude')) kind = 'tessellation';
     if (!kind) {
       const signature = boundedShaderSignature(material);
-      const previous = this._adaptedShaderDraws.get(object);
-      if (previous && previous.kind === 'bounded' && previous.source === source &&
-          previous.sourceMaterial === material && previous.signature === signature) {
+      // Bounded-pass materials are keyed by SOURCE MATERIAL, not by the
+      // drawing object: a postprocessing composer reuses ONE FullScreenQuad
+      // mesh across every sub-pass, cycling highPass/blur/composite/blend
+      // materials through the same node each render call. Keying by object
+      // evicted and re-lowered a fresh material per pass per tick (~14
+      // material+geometry upserts per presented frame in the bloom chain).
+      // Keyed by material, each pass's lowering is computed once and its
+      // uniform-texture signature (boundedShaderSignature includes the bound
+      // texture ids) keeps readBuffer/writeBuffer rotation exact — two
+      // flip-flopping entries per pass material, both stable. Entries are
+      // never disposed (the same entry is reused on alternating ticks);
+      // growth is bounded by the per-material signature cap below.
+      let entries = this._adaptedBoundedShaderDraws.get(material);
+      if (entries === undefined) {
+        entries = new Map();
+        this._adaptedBoundedShaderDraws.set(material, entries);
+      }
+      const previous = entries.get(signature);
+      if (previous !== undefined && previous.source === source) {
         return { geometry: previous.geometry, material: previous.material };
       }
       const adapted = adaptedShaderDraw(object, this._frameViewMatrix || null);
       if (!adapted) return null;
-      if (previous && previous.kind === 'bounded') {
-        if (previous.geometry !== source) previous.geometry.dispose();
-        previous.material.dispose();
-      }
-      this._adaptedShaderDraws.set(object, {
-        kind: 'bounded', source, sourceMaterial: material, signature,
+      entries.set(signature, {
+        source, sourceMaterial: material, signature,
         material: adapted.material, geometry: adapted.geometry
       });
+      if (entries.size > 8) {
+        const oldest = entries.keys().next().value;
+        entries.delete(oldest);
+      }
       return adapted;
     }
     const amplitude = kind === 'tessellation' || kind === 'customLine' ? Number(uniforms.amplitude.value) : 0;
@@ -4068,6 +4124,26 @@ export class JsrWebGLRenderer {
 
   _ensureNode(object, parentId, commands, drawVisible) {
     const id = resourceId(object);
+    // Fast path for many-object scenes (e.g. webgl_interactive_cubes' 2000
+    // unit boxes with one material each): an unchanged plain mesh reuses the
+    // cached geometry/material ids and draw descriptor instead of re-running
+    // the full resource lanes, which cost tens of microseconds per unchanged
+    // node per frame in QuickJS. Validation contract:
+    //  - object/geometry/material identity and the cheap per-node flags are
+    //    re-read every frame;
+    //  - matrixWorld is compared numerically against the validated copy;
+    //  - geometry content is validated once per frame per geometry through
+    //    upstream's own invalidation model (attribute/index version bumps,
+    //    drawRange), so bumped content still takes the full path;
+    //  - frustum-VISIBLE fast nodes still run the full material ensure, so
+    //    material content changes (e.g. the hover emissive swap) re-emit;
+    //  - frustum-CULED fast nodes skip the resource lanes entirely (they
+    //    draw nothing this frame; the first unculed frame revalidates before
+    //    any draw references them).
+    if (drawVisible && !this._sceneOverrideMaterial) {
+      const fast = this._fastNode(object, id, parentId, commands);
+      if (fast) return fast;
+    }
     const materialVisible = !object.material || object.material.visible !== false;
     const visible = !!object.visible && materialVisible;
     const batched = !!object.isInstancedMesh || !!(object.isMesh && Array.isArray(object.material));
@@ -4111,6 +4187,10 @@ export class JsrWebGLRenderer {
     let draw = null;
     let batch = null;
     let rangeLane = false;
+    // Set only when the plain single-material triangle-mesh lane produced a
+    // draw without a shader/line adaptation — the fast-lane eligibility
+    // marker for _writeFastNode below.
+    let plainLaneDraw = null;
     if (object.isBatchedMesh) {
       adaptationWarn(object, '_r1BatchedMeshWarned',
         'R1 retains bounded BatchedMesh instances as per-geometry instanced draws; LOD selection and per-range sorting are omitted.');
@@ -4204,6 +4284,7 @@ export class JsrWebGLRenderer {
         geometryId = geometry.id;
         materialId = this._ensureMaterial(material, commands);
         draw = { primitive: wireframe ? 1 : primitive, count: wireframe ? geometry.wireDrawCount : geometry.drawCount };
+        if (!adapted) plainLaneDraw = draw;
       }
     } else if (object.isLight || object.isCamera) {
       return null;
@@ -4211,9 +4292,141 @@ export class JsrWebGLRenderer {
       unsupported('objectType', object.type);
     }
     if (!batched && !rangeLane) this._removeBatch(id, commands);
+    if (!batched && !rangeLane && plainLaneDraw !== null) {
+      this._writeFastNode(object, id, parentId, visible, plainLaneDraw);
+    }
     this._updateNode(object, id, parentId, geometryId, materialId, visible, objectKind, commands, spriteCenter);
     if (batch) draw = this._ensureBatch(object, id, batch.geometry, batch.materials, commands, batch.parts);
     return { id, draw };
+  }
+
+  /// Per-frame geometry validation gate (shared across the meshes that
+  /// reference the same geometry): the gate is eligible only for plain
+  /// non-morph non-special geometries, and "clean" means upstream's own
+  /// content invalidation signals (attribute/index versions plus drawRange)
+  /// are unchanged since the last validation.
+  _geometryGate(geometry) {
+    let gate = this._frameGeometryGate.get(geometry);
+    if (gate !== undefined) return gate;
+    const position = geometry.attributes && geometry.attributes.position;
+    const morphs = geometry.morphAttributes;
+    const eligible = !!(position && !position.isGLBufferAttribute &&
+      (!morphs || (!(morphs.position && morphs.position.length) &&
+        !(morphs.normal && morphs.normal.length))) &&
+      !geometry._r1TimeColor && !geometry._r1Displaced && !geometry._r1Instanced);
+    let clean = false;
+    if (eligible) {
+      const snapshot = this._geometryGateStampSnapshot(geometry);
+      const persisted = this._geometryGateStamp.get(geometry);
+      clean = !!persisted && persisted.rangeStart === snapshot.rangeStart &&
+        persisted.rangeCount === snapshot.rangeCount &&
+        persisted.index === snapshot.index &&
+        persisted.position === snapshot.position &&
+        persisted.normal === snapshot.normal &&
+        persisted.uv === snapshot.uv &&
+        persisted.color === snapshot.color &&
+        persisted.indexVersion === snapshot.indexVersion &&
+        persisted.positionVersion === snapshot.positionVersion &&
+        persisted.normalVersion === snapshot.normalVersion &&
+        persisted.uvVersion === snapshot.uvVersion &&
+        persisted.colorVersion === snapshot.colorVersion;
+      this._geometryGateStamp.set(geometry, snapshot);
+    }
+    gate = { eligible, clean };
+    this._frameGeometryGate.set(geometry, gate);
+    return gate;
+  }
+
+  /// Current content-invalidation stamp of a geometry (attribute identity +
+  /// upstream versions + drawRange). Persisted after every full validation
+  /// and compared per frame by the fast-lane gate.
+  _geometryGateStampSnapshot(geometry) {
+    const range = geometry.drawRange;
+    const index = geometry.index;
+    const attrs = geometry.attributes;
+    return {
+      rangeStart: range ? range.start : 0,
+      rangeCount: range ? range.count : Infinity,
+      index,
+      position: attrs.position, normal: attrs.normal, uv: attrs.uv, color: attrs.color,
+      indexVersion: index ? index.version : 0,
+      positionVersion: attrs.position ? attrs.position.version : 0,
+      normalVersion: attrs.normal ? attrs.normal.version : 0,
+      uvVersion: attrs.uv ? attrs.uv.version : 0,
+      colorVersion: attrs.color ? attrs.color.version : 0
+    };
+  }
+
+  /// Returns the cached fast-lane result for an unchanged plain mesh, or
+  /// null when anything must take the full validation path below.
+  _fastNode(object, id, parentId, commands) {
+    const dbg = globalThis.__JSR_R1PROBE;
+    const miss = reason => { if (dbg) dbg['miss_' + reason] = (dbg['miss_' + reason] || 0) + 1; return null; };
+    const rec = this._nodeFast.get(object);
+    if (rec === undefined) return miss('noRec');
+    const material = object.material;
+    if (!material || Array.isArray(material) || material !== rec.material) return miss('material');
+    if (object.geometry !== rec.geometry || !object.isMesh ||
+        object.isInstancedMesh || object.isBatchedMesh || object.isSkinnedMesh ||
+        (object.morphTargetInfluences && object.morphTargetInfluences.length)) return miss('lane');
+    const visible = object.visible && material.visible !== false;
+    if (rec.parentId !== parentId || rec.visible !== visible ||
+        rec.frustumCulled !== (object.frustumCulled === true) ||
+        rec.renderOrder !== object.renderOrder ||
+        rec.castShadow !== (object.castShadow === true) ||
+        rec.receiveShadow !== (object.receiveShadow === true) ||
+        rec.wireframe !== (material.wireframe === true)) return miss('flags');
+    const gate = this._geometryGate(object.geometry);
+    if (!gate || !gate.clean) return miss('gate');
+    const elements = object.matrixWorld.elements;
+    const saved = rec.matrix;
+    for (let i = 0; i < 16; i++) {
+      if (elements[i] !== saved[i]) return miss('matrix');
+    }
+    if (dbg) dbg.hits = (dbg.hits || 0) + 1;
+    const culed = object.frustumCulled && !_frustum.intersectsObject(object);
+    if (culed) {
+      // The mesh draws nothing this frame, but the historical full-ensure
+      // path raised the frame stencil flag for stencil-configured materials
+      // regardless of culling; keep that byte behavior.
+      if (material.stencilWrite) this._frameStencilActivity = true;
+    } else {
+      // Material content is re-validated whenever the node can actually
+      // draw (identity and cheap flags above already passed).
+      this._ensureMaterial(material, commands);
+    }
+    return { id, draw: rec.draw, culedFast: culed };
+  }
+
+  /// Records the fast-lane entry for a successfully validated plain mesh
+  /// (called from the full path only). The matrix copy is reused across
+  /// frames to keep the fast path allocation-free.
+  _writeFastNode(object, id, parentId, visible, draw) {
+    const material = object.material;
+    if (!material || Array.isArray(material) || material._r1ProceduralTime) return;
+    const influences = object.morphTargetInfluences;
+    if (influences && influences.length) return;
+    const saved = this._nodeFast.get(object);
+    const matrix = saved && saved.matrix || new Array(16);
+    const elements = object.matrixWorld.elements;
+    for (let i = 0; i < 16; i++) matrix[i] = elements[i];
+    this._nodeFast.set(object, {
+      parentId,
+      visible,
+      frustumCulled: object.frustumCulled === true,
+      renderOrder: object.renderOrder,
+      castShadow: object.castShadow === true,
+      receiveShadow: object.receiveShadow === true,
+      geometry: object.geometry,
+      material,
+      draw,
+      wireframe: material.wireframe === true,
+      matrix
+    });
+    // The full path just validated this geometry against the Dart-side
+    // state; persist its gate stamp so the very next frame can hit.
+    this._geometryGateStamp.set(object.geometry,
+      this._geometryGateStampSnapshot(object.geometry));
   }
 
   _objectKind(object) {
@@ -4489,9 +4702,42 @@ export class JsrWebGLRenderer {
       this._animationBatch.commands.push(...commands);
       return;
     }
+    if (globalThis.__JSR_NO_RENDER_BATCH) {
+      const sequence = this._state.sequence + 1;
+      this._state.sequence = sequence;
+      this._sendCommands(commands, sequence);
+      return;
+    }
+    // Per-task envelope batching: consecutive renderer.render() calls inside
+    // ONE JS task (a composer tick runs up to ~15 sub-pass renders) used to
+    // cross the bridge as 15 separate envelopes, each carrying a frame the
+    // Dart pump queued individually. At 120 Hz that is ~1800 frame-submits/s,
+    // which overflowed the host's pending-frame queue (measured 1132
+    // coalesced/dropped frames vs 84 presented in 2 s ≈ 39.9 fps ceiling on
+    // three-postprocessing-unreal-bloom). Accumulating within the task and
+    // flushing once on the task end microtask gives the decoder the SAME
+    // per-frame command sequence in one envelope: one bridge crossing, one
+    // state apply, one pump per tick. Single-render widgets flush one
+    // envelope per task exactly as before — byte-identical content and
+    // pacing. A synchronous flush remains available for disposal ordering.
+    if (this._renderBatch === null) {
+      this._renderBatch = { commands: [] };
+      // QuickJS on this engine has no queueMicrotask global; the runtime's
+      // established microtask pattern is a resolved-promise job (see
+      // _scheduleCanvasRefresh). Both flush once per task after sync code.
+      Promise.resolve().then(() => this._flushRenderBatch());
+    }
+    this._renderBatch.commands.push(...commands);
+  }
+
+  _flushRenderBatch() {
+    const batch = this._renderBatch;
+    if (batch === null) return;
+    this._renderBatch = null;
+    if (batch.commands.length === 0) return;
     const sequence = this._state.sequence + 1;
     this._state.sequence = sequence;
-    this._sendCommands(commands, sequence);
+    this._sendCommands(batch.commands, sequence);
   }
 
   _frameTargetSpec(commands) {
@@ -4631,6 +4877,7 @@ export class JsrWebGLRenderer {
     this._frameMaterials = new Map();
     this._frameTextures = new Map();
     this._frameMorphKeys = new Map();
+    this._frameGeometryGate.clear();
     this._frameStencilActivity = false;
     const commands = [];
     this._walkCommands = commands;
@@ -4649,8 +4896,6 @@ export class JsrWebGLRenderer {
     const renderedSceneId = resourceId(scene);
     let shadowLight = null;
     const retiredNodes = [];
-    const parents = new Map();
-    const drawVisibility = new Map();
     let draws = 0;
     let triangles = 0;
     let lines = 0;
@@ -4660,13 +4905,19 @@ export class JsrWebGLRenderer {
     this._ensureBackgroundNode(scene, camera, commands, seenNodes);
     _frustumMatrix.multiplyMatrices(camera.projectionMatrix, camera.matrixWorldInverse);
     _frustum.setFromProjectionMatrix(_frustumMatrix);
+    // Per-walk visibility/parent-id ride short-lived expando fields on the
+    // objects themselves instead of two Maps (2000+ nodes/frame): traverse is
+    // pre-order, so a child always reads its parent's just-written values, and
+    // unwalked parents fall back to visible/root (the same defaults the Maps
+    // had). Values are rewritten every frame for every walked node.
     scene.traverseVisible(object => {
       // THREE.LOD selects the active level per frame; upstream WebGLRenderer
       // does the same in projectObject before visibility is flattened.
       if (object.isLOD) object.update(camera);
-      const parentVisible = object.parent ? (drawVisibility.get(object.parent) ?? true) : true;
+      const op = object.parent;
+      const parentVisible = op ? (op.__r1Vis === undefined ? true : op.__r1Vis) : true;
       const visibleHere = parentVisible && !!object.visible && (!object.material || object.material.visible !== false);
-      drawVisibility.set(object, visibleHere);
+      object.__r1Vis = visibleHere;
       if (object.isLight) {
         if (object.visible) {
           const lightId = this._ensureLight(object, commands);
@@ -4678,50 +4929,55 @@ export class JsrWebGLRenderer {
             (object.isDirectionalLight || object.isSpotLight || object.isPointLight || object.isSunLight)) {
           shadowLight = object;
         }
-        parents.set(object, parents.get(object.parent) || 0);
+        object.__r1Pid = op ? (op.__r1Pid || 0) : 0;
         return;
       }
-      if (object.isCamera) { parents.set(object, parents.get(object.parent) || 0); return; }
-      const parentId = parents.get(object.parent) || 0;
+      if (object.isCamera) { object.__r1Pid = op ? (op.__r1Pid || 0) : 0; return; }
+      const parentId = op ? (op.__r1Pid || 0) : 0;
       if (!visibleHere) {
         // Hidden source/reference meshes must not become permanent zero-draw
         // native nodes. Existing nodes retire once below; re-showing recreates.
-        parents.set(object, parentId);
+        object.__r1Pid = parentId;
         return;
       }
-      const result = this._ensureNode(object, parentId, commands, visibleHere);
-      if (result) {
-        seenNodes.add(result.id);
-        const nodeEntry = this._state.nodes.get(result.id);
+      const result = !this._sceneOverrideMaterial
+        ? this._fastNode(object, resourceId(object), parentId, commands)
+        : null;
+      const node = result || this._ensureNode(object, parentId, commands, visibleHere);
+      if (node) {
+        seenNodes.add(node.id);
+        const nodeEntry = this._state.nodes.get(node.id);
         if (nodeEntry) nodeEntry.sceneId = renderedSceneId;
-        parents.set(object, result.id);
+        object.__r1Pid = node.id;
         // Upstream sprites never cast shadows, so they stay out of the
         // shadow scan even with a user-set castShadow flag.
-        if (result.draw && object.castShadow && !object.isSprite) shadowCandidates.push(object);
-        const culled = result.draw && object.frustumCulled && !_frustum.intersectsObject(object);
-        if (culled) culledNodeIds.push(result.id);
+        if (node.draw && object.castShadow && !object.isSprite) shadowCandidates.push(object);
+        const culled = node.draw && (node.culledFast !== undefined
+          ? node.culledFast
+          : (object.frustumCulled && !_frustum.intersectsObject(object)));
+        if (culled) culledNodeIds.push(node.id);
         // v8: upstream calls object.onAfterRender after renderBufferDirect —
         // i.e. only for unculled draws. Skip the upstream no-op prototype
         // method so untouched scenes never enter the callback path.
-        if (!culled && result.draw && object.onAfterRender &&
+        if (!culled && node.draw && object.onAfterRender &&
             object.onAfterRender !== Object3D.prototype.onAfterRender) {
-          this._runOnAfterRender(object, scene, camera, commands, result.id);
+          this._runOnAfterRender(object, scene, camera, commands, node.id);
         }
-        if (!culled && result.draw && result.draw.parts) {
-          if (result.draw.instanceCount > 0) {
-            for (const part of result.draw.parts) {
+        if (!culled && node.draw && node.draw.parts) {
+          if (node.draw.instanceCount > 0) {
+            for (const part of node.draw.parts) {
               if (part.count === 0) continue;
               draws++;
-              triangles += part.count / 3 * result.draw.instanceCount;
+              triangles += part.count / 3 * node.draw.instanceCount;
             }
           }
-        } else if (!culled && result.draw) {
+        } else if (!culled && node.draw) {
           draws++;
-          if (result.draw.primitive === 0) triangles += result.draw.count / 3;
-          else if (result.draw.primitive === 1) lines += result.draw.count / 2;
-          else points += result.draw.count;
+          if (node.draw.primitive === 0) triangles += node.draw.count / 3;
+          else if (node.draw.primitive === 1) lines += node.draw.count / 2;
+          else points += node.draw.count;
         }
-      } else parents.set(object, parentId);
+      } else object.__r1Pid = parentId;
     });
     for (const [id, node] of this._state.nodes) {
       if (!seenNodes.has(id) && node.sceneId === renderedSceneId) {
@@ -4815,7 +5071,10 @@ export class JsrWebGLRenderer {
     for (const [id] of this._state.lights) dispose(id, RESOURCE_KIND.light);
     for (const [id] of this._state.cameras) dispose(id, RESOURCE_KIND.camera);
     commands.push(disposeSurfaceCommand());
-    try { this._emit(commands); } finally {
+    try {
+      this._renderBatch = null; // dispose crosses synchronously, never batched
+      this._emit(commands);
+    } finally {
       this._unlistenAll();
       this._state.geometries.clear(); this._state.textures.clear(); this._state.materials.clear();
       this._state.nodes.clear(); this._state.batches.clear(); this._state.lights.clear(); this._state.cameras.clear();
