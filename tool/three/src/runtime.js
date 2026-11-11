@@ -197,6 +197,26 @@ function installOfflineFetch() {
           });
         });
       }
+      // R1 v8: jsr-blob:<n> URLs are runtime-registered object URLs (the
+      // Blob/createObjectURL facade in native_entry.js feeds addon loaders
+      // such as ImageBitmapLoader, whose GLB embedded-image path fetches the
+      // blob URL). They have a scheme so the relative branch above misses
+      // them; resolve them through the same asset store instead of falling
+      // through to nativeFetch, which does not exist in the QuickJS sandbox
+      // and rejected silently — losing every GLB embedded texture
+      // (webgl_animation_multiple Soldier base color).
+      if (/^jsr-blob:/.test(url)) {
+        const runtime = activeRuntime;
+        if (!runtime) return Promise.reject(new Error('three.assetFailure: THREE runtime is not initialized'));
+        return runtime.loadAsset(url).then(record => new ROOT.Response(record.bytes, {
+          status: 200,
+          url,
+          headers: {
+            'Content-Type': record.mime || 'application/octet-stream',
+            'Content-Length': String(record.bytes.length)
+          }
+        }));
+      }
       if (nativeFetch) return nativeFetch(input, init);
       return Promise.reject(new Error('three.assetFailure: network fetch is unavailable for ' + url));
     };

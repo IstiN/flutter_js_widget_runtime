@@ -43,62 +43,47 @@
       "sha256": "05acd4e6b535799096ff8d331cffbee9945c62b54e4c3994b649326a6c5647ac"
     }
   },
-  "assetDiscovery": [
-    {
-      "url": "textures/cube/pisa/nx.png",
-      "output": "textures__cube__pisa__nx.png",
-      "mime": "image/png",
-      "diagnostic": "auto:textures/cube/pisa/nx.png",
-      "sha256": "cf01cfc9a168e7c71bf66d0bed8dcad3a4fd353f528e73caaba62d1a097c49a1",
-      "discovered": true,
-      "rawRgba": true
-    },
-    {
-      "url": "textures/cube/pisa/ny.png",
-      "output": "textures__cube__pisa__ny.png",
-      "mime": "image/png",
-      "diagnostic": "auto:textures/cube/pisa/ny.png",
-      "sha256": "61a94678f04f9853509d7a864fd839cf688c6705ee9df02fc4e42bfca858270b",
-      "discovered": true,
-      "rawRgba": true
-    },
-    {
-      "url": "textures/cube/pisa/nz.png",
-      "output": "textures__cube__pisa__nz.png",
-      "mime": "image/png",
-      "diagnostic": "auto:textures/cube/pisa/nz.png",
-      "sha256": "e5c1774f9a41d8124f8f223c9810e95d277f256104f8aee57ad2e5ef73a64424",
-      "discovered": true,
-      "rawRgba": true
-    },
-    {
-      "url": "textures/cube/pisa/px.png",
-      "output": "textures__cube__pisa__px.png",
-      "mime": "image/png",
-      "diagnostic": "auto:textures/cube/pisa/px.png",
-      "sha256": "11d859640e7da526ac0654dbfa1cc18f40dd8fc100db197730485218a7c9d24d",
-      "discovered": true,
-      "rawRgba": true
-    },
-    {
-      "url": "textures/cube/pisa/py.png",
-      "output": "textures__cube__pisa__py.png",
-      "mime": "image/png",
-      "diagnostic": "auto:textures/cube/pisa/py.png",
-      "sha256": "b34a1cec12e62327c9555ca9f82a38bea73f519915e1368fa69bbd51c82ec712",
-      "discovered": true,
-      "rawRgba": true
-    },
-    {
-      "url": "textures/cube/pisa/pz.png",
-      "output": "textures__cube__pisa__pz.png",
-      "mime": "image/png",
-      "diagnostic": "auto:textures/cube/pisa/pz.png",
-      "sha256": "bd528b739e9e0ea6c1e8627e949caa950991719069c983e8abdc3a8640039667",
-      "discovered": true,
-      "rawRgba": true
-    }
-  ],
+  "assetPolicy": {
+    "inlineMaxBytes": 0,
+    "externalAssets": [
+      {
+        "url": "textures/cube/pisa/nx.png",
+        "file": "textures__cube__pisa__nx.png",
+        "bytes": 54416,
+        "sha256": "cf01cfc9a168e7c71bf66d0bed8dcad3a4fd353f528e73caaba62d1a097c49a1"
+      },
+      {
+        "url": "textures/cube/pisa/ny.png",
+        "file": "textures__cube__pisa__ny.png",
+        "bytes": 80866,
+        "sha256": "61a94678f04f9853509d7a864fd839cf688c6705ee9df02fc4e42bfca858270b"
+      },
+      {
+        "url": "textures/cube/pisa/nz.png",
+        "file": "textures__cube__pisa__nz.png",
+        "bytes": 82807,
+        "sha256": "e5c1774f9a41d8124f8f223c9810e95d277f256104f8aee57ad2e5ef73a64424"
+      },
+      {
+        "url": "textures/cube/pisa/px.png",
+        "file": "textures__cube__pisa__px.png",
+        "bytes": 65831,
+        "sha256": "11d859640e7da526ac0654dbfa1cc18f40dd8fc100db197730485218a7c9d24d"
+      },
+      {
+        "url": "textures/cube/pisa/py.png",
+        "file": "textures__cube__pisa__py.png",
+        "bytes": 71533,
+        "sha256": "b34a1cec12e62327c9555ca9f82a38bea73f519915e1368fa69bbd51c82ec712"
+      },
+      {
+        "url": "textures/cube/pisa/pz.png",
+        "file": "textures__cube__pisa__pz.png",
+        "bytes": 86688,
+        "sha256": "bd528b739e9e0ea6c1e8627e949caa950991719069c983e8abdc3a8640039667"
+      }
+    ]
+  },
   "facade": {
     "global": "globalThis.THREE",
     "exports": [
@@ -564,8 +549,8 @@
   },
   "inputs": {
     "assets/three/jsr_three_native.js": {
-      "bytes": 846686,
-      "sha256": "ff40ded512cdd7ae9eb468e0c2e26b071c54a7c1783f7131de415a0d6e2152bf"
+      "bytes": 853327,
+      "sha256": "916da715eec55ce4753360faa479c899d3d175d320292779aa10f3b95500de12"
     },
     "assets/three/jsr_three_web.js": {
       "bytes": 859088,
@@ -582,10 +567,6 @@
     "source/examples/jsm/helpers/LightProbeHelper.js": {
       "bytes": 3663,
       "sha256": "4b4731f9e5d350bb809353cd16cf6e4c993803cae08f6ac15baa91d2560b9657"
-    },
-    "source/examples/jsm/lights/LightProbeGenerator.js": {
-      "bytes": 7728,
-      "sha256": "e609630d1f399c79dcf4a3f8063c81cb2344a0765df1ddf6335ccca3b40ffa98"
     },
     "source/examples/textures/cube/pisa/nx.png": {
       "bytes": 54416,
@@ -620,8 +601,8 @@
       "sha256": "29492424209a17a723b3b0c8e9c83995697a4c466840d1b33ba6f6ff2b7542a4"
     },
     "tool/three/src/native_entry.js": {
-      "bytes": 26368,
-      "sha256": "dac7dc374e1374499bc9e9a84593e7e1e848bfcde7bb916d7212ccd517e861d3"
+      "bytes": 30216,
+      "sha256": "fbe6ef91a4754eb7a411848d600c1cb2ece2fc23e776806bc270f98468767a76"
     },
     "tool/three_example/asset_decode.mjs": {
       "bytes": 51634,
@@ -632,8 +613,8 @@
       "sha256": "89a14e272cb1ddac5b555b4361af938764127ee069ac367a18262b8299643eca"
     },
     "tool/three_example/example_adapter.js": {
-      "bytes": 49943,
-      "sha256": "1ab349ba0361871765f4351a6fc3228fb05c93315985fbbf07644592c96ad8c4"
+      "bytes": 50501,
+      "sha256": "2a8a17b612e943585c3a55da5df5bee113da42095100f2bbbd617caf949ab057"
     },
     "tool/three_example/example_canvas2d.js": {
       "bytes": 22635,
@@ -644,8 +625,8 @@
       "sha256": "2f83bde66c35db02a16eec3db21beae0e1198e04f1b0723f9b3dbda89c6675f7"
     },
     "tool/three_example/prepare.mjs": {
-      "bytes": 344394,
-      "sha256": "2ffcfe48673c656a7ce7bb9f642782d3447c0a323fb69cf92b268bda53bb3a87"
+      "bytes": 351735,
+      "sha256": "464111fae41e7d084abb3383ba4ec1307f69f06004ab869959f066d119d02204"
     },
     "tool/three_example/stats_adapter.js": {
       "bytes": 2107,
@@ -665,6 +646,10 @@
       "bytes": 1081,
       "sha256": "8b378ebe60e2fe500158cb0ac71cb5e8b7d92953c2abcc63a0eb90499653b5bc"
     },
+    "assets.json": {
+      "bytes": 1905,
+      "sha256": "edcf29199a8b3cd2c6d15b7f7f6aa20db8be137cb5c8da3f42d20fc36ff1082d"
+    },
     "manifest.json": {
       "bytes": 366,
       "sha256": "affb8b12b0ba3782486cfa80610278390d23868d0d85c82d23073342a52b6590"
@@ -678,32 +663,32 @@
       "sha256": "b2ad73847b7c05b0d14d6e010150b4a605fb2f929d79a47aa0fe2017b243b78f"
     },
     "textures__cube__pisa__nx.png": {
-      "bytes": 262144,
-      "sha256": "ccf045013d83d1cff5ef60c795b05e30844c3905367339889d5313120f45658f"
+      "bytes": 54416,
+      "sha256": "cf01cfc9a168e7c71bf66d0bed8dcad3a4fd353f528e73caaba62d1a097c49a1"
     },
     "textures__cube__pisa__ny.png": {
-      "bytes": 262144,
-      "sha256": "b568727624cb4d3fad154891996ffd30237853b8d4da7615cb66311709f25c66"
+      "bytes": 80866,
+      "sha256": "61a94678f04f9853509d7a864fd839cf688c6705ee9df02fc4e42bfca858270b"
     },
     "textures__cube__pisa__nz.png": {
-      "bytes": 262144,
-      "sha256": "85292646e013fbf3f33c82b7bc8270765caf34255309f759dba8688dc318007d"
+      "bytes": 82807,
+      "sha256": "e5c1774f9a41d8124f8f223c9810e95d277f256104f8aee57ad2e5ef73a64424"
     },
     "textures__cube__pisa__px.png": {
-      "bytes": 262144,
-      "sha256": "bd5b727439b1b19b07040395a135b1377cfda7a33058f0e1441821792d3d4e5c"
+      "bytes": 65831,
+      "sha256": "11d859640e7da526ac0654dbfa1cc18f40dd8fc100db197730485218a7c9d24d"
     },
     "textures__cube__pisa__py.png": {
-      "bytes": 262144,
-      "sha256": "a7d0d4f2d2f13261a8e28d0b2dd7e067ce503be0abf1ca7919ab4bd0ba76e675"
+      "bytes": 71533,
+      "sha256": "b34a1cec12e62327c9555ca9f82a38bea73f519915e1368fa69bbd51c82ec712"
     },
     "textures__cube__pisa__pz.png": {
-      "bytes": 262144,
-      "sha256": "6f1ec63941eb0ed1cce40d5f9335b9ad4fa4dc285446c7b647fb412e6cee1139"
+      "bytes": 86688,
+      "sha256": "bd528b739e9e0ea6c1e8627e949caa950991719069c983e8abdc3a8640039667"
     },
     "widget.js": {
-      "bytes": 2177891,
-      "sha256": "a8f1657cfd6d2ab8a921ad9cb3f65c128bf467d5484a5ba0dc3e4c39f352f75d"
+      "bytes": 80214,
+      "sha256": "4552f270ee478301150cac1ac4eb7837732e9b939192e66ed475161fa5713b5f"
     }
   }
 }

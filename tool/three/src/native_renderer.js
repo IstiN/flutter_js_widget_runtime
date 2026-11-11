@@ -3,7 +3,7 @@ import {
   ClampToEdgeWrapping, CustomToneMapping, DataTexture, DoubleSide, DynamicDrawUsage, EquirectangularReflectionMapping, Float32BufferAttribute, FrontSide, Frustum, InstancedBufferAttribute, InstancedMesh, LinearFilter,
   LinearMipmapNearestFilter, LinearMipmapLinearFilter, LinearToneMapping, LineBasicMaterial, Matrix4, Mesh, MeshBasicMaterial, MeshLambertMaterial, MeshNormalMaterial, MeshStandardMaterial,
   MirroredRepeatWrapping, NeutralToneMapping, NearestFilter, NearestMipmapNearestFilter,
-  NearestMipmapLinearFilter, NoToneMapping, NormalBlending, CustomBlending, PointsMaterial, HalfFloatType, FloatType, IntType, RedFormat,
+  NearestMipmapLinearFilter, NoToneMapping, NormalBlending, CustomBlending, AdditiveBlending, PointsMaterial, HalfFloatType, FloatType, IntType, RedFormat,
   ReinhardToneMapping, RGBAFormat, RGBAIntegerFormat, RepeatWrapping, SRGBColorSpace, UVMapping, UnsignedByteType,
   Sphere, Vector3, Vector4, WebGLCoordinateSystem, Object3D
 } from 'three';
@@ -443,8 +443,14 @@ function materialKind(material) {
   // attachment, so the bounded RT lane — whose DepthTexture is aliased to the
   // RT color — still shows real depth structure (webgl_depth_texture).
   if (material.isMeshDepthMaterial) {
+    // R1 v8: RGBADepthPacking is tolerated — the depth-viz lane writes linear
+    // view depth into the color attachment and never samples packed RGBA, so
+    // the packing flag is irrelevant. Raising a capability error here broke
+    // BokehPass (three-postprocessing-dof), whose depth pre-pass override is
+    // RGBADepthPacked; warn once per material instead.
     if (material.depthPacking !== BasicDepthPacking) {
-      unsupported('depthPacking', 'MeshDepthMaterial supports BasicDepthPacking only');
+      adaptationWarn(material, '_r1DepthPackingWarned',
+        'R1 ignores MeshDepthMaterial.depthPacking (the depth-viz lane writes linear view depth; packed RGBA is not sampled).');
     }
     return 12;
   }
@@ -997,11 +1003,236 @@ function refreshProceduralRtt(geometry, time) {
   color.needsUpdate = true;
 }
 
+// ---------------------------------------------------------------------------
+// GPGPU display lanes (birds + protoplanet). The CPU compute kernels live in
+// degrades/gpgpu_cpu_computation.mjs (drop-in for GPUComputationRenderer);
+// these lanes turn the simulated float textures back into R1 draw packets.
+// Frames are keyed on Texture.version — the kernels bump needsUpdate every
+// compute, so a coalesced/duplicate render tick skips the rewrite entirely.
+function gpgpuFrameKey(texture) {
+  return texture ? `${texture.id}:${texture.version}` : '';
+}
+
+let _protoPointsSprite = null;
+function protoPointsSprite() {
+  if (_protoPointsSprite) return _protoPointsSprite;
+  const size = 32;
+  const data = new Uint8Array(size * size * 4);
+  for (let y = 0; y < size; y++) {
+    for (let x = 0; x < size; x++) {
+      const dx = (x + 0.5) / size - 0.5;
+      const dy = (y + 0.5) / size - 0.5;
+      const r = Math.sqrt(dx * dx + dy * dy) / 0.5;
+      const a = r < 1 ? (1 - r) * (1 - r) : 0;
+      const o = (y * size + x) * 4;
+      data[o] = 255; data[o + 1] = 255; data[o + 2] = 255;
+      data[o + 3] = Math.round(a * 255);
+    }
+  }
+  _protoPointsSprite = new DataTexture(data, size, size, RGBAFormat, UnsignedByteType);
+  _protoPointsSprite.needsUpdate = true;
+  return _protoPointsSprite;
+}
+
+function protoPointsGeometry(source, uniforms) {
+  const cached = source._r1ProtoPointsDraw;
+  if (cached) return cached;
+  const uv = source.attributes.uv;
+  const position = source.attributes.position;
+  if (!uv || !position || uv.count < position.count) return null;
+  const count = position.count;
+  const width = count > 0 ? Math.round(Math.sqrt(count)) : 0;
+  if (!width || width * width !== count) return null;
+  const geometry = new BufferGeometry();
+  geometry.setAttribute('position', new Float32BufferAttribute(new Float32Array(count * 3), 3));
+  geometry.setAttribute('color', new Float32BufferAttribute(new Float32Array(count * 3), 3));
+  geometry.setAttribute('uv', new Float32BufferAttribute(new Float32Array(count * 2), 2));
+  geometry.attributes.uv.array.set(uv.array.subarray(0, count * 2));
+  geometry.attributes.uv.needsUpdate = true;
+  // Texel index per particle from its uv (official uv = texel/(width-1)).
+  const texel = new Int32Array(count);
+  const uvArr = uv.array;
+  for (let i = 0; i < count; i++) {
+    const tx = Math.min(width - 1, Math.max(0, Math.round(uvArr[i * 2] * (width - 1))));
+    const ty = Math.min(width - 1, Math.max(0, Math.round(uvArr[i * 2 + 1] * (width - 1))));
+    texel[i] = tx + ty * width;
+  }
+  // Manual bounding sphere: particles roam the seeded disc (~±radius); the
+  // per-frame rewrite must not pay an O(N) sphere recompute.
+  geometry.boundingSphere = new Sphere(new Vector3(0, 0, 0), 2000);
+  source._r1ProtoPointsDraw = geometry;
+  geometry._r1ProtoPoints = { source, texel, count, lastFrame: '', uniforms };
+  return geometry;
+}
+
+function refreshProtoPointsGeometry(geometry, uniforms) {
+  const data = geometry._r1ProtoPoints;
+  const posTexture = uniforms.texturePosition?.value;
+  const velTexture = uniforms.textureVelocity?.value;
+  if (!data || !posTexture?.image?.data || !velTexture?.image?.data) return;
+  const frame = gpgpuFrameKey(posTexture);
+  if (frame === data.lastFrame) return;
+  data.lastFrame = frame;
+  const { texel, count } = data;
+  const posData = posTexture.image.data;
+  const velData = velTexture.image.data;
+  const positions = geometry.attributes.position.array;
+  const colors = geometry.attributes.color.array;
+  // Radial ramp: orange core → blue rim over the live particle extent.
+  let maxRadius = 1;
+  for (let i = 0; i < count; i++) {
+    const t = texel[i] * 4;
+    const m = velData[t + 3];
+    if (m <= 0) continue;
+    const r = Math.sqrt(posData[t] * posData[t] + posData[t + 2] * posData[t + 2]);
+    if (r > maxRadius) maxRadius = r;
+  }
+  const orange = [1.0, 0.45, 0.12];
+  const blue = [0.36, 0.56, 1.0];
+  for (let i = 0; i < count; i++) {
+    const t = texel[i] * 4;
+    const o = i * 3;
+    const mass = velData[t + 3];
+    if (mass <= 0) {
+      // Dead particle: park below the frustum far plane (official discards).
+      positions[o] = 0; positions[o + 1] = -1e6; positions[o + 2] = 0;
+      colors[o] = 0; colors[o + 1] = 0; colors[o + 2] = 0;
+      continue;
+    }
+    positions[o] = posData[t];
+    positions[o + 1] = posData[t + 1];
+    positions[o + 2] = posData[t + 2];
+    const frac = Math.min(1, Math.sqrt(posData[t] * posData[t] + posData[t + 2] * posData[t + 2]) / maxRadius);
+    // Mass brightness (official vColor.y = mass/250 caps the core brighter).
+    const boost = Math.min(1, 0.7 + mass / 250 * 0.6);
+    colors[o] = (orange[0] + (blue[0] - orange[0]) * frac) * boost;
+    colors[o + 1] = (orange[1] + (blue[1] - orange[1]) * frac) * boost;
+    colors[o + 2] = (orange[2] + (blue[2] - orange[2]) * frac) * boost;
+  }
+  geometry.attributes.position.needsUpdate = true;
+  geometry.attributes.color.needsUpdate = true;
+}
+
+function boidsShaderGeometry(source, uniforms) {
+  const cached = source._r1BoidsDraw;
+  if (cached) return cached;
+  const position = source.attributes.position;
+  const reference = source.attributes.reference;
+  const birdVertex = source.attributes.birdVertex;
+  if (!position || !reference || !birdVertex || reference.count < position.count) return null;
+  const count = position.count;
+  const geometry = new BufferGeometry();
+  geometry.setAttribute('position', new Float32BufferAttribute(new Float32Array(count * 3), 3));
+  const colors = new Float32Array(count * 3);
+  const birdColor = source.attributes.birdColor;
+  if (birdColor && birdColor.count >= count) {
+    colors.set(birdColor.array.subarray(0, count * 3));
+  } else {
+    for (let i = 0; i < count * 3; i += 3) { colors[i] = 0.8; colors[i + 1] = 0.62; colors[i + 2] = 0.28; }
+  }
+  geometry.setAttribute('color', new Float32BufferAttribute(colors, 3));
+  const uvAttr = source.attributes.uv;
+  if (uvAttr && uvAttr.count >= count) {
+    geometry.setAttribute('uv', new Float32BufferAttribute(new Float32Array(count * 2), 2));
+    geometry.attributes.uv.array.set(uvAttr.array.subarray(0, count * 2));
+  }
+  if (source.index) geometry.setIndex(source.index.clone());
+  // Flock roams ±BOUNDS (position kernel wrap); a fixed sphere avoids both a
+  // per-frame O(N) recompute and a stale-sphere cull once birds fly out.
+  geometry.boundingSphere = new Sphere(new Vector3(0, 0, 0), 3000);
+  const template = new Float32Array(count * 3);
+  template.set(position.array.subarray(0, count * 3));
+  const birdVertexArr = new Float32Array(count);
+  birdVertexArr.set(birdVertex.array.subarray(0, count));
+  source._r1BoidsDraw = geometry;
+  geometry._r1Boids = { source, template, birdVertex: birdVertexArr, count, lastFrame: '', uniforms };
+  return geometry;
+}
+
+function refreshBoidsShaderGeometry(geometry, uniforms) {
+  const data = geometry._r1Boids;
+  const posTexture = uniforms.texturePosition?.value;
+  const velTexture = uniforms.textureVelocity?.value;
+  if (!data || !posTexture?.image?.data || !velTexture?.image?.data) return;
+  const frame = gpgpuFrameKey(posTexture);
+  if (frame === data.lastFrame) return;
+  data.lastFrame = frame;
+  const { template, birdVertex, count } = data;
+  const width = posTexture.image.width || 1;
+  const birds = width * (posTexture.image.height || 1);
+  if (!birds) return;
+  const perBird = Math.max(1, Math.floor(count / birds));
+  const posData = posTexture.image.data;
+  const velData = velTexture.image.data;
+  const out = geometry.attributes.position.array;
+  for (let i = 0; i < birds; i++) {
+    const t = i * 4;
+    const px = posData[t], py = posData[t + 1], pz = posData[t + 2];
+    const phase = posData[t + 3];
+    // Official birdVS: orientation basis from the normalized velocity.
+    let vx = velData[t], vy = velData[t + 1], vz = -velData[t + 2];
+    const velLen = Math.sqrt(vx * vx + vy * vy + vz * vz);
+    if (velLen > 1e-6) { vx /= velLen; vy /= velLen; vz /= velLen; } else { vy = 1; }
+    const xz = Math.sqrt(vx * vx + vz * vz) || 1e-6;
+    const x = Math.sqrt(Math.max(1 - vy * vy, 1e-6));
+    const cosry = vx / xz, sinry = vz / xz, cosrz = x, sinrz = vy;
+    const m00 = cosry * cosrz, m01 = cosry * sinrz, m02 = sinry;
+    const m10 = -sinrz, m11 = cosrz;
+    const m20 = -sinry * cosrz, m21 = -sinry * sinrz, m22 = cosry;
+    const flap = Math.sin(phase) * 5;
+    const base = i * perBird;
+    for (let j = 0; j < perBird && base + j < count; j++) {
+      const v = base + j;
+      const o = v * 3;
+      const tx = template[o], tz = template[o + 2];
+      const bv = birdVertex[v];
+      const y = (bv === 4 || bv === 7) ? flap : template[o + 1];
+      out[o] = m00 * tx + m01 * y + m02 * tz + px;
+      out[o + 1] = m10 * tx + m11 * y + py;
+      out[o + 2] = m20 * tx + m21 * y + m22 * tz + pz;
+    }
+  }
+  geometry.attributes.position.needsUpdate = true;
+}
+
 function adaptedShaderDraw(object, viewMatrix = null) {
   const source = object.material;
   const uniforms = source.uniforms || {};
   const vertex = sourceTokens(source.vertexShader);
   const fragment = sourceTokens(source.fragmentShader);
+  if (object.isPoints && uniforms.texturePosition?.value?.isDataTexture &&
+    uniforms.textureVelocity?.value?.isDataTexture && object.geometry.attributes.uv) {
+    // GPGPU protoplanet-style points: positions/masses live in float
+    // DataTextures the CPU kernels (degrades/gpgpu_cpu_computation.mjs)
+    // advance every tick; R1 draws them as vertex-colored gradient sprites.
+    const geometry = protoPointsGeometry(object.geometry);
+    if (geometry) {
+      refreshProtoPointsGeometry(geometry, uniforms);
+      adaptationWarn(source, '_r1GpgpuPointsWarned',
+        'R1 draws the CPU-simulated GPGPU particles as vertex-colored radial-gradient sprites (mass → size is collapsed to one point size; color keeps the mass/core-rim ramp).');
+      const material = copyShaderFlags(source, new PointsMaterial({
+        size: 12, sizeAttenuation: true, vertexColors: true,
+        transparent: true, opacity: 0.9, depthWrite: false,
+        blending: AdditiveBlending, map: protoPointsSprite()
+      }));
+      return { material, geometry };
+    }
+  }
+  const attrs = object.geometry.attributes;
+  if (uniforms.texturePosition?.value?.isDataTexture &&
+    uniforms.textureVelocity?.value?.isDataTexture && attrs.reference && attrs.birdVertex) {
+    // GPGPU birds-style display shader: per-bird position/phase texels drive
+    // an expanded vertex set. R1 evaluates the official birdVS math (wing
+    // flap from the phase texel, orientation basis from the velocity texel)
+    // on the CPU; colors keep the birdColor ramp.
+    const geometry = boidsShaderGeometry(object.geometry);
+    if (geometry) {
+      refreshBoidsShaderGeometry(geometry, uniforms);
+      adaptationWarn(source, '_r1BoidsWarned',
+        'R1 evaluates the boids display shader on the CPU (flap + orientation); the distance-based grey falloff of birdFS is dropped in favor of the birdColor ramp.');
+      return { material: basicShaderMaterial(source, { vertexColors: true }), geometry };
+    }
+  }
   if (uniforms.mapLeft?.value && uniforms.mapRight?.value &&
     uniforms.colorMatrixLeft?.value?.elements && uniforms.colorMatrixRight?.value?.elements &&
     vertex === ANAGLYPH_VERTEX && fragment === ANAGLYPH_FRAGMENT) {
@@ -1018,7 +1249,6 @@ function adaptedShaderDraw(object, viewMatrix = null) {
     const material = copyShaderFlags(source, new MeshBasicMaterial({ map: uniforms.tDiffuse.value }));
     return { material, geometry: object.geometry };
   }
-  const attrs = object.geometry.attributes;
   const instancedKind = object.geometry.isInstancedBufferGeometry && attrs.offset && attrs.orientationStart ? 'instancing' :
     object.geometry.isInstancedBufferGeometry && attrs.translate ? 'billboards' : null;
   if (instancedKind) {
@@ -1117,9 +1347,24 @@ function adaptedShaderDraw(object, viewMatrix = null) {
     if (pendingTexture && !shaderTexture) adaptationWarn(source, '_r1PendingTextureWarned',
       'R1 renders a neutral pass until this shader sampler is bound.');
     if (object.isPoints) {
+      // Procedural point sprites (protoplanet-style gl_PointCoord radial
+      // falloff) lose their entire fragment math in the bounded lowering and
+      // read as flat squares. Synthesize the one bounded sprite shape they
+      // universally encode — a radial alpha falloff — as a cached 64x64 RGBA8
+      // texture so the glow survives; per-particle color still flows through
+      // the geometry color attribute.
+      const proceduralSprite = /gl_PointCoord/.test(fragment) && /length\s*\(/.test(fragment) &&
+        !(material.map);
+      if (proceduralSprite) {
+        adaptationWarn(source, '_r1PointSpriteWarned',
+          'R1 approximates this procedural gl_PointCoord falloff with a cached radial sprite texture; custom per-point math is dropped.');
+      }
       return { geometry: object.geometry, material: new PointsMaterial({
-        color: material.color, size: 4, sizeAttenuation: true, map: material.map,
-        transparent: material.transparent, opacity: material.opacity
+        color: material.color, size: 4, sizeAttenuation: true,
+        map: proceduralSprite ? radialPointSpriteTexture() : material.map,
+        vertexColors: !!object.geometry.attributes.color,
+        transparent: material.transparent || proceduralSprite,
+        blending: material.blending, opacity: material.opacity
       }) };
     }
     return { material, geometry: object.geometry };
@@ -1691,6 +1936,7 @@ export class JsrWebGLRenderer {
     // Per-source-material bounded-shader lowering cache (see _adaptShaderDraw).
     this._adaptedBoundedShaderDraws = new WeakMap();
     this._batchedMeshProxies = new WeakMap();
+    this._instancedMorphProxies = new WeakMap();
     this._nodeFast = new WeakMap();
     this._frameGeometryGate = new Map();
     this._geometryGateStamp = new WeakMap();
@@ -4122,6 +4368,132 @@ export class JsrWebGLRenderer {
     record.instanceKey = instanceKey;
   }
 
+  // Per-instance morph textures (webgl_instancing_morph): R1 cannot evaluate
+  // a per-instance weight texture on the GPU, so the flock is re-grouped into
+  // a bounded set of PHASE BUCKETS — instances with a similar first morph
+  // weight share one CPU-blended geometry clone drawn as one instanced
+  // proxy. Instance matrices and colors stay exact; the animation phase is
+  // quantized to the bucket resolution (24 buckets ≈ a 15° gallop phase step
+  // on the horse cycle), which is visually indistinguishable at 1024
+  // instances and keeps the per-frame re-upload under ~350 KB (proven
+  // envelope budget: the 120fps skinning lane re-uploads ~868 KB/frame).
+  _syncInstancedMorphProxies(object) {
+    if (Array.isArray(object.material)) unsupported('multiMaterial', 'R1 instanced morphs take a single material');
+    const geometry = object.geometry;
+    const morphPositions = geometry.morphAttributes?.position || [];
+    const morphCount = morphPositions.length;
+    const morphData = object.morphTexture?.image?.data ||
+      object.morphTexture?.source?.data?.data || null;
+    if (!morphCount || !morphData) return;
+    let record = this._instancedMorphProxies.get(object);
+    if (!record) {
+      const buckets = Math.min(24, Math.max(8, Math.round(object.count / 42) + 8));
+      const sourceAttrs = geometry.attributes;
+      const vertexCount = sourceAttrs.position?.count || 0;
+      const proxies = [];
+      const geometries = [];
+      for (let bucket = 0; bucket < buckets; bucket++) {
+        const bucketGeometry = new BufferGeometry();
+        for (const name of ['position', 'normal', 'uv', 'color']) {
+          const attribute = sourceAttrs[name];
+          if (!attribute) continue;
+          const array = attribute.array.slice(0, vertexCount * attribute.itemSize);
+          bucketGeometry.setAttribute(name, new BufferAttribute(array, attribute.itemSize));
+        }
+        if (geometry.index) bucketGeometry.setIndex(geometry.index.clone());
+        bucketGeometry.boundingSphere = new Sphere(new Vector3(0, 0, 0), 800);
+        geometries.push(bucketGeometry);
+        const proxy = new InstancedMesh(bucketGeometry, object.material, object.count);
+        proxy.castShadow = object.castShadow;
+        proxy.receiveShadow = object.receiveShadow;
+        proxy.frustumCulled = object.frustumCulled;
+        proxy.raycast = jsrBatchedMeshProxyRaycast;
+        proxy.userData.jsrInstancedMorphProxy = true;
+        proxies.push(proxy);
+        object.add(proxy);
+        proxy.updateMatrixWorld(true);
+      }
+      record = {
+        buckets,
+        morphCount,
+        proxies,
+        geometries,
+        morphLength: morphData.length,
+        instanceKey: '',
+        lastPhaseKey: '',
+        members: proxies.map(() => [])
+      };
+      this._instancedMorphProxies.set(object, record);
+      adaptationWarn(object, '_r1InstancedMorphWarned',
+        `R1 evaluates per-instance morph weights on the CPU through ${buckets} phase-bucket proxies; instance matrices and colors are exact, the animation phase is quantized to the bucket resolution.`);
+    }
+    const stride = record.morphCount + 1;
+    if (morphData.length < object.count * stride) return;
+    const matrixSource = object.instanceMatrix.array;
+    const colorSource = object.instanceColor ? object.instanceColor.array : null;
+    // Bucket assignment: the first morph weight cycles with the animation
+    // phase (upstream's mixer drives all 15 weights from one time curve);
+    // instances with a nearby phase share a bucket and a representative pose.
+    const phaseKey = [matrixSource.length, colorSource ? colorSource.length : 0].join(':');
+    if (phaseKey !== record.instanceKey) {
+      record.instanceKey = phaseKey;
+      const members = record.members;
+      for (const list of members) list.length = 0;
+      for (let i = 0; i < object.count; i++) {
+        const phase = ((morphData[i * stride + 1] % 1) + 1) % 1;
+        const bucket = Math.min(record.buckets - 1, Math.floor(phase * record.buckets));
+        members[bucket].push(i);
+      }
+    }
+    // Re-blend every bucket geometry + refresh proxy instance data. The
+    // representative weights are re-read EVERY frame (the mixer advances all
+    // weights continuously; the member partition is stable but the poses are
+    // not).
+    const base = geometry.attributes.position.array;
+    const vertexCount = base.length;
+    for (let bucket = 0; bucket < record.buckets; bucket++) {
+      const proxy = record.proxies[bucket];
+      const members = record.members[bucket];
+      proxy.count = members.length;
+      if (!members.length) continue;
+      const matrixArray = proxy.instanceMatrix.array;
+      for (let m = 0; m < members.length; m++) {
+        const source = members[m] * 16;
+        for (let c = 0; c < 16; c++) matrixArray[m * 16 + c] = matrixSource[source + c];
+      }
+      proxy.instanceMatrix.needsUpdate = true;
+      if (colorSource) {
+        if (!proxy.instanceColor || proxy.instanceColor.array.length < members.length * 3) {
+          proxy.instanceColor = new InstancedBufferAttribute(new Float32Array(members.length * 3), 3);
+        }
+        const colorArray = proxy.instanceColor.array;
+        for (let m = 0; m < members.length; m++) {
+          const source = members[m] * 3;
+          colorArray[m * 3] = colorSource[source];
+          colorArray[m * 3 + 1] = colorSource[source + 1];
+          colorArray[m * 3 + 2] = colorSource[source + 2];
+        }
+        proxy.instanceColor.needsUpdate = true;
+      }
+      // CPU blend of the representative weights into the bucket geometry.
+      const positionAttribute = record.geometries[bucket].attributes.position;
+      if (!positionAttribute) continue;
+      const out = positionAttribute.array;
+      const weightOffset = members[0] * stride + 1;
+      let baseWeight = 1;
+      for (let j = 0; j < record.morphCount; j++) baseWeight -= morphData[weightOffset + j];
+      for (let v = 0; v < vertexCount; v++) out[v] = base[v] * baseWeight;
+      for (let j = 0; j < record.morphCount; j++) {
+        const weight = morphData[weightOffset + j];
+        if (weight === 0) continue;
+        const target = morphPositions[j].array;
+        if (!target || target.length < vertexCount) continue;
+        for (let v = 0; v < vertexCount; v++) out[v] += target[v] * weight;
+      }
+      positionAttribute.needsUpdate = true;
+    }
+  }
+
   _ensureNode(object, parentId, commands, drawVisible) {
     const id = resourceId(object);
     // Fast path for many-object scenes (e.g. webgl_interactive_cubes' 2000
@@ -4199,6 +4571,12 @@ export class JsrWebGLRenderer {
       this._updateNode(object, id, parentId, 0, 0, visible, 0, commands, spriteCenter);
       return { id, draw: null };
     }
+    if (object.isInstancedMesh && object.morphTexture &&
+      object.geometry?.morphAttributes?.position?.length) {
+      this._syncInstancedMorphProxies(object);
+      this._updateNode(object, id, parentId, 0, 0, visible, 0, commands, spriteCenter);
+      return { id, draw: null };
+    }
     if (object.isSprite) {
       // R1 v5 sprite lane: the shared upstream quad (positions in
       // [-0.5, 0.5]², unit UVs) billboards against the camera in the vertex
@@ -4237,6 +4615,8 @@ export class JsrWebGLRenderer {
       if (renderGeometry._r1TimeColor) refreshTimeColorGeometry(renderGeometry, Number(renderGeometry._r1Time?.value || 0));
       if (renderGeometry._r1Displaced) refreshDisplacedShaderGeometry(renderGeometry, Number(renderGeometry._r1Amplitude?.value || 0));
       if (renderGeometry._r1Instanced) refreshInstancedShaderGeometry(renderGeometry, object.material.uniforms || {}, object, this._frameViewMatrix || null);
+      if (renderGeometry._r1Boids) refreshBoidsShaderGeometry(renderGeometry, renderGeometry._r1Boids.uniforms || object.material.uniforms || {});
+      if (renderGeometry._r1ProtoPoints) refreshProtoPointsGeometry(renderGeometry, renderGeometry._r1ProtoPoints.uniforms || object.material.uniforms || {});
       if (adapted) {
         const adaptedPosition = renderGeometry.attributes.position;
         if (!adaptedPosition || sourceRange(renderGeometry, adaptedPosition.count).count === 0) {
@@ -4852,12 +5232,25 @@ export class JsrWebGLRenderer {
     if (!TONE_MAPPINGS.has(this.toneMapping)) unsupported('toneMapping', `${this.toneMapping} is not an upstream tone mapping constant`);
     if (this.xr.enabled) unsupported('xr');
     let overrideMaterial = scene.overrideMaterial || null;
-    if (overrideMaterial?.isMeshDepthMaterial ||
-        (overrideMaterial?.isShaderMaterial && (overrideMaterial.name === 'BokehDepthShader' || overrideMaterial.uniforms?.mNear))) {
+    if (overrideMaterial?.isShaderMaterial &&
+        (overrideMaterial.name === 'BokehDepthShader' || overrideMaterial.uniforms?.mNear)) {
+      // BokehDepth-style shader overrides have no shader lane; keep their
+      // bounding dark-box semantics.
       if (!this._r1DepthOverride) this._r1DepthOverride = new MeshBasicMaterial({ color: 0x000000, side: overrideMaterial.side });
       overrideMaterial = this._r1DepthOverride;
       adaptationWarn(scene, '_r1DepthOverrideWarned',
-        'R1 lowers depth-material overrides to opaque dark geometry for bounded target passes.');
+        'R1 lowers shader depth overrides to opaque dark geometry for bounded target passes.');
+    }
+    // A plain MeshDepthMaterial override now rides the real depth-viz lane
+    // (material kind 12, grayscale linearized view depth into the color
+    // attachment). The previous lowering swapped it for opaque black, which
+    // black-holed every depth-prepass target: webgl_depth_texture's RT held
+    // black, and the post quad sampled that black for both tDiffuse and the
+    // (aliased) tDepth — the whole widget presented a black screen.
+    else if (overrideMaterial?.isMeshDepthMaterial && !this._r1DepthOverrideWarned) {
+      this._r1DepthOverrideWarned = true;
+      adaptationWarn(scene, '_r1DepthOverrideWarned',
+        'R1 renders MeshDepthMaterial overrides through the depth-viz lane (grayscale view depth).');
     }
     this._sceneOverrideMaterial = overrideMaterial;
     if (overrideMaterial) adaptationWarn(scene, '_r1OverrideMaterialWarned',
@@ -5093,3 +5486,33 @@ export class JsrWebGLRenderer {
 }
 
 export { JsrWebGLRenderer as WebGLRenderer };
+
+// Cached radial point-sprite texture for the bounded procedural-sprite
+// lowering (see the gl_PointCoord branch in the shader lowering). One shared
+// white RGBA8 falloff per runtime; vertex colors supply the per-particle hue.
+let _r1RadialSprite = null;
+function radialPointSpriteTexture() {
+  if (_r1RadialSprite) return _r1RadialSprite;
+  const size = 64;
+  const data = new Uint8Array(size * size * 4);
+  for (let py = 0; py < size; py++) for (let px = 0; px < size; px++) {
+    const dx = (px + 0.5) / size - 0.5;
+    const dy = (py + 0.5) / size - 0.5;
+    const r = Math.min(1, Math.hypot(dx, dy) * 2);
+    // Smooth alpha falloff with a bright core: matches the classic
+    // `1 - length(gl_PointCoord - 0.5)` glow family (protoplanet).
+    const a = Math.max(0, 1 - r);
+    const glow = a * a * (3 - 2 * a);
+    const offset = (py * size + px) * 4;
+    data[offset] = 255; data[offset + 1] = 255; data[offset + 2] = 255;
+    data[offset + 3] = Math.round(glow * 255);
+  }
+  const texture = new DataTexture(data, size, size);
+  texture.magFilter = LinearFilter;
+  texture.minFilter = LinearFilter;
+  texture.wrapS = ClampToEdgeWrapping;
+  texture.wrapT = ClampToEdgeWrapping;
+  texture.needsUpdate = true;
+  _r1RadialSprite = texture;
+  return texture;
+}

@@ -43,6 +43,27 @@
       "sha256": "311a027c5150185e4fe6989b99d0371d5bab882147efcf50af3cd320f4999819"
     }
   },
+  "assetDiscovery": [
+    {
+      "url": "models/gltf/Horse.glb",
+      "output": "models__gltf__Horse.glb",
+      "mime": "model/gltf-binary",
+      "diagnostic": "auto:models/gltf/Horse.glb",
+      "sha256": "bebaa4a60ba373317e25bf20f049f26ad0f5c86d4731ab67d46eb8c93c920947",
+      "discovered": true
+    }
+  ],
+  "assetPolicy": {
+    "inlineMaxBytes": 0,
+    "externalAssets": [
+      {
+        "url": "models/gltf/Horse.glb",
+        "file": "models__gltf__Horse.glb",
+        "bytes": 181808,
+        "sha256": "bebaa4a60ba373317e25bf20f049f26ad0f5c86d4731ab67d46eb8c93c920947"
+      }
+    ]
+  },
   "facade": {
     "global": "globalThis.THREE",
     "exports": [
@@ -508,8 +529,8 @@
   },
   "inputs": {
     "assets/three/jsr_three_native.js": {
-      "bytes": 846686,
-      "sha256": "ff40ded512cdd7ae9eb468e0c2e26b071c54a7c1783f7131de415a0d6e2152bf"
+      "bytes": 852266,
+      "sha256": "35a770852b9dfecc0802b540b03668aa25eae5f6c257d7ec7925041daf8f839d"
     },
     "assets/three/jsr_three_web.js": {
       "bytes": 859088,
@@ -539,6 +560,10 @@
       "bytes": 11535,
       "sha256": "b1632a703206c3d830de9fcbe515696770d04b71a15ee6b50afa6d2c3298c86f"
     },
+    "source/examples/models/gltf/Horse.glb": {
+      "bytes": 181808,
+      "sha256": "bebaa4a60ba373317e25bf20f049f26ad0f5c86d4731ab67d46eb8c93c920947"
+    },
     "source/examples/webgl_instancing_morph.html": {
       "bytes": 4309,
       "sha256": "d0dc5d19cbfcf0e85dc98f831cf0c14613bdb2f1a03b11fd3df84750a734ca7b"
@@ -548,8 +573,8 @@
       "sha256": "29492424209a17a723b3b0c8e9c83995697a4c466840d1b33ba6f6ff2b7542a4"
     },
     "tool/three/src/native_entry.js": {
-      "bytes": 26368,
-      "sha256": "dac7dc374e1374499bc9e9a84593e7e1e848bfcde7bb916d7212ccd517e861d3"
+      "bytes": 29574,
+      "sha256": "64dccbf743f589209d0bcc895dd3a1d0b74cb8ffb843fd13a2547e57111e00a1"
     },
     "tool/three_example/asset_decode.mjs": {
       "bytes": 51634,
@@ -572,8 +597,8 @@
       "sha256": "2f83bde66c35db02a16eec3db21beae0e1198e04f1b0723f9b3dbda89c6675f7"
     },
     "tool/three_example/prepare.mjs": {
-      "bytes": 344394,
-      "sha256": "2ffcfe48673c656a7ce7bb9f642782d3447c0a323fb69cf92b268bda53bb3a87"
+      "bytes": 345026,
+      "sha256": "e37a666359b0fc58e85f442fb359846032c0285577197b052b9dddaaf92b2641"
     },
     "tool/three_example/stats_adapter.js": {
       "bytes": 2107,
@@ -593,9 +618,17 @@
       "bytes": 1081,
       "sha256": "8b378ebe60e2fe500158cb0ac71cb5e8b7d92953c2abcc63a0eb90499653b5bc"
     },
+    "assets.json": {
+      "bytes": 471,
+      "sha256": "32956915f16b9b812773f22dfcd361f7dcc83a79bdb63eeef701cac77842607b"
+    },
     "manifest.json": {
       "bytes": 365,
       "sha256": "f8a86db516cb451e4fab36ae7554748a184b411466b40b17a66a81c69a6e3566"
+    },
+    "models__gltf__Horse.glb": {
+      "bytes": 181808,
+      "sha256": "bebaa4a60ba373317e25bf20f049f26ad0f5c86d4731ab67d46eb8c93c920947"
     },
     "official_module.js": {
       "bytes": 3448,
@@ -606,8 +639,8 @@
       "sha256": "d0dc5d19cbfcf0e85dc98f831cf0c14613bdb2f1a03b11fd3df84750a734ca7b"
     },
     "widget.js": {
-      "bytes": 105433,
-      "sha256": "71d9951240a19776a3144f0d6935ce14584ae8bafc7d9c58ccc3f56d364cd142"
+      "bytes": 105691,
+      "sha256": "15e575495db35a1da84859cbc0e580b0cdd1cdcac76692b8f051f003e96990a4"
     }
   }
 }

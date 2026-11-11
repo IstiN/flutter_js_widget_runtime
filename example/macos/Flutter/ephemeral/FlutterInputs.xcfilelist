@@ -2252,7 +2252,7 @@
 /Users/Uladzimir_Klyshevich/git/flutter_js_widget_runtime/assets/three/jsr_three_native.js
 /Users/Uladzimir_Klyshevich/git/flutter_js_widget_runtime/assets/three/jsr_three_web.js
 /Users/Uladzimir_Klyshevich/git/flutter_js_widget_runtime/assets/three/three_r1.shaderbundle
-/Users/Uladzimir_Klyshevich/git/flutter_js_widget_runtime/example/DOES_NOT_EXIST_RERUN_FOR_WILDCARD175806226
+/Users/Uladzimir_Klyshevich/git/flutter_js_widget_runtime/example/DOES_NOT_EXIST_RERUN_FOR_WILDCARD14724402
 /Users/Uladzimir_Klyshevich/git/flutter_js_widget_runtime/example/assets/models/DamagedHelmet.glb
 /Users/Uladzimir_Klyshevich/git/flutter_js_widget_runtime/example/assets/models/coach_anny.LICENSE.txt
 /Users/Uladzimir_Klyshevich/git/flutter_js_widget_runtime/example/assets/models/coach_anny.glb
@@ -3031,7 +3031,9 @@
 /Users/Uladzimir_Klyshevich/git/flutter_js_widget_runtime/example/widgets/three-helpers/prepare_manifest.json
 /Users/Uladzimir_Klyshevich/git/flutter_js_widget_runtime/example/widgets/three-helpers/widget.js
 /Users/Uladzimir_Klyshevich/git/flutter_js_widget_runtime/example/widgets/three-instancing-morph/THREE_LICENSE
+/Users/Uladzimir_Klyshevich/git/flutter_js_widget_runtime/example/widgets/three-instancing-morph/assets.json
 /Users/Uladzimir_Klyshevich/git/flutter_js_widget_runtime/example/widgets/three-instancing-morph/manifest.json
+/Users/Uladzimir_Klyshevich/git/flutter_js_widget_runtime/example/widgets/three-instancing-morph/models__gltf__Horse.glb
 /Users/Uladzimir_Klyshevich/git/flutter_js_widget_runtime/example/widgets/three-instancing-morph/official_module.js
 /Users/Uladzimir_Klyshevich/git/flutter_js_widget_runtime/example/widgets/three-instancing-morph/original.html
 /Users/Uladzimir_Klyshevich/git/flutter_js_widget_runtime/example/widgets/three-instancing-morph/prepare_manifest.json
@@ -3113,6 +3115,7 @@
 /Users/Uladzimir_Klyshevich/git/flutter_js_widget_runtime/example/widgets/three-lensflares/prepare_manifest.json
 /Users/Uladzimir_Klyshevich/git/flutter_js_widget_runtime/example/widgets/three-lensflares/widget.js
 /Users/Uladzimir_Klyshevich/git/flutter_js_widget_runtime/example/widgets/three-lightprobe-cubecamera/THREE_LICENSE
+/Users/Uladzimir_Klyshevich/git/flutter_js_widget_runtime/example/widgets/three-lightprobe-cubecamera/assets.json
 /Users/Uladzimir_Klyshevich/git/flutter_js_widget_runtime/example/widgets/three-lightprobe-cubecamera/manifest.json
 /Users/Uladzimir_Klyshevich/git/flutter_js_widget_runtime/example/widgets/three-lightprobe-cubecamera/official_module.js
 /Users/Uladzimir_Klyshevich/git/flutter_js_widget_runtime/example/widgets/three-lightprobe-cubecamera/original.html
@@ -3143,7 +3146,9 @@
 /Users/Uladzimir_Klyshevich/git/flutter_js_widget_runtime/example/widgets/three-lightprobes-complex/prepare_manifest.json
 /Users/Uladzimir_Klyshevich/git/flutter_js_widget_runtime/example/widgets/three-lightprobes-complex/widget.js
 /Users/Uladzimir_Klyshevich/git/flutter_js_widget_runtime/example/widgets/three-lightprobes-sponza/THREE_LICENSE
+/Users/Uladzimir_Klyshevich/git/flutter_js_widget_runtime/example/widgets/three-lightprobes-sponza/assets.json
 /Users/Uladzimir_Klyshevich/git/flutter_js_widget_runtime/example/widgets/three-lightprobes-sponza/manifest.json
+/Users/Uladzimir_Klyshevich/git/flutter_js_widget_runtime/example/widgets/three-lightprobes-sponza/models__gltf__sponza_standin.glb
 /Users/Uladzimir_Klyshevich/git/flutter_js_widget_runtime/example/widgets/three-lightprobes-sponza/official_module.js
 /Users/Uladzimir_Klyshevich/git/flutter_js_widget_runtime/example/widgets/three-lightprobes-sponza/original.html
 /Users/Uladzimir_Klyshevich/git/flutter_js_widget_runtime/example/widgets/three-lightprobes-sponza/prepare_manifest.json

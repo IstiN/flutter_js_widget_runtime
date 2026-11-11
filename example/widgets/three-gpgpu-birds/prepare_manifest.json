@@ -508,8 +508,8 @@
   },
   "inputs": {
     "assets/three/jsr_three_native.js": {
-      "bytes": 846686,
-      "sha256": "ff40ded512cdd7ae9eb468e0c2e26b071c54a7c1783f7131de415a0d6e2152bf"
+      "bytes": 849536,
+      "sha256": "995d28315070077e4f1b075084622677526a4b8bb12c19627d9efd2fbcff0dc7"
     },
     "assets/three/jsr_three_web.js": {
       "bytes": 859088,
@@ -523,14 +523,6 @@
       "bytes": 29526,
       "sha256": "5e31e7fc4d3a1268550b948463eabe06c7a6c03c158ccb99c78616d2c9682518"
     },
-    "source/examples/jsm/misc/GPUComputationRenderer.js": {
-      "bytes": 14157,
-      "sha256": "1a580add8398e969a63336ed99a8d3ef33705b059132c0ee9914c83b688177a6"
-    },
-    "source/examples/jsm/postprocessing/Pass.js": {
-      "bytes": 4218,
-      "sha256": "444b409c235ead986893c472e720da1b779a56985c7d10b279c7944b52bd61c5"
-    },
     "source/examples/webgl_gpgpu_birds.html": {
       "bytes": 17275,
       "sha256": "d34ee0fbf6a43dea28f0bc0b1f5eb286013356b9d1648fd0492926e6c8779409"
@@ -540,8 +532,8 @@
       "sha256": "29492424209a17a723b3b0c8e9c83995697a4c466840d1b33ba6f6ff2b7542a4"
     },
     "tool/three/src/native_entry.js": {
-      "bytes": 26368,
-      "sha256": "dac7dc374e1374499bc9e9a84593e7e1e848bfcde7bb916d7212ccd517e861d3"
+      "bytes": 29574,
+      "sha256": "64dccbf743f589209d0bcc895dd3a1d0b74cb8ffb843fd13a2547e57111e00a1"
     },
     "tool/three_example/asset_decode.mjs": {
       "bytes": 51634,
@@ -550,6 +542,10 @@
     "tool/three_example/asset_discovery.mjs": {
       "bytes": 12424,
       "sha256": "89a14e272cb1ddac5b555b4361af938764127ee069ac367a18262b8299643eca"
+    },
+    "tool/three_example/degrades/gpgpu_cpu_computation.mjs": {
+      "bytes": 24477,
+      "sha256": "8f72deb1eb16f9847145ccd39e4b110cfe287470d139495dcc912ba5bb53d2c5"
     },
     "tool/three_example/example_adapter.js": {
       "bytes": 49943,
@@ -564,8 +560,8 @@
       "sha256": "2f83bde66c35db02a16eec3db21beae0e1198e04f1b0723f9b3dbda89c6675f7"
     },
     "tool/three_example/prepare.mjs": {
-      "bytes": 344394,
-      "sha256": "2ffcfe48673c656a7ce7bb9f642782d3447c0a323fb69cf92b268bda53bb3a87"
+      "bytes": 344634,
+      "sha256": "b0fb6b3cdb92d3074e5cf1797e060524f17f280b490f3cde64629b1085cad565"
     },
     "tool/three_example/stats_adapter.js": {
       "bytes": 2107,
@@ -598,8 +594,8 @@
       "sha256": "d34ee0fbf6a43dea28f0bc0b1f5eb286013356b9d1648fd0492926e6c8779409"
     },
     "widget.js": {
-      "bytes": 115990,
-      "sha256": "97fe256c2be7606e308ed327b8937d09a77b26fcd607376b0bbcd479b8fae54b"
+      "bytes": 121488,
+      "sha256": "2dadd9b97ff6f96a49569220006b3560402644cc4474027664a27a8f9f2c3dd5"
     }
   }
 }

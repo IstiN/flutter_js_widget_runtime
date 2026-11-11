@@ -1,0 +1,67 @@
+{
+  "schema": "jsr-three-example-external-assets-v1",
+  "id": "three-lightprobe-cubecamera",
+  "inlineMaxBytes": 0,
+  "assets": [
+    {
+      "url": "textures/cube/pisa/nx.png",
+      "file": "textures__cube__pisa__nx.png",
+      "mime": "image/png",
+      "width": 256,
+      "height": 256,
+      "bytes": 54416,
+      "sha256": "cf01cfc9a168e7c71bf66d0bed8dcad3a4fd353f528e73caaba62d1a097c49a1",
+      "aliases": []
+    },
+    {
+      "url": "textures/cube/pisa/ny.png",
+      "file": "textures__cube__pisa__ny.png",
+      "mime": "image/png",
+      "width": 256,
+      "height": 256,
+      "bytes": 80866,
+      "sha256": "61a94678f04f9853509d7a864fd839cf688c6705ee9df02fc4e42bfca858270b",
+      "aliases": []
+    },
+    {
+      "url": "textures/cube/pisa/nz.png",
+      "file": "textures__cube__pisa__nz.png",
+      "mime": "image/png",
+      "width": 256,
+      "height": 256,
+      "bytes": 82807,
+      "sha256": "e5c1774f9a41d8124f8f223c9810e95d277f256104f8aee57ad2e5ef73a64424",
+      "aliases": []
+    },
+    {
+      "url": "textures/cube/pisa/px.png",
+      "file": "textures__cube__pisa__px.png",
+      "mime": "image/png",
+      "width": 256,
+      "height": 256,
+      "bytes": 65831,
+      "sha256": "11d859640e7da526ac0654dbfa1cc18f40dd8fc100db197730485218a7c9d24d",
+      "aliases": []
+    },
+    {
+      "url": "textures/cube/pisa/py.png",
+      "file": "textures__cube__pisa__py.png",
+      "mime": "image/png",
+      "width": 256,
+      "height": 256,
+      "bytes": 71533,
+      "sha256": "b34a1cec12e62327c9555ca9f82a38bea73f519915e1368fa69bbd51c82ec712",
+      "aliases": []
+    },
+    {
+      "url": "textures/cube/pisa/pz.png",
+      "file": "textures__cube__pisa__pz.png",
+      "mime": "image/png",
+      "width": 256,
+      "height": 256,
+      "bytes": 86688,
+      "sha256": "bd528b739e9e0ea6c1e8627e949caa950991719069c983e8abdc3a8640039667",
+      "aliases": []
+    }
+  ]
+}

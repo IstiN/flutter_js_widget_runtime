@@ -43,6 +43,17 @@
       "sha256": "7096bbe4b58c139380283b9caa53f1301646da85f28dfd5e7a06dbd3fc4e8b61"
     }
   },
+  "assetPolicy": {
+    "inlineMaxBytes": 0,
+    "externalAssets": [
+      {
+        "url": "models/gltf/sponza_standin.glb",
+        "file": "models__gltf__sponza_standin.glb",
+        "bytes": 62796,
+        "sha256": "2e34fb2229d7f25e23010e5e8982c51f006d09654d80edd1f79083532ee95786"
+      }
+    ]
+  },
   "facade": {
     "global": "globalThis.THREE",
     "exports": [
@@ -508,8 +519,8 @@
   },
   "inputs": {
     "assets/three/jsr_three_native.js": {
-      "bytes": 846686,
-      "sha256": "ff40ded512cdd7ae9eb468e0c2e26b071c54a7c1783f7131de415a0d6e2152bf"
+      "bytes": 853353,
+      "sha256": "3f78cde5af6f5d460de690ea66cba6363ad3524c9ce9bb03734256ce7b5fa6ce"
     },
     "assets/three/jsr_three_web.js": {
       "bytes": 859088,
@@ -523,21 +534,9 @@
       "bytes": 11889,
       "sha256": "4f6c4bf60c8956a1201c966de1592f4f035be47b4f6fe97879a782898945992c"
     },
-    "source/examples/jsm/helpers/LightProbeGridHelperWebGL.js": {
-      "bytes": 5588,
-      "sha256": "7f7b74808b826e4152b32bbeb28bd4f2a40931180e48b072feea24a895145900"
-    },
     "source/examples/jsm/libs/lil-gui.module.min.js": {
       "bytes": 29526,
       "sha256": "5e31e7fc4d3a1268550b948463eabe06c7a6c03c158ccb99c78616d2c9682518"
-    },
-    "source/examples/jsm/lighting/LightProbeGridUtils.js": {
-      "bytes": 2990,
-      "sha256": "11786b3ba83b0cc2d1e3e569ff40e7ba2e6709016da195d3813411eee3f2fc1d"
-    },
-    "source/examples/jsm/lighting/LightProbeGridWebGL.js": {
-      "bytes": 23370,
-      "sha256": "1b9ecf4a75daa853742840a59b33edfc9f8e63d9c31992982b8f793ed524474b"
     },
     "source/examples/jsm/lights/SunLight.js": {
       "bytes": 1946,
@@ -563,6 +562,10 @@
       "bytes": 11535,
       "sha256": "b1632a703206c3d830de9fcbe515696770d04b71a15ee6b50afa6d2c3298c86f"
     },
+    "source/examples/models/gltf/sponza_standin.glb": {
+      "bytes": 62796,
+      "sha256": "2e34fb2229d7f25e23010e5e8982c51f006d09654d80edd1f79083532ee95786"
+    },
     "source/examples/webgl_lightprobes_sponza.html": {
       "bytes": 10602,
       "sha256": "68c658e46b20d34f451d6e80b17491a8faa4d1c596e94022e9ae6ab9a1a04cf9"
@@ -572,8 +575,8 @@
       "sha256": "29492424209a17a723b3b0c8e9c83995697a4c466840d1b33ba6f6ff2b7542a4"
     },
     "tool/three/src/native_entry.js": {
-      "bytes": 26368,
-      "sha256": "dac7dc374e1374499bc9e9a84593e7e1e848bfcde7bb916d7212ccd517e861d3"
+      "bytes": 30480,
+      "sha256": "5d27b33a30c7fb3d4080ea538548b8d6d68ff1f7a2f1d4437bd196c2160e1633"
     },
     "tool/three_example/asset_decode.mjs": {
       "bytes": 51634,
@@ -583,9 +586,13 @@
       "bytes": 12424,
       "sha256": "89a14e272cb1ddac5b555b4361af938764127ee069ac367a18262b8299643eca"
     },
+    "tool/three_example/degrades/lightprobe_grid_cpu.mjs": {
+      "bytes": 5503,
+      "sha256": "af961b1f2595d612bc4aaaf3325192fd9ebfb6317d202cba43ba8b1d91d28339"
+    },
     "tool/three_example/example_adapter.js": {
-      "bytes": 49943,
-      "sha256": "1ab349ba0361871765f4351a6fc3228fb05c93315985fbbf07644592c96ad8c4"
+      "bytes": 50501,
+      "sha256": "2a8a17b612e943585c3a55da5df5bee113da42095100f2bbbd617caf949ab057"
     },
     "tool/three_example/example_canvas2d.js": {
       "bytes": 22635,
@@ -596,8 +603,8 @@
       "sha256": "2f83bde66c35db02a16eec3db21beae0e1198e04f1b0723f9b3dbda89c6675f7"
     },
     "tool/three_example/prepare.mjs": {
-      "bytes": 344394,
-      "sha256": "2ffcfe48673c656a7ce7bb9f642782d3447c0a323fb69cf92b268bda53bb3a87"
+      "bytes": 353689,
+      "sha256": "993101c5f7c2b5a1bbef7b55330ef86fc6418a18550e613bb4a2dbdb84af8015"
     },
     "tool/three_example/stats_adapter.js": {
       "bytes": 2107,
@@ -617,9 +624,17 @@
       "bytes": 1081,
       "sha256": "8b378ebe60e2fe500158cb0ac71cb5e8b7d92953c2abcc63a0eb90499653b5bc"
     },
+    "assets.json": {
+      "bytes": 489,
+      "sha256": "5f6016293c4b605a20e0df58bf9016075e258ccbf086408c0849a4ba5992961a"
+    },
     "manifest.json": {
       "bytes": 360,
       "sha256": "dd2f1ada199adb3f1d2ebbbe54c80dd45751036632330d3cd20e7d4deba481b7"
+    },
+    "models__gltf__sponza_standin.glb": {
+      "bytes": 62796,
+      "sha256": "2e34fb2229d7f25e23010e5e8982c51f006d09654d80edd1f79083532ee95786"
     },
     "official_module.js": {
       "bytes": 9448,
@@ -630,8 +645,8 @@
       "sha256": "68c658e46b20d34f451d6e80b17491a8faa4d1c596e94022e9ae6ab9a1a04cf9"
     },
     "widget.js": {
-      "bytes": 180170,
-      "sha256": "29d6fc3ade39ec9bcf5d6e6408a8d311e5e71dc44e8c3ca00b743224168d2b09"
+      "bytes": 168411,
+      "sha256": "4cf9e5595c8db130c6f6f9570b48dd03635f0b9761248a62bcc61a00fb9cdd2b"
     }
   }
 }

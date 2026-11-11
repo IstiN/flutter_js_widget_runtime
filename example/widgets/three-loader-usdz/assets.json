@@ -22,8 +22,7 @@
       "height": 512,
       "bytes": 2097152,
       "sha256": "6afd08b5c4c228a17e656c04d6b16cf14425b9d4af3e1a4742a7f7bf65f281d8",
-      "aliases": [],
-      "diagnostic": "auto:textures/equirectangular/venice_sunset_1k.hdr"
+      "aliases": []
     }
   ]
 }

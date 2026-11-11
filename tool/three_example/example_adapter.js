@@ -646,6 +646,19 @@ container.appendChild = function(child) {
   if (child && child.isJsrThreeCanvas) {
     return appendMainCanvas(this, child);
   }
+  // Effect wrappers (AsciiEffect) append their own DOM table instead of the
+  // renderer canvas; the bounded document has exactly one displayable
+  // surface, so mount the main canvas before accepting such children —
+  // otherwise the module boots, rAF loops and emits R1 packets, but the
+  // widget surface never attaches and no frame ever presents.
+  if (!canvas.parentNode) {
+    canvas.setSize(
+      runtimeDocument.defaultView.innerWidth,
+      runtimeDocument.defaultView.innerHeight,
+      false
+    );
+    appendMainCanvas(this, canvas);
+  }
   if (!child || !child.__jsrThreeExampleLocal) {
     throw new Error(`${WIDGET_ID}: container accepts only the main canvas and local stats DOM`);
   }

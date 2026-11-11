@@ -95,6 +95,96 @@ class JsrCanvasTextureLoader extends JsrTextureLoader {
 
 installNativeCanvas2D(installThreeRuntime(false));
 if (typeof globalThis.Image === 'undefined') globalThis.Image = JsrImageElement;
+
+// Blob + URL.createObjectURL facade for addons that hand embedded image
+// bytes to an <img> through an object URL (USDLoader's USDComposer texture
+// lane: `new Blob([data])` + `URL.createObjectURL(blob)` + `image.src = url`).
+// The sandbox has no Blob/URL; register the bytes as a transient asset so the
+// JsrImageElement/JsrImageLoader decoder pipeline resolves the URL unchanged.
+const blobRegistry = new Map();
+let blobRegistryNext = 0;
+class JsrBlob {
+  constructor(parts = [], options = {}) {
+    let size = 0;
+    const chunks = [];
+    for (const part of parts) {
+      if (part instanceof ArrayBuffer) { chunks.push(new Uint8Array(part)); size += part.byteLength; }
+      else if (ArrayBuffer.isView(part)) {
+        chunks.push(new Uint8Array(part.buffer, part.byteOffset, part.byteLength));
+        size += part.byteLength;
+      } else if (part instanceof JsrBlob) { chunks.push(part._bytes()); size += part.size; }
+      else if (typeof part === 'string') {
+        const bytes = new Uint8Array(part.length);
+        for (let i = 0; i < part.length; i++) bytes[i] = part.charCodeAt(i) & 0xff;
+        chunks.push(bytes); size += bytes.length;
+      }
+    }
+    const bytes = new Uint8Array(size);
+    let offset = 0;
+    for (const chunk of chunks) { bytes.set(chunk, offset); offset += chunk.length; }
+    this._data = bytes;
+    this.size = size;
+    this.type = String(options.type || '');
+  }
+  _bytes() { return this._data; }
+  arrayBuffer() { return this._data.buffer.slice(0, this._data.byteLength); }
+}
+const B64_ALPHABET = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/';
+function encodeBase64Bytes(bytes) {
+  // Chunked flat-string join (runtime.js encodeBase64 precedent): quadratic
+  // += over multi-hundred-KB payloads stalls QuickJS.
+  const parts = [];
+  let piece = '';
+  for (let i = 0; i < bytes.length; i += 3) {
+    const a = bytes[i];
+    const b = i + 1 < bytes.length ? bytes[i + 1] : 0;
+    const c = i + 2 < bytes.length ? bytes[i + 2] : 0;
+    const n = (a << 16) | (b << 8) | c;
+    piece += B64_ALPHABET[(n >> 18) & 63] + B64_ALPHABET[(n >> 12) & 63] +
+      (i + 1 < bytes.length ? B64_ALPHABET[(n >> 6) & 63] : '=') +
+      (i + 2 < bytes.length ? B64_ALPHABET[n & 63] : '=');
+    if (piece.length >= 8192) { parts.push(piece); piece = ''; }
+  }
+  if (piece.length > 0) parts.push(piece);
+  return parts.join('');
+}
+function registerBlobAsset(url, blob) {
+  const runtime = installThreeRuntime(false);
+  runtime.registerAsset(url, { data: encodeBase64Bytes(blob._bytes()), mime: blob.type || 'application/octet-stream' });
+}
+// R1 v8 (revised): do NOT install global Blob/createObjectURL here.
+// GLB-family widgets (three-animation-multiple Soldier, all Needle boots)
+// carry their own Blob/createObjectURL adapter that registers
+// `blob:jsr-example-N` assets with RAW bytes; installing a competing global
+// facade flipped GLTFLoader's embedded-image lane onto jsr-blob:N URLs the
+// runtime texture decoder could not finish (Soldier base color lost,
+// js_three_animation_multiple_texture_test red). The USDZ composer's blob
+// lane needs its own follow-up behind a widget-level patch instead.
+// URL must stay CONSTRUCTABLE: needle-family widgets (webgl_loader_gltf_*)
+// lazily run `new URL(relPath, base)` for their draco/basis decoder assets.
+// A plain `{}` stand-in made that throw "URL is not a constructor" and the
+// async boot chain died before the first frame (three-loader-gltf-animation-
+// pointer hang). Resolve relative paths against the base string; absolute
+// and jsr-* scheme URLs pass through unchanged.
+if (typeof globalThis.URL === 'undefined') {
+  globalThis.URL = function JsrUrl(url, base) {
+    url = String(url);
+    if (base !== undefined && base !== null && String(base) !== '' &&
+        !/^[a-zA-Z][a-zA-Z0-9+.-]*:/.test(url)) {
+      const b = String(base);
+      const cut = b.lastIndexOf('/');
+      url = (cut >= 0 ? b.slice(0, cut + 1) : '') + url;
+    }
+    this.href = url;
+  };
+  globalThis.URL.prototype.toString = function () { return this.href; };
+  Object.defineProperty(globalThis.URL.prototype, 'pathname', {
+    get() { return this.href.replace(/^[a-zA-Z][a-zA-Z0-9+.-]*:/, ''); },
+  });
+}
+// NOTE: intentionally NO global createObjectURL install (see the revised
+// R1 v8 note above — the widget adapters own the blob lane).
+
 installNativeRaycastBVH(Mesh);
 
 const pmremWarnings = new WeakSet();
@@ -274,6 +364,20 @@ CoreCubeCamera.prototype.update = function (renderer, scene) {
   renderer.setRenderTarget(currentRenderTarget, currentActiveCubeFace, currentActiveMipmapLevel);
   renderer.xr.enabled = currentXrEnabled;
   renderTarget.texture.needsPMREMUpdate = true;
+  // Bounded probe-source tag: LightProbeGenerator.fromCubeRenderTarget needs
+  // per-face pixels, which the bounded 2D cube storage cannot provide. When
+  // the captured scene carried a real cube background (raw RGBA face data in
+  // the image lane), expose it so the bounded generator can project the same
+  // environment the cube camera actually photographed.
+  if (scene.background && scene.background.isCubeTexture &&
+    Array.isArray(scene.background.image) && scene.background.image.length === 6 &&
+    scene.background.image[0] && scene.background.image[0].data) {
+    renderTarget.texture._r1ProbeSource = scene.background;
+  }
+  // Probe-grid bakes (LightProbeGridWebGL) capture per-cell cube renders of
+  // the static scene. The faces are not readable in the bounded lane, so the
+  // generator falls back to light-derived SH from THIS scene.
+  renderTarget.texture._r1ProbeScene = scene;
 };
 
 // Bounded skinned bounds. R1 CPU skining bakes bone transforms into the

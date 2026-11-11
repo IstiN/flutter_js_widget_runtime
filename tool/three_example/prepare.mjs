@@ -13,6 +13,7 @@ import { mergeGlbByMaterial } from './degrades/glb_material_merge.mjs';
 import { applyPointsDynamicDirectRenderPatch } from './degrades/points_dynamic_direct_render.mjs';
 import { applyPointsDynamicLoaderPatch } from './degrades/points_dynamic_loader_patch.mjs';
 import { applyWidgetTextDecodeJoinPatch } from './degrades/widget_text_decode_join.mjs';
+import { applySponzaStandInPatch, buildSponzaStandin } from './degrades/sponza_standin.mjs';
 import { assetDependencyAlias, assetOutputName, discoverAssets } from './asset_discovery.mjs';
 import { decodeColladaAsset, decodeDdsAsset, decodeDracoAsset, decodeGlbAsset, decodeKtx2Asset, decodeVrmlAsset } from './asset_decode.mjs';
 
@@ -3106,6 +3107,9 @@ webgl_geometry_shapes: {
       html: '09fbb0266e91f0e6a56938310ca5fa0d09f151198bd1a08f9d592870144113dc',
       module: '95345a20fbf27f070f677c7632119a352494018fff20aeb8497b178fcadf3751'
     },
+    importOverrides: {
+      'three/addons/effects/AsciiEffect.js': 'degrades/ascii_effect_r1.mjs'
+    },
     assets: []
   },
   webgl_effects_parallaxbarrier: {
@@ -3154,6 +3158,9 @@ webgl_geometry_shapes: {
       html: 'd34ee0fbf6a43dea28f0bc0b1f5eb286013356b9d1648fd0492926e6c8779409',
       module: '5f2fe4213d16e936ed957081c2ba449d942ef61bd9d652588167e71762028c9a'
     },
+    importOverrides: {
+      'three/addons/misc/GPUComputationRenderer.js': 'degrades/gpgpu_cpu_computation.mjs'
+    },
     assets: []
   },
   webgl_gpgpu_birds_gltf: {
@@ -3180,6 +3187,9 @@ webgl_geometry_shapes: {
       html: 'd6fb9f50fa55f91f0827f8283519481f0a4d7ce675ac72e475275ae7bf1d959b',
       module: 'ddb02a2ade9e87df6090c91ad9691c029f765980c1b2a95379d14d39399e523e'
     },
+    importOverrides: {
+      'three/addons/misc/GPUComputationRenderer.js': 'degrades/gpgpu_cpu_computation.mjs'
+    },
     assets: []
   },
   webgl_gpgpu_water: {
@@ -3205,6 +3215,11 @@ webgl_geometry_shapes: {
       html: 'd0dc5d19cbfcf0e85dc98f831cf0c14613bdb2f1a03b11fd3df84750a734ca7b',
       module: '311a027c5150185e4fe6989b99d0371d5bab882147efcf50af3cd320f4999819'
     },
+    // Horse.glb must ride the pinned external-asset lane: the runtime asset
+    // gate rejects unpinned fetches ("not pinned in assets.json"), which left
+    // the whole InstancedMesh undrawn (empty scene, calls=1 tri=2 ground only).
+    discoverAssets: true,
+    inlineMaxBytes: 0,
     assets: []
   },
   webgl_interactive_cubes_gpu: {
@@ -3254,8 +3269,16 @@ webgl_geometry_shapes: {
       html: 'b2ad73847b7c05b0d14d6e010150b4a605fb2f929d79a47aa0fe2017b243b78f',
       module: '05acd4e6b535799096ff8d331cffbee9945c62b54e4c3994b649326a6c5647ac'
     },
-    discoverAssets: true,
-    assets: []
+    discoverAssets: false,
+    inlineMaxBytes: 0,
+    assets: [
+      { url: 'textures/cube/pisa/px.png', output: 'textures__cube__pisa__px.png', file: 'textures__cube__pisa__px.png', mime: 'image/png', sha256: '11d859640e7da526ac0654dbfa1cc18f40dd8fc100db197730485218a7c9d24d' },
+      { url: 'textures/cube/pisa/nx.png', output: 'textures__cube__pisa__nx.png', file: 'textures__cube__pisa__nx.png', mime: 'image/png', sha256: 'cf01cfc9a168e7c71bf66d0bed8dcad3a4fd353f528e73caaba62d1a097c49a1' },
+      { url: 'textures/cube/pisa/py.png', output: 'textures__cube__pisa__py.png', file: 'textures__cube__pisa__py.png', mime: 'image/png', sha256: 'b34a1cec12e62327c9555ca9f82a38bea73f519915e1368fa69bbd51c82ec712' },
+      { url: 'textures/cube/pisa/ny.png', output: 'textures__cube__pisa__ny.png', file: 'textures__cube__pisa__ny.png', mime: 'image/png', sha256: '61a94678f04f9853509d7a864fd839cf688c6705ee9df02fc4e42bfca858270b' },
+      { url: 'textures/cube/pisa/pz.png', output: 'textures__cube__pisa__pz.png', file: 'textures__cube__pisa__pz.png', mime: 'image/png', sha256: 'bd528b739e9e0ea6c1e8627e949caa950991719069c983e8abdc3a8640039667' },
+      { url: 'textures/cube/pisa/nz.png', output: 'textures__cube__pisa__nz.png', file: 'textures__cube__pisa__nz.png', mime: 'image/png', sha256: 'e5c1774f9a41d8124f8f223c9810e95d277f256104f8aee57ad2e5ef73a64424' }
+    ]
   },
   webgl_lightprobes: {
     id: 'three-lightprobes',
@@ -3290,6 +3313,17 @@ webgl_geometry_shapes: {
     expected: {
       html: '68c658e46b20d34f451d6e80b17491a8faa4d1c596e94022e9ae6ab9a1a04cf9',
       module: '7096bbe4b58c139380283b9caa53f1301646da85f28dfd5e7a06dbd3fc4e8b61'
+    },
+    // The official module fetches Sponza from the KhronosGroup sample index
+    // over the network; the bounded runtime has no network, loadAsync never
+    // settled and only the Sky box presented (calls=1, triangles=12). Ship a
+    // pinned generated courtyard GLB instead (degrades/sponza_standin.mjs).
+    sponzaStandIn: true,
+    lightProbeGridCpu: true,
+    inlineMaxBytes: 0,
+    importOverrides: {
+      'three/addons/lighting/LightProbeGridWebGL.js': 'degrades/lightprobe_grid_cpu.mjs',
+      'three/addons/helpers/LightProbeGridHelperWebGL.js': 'degrades/lightprobe_grid_cpu.mjs'
     },
     assets: []
   },
@@ -4212,12 +4246,15 @@ webgl_geometry_shapes: {
     name: 'loaders - USDZLoader — three.js r186',
     description: 'Unmodified official webgl_loader_usdz module on the JSR THREE R1/WebGL2 runtime.',
     icon: '🧊',
+    hdrRgba: true,
     expected: {
       html: 'd45e9756fe5456e94acc6084db833a7ec7d2bf278bb254c1277f42e46cf1b046',
       module: 'b2253e4e903723acaece947589747bfc2b8fbf963da5fa143bcd3104b8687bf2'
     },
     discoverAssets: true,
-    assets: []
+    assets: [
+      { hdrRgba: true, url: 'textures/equirectangular/venice_sunset_1k.hdr', sha256: '0e72ed46b5316cb5fb67fc81ff85b024a09146fd89ef3811a8d2299647ada118', mime: 'image/vnd.radiance' }
+    ]
   },
   webgl_loader_vox: {
     id: 'three-loader-vox',
@@ -6491,6 +6528,118 @@ export class ${name} extends TextureLoader {
 }`;
 }
 
+// Bounded LightProbeGenerator: the upstream fromCubeTexture round-trips each
+// face through a 2D canvas getImageData, which the bounded canvas facade does
+// not support (neutral readback) — every coefficient came back zero and the
+// probe-dependent draws went black (webgl_lightprobe_cubecamera). The R1 image
+// lane already holds raw RGBA face data, so compute the SH projection
+// directly from image.data; fromCubeRenderTarget keeps the upstream signature
+// and consults the R1 probe-source tag left by the cube-camera lane.
+function boundedLightProbeGeneratorShim() {
+  return `import { Color, LightProbe, SphericalHarmonics3, Vector3 } from 'three';
+const _coord = new Vector3();
+const _c2 = new Color();
+const _dir = new Vector3();
+const _color = new Color();
+const _shBasis = [0, 0, 0, 0, 0, 0, 0, 0, 0];
+function convertColorToLinear(color, colorSpace) {
+  if (colorSpace === 'srgb' || colorSpace === 3001 || colorSpace === 'srgb-linear') {
+    color.convertSRGBToLinear();
+  }
+  return color;
+}
+class LightProbeGenerator {
+  static fromCubeTexture(cubeTexture) {
+    const sh = new SphericalHarmonics3();
+    const shCoefficients = sh.coefficients;
+    let totalWeight = 0;
+    for (let faceIndex = 0; faceIndex < 6; faceIndex++) {
+      const image = cubeTexture.image[faceIndex];
+      const data = image && image.data;
+      if (!data) throw new Error('three: R1 cube face has no raw RGBA data for the probe projection');
+      const imageWidth = image.width;
+      const pixelSize = 2 / imageWidth;
+      for (let i = 0, il = data.length; i < il; i += 4) {
+        _color.setRGB(data[i] / 255, data[i + 1] / 255, data[i + 2] / 255);
+        convertColorToLinear(_color, cubeTexture.colorSpace);
+        const pixelIndex = i / 4;
+        const col = -1 + (pixelIndex % imageWidth + 0.5) * pixelSize;
+        const row = 1 - (Math.floor(pixelIndex / imageWidth) + 0.5) * pixelSize;
+        switch (faceIndex) {
+          case 0: _coord.set(-1, row, -col); break;
+          case 1: _coord.set(1, row, col); break;
+          case 2: _coord.set(-col, 1, -row); break;
+          case 3: _coord.set(-col, -1, row); break;
+          case 4: _coord.set(-col, row, 1); break;
+          case 5: _coord.set(col, row, -1); break;
+        }
+        const lengthSq = _coord.lengthSq();
+        const weight = 4 / (Math.sqrt(lengthSq) * lengthSq);
+        totalWeight += weight;
+        _dir.copy(_coord).normalize();
+        SphericalHarmonics3.getBasisAt(_dir, _shBasis);
+        for (let j = 0; j < 9; j++) {
+          shCoefficients[j].x += _shBasis[j] * _color.r * weight;
+          shCoefficients[j].y += _shBasis[j] * _color.g * weight;
+          shCoefficients[j].z += _shBasis[j] * _color.b * weight;
+        }
+      }
+    }
+    for (let j = 0; j < 9; j++) {
+      const scale = 4 / totalWeight;
+      shCoefficients[j].x *= scale;
+      shCoefficients[j].y *= scale;
+      shCoefficients[j].z *= scale;
+    }
+    return new LightProbe(sh);
+  }
+  static async fromCubeRenderTarget(renderer, cubeRenderTarget) {
+    const source = (cubeRenderTarget && cubeRenderTarget.texture && cubeRenderTarget.texture._r1ProbeSource) ||
+      (cubeRenderTarget && cubeRenderTarget.texture);
+    if (source && source.isCubeTexture && Array.isArray(source.image) && source.image.length === 6 &&
+        source.image[0] && source.image[0].data) {
+      return this.fromCubeTexture(source);
+    }
+    const scene = cubeRenderTarget && cubeRenderTarget.texture && cubeRenderTarget.texture._r1ProbeScene;
+    if (scene) {
+      // Bounded bake: the captured scene's own lights drive per-cell SH. No
+      // occlusion/indirect bounce, but probes keep directional energy so
+      // probe-lit draws shade toward the sun instead of collapsing neutral.
+      const sh = [];
+      for (let i = 0; i < 9; i++) sh.push(new Color(0, 0, 0));
+      const _dir = new Vector3();
+      let found = 0;
+      scene.traverse((object) => {
+        if (object.visible !== true || !object.isLight) return;
+        const c = new Color(object.color || 0xffffff).multiplyScalar(object.intensity === undefined ? 1 : object.intensity);
+        if (object.isDirectionalLight) {
+          object.getWorldDirection(_dir);
+          sh[0].add(_c2.copy(c).multiplyScalar(0.45));
+          sh[1].add(_c2.copy(c).multiplyScalar(-_dir.x * 0.7));
+          sh[2].add(_c2.copy(c).multiplyScalar(-_dir.y * 0.7));
+          sh[3].add(_c2.copy(c).multiplyScalar(-_dir.z * 0.7));
+          found++;
+        } else if (object.isAmbientLight || object.isHemisphereLight) {
+          sh[0].add(_c2.copy(c).multiplyScalar(object.isHemisphereLight ? 0.5 : 1.0));
+          if (object.isHemisphereLight && object.groundColor) {
+            const g = new Color(object.groundColor).multiplyScalar(object.intensity || 1);
+            sh[2].add(_c2.copy(g).multiplyScalar(-0.5));
+          }
+          found++;
+        } else if (object.isPointLight || object.isSpotLight) {
+          sh[0].add(_c2.copy(c).multiplyScalar(0.2));
+          found++;
+        }
+      });
+      if (found > 0) return new LightProbe(new SphericalHarmonics3().setFromCoefficients(sh));
+    }
+    console.warn('three: R1 cannot project this render target into a light probe (bounded cube storage has no face pixels); the probe stays neutral.');
+    return new LightProbe();
+  }
+}
+export { LightProbeGenerator };`;
+}
+
 function ssrPassThroughShim() {
   return `import { Pass } from 'three/addons/postprocessing/Pass.js';
 export class SSRPass extends Pass {
@@ -6826,6 +6975,12 @@ function automaticAssetAddonShims(definitions) {
     shims['three/addons/loaders/RGBELoader.js'] = hdrTextureLoaderShim('RGBELoader');
     shims['three/addons/loaders/HDRCubeTextureLoader.js'] = "export { CubeTextureLoader as HDRCubeTextureLoader } from 'three';";
   }
+  // Unconditional: the upstream generator's canvas getImageData round-trip
+  // yields all-zero probe coefficients in the bounded lane (neutral readback),
+  // which blackened every probe-dependent draw (webgl_lightprobe_cubecamera).
+  // The bounded shim reads the raw RGBA face data the image lane already
+  // holds; behavior is identical wherever faces carry data.
+  shims['three/addons/lights/LightProbeGenerator.js'] = boundedLightProbeGeneratorShim();
   // UltraHDRLoader's gain-map metadata uses DOMParser. The pinned base JPEG
   // remains a valid SDR environment, so keep that image without the gain map.
   // The official module calls setDataType() before load() — accept it and
@@ -7193,7 +7348,23 @@ async function main() {
     // but bundle the documented native scene instead of an unavailable runtime.
     officialBuildBytes = await readFile(path.join(HERE, definition.moduleOverride));
   }
+  if (definition.sponzaStandIn) {
+    officialBuildBytes = applySponzaStandInPatch(officialBuildBytes);
+  }
   const assets = await prepareAssets(source, assetDefinitions);
+  if (definition.sponzaStandIn) {
+    // Pinned generated courtyard GLB (see degrades/sponza_standin.mjs) — the
+    // official module fetches Sponza over the network, which the bounded
+    // runtime rejects, leaving only the Sky box presented.
+    const standInBytes = buildSponzaStandin();
+    assets.push({
+      url: 'models/gltf/sponza_standin.glb',
+      output: 'models__gltf__sponza_standin.glb',
+      mime: 'model/gltf-binary',
+      bytes: standInBytes,
+      diagnostic: 'generated:sponza stand-in'
+    });
+  }
   if (definition.mergeGlbByMaterial) {
     // Bounded degrade: static material-merge of a prepared GLB (see
     // degrades/glb_material_merge.mjs). webgl_performance's dungeon scene

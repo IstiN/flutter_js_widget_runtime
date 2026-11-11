@@ -1,0 +1,18 @@
+{
+  "schema": "jsr-three-example-external-assets-v1",
+  "id": "three-lightprobes-sponza",
+  "inlineMaxBytes": 0,
+  "assets": [
+    {
+      "url": "models/gltf/sponza_standin.glb",
+      "file": "models__gltf__sponza_standin.glb",
+      "mime": "model/gltf-binary",
+      "width": 0,
+      "height": 0,
+      "bytes": 62796,
+      "sha256": "2e34fb2229d7f25e23010e5e8982c51f006d09654d80edd1f79083532ee95786",
+      "aliases": [],
+      "diagnostic": "generated:sponza stand-in"
+    }
+  ]
+}

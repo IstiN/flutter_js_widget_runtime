@@ -121,7 +121,13 @@ void main() {
       'three-gpgpu-birds',
     );
     expect(plan.draws, isNotEmpty);
-    expect(harness.state!.renderTargets.length, greaterThanOrEqualTo(4));
+    // R1 v8: the boids kernels ride the CPU-flock lane (per-tick JS kernels
+    // writing the position attribute directly), so the GPU ping-pong render
+    // targets are no longer created. The multi-tick pin
+    // (tool/three/pins/multitick.mjs three-gpgpu-birds) guards the animated
+    // flock instead: 90 ticks of per-tick texel digests, 3-axis spread, and
+    // 90 distinct digests — the RT-count assertion here could not catch the
+    // collapsed-flock stripe that pin catches.
     await harness.dispose(tester);
   }, timeout: const Timeout(Duration(seconds: 180)));
 

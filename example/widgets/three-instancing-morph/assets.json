@@ -1,0 +1,18 @@
+{
+  "schema": "jsr-three-example-external-assets-v1",
+  "id": "three-instancing-morph",
+  "inlineMaxBytes": 0,
+  "assets": [
+    {
+      "url": "models/gltf/Horse.glb",
+      "file": "models__gltf__Horse.glb",
+      "mime": "model/gltf-binary",
+      "width": 0,
+      "height": 0,
+      "bytes": 181808,
+      "sha256": "bebaa4a60ba373317e25bf20f049f26ad0f5c86d4731ab67d46eb8c93c920947",
+      "aliases": [],
+      "diagnostic": "auto:models/gltf/Horse.glb"
+    }
+  ]
+}
