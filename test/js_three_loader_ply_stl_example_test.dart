@@ -226,11 +226,18 @@ void _expectGroundPlane(ThreeDrawItem draw) {
   expect(draw.drawCount, 6);
   expect(draw.indexed, isTrue);
   expect(draw.material.kind, JsThreeMaterialKind.meshPhong);
-  for (final channel in [
-    draw.material.colorR,
-    draw.material.colorG,
-    draw.material.colorB,
-  ]) {
+  // Round-3 lever 1: the plane draws through the color-batch lane. The
+  // group material is a white CLONE of the plane's Phong material; the true
+  // diffuse (0xcb) travels per-instance on the wire (DRAW_BATCH flags=3,
+  // decoded via js_three_protocol_decoder.dart:813 instanceColors) and is
+  // pinned below; specular is clone-preserved.
+  expect(draw.material.colorR, closeTo(1.0, 0.01));
+  expect(draw.material.colorG, closeTo(1.0, 0.01));
+  expect(draw.material.colorB, closeTo(1.0, 0.01));
+  final batch = draw.batch!;
+  expect(batch.hasInstanceColors, isTrue);
+  expect(batch.instanceColors.length, 3);
+  for (final channel in batch.instanceColors) {
     expect(channel, closeTo(_linearOf(0xcb), 0.01));
   }
   for (final channel in [

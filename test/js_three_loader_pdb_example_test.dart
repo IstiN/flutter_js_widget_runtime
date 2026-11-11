@@ -41,8 +41,10 @@ void main() {
     );
     harness.expectHealthy('webgl_loader_pdb');
 
-    int trianglesOf(ThreeDrawPlan plan) =>
-        plan.draws.fold<int>(0, (t, d) => t + d.drawCount ~/ 3);
+    // Batched items carry part.count (indices per instance) +
+    // instanceCount: total triangles = part triangles x instances.
+    int trianglesOf(ThreeDrawPlan plan) => plan.draws
+        .fold<int>(0, (t, d) => t + d.drawCount ~/ 3 * d.instanceCount);
 
     String? moleculeValue() {
       final rows = (harness.engine.exportedState?['gui']?['values']
@@ -54,9 +56,15 @@ void main() {
     }
 
     // Boot molecule: caffeine — 24 atom spheres (IcosahedronGeometry(1,3),
-    // 320 triangles each) + 25 bond boxes (12 each), one draw per mesh.
+    // 320 triangles each) + 25 bond boxes (12 each). Round-3 lever 1 folds
+    // the per-mesh draws into the color-batch lane: atoms share one
+    // geometry + Phong fields (diffuse color is per-instance, decoded via
+    // js_three_protocol_decoder.dart:813 instanceColors) -> one atoms batch,
+    // bonds (shared box geometry) -> one bonds batch; live wire decode:
+    // DRAW_BATCH flags=3, parts carry geometryId/materialId, count =
+    // part.count * instanceCount. Triangle totals are unchanged.
     expect(moleculeValue(), 'caffeine.pdb');
-    expect(harness.plan!.draws, hasLength(49));
+    expect(harness.plan!.draws, hasLength(2));
     expect(trianglesOf(harness.plan!), 7980);
 
     final rows = (harness.engine.exportedState?['gui']?['values']
@@ -84,10 +92,10 @@ void main() {
       expect(trianglesOf(harness.plan!), triangles);
     }
 
-    await expectSwitch('Ethanol', 'ethanol.pdb', 17, 2976);
-    await expectSwitch('cubane.pdb', 'cubane.pdb', 36, 5360);
+    await expectSwitch('Ethanol', 'ethanol.pdb', 2, 2976);
+    await expectSwitch('cubane.pdb', 'cubane.pdb', 2, 5360);
     // Back to the boot molecule: switching must keep working repeatedly.
-    await expectSwitch('Caffeine', 'caffeine.pdb', 49, 7980);
+    await expectSwitch('Caffeine', 'caffeine.pdb', 2, 7980);
 
     await harness.dispose(tester);
   }, timeout: const Timeout(Duration(seconds: 180)));

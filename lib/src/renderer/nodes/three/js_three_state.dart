@@ -125,6 +125,10 @@ final class JsThreeStateStore {
 abstract interface class JsThreeFrameResources {
   JsThreeSurfaceKey get key;
   bool get disposed;
+
+  /// Revision of the mutable resource maps this view reflects. Equal
+  /// revisions imply identical map contents (see the snapshot cache).
+  int get contentRevision;
   JsThreeSubmitFrame? get currentFrame;
   Map<int, JsThreeGeometryUpsert> get geometries;
   Map<int, JsThreeTextureUpsert> get textures;
@@ -148,11 +152,27 @@ abstract interface class JsThreeFrameResources {
 /// queued frame against the *final* surface state binds scene meshes to the
 /// wrong (screen-facing) material or target records. Frame planning uses this
 /// snapshot instead; GPU resource caches keep following the final state.
+/// mutation after it was taken.
+final class _SnapshotMaps {
+  _SnapshotMaps(this.revision);
+  final int revision;
+  late final Map<int, JsThreeGeometryUpsert> geometries;
+  late final Map<int, JsThreeTextureUpsert> textures;
+  late final Map<int, JsThreeRenderTargetUpsert> renderTargets;
+  late final Map<int, JsThreeMaterialUpsert> materials;
+  late final Map<int, JsThreeNodeUpsert> nodes;
+  late final Map<int, JsThreeDrawBatchUpsert> batches;
+  late final Map<int, JsThreeCameraUpsert> cameras;
+  late final Map<int, JsThreeLightUpsert> lights;
+  late final Map<int, JsThreeClippingUpsert> clippings;
+}
+
 final class JsThreeFramePlanView implements JsThreeFrameResources {
   JsThreeFramePlanView._(
     this.frame, {
     required this.key,
     required this.disposed,
+    required this.contentRevision,
     required this.geometries,
     required this.textures,
     required this.renderTargets,
@@ -169,21 +189,44 @@ final class JsThreeFramePlanView implements JsThreeFrameResources {
     JsThreeSurfaceState state,
     JsThreeSubmitFrame frame,
     List<JsThreeStencilClear> stencilClears,
-  ) => JsThreeFramePlanView._(
-    frame,
-    key: state.key,
-    disposed: state.disposed,
-    geometries: Map.of(state._geometries),
-    textures: Map.of(state._textures),
-    renderTargets: Map.of(state._renderTargets),
-    materials: Map.of(state._materials),
-    nodes: Map.of(state._nodes),
-    batches: Map.of(state._batches),
-    cameras: Map.of(state._cameras),
-    lights: Map.of(state._lights),
-    clippings: Map.of(state._clippings),
-    stencilClears: List.unmodifiable(stencilClears),
-  );
+  ) {
+    // Composer passes queue ~15 frames per JS tick with no state change
+    // between them; share one immutable map set across those views instead
+    // of re-copying 11 maps per frame. The cache invalidates on every state
+    // mutation (contentRevision bump) so a shared map set can never observe
+    // a mutation after it was taken.
+    var maps = state._snapshotCache;
+    final revision = state.contentRevision;
+    if (maps == null || maps.revision != revision) {
+      maps = _SnapshotMaps(revision)
+        ..geometries = Map.of(state._geometries)
+        ..textures = Map.of(state._textures)
+        ..renderTargets = Map.of(state._renderTargets)
+        ..materials = Map.of(state._materials)
+        ..nodes = Map.of(state._nodes)
+        ..batches = Map.of(state._batches)
+        ..cameras = Map.of(state._cameras)
+        ..lights = Map.of(state._lights)
+        ..clippings = Map.of(state._clippings);
+      state._snapshotCache = maps;
+    }
+    return JsThreeFramePlanView._(
+      frame,
+      key: state.key,
+      disposed: state.disposed,
+      contentRevision: revision,
+      geometries: maps.geometries,
+      textures: maps.textures,
+      renderTargets: maps.renderTargets,
+      materials: maps.materials,
+      nodes: maps.nodes,
+      batches: maps.batches,
+      cameras: maps.cameras,
+      lights: maps.lights,
+      clippings: maps.clippings,
+      stencilClears: List.unmodifiable(stencilClears),
+    );
+  }
 
   final JsThreeSubmitFrame frame;
 
@@ -191,6 +234,12 @@ final class JsThreeFramePlanView implements JsThreeFrameResources {
   final JsThreeSurfaceKey key;
   @override
   final bool disposed;
+
+  /// Surface [JsThreeSurfaceState.contentRevision] captured when this view
+  /// was snapshotted; frames queued from an unchanged tick share it, letting
+  /// the planner reuse one walk across a composer's sub-passes.
+  @override
+  final int contentRevision;
   @override
   final Map<int, JsThreeGeometryUpsert> geometries;
   @override
@@ -243,6 +292,10 @@ final class JsThreeSurfaceState implements JsThreeFrameResources {
   /// frame's snapshot and clears the accumulation.
   final List<JsThreeStencilClear> _pendingStencilClears = [];
   List<JsThreeStencilClear> _currentFrameStencilClears = const [];
+
+  /// Last snapshot map set (see [JsThreeFramePlanView.snapshot]); dropped on
+  /// every mutation so shared maps never observe later state.
+  _SnapshotMaps? _snapshotCache;
 
   String get engineId => key.engineId;
   String get surfaceId => key.surfaceId;
@@ -569,6 +622,8 @@ extension _JsThreeSurfaceStateOperations on JsThreeSurfaceState {
       batch.unchanged++;
       return;
     }
+    _contentRevision++;
+    _snapshotCache = null;
     _renderTargets[value.targetId] = value;
     batch.changes.add(value);
   }
@@ -578,8 +633,45 @@ extension _JsThreeSurfaceStateOperations on JsThreeSurfaceState {
     if (_castsShadow(value) || (previous != null && _castsShadow(previous))) {
       _markShadow(batch, 'node:${value.nodeId}');
     }
+    // Composer sub-passes re-send every node between their render-target
+    // frames; treat a content-identical re-upsert as unchanged so the
+    // sub-pass plan-reuse revision survives (see _planThreeFrames).
+    if (previous != null && _nodeUpsertEquals(previous, value)) {
+      batch.unchanged++;
+      return;
+    }
+    _contentRevision++;
+    _snapshotCache = null;
     _nodes[value.nodeId] = value;
     batch.changes.add(value);
+  }
+
+  /// Field-for-field equality for node re-upserts. Every planning-relevant
+  /// input participates (matrix, flags, ids, sprite anchor, render order) so
+  /// an equal verdict guarantees an identical draw plan.
+  static bool _nodeUpsertEquals(JsThreeNodeUpsert a, JsThreeNodeUpsert b) {
+    if (a.nodeId != b.nodeId ||
+        a.parentId != b.parentId ||
+        a.geometryId != b.geometryId ||
+        a.materialId != b.materialId ||
+        a.flags != b.flags ||
+        a.objectKind != b.objectKind ||
+        a.shadowFlags != b.shadowFlags ||
+        a.renderOrder != b.renderOrder) {
+      return false;
+    }
+    if (a.objectKind == JsThreeObjectKind.sprite &&
+        (a.spriteCenterX != b.spriteCenterX ||
+            a.spriteCenterY != b.spriteCenterY)) {
+      return false;
+    }
+    final am = a.matrixWorld;
+    final bm = b.matrixWorld;
+    if (am.length != bm.length) return false;
+    for (var i = 0; i < am.length; i++) {
+      if (am[i] != bm[i]) return false;
+    }
+    return true;
   }
 
   bool _castsShadow(JsThreeNodeUpsert value) =>
@@ -616,6 +708,8 @@ extension _JsThreeSurfaceStateOperations on JsThreeSurfaceState {
 
   void _recordUpload(bool uploaded, JsThreeCommand command, _ApplyBatch batch) {
     if (uploaded) {
+      _contentRevision++;
+      _snapshotCache = null;
       _markShadow(batch, 'upload:${command.runtimeType}');
       batch.changes.add(command);
     } else {
@@ -705,8 +799,12 @@ extension _JsThreeSurfaceStateOperations on JsThreeSurfaceState {
     return removedCount != 0;
   }
 
-  int _removeResource(Map<int, dynamic> resources, int id) =>
-      resources.remove(id) == null ? 0 : 1;
+  int _removeResource(Map<int, dynamic> resources, int id) {
+    if (resources.remove(id) == null) return 0;
+    _contentRevision++;
+    _snapshotCache = null;
+    return 1;
+  }
 
   bool _submitFrame(JsThreeSubmitFrame frame) {
     _currentFrame = frame;

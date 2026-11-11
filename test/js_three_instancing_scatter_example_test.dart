@@ -57,21 +57,25 @@ void main() {
     // count slider (0..2000), distribution dropdown, resample button.
     expect((exported['gui'] as Map<String, dynamic>)['controllers'], 3);
 
-    // One surface draw (Lambert torus knot) plus two instanced batches:
-    // stems WITHOUT per-instance colors (material color wins) and
-    // blossoms WITH the decoded 2000x3 palette payload.
+    // Round-3 lever 1: the Lambert torus-knot surface ALSO draws through
+    // the color-batch lane now (count-1 batch, flags=3, its diffuse baked
+    // into per-instance colors decoded via
+    // js_three_protocol_decoder.dart:813) instead of an ordinary draw, so
+    // the surface is three batches: knot (1 instance, colors), stems
+    // (InstancedMesh lane, NO colors), blossoms (2000x3 palette payload).
     expect(ready, isNotNull);
     expect(ready!.draws, hasLength(3));
-    // One ordinary draw (the Lambert torus-knot surface) + two instanced
-    // batches: stems WITHOUT per-instance colors, blossoms WITH the
-    // decoded 2000x3 palette payload.
     final instancedBatches = ready.draws
         .map((draw) => draw.batch)
         .whereType<JsThreeDrawBatchUpsert>()
         .toList();
-    expect(instancedBatches, hasLength(2));
-    final blossom = instancedBatches.singleWhere((b) => b.hasInstanceColors);
+    expect(instancedBatches, hasLength(3));
+    final blossom = instancedBatches
+        .singleWhere((b) => b.hasInstanceColors && b.instanceCount == 2000);
+    final knot = instancedBatches
+        .singleWhere((b) => b.hasInstanceColors && b.instanceCount == 1);
     final stem = instancedBatches.singleWhere((b) => !b.hasInstanceColors);
+    expect(knot.instanceCount, 1);
     expect(blossom.instanceCount, 2000);
     expect(blossom.instanceColors, hasLength(6000));
     expect(stem.instanceCount, 2000);
@@ -97,12 +101,18 @@ void main() {
       tester,
       (state, plan) =>
           plan.draws.length == 3 &&
-          plan.draws
-              .where((draw) => draw.batch?.hasInstanceColors ?? false)
-              .every((draw) => draw.instanceCount == 100),
+          plan.draws.any(
+            (draw) =>
+                (draw.batch?.hasInstanceColors ?? false) &&
+                draw.instanceCount == 100,
+          ),
     );
     final blossomDraws = slimmed!.draws
-        .where((draw) => draw.batch?.hasInstanceColors ?? false)
+        .where(
+          (draw) =>
+              (draw.batch?.hasInstanceColors ?? false) &&
+              draw.instanceCount == 100,
+        )
         .toList();
     expect(blossomDraws, hasLength(1));
     expect(blossomDraws.single.instanceCount, 100);

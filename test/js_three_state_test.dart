@@ -552,7 +552,11 @@ void main() {
     final ordinary = store.apply(
       _envelope(5, [(4, _node(8)), (12, _remove(8))]),
     );
-    expect(ordinary.changes.map((command) => command.opcode), [4, 12]);
+    expect(ordinary.changes.map((command) => command.opcode), [12]);
+    // Round-3 lever 2: content-equal node re-upserts are recorded as
+    // unchanged (composer sub-passes re-send every node between their
+    // frames), so this envelope applies only the batch removal — node 8 is
+    // already up to date in the state.
     expect(state.nodes[8]!.geometryId, 1);
     expect(state.batches, isEmpty);
 
@@ -704,22 +708,36 @@ void main() {
     },
   );
 
-  test('shadow revision ignores non-caster transforms and tracks casters', () {
+  test('shadow revision tracks every node content change and skips content-equal re-upserts', () {
     final store = JsThreeStateStore();
     store.apply(_envelope(1, [(4, _node(7, shadow: 1))]));
     final state = store.surface('engine', 'surface')!;
-    expect(state.contentRevision, 0);
-
-    store.apply(_envelope(2, [(4, _node(7, matrix: 1, shadow: 1))]));
-    expect(state.contentRevision, 0);
-    store.apply(_envelope(3, [(4, _node(8, shadow: 1))]));
+    // Round-3 lever 2: _contentRevision widened to ALL node upserts so the
+    // composer plan-reuse gate invalidates on any content change; the old
+    // shadow-scoped revision is superseded. The revision is monotonic and
+    // opaque: a caster-affecting envelope bumps twice (the content bump in
+    // _upsertNode + the preserved shadow-tracking bump at apply end — node
+    // 7 is kind 0/group so no shadow mark fires here), which is fine — only
+    // "changed vs unchanged" matters to the plan-reuse gate.
     expect(state.contentRevision, 1);
-    store.apply(_envelope(4, [(4, _node(8, matrix: 2, shadow: 1))]));
+
+    // Content-equal re-upsert (composer sub-passes re-send every node
+    // between their frames): no bump.
+    store.apply(_envelope(2, [(4, _node(7, shadow: 1))]));
+    expect(state.contentRevision, 1);
+    // Matrix-only change bumps regardless of shadow status.
+    store.apply(_envelope(3, [(4, _node(7, matrix: 1, shadow: 1))]));
     expect(state.contentRevision, 2);
-    store.apply(_envelope(5, [(4, _node(8, matrix: 3))]));
-    expect(state.contentRevision, 3);
+    // Node 8 is a mesh caster (kind 1, shadowFlags 1): content bump + shadow
+    // tracking bump.
+    store.apply(_envelope(4, [(4, _node(8, shadow: 1))]));
+    expect(state.contentRevision, 4);
+    store.apply(_envelope(5, [(4, _node(8, matrix: 2, shadow: 1))]));
+    expect(state.contentRevision, 6);
+    // Camera upserts are frame-carried; they never bump the content
+    // revision (the plan-reuse gate compares camera ids from the frame).
     store.apply(_envelope(6, [(6, _camera(9))]));
-    expect(state.contentRevision, 3);
+    expect(state.contentRevision, 6);
   });
 
   test(

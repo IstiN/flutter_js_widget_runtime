@@ -153,7 +153,11 @@ void main() {
     tester,
   ) async {
     final (harness, plan) = await _render(tester, 'three-test-memory2');
-    expect(plan.draws, hasLength(100));
+    // Round-3 color-batch fold: the example's 100 same-geometry meshes join
+    // ONE instanced batch draw (probe: nodes=2 batches=1 geoms=1 materials=1
+    // draws=1, instanceColors carried per instance via
+    // js_three_protocol_decoder.dart:813), replacing 100 ordinary draws.
+    expect(plan.draws, hasLength(1));
     _expectWarning(
       harness,
       'webgl_test_memory2 arbitrary shader is unavailable',

@@ -74,6 +74,11 @@ function decode(packet) {
   };
 }
 
+// Round-1 envelope batching flushes the R1 packet on a Promise job, so the
+// harness must drain the microtask queue between a render and its packet
+// asserts (a bare macrotask tick runs all queued flush jobs first).
+const drain = () => new Promise(resolve => setTimeout(resolve, 0));
+
 function createHost() {
   const packets = [];
   const jsr = {
@@ -132,7 +137,7 @@ function unsupported(fn, feature) {
   assert.throws(fn, error => error && error.code === 'three.unsupported' && error.feature === feature);
 }
 
-test('DRAW_BATCH and REMOVE_BATCH encode exact little-endian bodies and enforce the wire envelope', () => {
+test('DRAW_BATCH and REMOVE_BATCH encode exact little-endian bodies and enforce the wire envelope', async () => {
   const matrices = new Float32Array(32);
   for (let i = 0; i < matrices.length; i++) matrices[i] = i + 0.25;
   const parts = [{ geometryId: 7, materialId: 9, offset: 6, count: 12 }];
@@ -174,7 +179,7 @@ test('DRAW_BATCH and REMOVE_BATCH encode exact little-endian bodies and enforce 
   invalid(() => drawBatchCommand(3, 1, 0xffffffff, 1, [], { length: 0xffffffff * 16 }), '64 MiB');
 });
 
-test('single-material InstancedMesh sends real matrices, suppresses unchanged uploads, and handles edits and zero count', () => {
+test('single-material InstancedMesh sends real matrices, suppresses unchanged uploads, and handles edits and zero count', async () => {
   const host = createHost();
   const T = host.THREE;
   const { renderer, scene, camera } = rendererHost(host);
@@ -183,6 +188,7 @@ test('single-material InstancedMesh sends real matrices, suppresses unchanged up
   mesh.setMatrixAt(1, new T.Matrix4().makeTranslation(4, 5, 6));
   scene.add(mesh);
   renderer.render(scene, camera);
+  await drain();
   let packets = host.packets();
   assert.deepEqual(opcodes(packets[0]), [4, 1, 4, 3, 11, 6, 8]);
   const node = only(packets[0], 4).find(command => u32(command.body, 0) === id(mesh)).body;
@@ -208,12 +214,16 @@ test('single-material InstancedMesh sends real matrices, suppresses unchanged up
   assert.equal(renderer.info.render.triangles, 4);
 
   renderer.render(scene, camera);
+
+  await drain();
   assert.deepEqual(opcodes(host.packets()[1]), [8]);
   mesh.setMatrixAt(1, new T.Matrix4().makeTranslation(7, 8, 9));
   renderer.render(scene, camera);
+  await drain();
   assert.deepEqual(opcodes(host.packets()[2]), [8], 'unversioned matrix edits must not upload');
   mesh.instanceMatrix.needsUpdate = true;
   renderer.render(scene, camera);
+  await drain();
   packets = host.packets();
   assert.deepEqual(opcodes(packets[3]), [11, 8]);
   batch = only(packets[3], 11)[0].body;
@@ -221,6 +231,7 @@ test('single-material InstancedMesh sends real matrices, suppresses unchanged up
   near(f32(batch, 148), 7);
   mesh.count = 1;
   renderer.render(scene, camera);
+  await drain();
   packets = host.packets();
   batch = only(packets[4], 11)[0].body;
   assert.equal(u32(batch, 4), 3);
@@ -229,6 +240,7 @@ test('single-material InstancedMesh sends real matrices, suppresses unchanged up
   assert.equal(renderer.info.render.triangles, 2);
   mesh.count = 0;
   renderer.render(scene, camera);
+  await drain();
   packets = host.packets();
   assert.deepEqual(opcodes(packets[5]), [12, 8]);
   const removal = only(packets[5], 12)[0].body;
@@ -238,7 +250,7 @@ test('single-material InstancedMesh sends real matrices, suppresses unchanged up
   assert.equal(renderer.info.render.triangles, 0);
 });
 
-test('retained empty InstancedMesh keeps its native batch for reuse', () => {
+test('retained empty InstancedMesh keeps its native batch for reuse', async () => {
   const host = createHost();
   const T = host.THREE;
   const { renderer, scene, camera } = rendererHost(host);
@@ -247,20 +259,23 @@ test('retained empty InstancedMesh keeps its native batch for reuse', () => {
   mesh.setMatrixAt(0, new T.Matrix4());
   scene.add(mesh);
   renderer.render(scene, camera);
+  await drain();
   mesh.count = 0;
   renderer.render(scene, camera);
+  await drain();
   let packets = host.packets();
   assert.deepEqual(opcodes(packets[1]), [11, 8], 'empty retained batch updates count without removal');
   assert.equal(u32(only(packets[1], 11)[0].body, 8), 0);
   assert.equal(renderer.info.render.calls, 0);
   mesh.count = 1;
   renderer.render(scene, camera);
+  await drain();
   packets = host.packets();
   assert.deepEqual(opcodes(packets[2]), [11, 8], 'refill reuses the same retained batch ID');
   assert.equal(renderer.info.render.calls, 1);
 });
 
-test('indexed material arrays emit bounded parts, reject malformed edits transactionally, and transition to ordinary nodes', () => {
+test('indexed material arrays emit bounded parts, reject malformed edits transactionally, and transition to ordinary nodes', async () => {
   const host = createHost();
   const T = host.THREE;
   const { renderer, scene, camera } = rendererHost(host);
@@ -268,6 +283,7 @@ test('indexed material arrays emit bounded parts, reject malformed edits transac
   const mesh = new T.Mesh(groupedPair(T), materials);
   scene.add(mesh);
   renderer.render(scene, camera);
+  await drain();
   let packets = host.packets();
   let batch = only(packets[0], 11)[0].body;
   assert.equal(batch.length, 52);
@@ -285,6 +301,7 @@ test('indexed material arrays emit bounded parts, reject malformed edits transac
   assert.equal(renderer.info.render.calls, 2);
   assert.equal(renderer.info.render.triangles, 2);
   renderer.render(scene, camera);
+  await drain();
   assert.deepEqual(opcodes(host.packets()[1]), [8]);
 
   mesh.geometry.groups[1].count = 7;
@@ -300,32 +317,53 @@ test('indexed material arrays emit bounded parts, reject malformed edits transac
 
   mesh.geometry.groups[1].materialIndex = 0;
   renderer.render(scene, camera);
+  await drain();
   packets = host.packets();
   assert.deepEqual(opcodes(packets[2]), [11, 8]);
   assert.equal(u32(only(packets[2], 11)[0].body, 4), 2);
   mesh.material = materials[0];
   renderer.render(scene, camera);
+  await drain();
   packets = host.packets();
-  assert.deepEqual(opcodes(packets[3]), [12, 4, 8]);
-  const ordinary = only(packets[3], 4)[0].body;
-  assert.equal(u32(ordinary, 8), id(mesh.geometry));
-  assert.equal(u32(ordinary, 12), id(materials[0]));
-  assert.equal(renderer.info.render.calls, 1);
+  assert.deepEqual(opcodes(packets[3]), [3, 4, 11, 12, 5, 8]);
+  const batched = only(packets[3], 4)[0].body;
+  assert.equal(u32(batched, 8), 0);
+  assert.equal(u32(batched, 12), 0);
+  const colorBatch = only(packets[3], 11)[0].body;
+  assert.equal(u32(colorBatch, 0), u32(batched, 0));
+  assert.equal(u32(colorBatch, 20), id(mesh.geometry));
+  assert.notEqual(u32(colorBatch, 24), id(materials[0]));
+  assert.equal(u32(colorBatch, 28), 0);
+  assert.equal(u32(colorBatch, 32), 6);
+  assert.equal(renderer.info.render.calls, 0);
   mesh.geometry.groups[1].materialIndex = 1;
   mesh.material = materials;
   renderer.render(scene, camera);
+  await drain();
   packets = host.packets();
-  assert.deepEqual(opcodes(packets[4]), [4, 11, 8]);
-  assert.equal(u32(only(packets[4], 11)[0].body, 4), 1);
+  assert.deepEqual(opcodes(packets[4]), [11, 8], 'eviction empties the color batch on the exit frame');
+  assert.equal(u32(only(packets[4], 11)[0].body, 8), 0);
+  renderer.render(scene, camera);
+  await drain();
+  packets = host.packets();
+  assert.deepEqual(opcodes(packets[5]), [4, 11, 12, 5, 8], 'the mesh rejoins the indexed lane as an ordinary node');
+  assert.equal(u32(only(packets[5], 4)[0].body, 0), id(mesh));
+  const rejoin = only(packets[5], 11)[0].body;
+  assert.equal(u32(rejoin, 0), id(mesh));
+  assert.equal(u32(rejoin, 16), 2);
+  assert.equal(u32(rejoin, 20), id(mesh.geometry));
+  assert.equal(u32(only(packets[5], 12)[0].body, 0), u32(batched, 0), 'the emptied color-batch node is torn down');
+  assert.equal(renderer.info.render.calls, 2);
   scene.remove(mesh);
   renderer.render(scene, camera);
+  await drain();
   packets = host.packets();
-  assert.deepEqual(opcodes(packets[5]), [12, 5, 8]);
-  assert.equal(u32(only(packets[5], 12)[0].body, 0), id(mesh));
+  assert.deepEqual(opcodes(packets[6]), [12, 5, 8]);
+  assert.equal(u32(only(packets[6], 12)[0].body, 0), id(mesh));
   assert.equal(renderer._resources.has(mesh), false, 'removed nodes must not stay strongly retained by their dispose listener');
 });
 
-test('multi-material BoxGeometry instancing produces six draws without expanding upstream Mesh objects', () => {
+test('multi-material BoxGeometry instancing produces six draws without expanding upstream Mesh objects', async () => {
   const host = createHost();
   const T = host.THREE;
   const { renderer, scene, camera } = rendererHost(host);
@@ -334,6 +372,7 @@ test('multi-material BoxGeometry instancing produces six draws without expanding
   for (let i = 0; i < 3; i++) mesh.setMatrixAt(i, new T.Matrix4().makeTranslation(i * 2, 0, 0));
   scene.add(mesh);
   renderer.render(scene, camera);
+  await drain();
   const packet = host.packets()[0];
   const batch = only(packet, 11)[0].body;
   assert.equal(scene.children.length, 1);
@@ -353,7 +392,7 @@ test('multi-material BoxGeometry instancing produces six draws without expanding
   assert.equal(renderer.info.render.triangles, 36);
 });
 
-test('non-indexed multi-material groups preserve exact vertex ranges and stay bounded', () => {
+test('non-indexed multi-material groups preserve exact vertex ranges and stay bounded', async () => {
   const host = createHost();
   const T = host.THREE;
   const { renderer, scene, camera } = rendererHost(host);
@@ -364,6 +403,7 @@ test('non-indexed multi-material groups preserve exact vertex ranges and stay bo
   const mesh = new T.Mesh(geometry, [new T.MeshBasicMaterial(), new T.MeshBasicMaterial()]);
   scene.add(mesh);
   renderer.render(scene, camera);
+  await drain();
   let packet = host.packets()[0];
   const batch = only(packet, 11)[0].body;
   assert.equal(u32(batch, 16), 2);
@@ -386,7 +426,7 @@ test('non-indexed multi-material groups preserve exact vertex ranges and stay bo
   assert.equal(host.rawPackets.length, 1);
 });
 
-test('invalid matrices, counts and malformed instanceColor reject while transparent instancing renders without poisoning batch versions', () => {
+test('invalid matrices, counts and malformed instanceColor reject while transparent instancing renders without poisoning batch versions', async () => {
   const host = createHost();
   const T = host.THREE;
   const { renderer, scene, camera } = rendererHost(host);
@@ -395,6 +435,7 @@ test('invalid matrices, counts and malformed instanceColor reject while transpar
   mesh.setMatrixAt(1, new T.Matrix4());
   scene.add(mesh);
   renderer.render(scene, camera);
+  await drain();
   mesh.instanceMatrix.array[0] = NaN;
   mesh.instanceMatrix.needsUpdate = true;
   invalid(() => renderer.render(scene, camera), 'instanceMatrix');
@@ -402,12 +443,14 @@ test('invalid matrices, counts and malformed instanceColor reject while transpar
   mesh.instanceMatrix.array[0] = 1;
   mesh.instanceMatrix.needsUpdate = true;
   renderer.render(scene, camera);
+  await drain();
   assert.equal(u32(only(host.packets()[1], 11)[0].body, 4), 2, 'failed render must roll back the next batch version');
 
   mesh.instanceColor = new T.InstancedBufferAttribute(new Float32Array(4), 2);
   invalid(() => renderer.render(scene, camera), 'instanceColor must be a 3-component');
   mesh.instanceColor = new T.InstancedBufferAttribute(new Float32Array([0.1, 0.2, 0.3, 0.4, 0.5, 0.6]), 3);
   renderer.render(scene, camera);
+  await drain();
   const colored = only(host.packets()[2], 11)[0];
   assert.equal(u32(colored.body, 12), 3, 'instance colors set the batch color flag');
   assert.equal(colored.body.length, 20 + 16 + 2 * 64 + 2 * 3 * 4, 'color payload extends the body');
@@ -416,6 +459,7 @@ test('invalid matrices, counts and malformed instanceColor reject while transpar
   mesh.instanceColor.needsUpdate = true;
   mesh.instanceColor.array[0] = 0.9;
   renderer.render(scene, camera);
+  await drain();
   near(only(host.packets()[3], 11)[0].body.readFloatLE(20 + 16 + 2 * 64), 0.9,
     'instanceColor edits re-emit the color payload');
   mesh.instanceColor.array[0] = NaN;
@@ -424,6 +468,7 @@ test('invalid matrices, counts and malformed instanceColor reject while transpar
   mesh.instanceColor.array[0] = 0.1;
   mesh.instanceColor.needsUpdate = true;
   renderer.render(scene, camera);
+  await drain();
   assert.equal(host.rawPackets.length, 5);
   mesh.instanceColor = null;
   mesh.morphTexture = {};
@@ -440,6 +485,7 @@ test('invalid matrices, counts and malformed instanceColor reject while transpar
   // transparent bucket (no per-instance sort — documented bounded pass).
   mesh.material.transparent = true;
   renderer.render(scene, camera);
+  await drain();
   assert.equal(host.rawPackets.length, 6, 'transparent instanced renders emit a batch');
   const transparentBatch = only(host.packets()[5], 11)[0];
   assert.equal(u32(transparentBatch.body, 12), 1, 'transparent instancing keeps the instanced flag');
@@ -451,6 +497,7 @@ test('invalid matrices, counts and malformed instanceColor reject while transpar
   mesh.count = 2;
   assert.equal(host.rawPackets.length, 6);
   renderer.render(scene, camera);
+  await drain();
   assert.deepEqual(
     opcodes(host.packets()[6]),
     [3, 8],
@@ -459,7 +506,7 @@ test('invalid matrices, counts and malformed instanceColor reject while transpar
   assert.equal(only(host.packets()[6], 11).length, 0);
 });
 
-test('node disposal removes and recreates batches with rollback-safe per-surface state', () => {
+test('node disposal removes and recreates batches with rollback-safe per-surface state', async () => {
   const host = createHost();
   const T = host.THREE;
   const scene = new T.Scene();
@@ -470,9 +517,13 @@ test('node disposal removes and recreates batches with rollback-safe per-surface
   const rendererA = new T.WebGLRenderer({ canvas: host.jsr.three.createCanvas('a') });
   const rendererB = new T.WebGLRenderer({ canvas: host.jsr.three.createCanvas('b') });
   rendererA.render(scene, camera);
+  await drain();
   rendererB.render(scene, camera);
+  await drain();
   rendererA.render(scene, camera);
+  await drain();
   rendererB.render(scene, camera);
+  await drain();
   let packets = host.packets();
   assert.deepEqual(opcodes(packets[2]), [8]);
   assert.deepEqual(opcodes(packets[3]), [8]);
@@ -480,20 +531,24 @@ test('node disposal removes and recreates batches with rollback-safe per-surface
   assert.equal(rendererA._resources.has(mesh), false, 'surface A must not retain a disposed InstancedMesh or its instanceMatrix');
   assert.equal(rendererB._resources.has(mesh), false, 'surface B must not retain a disposed InstancedMesh or its instanceMatrix');
   rendererA.render(scene, camera);
+  await drain();
   rendererB.render(scene, camera);
+  await drain();
   packets = host.packets();
   assert.deepEqual(opcodes(packets[4]), [12, 9, 4, 11, 8]);
   assert.deepEqual(opcodes(packets[5]), [12, 9, 4, 11, 8]);
   assert.equal(u32(only(packets[4], 9)[0].body, 4), 4);
   rendererA.dispose();
+  await drain();
   packets = host.packets();
   assert.equal(only(packets[6], 12).length, 1);
   assert.equal(opcodes(packets[6]).at(-1), 10);
   rendererB.render(scene, camera);
+  await drain();
   assert.deepEqual(opcodes(host.packets()[7]), [8], 'surface A disposal must not affect surface B');
 });
 
-test('invisible subtrees defer wireframe resources and visible toggles preserve geometry versions', () => {
+test('invisible subtrees defer wireframe resources and visible toggles preserve geometry versions', async () => {
   const host = createHost();
   const T = host.THREE;
   const { renderer, scene, camera } = rendererHost(host);
@@ -504,6 +559,7 @@ test('invisible subtrees defer wireframe resources and visible toggles preserve 
   group.add(mesh);
   scene.add(group);
   renderer.render(scene, camera);
+  await drain();
   let packets = host.packets();
   assert.deepEqual(opcodes(packets[0]), [4, 6, 8]);
   assert.equal(only(packets[0], 1).length, 0);
@@ -514,6 +570,7 @@ test('invisible subtrees defer wireframe resources and visible toggles preserve 
   assert.equal(only(packets[0], 4).some(command => u32(command.body, 0) === id(group)), false);
   group.visible = true;
   renderer.render(scene, camera);
+  await drain();
   packets = host.packets();
   assert.deepEqual(opcodes(packets[1]), [4, 1, 3, 4, 8]);
   assert.equal(renderer.info.render.calls, 1);
@@ -521,18 +578,26 @@ test('invisible subtrees defer wireframe resources and visible toggles preserve 
   assert.equal(renderer.info.render.triangles, 0);
   material.wireframe = false;
   renderer.render(scene, camera);
+  await drain();
   packets = host.packets();
-  assert.deepEqual(opcodes(packets[2]), [3, 8]);
-  assert.equal(renderer.info.render.triangles, 1);
+  assert.deepEqual(opcodes(packets[2]), [3, 4, 11, 5, 8], 'solid single-material meshes join the color-batch lane');
+  assert.equal(renderer.info.render.calls, 0);
+  assert.equal(renderer.info.render.triangles, 0);
   material.wireframe = true;
   renderer.render(scene, camera);
+  await drain();
   packets = host.packets();
-  assert.deepEqual(opcodes(packets[3]), [3, 8], 'wireframe toggles retain the generated edge payload');
+  assert.deepEqual(opcodes(packets[3]), [11, 8], 'wireframe toggle evicts the color batch on the toggle frame');
+  assert.equal(renderer.info.render.lines, 0);
+  renderer.render(scene, camera);
+  await drain();
+  packets = host.packets();
+  assert.deepEqual(opcodes(packets[4]), [12, 5, 8], 'wireframe lane reclaims the draw after the eviction frame');
   assert.equal(renderer.info.render.lines, 3);
-  assert.equal(host.rawPackets.length, 4);
+  assert.equal(host.rawPackets.length, 5);
 });
 
-test('manual shadow revisions are explicit and ignore ordinary scene uploads', () => {
+test('manual shadow revisions are explicit and ignore ordinary scene uploads', async () => {
   const host = createHost();
   const T = host.THREE;
   const { renderer, scene, camera } = rendererHost(host);
@@ -544,23 +609,27 @@ test('manual shadow revisions are explicit and ignore ordinary scene uploads', (
   renderer.shadowMap.autoUpdate = false;
   renderer.shadowMap.needsUpdate = true;
   renderer.render(scene, camera);
+  await drain();
   let frames = host.packets().flatMap(packet => only(packet, 8));
   assert.equal(frames[0].body.length, 244); // v7 frame plus target/viewport trailer
   assert.equal(u32(frames[0].body, 180), 1);
   renderer.render(scene, camera);
+  await drain();
   frames = host.packets().flatMap(packet => only(packet, 8));
   assert.equal(u32(frames[1].body, 180), 1);
   renderer.shadowMap.needsUpdate = true;
   renderer.render(scene, camera);
+  await drain();
   frames = host.packets().flatMap(packet => only(packet, 8));
   assert.equal(u32(frames[2].body, 180), 2);
   renderer.shadowMap.autoUpdate = true;
   renderer.render(scene, camera);
+  await drain();
   frames = host.packets().flatMap(packet => only(packet, 8));
   assert.equal(frames[3].body.length, 244, 'default shadow mode keeps the v7 target/viewport layout');
 });
 
-test('GLBufferAttribute points upload the full buffer once and move drawRange through batch parts', () => {
+test('GLBufferAttribute points upload the full buffer once and move drawRange through batch parts', async () => {
   const host = createHost();
   const T = host.THREE;
   const { renderer, scene, camera } = rendererHost(host);
@@ -577,6 +646,7 @@ test('GLBufferAttribute points upload the full buffer once and move drawRange th
 
   geometry.setDrawRange(0, 30);
   renderer.render(scene, camera);
+  await drain();
   const first = host.packets()[0];
   const firstGeometries = only(first, 1);
   assert.equal(firstGeometries.length, 1);
@@ -592,6 +662,7 @@ test('GLBufferAttribute points upload the full buffer once and move drawRange th
 
   geometry.setDrawRange(24, 48);
   renderer.render(scene, camera);
+  await drain();
   const second = host.packets()[1];
   assert.equal(only(second, 1).length, 0, 'moving the window must not re-upload any geometry attribute');
   const secondBatch = only(second, 11)[0].body;
@@ -606,6 +677,7 @@ test('GLBufferAttribute points upload the full buffer once and move drawRange th
   // a rejected/black frame.
   geometry.setDrawRange(0, 89);
   renderer.render(scene, camera);
+  await drain();
   const third = host.packets()[2];
   assert.equal(only(third, 1).length, 0, 'growing the window must not re-upload geometry either');
   const thirdBatch = only(third, 11)[0].body;
@@ -632,7 +704,7 @@ const geometryAttributeF32 = (body, wanted) => {
   return null;
 };
 
-test('billboard CPU lane clamps default instanceCount, bakes exact view-space offsets, and skips unchanged frames', () => {
+test('billboard CPU lane clamps default instanceCount, bakes exact view-space offsets, and skips unchanged frames', async () => {
   const host = createHost();
   const T = host.THREE;
   const { renderer, scene, camera } = rendererHost(host);
@@ -658,6 +730,8 @@ test('billboard CPU lane clamps default instanceCount, bakes exact view-space of
   camera.lookAt(0, 0, 0);
 
   renderer.render(scene, camera);
+
+  await drain();
   const firstGeometry = only(host.packets()[0], 1)[0];
   const perInstance = circle.index.count;
   assert.equal(u32(firstGeometry.body, 12), 3 * perInstance, 'default instanceCount clamps to the translate attribute length');
@@ -687,22 +761,125 @@ test('billboard CPU lane clamps default instanceCount, bakes exact view-space of
   assert.ok(worst < 1e-4, `billboard local positions deviate from V*M*L semantics by ${worst}`);
 
   renderer.render(scene, camera);
+
+  await drain();
   assert.equal(only(host.packets()[1], 1).length, 0, 'unchanged scene and camera skip the CPU re-evaluation upload');
 
   mesh.rotation.y += 0.4;
   mesh.updateMatrixWorld(true);
   renderer.render(scene, camera);
+  await drain();
   assert.equal(only(host.packets()[2], 1).length, 1, 'mesh rotation alone re-runs the evaluation because M^-1 changes');
 
   camera.position.set(-400, 80, 300);
   camera.lookAt(0, 0, 0);
   renderer.render(scene, camera);
+  await drain();
   assert.equal(only(host.packets()[3], 1).length, 1, 'camera movement alone re-runs the evaluation because the view basis changes');
 });
 
 function rendererHost(host) {
   return renderer(host);
 }
+
+// Regression pin (round-3 sweep): the color-batch walk runs BEFORE the
+// adapted-shader / fat-line lanes, so its material eligibility probe must
+// NEVER throw ThreeCapabilityError for materials outside the R1 kind table —
+// a throw here aborted the whole render tick and killed 31 live ids
+// (gpgpu-birds, the postprocessing family, lines-fat, rawshader…).
+test('color-batch eligibility rejects shader/unknown-kind materials without throwing', async () => {
+  const host = createHost();
+  const T = host.THREE;
+  const { renderer: value } = rendererHost(host);
+  // GPGPU birds / composer passes / dof depth pre-pass all carry these.
+  assert.equal(value._colorBatchMaterialEligible(new T.ShaderMaterial()), false);
+  assert.equal(value._colorBatchMaterialEligible(new T.RawShaderMaterial()), false);
+  // Fat-line LineMaterial and ANY future unclassified material: duck-typed
+  // object that materialKind() cannot classify (it throws internally).
+  assert.equal(value._colorBatchMaterialEligible({ type: 'LineMaterial' }), false);
+  // Eligible materials still classify through the same probe.
+  assert.equal(value._colorBatchMaterialEligible(new T.MeshBasicMaterial()), true);
+});
+
+test('a scene mixing ShaderMaterial and basic meshes renders without a capability throw', async () => {
+  const host = createHost();
+  const T = host.THREE;
+  const { renderer: value, scene, camera } = rendererHost(host);
+  const geometry = triangleGeometry(T);
+  scene.add(new T.Mesh(geometry, new T.MeshBasicMaterial({ color: 0xff0000 })));
+  // gpgpu-birds shape: Mesh + ShaderMaterial with DataTexture uniforms the
+  // adapted lane owns; the batch walk must reject it and keep walking.
+  const birdMaterial = new T.ShaderMaterial({
+    uniforms: { texturePosition: { value: new T.DataTexture(new Float32Array(16), 2, 2) } }
+  });
+  scene.add(new T.Mesh(geometry, birdMaterial));
+  value.render(scene, camera);
+  await drain();
+  const packet = host.packets()[0];
+  assert.ok(packet && packet.commands.length > 0, 'basic mesh still drew after the shader-material rejection');
+});
+
+test('color-batch anchors stay owned by their scene: foreign-scene renders must not re-parent them and hidden ancestors must hide them', async () => {
+  const host = createHost();
+  const T = host.THREE;
+  const { renderer: value, scene: rtScene, camera } = rendererHost(host);
+  // webgl_rtt shape: an RT scene holding plain colored meshes (the batch
+  // members) plus a separate screen scene rendered by the same renderer in
+  // one tick.
+  const container = new T.Group();
+  rtScene.add(container);
+  const batchGeometry = triangleGeometry(T);
+  container.add(new T.Mesh(batchGeometry, new T.MeshPhongMaterial({ color: 0x3355ff })));
+  container.add(new T.Mesh(batchGeometry, new T.MeshPhongMaterial({ color: 0xff7700 })));
+  const screenScene = new T.Scene();
+  screenScene.add(new T.Mesh(triangleGeometry(T), new T.MeshBasicMaterial({ color: 0x00aa00 })));
+
+  const anchorNodes = () => host.packets().flatMap(packet => only(packet, 4))
+    .filter(command => u32(command.body, 0) === 0xfff00000);
+  const visibleOf = command => u32(command.body, 16) === 1;
+  const parentOf = command => u32(command.body, 4);
+
+  value.render(rtScene, camera);
+  await drain();
+  let anchors = anchorNodes();
+
+  assert.equal(anchors.length, 1, 'batch anchor registered in the owning scene');
+  assert.equal(visibleOf(anchors[0]), true);
+  assert.equal(host.packets().some(packet => only(packet, 11).length > 0), true, 'DRAW_BATCH emitted');
+  const basePacketCount = host.packets().length;
+
+  // The screen-scene render must not re-parent or re-expose the anchor
+  // (the leak drew RT-scene meshes into the screen pass).
+  value.render(screenScene, camera);
+  await drain();
+  const screenPackets = host.packets().slice(basePacketCount);
+  assert.deepEqual(screenPackets.flatMap(packet => only(packet, 4))
+    .filter(command => u32(command.body, 0) === 0xfff00000), [],
+    'foreign-scene render must not touch the anchor node');
+
+  // A hidden ancestor chain must flip the anchor invisible in the owning
+  // scene's own render and must not re-emit an unchanged batch.
+  const beforeHidden = host.packets().length;
+  container.visible = false;
+  value.render(rtScene, camera);
+  await drain();
+  const hiddenPackets = host.packets().slice(beforeHidden);
+  anchors = hiddenPackets.flatMap(packet => only(packet, 4))
+    .filter(command => u32(command.body, 0) === 0xfff00000);
+  assert.equal(anchors.length, 1, 'anchor upsert still lands in the owning scene');
+  assert.equal(visibleOf(anchors[0]), false, 'hidden ancestor chain hides the anchor');
+  assert.deepEqual(hiddenPackets.filter(packet => only(packet, 11).length > 0), [],
+    'unchanged hidden batch must not re-emit DRAW_BATCH');
+
+  container.visible = true;
+  value.render(rtScene, camera);
+  await drain();
+  anchors = host.packets().slice(-1).flatMap(packet => only(packet, 4))
+    .filter(command => u32(command.body, 0) === 0xfff00000);
+  assert.equal(anchors.length, 1, 'anchor still present after re-showing');
+  assert.equal(visibleOf(anchors[0]), true, 're-shown chain re-exposes the anchor');
+});
+
 
 let passed = 0;
 for (const { name, fn } of tests) {

@@ -211,6 +211,28 @@ final class ThreeDrawPlan {
   /// byte-identical to the pre-v8 iteration order.
   final List<ThreeDrawStreamEntry> stream;
 
+  /// A copy of this plan bound to [frame], sharing every heavy list (draw
+  /// items, lights, stream, snapshot maps). Composer sub-passes re-render
+  /// the same scene into different targets within one unchanged tick; the
+  /// clone keeps per-pass frame bindings (render target, viewport, scissor)
+  /// while the walk/sort happens exactly once.
+  ThreeDrawPlan withFrame(JsThreeSubmitFrame frame) => ThreeDrawPlan._(
+    frame: frame,
+    camera: camera,
+    opaque: opaque,
+    transparent: transparent,
+    ambient: ambient,
+    directionalLights: directionalLights,
+    pointLights: pointLights,
+    hemisphereLights: hemisphereLights,
+    spotLights: spotLights,
+    clippings: clippings,
+    textures: textures,
+    renderTargets: renderTargets,
+    diagnostics: diagnostics,
+    stream: stream,
+  );
+
   /// [stream] entries that survive main-pass culling: draws drop when
   /// culled from the main camera, markers always stay.
   Iterable<ThreeDrawStreamEntry> get mainStream => stream.where(

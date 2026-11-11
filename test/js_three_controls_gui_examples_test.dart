@@ -174,8 +174,16 @@ void main() {
     final target = plan!.draws.singleWhere(
       (draw) =>
           draw.material.kind == JsThreeMaterialKind.meshBasic &&
-          !draw.material.wireframe,
+          !draw.material.wireframe &&
+          // Round-3 color-batch fold: the target marker mesh joined the
+          // batch lane (batch 0xfff000, count=1, colors=true — verified on
+          // the live wire), so this draw is the group anchor; its world
+          // matrix rides the DRAW_BATCH instanceMatrices (per-instance
+          // colors/matrices decode at js_three_protocol_decoder.dart:813),
+          // not an ordinary node upsert.
+          draw.batch != null,
     );
+    final targetAnchorId = target.node.nodeId;
     final gui = engine.exportedState!['gui'] as Map<String, dynamic>;
     final values = gui['values'] as List<dynamic>;
     expect(values, hasLength(1));
@@ -199,11 +207,10 @@ void main() {
       final currentCone = plan.draws.singleWhere(
         (draw) => draw.node.nodeId == cone.node.nodeId,
       );
-      final currentTarget = plan.draws.singleWhere(
-        (draw) => draw.node.nodeId == target.node.nodeId,
-      );
+      // The moving target's world matrix is batch instance 0 (count=1).
+      final targetBatch = state!.batches[targetAnchorId]!;
+      final targetMatrix = targetBatch.instanceMatrices;
       final matrix = currentCone.node.matrixWorld;
-      final targetMatrix = currentTarget.node.matrixWorld;
       final length = math.sqrt(
         targetMatrix[12] * targetMatrix[12] +
             targetMatrix[13] * targetMatrix[13] +

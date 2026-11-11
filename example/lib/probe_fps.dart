@@ -38,6 +38,7 @@ import 'three_widget_assets.dart';
 final _kWidget = Platform.environment['JSR_WIDGET'] ?? '';
 final _kWidgetPath = Platform.environment['JSR_WIDGET_PATH'] ?? '';
 final _kOut = Platform.environment['JSR_OUT'] ?? '';
+final _kQueue = Platform.environment['JSR_QUEUE'] ?? '';
 final _kNoStub = Platform.environment['JSR_NO_STUB'] == '1';
 final _kStorm = Platform.environment['JSR_STORM'] == '1';
 // Attribution flag: short-circuit Raycaster.intersectObject so the storm
@@ -58,9 +59,9 @@ void probeDiag(String line) {
   } catch (_) {}
 }
 
-Future<String> _loadWidgetJs() {
+Future<String> _loadWidgetJs(String id) {
   if (_kWidgetPath.isNotEmpty) return File(_kWidgetPath).readAsString();
-  return rootBundle.loadString('widgets/$_kWidget/widget.js');
+  return rootBundle.loadString('widgets/$id/widget.js');
 }
 
 /// Re-arms the DEFAULT InstancedMesh raycast on every renderer proxy
@@ -135,16 +136,46 @@ THREE.Raycaster.prototype.intersectObject=function(){return [];};
 /// fastNodeMs/fastNodeN to each measurement window.
 const _kR1TimingPrelude = '''
 (function(){
+globalThis.__JSR_R1_STAGES=1;
+globalThis.__JSR_BATCH_DEBUG=1;
 if(!globalThis.THREE||!THREE.WebGLRenderer) return;
 var rp=THREE.WebGLRenderer.prototype;
 if(!rp.render) return;
-var acc=globalThis.__jsrR1Acc={renderMs:0,renderN:0,loopMs:0,loopN:0,fastNodeMs:0,fastNodeN:0};
+var acc=globalThis.__jsrR1Acc={renderMs:0,renderN:0,loopMs:0,loopN:0,fastNodeMs:0,fastNodeN:0,
+  sendMs:0,sendN:0,worldMs:0,worldN:0,walkMs:0,walkN:0,stageN:0,stageWorld:0,stageWalk:0,stageFlush:0,stageEmit:0,
+  batchGroups:0,batchMembers:0,batchEvictA:0,batchEvictB:0,batchJoins:0,
+  batchWalkCalls:0,batchRejMesh:0,batchRejKind:0,batchRejVis:0,batchRejElig:0,batchRejGeom:0,batchRejKey:0,batchRejGroup:0,
+  eligFlag:0,eligKind:0,eligBlend:0,eligMap:0,eligClip:0};
+var now=globalThis.performance&&performance.now?function(){return performance.now();}:function(){return Date.now();};
 var origRender=rp.render;
 rp.render=function(scene,camera){
-  var t0=Date.now();
+  var t0=now();
   try{ return origRender.call(this,scene,camera); }
-  finally{ acc.renderMs+=Date.now()-t0; acc.renderN++; }
+  finally{
+    acc.renderMs+=now()-t0; acc.renderN++;
+    try{
+      var st=this._stageSum;
+      if(st&&st.n!==acc.stageN){ acc.stageN=st.n; acc.stageWorld=st.worldMs; acc.stageWalk=st.walkMs;
+        acc.stageFlush=st.flushMs; acc.stageEmit=st.emitMs; }
+      var bd=this._batchDiag;
+      if(bd){ acc.batchGroups=bd.groups; acc.batchMembers=bd.members; acc.batchEvictA=bd.evictA;
+        acc.batchEvictB=bd.evictB; acc.batchJoins=bd.joins; acc.batchWalkCalls=bd.walkCalls;
+        acc.batchRejMesh=bd.rejectMesh; acc.batchRejKind=bd.rejectKind; acc.batchRejVis=bd.rejectVisible;
+        acc.batchRejElig=bd.rejectEligible; acc.batchRejGeom=bd.rejectGeom; acc.batchRejKey=bd.rejectKey;
+        acc.batchRejGroup=bd.rejectGroup;
+        acc.eligFlag=bd.eligFlag||0; acc.eligKind=bd.eligKind||0; acc.eligBlend=bd.eligBlend||0;
+        acc.eligMap=bd.eligMap||0; acc.eligClip=bd.eligClip||0; }
+    }catch(e){}
+  }
 };
+var osp=rp._sendCommands;
+if(osp){ rp._sendCommands=function(){ var t0=now();
+  try{ return osp.apply(this,arguments); }
+  finally{ acc.sendMs+=now()-t0; acc.sendN++; } }; }
+var oumw=THREE.Object3D&&THREE.Object3D.prototype&&THREE.Object3D.prototype.updateMatrixWorld;
+if(oumw){ THREE.Object3D.prototype.updateMatrixWorld=function(){ var t0=now();
+  try{ return oumw.apply(this,arguments); }
+  finally{ acc.worldMs+=now()-t0; acc.worldN++; } }; }
 var origLoop=rp.setAnimationLoop;
 if(origLoop){
   rp.setAnimationLoop=function(cb){
@@ -161,15 +192,58 @@ if(__jsr&&typeof __jsr.exportState==='function'){
   var origExport=__jsr.exportState;
   __jsr.exportState=function(st){
     st=st||{};
-    try{ st.probe={renderMs:acc.renderMs,renderN:acc.renderN,loopMs:acc.loopMs,loopN:acc.loopN,fastNodeMs:acc.fastNodeMs,fastNodeN:acc.fastNodeN}; }catch(e){}
+    try{ st.probe={renderMs:acc.renderMs,renderN:acc.renderN,loopMs:acc.loopMs,loopN:acc.loopN,fastNodeMs:acc.fastNodeMs,fastNodeN:acc.fastNodeN,sendMs:acc.sendMs,sendN:acc.sendN,worldMs:acc.worldMs,worldN:acc.worldN,stageN:acc.stageN,stageWorld:acc.stageWorld,stageWalk:acc.stageWalk,stageFlush:acc.stageFlush,stageEmit:acc.stageEmit,batchGroups:acc.batchGroups,batchMembers:acc.batchMembers,batchEvictA:acc.batchEvictA,batchEvictB:acc.batchEvictB,batchJoins:acc.batchJoins,batchWalkCalls:acc.batchWalkCalls,batchRejMesh:acc.batchRejMesh,batchRejKind:acc.batchRejKind,batchRejVis:acc.batchRejVis,batchRejElig:acc.batchRejElig,batchRejGeom:acc.batchRejGeom,batchRejKey:acc.batchRejKey,batchRejGroup:acc.batchRejGroup,eligFlag:acc.eligFlag,eligKind:acc.eligKind,eligBlend:acc.eligBlend,eligMap:acc.eligMap,eligClip:acc.eligClip}; }catch(e){}
     return origExport.call(__jsr,st);
   };
 }
 })();
 ''';
 
+/// Friendly fallback for an id whose assets are absent from this build
+/// (e.g. a Release build made before `prepare` finished): states the problem
+/// instead of a bare dead-end string.
+class _MissingWidgetCard extends StatelessWidget {
+  const _MissingWidgetCard({required this.id});
+
+  final String id;
+
+  @override
+  Widget build(BuildContext context) {
+    return Center(
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          const Icon(Icons.error_outline, size: 40, color: Colors.amber),
+          const SizedBox(height: 12),
+          Text('Widget unavailable in this build: $id',
+              style: const TextStyle(fontSize: 16)),
+          const SizedBox(height: 6),
+          const Text(
+            'Rebuild the example app so all prepared widgets are embedded.',
+            style: TextStyle(fontSize: 12, color: Colors.grey),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  // Resident sweep mode: JSR_QUEUE names a file of widget ids (one per
+  // line); the app boots each in turn inside ONE window (a macOS instance
+  // can refuse per-widget relaunches when new windows cannot become
+  // visible), consuming the queue head-first, then exits when it empties.
+  if (_kQueue.isNotEmpty) {
+    runApp(
+      MaterialApp(
+        debugShowCheckedModeBanner: false,
+        theme: ThemeData.dark(useMaterial3: true),
+        home: const _QueueHost(),
+      ),
+    );
+    return;
+  }
   runApp(
     MaterialApp(
       debugShowCheckedModeBanner: false,
@@ -177,10 +251,10 @@ Future<void> main() async {
       home: Scaffold(
         backgroundColor: const Color(0xFF0F172A),
         body: FutureBuilder<String>(
-          future: _loadWidgetJs(),
+          future: _loadWidgetJs(_kWidget),
           builder: (context, snap) {
             if (snap.hasError) {
-              return Center(child: Text('missing widget $_kWidget'));
+              return _MissingWidgetCard(id: _kWidget);
             }
             if (!snap.hasData) {
               return const Center(child: CircularProgressIndicator());
@@ -199,17 +273,113 @@ Future<void> main() async {
   );
 }
 
+/// Consumes [JSR_QUEUE] head-first, booting one [_ProbeFrame] per id in
+/// this same window. Results stream to JSR_CAMERA_LOG in order, delimited
+/// by `THREE probe widgetBegin/End` markers.
+class _QueueHost extends StatefulWidget {
+  const _QueueHost();
+
+  @override
+  State<_QueueHost> createState() => _QueueHostState();
+}
+
+class _QueueHostState extends State<_QueueHost> {
+  String? _current;
+
+  @override
+  void initState() {
+    super.initState();
+    _advance();
+  }
+
+  void _advance() {
+    List<String> lines;
+    try {
+      final q = File(_kQueue);
+      if (!q.existsSync()) { exit(4); return; }
+      lines = q
+          .readAsStringSync()
+          .split('\n')
+          .where((l) => l.trim().isNotEmpty)
+          .toList();
+    } catch (_) {
+      exit(4);
+      return;
+    }
+    if (lines.isEmpty) { exit(0); return; }
+    final id = lines.first.trim();
+    try {
+      File(_kQueue).writeAsStringSync(lines.skip(1).join('\n'));
+    } catch (_) {}
+    if (!mounted) { exit(0); return; }
+    setState(() => _current = id);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final id = _current;
+    if (id == null) {
+      return const Scaffold(
+        backgroundColor: Color(0xFF0F172A),
+        body: Center(child: CircularProgressIndicator()),
+      );
+    }
+    return Scaffold(
+      backgroundColor: const Color(0xFF0F172A),
+      body: FutureBuilder<String>(
+        // ignore: discarded_futures
+        future: _loadWidgetJs(id),
+        builder: (context, snap) {
+          if (snap.hasError) {
+            probeDiag('THREE probe widgetBegin: $id');
+            probeDiag('THREE probe widgetEnd: $id missing-widget');
+            WidgetsBinding.instance.addPostFrameCallback((_) => _advance());
+            return _MissingWidgetCard(id: id);
+          }
+          if (!snap.hasData) {
+            return const Center(child: CircularProgressIndicator());
+          }
+          return _ProbeFrame(
+            key: ValueKey(id),
+            widgetId: id,
+            jsSource:
+                '${_kRafTrace ? "$_kRafTracePrelude\n" : ''}$_kR1TimingPrelude\n${_kSkipRaycast
+                    ? '$_kSkipRaycastPrelude\n${snap.data!}'
+                    : _kNoStub
+                    ? '$_kNoStubPrelude\n${snap.data!}'
+                    : snap.data!}',
+            onDone: (_) => _advance(),
+          );
+        },
+      ),
+    );
+  }
+}
+
 class _ProbeFrame extends StatefulWidget {
-  const _ProbeFrame({required this.jsSource});
+  const _ProbeFrame({
+    super.key,
+    required this.jsSource,
+    this.widgetId = '',
+    this.onDone,
+  });
 
   final String jsSource;
+  final String widgetId;
+
+  /// Resident queue mode: called with the probe's exit code instead of
+  /// exiting the process, so one window can sweep many widgets.
+  final void Function(int exitCode)? onDone;
 
   @override
   State<_ProbeFrame> createState() => _ProbeFrameState();
 }
 
 class _ProbeFrameState extends State<_ProbeFrame> {
+  String get _id => widget.widgetId.isEmpty ? _kWidget : widget.widgetId;
   final _boundaryKey = GlobalKey();
+  Timer? _safety;
+  Timer? _ticker;
   final Stopwatch _clock = Stopwatch()..start();
   JsThreeHost? _threeHost;
   JsWidgetEngine? _engine;
@@ -229,9 +399,10 @@ class _ProbeFrameState extends State<_ProbeFrame> {
   @override
   void initState() {
     super.initState();
-    // Safety exit: never wedge a probe run past 60s.
-    Timer(const Duration(seconds: 60), () => exit(7));
-    Timer.periodic(const Duration(milliseconds: 100), (timer) {
+    probeDiag('THREE probe widgetBegin: $_id');
+    // Safety exit: never wedge a probe run past 60s (per widget).
+    _safety = Timer(const Duration(seconds: 60), () => _exit(7));
+    _ticker = Timer.periodic(const Duration(milliseconds: 100), (timer) {
       final surface = _surface;
       final presented = surface?.diagnostics['presentedFrames'] ?? 0;
       // Render-on-demand widgets (webgl_clipping_intersection and the other
@@ -271,7 +442,7 @@ class _ProbeFrameState extends State<_ProbeFrame> {
           } catch (e) {
             probeDiag('THREE probe: backend image error $e');
           }
-          exit(6);
+          _exit(6);
         });
         return;
       }
@@ -279,8 +450,22 @@ class _ProbeFrameState extends State<_ProbeFrame> {
   }
 
   FlutterGpuThreeSurface? get _surface =>
-      _threeHost?.findSurface('probe-$_kWidget', 'main#1')
+      _threeHost?.findSurface('probe-$_id', 'main#1')
           as FlutterGpuThreeSurface?;
+
+  /// Resident mode hands the exit code to [onDone]; standalone mode exits.
+  void _exit(int code) {
+    _safety?.cancel();
+    _ticker?.cancel();
+    _stormTimer?.cancel();
+    if (!mounted) { exit(code); return; }
+    probeDiag('THREE probe widgetEnd: $_id code=$code');
+    if (widget.onDone != null) {
+      Future.microtask(() => widget.onDone!(code));
+      return;
+    }
+    exit(code);
+  }
 
   void _startWindow() {
     final presented = _surface?.diagnostics['presentedFrames'] ?? 0;
@@ -385,10 +570,14 @@ class _ProbeFrameState extends State<_ProbeFrame> {
           final image = await boundary.toImage(pixelRatio: 2.0);
           final bytes = await image.toByteData(format: ui.ImageByteFormat.png);
           if (bytes != null) {
+            // Resident mode: one png per widget so sweeps keep every capture.
+            final out = _id == _kWidget || _kQueue.isEmpty
+                ? _kOut
+                : '${_kOut.replaceAll(RegExp(r'\.png$'), '')}-$_id.png';
             await File(
-              _kOut,
+              out,
             ).writeAsBytes(bytes.buffer.asUint8List(), flush: true);
-            probeDiag('probe png written: $_kOut');
+            probeDiag('probe png written: $out');
           }
           image.dispose();
         } else {
@@ -397,7 +586,7 @@ class _ProbeFrameState extends State<_ProbeFrame> {
       }
     } finally {
       await _engine?.dispose();
-      exit(exitCode);
+      _exit(exitCode);
     }
   }
 
@@ -430,15 +619,15 @@ class _ProbeFrameState extends State<_ProbeFrame> {
 
   Future<void> _startEngine() async {
     if (_engine != null) return;
-    final threeHost = _kWidget.startsWith('three-')
+    final threeHost = _id.startsWith('three-')
         ? createFlutterGpuThreeHost(
-            assetLoader: WidgetBundleThreeAssets.forWidget(_kWidget).load,
+            assetLoader: WidgetBundleThreeAssets.forWidget(_id).load,
           )
         : null;
     _threeHost = threeHost;
     final config = JsRuntimeConfig(
-      widgetId: _kWidget,
-      instanceId: 'probe-$_kWidget',
+      widgetId: _id,
+      instanceId: 'probe-$_id',
       threeEnabled: threeHost != null,
       threeHost: threeHost,
       onRender: (tree) {

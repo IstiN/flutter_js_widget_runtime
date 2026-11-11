@@ -22,6 +22,16 @@ class JsWidgetDemoMenu extends StatelessWidget {
   final JsRuntimeConfig Function([String widgetId]) makeConfig;
   final String title;
 
+  /// Emoji/simple glyphs render as text; markup (e.g. inline SVG strings from
+  /// a manifest) falls back to a generic Material icon so raw markup never
+  /// leaks into the menu.
+  Widget _leadingIcon(String icon) {
+    if (icon.length <= 4 && !icon.contains('<')) {
+      return Text(icon, style: const TextStyle(fontSize: 28));
+    }
+    return const Icon(Icons.widgets, size: 28);
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -31,7 +41,7 @@ class JsWidgetDemoMenu extends StatelessWidget {
         itemBuilder: (context, index) {
           final manifest = manifests[index];
           return ListTile(
-            leading: Text(manifest.icon, style: const TextStyle(fontSize: 28)),
+            leading: _leadingIcon(manifest.icon),
             title: Text(manifest.name),
             subtitle: Text(manifest.description),
             trailing: const Icon(Icons.chevron_right),

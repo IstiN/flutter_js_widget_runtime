@@ -422,6 +422,19 @@ function uvElementsEqual(a, b) {
   return true;
 }
 
+/// Batch-lane-safe kind probe: materialKind() throws ThreeCapabilityError
+/// for materials outside the R1 kind table (ShaderMaterial, RawShaderMaterial,
+/// LineMaterial…). The color-batch walk must never throw — it runs BEFORE the
+/// adapted-shader / fat-line lanes that own those materials, so a throw here
+/// aborted the whole render tick. Returns -1 when not classifiable.
+function batchMaterialKind(material) {
+  try {
+    return materialKind(material);
+  } catch (_) {
+    return -1;
+  }
+}
+
 function materialKind(material) {
   if (material._r1Background) return 10;
   if (material.isMeshBasicMaterial) return 0;
@@ -1938,6 +1951,8 @@ export class JsrWebGLRenderer {
     this._batchedMeshProxies = new WeakMap();
     this._instancedMorphProxies = new WeakMap();
     this._nodeFast = new WeakMap();
+    this._colorBatches = new Map();
+    this._nextColorBatchId = 0;
     this._frameGeometryGate = new Map();
     this._geometryGateStamp = new WeakMap();
     this._lastScene = null;
@@ -2744,13 +2759,34 @@ export class JsrWebGLRenderer {
     if (stencil) this._frameStencilActivity = true;
     const frameCached = this._frameMaterials.get(id);
     if (frameCached !== undefined) return frameCached;
-    // Per-material snapshot tier: when every signature input of a previously
-    // ensured material is unchanged, skip materialKind()/validateMaterial()
-    // and the full texture-scan + 40-element signature join. This is the
-    // dominant per-visible-mesh cost in many-mesh scenes (every frustum-
-    // visible mesh re-ensures its material each frame); any changed input
-    // falls through to the full body, which revalidates and emits the exact
-    // same command as before — rendered results identical.
+    // Per-material snapshot tier (v2): when every input the full body reads
+    // is unchanged since this material's last FULL ensure, skip
+    // materialKind()/validateMaterial() and the texture scan + 44-element
+    // signature join. This is the dominant per-visible-mesh cost in
+    // many-mesh scenes (every frustum-visible mesh re-ensures its material
+    // every frame — and composer sub-passes re-ensure the same shared scene
+    // materials several times per tick, e.g. dof renders the castle twice).
+    // Any changed input falls through to the full body, which revalidates
+    // and emits the exact same command as before — rendered results are
+    // byte-identical. Invalidation covers texture IDENTITY and version and
+    // uv-matrix elements (offset/repeat/rotation mutate in place), all
+    // scalars, flags, side, material.version and the renderer environment
+    // (scene envMap, active render target for the shader-feedback lane,
+    // clipping configuration). Inputs that cannot be fingerprinted cheaply
+    // (active clipping planes, stencil tails, anaglyph, procedural-time and
+    // shader-feedback materials) always take the full path.
+    if (!material.stencilWrite && !material._r1Anaglyph &&
+        !material._r1ProceduralTime && !material._r1ShaderTextures &&
+        !material._r1Background &&
+        !(this.localClippingEnabled && material.clippingPlanes && material.clippingPlanes.length) &&
+        !this.clippingPlanes.length) {
+      const snap = material._r1EnsureSnap;
+      if (snap && this._materialSnapMatches(material, snap) &&
+          this._state.materials.has(id)) {
+        this._frameMaterials.set(id, id);
+        return id;
+      }
+    }
     const kind = material._r1NativeKind === 'anaglyph' ? 11 : materialKind(material);
     validateMaterial(material);
     this._listen(material, 'materials', this._state.materials, id);
@@ -2824,8 +2860,139 @@ export class JsrWebGLRenderer {
         stencil));
       this._mapSet(this._state.materials, id, { signature, version: changed.version, object: material });
     }
+    material._r1EnsureSnap = this._materialTakeSnapshot(material, kind, shaderMap, mapUvMatrix, alphaMapUvMatrix,
+      alphaMapId !== 0, envMapId !== 0, matcapId !== 0, gradientMapId !== 0, normalMapId !== 0,
+      bumpMapId !== 0, roughnessMapId !== 0, metalnessMapId !== 0, envMapIntensity);
     this._frameMaterials.set(id, id);
     return id;
+  }
+
+  /// Rebuilds the per-material ensure snapshot from the values the full body
+  /// just validated. Texture slots are recorded as identity+version pairs;
+  /// the uv matrices that uvTransformElements produced are retained verbatim
+  /// so the match path can element-compare without re-deriving them.
+  _materialTakeSnapshot(material, kind, shaderMap, mapUvMatrix, alphaMapUvMatrix,
+    hasAlphaMap, hasEnvMap, hasMatcap, hasGradientMap, hasNormalMap, hasBumpMap,
+    hasRoughnessMap, hasMetalnessMap, envMapIntensity) {
+    const slots = {
+      map: shaderMap, alphaMap: hasAlphaMap ? material.alphaMap : null,
+      envMap: hasEnvMap ? material.envMap : null,
+      matcap: hasMatcap ? material.matcap : null,
+      gradientMap: hasGradientMap ? material.gradientMap : null,
+      normalMap: hasNormalMap ? material.normalMap : null,
+      bumpMap: hasBumpMap ? material.bumpMap : null,
+      roughnessMap: hasRoughnessMap ? material.roughnessMap : null,
+      metalnessMap: hasMetalnessMap ? material.metalnessMap : null
+    };
+    const recordedSlots = {};
+    for (const name in slots) {
+      const texture = slots[name];
+      recordedSlots[name] = texture ? { t: texture, v: texture.version } : null;
+    }
+    const snap = {
+      envScene: this._sceneEnvironment, renderTarget: this._renderTarget,
+      localClipping: !!this.localClippingEnabled,
+      version: material.version,
+      kind,
+      colorR: material.color ? material.color.r : 1,
+      colorG: material.color ? material.color.g : 1,
+      colorB: material.color ? material.color.b : 1,
+      opacity: material.opacity === undefined ? 1 : material.opacity,
+      roughness: material.roughness === undefined ? 0 : material.roughness,
+      metalness: material.metalness === undefined ? 0 : material.metalness,
+      alphaTest: material.alphaTest || 0,
+      pointSize: material.size === undefined ? 1 : material.size,
+      side: material.side,
+      blending: material.blending || 0,
+      envMapIntensity,
+      vertexColors: !!material.vertexColors,
+      flatShading: !!material.flatShading,
+      transparent: !!material.transparent,
+      depthTestOn: material.depthTest !== false,
+      depthWriteOn: material.depthWrite !== false,
+      wireframe: !!material.wireframe,
+      sizeAttenuationOff: material.sizeAttenuation === false,
+      colorWriteOn: material.colorWrite !== false,
+      normalScaleX: material.normalMap && material.normalScale ? material.normalScale.x : 1,
+      normalScaleY: material.normalMap && material.normalScale ? material.normalScale.y : 1,
+      bumpScale: material.bumpMap && material.bumpScale !== undefined ? material.bumpScale : 1,
+      spriteRotation: material.isSpriteMaterial ? material.rotation : 0,
+      mapUv: mapUvMatrix, alphaUv: alphaMapUvMatrix, slots: recordedSlots
+    };
+    const specular = material.isMeshPhongMaterial ? material.specular : null;
+    if (specular) { snap.specularR = specular.r; snap.specularG = specular.g; snap.specularB = specular.b; snap.shininess = material.shininess; }
+    const emissive = supportsEmissive(material) ? material.emissive : null;
+    if (emissive) {
+      snap.emissiveR = emissive.r; snap.emissiveG = emissive.g; snap.emissiveB = emissive.b;
+      snap.emissiveIntensity = material.emissiveIntensity === undefined ? 1 : material.emissiveIntensity;
+    }
+    return snap;
+  }
+
+  /// True when every snapshot input is unchanged. Mirrors the full body's
+  /// reads exactly; any miss returns false and the caller re-runs the full
+  /// ensure (which revalidates and re-emits byte-identically when needed).
+  _materialSnapMatches(material, snap) {
+    if (snap.envScene !== this._sceneEnvironment || snap.renderTarget !== this._renderTarget) return false;
+    if (!!this.localClippingEnabled !== snap.localClipping) return false;
+    if (material.version !== snap.version) return false;
+    if (materialKind(material) !== snap.kind) return false;
+    const slots = snap.slots;
+    for (const name in slots) {
+      const recorded = slots[name];
+      const current = material[name] || null;
+      if (recorded) {
+        if (current !== recorded.t || (current && current.version !== recorded.v)) return false;
+      } else if (current) return false;
+    }
+    const color = material.color;
+    if (!color || color.r !== snap.colorR || color.g !== snap.colorG || color.b !== snap.colorB) return false;
+    if ((material.opacity === undefined ? 1 : material.opacity) !== snap.opacity) return false;
+    if ((material.roughness === undefined ? 0 : material.roughness) !== snap.roughness) return false;
+    if ((material.metalness === undefined ? 0 : material.metalness) !== snap.metalness) return false;
+    if ((material.alphaTest || 0) !== snap.alphaTest) return false;
+    if ((material.size === undefined ? 1 : material.size) !== snap.pointSize) return false;
+    if (material.side !== snap.side) return false;
+    if ((material.blending || 0) !== snap.blending) return false;
+    if (!!material.vertexColors !== snap.vertexColors) return false;
+    if (!!material.flatShading !== snap.flatShading) return false;
+    if (!!material.transparent !== snap.transparent) return false;
+    if ((material.depthTest !== false) !== snap.depthTestOn) return false;
+    if ((material.depthWrite !== false) !== snap.depthWriteOn) return false;
+    if (!!material.wireframe !== snap.wireframe) return false;
+    if ((material.sizeAttenuation === false) !== snap.sizeAttenuationOff) return false;
+    if ((material.colorWrite !== false) !== snap.colorWriteOn) return false;
+    if (material.isMeshPhongMaterial) {
+      const specular = material.specular;
+      if (!specular || specular.r !== snap.specularR || specular.g !== snap.specularG ||
+        specular.b !== snap.specularB || material.shininess !== snap.shininess) return false;
+    } else if (snap.specularR !== undefined) return false;
+    const emissive = supportsEmissive(material) ? material.emissive : null;
+    if (emissive) {
+      const intensity = material.emissiveIntensity === undefined ? 1 : material.emissiveIntensity;
+      if (emissive.r !== snap.emissiveR || emissive.g !== snap.emissiveG ||
+        emissive.b !== snap.emissiveB || intensity !== snap.emissiveIntensity) return false;
+    } else if (snap.emissiveR !== undefined) return false;
+    if (material.normalMap) {
+      const scale = material.normalScale;
+      if (!scale || scale.x !== snap.normalScaleX || scale.y !== snap.normalScaleY) return false;
+    }
+    if (material.bumpMap && (material.bumpScale === undefined ? 1 : material.bumpScale) !== snap.bumpScale) return false;
+    if (material.isSpriteMaterial && material.rotation !== snap.spriteRotation) return false;
+    // envMapIntensity participates in the signature whenever envMap binds;
+    // the full body defaults it to 1 otherwise, so only the bound case is
+    // compared here (snapshot stores exactly the value the body used).
+    if (snap.slots.envMap) {
+      const intensity = material.envMapIntensity === undefined ? 1 : material.envMapIntensity;
+      if (intensity !== snap.envMapIntensity) return false;
+    }
+    const currentMapUv = uvTransformElements(material.map || null);
+    if (!uvElementsEqual(currentMapUv, snap.mapUv)) return false;
+    if (material.alphaMap) {
+      const currentAlphaUv = uvTransformElements(material.alphaMap);
+      if (!uvElementsEqual(currentAlphaUv, snap.alphaUv)) return false;
+    }
+    return true;
   }
 
 
@@ -4781,6 +4948,377 @@ export class JsrWebGLRenderer {
   /// Records the fast-lane entry for a successfully validated plain mesh
   /// (called from the full path only). The matrix copy is reused across
   /// frames to keep the fast path allocation-free.
+  /// Color-batch lane (DRAW_BATCH for many same-geometry meshes whose ONLY
+  /// material difference is diffuse color, e.g. webgl_interactive_cubes' 200
+  /// unit boxes with one random-color MeshLambertMaterial each). Upstream
+  /// semantics preserved through ONE instanced draw: instanceModel carries
+  /// each member's matrixWorld, instanceColor carries each member's diffuse
+  /// color, and the shared white clone multiplies to the exact per-mesh
+  /// albedo (three_r1.vert: worldModel = model * instanceModel; frag albedo
+  /// = colorOpacity * instanceDiffuse). Per frame a member costs ~20 number
+  /// compares (matrix + color + flags) instead of a full node/material
+  /// ensure + frustum sphere test — the QuickJS walk that capped the cubes
+  /// family at 11-19 fps.
+  ///
+  /// Eligibility is deliberately narrow: opaque, textureless, unclipped,
+  /// non-stencil Lambert/Phong/Standard/Basic with default blending, no
+  /// children, no shadows, single shared geometry. Anything else keeps the
+  /// existing per-mesh lanes.
+  ///
+  /// Registered members NEVER reach this method: the render-walk callback
+  /// early-outs on `object._r1ColorBatchMember` before the per-object
+  /// prologue (see the traverse below), and the per-frame member validation
+  /// — matrix diff, color diff, parent/visibility/material identity —
+  /// runs in _flushColorBatches over group.members directly. That keeps the
+  /// per-member per-frame cost at ~2 expando reads inside the walk plus one
+  /// ~30-read validation outside the traverse, where the 2000-mesh
+  /// interactive-cubes family previously paid ~80 reads inside it.
+  _colorBatchWalk(object, id, parentId, visibleHere) {
+    const diag = this._batchDiag;
+    if (diag) diag.walkCalls++;
+    if (!object.isMesh) { if (diag) diag.rejectMesh++; return null; }
+    if (object.isInstancedMesh || object.isBatchedMesh || object.isSkinnedMesh ||
+        Array.isArray(object.material) ||
+        (object.morphTargetInfluences && object.morphTargetInfluences.length) ||
+        object.children.length > 0 || object.castShadow === true) {
+      if (diag) diag.rejectKind++;
+      return null;
+    }
+    const material = object.material;
+    // Unregistered: only join when fully eligible (the group flush below
+    // emits node+batch+geometry+material once per registration).
+    if (!visibleHere) { if (diag) diag.rejectVisible++; return null; }
+    if (!this._colorBatchMaterialEligible(material)) { if (diag) diag.rejectEligible++; return null; }
+    if (!object.geometry || !object.geometry.attributes.position) { if (diag) diag.rejectGeom++; return null; }
+    const key = this._colorBatchGroupKey(object, material);
+    if (!key) { if (diag) diag.rejectKey++; return null; }
+    const group = this._colorBatches.get(key) || this._colorBatchCreate(key, object);
+    if (!group) { if (diag) diag.rejectGroup++; return null; }
+    return this._colorBatchJoin(group, object, id, parentId, visibleHere);
+  }
+
+  /// A color-batch member material must be opaque, textureless and
+  /// fingerprint-stable: the lane relies on `color` being the ONLY field
+  /// that varies inside a group, and on instanceColor multiplication being
+  /// the whole story in the shader.
+  _colorBatchMaterialEligible(material) {
+    const diag = this._batchDiag;
+    if (material._r1Anaglyph || material._r1ProceduralTime ||
+        material._r1ShaderTextures || material._r1Background || material.stencilWrite) {
+      if (diag) diag.eligFlag++;
+      return false;
+    }
+    // Batch-lane-safe probe: materialKind() throws for materials outside the
+    // R1 kind table (ShaderMaterial/RawShaderMaterial/LineMaterial…). The
+    // batch walk runs BEFORE the adapted-shader/fat-line lanes that own
+    // those materials (gpgpu-birds, postprocessing family, lines-fat), so a
+    // throw here killed the whole render tick (sweep round-3 regression:
+    // 31 ids dead). -1 = not batchable; the normal lanes take over.
+    const kind = batchMaterialKind(material);
+    if (kind < 0 || (kind !== 0 && kind !== 1 && kind !== 2 && kind !== 5)) {
+      if (diag) diag.eligKind++;
+      return false;
+    }
+    const blending = material.blending || 0;
+    if (material.transparent === true || (blending !== 0 && blending !== 1) ||
+        material.wireframe === true || material.vertexColors === true ||
+        material.depthTest === false || material.depthWrite === false ||
+        material.colorWrite === false) {
+      if (diag) diag.eligBlend++;
+      return false;
+    }
+    if (material.map || material.alphaMap || material.envMap || material.matcap ||
+        material.gradientMap || material.normalMap || material.bumpMap ||
+        material.roughnessMap || material.metalnessMap) {
+      if (diag) diag.eligMap++;
+      return false;
+    }
+    if (material.clippingPlanes && material.clippingPlanes.length) {
+      if (diag) diag.eligClip++;
+      return false;
+    }
+    return true;
+  }
+
+  /// Group identity: shared geometry object + every material field EXCEPT
+  /// diffuse color. Returns null when the material carries fields the lane
+  /// does not model (specular/emissive/roughness divergence is fine — they
+  /// are part of the key — but non-finite scalars are not).
+  _colorBatchGroupKey(object, material) {
+    const c = material.color;
+    if (!c || !Number.isFinite(c.r) || !Number.isFinite(c.g) || !Number.isFinite(c.b)) return null;
+    const parts = [
+      resourceId(object.geometry), batchMaterialKind(material),
+      material.opacity === undefined ? 1 : material.opacity,
+      material.roughness === undefined ? 0 : material.roughness,
+      material.metalness === undefined ? 0 : material.metalness,
+      material.alphaTest || 0, material.side, material.blending || 0,
+      !!material.flatShading, material.envMapIntensity === undefined ? 1 : material.envMapIntensity
+    ];
+    const specular = material.isMeshPhongMaterial ? material.specular : null;
+    if (specular) parts.push(specular.r, specular.g, specular.b, material.shininess);
+    const emissive = supportsEmissive(material) ? material.emissive : null;
+    if (emissive) parts.push(emissive.r, emissive.g, emissive.b,
+      material.emissiveIntensity === undefined ? 1 : material.emissiveIntensity);
+    return parts.join('|');
+  }
+
+  _colorBatchCreate(key, object) {
+    // The clone carries the GROUP's (colorless) state; members' own materials
+    // are never ensured, so their colors must not leak into the shared draw.
+    const clone = object.material.clone();
+    clone.color.setRGB(1, 1, 1);
+    clone._r1ColorBatchClone = true;
+    const group = {
+      key,
+      // Renderer-instance guard (a stale member pointer from a disposed
+      // renderer must not validate against a new one) and the shared parent
+      // object every member must keep — the flush validates it in O(1).
+      owner: this,
+      parentObject: object.parent,
+      matrixEpoch: 0,
+      // Node/batch ids are u32 on the bridge; THREE's id counters live far
+      // below this reserved tail (0xffffffff is the null id).
+      batchId: 0xfff00000 + this._nextColorBatchId++,
+      geometry: object.geometry,
+      material: clone,
+      members: new Map(),
+      matrices: new Float32Array(16 * 64),
+      colors: new Float32Array(3 * 64),
+      capacity: 64,
+      count: 0,
+      anchor: new Object3D(),
+      dirty: true,
+      parentId: 0,
+      epoch: 0
+    };
+    this._colorBatches.set(key, group);
+    return group;
+  }
+
+  _colorBatchJoin(group, object, id, parentId, visibleHere) {
+    const slot = group.count;
+    if (slot >= group.capacity) {
+      if (group.capacity >= MAX_INSTANCES) return null;
+      const matrices = new Float32Array(16 * group.capacity * 2);
+      matrices.set(group.matrices);
+      const colors = new Float32Array(3 * group.capacity * 2);
+      colors.set(group.colors);
+      group.matrices = matrices; group.colors = colors;
+      group.capacity *= 2;
+      group.dirty = true; group.epoch++;
+    }
+    if (object.parent !== group.parentObject) return null;
+    const elements = object.matrixWorld.elements;
+    const matrix = group.matrices.subarray(slot * 16, slot * 16 + 16);
+    for (let i = 0; i < 16; i++) matrix[i] = elements[i];
+    const color = object.material.color;
+    const colors = group.colors.subarray(slot * 3, slot * 3 + 3);
+    colors[0] = color.r; colors[1] = color.g; colors[2] = color.b;
+    const member = {
+      group, key: group.key, slot, material: object.material,
+      matrix, color: colors, parentId, visible: visibleHere,
+      renderOrder: object.renderOrder, version: object.material.version
+    };
+    group.members.set(object, member);
+    group.count = slot + 1;
+    group.dirty = true; group.epoch++;
+    this._lastJoinN = (this._lastJoinN || 0) + 1;
+    if (globalThis.__JSR_BATCH_DEBUG && globalThis.__probeJoin) {
+      globalThis.__probeJoin(object.id, group.count, group.epoch, !!object._r1ColorBatchMember);
+    }
+    object._r1ColorBatchMember = member;
+    object._r1ColorBatchKey = group.key;
+    object._r1ColorBatchEpoch = group.epoch;
+    return { id, draw: null, batchMember: true };
+  }
+
+  _colorBatchEvict(group, object) {
+    const member = group.members.get(object);
+    if (!member) return;
+    group.members.delete(object);
+    object._r1ColorBatchMember = null;
+    object._r1ColorBatchEpoch = null;
+    // Compact the tail slot into the freed one so instance arrays stay
+    // dense; the moved member's stored matrix/color copies refresh next
+    // frame through its normal validation path.
+    const last = group.count - 1;
+    if (member.slot !== last) {
+      const moved = [...group.members.values()].find(m => m.slot === last);
+      if (moved) {
+        group.matrices.copyWithin(member.slot * 16, last * 16, last * 16 + 16);
+        group.colors.copyWithin(member.slot * 3, last * 3, last * 3 + 3);
+        moved.slot = member.slot;
+        moved.matrix = group.matrices.subarray(moved.slot * 16, moved.slot * 16 + 16);
+        moved.color = group.colors.subarray(moved.slot * 3, moved.slot * 3 + 3);
+        // The moved member's numeric cache now matches its new slot content
+        // byte-for-byte (it was the tail's), so no false dirty is needed.
+      }
+    }
+    group.count = last;
+    group.dirty = true; group.epoch++;
+  }
+
+  /// Emits one node + one DRAW_BATCH crossing per active group. Runs after
+  /// the scene walk and before node retirement so the group node survives
+  /// the seen-set scan exactly like a walked node.
+  _flushColorBatches(commands, seenNodes, renderedSceneId, renderedScene) {
+    if (!this._colorBatches.size) return;
+    const diag = this._batchDiag;
+    for (const [key, group] of this._colorBatches) {
+      if (!group.count) {
+        this._colorBatches.delete(key);
+        continue;
+      }
+      // Scene-ownership gate: a batch belongs to the ONE scene holding its
+      // members' shared parent. A tick that renders several scenes
+      // (webgl_rtt renders its RT scene then the screen scene) must not let
+      // a foreign render re-parent the anchor into it — the unconditional
+      // `group.parentId = renderedSceneId` below used to migrate anchors to
+      // whichever scene flushed last, drawing RT-scene meshes into the
+      // screen pass. Validation/flushing for this group happens in its own
+      // scene's render; disposal cleanup above still runs every render.
+      let sceneRoot = group.parentObject;
+      while (sceneRoot.parent) sceneRoot = sceneRoot.parent;
+      if (sceneRoot !== renderedScene) continue;
+      // Pass-level visibility from the LIVE object tree (not the walk's
+      // __r1Vis stamps): traverseVisible never visits a hidden subtree, so
+      // a parent hidden for THIS pass (webgl_rtt hides the RT-scene
+      // container while drawing the screen quad) keeps a stale true stamp.
+      // The anchor must carry false here or the planner draws the whole
+      // batch into the pass that hid it.
+      let chainVisible = true;
+      for (let p = group.parentObject; p; p = p.parent) {
+        if (!p.visible) { chainVisible = false; break; }
+      }
+      // Per-frame member validation, out of the traverse: registered members
+      // were skipped by the walk (2-expando early-out), so their tracked
+      // state — parent, local visibility, ancestor visibility (the walk
+      // stamped __r1Vis), material identity/version/subset, geometry,
+      // renderOrder, matrixWorld content, diffuse color — is re-diffed
+      // here. Any divergence evicts (rejoin re-registers next frame) or
+      // marks the group dirty for a fresh DRAW_BATCH.
+      if (this._batchDiag) { this._batchDiag.groups++; this._batchDiag.members += group.count; }
+      for (const [object, member] of group.members) {
+        const parent = object.parent;
+        if (object._r1ColorBatchMember !== member || parent !== group.parentObject ||
+            !object.visible || object.castShadow === true || parent.__r1Vis === false) {
+          if (this._batchDiag) this._batchDiag.evictA++;
+          if (diag) diag.evicted++;
+          this._colorBatchEvict(group, object);
+          continue;
+        }
+        const material = object.material;
+        if (material === null) {
+          if (diag) diag.evicted++;
+          this._colorBatchEvict(group, object);
+          continue;
+        }
+        // Identity-only material swap (e.g. an example adapter re-lowering a
+        // churned ShaderMaterial source to an equivalent native fallback
+        // every frame, webgl_test_memory2): the member stays as long as the
+        // new material still matches the group key — evicting on identity
+        // alone redrew the batch with count=0 every churn tick (blank frames
+        // until the walk re-joined the members two ticks later). The group
+        // key covers geometry + every material field EXCEPT diffuse color,
+        // so a same-key swap cannot change the shared draw; the color diff
+        // below still syncs the per-instance color, and every other gate
+        // below (version, blending, wireframe, visibility, renderOrder)
+        // still evicts on real divergence.
+        if (material !== member.material &&
+            this._colorBatchGroupKey(object, material) !== group.key) {
+          if (diag) diag.evicted++;
+          this._colorBatchEvict(group, object);
+          continue;
+        }
+        if (material !== member.material) {
+          member.material = material;
+          // The swap itself is not divergence: adopt the new material's
+          // version as the diff baseline so later in-place mutations of the
+          // new material still evict on `material.version !== member.version`.
+          member.version = material.version;
+        }
+        const blending = material.blending || 0;
+        if (material.transparent === true ||
+            (blending !== 0 && blending !== 1) || material.wireframe === true ||
+            material.visible === false || object.geometry !== group.geometry ||
+            object.renderOrder !== member.renderOrder) {
+          if (diag) diag.evicted++;
+          this._colorBatchEvict(group, object);
+          continue;
+        }
+        // matrixWorld.elements is a double array (THREE Matrix4) while the
+        // instance buffers are Float32Array: compare fround-quantized or a
+        // deterministic recompose still "changes" every frame at 2^-24.
+        const elements = object.matrixWorld.elements;
+        const matrix = member.matrix;
+        let changed = false;
+        for (let i = 0; i < 16; i++) {
+          const quantized = Math.fround(elements[i]);
+          if (quantized !== matrix[i]) { changed = true; matrix[i] = quantized; }
+        }
+        // Color channels are doubles (THREE Color) over a Float32Array
+        // instance buffer — same fround rule as the matrix diff.
+        const color = material.color;
+        const colors = member.color;
+        if (!color) { this._colorBatchEvict(group, object); continue; }
+        const cr = Math.fround(color.r);
+        const cg = Math.fround(color.g);
+        const cb = Math.fround(color.b);
+        if (cr !== colors[0] || cg !== colors[1] || cb !== colors[2]) {
+          colors[0] = cr; colors[1] = cg; colors[2] = cb;
+          changed = true;
+        }
+        if (changed) {
+          group.dirty = true; group.matrixEpoch++;
+          if (diag) diag.changed++;
+        }
+        member.version = material.version;
+      }
+      if (globalThis.__JSR_BATCH_DEBUG) {
+        globalThis.__batchDiag = this._batchDiag;
+        globalThis.__batchState = {
+          nodes: this._state.nodes.size,
+          groups: [...this._colorBatches.values()].map(g => g.count).join('+'),
+          keys: this._colorBatches.size
+        };
+      }
+      group.parentId = renderedSceneId;
+      const geometry = this._ensureGeometry(group.geometry, 0, 'triangles', commands);
+      const materialId = this._ensureMaterial(group.material, commands);
+      const geometryVersion = this._state.geometries.get(geometry.id)?.version || 0;
+      const materialVersion = this._state.materials.get(materialId)?.version || 0;
+      this._updateNode(group.anchor, group.batchId, group.parentId, 0, 0, chainVisible, 1, commands,
+        { x: 0.5, y: 0.5 });
+      const nodeEntry = this._state.nodes.get(group.batchId);
+      if (nodeEntry) nodeEntry.sceneId = renderedSceneId;
+      seenNodes.add(group.batchId);
+      if (group.dirty && chainVisible) {
+        group.dirty = false;
+        const count = group.count;
+        const signature = `1:${count}:${group.epoch}:${group.matrixEpoch}`;
+        const previous = this._state.batches.get(group.batchId);
+        if (!previous || previous.signature !== signature) {
+          const changed = this._nextVersion(this._state.batches, group.batchId, signature);
+          if (!changed) throw new Error('three.internal: color batch signature change must allocate a version');
+          const parts = [{ geometryId: geometry.id, materialId, offset: 0, count: geometry.drawCount }];
+          commands.push(drawBatchCommand(
+            group.batchId, changed.version, count, 3, parts,
+            group.matrices.subarray(0, count * 16), group.colors.subarray(0, count * 3)
+          ));
+          this._mapSet(this._state.batches, group.batchId, {
+            signature, version: changed.version, object: group.anchor, parts,
+            simpleInstanced: true, geometry: group.geometry, geometryVersion,
+            material: group.material, materialVersion,
+            instanceMatrix: null, instanceVersion: 0, instanceAttributeCount: 0,
+            instanceArray: null, instanceColor: null, instanceColorVersion: 0,
+            instanceColorArray: null, instanceColorCapacity: 0, instanceCount: count
+          });
+        }
+      }
+    }
+  }
+
   _writeFastNode(object, id, parentId, visible, draw) {
     const material = object.material;
     if (!material || Array.isArray(material) || material._r1ProceduralTime) return;
@@ -5260,11 +5798,35 @@ export class JsrWebGLRenderer {
     if (!Array.isArray(this.clippingPlanes)) throw new Error('three.invalid: renderer.clippingPlanes must be an array');
     if (this.clippingPlanes.length > 16) unsupported('clippingPlanes', 'R1 supports at most 16 clipping planes');
     if (!camera || (!camera.isPerspectiveCamera && !camera.isOrthographicCamera)) unsupported('camera', 'R1 supports perspective and orthographic cameras');
+    // Frame-stage profiler (JSR_R1_STAGES=1): per-render millisecond sums
+    // exposed on the renderer for the probe prelude. Zero cost otherwise.
+    // performance.now is absent in some QuickJS sandboxes — fall back to
+    // Date.now so a profiling run can never kill the render loop.
+    const stages = this._stageSum || (globalThis.__JSR_R1_STAGES
+      ? (this._stageSum = { n: 0, worldMs: 0, walkMs: 0, flushMs: 0, emitMs: 0 })
+      : null);
+    if (stages && !this._batchDiag) {
+      this._batchDiag = { groups: 0, members: 0, evictA: 0, evictB: 0, joins: 0,
+        walkCalls: 0, rejectMesh: 0, rejectKind: 0, rejectVisible: 0,
+        rejectEligible: 0, rejectGeom: 0, rejectKey: 0, rejectGroup: 0,
+        eligFlag: 0, eligKind: 0, eligBlend: 0, eligMap: 0, eligClip: 0,
+        changed: 0, evicted: 0, early: 0 };
+    }
+    if (this._batchDiag) this._batchDiag.joins += (this._lastJoinN || 0);
+    if (this._batchDiag) this._lastJoinN = 0;
+    const _stageAt = stages ? (name) => {
+      const t = (typeof performance !== 'undefined' && performance.now)
+        ? performance.now() : Date.now();
+      stages[name] += t - (this._stageT || t);
+      this._stageT = t;
+    } : null;
+    if (_stageAt) this._stageT = Date.now();
     if (scene.matrixWorldAutoUpdate === true) scene.updateMatrixWorld();
     if (camera.parent === null && camera.matrixWorldAutoUpdate === true) {
       camera.updateMatrixWorld();
     }
     camera.matrixWorldInverse.copy(camera.matrixWorld).invert();
+    if (_stageAt) _stageAt('worldMs');
     this._frameGeometries = new Map();
     this._frameViewMatrix = camera.matrixWorldInverse;
     this._frameMaterials = new Map();
@@ -5272,6 +5834,7 @@ export class JsrWebGLRenderer {
     this._frameMorphKeys = new Map();
     this._frameGeometryGate.clear();
     this._frameStencilActivity = false;
+    if (_stageAt) _stageAt('worldMs');
     const commands = [];
     this._walkCommands = commands;
     const pending = this._pendingDisposals.splice(0);
@@ -5304,6 +5867,16 @@ export class JsrWebGLRenderer {
     // unwalked parents fall back to visible/root (the same defaults the Maps
     // had). Values are rewritten every frame for every walked node.
     scene.traverseVisible(object => {
+      // Color-batch members skip the whole per-object prologue (parent
+      // chain, visibility flags, node ensure, per-mesh lanes): their frame
+      // validation lives in _flushColorBatches. Two expando reads instead
+      // of ~80 — the 2000-mesh interactive-cubes walk is dominated by this.
+      if (object._r1ColorBatchMember) {
+        const wdiag = this._batchDiag;
+        if (wdiag) wdiag.early++;
+        object.__r1Pid = 0;
+        return;
+      }
       // THREE.LOD selects the active level per frame; upstream WebGLRenderer
       // does the same in projectObject before visibility is flattened.
       if (object.isLOD) object.update(camera);
@@ -5331,6 +5904,16 @@ export class JsrWebGLRenderer {
         // Hidden source/reference meshes must not become permanent zero-draw
         // native nodes. Existing nodes retire once below; re-showing recreates.
         object.__r1Pid = parentId;
+        return;
+      }
+      // Color-batch lane first: a registered member validates with ~20
+      // number compares and contributes to ONE instanced DRAW_BATCH; the
+      // per-mesh fast/full lanes below must not re-ensure it.
+      const batchMember = !this._sceneOverrideMaterial
+        ? this._colorBatchWalk(object, resourceId(object), parentId, visibleHere)
+        : null;
+      if (batchMember) {
+        object.__r1Pid = batchMember;
         return;
       }
       const result = !this._sceneOverrideMaterial
@@ -5372,6 +5955,9 @@ export class JsrWebGLRenderer {
         }
       } else object.__r1Pid = parentId;
     });
+    if (_stageAt) _stageAt('walkMs');
+    this._flushColorBatches(commands, seenNodes, renderedSceneId, scene);
+    if (_stageAt) _stageAt('flushMs');
     for (const [id, node] of this._state.nodes) {
       if (!seenNodes.has(id) && node.sceneId === renderedSceneId) {
         this._removeBatch(id, commands);
@@ -5423,7 +6009,9 @@ export class JsrWebGLRenderer {
     }
     commands.push(frameCommand(resourceId(scene), cameraId, background, this.toneMappingExposure, fog, shadow, culledNodeIds, culledShadowNodeIds, shadowLightType, this.toneMapping, pointShadow, this._frameTargetSpec(commands)));
     this._walkCommands = null;
+    if (_stageAt) _stageAt('emitMs');
     this._emit(commands);
+    if (_stageAt) stages.n++;
     this._clearFlags = 0;
     // Only canvas-target renders may seed the resize/refresh redraw: an
     // offscreen pass must not be replayed onto the default framebuffer.

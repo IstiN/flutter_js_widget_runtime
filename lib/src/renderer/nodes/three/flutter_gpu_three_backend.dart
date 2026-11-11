@@ -273,16 +273,60 @@ final class FlutterGpuThreeBackend {
         : <({JsThreeFrameResources state, JsThreeSubmitFrame? frame})>[
             (state: state, frame: frame),
           ];
-    final plans = [
-      for (final item in frameList)
-        _planner.plan(item.state, frame: item.frame, lineMode: lineMode),
-    ];
+    final plans = <ThreeDrawPlan>[];
+    // Lever 2: composer passes queue ~15 render-target frames per JS tick
+    // with an unchanged resource revision between them. Plan once and clone
+    // the shell per frame (shared draw lists/lights/stream) instead of
+    // re-walking and re-sorting the scene for every sub-pass. Any state
+    // mutation, scene/camera switch, or cull-set difference between queued
+    // frames forces a fresh plan — composer depth passes swap materials and
+    // the main pass culls differently, so they never share a stale walk.
+    ThreeDrawPlan? reusedPlan;
+    var reusedRevision = -1;
+    var reusedScene = -1;
+    var reusedCamera = -1;
+    Set<int>? reusedCulled;
+    for (final item in frameList) {
+      final frame = item.frame;
+      if (frame == null) {
+        plans.add(_planner.plan(item.state, lineMode: lineMode));
+        reusedPlan = null;
+        continue;
+      }
+      final culled = frame.culledNodeIds;
+      final sameWalk = reusedPlan != null &&
+          item.state.contentRevision == reusedRevision &&
+          frame.sceneId == reusedScene &&
+          frame.cameraId == reusedCamera &&
+          _sameNodeIds(culled, reusedCulled);
+      if (sameWalk) {
+        plans.add(reusedPlan.withFrame(frame));
+        continue;
+      }
+      final plan = _planner.plan(item.state, frame: frame, lineMode: lineMode);
+      reusedPlan = plan;
+      reusedRevision = item.state.contentRevision;
+      reusedScene = frame.sceneId;
+      reusedCamera = frame.cameraId;
+      reusedCulled = culled;
+      plans.add(plan);
+    }
     for (final current in plans) {
       for (final warning in current.diagnostics.warnings) {
         _note(warning);
       }
     }
     return plans;
+  }
+
+  /// Content equality for per-frame cull sets (plan-reuse gate).
+  static bool _sameNodeIds(Set<int>? a, Set<int>? b) {
+    if (identical(a, b)) return true;
+    if (a == null || b == null || a.length != b.length) return false;
+    for (final id in a) {
+      if (!b.contains(id)) return false;
+    }
+    return true;
   }
 
   void _assertThreePlansRenderable(List<ThreeDrawPlan> plans) {

@@ -331,4 +331,25 @@ flutter:
     - widgets/three-watch/
     - widgets/three-worker-offscreencanvas/
     - widgets/three-morphtargets-webcam/
+    - widgets/three-buffergeometry-attributes-none/
+    - widgets/three-buffergeometry-selective-draw/
+    - widgets/three-effects-anaglyph/
+    - widgets/three-effects-stereo/
+    - widgets/three-geometry-colors-lookuptable/
+    - widgets/three-geometry-terrain/
+    - widgets/three-instancing-dynamic/
+    - widgets/three-lines-dashed/
+    - widgets/three-lines-fat/
+    - widgets/three-loader-pcd/
+    - widgets/three-materials-blending/
+    - widgets/three-materials-cubemap/
+    - widgets/three-materials-envmaps/
+    - widgets/three-materials-wireframe/
+    - widgets/three-modifier-edgesplit/
+    - widgets/three-modifier-simplifier/
+    - widgets/three-modifier-tessellation/
+    - widgets/three-multiple-scenes-comparison/
+    - widgets/three-points-waves/
+    - widgets/three-rtt/
+    - widgets/three-shader/
     - assets/models/

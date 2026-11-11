@@ -588,6 +588,17 @@ export class JsrThreeCanvas {
   set height(value) { this._setPhysicalSize(this._width, value); }
   get clientWidth() { return this._cssWidth; }
   get clientHeight() { return this._cssHeight; }
+  // CSS-layout DOM properties that controls read per pointer event. Upstream
+  // FlyControls divides by offsetWidth/offsetHeight (FlyControls.onPointerMove
+  // -> _getContainerDimensions); with them undefined every yaw term became
+  // NaN, the camera matrix went non-finite and EVERY later render threw
+  // 'camera matrixWorld must be finite' — the whole RAF loop died on the
+  // first mouse move (webgl_lensflares / webgl_lod storm collapse). A
+  // full-screen R1 canvas sits at (0,0) with its CSS box as the layout box.
+  get offsetWidth() { return this._cssWidth; }
+  get offsetHeight() { return this._cssHeight; }
+  get offsetLeft() { return 0; }
+  get offsetTop() { return 0; }
   get pixelRatio() { return this._pixelRatio; }
   get devicePixelRatio() { return this._pixelRatio; }
   get disposed() { return this._disposed; }
