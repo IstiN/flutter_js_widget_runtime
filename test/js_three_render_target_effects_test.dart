@@ -65,7 +65,16 @@ void main() {
     final state = harness.state!;
     expect(plan.draws, isNotEmpty);
     expect(state.renderTargets, hasLength(2));
-    expect(state.textures, isEmpty);
+    expect(state.textures, hasLength(1));
+    expect(state.textures.values.single.isCube, isTrue);
+    expect(
+      state.textures.values.single.data.length,
+      state.textures.values.single.width *
+          state.textures.values.single.height *
+          4 *
+          6,
+      reason: 'the photographic six-face cubemap survives the two eye passes',
+    );
     expect(plan.draws, hasLength(1));
     final material = plan.draws.single.material;
     expect(material.kind, JsThreeMaterialKind.anaglyph);

@@ -546,8 +546,8 @@ _ThreeRenderRequest? _createThreeRenderRequest(FlutterGpuThreeSurface surface) {
 /// pass k draws with exactly the material upstream bound for pass k.
 List<JsThreeFramePlanView> _drainThreePendingFrames(JsThreeSurfaceState state) {
   final frames = <JsThreeFramePlanView>[];
-  ({JsThreeSubmitFrame frame, JsThreeFramePlanView view})? next =
-      state.takePendingFrameWithView();
+  ({JsThreeSubmitFrame frame, JsThreeFramePlanView view})? next = state
+      .takePendingFrameWithView();
   while (next != null) {
     frames.add(next.view);
     next = state.takePendingFrameWithView();

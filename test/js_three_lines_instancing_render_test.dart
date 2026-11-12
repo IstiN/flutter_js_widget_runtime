@@ -40,12 +40,20 @@ void main() {
       tester,
       'three-lines-fat',
     );
-    expect(plan.draws, hasLength(1));
-    final draw = plan.draws.single;
-    expect(draw.primitive, ThreeDrawPrimitive.lines);
+    expect(plan.draws, hasLength(2));
+    final draw = plan.draws
+        .where((draw) => draw.primitive == ThreeDrawPrimitive.lines)
+        .single;
     expect(draw.drawCount, 1534);
     expect(draw.material.kind, JsThreeMaterialKind.lineBasic);
     expect(draw.material.vertexColors, isTrue);
+    expect(
+      plan.draws.where(
+        (draw) => draw.primitive == ThreeDrawPrimitive.triangles,
+      ),
+      hasLength(1),
+      reason: 'the inset pass includes its scissored depth/color clear',
+    );
     expect(harness.state!.textureUploadCount, 0);
     final geometryUploads = harness.state!.geometryUploadCount;
     await harness.pumpFrames(tester, 5);
@@ -125,10 +133,18 @@ void main() {
       tester,
       'three-lines-fat-wireframe',
     );
-    final draw = plan.draws.single;
-    expect(draw.primitive, ThreeDrawPrimitive.lines);
+    final draw = plan.draws
+        .where((draw) => draw.primitive == ThreeDrawPrimitive.lines)
+        .single;
     expect(draw.drawCount, greaterThan(0));
     expect(draw.material.kind, JsThreeMaterialKind.lineBasic);
+    expect(
+      plan.draws.where(
+        (draw) => draw.primitive == ThreeDrawPrimitive.triangles,
+      ),
+      hasLength(1),
+      reason: 'the inset pass includes its scissored depth/color clear',
+    );
     await harness.dispose(tester);
   }, timeout: const Timeout(Duration(seconds: 180)));
 }

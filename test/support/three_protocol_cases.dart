@@ -5,6 +5,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:js_widget_runtime/src/renderer/nodes/three/js_three_protocol.dart';
 
 import 'three_protocol_bytes.dart';
+
 final threeProtocolDecoder = JsThreeProtocolDecoder();
 void _writeFrameHead(
   Uint8List out, {
@@ -29,7 +30,6 @@ void _writeFrameHead(
   setF32(out, 44, fogNear);
   setF32(out, 48, fogFar);
 }
-
 
 Uint8List threeCommand(int opcode, Uint8List body) {
   final out = Uint8List(8 + body.length);
@@ -372,8 +372,7 @@ Uint8List threeMaterialV8({
   int zPassOp = 0x8507,
 }) {
   final base = threeMaterialV6();
-  final flags =
-      31 | (stencil ? 0x800 : 0) | (colorWriteOff ? 0x400 : 0);
+  final flags = 31 | (stencil ? 0x800 : 0) | (colorWriteOff ? 0x400 : 0);
   setU32(base, 16, flags);
   if (!stencil) return base;
   final out = Uint8List(base.length + 32);
@@ -524,6 +523,7 @@ Uint8List threeFrame({
   double fogFar = 75,
   int shadowWidth = 0,
   int shadowHeight = 0,
+  double shadowRadius = 1,
   List<int> culledNodeIds = const [],
   List<int> culledShadowNodeIds = const [],
   int? shadowLightType,
@@ -550,7 +550,7 @@ Uint8List threeFrame({
   setU32(out, 56, shadowHeight);
   setF32(out, 60, -0.0001);
   setF32(out, 64, 0.02);
-  setF32(out, 68, 1);
+  setF32(out, 68, shadowRadius);
   for (final index in [0, 5, 10, 15]) {
     setF32(out, 72 + index * 4, 1);
   }

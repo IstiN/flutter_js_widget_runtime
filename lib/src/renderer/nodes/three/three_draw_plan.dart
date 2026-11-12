@@ -236,8 +236,7 @@ final class ThreeDrawPlan {
   /// [stream] entries that survive main-pass culling: draws drop when
   /// culled from the main camera, markers always stay.
   Iterable<ThreeDrawStreamEntry> get mainStream => stream.where(
-    (entry) =>
-        entry is! ThreeDrawStreamDraw || !entry.draw.culledFromMain,
+    (entry) => entry is! ThreeDrawStreamDraw || !entry.draw.culledFromMain,
   );
 
   Iterable<ThreeDrawItem> get draws sync* {
@@ -385,6 +384,8 @@ const _meshMaterialKinds = {
   JsThreeMaterialKind.anaglyph,
   // R1 v7: depth-viz lane (MeshDepthMaterial, BasicDepthPacking).
   JsThreeMaterialKind.meshDepth,
+  JsThreeMaterialKind.scissoredClear,
+  JsThreeMaterialKind.postProcessing,
 };
 
 const _autoInstanceMaterialKinds = {

@@ -18,7 +18,9 @@ part 'gpu/three_gpu_uniforms.dart';
 part 'gpu/three_gpu_presentation.dart';
 part 'gpu/three_gpu_encoder.dart';
 part 'gpu/three_gpu_draw.dart';
+
 const _threeShadowTrace = bool.fromEnvironment('JSR_THREE_SHADOW_TRACE');
+
 final class FlutterGpuThreeBackend {
   FlutterGpuThreeBackend._(
     this.engineId,
@@ -79,6 +81,7 @@ final class FlutterGpuThreeBackend {
   late final gpu.BufferView _identityInstanceView;
   gpu.GpuImageSurface? _imageSurface;
   gpu.Texture? _depthTexture;
+
   /// Set when [_depthTexture] is (re)allocated: the first default-framebuffer
   /// pass must CLEAR depth to 1.0 even when the frame asks for
   /// LoadAction.load, because Impeller zero-initializes textures while a new
@@ -300,7 +303,8 @@ final class FlutterGpuThreeBackend {
         continue;
       }
       final culled = frame.culledNodeIds;
-      final sameWalk = reusedPlan != null &&
+      final sameWalk =
+          reusedPlan != null &&
           item.state.contentRevision == reusedRevision &&
           frame.sceneId == reusedScene &&
           frame.cameraId == reusedCamera &&
@@ -633,7 +637,8 @@ final class FlutterGpuThreeBackend {
     final clearedTargets = <int>{};
     for (final plan in plans.where((plan) => plan.frame!.renderTargetId != 0)) {
       final frame = plan.frame!;
-      final dropClear = frame.scissorTest && clearedTargets.contains(frame.renderTargetId);
+      final dropClear =
+          frame.scissorTest && clearedTargets.contains(frame.renderTargetId);
       clearedTargets.add(frame.renderTargetId);
       draws += _recordTargetPass(
         plan,
@@ -658,8 +663,8 @@ final class FlutterGpuThreeBackend {
     for (var index = 0; index < plans.length; index++) {
       final plan = plans[index];
       final frame = plan.frame!;
-      final dropClear = frame.scissorTest &&
-          clearedTargets.contains(frame.renderTargetId);
+      final dropClear =
+          frame.scissorTest && clearedTargets.contains(frame.renderTargetId);
       clearedTargets.add(frame.renderTargetId);
       final result = dropClear
           ? _recordThreePassWithClears(

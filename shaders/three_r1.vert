@@ -156,6 +156,7 @@ void main() {
     // Perspective (spot) shadow cameras divide xy by w; orthographic
     // directional cameras have w = 1, so this is a no-op for them.
     gl_Position = vec4(
-        shadowPosition.xy * 2.0 - 1.0, shadowPosition.z, shadowPosition.w);
+        shadowPosition.xy * 2.0 - vec2(shadowPosition.w),
+        shadowPosition.z, shadowPosition.w);
   }
 }

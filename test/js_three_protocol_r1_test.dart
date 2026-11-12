@@ -384,7 +384,7 @@ void main() {
       final cases = <(int, Uint8List, int, int)>[
         (3, threeMaterial(), 0, 0),
         (3, threeMaterial(), 4, 0),
-        (3, threeMaterial(), 8, 13), // 13 is invalid; 12 is the v7 meshDepth kind
+        (3, threeMaterial(), 8, 15), // 15 is invalid; 14 is the native postprocessing kind
         (
           3,
           threeMaterial(),

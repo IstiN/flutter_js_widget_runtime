@@ -323,8 +323,7 @@ final class JsThreeSurfaceState implements JsThreeFrameResources {
   /// R1 v8 STENCIL_CLEAR markers attached to [currentFrame], in stream
   /// order; empty for stenciless frames.
   @override
-  List<JsThreeStencilClear> get stencilClears =>
-      _currentFrameStencilClears;
+  List<JsThreeStencilClear> get stencilClears => _currentFrameStencilClears;
 
   JsThreeSubmitFrame? get currentFrame => _currentFrame;
   JsThreeSubmitFrame? _currentFrame;
@@ -394,7 +393,8 @@ final class JsThreeSurfaceState implements JsThreeFrameResources {
     if (_pendingFrames.length < 2) return 0;
     final newestBatch = _pendingFrames.last.batchSequence;
     var start = _pendingFrames.length - 1;
-    while (start > 0 && _pendingFrames[start - 1].batchSequence == newestBatch) {
+    while (start > 0 &&
+        _pendingFrames[start - 1].batchSequence == newestBatch) {
       start--;
     }
     if (start == 0) return 0;
@@ -434,20 +434,24 @@ final class JsThreeSurfaceState implements JsThreeFrameResources {
         // takePendingFrame() (canvas2d-style consumers) pops frames without
         // their views, so the two queues can desync; clamp to stay safe.
         keptFrames.addAll(_pendingFrames.getRange(index, end));
-        keptViews.addAll(_pendingFrameViews.getRange(
-          index,
-          end.clamp(0, _pendingFrameViews.length),
-        ));
+        keptViews.addAll(
+          _pendingFrameViews.getRange(
+            index,
+            end.clamp(0, _pendingFrameViews.length),
+          ),
+        );
       }
       index = end;
     }
     if (dropped == 0) return 0;
     keptFrames.addAll(_pendingFrames.getRange(start, _pendingFrames.length));
     if (start < _pendingFrameViews.length) {
-      keptViews.addAll(_pendingFrameViews.getRange(
-        start,
-        _pendingFrames.length.clamp(0, _pendingFrameViews.length),
-      ));
+      keptViews.addAll(
+        _pendingFrameViews.getRange(
+          start,
+          _pendingFrames.length.clamp(0, _pendingFrameViews.length),
+        ),
+      );
     }
     _pendingFrames
       ..clear()
@@ -737,7 +741,8 @@ extension _JsThreeSurfaceStateOperations on JsThreeSurfaceState {
   /// mirrors the decoder's per-envelope command cap so a pathological
   /// marker-only envelope sequence cannot grow this list unbounded.
   void _recordStencilClear(JsThreeStencilClear value, _ApplyBatch batch) {
-    if (_pendingStencilClears.length >= JsThreeProtocolDecoder.maxCommandCount) {
+    if (_pendingStencilClears.length >=
+        JsThreeProtocolDecoder.maxCommandCount) {
       throw const JsThreeProtocolException(
         'pending stencil clears exceed the command cap',
       );

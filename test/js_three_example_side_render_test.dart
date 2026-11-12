@@ -95,9 +95,18 @@ void main() {
     );
     // The final retained plan is the right-hand wireframe pass; the left
     // pass is composed before it within each animation tick.
-    expect(plan.draws, hasLength(1));
-    expect(plan.draws.single.material.kind, JsThreeMaterialKind.meshStandard);
-    expect(plan.draws.single.primitive, ThreeDrawPrimitive.lines);
+    expect(plan.draws, hasLength(2));
+    final sceneDraw = plan.draws
+        .where((draw) => draw.material.kind == JsThreeMaterialKind.meshStandard)
+        .single;
+    expect(sceneDraw.primitive, ThreeDrawPrimitive.lines);
+    expect(
+      plan.draws.where(
+        (draw) => draw.material.kind == JsThreeMaterialKind.scissoredClear,
+      ),
+      hasLength(1),
+      reason: 'the scissored right-hand pass clears depth before drawing',
+    );
     expect(harness.state!.textureUploadCount, 0);
     await harness.dispose(tester);
   }, timeout: const Timeout(Duration(seconds: 180)));

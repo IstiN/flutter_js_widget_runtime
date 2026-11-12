@@ -149,22 +149,20 @@ void main() {
     await harness.dispose(tester);
   }, timeout: const Timeout(Duration(seconds: 180)));
 
-  testWidgets('webgl_test_memory2 renders its warned native shader fallback', (
-    tester,
-  ) async {
-    final (harness, plan) = await _render(tester, 'three-test-memory2');
-    // Round-3 color-batch fold: the example's 100 same-geometry meshes join
-    // ONE instanced batch draw (probe: nodes=2 batches=1 geoms=1 materials=1
-    // draws=1, instanceColors carried per instance via
-    // js_three_protocol_decoder.dart:813), replacing 100 ordinary draws.
-    expect(plan.draws, hasLength(1));
-    _expectWarning(
-      harness,
-      'webgl_test_memory2 arbitrary shader is unavailable',
-    );
-    _expectNoJsErrors(harness);
-    await harness.dispose(tester);
-  }, timeout: const Timeout(Duration(seconds: 180)));
+  testWidgets(
+    'webgl_test_memory2 renders its bounded literal-color shader fallback',
+    (tester) async {
+      final (harness, plan) = await _render(tester, 'three-test-memory2');
+      // Native literal-color lowering preserves each generated material's
+      // own color instead of collapsing all one hundred meshes to the old
+      // generic static-blue compatibility material.
+      expect(plan.draws, hasLength(100));
+      _expectWarning(harness, 'R1 retains the literal shader color');
+      _expectNoJsErrors(harness);
+      await harness.dispose(tester);
+    },
+    timeout: const Timeout(Duration(seconds: 180)),
+  );
 
   testWidgets('webgl_materials_video renders its grid with warned fallbacks', (
     tester,

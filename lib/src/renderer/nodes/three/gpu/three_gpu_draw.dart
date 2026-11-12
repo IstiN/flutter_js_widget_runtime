@@ -196,4 +196,3 @@ void _bindShadowClipping(
 }
 
 int _threeActiveDimension(bool active, int value) => active ? value : 0;
-

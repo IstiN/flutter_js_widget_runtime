@@ -803,6 +803,20 @@ runtimeDocument.getElementById = function(id) {
     if (!localElementsById.has(id)) localElementsById.set(id, localVideoElement(id));
     return localElementsById.get(id);
   }
+  if (id === 'drawing-canvas') {
+    // webgl_materials_texture_canvas carries a real <canvas width=128
+    // height=128> outside its module. Recreate that element as a local 2D
+    // canvas instead of the generic diagnostic <div> fallback (which has no
+    // getContext and used to abort the widget with "not a function").
+    if (!localElementsById.has(id)) {
+      const element = runtimeDocument.createElement('canvas');
+      element.id = id;
+      element.width = 128;
+      element.height = 128;
+      localElementsById.set(id, element);
+    }
+    return localElementsById.get(id);
+  }
   if (id === 'container') return container;
   if (id === 'info') return info;
   if (Object.prototype.hasOwnProperty.call(AUDIO_ELEMENTS, id)) {
@@ -996,7 +1010,7 @@ function installNativeExampleCompat() {
   };
   const adaptMediaShaders = scene => {
     if (EXAMPLE !== 'webaudio_visualizer' && EXAMPLE !== 'webgl_video_kinect' &&
-        EXAMPLE !== 'webgl_test_memory2' && EXAMPLE !== 'webgl_loader_ldraw') return;
+        EXAMPLE !== 'webgl_loader_ldraw') return;
     if (!scene || typeof scene.traverse !== 'function') return;
     scene.traverse(object => {
       const source = object.material;

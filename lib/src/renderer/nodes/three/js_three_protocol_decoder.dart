@@ -1,6 +1,5 @@
 part of 'js_three_protocol.dart';
 
-
 /// Checked T1/R1 decoding. Legacy v1 and additive v2 streams are accepted.
 /// No surface state is changed by this class.
 final class JsThreeProtocolDecoder {
@@ -492,7 +491,9 @@ final class JsThreeProtocolDecoder {
   _materialStencilTail(_Reader body, int stencilBytes) {
     if (stencilBytes == 0) return null;
     if (body.remaining != stencilBytes) {
-      body.fail('material stencil tail must be the last $stencilBytes body bytes');
+      body.fail(
+        'material stencil tail must be the last $stencilBytes body bytes',
+      );
     }
     final stencilWrite = body.u32('material stencil write');
     if (stencilWrite > 1) body.fail('material stencil write must be 0 or 1');
@@ -577,10 +578,11 @@ final class JsThreeProtocolDecoder {
       if (mapId == 0 || mapRightTextureId == 0) {
         body.fail('anaglyph requires left and right textures');
       }
-    } else if (mapRightTextureId != 0 ||
-        left.any((value) => value != 0) ||
-        right.any((value) => value != 0)) {
-      body.fail('Dubois payload requires an anaglyph material');
+    } else if (kind != JsThreeMaterialKind.postProcessing &&
+        (mapRightTextureId != 0 ||
+            left.any((value) => value != 0) ||
+            right.any((value) => value != 0))) {
+      body.fail('Dubois payload requires an anaglyph/postprocessing material');
     }
     return (mapRightTextureId: mapRightTextureId, left: left, right: right);
   }
@@ -922,11 +924,7 @@ final class JsThreeProtocolDecoder {
   }
 
   /// Fails the stream when the light type needs a newer R1 version.
-  void _checkLightVersion(
-    JsThreeLightType type,
-    int version,
-    _Reader body,
-  ) {
+  void _checkLightVersion(JsThreeLightType type, int version, _Reader body) {
     final minVersion = switch (type) {
       JsThreeLightType.hemisphere => 2,
       JsThreeLightType.spot => 3,
@@ -1016,7 +1014,9 @@ final class JsThreeProtocolDecoder {
     final shadowMatrix = body.float32List(16, 'shadow matrix');
     final shadowLightType = _shadowLightType(body, version);
     _validateShadowMapDimensions(body, shadowWidth, shadowHeight);
-    if (shadowRadius <= 0) body.fail('shadow radius must be positive');
+    // A negative magnitude is the R1 marker for the recognised ShaderChunk
+    // PCSS kernel; ordinary Basic/PCF shadows keep a positive radius.
+    if (shadowRadius == 0) body.fail('shadow radius must be nonzero');
     if (shadowLightType != JsThreeShadowLightType.none.wireValue &&
         shadowWidth == 0) {
       body.fail('shadow light type requires a shadow map');
@@ -1307,7 +1307,9 @@ final class JsThreeProtocolDecoder {
     // (three.js clamps it to [0, 1], so -1 is the valid floor) and the
     // fragment stage refracts the env sample instead of reflecting it.
     if (envMapIntensity < -1) {
-      body.fail('material env map intensity must be >= -1 (reflection intensity, or negative refraction ratio)');
+      body.fail(
+        'material env map intensity must be >= -1 (reflection intensity, or negative refraction ratio)',
+      );
     }
     return (
       alphaMapTextureId: alphaMapTextureId,
@@ -1388,4 +1390,3 @@ final _r1CommandDecoders = <int, _R1CommandDecode>{
   11: (decoder, body) => decoder._drawBatch(body),
   12: (decoder, body) => JsThreeRemoveBatch._(body.nonzeroId('batch node id')),
 };
-

@@ -108,8 +108,8 @@ void main() {
     timeout: const Timeout(Duration(seconds: 180)),
   );
 
-  testWidgets('webgl_materials_texture_canvas crashes on the HTML-only drawing '
-      'canvas while the R1 surface keeps drawing the untextured box', (
+  testWidgets('webgl_materials_texture_canvas keeps the bounded Canvas2D '
+      'drawing texture on the native box', (
     tester,
   ) async {
     final harness = await ThreeQuickjsExampleHarness.boot(
@@ -124,27 +124,17 @@ void main() {
     expect(exported['backend'], 'flutterGpu');
     expect(exported['canvasCount'], 1);
     expect(exported['mounted'], isTrue);
-    // No offline assets and no GUI in this module.
     expect(exported['assets'], isEmpty);
     expect((exported['gui'] as Map<String, dynamic>)['controllers'], 0);
+    expect(harness.renderTrees.last.toString(), isNot(contains('Widget error:')));
 
-    // setupCanvasDrawing() runs after init() and dies on the bounded
-    // Canvas2D facade: the drawing canvas element is stubbed now (no more
-    // null getElementById), so the failure moved to the first real 2D
-    // context call — a plain 'not a function' TypeError.
-    final errorCard = harness.renderTrees.last.toString();
-    expect(errorCard, contains('Widget error:'));
-    expect(errorCard, contains('not a function'));
-
-    // The renderer was already mounted before the throw, so the R1
-    // surface stays alive: the BoxGeometry(200,200,200) and its
-    // MeshBasicMaterial upload once, the RAF loop keeps submitting
-    // frames of the rotating box, and the CanvasTexture map never
-    // uploads (textureUploadCount stays 0).
+    // The bounded Canvas2D facade records the official strokes into a real
+    // CanvasTexture; the already-mounted R1 surface keeps submitting the
+    // rotating textured box without an HTML-only drawing-canvas exception.
     final state = harness.state!;
     expect(state.geometryUploadCount, 1);
     expect(state.materials, hasLength(1));
-    expect(state.textureUploadCount, 0);
+    expect(state.textureUploadCount, greaterThan(0));
     final framesAfterBoot = state.submittedFrameCount;
     expect(framesAfterBoot, greaterThan(1));
     await harness.pumpFrames(tester, 5);
@@ -157,7 +147,7 @@ void main() {
     final draw = plan.draws.single;
     expect(draw.drawCount, 36); // 12 triangles: BoxGeometry(200,200,200)
     expect(draw.material.kind, JsThreeMaterialKind.meshBasic);
-    expect(draw.material.mapTextureId, 0); // map assignment never ran
+    expect(draw.material.mapTextureId, greaterThan(0));
 
     await harness.dispose(tester);
   }, timeout: const Timeout(Duration(seconds: 180)));

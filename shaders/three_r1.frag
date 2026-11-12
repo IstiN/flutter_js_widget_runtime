@@ -319,6 +319,40 @@ vec3 applyToneMapping(vec3 color) {
   return color;
 }
 
+// Recognised THREE.ShaderChunk PCSS replacement (webgl_shadowmap_pcss):
+// blocker search followed by variable-radius 2x17-tap Poisson filtering.
+vec2 pcssDisk(int i, float angle) {
+  float radius = (float(i) + 1.0) / 17.0;
+  float a = angle + 6.28318530718 * 11.0 * float(i) / 17.0;
+  return vec2(cos(a), sin(a)) * pow(radius, 0.75);
+}
+float pcssShadow(vec2 uv, float receiver) {
+  const float lightSizeUv = 0.005 / 3.75;
+  const float nearPlane = 9.5;
+  float angle = fract(sin(dot(uv, vec2(12.9898, 78.233))) * 43758.5453) * 6.28318530718;
+  float searchRadius = lightSizeUv * (receiver - nearPlane) / max(receiver, 0.00001);
+  float blockerSum = 0.0;
+  float blockers = 0.0;
+  for (int i = 0; i < 17; ++i) {
+    float depth = texture(shadowMapTexture, uv + pcssDisk(i, angle) * searchRadius).r;
+    float blocked = step(depth, receiver - 0.0000001);
+    blockerSum += depth * blocked;
+    blockers += blocked;
+  }
+  if (blockers < 0.5) return 1.0;
+  float blocker = blockerSum / blockers;
+  float penumbra = (receiver - blocker) / max(blocker, 0.00001);
+  float filterRadius = penumbra * lightSizeUv * nearPlane / max(receiver, 0.00001);
+  float visibility = 0.0;
+  for (int i = 0; i < 17; ++i) {
+    vec2 disk = pcssDisk(i, angle) * filterRadius;
+    float a = texture(shadowMapTexture, uv + disk).r;
+    float b = texture(shadowMapTexture, uv - disk.yx).r;
+    visibility += step(receiver, a) + step(receiver, b);
+  }
+  return visibility / 34.0;
+}
+
 float directionalShadow() {
   if (frame_info.shadowBiasTexelRadius.y <= 0.0 ||
       material_info.vertexColorsFlatShadingHasMapReserved.w < 0.5) {
@@ -333,6 +367,9 @@ float directionalShadow() {
     return 1.0;
   }
   float currentDepth = coord.z + frame_info.shadowBiasTexelRadius.x;
+  if (frame_info.shadowBiasTexelRadius.w < 0.0) {
+    return pcssShadow(coord.xy, currentDepth);
+  }
   vec2 texel = frame_info.shadowBiasTexelRadius.yz *
                frame_info.shadowBiasTexelRadius.w;
   float visibility = 0.0;
@@ -455,9 +492,126 @@ float spotDistanceFalloff(float lightDistance, float cutoffDistance) {
   return falloff;
 }
 
+float r1PostParam(int index) {
+  if (index < 9) return material_info.duboisLeft[index / 3][index % 3];
+  int rightIndex = index - 9;
+  return material_info.duboisRight[rightIndex / 3][rightIndex % 3];
+}
+
+float r1PostLuma(vec3 color) {
+  return dot(color, vec3(0.2126, 0.7152, 0.0722));
+}
+
+float r1HalftoneDot(float value, vec2 point, float angle, float radius, int shape) {
+  float s = sin(angle), c = cos(angle);
+  vec2 rotated = vec2(c * point.x - s * point.y, s * point.x + c * point.y);
+  vec2 cell = mod(rotated + vec2(radius * 0.5), vec2(radius)) - vec2(radius * 0.5);
+  float distanceToCenter = shape == 0 ? max(abs(cell.x), abs(cell.y)) : length(cell);
+  float dotRadius = radius * 0.5 * sqrt(clamp(value, 0.0, 1.0));
+  return 1.0 - step(dotRadius, distanceToCenter);
+}
+
+vec4 r1PostColor(vec2 uv) {
+  int op = int(r1PostParam(0) + 0.5);
+  vec4 base = texture(mapTexture, uv);
+  if (op == 1) {
+    vec4 previous = texture(mapRightTexture, uv);
+    previous *= r1PostParam(1) * max(sign(previous - vec4(0.1)), vec4(0.0));
+    return max(base, previous);
+  }
+  if (op == 2) {
+    vec2 texel = vec2(1.0 / max(r1PostParam(1), 1.0), 1.0 / max(r1PostParam(2), 1.0));
+    float gx = 0.0, gy = 0.0;
+    for (int y = -1; y <= 1; y++) {
+      for (int x = -1; x <= 1; x++) {
+        float sampleR = texture(mapTexture, uv + texel * vec2(x, y)).r;
+        gx += float(x * (2 - abs(y))) * sampleR;
+        gy += float(y * (2 - abs(x))) * sampleR;
+      }
+    }
+    return vec4(vec3(sqrt(gx * gx + gy * gy)), 1.0);
+  }
+  if (op == 3) {
+    if (r1PostParam(10) > 0.5) return base;
+    vec2 point = uv * vec2(max(r1PostParam(1), 1.0), max(r1PostParam(2), 1.0));
+    float radius = max(r1PostParam(3), 0.001);
+    int shape = int(r1PostParam(7) + 0.5);
+    vec3 source = r1PostParam(9) > 0.5 ? vec3(r1PostLuma(base.rgb)) : base.rgb;
+    vec3 dots = vec3(
+      r1HalftoneDot(source.r, point, r1PostParam(4), radius, shape),
+      r1HalftoneDot(source.g, point, r1PostParam(5), radius, shape),
+      r1HalftoneDot(source.b, point, r1PostParam(6), radius, shape));
+    return vec4(mix(base.rgb, dots, clamp(r1PostParam(8), 0.0, 1.0)), base.a);
+  }
+  if (op == 4) {
+    vec2 noiseUv = fract(uv + r1PostParam(1));
+    float noise = fract(sin(dot(noiseUv, vec2(12.9898, 78.233))) * 43758.5453);
+    vec3 noisy = base.rgb + base.rgb * clamp(0.1 + noise, 0.0, 1.0);
+    vec3 result = mix(base.rgb, noisy, clamp(r1PostParam(2), 0.0, 1.0));
+    if (r1PostParam(3) > 0.5) result = vec3(r1PostLuma(result));
+    return vec4(result, base.a);
+  }
+  if (op == 5) {
+    float s = sin(r1PostParam(3)), c = cos(r1PostParam(3));
+    vec2 tex = uv * vec2(r1PostParam(5), r1PostParam(6)) - vec2(r1PostParam(1), r1PostParam(2));
+    vec2 point = vec2(c * tex.x - s * tex.y, s * tex.x + c * tex.y) * r1PostParam(4);
+    float pattern = sin(point.x) * sin(point.y) * 4.0;
+    float average = (base.r + base.g + base.b) / 3.0;
+    return vec4(vec3(average * 10.0 - 5.0 + pattern), base.a);
+  }
+  if (op == 6) {
+    float lum = r1PostLuma(base.rgb);
+    float l = clamp(10.0 * (lum - 0.45), 0.0, 1.0);
+    vec3 result = mix(2.0 * base.rgb * lum,
+      1.0 - 2.0 * (1.0 - lum) * (1.0 - base.rgb), l);
+    float amount = clamp(r1PostParam(1), 0.0, 1.0) * base.a;
+    return vec4(mix(base.rgb, result, amount), base.a);
+  }
+  if (op == 7) {
+    vec3 sepia = vec3(
+      dot(base.rgb, vec3(0.393, 0.769, 0.189)),
+      dot(base.rgb, vec3(0.349, 0.686, 0.168)),
+      dot(base.rgb, vec3(0.272, 0.534, 0.131)));
+    return vec4(mix(base.rgb, sepia, clamp(r1PostParam(1), 0.0, 1.0)), base.a);
+  }
+  if (op == 8) {
+    vec2 point = (uv - vec2(0.5)) * vec2(r1PostParam(1));
+    return vec4(mix(base.rgb, vec3(1.0 - r1PostParam(2)), dot(point, point)), base.a);
+  }
+  if (op == 9) {
+    return vec4(vec3(r1PostLuma(base.rgb)) * vec3(r1PostParam(1), r1PostParam(2), r1PostParam(3)), base.a);
+  }
+  if (op == 10) return vec4(linearToSrgb(base.rgb), base.a);
+  if (op == 11 || op == 12) {
+    vec2 direction = op == 11 ? vec2(r1PostParam(1), 0.0) : vec2(0.0, r1PostParam(1));
+    vec3 sum = base.rgb * 0.227027;
+    sum += texture(mapTexture, uv + direction * 1.3846153846).rgb * 0.3162162162;
+    sum += texture(mapTexture, uv - direction * 1.3846153846).rgb * 0.3162162162;
+    sum += texture(mapTexture, uv + direction * 3.2307692308).rgb * 0.0702702703;
+    sum += texture(mapTexture, uv - direction * 3.2307692308).rgb * 0.0702702703;
+    return vec4(sum, base.a);
+  }
+  return base;
+}
+
 void main() {
   applyClipping();
   int kind = int(material_info.roughnessMetalnessAlphaTestKind.w + 0.5);
+  if (kind == 14) {
+    vec4 post = r1PostColor(textureUv);
+    vec3 color = post.rgb * frame_info.cameraPositionExposure.w;
+    color = applyToneMapping(color);
+    if (frame_info.fogFarModeReserved.w < 0.5) color = linearToSrgb(color);
+    outColor = vec4(color, post.a);
+    return;
+  }
+  if (kind == 13) {
+    // Raw attachment-clear equivalent for one scissored viewport. The vertex
+    // positions are already on the far plane; depthTest=false + depthWrite=true
+    // reset depth without masking the scene that follows in this pass.
+    outColor = vec4(linearToSrgb(material_info.colorOpacity.rgb), material_info.colorOpacity.a);
+    return;
+  }
   if (kind == 10) {
     // scene.background texture: an injected camera-centred skybox samples
     // the environment by view DIRECTION (no reflection, no lighting, no
@@ -803,8 +957,8 @@ void main() {
     // mix factor degrades to the reflectivity default (the refraction
     // examples use 1 or 0.9; ratio drives the visible distortion anyway).
     float envIntensity = encodedEnv < 0.0 ? 1.0 : encodedEnv;
-    if (kind == 1 || kind == 2) {
-      // Approximate split IBL instead of adding a roughness-scaled mirror to
+    if (kind == 2) {
+      // MeshStandardMaterial: approximate split IBL instead of adding a roughness-scaled mirror to
       // every material. Diffuse irradiance survives roughness 1 and preserves
       // albedo/maps; only the specular lobe vanishes at full roughness.
       float metal = clamp(metalnessFactor, 0.0, 1.0);
@@ -814,7 +968,7 @@ void main() {
       color += envColor * envIntensity *
           (diffuseIbl + f0 * (1.0 - rough));
     } else {
-    // Upstream envmap_fragment for the non-IBL materials (Basic/Phong/Toon,
+    // Upstream envmap_fragment for the non-IBL materials (Basic/Lambert/Phong/Toon,
     // combine default MultiplyOperation): outgoingLight = mix(outgoing,
     // outgoing * envColor, specularStrength * reflectivity). The previous ADD
     // shape clipped every lit base above 1.0 (cubemap_refraction's ambient

@@ -5,7 +5,7 @@ import {
   MirroredRepeatWrapping, NeutralToneMapping, NearestFilter, NearestMipmapNearestFilter,
   NearestMipmapLinearFilter, NoToneMapping, NormalBlending, CustomBlending, AdditiveBlending, PointsMaterial, HalfFloatType, FloatType, IntType, RedFormat,
   ReinhardToneMapping, RGBAFormat, RGBAIntegerFormat, CompressedTexture, RepeatWrapping, SRGBColorSpace, UVMapping, UnsignedByteType,
-  Sphere, Vector3, Vector4, WebGLCoordinateSystem, Object3D
+  Sphere, Vector3, Vector4, WebGLCoordinateSystem, Object3D, ShaderChunk
 } from 'three';
 import { unsupported, requireFinite } from './errors.js';
 import { getThreeRuntime } from './runtime.js';
@@ -452,6 +452,9 @@ function batchMaterialKind(material) {
 
 function materialKind(material) {
   if (material._r1Background) return 10;
+  // Far-plane, unlit clear rectangle used only by scissored multi-view
+  // passes. It restores glClear's per-rect color/depth semantics on tile GPUs.
+  if (material._r1ScissoredClear) return 13;
   if (material.isMeshBasicMaterial) return 0;
   if (material.isMeshLambertMaterial) return 1;
   if (material.isMeshStandardMaterial) return 2;
@@ -583,6 +586,131 @@ function refreshTimeColorGeometry(geometry, time) {
   }
   output._r1DynamicContent = true;
   output.needsUpdate = true;
+}
+
+// Lowers the integer-texture-index shader used by
+// webgl_buffergeometry_attributes_integer into ordinary grouped materials.
+// Each source triangle keeps its attributes and moves to the group selected
+// by its flat textureIndex; R1's existing multi-material DRAW_BATCH lane then
+// samples the correct uTextures[i] without emulating integer varyings.
+function integerTextureGeometry(source) {
+  const attribute = source.attributes.textureIndex;
+  const index = source.index;
+  const vertexCount = source.attributes.position.count;
+  const triangleCount = Math.floor((index ? index.count : vertexCount) / 3);
+  const groups = [[], [], []];
+  for (let triangle = 0; triangle < triangleCount; triangle++) {
+    const first = index ? index.getX(triangle * 3) : triangle * 3;
+    const texture = attribute.getX(first);
+    if (!Number.isInteger(texture) || texture < 0 || texture >= groups.length) return null;
+    for (let corner = 0; corner < 3; corner++) {
+      groups[texture].push(index ? index.getX(triangle * 3 + corner) : triangle * 3 + corner);
+    }
+  }
+  const geometry = new BufferGeometry();
+  for (const [name, value] of Object.entries(source.attributes)) {
+    if (name !== 'textureIndex') geometry.setAttribute(name, value);
+  }
+  const indices = new Uint32Array(triangleCount * 3);
+  let start = 0;
+  for (let texture = 0; texture < groups.length; texture++) {
+    indices.set(groups[texture], start);
+    geometry.addGroup(start, groups[texture].length, texture);
+    start += groups[texture].length;
+  }
+  geometry.setIndex(new BufferAttribute(indices, 1));
+  geometry.boundingSphere = source.boundingSphere;
+  return geometry;
+}
+
+// Preserves per-point size variation through the existing multi-material
+// DRAW_BATCH lane. Exact palettes (10px cloud / 40px cage) stay exact;
+// continuously animated fields are quantized into at most eight mean-sized
+// buckets. A single mean PointsMaterial made the small points merge and the
+// large ones disappear in custom_attributes_points2/3.
+function groupedPointSizes(source, sizeAttribute, colorAttribute) {
+  if (!sizeAttribute || source.drawRange.start !== 0) return null;
+  const sourceIndex = source.index;
+  const count = sourceIndex ? sourceIndex.count : source.attributes.position.count;
+  if (!count || source.drawRange.count < count) return null;
+  const vertices = new Uint32Array(count);
+  const values = new Float64Array(count);
+  const exact = new Set();
+  let min = Infinity;
+  let max = -Infinity;
+  for (let i = 0; i < count; i++) {
+    const vertex = sourceIndex ? sourceIndex.getX(i) : i;
+    const size = sizeAttribute.getX(vertex);
+    if (!Number.isFinite(size) || size < 0) return null;
+    vertices[i] = vertex;
+    values[i] = size;
+    if (size === 0) continue; // official gl_PointSize=0 rasterizes nothing
+    if (size < min) min = size;
+    if (size > max) max = size;
+    if (exact.size <= 8) exact.add(size);
+  }
+  if (max <= min) return null;
+  let groups;
+  if (exact.size <= 8) {
+    const bySize = new Map();
+    for (let i = 0; i < count; i++) {
+      const size = values[i];
+      if (size === 0) continue;
+      let indices = bySize.get(size);
+      if (!indices) bySize.set(size, indices = []);
+      indices.push(vertices[i]);
+    }
+    groups = [...bySize.keys()].sort((a, b) => a - b)
+      .map(size => ({ size, indices: bySize.get(size) }));
+  } else {
+    const buckets = Array.from({ length: 8 }, () => ({ sum: 0, indices: [] }));
+    const width = (max - min) / 7;
+    for (let i = 0; i < count; i++) {
+      if (values[i] === 0) continue;
+      const bucket = buckets[Math.max(0, Math.min(7, Math.round((values[i] - min) / width)))];
+      bucket.sum += values[i];
+      bucket.indices.push(vertices[i]);
+    }
+    groups = buckets.filter(bucket => bucket.indices.length)
+      .map(bucket => ({ size: bucket.sum / bucket.indices.length, indices: bucket.indices }));
+  }
+  const geometry = new BufferGeometry();
+  geometry.setAttribute('position', source.attributes.position);
+  if (colorAttribute) geometry.setAttribute('color', colorAttribute);
+  const sizes = [];
+  const indices = new Uint32Array(count);
+  let offset = 0;
+  for (const group of groups) {
+    sizes.push(group.size);
+    indices.set(group.indices, offset);
+    geometry.addGroup(offset, group.indices.length, geometry.groups.length);
+    offset += group.indices.length;
+  }
+  geometry.setIndex(new BufferAttribute(indices.slice(0, offset), 1));
+  geometry.boundingSphere = source.boundingSphere;
+  geometry._r1PointSizeGroups = {
+    source, index: source.index, count, sizeAttribute, groups,
+    position: source.attributes.position, color: colorAttribute,
+  };
+  return { geometry, sizes };
+}
+
+// Animated size fields change values every frame. Keep the first bounded
+// partition's index buffer stable and update only each group's mean material
+// size; rebucketing 100k points per frame both reallocates the index upload
+// and violates the existing no-whole-geometry-reupload contract.
+function refreshGroupedPointSizes(source, geometry, sizeAttribute, colorAttribute) {
+  const cache = geometry?._r1PointSizeGroups;
+  if (!cache || cache.source !== source || cache.index !== source.index ||
+      cache.sizeAttribute !== sizeAttribute || cache.color !== colorAttribute ||
+      cache.position !== source.attributes.position ||
+      source.drawRange.start !== 0 || source.drawRange.count < cache.count) return null;
+  const sizes = cache.groups.map(group => {
+    let sum = 0;
+    for (const vertex of group.indices) sum += sizeAttribute.getX(vertex);
+    return sum / group.indices.length;
+  });
+  return { geometry, sizes };
 }
 
 function displacedShaderGeometry(source, amplitude) {
@@ -1422,11 +1550,86 @@ function refreshBoidsShaderGeometry(geometry, uniforms) {
   geometry.attributes.position.needsUpdate = true;
 }
 
-function adaptedShaderDraw(object, viewMatrix = null) {
+// Bounded native postprocessing lane. The official ShaderPass materials are
+// recognised by their uniform contract (and, where opacity/color alone would
+// be ambiguous, a distinctive source token), then evaluated by kind 14 in
+// three_r1.frag. Unknown shaders still take the capability error instead of
+// silently pretending that arbitrary GLSL ran.
+function postShaderAdaptation(source, fragment) {
+  const u = source.uniforms || {};
+  const has = name => u[name] !== undefined;
+  const value = (name, fallback = 0) => {
+    const v = u[name]?.value;
+    if (v === true) return 1;
+    if (v === false) return 0;
+    return Number.isFinite(v) ? Number(v) : fallback;
+  };
+  const vector = (name, fallbackX = 0, fallbackY = 0) => {
+    const v = u[name]?.value;
+    return v && Number.isFinite(v.x) && Number.isFinite(v.y) ? [v.x, v.y] : [fallbackX, fallbackY];
+  };
+  let op = 0;
+  let map = u.tDiffuse?.value || null;
+  let right = null;
+  const p = new Array(18).fill(0);
+  const set = (index, v) => { p[index] = Number.isFinite(v) ? v : 0; };
+  if (has('tOld') && has('tNew') && has('damp')) {
+    op = 1; map = u.tNew.value || null; right = u.tOld.value || null; set(1, value('damp', 0.96));
+  } else if (has('tDiffuse') && has('resolution') && fragment.includes('valueGx') && fragment.includes('valueGy')) {
+    const size = vector('resolution', 1, 1); op = 2; set(1, size[0]); set(2, size[1]);
+  } else if (has('tDiffuse') && has('radius') && has('rotateR') && has('rotateG') && has('rotateB') && has('shape')) {
+    const width = value('width', 1), height = value('height', 1);
+    op = 3; set(1, width); set(2, height); set(3, value('radius', 4));
+    set(4, value('rotateR')); set(5, value('rotateG')); set(6, value('rotateB'));
+    set(7, value('shape', 1)); set(8, value('blending', 1)); set(9, value('greyscale', 0)); set(10, value('disable', 0));
+  } else if (has('tDiffuse') && has('time') && has('intensity') && has('grayscale')) {
+    op = 4; set(1, value('time')); set(2, value('intensity', 0.35)); set(3, value('grayscale', 0));
+  } else if (has('tDiffuse') && has('center') && has('angle') && has('scale') && has('tSize')) {
+    const center = vector('center'), size = vector('tSize', 1, 1);
+    op = 5; set(1, center[0]); set(2, center[1]); set(3, value('angle', 0.5)); set(4, value('scale', 0.8));
+    set(5, size[0]); set(6, size[1]);
+  } else if (has('tDiffuse') && has('opacity') && fragment.includes('10.0*(lum-0.45)')) {
+    op = 6; set(1, value('opacity', 1));
+  } else if (has('tDiffuse') && has('amount') && fragment.includes('0.393') && fragment.includes('0.769')) {
+    op = 7; set(1, value('amount', 1));
+  } else if (has('tDiffuse') && has('offset') && has('darkness') && fragment.includes('vUv-vec2(0.5)')) {
+    op = 8; set(1, value('offset', 1)); set(2, value('darkness', 1));
+  } else if (has('tDiffuse') && has('color') && fragment.includes('uniformvec3color')) {
+    const c = u.color.value; op = 9; set(1, c?.r); set(2, c?.g); set(3, c?.b);
+  } else if (has('tDiffuse') && !has('h') && !has('v') &&
+      (fragment.includes('LinearTosRGB') || fragment.includes('sRGBTransferOETF'))) {
+    op = 10;
+  } else if (has('tDiffuse') && has('h') && fragment.includes('0.227027')) {
+    op = 11; set(1, value('h'));
+  } else if (has('tDiffuse') && has('v') && fragment.includes('0.227027')) {
+    op = 12; set(1, value('v'));
+  }
+  if (!op) return null;
+  p[0] = op;
+  return { op, map, right, left: p.slice(0, 9), rightMatrix: p.slice(9) };
+}
+
+function adaptedShaderDraw(object, viewMatrix = null, pixelRatio = 1) {
   const source = object.material;
   const uniforms = source.uniforms || {};
   const vertex = sourceTokens(source.vertexShader);
   const fragment = sourceTokens(source.fragmentShader);
+  const post = postShaderAdaptation(source, fragment);
+  if (post) {
+    // Sobel/Halftone uniforms are authored in CSS pixels by the official
+    // examples, while the native render targets use drawing-buffer pixels.
+    // Scale their resolution parameters or edges/dots become DPR-dependent.
+    if ((post.op === 2 || post.op === 3) && pixelRatio !== 1) {
+      post.left[1] *= pixelRatio;
+      post.left[2] *= pixelRatio;
+    }
+    const material = copyShaderFlags(source, new MeshBasicMaterial({ map: post.map, toneMapped: false }));
+    material._r1NativeKind = 'post';
+    material._r1Anaglyph = { right: post.right, left: post.left, rightMatrix: post.rightMatrix };
+    adaptationWarn(source, '_r1PostShaderWarned',
+      'R1 evaluates the recognised postprocessing shader in the native kind-14 fragment lane.');
+    return { material, geometry: object.geometry };
+  }
   if (object.isPoints && uniforms.texturePosition?.value?.isDataTexture &&
     uniforms.textureVelocity?.value?.isDataTexture && object.geometry.attributes.uv) {
     // GPGPU protoplanet-style points: positions/masses live in float
@@ -1605,6 +1808,25 @@ function adaptedShaderDraw(object, viewMatrix = null) {
   if (uniforms.color?.value?.isColor && vertex.includes('position')) {
     adaptationWarn(source, '_r1ColorShaderWarned', 'R1 retains the bounded shader color and geometry; custom lighting is dropped.');
     return { material: basicShaderMaterial(source, { color: uniforms.color.value, vertexColors: !!attrs.color }), geometry: object.geometry };
+  }
+  // webgl_test_memory2: the only material-varying term is the literal RGB
+  // injected into `gl_FragColor = vec4( R, G, B, 1.0 )`. Preserve that color
+  // instead of collapsing all one hundred churned materials to white. The
+  // 4px gl_FragCoord grid remains a documented shader-only detail.
+  if (fragment.includes('gl_FragCoord.x') && fragment.includes('gl_FragCoord.y') &&
+      fragment.includes('mod(') && Object.keys(uniforms).length === 0) {
+    const match = fragment.match(/gl_FragColor=vec4\(([^,]+),([^,]+),([^,]+),1(?:\.0)?\)/);
+    if (match) {
+      const rgb = match.slice(1, 4).map(Number);
+      if (rgb.every(value => Number.isFinite(value) && value >= 0 && value <= 1)) {
+        const material = basicShaderMaterial(source, {
+          color: new Color().setRGB(rgb[0], rgb[1], rgb[2])
+        });
+        adaptationWarn(source, '_r1GridColorWarned',
+          'R1 retains the literal shader color; the gl_FragCoord grid is dropped.');
+        return { material, geometry: object.geometry };
+      }
+    }
   }
   if (uniforms.time && vertex === RTT_VERTEX && fragment === RTT_PROCEDURAL_FRAGMENT) {
     const material = copyShaderFlags(source, new MeshBasicMaterial({ vertexColors: true }));
@@ -2945,8 +3167,11 @@ export class JsrWebGLRenderer {
   // would blend across the atlas seams, so the mipmap bit is dropped.
   _ensureCubeTexture(texture, commands) {
     const faces = texture.image;
-    if (Array.isArray(faces) && faces.length === 0) return 0;
-    if (!Array.isArray(faces) || faces.length !== 6) unsupported('textureType', 'R1 cube textures require exactly six faces');
+    // CubeTextureLoader exposes its six-slot array before every asynchronous
+    // face has arrived. Upstream simply keeps the texture unready; do not turn
+    // that transient state into a permanent widget error card.
+    if (!Array.isArray(faces) || faces.length !== 6 ||
+        faces.some((face) => !face || !face.data || !face.width || !face.height)) return 0;
     const id = resourceId(texture);
     const frameCached = this._frameTextures.get(id);
     if (frameCached !== undefined) return frameCached;
@@ -3017,7 +3242,7 @@ export class JsrWebGLRenderer {
     // shader-feedback materials) always take the full path.
     if (!material.stencilWrite && !material._r1Anaglyph &&
         !material._r1ProceduralTime && !material._r1ShaderTextures &&
-        !material._r1Background &&
+        !material._r1Background && !material._r1ScissoredClear &&
         !(this.localClippingEnabled && material.clippingPlanes && material.clippingPlanes.length) &&
         !this.clippingPlanes.length) {
       const snap = material._r1EnsureSnap;
@@ -3027,7 +3252,8 @@ export class JsrWebGLRenderer {
         return id;
       }
     }
-    const kind = material._r1NativeKind === 'anaglyph' ? 11 : materialKind(material);
+    const kind = material._r1NativeKind === 'anaglyph' ? 11 :
+      material._r1NativeKind === 'post' ? 14 : materialKind(material);
     validateMaterial(material);
     this._listen(material, 'materials', this._state.materials, id);
     let shaderMap = material.map || null;
@@ -3042,7 +3268,7 @@ export class JsrWebGLRenderer {
     }
     const mapId = this._ensureTexture(shaderMap, commands);
     const anaglyph = material._r1Anaglyph || null;
-    const mapRightId = kind === 11 ? this._ensureTexture(anaglyph.right, commands) : 0;
+    const mapRightId = kind === 11 || kind === 14 ? this._ensureTexture(anaglyph.right, commands) : 0;
     const alphaMapId = this._ensureTexture(material.alphaMap || null, commands);
     const envMapId = this._ensureTexture(material.envMap || null, commands, 'envMap');
     const matcapId = material.isMeshMatcapMaterial ? this._ensureTexture(material.matcap || null, commands, 'matcap') : (material.matcap ? unsupported('materialTexture', `${material.type}.matcap`) : 0);
@@ -3057,7 +3283,7 @@ export class JsrWebGLRenderer {
     const spriteRotation = material.isSpriteMaterial ? material.rotation : 0;
     if (spriteRotation && !Number.isFinite(spriteRotation)) throw new Error('three.invalid: material sprite rotation must be finite');
     const mapUvMatrix = uvTransformElements(shaderMap);
-    const alphaMapUvMatrix = uvTransformElements(kind === 11 ? anaglyph.right : (material.alphaMap || null));
+    const alphaMapUvMatrix = uvTransformElements(kind === 11 || kind === 14 ? anaglyph.right : (material.alphaMap || null));
     // Lambert/Phong/Basic have no envMapIntensity (they use reflectivity):
     // default 1. CubeRefractionMapping envMaps ride the same scalar,
     // sign-encoded: a NEGATIVE encoded value means upstream
@@ -3072,7 +3298,8 @@ export class JsrWebGLRenderer {
       ? (material.envMapIntensity !== undefined ? material.envMapIntensity : 1)
       : (material.reflectivity !== undefined ? material.reflectivity : 1);
     const envMapIntensity = refracting
-      ? -(envMap.refractionRatio !== undefined ? envMap.refractionRatio : 0.98)
+      ? -(material.refractionRatio !== undefined ? material.refractionRatio :
+        (envMap.refractionRatio !== undefined ? envMap.refractionRatio : 0.98))
       : envScalar;
     if (!Number.isFinite(envMapIntensity) || envMapIntensity < -1) throw new Error('three.invalid: material envMapIntensity must be finite (nonnegative intensity, or negative refraction ratio in [-1, 0))');
     const color = material.color || new Color(0xffffff);
@@ -3114,7 +3341,7 @@ export class JsrWebGLRenderer {
         { alphaMapId, envMapId, envMapIntensity, mapUvMatrix, alphaMapUvMatrix },
         { matcapId, gradientMapId, rotation: spriteRotation },
         { normalMapId, normalScaleX, normalScaleY, bumpMapId, bumpScale, roughnessMapId, metalnessMapId },
-        kind === 11 ? { rightId: mapRightId, left: anaglyph.left, right: anaglyph.rightMatrix } : null,
+        kind === 11 || kind === 14 ? { rightId: mapRightId, left: anaglyph.left, right: anaglyph.rightMatrix } : null,
         stencil));
       this._mapSet(this._state.materials, id, { signature, version: changed.version, object: material });
     }
@@ -3479,7 +3706,7 @@ export class JsrWebGLRenderer {
     if (!changed) {
       const cached = this._state.geometries.get(id);
       const result = {
-        id, vertexCount, drawCount: cached.drawCount, indexed: cached.indexed,
+        id, object: geometry, vertexCount, drawCount: cached.drawCount, indexed: cached.indexed,
         rangeStart: cached.rangeStart, rangeCount: cached.rangeCount, sourceCount: cached.sourceCount,
         hasWireIndices: cached.hasWireIndices, wireDrawCount: cached.wireDrawCount
       };
@@ -3535,7 +3762,7 @@ export class JsrWebGLRenderer {
     };
     this._mapSet(this._state.geometries, id, cached);
     const result = {
-      id, vertexCount, drawCount, indexed: cached.indexed,
+      id, object: geometry, vertexCount, drawCount, indexed: cached.indexed,
       rangeStart: range.start, rangeCount: range.count, sourceCount: range.available,
       hasWireIndices: cached.hasWireIndices, wireDrawCount: cached.wireDrawCount
     };
@@ -3628,11 +3855,14 @@ export class JsrWebGLRenderer {
     };
   }
 
-  _ensureBatchParts(object, geometry, materials, commands) {
+  _ensureBatchParts(object, geometry, materials, commands, primitive = 0) {
     if (object.isInstancedMesh && !Array.isArray(object.material)) {
       return [{ geometryId: geometry.id, materialId: this._ensureMaterial(materials[0], commands), offset: 0, count: geometry.drawCount }];
     }
-    const groups = object.geometry.groups;
+    // Adapted shader lanes may partition a single-material source geometry
+    // into groups (integer texture indices). Read the ACTUAL render geometry,
+    // not the original source object, whose groups are intentionally empty.
+    const groups = (geometry.object || object.geometry).groups;
     if (!groups || groups.length === 0) unsupported('multiMaterialGroups', 'material arrays require BufferGeometry.groups');
     if (groups.length > MAX_BATCH_PARTS) throw new Error(`three.invalid: batch partCount exceeds ${MAX_BATCH_PARTS}`);
     const rangeEnd = geometry.rangeStart + geometry.rangeCount;
@@ -3641,13 +3871,13 @@ export class JsrWebGLRenderer {
       if (!group || !Number.isInteger(group.start) || group.start < 0 || !Number.isInteger(group.count) || group.count < 0) throw new Error('three.invalid: geometry group start/count');
       if (!Number.isInteger(group.materialIndex) || group.materialIndex < 0 || group.materialIndex >= materials.length) throw new Error('three.invalid: geometry group materialIndex');
       if (group.start > geometry.sourceCount || group.count > geometry.sourceCount - group.start) throw new Error('three.invalid: geometry group is outside geometry bounds');
-      if (group.start % 3 !== 0) throw new Error('three.invalid: triangle group start is not aligned');
-      if (group.count % 3 !== 0) throw new Error('three.invalid: triangle group count is not aligned');
+      if (primitive === 0 && group.start % 3 !== 0) throw new Error('three.invalid: triangle group start is not aligned');
+      if (primitive === 0 && group.count % 3 !== 0) throw new Error('three.invalid: triangle group count is not aligned');
       const groupEnd = group.start + group.count;
       const start = Math.min(rangeEnd, Math.max(geometry.rangeStart, group.start));
       const end = Math.min(rangeEnd, Math.max(geometry.rangeStart, groupEnd));
       const count = Math.max(0, end - start);
-      if (count % 3 !== 0) throw new Error('three.invalid: clipped triangle group count is not aligned');
+      if (primitive === 0 && count % 3 !== 0) throw new Error('three.invalid: clipped triangle group count is not aligned');
       const offset = start - geometry.rangeStart;
       if (offset > geometry.drawCount || count > geometry.drawCount - offset) throw new Error('three.invalid: batch part is outside the uploaded geometry');
       parts.push({
@@ -4242,7 +4472,10 @@ export class JsrWebGLRenderer {
     const attrs = source.attributes;
     const uniforms = material.uniforms || {};
     let kind = null;
-    if (!attrs.position && material.isRawShaderMaterial &&
+    if (object.isMesh && attrs.position && attrs.textureIndex &&
+        Array.isArray(uniforms.uTextures?.value) && uniforms.uTextures.value.length === 3 &&
+        uniforms.uTextures.value.every(texture => texture?.isTexture)) kind = 'integerTextures';
+    else if (!attrs.position && material.isRawShaderMaterial &&
         String(material.vertexShader).includes('pseudoRandomVec3') &&
         String(material.vertexShader).includes('gl_VertexID')) kind = 'procedural';
     else if (object.isLineSegments && attrs.position && attrs.vertColor && attrs.visible &&
@@ -4276,7 +4509,7 @@ export class JsrWebGLRenderer {
       if (previous !== undefined && previous.source === source) {
         return { geometry: previous.geometry, material: previous.material };
       }
-      const adapted = adaptedShaderDraw(object, this._frameViewMatrix || null);
+      const adapted = adaptedShaderDraw(object, this._frameViewMatrix || null, this._pixelRatio);
       if (!adapted) return null;
       entries.set(signature, {
         source, sourceMaterial: material, signature,
@@ -4319,6 +4552,8 @@ export class JsrWebGLRenderer {
       : '';
     const signature = [
       kind, adaptedAttributeVersion(attrs.position), adaptedAttributeVersion(attrs.normal),
+      kind === 'integerTextures' ? adaptedAttributeVersion(attrs.textureIndex) : 0,
+      kind === 'integerTextures' ? uniforms.uTextures.value.map(texture => resourceId(texture)).join(',') : '',
       adaptedAttributeVersion(attrs.color), adaptedAttributeVersion(pointColorAttribute),
       adaptedAttributeVersion(attrs.vertColor), adaptedAttributeVersion(attrs.visible),
       adaptedAttributeVersion(attrs.displacement), adaptedAttributeVersion(sizeAttribute),
@@ -4336,7 +4571,14 @@ export class JsrWebGLRenderer {
     let geometry;
     let adaptedMaterial;
     let materialKey;
-    if (kind === 'procedural') {
+    if (kind === 'integerTextures') {
+      geometry = integerTextureGeometry(source);
+      if (!geometry) return null;
+      adaptedMaterial = uniforms.uTextures.value.map(texture =>
+        basicShaderMaterial(material, { map: texture }));
+      adaptationWarn(material, '_r1IntegerTexturesWarned',
+        'R1 partitions flat integer texture indices into native grouped materials.');
+    } else if (kind === 'procedural') {
       geometry = proceduralVertexGeometry(source);
       adaptedMaterial = new MeshBasicMaterial({ vertexColors: true, side: material.side, fog: material.fog });
       adaptationWarn(material, '_r1ProceduralWarned',
@@ -4545,11 +4787,33 @@ export class JsrWebGLRenderer {
         'R1 evaluates the custom line displacement/color shader on the CPU.');
     } else if (kind === 'points') {
       // The official points examples mutate only the per-point size
-      // attribute, whose mean rides the material lane. Rebuilding the
-      // adapted geometry (and a fresh resource id) on every signature
-      // change forced a full position/color re-upload, a new GPU buffer
-      // and a disposal of the previous one per presented frame.
-      if (pointColorAttribute) {
+      // attribute. Grouping reorders only the index lane: position/color
+      // attributes remain shared with the source geometry.
+      const groupedRaw = previous && previous.kind === kind
+        ? refreshGroupedPointSizes(source, previous.geometry, sizeAttribute, pointColorAttribute) ||
+          groupedPointSizes(source, sizeAttribute, pointColorAttribute)
+        : groupedPointSizes(source, sizeAttribute, pointColorAttribute);
+      // Some official custom shaders spell out size*(K/-mvPosition.z).
+      // Native PointsMaterial supplies viewportHeight/2 as its attenuation
+      // numerator, so scale the grouped sizes by K/(viewportHeight/2) and
+      // enable attenuation exactly once. Direct-size shaders stay unattenuated.
+      const pointVertex = String(material.vertexShader).replace(/\s+/g, '');
+      const attenuation = pointVertex.match(/gl_PointSize=(?:size|scale)\*\((\d+(?:\.\d+)?)\/-mvPosition\.z\)/);
+      const pointAttenuation = attenuation ? Number(attenuation[1]) : 0;
+      const pointSizeFactor = pointAttenuation > 0
+        ? pointAttenuation / Math.max(1, this._height * 0.5)
+        : 1;
+      const grouped = groupedRaw ? {
+        ...groupedRaw,
+        sizes: groupedRaw.sizes.map(size => {
+          const scaled = size * pointSizeFactor;
+          return Number.isFinite(scaled) && scaled > 0 ? scaled : 0.001;
+        })
+      } : null;
+      meanSize *= pointSizeFactor;
+      if (grouped) {
+        geometry = grouped.geometry;
+      } else if (pointColorAttribute) {
         if (previous && previous.kind === kind && previous.geometry !== source &&
             previous.geometry.attributes.position === attrs.position &&
             previous.geometry.attributes.color === pointColorAttribute) {
@@ -4574,32 +4838,40 @@ export class JsrWebGLRenderer {
         uniformColor && uniformColor.isColor ? `${uniformColor.r}:${uniformColor.g}:${uniformColor.b}` : '-',
         map ? resourceId(map) : 0, alphaTest,
         !(pointColorAttribute || attrs.color), !!material.transparent, material.opacity,
-        material.depthTest, material.depthWrite, material.blending, material.fog ? 1 : 0, material.side
+        material.depthTest, material.depthWrite, material.blending, material.fog ? 1 : 0, material.side,
+        pointAttenuation, pointSizeFactor, grouped ? grouped.sizes.join(',') : 'mean'
       ].join('|');
+      const makeMaterial = size => new PointsMaterial({
+        color: uniformColor && uniformColor.isColor ? uniformColor : new Color(0xffffff),
+        size,
+        // Direct-size shaders assign gl_PointSize=size; recognised K/-z
+        // shaders use the native distance attenuation with the size factor
+        // above so their exact K numerator is preserved.
+        sizeAttenuation: pointAttenuation > 0,
+        map: map || null,
+        alphaTest,
+        vertexColors: !!(pointColorAttribute || attrs.color),
+        transparent: !!material.transparent,
+        opacity: material.opacity,
+        depthTest: material.depthTest,
+        depthWrite: material.depthWrite,
+        blending: material.blending,
+        fog: material.fog
+      });
       if (previous && previous.kind === kind && previous.materialKey === materialKey) {
         adaptedMaterial = previous.material;
         // The mean point size is the only per-frame change; it is part of
         // the _ensureMaterial signature (pointSize), so the material
         // command re-encodes without an artificial version bump.
-        adaptedMaterial.size = meanSize;
+        if (Array.isArray(adaptedMaterial)) {
+          for (let i = 0; i < adaptedMaterial.length; i++) adaptedMaterial[i].size = grouped.sizes[i];
+        } else adaptedMaterial.size = meanSize;
       } else {
-        adaptedMaterial = new PointsMaterial({
-          color: uniformColor && uniformColor.isColor ? uniformColor : new Color(0xffffff),
-          size: meanSize,
-          sizeAttenuation: true,
-          map: map || null,
-          alphaTest,
-          vertexColors: !!(pointColorAttribute || attrs.color),
-          transparent: !!material.transparent,
-          opacity: material.opacity,
-          depthTest: material.depthTest,
-          depthWrite: material.depthWrite,
-          blending: material.blending,
-          fog: material.fog
-        });
+        adaptedMaterial = grouped ? grouped.sizes.map(makeMaterial) : makeMaterial(meanSize);
       }
-      adaptationWarn(material, '_r1PointShaderWarned',
-        'R1 lowers the bounded point shader; per-point sizes are represented by their current mean.');
+      adaptationWarn(material, '_r1PointShaderWarned', grouped
+        ? 'R1 preserves per-point size variation as at most eight grouped native point draws (continuous fields are quantized).'
+        : 'R1 lowers the bounded point shader to one native point size.');
     } else {
       const count = attrs.position.count;
       if (!previous || previous.kind !== kind || previous.geometry.attributes.position.count !== count) {
@@ -4635,7 +4907,10 @@ export class JsrWebGLRenderer {
     }
     if (previous) {
       if (previous.geometry !== geometry && previous.geometry !== source) previous.geometry.dispose();
-      if (previous.material !== adaptedMaterial) previous.material.dispose();
+      if (previous.material !== adaptedMaterial) {
+        if (Array.isArray(previous.material)) previous.material.forEach(item => item.dispose());
+        else previous.material.dispose();
+      }
     }
     this._adaptedShaderDraws.set(object, { kind, source, sourceMaterial: material, signature, geometry, material: adaptedMaterial, materialKey });
     return { geometry, material: adaptedMaterial, lineSegments: kind === 'selective' ? true : undefined };
@@ -4951,7 +5226,7 @@ export class JsrWebGLRenderer {
     }
     const materialVisible = !object.material || object.material.visible !== false;
     const visible = !!object.visible && materialVisible;
-    const batched = !!object.isInstancedMesh || !!(object.isMesh && Array.isArray(object.material));
+    let batched = !!object.isInstancedMesh || !!(object.isMesh && Array.isArray(object.material));
     // GLBufferAttribute points draw-range lane. The official
     // webgl_buffergeometry_glbufferattribute example re-routes setDrawRange
     // every frame over a GPU-side buffer; slicing the moved window per frame
@@ -5036,6 +5311,7 @@ export class JsrWebGLRenderer {
       if (object.isSkinnedMesh) this._applySkining(object);
       const adapted = this._sceneOverrideMaterial ? null : this._adaptDrawable(object);
       const material = this._sceneOverrideMaterial || (adapted ? adapted.material : object.material);
+      if (adapted && Array.isArray(material)) batched = true;
       const renderGeometry = adapted ? adapted.geometry : object.geometry;
       rangeLane = rangeLaneObject && !adapted && renderGeometry === object.geometry;
       if (!adapted && !sourcePosition) {
@@ -5072,7 +5348,9 @@ export class JsrWebGLRenderer {
         mode = object.isLineSegments ? 'lines' : 'line';
         objectKind = 2;
       }
-      if (Array.isArray(material) && primitive !== 0) unsupported('multiMaterial', 'R1 material arrays require triangle meshes');
+      if (Array.isArray(material) && primitive !== 0 && !(adapted && primitive === 2)) {
+        unsupported('multiMaterial', 'R1 material arrays require triangle meshes or adapted grouped points');
+      }
       const materials = Array.isArray(material) ? material : [material];
       const wireframe = primitive === 0 && materials.some(item => item.wireframe);
       if (batched && wireframe) unsupported('wireframeBatch', 'R1 wireframe requires a single-material non-instanced Mesh');
@@ -5091,6 +5369,8 @@ export class JsrWebGLRenderer {
             materialId: this._ensureMaterial(materials[0], commands),
             offset: range.start, count: range.count
           }];
+        } else if (primitive === 2 && Array.isArray(material)) {
+          parts = this._ensureBatchParts(object, geometry, materials, commands, primitive);
         }
         batch = { geometry, materials, parts };
       } else {
@@ -5177,6 +5457,10 @@ export class JsrWebGLRenderer {
     const miss = reason => { if (dbg) dbg['miss_' + reason] = (dbg['miss_' + reason] || 0) + 1; return null; };
     const rec = this._nodeFast.get(object);
     if (rec === undefined) return miss('noRec');
+    // Color-batch membership retires the ordinary wire node. A later
+    // eviction (for example receiveShadow=true) must take the full ensure
+    // path instead of resurrecting only this CPU-side cache entry.
+    if (!this._state.nodes.has(id)) return miss('retired');
     const material = object.material;
     if (!material || Array.isArray(material) || material !== rec.material) return miss('material');
     if (object.geometry !== rec.geometry || !object.isMesh ||
@@ -5246,7 +5530,7 @@ export class JsrWebGLRenderer {
     if (object.isInstancedMesh || object.isBatchedMesh || object.isSkinnedMesh ||
         Array.isArray(object.material) ||
         (object.morphTargetInfluences && object.morphTargetInfluences.length) ||
-        object.children.length > 0 || object.castShadow === true) {
+        object.children.length > 0 || object.castShadow === true || object.receiveShadow === true) {
       if (diag) diag.rejectKind++;
       return null;
     }
@@ -5468,7 +5752,7 @@ export class JsrWebGLRenderer {
       for (const [object, member] of group.members) {
         const parent = object.parent;
         if (object._r1ColorBatchMember !== member || parent !== group.parentObject ||
-            !object.visible || object.castShadow === true || parent.__r1Vis === false) {
+            !object.visible || object.castShadow === true || object.receiveShadow === true || parent.__r1Vis === false) {
           if (this._batchDiag) this._batchDiag.evictA++;
           if (diag) diag.evicted++;
           this._colorBatchEvict(group, object);
@@ -5748,6 +6032,72 @@ export class JsrWebGLRenderer {
     if (result) seenNodes.add(result.id);
   }
 
+  // Impeller's loadAction.clear affects the whole attachment, unlike WebGL's
+  // scissored glClear. The host correctly downgrades later scissored passes to
+  // load (so they do not erase earlier views); this far-plane triangle restores
+  // the missing per-view clear by writing the clear color and far depth ONLY
+  // inside the active scissor rect. depthTest=false => compareAlways, while
+  // depthWrite remains enabled. Kind 13 bypasses lighting/tone mapping and
+  // applies the same linear-to-sRGB encoding as the first-pass clearValue.
+  _ensureScissoredClearNode(scene, camera, commands, seenNodes) {
+    const target = this._renderTarget;
+    const scissorTest = target ? target.scissorTest : this._scissorTest;
+    if (!scissorTest || !this.autoClear || (!this.autoClearColor && !this.autoClearDepth)) return;
+    if (!this._scissoredClearMesh) {
+      const geometry = new BufferGeometry();
+      geometry.setAttribute('position', new Float32BufferAttribute(new Float32Array(9), 3));
+      const material = new MeshBasicMaterial({
+        side: DoubleSide, depthTest: false, depthWrite: true, fog: false,
+      });
+      material._r1ScissoredClear = true;
+      this._scissoredClearMesh = new Mesh(geometry, material);
+      this._scissoredClearMesh.frustumCulled = false;
+      this._scissoredClearMesh.renderOrder = -1000001;
+    }
+    const mesh = this._scissoredClearMesh;
+    const clear = this._background(scene);
+    mesh.material.color.setRGB(clear.r, clear.g, clear.b);
+    mesh.material.opacity = clear.a;
+    mesh.material.colorWrite = this.autoClearColor;
+    mesh.material.depthWrite = this.autoClearDepth;
+    // One oversized far-plane triangle covers the viewport. Transform its NDC
+    // vertices back into world space so the ordinary vertex path needs no new
+    // per-material vertex branch.
+    const position = mesh.geometry.attributes.position;
+    const stamp = mesh._r1ClearCameraStamp;
+    let cameraChanged = !stamp;
+    if (stamp) {
+      for (let i = 0; i < 16; i++) {
+        if (stamp[i] !== camera.projectionMatrixInverse.elements[i] ||
+            stamp[16 + i] !== camera.matrixWorld.elements[i]) {
+          cameraChanged = true;
+          break;
+        }
+      }
+    }
+    if (cameraChanged) {
+      const corners = [[-1, -1], [3, -1], [-1, 3]];
+      for (let i = 0; i < 3; i++) {
+        const value = new Vector4(corners[i][0], corners[i][1], 1, 1)
+          .applyMatrix4(camera.projectionMatrixInverse);
+        // Vector4.applyMatrix4 does not perspective-divide. The inverse
+        // projection returns homogeneous VIEW coordinates, so without this
+        // division the oversized triangle lands off-camera and later scissored
+        // passes keep the first full-attachment clear color.
+        value.divideScalar(value.w).applyMatrix4(camera.matrixWorld);
+        position.setXYZ(i, value.x, value.y, value.z);
+      }
+      position.needsUpdate = true;
+      mesh._r1ClearCameraStamp = [
+        ...camera.projectionMatrixInverse.elements,
+        ...camera.matrixWorld.elements,
+      ];
+      mesh.geometry.boundingSphere = null;
+    }
+    const result = this._ensureNode(mesh, resourceId(scene), commands, true);
+    if (result) seenNodes.add(result.id);
+  }
+
   _fog(scene) {
     const fog = scene.fog;
     if (fog === null || fog === undefined) {
@@ -5820,9 +6170,15 @@ export class JsrWebGLRenderer {
       refreshCulling = key !== this._shadowCullingKey;
       this._shadowCullingKey = key;
     }
+    // The official PCSS example replaces ShaderChunk.shadowmap_pars_fragment
+    // with its blocker-search/penumbra implementation and selects
+    // BasicShadowMap.  A negative radius is the R1 wire marker for that
+    // recognised kernel; ordinary Basic/PCF radii remain non-negative.
+    const pcss = this.shadowMap.type === 0 &&
+      /float\s+PCSS\s*\(/.test(ShaderChunk.shadowmap_pars_fragment || '');
     return {
       width, height, bias: shadow.bias, normalBias: shadow.normalBias,
-      radius: shadow.radius, matrix, camera,
+      radius: pcss ? -Math.max(1, shadow.radius) : shadow.radius, matrix, camera,
       contentRevision: this._shadowContentRevision(manual),
       refreshCulling
     };
@@ -5895,20 +6251,11 @@ export class JsrWebGLRenderer {
     // Per-task envelope batching: consecutive renderer.render() calls inside
     // ONE JS task (a composer tick runs up to ~15 sub-pass renders) used to
     // cross the bridge as 15 separate envelopes, each carrying a frame the
-    // Dart pump queued individually. At 120 Hz that is ~1800 frame-submits/s,
-    // which overflowed the host's pending-frame queue (measured 1132
-    // coalesced/dropped frames vs 84 presented in 2 s ≈ 39.9 fps ceiling on
-    // three-postprocessing-unreal-bloom). Accumulating within the task and
-    // flushing once on the task end microtask gives the decoder the SAME
-    // per-frame command sequence in one envelope: one bridge crossing, one
-    // state apply, one pump per tick. Single-render widgets flush one
-    // envelope per task exactly as before — byte-identical content and
-    // pacing. A synchronous flush remains available for disposal ordering.
+    // Dart pump queued individually. Accumulating within the task and
+    // flushing once on the task-end microtask preserves the command sequence
+    // while keeping one bridge crossing and one pump per tick.
     if (this._renderBatch === null) {
       this._renderBatch = { commands: [] };
-      // QuickJS on this engine has no queueMicrotask global; the runtime's
-      // established microtask pattern is a resolved-promise job (see
-      // _scheduleCanvasRefresh). Both flush once per task after sync code.
       Promise.resolve().then(() => this._flushRenderBatch());
     }
     this._renderBatch.commands.push(...commands);
@@ -6125,6 +6472,7 @@ export class JsrWebGLRenderer {
     const culledNodeIds = [];
     const shadowCandidates = [];
     this._ensureBackgroundNode(scene, camera, commands, seenNodes);
+    this._ensureScissoredClearNode(scene, camera, commands, seenNodes);
     _frustumMatrix.multiplyMatrices(camera.projectionMatrix, camera.matrixWorldInverse);
     _frustum.setFromProjectionMatrix(_frustumMatrix);
     // Per-walk visibility/parent-id ride short-lived expando fields on the

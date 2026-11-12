@@ -89,11 +89,11 @@ final class _ThreeFrameEncoder {
   final double viewportHeight;
 
   bool _pointShadowActive() => threePointShadowLaneActive(
-        backend._shadowFrameActive,
-        plan.frame!.hasPointShadow,
-        backend._pointShadowFrontColorTexture != null,
-        backend._pointShadowBackColorTexture != null,
-      );
+    backend._shadowFrameActive,
+    plan.frame!.hasPointShadow,
+    backend._pointShadowFrontColorTexture != null,
+    backend._pointShadowBackColorTexture != null,
+  );
 
   void _bindPointShadowTextures(_ThreeUniformSlots slots, gpu.RenderPass pass) {
     final active = _pointShadowActive();
@@ -533,4 +533,3 @@ gpu.BufferView? _uploadedThreeBatchView(
   if (cached == null || !identical(cached.source, source)) return null;
   return cached.view;
 }
-

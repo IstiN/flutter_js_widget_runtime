@@ -43,6 +43,44 @@
       "sha256": "b8619f32224e4eb2aa4e02e6676d16da2e3735fc484f748c1adbb6777e9b39d9"
     }
   },
+  "assetDiscovery": [
+    {
+      "url": "textures/crate.gif",
+      "output": "textures__crate.gif",
+      "mime": "image/gif",
+      "diagnostic": "auto:textures/crate.gif",
+      "sha256": "a890f0a89eadc083cb39bfbe597c1395d7acf47a19f673b5643d4a9c174ea52f",
+      "discovered": true,
+      "convertToPng": true
+    },
+    {
+      "url": "textures/floors/FloorsCheckerboard_S_Diffuse.jpg",
+      "output": "textures__floors__FloorsCheckerboard_S_Diffuse.jpg",
+      "mime": "image/jpeg",
+      "diagnostic": "auto:textures/floors/FloorsCheckerboard_S_Diffuse.jpg",
+      "sha256": "d7547036c6221a840b80ce11138dc2c1a26df2630419217234c479b00e50a119",
+      "discovered": true
+    },
+    {
+      "url": "textures/terrain/grasslight-big.jpg",
+      "output": "textures__terrain__grasslight-big.jpg",
+      "mime": "image/jpeg",
+      "diagnostic": "auto:textures/terrain/grasslight-big.jpg",
+      "sha256": "23bd506b94e40a9de435375c2be6280eb088dc637fb64c331e325c7472f47177",
+      "discovered": true
+    }
+  ],
+  "assetPolicy": {
+    "inlineMaxBytes": 1500000,
+    "externalAssets": [
+      {
+        "url": "textures/terrain/grasslight-big.jpg",
+        "file": "textures__terrain__grasslight-big.jpg",
+        "bytes": 2595150,
+        "sha256": "23bd506b94e40a9de435375c2be6280eb088dc637fb64c331e325c7472f47177"
+      }
+    ]
+  },
   "facade": {
     "global": "globalThis.THREE",
     "exports": [
@@ -508,16 +546,28 @@
   },
   "inputs": {
     "assets/three/jsr_three_native.js": {
-      "bytes": 846686,
-      "sha256": "ff40ded512cdd7ae9eb468e0c2e26b071c54a7c1783f7131de415a0d6e2152bf"
+      "bytes": 874207,
+      "sha256": "b04d87d8a60c572b754812ebe93f470f89c9ac116e5e9b4f3ee475e4ecdf1b4d"
     },
     "assets/three/jsr_three_web.js": {
-      "bytes": 859088,
-      "sha256": "531f814ecd558117a6d7febe5c36da04ec63cb86b710ec8c5fc50c4ad19d3e11"
+      "bytes": 859540,
+      "sha256": "b2d866c8d2a419d8ad76e7d708e2d1fd26eb36ac57afd23cad73b4cfaf3d64d9"
     },
     "source/LICENSE": {
       "bytes": 1081,
       "sha256": "8b378ebe60e2fe500158cb0ac71cb5e8b7d92953c2abcc63a0eb90499653b5bc"
+    },
+    "source/examples/textures/crate.gif": {
+      "bytes": 67585,
+      "sha256": "a890f0a89eadc083cb39bfbe597c1395d7acf47a19f673b5643d4a9c174ea52f"
+    },
+    "source/examples/textures/floors/FloorsCheckerboard_S_Diffuse.jpg": {
+      "bytes": 119418,
+      "sha256": "d7547036c6221a840b80ce11138dc2c1a26df2630419217234c479b00e50a119"
+    },
+    "source/examples/textures/terrain/grasslight-big.jpg": {
+      "bytes": 2595150,
+      "sha256": "23bd506b94e40a9de435375c2be6280eb088dc637fb64c331e325c7472f47177"
     },
     "source/examples/webgl_buffergeometry_attributes_integer.html": {
       "bytes": 4796,
@@ -528,8 +578,8 @@
       "sha256": "29492424209a17a723b3b0c8e9c83995697a4c466840d1b33ba6f6ff2b7542a4"
     },
     "tool/three/src/native_entry.js": {
-      "bytes": 26368,
-      "sha256": "dac7dc374e1374499bc9e9a84593e7e1e848bfcde7bb916d7212ccd517e861d3"
+      "bytes": 31623,
+      "sha256": "266571775162c40823fbb4249715a070b898e67cb5ffa848458f34f74c8f49c8"
     },
     "tool/three_example/asset_decode.mjs": {
       "bytes": 51634,
@@ -540,8 +590,8 @@
       "sha256": "89a14e272cb1ddac5b555b4361af938764127ee069ac367a18262b8299643eca"
     },
     "tool/three_example/example_adapter.js": {
-      "bytes": 49943,
-      "sha256": "1ab349ba0361871765f4351a6fc3228fb05c93315985fbbf07644592c96ad8c4"
+      "bytes": 51097,
+      "sha256": "d0a816b67d082c86a862995f31d534cfddad98a41adbadd81bc55a1d1813b4a0"
     },
     "tool/three_example/example_canvas2d.js": {
       "bytes": 22635,
@@ -552,8 +602,8 @@
       "sha256": "2f83bde66c35db02a16eec3db21beae0e1198e04f1b0723f9b3dbda89c6675f7"
     },
     "tool/three_example/prepare.mjs": {
-      "bytes": 344394,
-      "sha256": "2ffcfe48673c656a7ce7bb9f642782d3447c0a323fb69cf92b268bda53bb3a87"
+      "bytes": 354838,
+      "sha256": "53ac09713966a07960bf05fd6c94c9320a13ea2494b962829cea032a3dc306f4"
     },
     "tool/three_example/stats_adapter.js": {
       "bytes": 2107,
@@ -573,6 +623,10 @@
       "bytes": 1081,
       "sha256": "8b378ebe60e2fe500158cb0ac71cb5e8b7d92953c2abcc63a0eb90499653b5bc"
     },
+    "assets.json": {
+      "bytes": 536,
+      "sha256": "05bf20f6950e99ed02c8b688cce464d62d09d26ef6e85450a1defdb3017241b2"
+    },
     "manifest.json": {
       "bytes": 396,
       "sha256": "cce32f206e1268bd922d5bd6df7283c3db29647c39db3509373f699e94c8db59"
@@ -585,9 +639,21 @@
       "bytes": 4796,
       "sha256": "efc4c6de529bdcb3b8c0f98d2edcb4ce5a73cf835ecd549a3def1adc6b7b207b"
     },
+    "textures__crate.gif": {
+      "bytes": 119768,
+      "sha256": "11b530b5b08bf97001ecf189781fbeabcfe4336fc40f33fa013dd62aa5310f40"
+    },
+    "textures__floors__FloorsCheckerboard_S_Diffuse.jpg": {
+      "bytes": 119418,
+      "sha256": "d7547036c6221a840b80ce11138dc2c1a26df2630419217234c479b00e50a119"
+    },
+    "textures__terrain__grasslight-big.jpg": {
+      "bytes": 2595150,
+      "sha256": "23bd506b94e40a9de435375c2be6280eb088dc637fb64c331e325c7472f47177"
+    },
     "widget.js": {
-      "bytes": 56418,
-      "sha256": "fbc8d0961d8a47c447860d9f82f4cb8c6cefb184069c85057fe875fa1a978c1e"
+      "bytes": 376191,
+      "sha256": "b57c38e840ec3ff4b4b5a6e14cb4483bfe1ce07bd065881122017c3ba5381798"
     }
   }
 }

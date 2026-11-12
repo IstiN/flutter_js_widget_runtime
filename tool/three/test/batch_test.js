@@ -592,7 +592,7 @@ test('invisible subtrees defer wireframe resources and visible toggles preserve 
   renderer.render(scene, camera);
   await drain();
   packets = host.packets();
-  assert.deepEqual(opcodes(packets[4]), [12, 5, 8], 'wireframe lane reclaims the draw after the eviction frame');
+  assert.deepEqual(opcodes(packets[4]), [4, 12, 5, 8], 'wireframe lane reclaims and re-upserts the retired ordinary node after eviction');
   assert.equal(renderer.info.render.lines, 3);
   assert.equal(host.rawPackets.length, 5);
 });
@@ -880,6 +880,43 @@ test('color-batch anchors stay owned by their scene: foreign-scene renders must 
   assert.equal(visibleOf(anchors[0]), true, 're-shown chain re-exposes the anchor');
 });
 
+
+test('shadow receivers stay out of color batches and retain receiveShadow on ordinary nodes', async () => {
+  const host = createHost();
+  const T = host.THREE;
+  const { renderer, scene, camera } = rendererHost(host);
+  const ground = new T.Mesh(triangleGeometry(T), new T.MeshPhongMaterial({ color: 0x808080 }));
+  ground.receiveShadow = true;
+  scene.add(ground);
+  renderer.render(scene, camera);
+  await drain();
+  let packet = host.packets()[0];
+  let node = only(packet, 4).find(command => u32(command.body, 0) === id(ground));
+  assert.ok(node, 'receiver keeps its ordinary node instead of a shadowless batch anchor');
+  assert.equal(u32(node.body, 88), 2, 'receiveShadow wire flag survives');
+  assert.equal(only(packet, 11).length, 0, 'a lone receiver must not form a color batch');
+
+  // A member that becomes a receiver later must be evicted by the flush-time
+  // validation too (the initial-walk guard alone would leave stale batches).
+  ground.receiveShadow = false;
+  renderer.render(scene, camera);
+  await drain();
+  renderer.render(scene, camera);
+  await drain();
+  assert.ok(host.packets().slice(-2).some(p => only(p, 11).length > 0), 'non-shadow receiver can join');
+  ground.receiveShadow = true;
+  renderer.render(scene, camera);
+  await drain();
+  renderer.render(scene, camera);
+  await drain();
+  renderer.render(scene, camera);
+  await drain();
+  const restoredPackets = host.packets().slice(-3);
+  node = restoredPackets.flatMap(p => only(p, 4)).find(command => u32(command.body, 0) === id(ground));
+  assert.ok(node, 'receiver toggle restores the ordinary node');
+  assert.equal(u32(node.body, 88), 2);
+  assert.equal(restoredPackets.at(-1) && only(restoredPackets.at(-1), 11).length, 0);
+});
 
 let passed = 0;
 for (const { name, fn } of tests) {

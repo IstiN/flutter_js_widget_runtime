@@ -54,14 +54,19 @@ void main() {
       tester,
       'three-interactive-points',
     );
-    expect(plan.draws, hasLength(1));
-    final draw = plan.draws.single;
-    expect(draw.primitive, ThreeDrawPrimitive.points);
-    expect(draw.drawCount, 1538);
-    expect(draw.material.kind, JsThreeMaterialKind.pointsBasic);
-    expect(draw.material.vertexColors, isTrue);
-    expect(draw.material.mapTextureId, greaterThan(0));
-    expect(draw.material.pointSize, greaterThan(0));
+    final draws = plan.draws
+        .where((draw) => draw.primitive == ThreeDrawPrimitive.points)
+        .toList();
+    expect(draws, isNotEmpty);
+    expect(draws.length, lessThanOrEqualTo(8));
+    expect(draws.fold<int>(0, (sum, draw) => sum + draw.drawCount), 1538);
+    for (final draw in draws) {
+      expect(draw.material.kind, JsThreeMaterialKind.pointsBasic);
+      expect(draw.material.vertexColors, isTrue);
+      expect(draw.material.mapTextureId, greaterThan(0));
+      expect(draw.material.pointSize, greaterThan(0));
+      expect(draw.material.sizeAttenuation, isTrue);
+    }
     expect(harness.state!.textureUploadCount, 1);
     await harness.dispose(tester);
   }, timeout: const Timeout(Duration(seconds: 180)));
@@ -73,17 +78,22 @@ void main() {
         tester,
         'three-points-waves',
       );
-      expect(plan.draws, hasLength(1));
-      final draw = plan.draws.single;
-      expect(draw.primitive, ThreeDrawPrimitive.points);
-      expect(draw.drawCount, 2500);
-      expect(draw.material.kind, JsThreeMaterialKind.pointsBasic);
-      expect(draw.material.vertexColors, isFalse);
-      expect(draw.material.colorR, 1);
-      expect(draw.material.colorG, 1);
-      expect(draw.material.colorB, 1);
-      expect(draw.material.mapTextureId, greaterThan(0));
-      expect(draw.material.alphaTest, greaterThan(0));
+      final draws = plan.draws
+          .where((draw) => draw.primitive == ThreeDrawPrimitive.points)
+          .toList();
+      expect(draws, isNotEmpty);
+      expect(draws.length, lessThanOrEqualTo(8));
+      expect(draws.fold<int>(0, (sum, draw) => sum + draw.drawCount), 2500);
+      for (final draw in draws) {
+        expect(draw.material.kind, JsThreeMaterialKind.pointsBasic);
+        expect(draw.material.vertexColors, isFalse);
+        expect(draw.material.colorR, 1);
+        expect(draw.material.colorG, 1);
+        expect(draw.material.colorB, 1);
+        expect(draw.material.mapTextureId, greaterThan(0));
+        expect(draw.material.alphaTest, greaterThan(0));
+        expect(draw.material.sizeAttenuation, isTrue);
+      }
       expect(harness.state!.textureUploadCount, 1);
       await harness.dispose(tester);
     },

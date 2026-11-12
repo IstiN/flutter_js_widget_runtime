@@ -612,6 +612,16 @@ void main() {
     expect(frame.shadowNormalBias, closeTo(0.02, 0.000001));
     expect(frame.shadowRadius, 1);
     expect(frame.shadowMatrix, hasLength(16));
+    final pcss = threeProtocolDecoder
+        .decodeR1(threeR1([
+          (8, threeFrame(shadowWidth: 1024, shadowHeight: 1024, shadowRadius: -2)),
+        ]))
+        .commands
+        .single as JsThreeSubmitFrame;
+    expect(pcss.shadowRadius, -2, reason: 'negative radius is the PCSS marker');
+    threeBad(() => threeProtocolDecoder.decodeR1(threeR1([
+      (8, threeFrame(shadowWidth: 1024, shadowHeight: 1024, shadowRadius: 0)),
+    ])));
     threeBad(
       () => threeProtocolDecoder.decodeR1(
         threeR1([(8, threeFrame(shadowWidth: 2048, shadowHeight: 0))]),

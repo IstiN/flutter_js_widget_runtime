@@ -43,6 +43,24 @@ const VENDOR_IMPORTS = Object.freeze({
   'https://cdn.jsdelivr.net/npm/lottie-web@5.13.0/+esm': 'lottie-web/index.mjs'
 });
 
+// The anaglyph/parallax modules construct all six filenames as `path + face
+// + format`; their legacy empty pin lists therefore produced a white, env-less
+// scene even though the PNGs were present on disk. Keep the explicit pins in
+// one place so both dynamic-URL modules register exactly the same cube.
+function pisaCubeAssets() {
+  return [
+    ['px', '11d859640e7da526ac0654dbfa1cc18f40dd8fc100db197730485218a7c9d24d'],
+    ['nx', 'cf01cfc9a168e7c71bf66d0bed8dcad3a4fd353f528e73caaba62d1a097c49a1'],
+    ['py', 'b34a1cec12e62327c9555ca9f82a38bea73f519915e1368fa69bbd51c82ec712'],
+    ['ny', '61a94678f04f9853509d7a864fd839cf688c6705ee9df02fc4e42bfca858270b'],
+    ['pz', 'bd528b739e9e0ea6c1e8627e949caa950991719069c983e8abdc3a8640039667'],
+    ['nz', 'e5c1774f9a41d8124f8f223c9810e95d277f256104f8aee57ad2e5ef73a64424'],
+  ].map(([face, sha256]) => ({
+    url: `textures/cube/pisa/${face}.png`, output: `${face}.png`,
+    mime: 'image/png', sha256,
+  }));
+}
+
 const EXAMPLES = Object.freeze({
   webgl_interactive_raycasting_points: {
     id: 'three-interactive-raycasting-points',
@@ -590,13 +608,17 @@ const EXAMPLES = Object.freeze({
       html: '0b618837471d5541ddfc4f9a4cd3967e728213473212a736fe91d266dd0e907a',
       module: '53c9479a0cca34cba5e22d3fb1347c2b7e862292bf709876957c135724f0233a'
     },
+    discoverAssets: true,
     assets: [
           {
                 "url": "models/ply/binary/Lucy100k.ply",
                 "mime": "application/octet-stream",
                 'output': 'Lucy100k.ply',
       "sha256": "837f769e67155dc4a6e9a90683a61d6f6b4571a2a97d79586831011f450e66e2"
-          }
+          },
+      { url: 'textures/disturb.jpg', mime: 'image/jpeg', output: 'disturb.jpg', sha256: 'be530999dc00f43d2f7bac7e4ad54747b2158889d6e45fc5d121fb1838e36df6' },
+      { url: 'textures/colors.png', mime: 'image/png', output: 'colors.png', sha256: '3992e4e4597da577cd8354a83cf62955f61c79567d8b323dc99e67473fe749e0' },
+      { url: 'textures/uv_grid_opengl.jpg', mime: 'image/jpeg', output: 'uv_grid_opengl.jpg', sha256: '909d9a1eb2a5d5de9d221a5e8de4e9119d409decddf522d48896bd51523d354d' }
     ]
   },
 webgl_loader_ply: {
@@ -2314,7 +2336,7 @@ webgl_geometry_shapes: {
       html: '9f26032747380b3f82cdb9ee7f201de10dd32db91c5306c62ea8eb6aad735681',
       module: 'ea6ef9c320529378b92a8aee617556154b7d896e240732f6cd32c233faef9f6f'
     },
-    assets: []
+    assets: pisaCubeAssets()
   },
   webgl_effects_stereo: {
     id: 'three-effects-stereo',
@@ -2891,6 +2913,7 @@ webgl_geometry_shapes: {
       html: 'efc4c6de529bdcb3b8c0f98d2edcb4ce5a73cf835ecd549a3def1adc6b7b207b',
       module: 'b8619f32224e4eb2aa4e02e6676d16da2e3735fc484f748c1adbb6777e9b39d9'
     },
+    discoverAssets: true,
     assets: []
   },
   webgl_buffergeometry_custom_attributes_particles: {
@@ -3066,7 +3089,11 @@ webgl_geometry_shapes: {
       html: 'f8550792d1801617a32520bfbeb22d443dcca9ce8143c6b1e0e98c9199eaaf51',
       module: '3a10aba832195e7ee4c0eb053d19774606216c1ef61ca1d51c79775515ae7671'
     },
-    assets: []
+    discoverAssets: true,
+    assets: [
+      { url: 'textures/sprites/disc.png', mime: 'image/png', output: 'disc.png',
+        sha256: '1f3816715f028ac32065a10f40f5ef218b4efc67eb46f0d908a8d503f25b69cb' }
+    ]
   },
   webgl_custom_attributes_points3: {
     id: 'three-custom-attributes-points3',
@@ -3078,7 +3105,11 @@ webgl_geometry_shapes: {
       html: 'c77afb177de54ada7f0a58bb8c9c1198d96aaa114dbaac456e3fdc0210bebcfc',
       module: 'a67ecbde520093412214cdfdaf02f6e8c8ee393db9bddaf241d20f4e0149ab32'
     },
-    assets: []
+    discoverAssets: true,
+    assets: [
+      { url: 'textures/sprites/ball.png', mime: 'image/png', output: 'ball.png',
+        sha256: 'a92f288322780b6ddb938cec753a73098595b4ce83b6e068777f026ba3198e12' }
+    ]
   },
   webgl_depth_texture: {
     id: 'three-depth-texture',
@@ -3122,7 +3153,7 @@ webgl_geometry_shapes: {
       html: 'dcc2b4064201d6e68e5e60fbeda8d127017955edd41683e6cc05b3f04da6114f',
       module: 'ab414585c7af40aacc37895652d60a9920c0ae76f2bf9639fe966cddd66e1f9d'
     },
-    assets: []
+    assets: pisaCubeAssets()
   },
   webgl_framebuffer_texture: {
     id: 'three-framebuffer-texture',

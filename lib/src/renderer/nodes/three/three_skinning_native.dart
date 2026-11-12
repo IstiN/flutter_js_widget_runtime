@@ -109,8 +109,15 @@ _SkinningHeader? _readSkinningHeader(Float32List values) {
 /// historical inline loop bit for bit: the strict R1 encoder hands these
 /// floats to the versioned stream, and reassociation would change ulp.
 final class _SkinningAccum {
-  _SkinningAccum(this.x, this.y, this.z, this.nx, this.ny, this.nz,
-      this.hasNormals);
+  _SkinningAccum(
+    this.x,
+    this.y,
+    this.z,
+    this.nx,
+    this.ny,
+    this.nz,
+    this.hasNormals,
+  );
 
   final double x;
   final double y;

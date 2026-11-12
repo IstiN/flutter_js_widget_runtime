@@ -1,6 +1,5 @@
 part of 'js_three_protocol.dart';
 
-
 /// A malformed T1 envelope or R1 payload.
 final class JsThreeProtocolException extends FormatException {
   const JsThreeProtocolException(super.message, [super.source, super.offset]);
@@ -41,7 +40,11 @@ enum JsThreeMaterialKind {
   // writes grayscale linearized view depth into the color attachment so the
   // bounded RT lane (DepthTexture aliased to RT color) still renders depth
   // visualizations through the color channel.
-  meshDepth(12);
+  meshDepth(12),
+  // R1 v9: unlit far-plane rectangle for scissored multi-view clears.
+  scissoredClear(13),
+  // Recognised ShaderPass kernels; parameters ride the existing two-mat3 tail.
+  postProcessing(14);
 
   const JsThreeMaterialKind(this.wireValue);
   final int wireValue;
@@ -875,10 +878,8 @@ final class JsThreeClippingUpsert extends JsThreeCommand {
 /// [nodeId] 0 means "at this stream position" (no owning draw). [value]
 /// must fit the bounded lane's 8-bit stencil attachment.
 final class JsThreeStencilClear extends JsThreeCommand {
-  const JsThreeStencilClear._({
-    required this.nodeId,
-    required this.value,
-  }) : super._(15);
+  const JsThreeStencilClear._({required this.nodeId, required this.value})
+    : super._(15);
 
   /// Owning node id; zero when the clear is not bound to a node's draws.
   final int nodeId;

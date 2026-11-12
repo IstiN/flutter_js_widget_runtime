@@ -1,6 +1,5 @@
 part of '../flutter_gpu_three_backend.dart';
 
-
 void _traceThreeShadow(String message) {
   if (_threeShadowTrace) debugPrint('[three-shadow-trace] $message');
 }
@@ -708,8 +707,8 @@ gpu.RenderPass _createThreeRenderPass(
 }) {
   final frame = plan.frame!;
   // One-shot depth init: see FlutterGpuThreeBackend._depthNeedsInit.
-  final clearDepth = (clearDepthFlag && frame.clearDepth) ||
-      backend._depthNeedsInit;
+  final clearDepth =
+      (clearDepthFlag && frame.clearDepth) || backend._depthNeedsInit;
   backend._depthNeedsInit = false;
   final pass = command.createRenderPass(
     gpu.RenderTarget.singleColor(
@@ -885,4 +884,3 @@ void _abandonUnsubmittedThreeFrame(FlutterGpuThreeBackend backend) {
   if (backend._pendingPresentations > 0) backend._pendingPresentations--;
   backend._imageSurface = null;
 }
-
