@@ -685,6 +685,16 @@ export class JsrThreeCanvas {
 
   hasPointerCapture(pointerId) { return this._captured.has(pointerId); }
 
+  // r186 controls (OrbitControls.onPointerDown/onPointerUp/onContextMenu)
+  // resolve their listener scope through
+  // `const document = this.domElement.getRootNode()` (offscreen-canvas
+  // compatibility). Without it the OrbitControls constructor throws and
+  // every widget whose animation tick starts with controls.update() dies on
+  // the first frame (webgl_materials_normalmap composer never rendered).
+  // The R1 canvas is its own root; the controls addEventListener on the
+  // returned node, which eventTarget(this) already provides.
+  getRootNode() { return this; }
+
   getBoundingClientRect() {
     if (this._backing && this._backing.getBoundingClientRect) return this._backing.getBoundingClientRect();
     return { x: 0, y: 0, left: 0, top: 0, width: this.clientWidth, height: this.clientHeight, right: this.clientWidth, bottom: this.clientHeight };

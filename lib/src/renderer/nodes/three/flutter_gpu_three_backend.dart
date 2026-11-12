@@ -79,6 +79,12 @@ final class FlutterGpuThreeBackend {
   late final gpu.BufferView _identityInstanceView;
   gpu.GpuImageSurface? _imageSurface;
   gpu.Texture? _depthTexture;
+  /// Set when [_depthTexture] is (re)allocated: the first default-framebuffer
+  /// pass must CLEAR depth to 1.0 even when the frame asks for
+  /// LoadAction.load, because Impeller zero-initializes textures while a new
+  /// WebGL drawing buffer guarantees depth 1.0 (three-materials-normalmap:
+  /// autoClear=false composer facade rendered fully transparent frames).
+  bool _depthNeedsInit = true;
   gpu.Texture? _shadowColorTexture;
   gpu.Texture? _shadowDepthTexture;
   gpu.Texture? _pointShadowFrontColorTexture;
@@ -498,6 +504,38 @@ final class FlutterGpuThreeBackend {
     required double viewportHeight,
     required int contentRevision,
   }) {
+    return _recordThreePassWithClears(
+      plan,
+      surfaceFrame,
+      submitAfter: submitAfter,
+      pointSizeScale: pointSizeScale,
+      viewportHeight: viewportHeight,
+      contentRevision: contentRevision,
+      clearColor: true,
+      clearDepthFlag: true,
+    );
+  }
+
+  /// Records one default-framebuffer pass with explicit clear overrides.
+  ///
+  /// Upstream WebGL clips glClear to the scissor rect, so a widget that
+  /// renders several scissored viewports into one canvas (ArrayCamera
+  /// sub-cameras, split-screen) relies on each viewport's clear touching ONLY
+  /// its rect. Impeller's loadAction.clear always wipes the whole attachment,
+  /// which erased every earlier viewport (only the last survived). When this
+  /// batch already cleared the same target, later scissored "clear" passes
+  /// downgrade to load: their draws are scissor-clipped, and the rect's color
+  /// and depth are untouched since the frame-opening full clear.
+  ({gpu.CommandBuffer command, int draws}) _recordThreePassWithClears(
+    ThreeDrawPlan plan,
+    gpu.GpuImageSurfaceFrame surfaceFrame, {
+    required bool submitAfter,
+    required double pointSizeScale,
+    required double viewportHeight,
+    required int contentRevision,
+    required bool clearColor,
+    required bool clearDepthFlag,
+  }) {
     _shadowFrameActive = false;
     final encoder = _ThreeFrameEncoder(
       this,
@@ -514,6 +552,8 @@ final class FlutterGpuThreeBackend {
       surfaceFrame,
       command,
       pointSizeScale,
+      clearColor: clearColor,
+      clearDepthFlag: clearDepthFlag,
     );
     final draws = encoder.record(pass);
     if (submitAfter) _submitThreeFrame(this, command);
@@ -556,8 +596,9 @@ final class FlutterGpuThreeBackend {
   int _recordTargetPass(
     ThreeDrawPlan plan,
     double pointSizeScale,
-    int contentRevision,
-  ) {
+    int contentRevision, {
+    bool clearColor = true,
+  }) {
     final frame = plan.frame!;
     final target = _targetForFrame(frame);
     _checkTargetFeedback(plan, target.source.textureId);
@@ -571,7 +612,13 @@ final class FlutterGpuThreeBackend {
     _prepareThreeAutoInstanceCache(this, plan);
     _recordShadow(encoder, frame, contentRevision);
     final command = _context.createCommandBuffer();
-    final pass = _createThreeTargetPass(plan, target, command, pointSizeScale);
+    final pass = _createThreeTargetPass(
+      plan,
+      target,
+      command,
+      pointSizeScale,
+      clearColor: clearColor,
+    );
     final draws = encoder.record(pass);
     _submitThreeFrame(this, command, targetPass: true);
     return draws;
@@ -583,8 +630,17 @@ final class FlutterGpuThreeBackend {
     int contentRevision,
   ) {
     var draws = 0;
+    final clearedTargets = <int>{};
     for (final plan in plans.where((plan) => plan.frame!.renderTargetId != 0)) {
-      draws += _recordTargetPass(plan, pointSizeScale, contentRevision);
+      final frame = plan.frame!;
+      final dropClear = frame.scissorTest && clearedTargets.contains(frame.renderTargetId);
+      clearedTargets.add(frame.renderTargetId);
+      draws += _recordTargetPass(
+        plan,
+        pointSizeScale,
+        contentRevision,
+        clearColor: !dropClear,
+      );
     }
     return draws;
   }
@@ -598,15 +654,32 @@ final class FlutterGpuThreeBackend {
   ) {
     gpu.CommandBuffer? command;
     var draws = 0;
+    final clearedTargets = <int>{};
     for (var index = 0; index < plans.length; index++) {
-      final result = _recordThreePass(
-        plans[index],
-        surfaceFrame,
-        submitAfter: index < plans.length - 1,
-        pointSizeScale: pointSizeScale,
-        viewportHeight: viewportHeight,
-        contentRevision: contentRevision,
-      );
+      final plan = plans[index];
+      final frame = plan.frame!;
+      final dropClear = frame.scissorTest &&
+          clearedTargets.contains(frame.renderTargetId);
+      clearedTargets.add(frame.renderTargetId);
+      final result = dropClear
+          ? _recordThreePassWithClears(
+              plan,
+              surfaceFrame,
+              submitAfter: index < plans.length - 1,
+              pointSizeScale: pointSizeScale,
+              viewportHeight: viewportHeight,
+              contentRevision: contentRevision,
+              clearColor: false,
+              clearDepthFlag: false,
+            )
+          : _recordThreePass(
+              plan,
+              surfaceFrame,
+              submitAfter: index < plans.length - 1,
+              pointSizeScale: pointSizeScale,
+              viewportHeight: viewportHeight,
+              contentRevision: contentRevision,
+            );
       command = result.command;
       draws += result.draws;
     }

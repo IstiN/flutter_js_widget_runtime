@@ -785,11 +785,24 @@ void main() {
     vec3 envNormal = envNormalLength > EPSILON
         ? worldNormal / envNormalLength
         : vec3(0.0, 0.0, 1.0);
-    vec3 reflectVec = reflect(-envView, envNormal);
+    // R1 v4 envMapIntensity carries the env mode sign-encoded: negative =
+    // upstream ENVMAP_MODE_REFRACTION (CubeRefractionMapping), |v| is
+    // material.refractionRatio. envmap_fragment: refract(cameraToFrag,
+    // worldNormal, refractionRatio) vs reflect(cameraToFrag, worldNormal).
+    float encodedEnv = material_info.alphaEnvIntensity.z;
+    bool refractingEnv = encodedEnv < 0.0;
+    vec3 reflectVec = refractingEnv
+        ? refract(-envView, envNormal, -encodedEnv)
+        : reflect(-envView, envNormal);
     vec3 envColor = material_info.matcapGradientCube.z > 0.5
         ? texture(envMapTexture, cubeAtlasUv(reflectVec)).rgb
         : texture(envMapTexture, equirectUv(reflectVec)).rgb;
-    float envIntensity = material_info.alphaEnvIntensity.z;
+    // Multiply-blend mix factor. Reflection: the encoded intensity (Phong/
+    // Basic carry upstream reflectivity, see _ensureMaterial). Refraction:
+    // 1.0 — the encoded scalar's magnitude is the refractionRatio, so the
+    // mix factor degrades to the reflectivity default (the refraction
+    // examples use 1 or 0.9; ratio drives the visible distortion anyway).
+    float envIntensity = encodedEnv < 0.0 ? 1.0 : encodedEnv;
     if (kind == 1 || kind == 2) {
       // Approximate split IBL instead of adding a roughness-scaled mirror to
       // every material. Diffuse irradiance survives roughness 1 and preserves
@@ -801,8 +814,14 @@ void main() {
       color += envColor * envIntensity *
           (diffuseIbl + f0 * (1.0 - rough));
     } else {
-      color += envColor * envIntensity *
-          (1.0 - clamp(roughnessFactor, 0.0, 1.0));
+    // Upstream envmap_fragment for the non-IBL materials (Basic/Phong/Toon,
+    // combine default MultiplyOperation): outgoingLight = mix(outgoing,
+    // outgoing * envColor, specularStrength * reflectivity). The previous ADD
+    // shape clipped every lit base above 1.0 (cubemap_refraction's ambient
+    // 3.5 statues, cubemap's white busts) to featureless white; multiply
+    // keeps the env darkening that reads as reflection/refraction detail.
+    color = mix(color, color * envColor,
+        clamp(envIntensity, 0.0, 1.0));
     }
   }
   color *= frame_info.cameraPositionExposure.w;

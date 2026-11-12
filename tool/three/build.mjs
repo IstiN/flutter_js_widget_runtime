@@ -85,7 +85,7 @@ async function makeBundle(name, native) {
     globalName: 'THREE',
     platform: 'neutral',
     target: ['es2020'],
-    minify: true,
+    minify: process.env.JSR_NO_MINIFY === '1' ? false : true,
     legalComments: 'inline',
     sourcemap: false,
     treeShaking: true,

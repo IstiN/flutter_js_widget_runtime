@@ -450,10 +450,26 @@ void _ensureThreeTargets(
     format: depthFormat,
     enableShaderReadUsage: false,
   );
+  // Impeller zero-initializes the fresh depth attachment; the next canvas
+  // pass must clear it to the WebGL far plane before any load pass trusts it.
+  backend._depthNeedsInit = true;
   backend._width = width;
   backend._height = height;
   backend._resizeCount++;
 }
+
+/// One-shot depth initialization flag lives on the backend
+/// (FlutterGpuThreeBackend._depthNeedsInit): a freshly allocated depth
+/// texture must start at the far plane, exactly like a new WebGL drawing
+/// buffer ("the depth buffer is cleared to 1.0"). Impeller zero-initializes
+/// textures, so with `renderer.autoClear = false` (three-materials-normalmap's
+/// composer facade never clears) the first LoadAction.load pass compared
+/// every fragment against depth 0.0 and all of them failed the depth test —
+/// the canvas kept presenting fully transparent frames while the draw plan
+/// executed. Clearing in a dedicated depth-only pass is NOT an option:
+/// Impeller rejects render targets without a color attachment, so the first
+/// default-framebuffer pass upgrades itself to a depth clear instead
+/// (_createThreeRenderPass).
 
 bool _threeShadowTargetsMatch(
   FlutterGpuThreeBackend backend,
@@ -686,21 +702,27 @@ gpu.RenderPass _createThreeRenderPass(
   ThreeDrawPlan plan,
   gpu.GpuImageSurfaceFrame surfaceFrame,
   gpu.CommandBuffer command,
-  double pixelRatio,
-) {
+  double pixelRatio, {
+  bool clearColor = true,
+  bool clearDepthFlag = true,
+}) {
   final frame = plan.frame!;
+  // One-shot depth init: see FlutterGpuThreeBackend._depthNeedsInit.
+  final clearDepth = (clearDepthFlag && frame.clearDepth) ||
+      backend._depthNeedsInit;
+  backend._depthNeedsInit = false;
   final pass = command.createRenderPass(
     gpu.RenderTarget.singleColor(
       gpu.ColorAttachment(
         texture: surfaceFrame.colorTexture,
-        loadAction: frame.clearColor
+        loadAction: clearColor && frame.clearColor
             ? gpu.LoadAction.clear
             : gpu.LoadAction.load,
         clearValue: _threeClearValue(plan),
       ),
       depthStencilAttachment: _threeDepthAttachment(
         backend._depthTexture!,
-        frame.clearDepth,
+        clearDepth,
       ),
     ),
   );
@@ -717,15 +739,16 @@ gpu.RenderPass _createThreeTargetPass(
   ThreeDrawPlan plan,
   _GpuRenderTarget target,
   gpu.CommandBuffer command,
-  double pixelRatio,
-) {
+  double pixelRatio, {
+  bool clearColor = true,
+}) {
   final frame = plan.frame!;
   final depth = target.depth;
   final pass = command.createRenderPass(
     gpu.RenderTarget.singleColor(
       gpu.ColorAttachment(
         texture: target.color,
-        loadAction: frame.clearColor
+        loadAction: clearColor && frame.clearColor
             ? gpu.LoadAction.clear
             : gpu.LoadAction.load,
         clearValue: _threeClearValue(plan),

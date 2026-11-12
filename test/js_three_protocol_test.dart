@@ -169,10 +169,11 @@ void main() {
     expect(legacy.mapUvMatrix, everyElement(isNotNull));
     expect(legacy.mapUvMatrix[0], 1);
     expect(legacy.mapUvMatrix[1], 0);
-    // Negative envMapIntensity is rejected.
+    // envMapIntensity below -1 is rejected (negative encodes the
+    // CubeRefractionMapping refraction ratio, so |v| <= 1).
     threeBad(
       () =>
-          threeProtocolDecoder.decodeR1(threeR1([(3, threeFrameVariant(threeMaterialV4(), 72, -0.5))])),
+          threeProtocolDecoder.decodeR1(threeR1([(3, threeFrameVariant(threeMaterialV4(), 72, -1.5))])),
     );
   });
 

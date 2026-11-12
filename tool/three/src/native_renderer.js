@@ -4,7 +4,7 @@ import {
   LinearMipmapNearestFilter, LinearMipmapLinearFilter, LinearToneMapping, LineBasicMaterial, Matrix4, Mesh, MeshBasicMaterial, MeshLambertMaterial, MeshNormalMaterial, MeshStandardMaterial,
   MirroredRepeatWrapping, NeutralToneMapping, NearestFilter, NearestMipmapNearestFilter,
   NearestMipmapLinearFilter, NoToneMapping, NormalBlending, CustomBlending, AdditiveBlending, PointsMaterial, HalfFloatType, FloatType, IntType, RedFormat,
-  ReinhardToneMapping, RGBAFormat, RGBAIntegerFormat, RepeatWrapping, SRGBColorSpace, UVMapping, UnsignedByteType,
+  ReinhardToneMapping, RGBAFormat, RGBAIntegerFormat, CompressedTexture, RepeatWrapping, SRGBColorSpace, UVMapping, UnsignedByteType,
   Sphere, Vector3, Vector4, WebGLCoordinateSystem, Object3D
 } from 'three';
 import { unsupported, requireFinite } from './errors.js';
@@ -207,16 +207,31 @@ function normalizedAttributeScale(array) {
 // Degenerate dynamic geometry (zero-area triangles, asset-authored NaN like
 // the ShadowmappableMesh.glb line primitive) may carry non-finite normals;
 // upstream GPUs shade those vertices with undefined lighting. R1 bounds them
-// to the zero vector instead of rejecting the whole frame, while
-// position/uv/color keep the strict requireFinite contract.
+// to the zero vector instead of rejecting the whole frame.
+// Non-finite POSITION components are equally tolerated (warn once, pass the
+// value through): official dynamic scenes legitimately produce transient
+// NaN — webgl_points_dynamic's rise step divides by a possibly-zero
+// |px-ix| delta and upstream's GPU then just clips those NaN vertices for
+// the frames they appear in. Throwing `three.invalid: position attribute
+// must be finite` here killed the whole render tick from the first NaN
+// onward, freezing the widget on its last good (fully collapsed) frame.
+// shaders/three_r1.vert now redirects non-finite model-space positions to
+// clip-out coordinates, which reproduces upstream's visible result.
 function finiteOrNeutralNormal(value, name, attribute) {
   if (Number.isFinite(value)) return value;
   if (name === 'normal') {
     if (attribute && !attribute._r1DegenerateNormalWarned) {
       attribute._r1DegenerateNormalWarned = true;
-      console.warn('three: R1 zeroes non-finite normal components on this degenerate geometry; position/uv/color keep the strict finite contract.');
+      console.warn('three: R1 zeroes non-finite normal components on this degenerate geometry; position/uv keep the strict finite contract for static assets.');
     }
     return 0;
+  }
+  if (name === 'position') {
+    if (attribute && !attribute._r1NonFinitePositionWarned) {
+      attribute._r1NonFinitePositionWarned = true;
+      console.warn('three: R1 tolerates non-finite position components (upstream GPU clips NaN vertices); the affected vertices are clipped out instead of failing the frame.');
+    }
+    return value;
   }
   requireFinite(value, `${name} attribute`);
   return value;
@@ -977,6 +992,205 @@ function monjoriTexture(time) {
   return texture;
 }
 
+// R1 flutter_gpu only exposes 2D textures — there is no sampler2DArray /
+// sampler3D. Lower `texture(arraySampler, vec3(uv, layer))` to the ADDRESSED
+// layer as a plain 2D texture so array/3D-textured shaders keep their content
+// (webgl_texture2darray family slices, texture3d volume slabs). The layer
+// index is read from the fragment's third texture() component when it names
+// a numeric uniform; later uniform updates re-slice + re-upload through the
+// ordinary material map lane (correctness-first; a bounded per-change layer
+// upload beats a dead sampler that reads as a blank plane).
+function formatChannelBytes(data) {
+  return data && data.BYTES_PER_ELEMENT ? data.BYTES_PER_ELEMENT : 1;
+}
+
+function arrayTextureSliceMeta(uniforms, fragment) {
+  // Find `texture(<samplerName>, vec3(..., layer))` in the (usually minified)
+  // fragment source and resolve the layer argument (the last vec3 component —
+  // the first two may be a packed vec2 uv) to an index + its uniform name.
+  const match = fragment.match(/texture\(\s*([A-Za-z_]\w*)\s*,\s*vec3\s*\(\s*([^)]*?)\s*\)\s*\)/);
+  if (!match) return null;
+  const samplerName = match[1];
+  const parts = match[2].split(',').map(part => part.trim()).filter(Boolean);
+  if (parts.length < 2) return null;
+  const zToken = parts[parts.length - 1];
+  const uniform = uniforms[zToken];
+  if (uniform !== undefined && Number.isFinite(Number(uniform.value))) {
+    return { samplerName, layerUniform: zToken, layer: Math.max(0, Number(uniform.value) | 0) };
+  }
+  if (/^-?\d+(\.\d+)?$/.test(zToken)) return { samplerName, layerUniform: null, layer: Math.max(0, Number(zToken) | 0) };
+  return { samplerName, layerUniform: null, layer: 0 };
+}
+
+function sliceDataArrayTexture(source, meta) {
+  // Compressed array textures (KTX2/BasisU — webgl_texture2darray_compressed,
+  // -layerupdate): mipmaps[level].data holds ALL depth layers layer-major;
+  // carve the addressed layer's block span into a single-level
+  // CompressedTexture the ordinary compressed lane uploads.
+  if (source.isCompressedArrayTexture || (source.isCompressedTexture && source.image?.depth > 1)) {
+    const image = source.image;
+    const mips = source.mipmaps;
+    if (!mips || !mips.length || !mips[0]?.data) return null;
+    const width = mips[0].width, height = mips[0].height, depth = image.depth || 1;
+    const levelBytes = mips[0].data.byteLength || mips[0].data.length;
+    if (!(width > 0 && height > 0 && depth > 0) || levelBytes % depth !== 0) return null;
+    const perLayer = levelBytes / depth;
+    const layer = Math.min(Math.max(0, meta.layer | 0), depth - 1);
+    const base = mips[0].data.byteOffset || 0;
+    const sliceData = new Uint8Array(mips[0].data.buffer, base + layer * perLayer, perLayer);
+    const slice = new CompressedTexture(sliceData, width, height, source.format);
+    slice.mipmaps = [{ data: sliceData, width, height }];
+    slice.generateMipmaps = false;
+    slice.colorSpace = source.colorSpace;
+    slice.wrapS = source.wrapS; slice.wrapT = source.wrapT;
+    slice.magFilter = source.magFilter; slice.minFilter = source.minFilter;
+    slice._r1ArraySlice = { source, meta, layer, stamp: `${layer}:${source.version || 0}` };
+    slice.needsUpdate = true;
+    return slice;
+  }
+  const image = source.image;
+  const data = image && image.data;
+  // Realm-safe typed-array check: widget hosts may run the renderer in a
+  // separate VM realm where cross-realm instanceof lies.
+  const dataTag = data && data.constructor && data.constructor.name;
+  if (dataTag !== 'Uint8Array' && dataTag !== 'Uint16Array' && dataTag !== 'Float32Array') return null;
+  const width = image.width, height = image.height, depth = image.depth || 1;
+  if (!(width > 0 && height > 0 && depth > 0)) return null;
+  const layer = Math.min(meta.layer, depth - 1);
+  const channels = Math.max(1, Math.round(data.length / (width * height * depth * formatChannelBytes(data))));
+  if (!(channels === 1 || channels === 2 || channels === 4)) return null;
+  const layerBytes = width * height * channels * formatChannelBytes(data);
+  if (data.length < layerBytes * (layer + 1)) return null;
+  const out = new Uint8Array(width * height * 4);
+  const src = new DataView(data.buffer, data.byteOffset, data.byteLength);
+  const little = new Uint8Array(new Uint32Array([0x11223344]).buffer)[0] === 0x44;
+  for (let i = 0; i < width * height; i++) {
+    const base = layer * layerBytes + i * channels * formatChannelBytes(data);
+    let r = 0, g = 0, b = 0, a = 255;
+    if (channels === 4) {
+      r = src.getUint8(base); g = src.getUint8(base + 1);
+      b = src.getUint8(base + 2); a = src.getUint8(base + 3);
+    } else if (channels === 2) {
+      r = g = src.getUint8(base); a = src.getUint8(base + 1);
+    } else if (data instanceof Float32Array) {
+      const v = Math.max(0, Math.min(1, src.getFloat32(base, true)));
+      r = g = b = Math.round(v * 255);
+    } else if (data instanceof Uint16Array) {
+      const v = src.getUint16(base, little) / 65535;
+      r = g = b = Math.round(v * 255);
+    } else {
+      r = g = b = src.getUint8(base);
+    }
+    out[i * 4] = r; out[i * 4 + 1] = g; out[i * 4 + 2] = b; out[i * 4 + 3] = a;
+  }
+  const slice = new DataTexture(out, width, height);
+  slice.colorSpace = source.colorSpace;
+  slice.wrapS = source.wrapS; slice.wrapT = source.wrapT;
+  slice.magFilter = source.magFilter || LinearFilter;
+  slice.minFilter = source.minFilter || LinearFilter;
+  slice.generateMipmaps = false;
+  slice._r1ArraySlice = { source, meta, layer, stamp: `${layer}:${source.version || 0}` };
+  slice.needsUpdate = true;
+  return slice;
+}
+
+// Keep a lowered array-slice map in sync with its uniform + source version:
+// layerchange widgets (webgl_texture2darray_layerupdate, scroll-driven
+// depth) mutate the uniform every frame-ish; re-slice and re-upload only
+// when the stamp changes.
+function refreshArraySliceMap(map) {
+  if (!map || !map._r1ArraySlice) return map;
+  const { source, meta } = map._r1ArraySlice;
+  let layer = meta.layer;
+  if (meta.layerUniform && meta.uniforms && Number.isFinite(Number(meta.uniforms[meta.layerUniform]?.value))) {
+    layer = Math.max(0, Number(meta.uniforms[meta.layerUniform].value) | 0);
+  }
+  const depth = source.image?.depth || 1;
+  layer = Math.min(layer, depth - 1);
+  const stamp = `${layer}:${source.version || 0}`;
+  if (stamp === map._r1ArraySlice.stamp) return map;
+  const fresh = sliceDataArrayTexture(source, { ...meta, layer });
+  return fresh || map;
+}
+
+// Bounded volume-raymarch bake (webgl_texture3d): upstream raymarches a
+// Data3DTexture with per-pixel loops (MIP / ISO renderstyles) — flutter_gpu
+// has no sampler3D, so bake the max-intensity projection ONCE (cached on the
+// volume version + clim) into a colormapped 2D map. Static volumes keep the
+// upstream look; animated volumes refresh through the material map lane.
+function volumeMipLowering(uniforms, fragment) {
+  if (!fragment.includes('sampler3D') || !fragment.includes('for(')) return null;
+  const volume = uniforms.u_data?.value;
+  if (!volume || !volume.isData3DTexture) return null;
+  const image = volume.image;
+  const data = image?.data;
+  const dataTag = data && data.constructor && data.constructor.name;
+  if (dataTag !== 'Uint8Array' && dataTag !== 'Uint16Array' && dataTag !== 'Float32Array') return null;
+  const width = image.width, height = image.height, depth = image.depth || 1;
+  if (!(width > 0 && height > 0 && depth > 0)) return null;
+  const bytes = dataTag === 'Uint8Array' ? 1 : dataTag === 'Uint16Array' ? 2 : 4;
+  if (data.length < width * height * depth) return null; // element count (one scalar per voxel)
+  const src = new DataView(data.buffer, data.byteOffset, data.byteLength);
+  const little = new Uint8Array(new Uint32Array([0x11223344]).buffer)[0] === 0x44;
+  const sample = i => dataTag === 'Uint8Array' ? src.getUint8(i)
+    : dataTag === 'Uint16Array' ? src.getUint16(i * 2, little) / 65535
+    : src.getFloat32(i * 4, true);
+  const clim = uniforms.u_clim?.value;
+  const clim1 = clim && Number.isFinite(clim.x) ? clim.x : 0;
+  const clim2 = clim && Number.isFinite(clim.y) ? clim.y : 1;
+  const span = clim2 > clim1 ? clim2 - clim1 : 1;
+  const threshold = Number(uniforms.u_renderthreshold?.value);
+  const iso = uniforms.u_renderstyle?.value === 0 ? false : true;
+  const cmData = uniforms.u_cmdata?.value?.image?.data;
+  const cmWidth = uniforms.u_cmdata?.value?.image?.width || 256;
+  const stamp = `${volume.version || 0}:${clim1}:${clim2}:${threshold}:${iso}`;
+  if (volume._r1VolumeMip && volume._r1VolumeMip.stamp === stamp) return volume._r1VolumeMip.texture;
+  const out = new Uint8Array(width * height * 4);
+  for (let y = 0; y < height; y++) {
+    for (let x = 0; x < width; x++) {
+      let best = 0;
+      const columnBase = (y * width + x);
+      for (let z = 0; z < depth; z++) {
+        const v = sample(columnBase + z * width * height);
+        if (v > best) best = v;
+      }
+      const t = Math.max(0, Math.min(1, (best - clim1) / span));
+      const offset = columnBase * 4;
+      let r = 255, g = 255, b = 255, a = 255;
+      if (cmData && cmData.length >= cmWidth * 4) {
+        const ci = Math.min(cmWidth - 1, Math.round(t * (cmWidth - 1))) * 4;
+        r = cmData[ci]; g = cmData[ci + 1]; b = cmData[ci + 2]; a = cmData[ci + 3];
+      } else {
+        r = g = b = Math.round(t * 255);
+      }
+      if (iso && best <= (Number.isFinite(threshold) ? threshold : 0.15)) {
+        r = 0; g = 0; b = 0; a = 0;
+      }
+      out[offset] = r; out[offset + 1] = g; out[offset + 2] = b; out[offset + 3] = a;
+    }
+  }
+  const texture = new DataTexture(out, width, height);
+  texture.wrapS = 1000; texture.wrapT = 1000; // ClampToEdge for the baked slab
+  texture.magFilter = LinearFilter; texture.minFilter = LinearFilter;
+  texture.generateMipmaps = false;
+  texture.needsUpdate = true;
+  texture._r1VolumeBaked = true;
+  volume._r1VolumeMip = { stamp, texture };
+  return texture;
+}
+
+function arraySliceLowering(uniforms, fragment) {  const meta = arrayTextureSliceMeta(uniforms, fragment);
+  if (!meta) return null;
+  const source = uniforms[meta.samplerName]?.value;
+  if (!source || !(source.isDataArrayTexture || source.isData3DTexture ||
+      source.isCompressedArrayTexture || (source.isCompressedTexture && source.image?.depth > 1))) return null;
+  const slice = sliceDataArrayTexture(source, meta);
+  if (!slice) return null;
+  // Keep the uniforms reference for per-frame layer refreshes.
+  slice._r1ArraySlice.meta.uniforms = uniforms;
+  return slice;
+}
+
 function proceduralRttGeometry(geometry, time) {
   const position = geometry.attributes.position;
   const uv = geometry.attributes.uv;
@@ -1347,15 +1561,21 @@ function adaptedShaderDraw(object, viewMatrix = null) {
       'R1 lowers this normal shader to MeshNormalMaterial; UV-only color terms are dropped.');
     return { material: copyShaderFlags(source, new MeshNormalMaterial()), geometry: object.geometry };
   }
-  const shaderTexture = firstShaderTexture(uniforms);
+  const arraySlice = volumeMipLowering(uniforms, fragment) || arraySliceLowering(uniforms, fragment);
+  const shaderTexture = arraySlice || firstShaderTexture(uniforms);
   const pendingTexture = Object.entries(uniforms).some(([name, uniform]) => uniform && uniform.value == null &&
     fragment.includes(name) && /sampler(?:2D|Cube|3D)/.test(fragment));
   if (shaderTexture || pendingTexture) {
     adaptationWarn(source, '_r1TextureShaderWarned',
       'R1 lowers this textured shader to its first bound texture; custom lighting, raymarch and postprocess math are dropped.');
+    if (arraySlice) {
+      adaptationWarn(source, '_r1ArraySliceWarned',
+        'R1 has no sampler2DArray/sampler3D; the addressed layer is flattened to a 2D map so the slice content survives.');
+    }
     const material = basicShaderMaterial(source, { map: shaderTexture?.isCubeTexture ? null : shaderTexture,
       color: uniforms.color?.value?.isColor ? uniforms.color.value : 0xffffff });
     if (shaderTexture?.isCubeTexture) material.envMap = shaderTexture;
+    if (arraySlice?._r1VolumeBaked) material.transparent = true;
     material._r1ShaderTextures = shaderTextureList(uniforms);
     if (pendingTexture && !shaderTexture) adaptationWarn(source, '_r1PendingTextureWarned',
       'R1 renders a neutral pass until this shader sampler is bound.');
@@ -2062,7 +2282,13 @@ export class JsrWebGLRenderer {
     if (activeCubeFace) adaptationWarn(this, '_r1CubeTargetWarned',
       'R1 reuses the bounded 2D target for cube-camera faces; separate face storage is dropped.');
   }
-  getRenderTarget() { return this._renderTarget; }
+  getRenderTarget() {
+    if (!this._r1GetTargetWarned) {
+      this._r1GetTargetWarned = true;
+      console.warn(`three: getRenderTarget called -> ${this._renderTarget ? 'RT' : 'null'} (stack: ${new Error().stack ? String(new Error().stack).split('\n')[2] : ''})`);
+    }
+    return this._renderTarget;
+  }
   getActiveCubeFace() { return this._activeCubeFace; }
   getActiveMipmapLevel() { return this._activeMipmapLevel; }
   readRenderTargetPixels(target, x, y, width, height, buffer) {
@@ -2246,6 +2472,12 @@ export class JsrWebGLRenderer {
       this._animationBatch = { commands: [] };
       try {
         callback(time);
+      } catch (error) {
+        if (!this._r1TickErrorWarned) {
+          this._r1TickErrorWarned = true;
+          console.warn(`three: animation tick threw: ${error && error.message ? error.message : error}`);
+        }
+        throw error;
       } finally {
         const batch = this._animationBatch;
         this._animationBatch = null;
@@ -2687,6 +2919,14 @@ export class JsrWebGLRenderer {
           expanded[i * 4 + 3] = 255;
         }
         bytes = expanded;
+      } else if (!(data instanceof Uint8Array)) {
+        // Float-typed default-type textures (gpgpu position/velocity
+        // DataTextures with UnsignedByteType defaults) belong to the adapted
+        // float-sampler lanes, not the RGBA8 raw lane: drop the map (warn)
+        // instead of failing the frame — the owning lane keeps drawing.
+        adaptationWarn(texture, '_r1FloatTextureWarned',
+          'R1 drops this non-RGBA8 raw sampler (float-typed data); the owning adapted lane continues without it.');
+        return 0;
       } else if (width * height * 4 !== bytes.byteLength) {
         throw new Error('three.invalid: raw RGBA8 texture dimensions/data length');
       }
@@ -2791,7 +3031,11 @@ export class JsrWebGLRenderer {
     validateMaterial(material);
     this._listen(material, 'materials', this._state.materials, id);
     let shaderMap = material.map || null;
-    if (material._r1ShaderTextures && shaderMap?.renderTarget === this._renderTarget) {
+    if (shaderMap && shaderMap._r1ArraySlice) {
+      const fresh = refreshArraySliceMap(shaderMap);
+      if (fresh !== shaderMap) { material.map = fresh; shaderMap = fresh; }
+    }
+    if (material._r1ShaderTextures && shaderMap?.renderTarget != null && shaderMap.renderTarget === this._renderTarget) {
       shaderMap = material._r1ShaderTextures.find(texture => texture.renderTarget !== this._renderTarget) || null;
       adaptationWarn(material, '_r1FeedbackPassWarned',
         'R1 unbinds an active target from a lowered pass-through shader to preserve the feedback invariant.');
@@ -2814,9 +3058,23 @@ export class JsrWebGLRenderer {
     if (spriteRotation && !Number.isFinite(spriteRotation)) throw new Error('three.invalid: material sprite rotation must be finite');
     const mapUvMatrix = uvTransformElements(shaderMap);
     const alphaMapUvMatrix = uvTransformElements(kind === 11 ? anaglyph.right : (material.alphaMap || null));
-    // Lambert/Phong have no envMapIntensity (they use reflectivity): default 1.
-    const envMapIntensity = material.envMap && material.envMapIntensity !== undefined ? material.envMapIntensity : 1;
-    if (!Number.isFinite(envMapIntensity) || envMapIntensity < 0) throw new Error('three.invalid: material envMapIntensity must be finite and nonnegative');
+    // Lambert/Phong/Basic have no envMapIntensity (they use reflectivity):
+    // default 1. CubeRefractionMapping envMaps ride the same scalar,
+    // sign-encoded: a NEGATIVE encoded value means upstream
+    // ENVMAP_MODE_REFRACTION and |v| is material.refractionRatio (three.js
+    // default 0.98). The Dart decoder accepts [-1, inf) for exactly this
+    // contract — the fragment stage refracts (-viewDir, normal, ratio)
+    // instead of reflecting and blends with upstream's MultiplyOperation.
+    const envMap = material.envMap;
+    const refracting = !!(envMap && envMap.isCubeTexture &&
+      envMap.mapping === CubeRefractionMapping);
+    const envScalar = material.isMeshStandardMaterial
+      ? (material.envMapIntensity !== undefined ? material.envMapIntensity : 1)
+      : (material.reflectivity !== undefined ? material.reflectivity : 1);
+    const envMapIntensity = refracting
+      ? -(envMap.refractionRatio !== undefined ? envMap.refractionRatio : 0.98)
+      : envScalar;
+    if (!Number.isFinite(envMapIntensity) || envMapIntensity < -1) throw new Error('three.invalid: material envMapIntensity must be finite (nonnegative intensity, or negative refraction ratio in [-1, 0))');
     const color = material.color || new Color(0xffffff);
     const opacity = material.opacity === undefined ? 1 : material.opacity;
     const roughness = material.roughness === undefined ? 0 : material.roughness;
@@ -4643,12 +4901,20 @@ export class JsrWebGLRenderer {
         proxy.instanceColor.needsUpdate = true;
       }
       // CPU blend of the representative weights into the bucket geometry.
+      // morphinstance_vertex/morphtarget_vertex contract: the base position
+      // contributes with morphTargetBaseInfluence — 1 when
+      // geometry.morphTargetsRelative (every GLTFLoader geometry: targets are
+      // deltas), 1 - sum(weights) only for absolute targets. Assuming
+      // absolute here collapsed glTF herds (webgl_instancing_morph horses)
+      // into near-origin slivers.
       const positionAttribute = record.geometries[bucket].attributes.position;
       if (!positionAttribute) continue;
       const out = positionAttribute.array;
       const weightOffset = members[0] * stride + 1;
-      let baseWeight = 1;
-      for (let j = 0; j < record.morphCount; j++) baseWeight -= morphData[weightOffset + j];
+      let weightSum = 0;
+      for (let j = 0; j < record.morphCount; j++) weightSum += morphData[weightOffset + j];
+      const relative = !!geometry.morphTargetsRelative;
+      const baseWeight = relative ? 1 : 1 - weightSum;
       for (let v = 0; v < vertexCount; v++) out[v] = base[v] * baseWeight;
       for (let j = 0; j < record.morphCount; j++) {
         const weight = morphData[weightOffset + j];

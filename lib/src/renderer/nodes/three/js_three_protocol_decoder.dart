@@ -1302,8 +1302,12 @@ final class JsThreeProtocolDecoder {
     final alphaMapTextureId = body.u32('material alpha map texture id');
     final envMapTextureId = body.u32('material env map texture id');
     final envMapIntensity = body.finiteFloat('material env map intensity');
-    if (envMapIntensity < 0) {
-      body.fail('material env map intensity must be nonnegative');
+    // Nonnegative = upstream reflection intensity. Negative = sign-encoded
+    // CubeRefractionMapping refraction: |v| is material.refractionRatio
+    // (three.js clamps it to [0, 1], so -1 is the valid floor) and the
+    // fragment stage refracts the env sample instead of reflecting it.
+    if (envMapIntensity < -1) {
+      body.fail('material env map intensity must be >= -1 (reflection intensity, or negative refraction ratio)');
     }
     return (
       alphaMapTextureId: alphaMapTextureId,

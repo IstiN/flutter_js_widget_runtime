@@ -309,7 +309,15 @@ ByteData _threeLightsUniform(ThreeDrawPlan plan) {
       light.colorR,
       light.colorG,
       light.colorB,
-      1,
+      // pointColor.a carries the DECAY exponent for the fragment shader's
+      // `pow(distanceSquared, -0.5 * decay)` attenuation (upstream
+      // getDistanceAttenuation). The decoder reuses the light's spotDecay
+      // lane for PointLight decay (R1 v7 encodes it in the direction
+      // payload); writing a hardcoded 1 here silently retuned EVERY point
+      // light to a 1/d falloff — decay-0 lights like webgl_lod's red
+      // PointLight (distance=0, decay=0) attenuated to ~1/distance and
+      // vanished from the scene.
+      light.spotDecay,
     ]);
   }
   for (var index = 0; index < plan.hemisphereLights.length; index++) {

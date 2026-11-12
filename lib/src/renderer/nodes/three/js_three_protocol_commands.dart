@@ -469,7 +469,9 @@ class JsThreeMaterialUpsert extends JsThreeCommand {
   /// Equirectangular environment texture (R1 v4); zero when unset.
   final int envMapTextureId;
 
-  /// Upstream `Material.envMapIntensity` (R1 v4).
+  /// Upstream `Material.envMapIntensity` (R1 v4). Nonnegative = reflection
+  /// intensity; negative sign-encodes CubeRefractionMapping refraction and
+  /// |v| is `Material.refractionRatio` (three.js range [0, 1]).
   final double envMapIntensity;
 
   /// Column-major 3x3 UV transform composed from the map texture's
