@@ -633,10 +633,17 @@ final class _QuickJsWorker {
       case 'raf':
         final id = jsonEncode(raw['id']);
         final elapsed = (raw['elapsed'] as num).toInt();
+        final rafSw = Stopwatch()..start();
         _eval(
           'if(__raf_cbs[$id]){__raf_cbs[$id]($elapsed);delete __raf_cbs[$id];}',
           '<js_widget_raf>',
         );
+        // Permanent JS-side frame-cost diagnostic: native frameMs can be
+        // tiny while the widget still runs at 4fps because the QuickJS RAF
+        // eval itself is slow (per-frame resource re-encoding).
+        if (rafSw.elapsedMilliseconds > 40) {
+          debugPrint('[lane-prof] raf eval=${rafSw.elapsedMilliseconds}ms');
+        }
       case 'resolve':
         _handleResolve(raw);
     }
