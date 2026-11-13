@@ -58,6 +58,12 @@ uniform MaterialInfo {
   vec4 duboisRight0;
   vec4 duboisRight1;
   vec4 duboisRight2;
+  // R1 v9 tail: post params 18..33. Unused by the point-shadow stage, but
+  // the declaration MUST match the main three_r1.frag MaterialInfo layout
+  // exactly — the host encoder always writes the full 400-byte block and
+  // the ABI check compares against this stage's reflected size (a missing
+  // tail reflected 336 and failed every point-shadow draw, e.g. godrays).
+  vec4 postParams[4];
 } material_info;
 
 void main() {

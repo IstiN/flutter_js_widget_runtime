@@ -1854,7 +1854,10 @@ enum ThreeExampleSelection {
   });
 
   static ThreeExampleSelection get initial {
-    const exampleId = String.fromEnvironment('JSR_THREE_EXAMPLE');
+    // Runtime override first: lets headless sweeps drive one build through
+    // the whole catalog without a rebuild per example (debug tooling).
+    final exampleId = Platform.environment['JSR_THREE_EXAMPLE'] ??
+        const String.fromEnvironment('JSR_THREE_EXAMPLE');
     if (exampleId.isEmpty) return clipping;
     for (final selection in values) {
       if (selection.exampleId == exampleId) return selection;
@@ -2184,7 +2187,8 @@ class ThreeExampleApp extends StatefulWidget {
 
 class _ThreeExampleAppState extends State<ThreeExampleApp> {
   static const _autoMs = int.fromEnvironment('JSR_THREE_AUTO');
-  static const _captureDir = String.fromEnvironment('JSR_CAPTURE_DIR');
+  static final String _captureDir = Platform.environment['JSR_CAPTURE_DIR'] ??
+      const String.fromEnvironment('JSR_CAPTURE_DIR');
   final GlobalKey _captureKey = GlobalKey();
   Timer? _captureTimer;
   ThreeExampleSelection _selection = ThreeExampleSelection.initial;
