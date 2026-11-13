@@ -762,8 +762,8 @@
       "sha256": "2f83bde66c35db02a16eec3db21beae0e1198e04f1b0723f9b3dbda89c6675f7"
     },
     "tool/three_example/prepare.mjs": {
-      "bytes": 355803,
-      "sha256": "855825326bd1854220c465ea925dd6840872bab1511b3148292c19e354cbd95f"
+      "bytes": 356119,
+      "sha256": "283128d2ae04c11b399fa4aba2f139de01567bc495f3561d5287be3ddc3fb0d8"
     },
     "tool/three_example/stats_adapter.js": {
       "bytes": 2107,
@@ -836,8 +836,8 @@
       "sha256": "e58edb41d59f4936e0f992fb079b0155d88e9b2ebe274117ec898ee59f7aa491"
     },
     "widget.js": {
-      "bytes": 1945200,
-      "sha256": "2d7962141fbdd7f9672599a65c2ec91b5fd564e5aca4e95d1b650d9fb4cf72bc"
+      "bytes": 1945578,
+      "sha256": "fa351ea502073baaeaf2370f8bc3550b84d7d7002868c0545937482e94bd6f93"
     }
   }
 }
