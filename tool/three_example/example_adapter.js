@@ -486,10 +486,12 @@ function nativeImagePixels(source, record) {
         result.surfaceId !== canvas.surfaceId || result.canvasId !== canvasId ||
         result.generation !== generation || result.requestId !== requestId ||
         !Number.isInteger(result.width) || !Number.isInteger(result.height) ||
-        result.width <= 0 || result.height <= 0 || typeof result.data !== 'string') {
+        result.width <= 0 || result.height <= 0 ||
+        (typeof result.data !== 'string' && !result.bytes)) {
       throw new Error(`${WIDGET_ID}: invalid decoded image response for ${source}`);
     }
-    const decoded = decodeBase64(result.data);
+    // The isolate warm-bytes lane may deliver typed `bytes` instead of base64.
+    const decoded = typeof result.data === 'string' ? decodeBase64(result.data) : result.bytes;
     if (decoded.length !== result.width * result.height * 4) {
       throw new Error(`${WIDGET_ID}: decoded image RGBA length mismatch for ${source}`);
     }

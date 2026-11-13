@@ -602,8 +602,8 @@
       "sha256": "0468d42e536566602bdd72162738238c1bdd3ac0463c29bd2fa88e80b68a1249"
     },
     "widget.js": {
-      "bytes": 161300,
-      "sha256": "ff4fec5a9d88641b46eb96170f88a0c1e41ac9a8b5a4fb406544f581f6d4c75c"
+      "bytes": 161344,
+      "sha256": "bd03b01ddccbcb5ea2e516dd5e95570b8c117f3a139d934f022c9d5534a24ce6"
     }
   }
 }

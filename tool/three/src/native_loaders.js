@@ -234,10 +234,13 @@ export class JsrImageLoader extends Loader {
           result.surfaceId !== canvas.surfaceId || result.canvasId !== canvasId ||
           result.generation !== generation || result.requestId !== requestId ||
           !Number.isInteger(result.width) || !Number.isInteger(result.height) ||
-          result.width <= 0 || result.height <= 0 || typeof result.data !== 'string') {
+          result.width <= 0 || result.height <= 0 ||
+          (typeof result.data !== 'string' && !result.bytes)) {
         throw new Error('three.canvas2d: invalid decoded image response');
       }
-      const bytes = decodeBase64(result.data);
+      // The isolate warm-bytes lane ships large decoded RGBA as a typed
+      // `bytes` array instead of a base64 `data` literal; accept both.
+      const bytes = typeof result.data === 'string' ? decodeBase64(result.data) : result.bytes;
       if (bytes.length !== result.width * result.height * 4) throw new Error('three.canvas2d: decoded image RGBA length');
       image.width = result.width; image.height = result.height;
       image.naturalWidth = result.width; image.naturalHeight = result.height;
@@ -298,10 +301,12 @@ export class JsrTextureLoader extends Loader {
             result.surfaceId !== canvas.surfaceId || result.canvasId !== canvasId ||
             result.generation !== generation || result.requestId !== requestId ||
             !Number.isInteger(result.width) || !Number.isInteger(result.height) ||
-            result.width <= 0 || result.height <= 0 || typeof result.data !== 'string') {
+            result.width <= 0 || result.height <= 0 ||
+            (typeof result.data !== 'string' && !result.bytes)) {
           throw new Error('three.canvas2d: invalid decoded image response');
         }
-        const rgba = decodeBase64(result.data);
+        // Accept the isolate warm-bytes `bytes` form as well as base64.
+        const rgba = typeof result.data === 'string' ? decodeBase64(result.data) : result.bytes;
         if (rgba.length !== result.width * result.height * 4) throw new Error('three.canvas2d: decoded image RGBA length');
         texture.image = {
           data: rgba, width: result.width, height: result.height,
