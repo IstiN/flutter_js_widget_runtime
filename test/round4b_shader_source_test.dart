@@ -68,4 +68,21 @@ void main() {
     expect(lane, contains('linearToSrgb(material_info.colorOpacity.rgb)'));
     expect(lane, isNot(contains('applyToneMapping')));
   });
+
+  test('UnrealBloom uses threshold, bounded Gaussian mips and the five-mip composite', () {
+    final source = File('shaders/three_r1.frag').readAsStringSync();
+    final start = source.indexOf('if (op == 13) {');
+    final end = source.indexOf('return base;', start);
+    final bloom = source.substring(start, end);
+    expect(bloom, contains('smoothstep(threshold, threshold + r1PostParam(2), luminance)'));
+    expect(bloom, contains('mix(outputColor, base, alpha)'));
+    expect(bloom, contains('for (int i = 0; i < 11; i++)'));
+    expect(bloom, contains('texture(mapTexture, uv + uvOffset).rgb'));
+    expect(bloom, contains('texture(mapTexture, uv - uvOffset).rgb'));
+    expect(bloom, contains('r1BloomContribution(4, texture(postTexture5, uv).rgb)'));
+    expect(bloom, contains('bloom *= 3.0 * r1PostParam(1);'));
+    expect(bloom, contains('max(bloom.r, max(bloom.g, bloom.b))'));
+    expect(source, contains('float r1PostParam(int index)'));
+    expect(source, contains('vec4 postParams[4];'));
+  });
 }

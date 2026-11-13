@@ -432,6 +432,10 @@ class JsThreeMaterialUpsert extends JsThreeCommand {
     this.stencilFailOp = JsThreeStencilOp.keep,
     this.stencilZFailOp = JsThreeStencilOp.keep,
     this.stencilZPassOp = JsThreeStencilOp.keep,
+    this.postTexture3Id = 0,
+    this.postTexture4Id = 0,
+    this.postTexture5Id = 0,
+    this.postParams = const <double>[],
   }) : super._(3);
 
   final int materialId;
@@ -522,6 +526,13 @@ class JsThreeMaterialUpsert extends JsThreeCommand {
   final JsThreeStencilOp stencilFailOp;
   final JsThreeStencilOp stencilZFailOp;
   final JsThreeStencilOp stencilZPassOp;
+
+  /// R1 v9 generic post tail: composite textures 3..5 and scalar params
+  /// 18..33 (params 0..17 ride the two std140 matrix payloads above).
+  final int postTexture3Id;
+  final int postTexture4Id;
+  final int postTexture5Id;
+  final List<double> postParams;
 
   bool get hasAlphaMap => alphaMapTextureId != 0;
   bool get hasEnvMap => envMapTextureId != 0;

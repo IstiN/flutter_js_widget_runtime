@@ -18,6 +18,8 @@ import assert from 'node:assert/strict';
 import path from 'node:path';
 import vm from 'node:vm';
 import { fileURLToPath } from 'node:url';
+import { createHash } from 'node:crypto';
+import { readFile } from 'node:fs/promises';
 import { build } from 'esbuild';
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
@@ -496,6 +498,9 @@ function createHost() {
     { op: 10, uniforms: { tDiffuse: 'texture' }, fragment: 'sRGBTransferOETF' },
     { op: 11, uniforms: { tDiffuse: 'texture', h: 0.01 }, fragment: '0.227027' },
     { op: 12, uniforms: { tDiffuse: 'texture', v: 0.01 }, fragment: '0.227027' },
+    { op: 13, uniforms: { tDiffuse: 'texture', luminosityThreshold: 0.25, smoothWidth: 0.01, defaultColor: 'color', defaultOpacity: 0.4 }, fragment: '' },
+    { op: 14, uniforms: { colorTexture: 'texture', invSize: 'resolution', direction: 'resolution', centerWeight: 0.2, gaussianOffsets: [1.2, 2.4], gaussianWeights: [0.3, 0.1] }, fragment: 'diffuseSum' },
+    { op: 15, uniforms: { blurTexture1: 'texture', blurTexture2: 'texture', blurTexture3: 'texture', blurTexture4: 'texture', blurTexture5: 'texture', bloomStrength: 1.2, bloomRadius: 0.5, bloomFactors: [1, 0.8, 0.6, 0.4, 0.2], bloomTintColors: 'tints' }, fragment: 'lerpBloomFactor' },
   ];
   for (const item of cases) {
     const { THREE: T, context, packets } = createHost();
@@ -506,6 +511,7 @@ function createHost() {
       if (value === 'texture') resolved = texture;
       else if (value === 'resolution') resolved = new T.Vector2(64, 32);
       else if (value === 'color') resolved = new T.Color(1, 0.8, 0.7);
+      else if (value === 'tints') resolved = Array.from({ length: 5 }, () => new T.Color(1, 0.8, 0.7));
       uniforms[name] = { value: resolved };
     }
     const material = new T.ShaderMaterial({
@@ -535,8 +541,26 @@ function createHost() {
       assert.equal(body.readFloatLE(tail + 20), 128, 'CSS width scaled to drawing-buffer pixels');
       assert.equal(body.readFloatLE(tail + 24), 64, 'CSS height scaled to drawing-buffer pixels');
     }
+    if (item.op === 13) {
+      assert.ok(Math.abs(body.readFloatLE(tail + 20) - 0.25) < 1e-6, 'bloom threshold');
+      assert.ok(Math.abs(body.readFloatLE(tail + 48) - 0.4) < 1e-6, 'high-pass default opacity');
+    }
+    if (item.op === 14) {
+      assert.equal(body.readFloatLE(tail + 48), 2, 'two bounded Gaussian pairs');
+      assert.ok(Math.abs(body.readFloatLE(tail - 64) - 0.3) < 1e-6, 'first Gaussian weight in the v9 tail');
+      assert.ok(Math.abs(body.readFloatLE(tail - 60) - 0.1) < 1e-6, 'second Gaussian weight in the v9 tail');
+    }
+    if (item.op === 15) {
+      assert.ok(body.readUInt32LE(tail) > 0, 'second bloom mip texture');
+      assert.ok(body.readUInt32LE(tail - 80) > 0, 'third bloom mip texture');
+      assert.ok(body.readUInt32LE(tail - 76) > 0, 'fourth bloom mip texture');
+      assert.ok(body.readUInt32LE(tail - 72) > 0, 'fifth bloom mip texture');
+      assert.ok(Math.abs(body.readFloatLE(tail + 20) - 1.2) < 1e-6, 'bloom strength');
+      assert.ok(Math.abs(body.readFloatLE(tail + 24) - 0.5) < 1e-6, 'bloom radius');
+      assert.ok(Math.abs(body.readFloatLE(tail - 64) - 0.8) < 1e-6, 'fourth-mip green tint crosses the v9 tail');
+    }
   }
-  console.log('PIN OK 12 native postprocessing kernels and parameter payloads');
+  console.log('PIN OK 15 native postprocessing kernels and parameter payloads');
 }
 // Recognised ShaderChunk PCSS is marked by a negative shadow radius.
 {
@@ -571,5 +595,18 @@ function createHost() {
     T.ShaderChunk.shadowmap_pars_fragment = original;
   }
   console.log('PIN OK recognised ShaderChunk PCSS shadow marker');
+}
+{
+  const manifest = JSON.parse(await readFile(path.join(ROOT, 'assets/three/bundle_manifest.json'), 'utf8'));
+  const nativeBytes = await readFile(path.join(ROOT, 'assets/three/jsr_three_native.js'));
+  const sha = bytes => createHash('sha256').update(bytes).digest('hex');
+  assert.equal(sha(nativeBytes), manifest.outputs['jsr_three_native.js'].sha256,
+    'manifest pins the rebuilt native bundle hash');
+  for (const source of ['native_renderer.js', 'r1.js']) {
+    const key = `tool/three/src/${source}`;
+    assert.equal(sha(await readFile(path.join(ROOT, key))), manifest.build.inputSha256[key],
+      `${source} cannot change without refreshing its manifest input hash`);
+  }
+  console.log('PIN OK native bundle and R1 adapter manifest hashes');
 }
 console.log('round4_correctness_test: all pins OK');

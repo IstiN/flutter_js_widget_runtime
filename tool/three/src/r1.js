@@ -8,14 +8,17 @@ const utf8 = value => (typeof TextEncoder !== 'undefined')
   : Uint8Array.from(Buffer.from(value, 'utf8'));
 
 export const T1_VERSION = 1;
-// v8: material stencil tail (last 32 bytes when MATERIAL_FLAG_STENCIL is set),
-// the material colorWrite flag bit, OPCODE.STENCIL_CLEAR mid-stream markers
-// and the FRAME_TARGET_FLAGS.clearStencil frame-start bit (see the v8 block
-// above materialCommand). v7: node renderOrder tail. v6: normal/bump/PBR map
-// slots and the Dubois anaglyph tail. v5: matcap/gradient slots, sprite
+// v9: recognised postprocessing materials carry three extra texture ids and
+// sixteen extra scalar uniforms before the Dubois suffix. This bounded tail
+// holds UnrealBloomPass's five-mip composite and at most eleven Gaussian
+// pairs; v8: material stencil tail (last 32 bytes when MATERIAL_FLAG_STENCIL
+// is set), the material colorWrite flag bit, OPCODE.STENCIL_CLEAR mid-stream
+// markers and the FRAME_TARGET_FLAGS.clearStencil frame-start bit (see the v8
+// block above materialCommand). v7: node renderOrder tail. v6: normal/bump/PBR
+// map slots and the Dubois anaglyph tail. v5: matcap/gradient slots, sprite
 // rotation, point-shadow block, cube texture flag. v4: alpha/env texture
 // slots, UV transforms, tone mapping + FogExp2 density.
-export const R1_VERSION = 8;
+export const R1_VERSION = 9;
 export const STREAM_R1 = 1;
 const NATIVE_U32_LITTLE_ENDIAN = new Uint8Array(new Uint32Array([1]).buffer)[0] === 1;
 export const MAX_ENVELOPE = 64 * 1024 * 1024;
@@ -254,7 +257,7 @@ export function renderTargetCommand(id, version, width, height, textureId, flags
   return command(OPCODE.RENDER_TARGET, body.finish());
 }
 
-export function materialCommand(id, version, kind, mapId, flags, side, color, opacity, roughness, metalness, alphaTest, pointSize, specular = null, shininess = 0, emissive = null, emissiveIntensity = 1, clipId = 0, clipFlags = 0, textureSlots = null, v5Slots = null, v6Slots = null, dubois = null, stencil = null) {
+export function materialCommand(id, version, kind, mapId, flags, side, color, opacity, roughness, metalness, alphaTest, pointSize, specular = null, shininess = 0, emissive = null, emissiveIntensity = 1, clipId = 0, clipFlags = 0, textureSlots = null, v5Slots = null, v6Slots = null, dubois = null, stencil = null, post = null) {
   if ((kind === 5) !== (specular !== null)) throw new Error('three.invalid: Phong material requires exactly one specular payload');
   if (emissive !== null && kind !== 1 && kind !== 2 && kind !== 5 && kind !== 8) throw new Error('three.invalid: emissive payload requires a lit mesh material');
   if (!Number.isInteger(clipId) || clipId < 0) throw new Error('three.invalid: material clip id');
@@ -273,7 +276,11 @@ export function materialCommand(id, version, kind, mapId, flags, side, color, op
   const normal = v6Slots || { normalMapId: 0, normalScaleX: 1, normalScaleY: 1, bumpMapId: 0, bumpScale: 1, roughnessMapId: 0, metalnessMapId: 0 };
   if (!Number.isFinite(normal.normalScaleX) || !Number.isFinite(normal.normalScaleY)) throw new Error('three.invalid: material normalScale must be finite');
   if (!Number.isFinite(normal.bumpScale)) throw new Error('three.invalid: material bumpScale must be finite');
-  const body = new ByteWriter(192 + (specular ? 16 : 0) + (emissive ? 16 : 0) + (stencil ? 32 : 0));
+  if (post && kind !== 14) throw new Error('three.invalid: post tail requires a postprocessing material');
+  const postTextureIds = post?.textureIds || [0, 0, 0];
+  const postParams = post?.params || [];
+  if (postTextureIds.length !== 3 || postParams.length > 16) throw new Error('three.invalid: post tail requires three textures and at most sixteen floats');
+  const body = new ByteWriter(192 + (kind === 14 ? 80 : 0) + (specular ? 16 : 0) + (emissive ? 16 : 0) + (stencil ? 32 : 0));
   body.u32(id);
   body.u32(version);
   body.u32(kind);
@@ -323,6 +330,17 @@ export function materialCommand(id, version, kind, mapId, flags, side, color, op
     body.f32(emissive.g);
     body.f32(emissive.b);
     body.f32(emissiveIntensity);
+  }
+  if (kind === 14) {
+    // v9 post tail: blurTexture3..5 ids plus post params 18..33. Keeping it
+    // BEFORE the Dubois suffix preserves the existing matrix-tail offsets.
+    for (const textureId of postTextureIds) body.u32(checkedU32(textureId, 'post.textureId'));
+    body.u32(0);
+    for (let i = 0; i < 16; i++) {
+      const value = postParams[i] === undefined ? 0 : postParams[i];
+      if (!Number.isFinite(value)) throw new Error('three.invalid: post params must be finite');
+      body.f32(value);
+    }
   }
   body.u32(dubois ? checkedU32(dubois.rightId, 'anaglyph.rightId') : 0);
   body.u32(0); body.u32(0); body.u32(0);

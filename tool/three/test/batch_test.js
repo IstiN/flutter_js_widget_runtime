@@ -54,9 +54,9 @@ function decode(packet) {
   const surfaceLength = bytes.readUInt16LE(18);
   const payload = bytes.subarray(headerBytes);
   assert.equal(payload.subarray(0, 4).toString(), 'JSR1');
-  // Accept the same v3..v7 envelopes as the strict Dart decoder.
+  // Accept the same v3..v9 envelopes as the strict Dart decoder.
   const envelopeVersion = payload.readUInt16LE(4);
-  assert.ok(envelopeVersion >= 3 && envelopeVersion <= 8, `unexpected R1 envelope version ${envelopeVersion}`); // v8 adds the stencil lane
+  assert.ok(envelopeVersion >= 3 && envelopeVersion <= 9, `unexpected R1 envelope version ${envelopeVersion}`); // v9 adds the postprocessing tail
   const commands = [];
   let offset = 12;
   for (let i = 0; i < payload.readUInt32LE(8); i++) {

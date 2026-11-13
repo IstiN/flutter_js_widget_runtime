@@ -380,8 +380,8 @@ void main() {
       final lambert = debugThreeMaterialUniform(
         _draw(kind: JsThreeMaterialKind.meshLambert),
       );
-      expect(phong.lengthInBytes, 336);
-      expect(lambert.lengthInBytes, 336);
+      expect(phong.lengthInBytes, 400);
+      expect(lambert.lengthInBytes, 400);
       expect(phong.getFloat32(28, Endian.little), 5);
       expect(lambert.getFloat32(28, Endian.little), 1);
       expect(phong.getFloat32(48, Endian.little), 0.25);
@@ -399,11 +399,11 @@ void main() {
     },
   );
 
-  test('Normal is distinct and emissive edits reach the 336-byte GPU ABI', () {
+  test('Normal is distinct and emissive edits reach the 400-byte GPU ABI', () {
     final normal = debugThreeMaterialUniform(
       _draw(kind: JsThreeMaterialKind.meshNormal, side: JsThreeSide.double),
     );
-    expect(normal.lengthInBytes, 336);
+    expect(normal.lengthInBytes, 400);
     expect(normal.getFloat32(28, Endian.little), 6);
     expect(normal.getFloat32(64, Endian.little), 0);
     expect(normal.getFloat32(76, Endian.little), 1);

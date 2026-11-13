@@ -42,6 +42,9 @@ final class _ThreeUniformSlots {
     this.roughnessMap,
     this.metalnessMap,
     this.mapRight,
+    this.post3,
+    this.post4,
+    this.post5,
   );
 
   final gpu.UniformSlot frame;
@@ -62,6 +65,9 @@ final class _ThreeUniformSlots {
   final gpu.UniformSlot roughnessMap;
   final gpu.UniformSlot metalnessMap;
   final gpu.UniformSlot mapRight;
+  final gpu.UniformSlot post3;
+  final gpu.UniformSlot post4;
+  final gpu.UniformSlot post5;
 }
 
 _GpuGeometry? _threeGeometryForDraw(
@@ -132,6 +138,9 @@ final class _ThreeFrameEncoder {
       backend._fragmentShader.getUniformSlot('roughnessMapTexture'),
       backend._fragmentShader.getUniformSlot('metalnessMapTexture'),
       backend._fragmentShader.getUniformSlot('mapRightTexture'),
+      backend._fragmentShader.getUniformSlot('postTexture3'),
+      backend._fragmentShader.getUniformSlot('postTexture4'),
+      backend._fragmentShader.getUniformSlot('postTexture5'),
     );
     final frameUniform = _bindThreeUniform(
       backend,

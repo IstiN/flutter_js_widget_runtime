@@ -19,9 +19,10 @@ final class JsThreeProtocolDecoder {
 
   static const int t1HeaderBytes = 32;
   static const int r1HeaderBytes = 12;
-  // v8: material stencil tail + colorWrite flag bit, OPCODE.STENCIL_CLEAR
-  // mid-stream markers and the FRAME_TARGET_FLAGS.clearStencil frame bit.
-  static const int latestR1Version = 8;
+  // v9: fixed 80-byte postprocessing tail (three texture ids + 16 floats)
+  // before the Dubois suffix. v8: material stencil tail + colorWrite flag bit,
+  // OPCODE.STENCIL_CLEAR mid-stream markers and the frame-start stencil bit.
+  static const int latestR1Version = 9;
   static const int defaultMaxEnvelopeBytes = 64 * 1024 * 1024;
   static const int maxEncodedTextureBytes = 64 * 1024 * 1024;
   static const int maxCommandCount = 100000;
@@ -412,8 +413,13 @@ final class JsThreeProtocolDecoder {
       ),
     };
     final stencilBytes = _materialStencilBytes(streamVersion, flags);
-    final phong = _phongMaterial(body, kind, stencilBytes);
-    final emissive = _emissiveMaterial(body, kind, stencilBytes);
+    final postBytes = streamVersion >= 9 && kind == JsThreeMaterialKind.postProcessing
+        ? 80
+        : 0;
+    final trailingBytes = stencilBytes + postBytes;
+    final phong = _phongMaterial(body, kind, trailingBytes);
+    final emissive = _emissiveMaterial(body, kind, trailingBytes);
+    final post = postBytes == 0 ? null : _materialPostTail(body);
     final dubois = switch (streamVersion) {
       >= 6 => _materialDuboisTail(body, kind, mapTextureId),
       _ => (
@@ -422,6 +428,9 @@ final class JsThreeProtocolDecoder {
         right: Float32List(12).asUnmodifiableView(),
       ),
     };
+    if (post != null) {
+      _validateMaterialPostOperation(body, dubois, post, mapTextureId);
+    }
     final stencil = _materialStencilTail(body, stencilBytes);
     return JsThreeMaterialUpsert._(
       materialId: id,
@@ -474,6 +483,10 @@ final class JsThreeProtocolDecoder {
       stencilFailOp: stencil?.stencilFailOp ?? JsThreeStencilOp.keep,
       stencilZFailOp: stencil?.stencilZFailOp ?? JsThreeStencilOp.keep,
       stencilZPassOp: stencil?.stencilZPassOp ?? JsThreeStencilOp.keep,
+      postTexture3Id: post?.texture3Id ?? 0,
+      postTexture4Id: post?.texture4Id ?? 0,
+      postTexture5Id: post?.texture5Id ?? 0,
+      postParams: post?.params ?? const <double>[],
     );
   }
 
@@ -569,6 +582,55 @@ final class JsThreeProtocolDecoder {
     final clipFlags = body.u32('material clip flags');
     if (clipFlags & ~3 != 0) body.fail('unknown material clip flag');
     return (clipId: clipId, clipFlags: clipFlags);
+  }
+
+  ({int texture3Id, int texture4Id, int texture5Id, Float32List params})
+  _materialPostTail(_Reader body) {
+    final texture3Id = body.u32('post texture 3 id');
+    final texture4Id = body.u32('post texture 4 id');
+    final texture5Id = body.u32('post texture 5 id');
+    if (body.u32('post reserved') != 0) {
+      body.fail('post reserved field must be zero');
+    }
+    final params = body.float32List(16, 'post params 18 through 33');
+    return (
+      texture3Id: texture3Id,
+      texture4Id: texture4Id,
+      texture5Id: texture5Id,
+      params: params,
+    );
+  }
+
+  void _validateMaterialPostOperation(
+    _Reader body,
+    ({int mapRightTextureId, Float32List left, Float32List right}) dubois,
+    ({int texture3Id, int texture4Id, int texture5Id, Float32List params}) post,
+    int mapId,
+  ) {
+    final wireOp = dubois.left[0];
+    final op = wireOp.round();
+    if (wireOp != op || op < 1 || op > 15) {
+      body.fail('postprocessing operation must be an integer in 1..15');
+    }
+    final extraTextures =
+        post.texture3Id != 0 || post.texture4Id != 0 || post.texture5Id != 0;
+    if (op == 15) {
+      if (mapId == 0 ||
+          dubois.mapRightTextureId == 0 ||
+          post.texture3Id == 0 ||
+          post.texture4Id == 0 ||
+          post.texture5Id == 0) {
+        body.fail('bloom composite requires all five mip textures');
+      }
+    } else if (extraTextures) {
+      body.fail('extra post textures require the bloom composite operation');
+    }
+    if (op == 14) {
+      final pairs = dubois.left[8];
+      if (pairs != pairs.round() || pairs < 1 || pairs > 11) {
+        body.fail('bloom Gaussian pair count must be an integer in 1..11');
+      }
+    }
   }
 
   ({int mapRightTextureId, Float32List left, Float32List right})
@@ -673,14 +735,14 @@ final class JsThreeProtocolDecoder {
   ({double r, double g, double b, double shininess}) _phongMaterial(
     _Reader body,
     JsThreeMaterialKind kind,
-    int stencilBytes,
+    int trailingBytes,
   ) {
     if (kind != JsThreeMaterialKind.meshPhong) {
       return (r: 0.0, g: 0.0, b: 0.0, shininess: 0.0);
     }
-    // The v8 stencil tail rides AFTER this payload; compare against the
-    // pre-tail size so the stencil extension never rewrites these checks.
-    final payloadBytes = body.remaining - stencilBytes;
+    // Versioned tails ride AFTER this payload; compare against the pre-tail
+    // size so stencil/post extensions never rewrite these checks.
+    final payloadBytes = body.remaining - trailingBytes;
     if (payloadBytes != 16 &&
         payloadBytes != 32 &&
         payloadBytes != 128 &&
@@ -698,9 +760,9 @@ final class JsThreeProtocolDecoder {
   ({double r, double g, double b, double intensity}) _emissiveMaterial(
     _Reader body,
     JsThreeMaterialKind kind,
-    int stencilBytes,
+    int trailingBytes,
   ) {
-    final payloadBytes = body.remaining - stencilBytes;
+    final payloadBytes = body.remaining - trailingBytes;
     if (payloadBytes == 0 || payloadBytes == 112) {
       return (r: 0.0, g: 0.0, b: 0.0, intensity: 1.0);
     }

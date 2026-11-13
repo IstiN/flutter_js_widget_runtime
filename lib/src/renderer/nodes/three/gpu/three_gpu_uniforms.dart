@@ -64,6 +64,12 @@ void _bindThreeDrawUniforms(
     rightBinding.texture,
     sampler: rightBinding.sampler(),
   );
+  final post3 = backend._textureBinding(draw.material.postTexture3Id);
+  pass.bindTexture(slots.post3, post3.texture, sampler: post3.sampler());
+  final post4 = backend._textureBinding(draw.material.postTexture4Id);
+  pass.bindTexture(slots.post4, post4.texture, sampler: post4.sampler());
+  final post5 = backend._textureBinding(draw.material.postTexture5Id);
+  pass.bindTexture(slots.post5, post5.texture, sampler: post5.sampler());
   final alphaBinding = backend._textureBinding(draw.material.alphaMapTextureId);
   pass.bindTexture(
     slots.alphaMap,
@@ -413,8 +419,9 @@ ByteData _threeMaterialUniform(ThreeDrawItem draw, [ThreeDrawPlan? plan]) {
   // plus the v4 texture-slot tail — alpha/env flags+intensity and the two
   // column-major 3x3 UV transforms padded to one vec4 per column — plus
   // the v5 tail: matcap/gradient flags with the cube atlas dimensions
-  // (textureSize() crashes the bundled spirv-cross, so they ride here).
-  final data = ByteData(336);
+  // (textureSize() crashes the bundled spirv-cross, so they ride here), and
+  // the v9 postParams[4] scalar tail (post params 18..33).
+  final data = ByteData(400);
   _writeFloats(
     data,
     0,
@@ -482,6 +489,12 @@ ByteData _threeMaterialUniform(ThreeDrawItem draw, [ThreeDrawPlan? plan]) {
   _writeFloats(data, 224, [material.mapRightTextureId.toDouble(), 0, 0, 0]);
   _writeFloats(data, 240, material.duboisLeftMatrix);
   _writeFloats(data, 288, material.duboisRightMatrix);
+  final postParamCount = material.postParams.length < 16
+      ? material.postParams.length
+      : 16;
+  for (var index = 0; index < postParamCount; index++) {
+    data.setFloat32(336 + index * 4, material.postParams[index], Endian.little);
+  }
   return data;
 }
 

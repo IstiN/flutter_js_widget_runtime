@@ -154,7 +154,7 @@ void main() {
       }
       threeBad(() => threeProtocolDecoder.decodeR1(Uint8List.fromList([...valid, 0])));
       threeBad(() => threeProtocolDecoder.decodeR1(threeR1(const [], version: 0)));
-      threeBad(() => threeProtocolDecoder.decodeR1(threeR1(const [], version: 9)));
+      threeBad(() => threeProtocolDecoder.decodeR1(threeR1(const [], version: 10)));
       threeBad(() => threeProtocolDecoder.decodeR1(threeR1(const [], flags: 1)));
       threeBad(() => threeProtocolDecoder.decodeR1(threeR1(const [], commandCount: 100001)));
       threeBad(() => threeProtocolDecoder.decodeR1(threeR1([(13, Uint8List(0))])));
@@ -697,6 +697,36 @@ void main() {
       return out;
     }
 
+    Uint8List _postMaterialV9({int op = 15, num pairCount = 3}) {
+      final base = threeMaterialV8();
+      setU32(base, 8, JsThreeMaterialKind.postProcessing.wireValue);
+      const duboisBytes = 112;
+      final dubois = base.length - duboisBytes;
+      final out = Uint8List(base.length + 80);
+      out.setAll(0, base.sublist(0, dubois));
+      out.setAll(dubois + 80, base.sublist(dubois));
+      setU32(out, dubois, op == 15 ? 7 : 0);
+      setU32(out, dubois + 4, op == 15 ? 8 : 0);
+      setU32(out, dubois + 8, op == 15 ? 9 : 0);
+      setU32(out, dubois + 80, op == 15 ? 6 : 0);
+      void param(int index, double value) {
+        if (index < 18) {
+          final matrixIndex = index < 9 ? index : index - 9;
+          final matrixBase = dubois + 80 + 16 + (index < 9 ? 0 : 48);
+          setF32(out, matrixBase + (matrixIndex ~/ 3) * 16 +
+              (matrixIndex % 3) * 4, value);
+        } else {
+          setF32(out, dubois + 16 + (index - 18) * 4, value);
+        }
+      }
+      param(0, op.toDouble());
+      param(6, pairCount.toDouble());
+      for (var index = 18; index < 34; index++) {
+        param(index, index + 0.25);
+      }
+      return out;
+    }
+
     test('decodes the material stencil tail and the colorWrite flag', () {
       final decoded = threeProtocolDecoder.decodeR1(
         threeR1([(3, threeMaterialV8(stencil: true))], version: 8),
@@ -863,11 +893,70 @@ void main() {
       );
     });
 
-    test('latestR1Version is 8', () {
-      expect(JsThreeProtocolDecoder.latestR1Version, 8);
+    test('R1 v9 decodes bounded bloom texture and scalar tails', () {
+      final composite = threeProtocolDecoder
+          .decodeR1(threeR1([(3, _postMaterialV9())], version: 9))
+          .commands
+          .whereType<JsThreeMaterialUpsert>()
+          .single;
+      expect(composite.postTexture3Id, 7);
+      expect(composite.postTexture4Id, 8);
+      expect(composite.postTexture5Id, 9);
+      expect(composite.mapRightTextureId, 6);
+      expect(composite.postParams, hasLength(16));
+      expect(composite.postParams[0], closeTo(18.25, 1e-6));
+      expect(composite.postParams[15], closeTo(33.25, 1e-6));
+      expect(composite.duboisLeftMatrix[0], 15);
+
+      final blur = threeProtocolDecoder
+          .decodeR1(
+            threeR1([(3, _postMaterialV9(op: 14, pairCount: 11))], version: 9),
+          )
+          .commands
+          .whereType<JsThreeMaterialUpsert>()
+          .single;
+      expect(blur.duboisLeftMatrix[0], 14);
+      expect(blur.duboisLeftMatrix[8], 11);
+      expect(blur.postTexture3Id, 0);
+      expect(blur.postParams[10], closeTo(28.25, 1e-6));
+    });
+
+    test('R1 v9 post tail rejects malformed operations and payloads', () {
+      final reserved = _postMaterialV9();
+      setU32(reserved, reserved.length - 112 - 80 + 12, 1);
+      threeBad(() => threeProtocolDecoder.decodeR1(threeR1([(3, reserved)], version: 9)));
+
+      final nonFinite = _postMaterialV9();
+      setF32(nonFinite, nonFinite.length - 112 - 80 + 16, double.nan);
+      threeBad(() => threeProtocolDecoder.decodeR1(threeR1([(3, nonFinite)], version: 9)));
+
+      final missingMip = _postMaterialV9();
+      setU32(missingMip, missingMip.length - 112 - 80 + 8, 0);
+      threeBad(() => threeProtocolDecoder.decodeR1(threeR1([(3, missingMip)], version: 9)));
+
+      final unexpectedMip = _postMaterialV9(op: 13);
+      setU32(unexpectedMip, unexpectedMip.length - 112 - 80, 7);
+      threeBad(() => threeProtocolDecoder.decodeR1(threeR1([(3, unexpectedMip)], version: 9)));
+
+      for (final pairs in [0, 1.5, 12]) {
+        threeBad(
+          () => threeProtocolDecoder.decodeR1(
+            threeR1([(3, _postMaterialV9(op: 14, pairCount: pairs))], version: 9),
+          ),
+        );
+      }
+      threeBad(
+        () => threeProtocolDecoder.decodeR1(
+          threeR1([(3, _postMaterialV9(op: 16))], version: 9),
+        ),
+      );
+    });
+
+    test('latestR1Version is 9', () {
+      expect(JsThreeProtocolDecoder.latestR1Version, 9);
       expect(
-        threeProtocolDecoder.decodeR1(threeR1(const [], version: 8)).version,
-        8,
+        threeProtocolDecoder.decodeR1(threeR1(const [], version: 9)).version,
+        9,
       );
     });
   });

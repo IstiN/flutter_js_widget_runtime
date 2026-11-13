@@ -41,6 +41,10 @@ uniform sampler2D normalMapTexture;
 uniform sampler2D bumpMapTexture;
 uniform sampler2D roughnessMapTexture;
 uniform sampler2D metalnessMapTexture;
+// R1 v9: third through fifth inputs of the five-mip UnrealBloom composite.
+uniform sampler2D postTexture3;
+uniform sampler2D postTexture4;
+uniform sampler2D postTexture5;
 
 uniform FrameInfo {
   vec4 cameraPositionExposure;
@@ -104,6 +108,8 @@ uniform MaterialInfo {
   vec4 mapRightHas;
   mat3 duboisLeft;
   mat3 duboisRight;
+  // R1 v9: post params 18..33 (Gaussian weights / bloom tint colors).
+  vec4 postParams[4];
 } material_info;
 
 float distributionGgx(vec3 n, vec3 h, float roughness) {
@@ -494,8 +500,12 @@ float spotDistanceFalloff(float lightDistance, float cutoffDistance) {
 
 float r1PostParam(int index) {
   if (index < 9) return material_info.duboisLeft[index / 3][index % 3];
-  int rightIndex = index - 9;
-  return material_info.duboisRight[rightIndex / 3][rightIndex % 3];
+  if (index < 18) {
+    int rightIndex = index - 9;
+    return material_info.duboisRight[rightIndex / 3][rightIndex % 3];
+  }
+  int postIndex = index - 18;
+  return material_info.postParams[postIndex / 4][postIndex % 4];
 }
 
 float r1PostLuma(vec3 color) {
@@ -509,6 +519,17 @@ float r1HalftoneDot(float value, vec2 point, float angle, float radius, int shap
   float distanceToCenter = shape == 0 ? max(abs(cell.x), abs(cell.y)) : length(cell);
   float dotRadius = radius * 0.5 * sqrt(clamp(value, 0.0, 1.0));
   return 1.0 - step(dotRadius, distanceToCenter);
+}
+
+// UnrealBloomPass._getCompositeMaterial: mirrorFactor and per-mip tint.
+vec3 r1BloomContribution(int mip, vec3 texel) {
+  float factor = r1PostParam(3 + mip);
+  float mirrorFactor = 1.2 - factor;
+  float radius = r1PostParam(2);
+  vec3 tint = vec3(r1PostParam(8 + mip * 3),
+                   r1PostParam(9 + mip * 3),
+                   r1PostParam(10 + mip * 3));
+  return mix(factor, mirrorFactor, radius) * tint * texel;
 }
 
 vec4 r1PostColor(vec2 uv) {
@@ -590,6 +611,41 @@ vec4 r1PostColor(vec2 uv) {
     sum += texture(mapTexture, uv + direction * 3.2307692308).rgb * 0.0702702703;
     sum += texture(mapTexture, uv - direction * 3.2307692308).rgb * 0.0702702703;
     return vec4(sum, base.a);
+  }
+  if (op == 13) {
+    // LuminosityHighPassShader: smooth threshold, default color AND alpha.
+    float luminance = r1PostLuma(base.rgb);
+    float threshold = r1PostParam(1);
+    float alpha = smoothstep(threshold, threshold + r1PostParam(2), luminance);
+    vec4 outputColor = vec4(r1PostParam(3), r1PostParam(4),
+                            r1PostParam(5), r1PostParam(6));
+    return mix(outputColor, base, alpha);
+  }
+  if (op == 14) {
+    // Official paired Gaussian taps; arrays are bounded at eleven pairs by
+    // both the JS adapter and the v9 atomic decoder.
+    vec2 direction = vec2(r1PostParam(4), r1PostParam(5));
+    vec2 invSize = vec2(r1PostParam(2), r1PostParam(3));
+    vec3 diffuseSum = base.rgb * r1PostParam(1);
+    int pairs = int(r1PostParam(6) + 0.5);
+    for (int i = 0; i < 11; i++) {
+      if (i >= pairs) break;
+      vec2 uvOffset = direction * invSize * r1PostParam(7 + i);
+      vec3 sample1 = texture(mapTexture, uv + uvOffset).rgb;
+      vec3 sample2 = texture(mapTexture, uv - uvOffset).rgb;
+      diffuseSum += (sample1 + sample2) * r1PostParam(18 + i);
+    }
+    return vec4(diffuseSum, 1.0);
+  }
+  if (op == 15) {
+    vec3 bloom = r1BloomContribution(0, base.rgb);
+    bloom += r1BloomContribution(1, texture(mapRightTexture, uv).rgb);
+    bloom += r1BloomContribution(2, texture(postTexture3, uv).rgb);
+    bloom += r1BloomContribution(3, texture(postTexture4, uv).rgb);
+    bloom += r1BloomContribution(4, texture(postTexture5, uv).rgb);
+    bloom *= 3.0 * r1PostParam(1);
+    float bloomAlpha = max(bloom.r, max(bloom.g, bloom.b));
+    return vec4(bloom, bloomAlpha);
   }
   return base;
 }

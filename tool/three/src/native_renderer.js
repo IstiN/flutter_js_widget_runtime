@@ -1607,7 +1607,8 @@ function postShaderAdaptation(source, fragment) {
   let op = 0;
   let map = u.tDiffuse?.value || null;
   let right = null;
-  const p = new Array(18).fill(0);
+  let textures = null;
+  const p = new Array(34).fill(0);
   const set = (index, v) => { p[index] = Number.isFinite(v) ? v : 0; };
   if (has('tOld') && has('tNew') && has('damp')) {
     op = 1; map = u.tNew.value || null; right = u.tOld.value || null; set(1, value('damp', 0.96));
@@ -1632,6 +1633,41 @@ function postShaderAdaptation(source, fragment) {
     op = 8; set(1, value('offset', 1)); set(2, value('darkness', 1));
   } else if (has('tDiffuse') && has('color') && fragment.includes('uniformvec3color')) {
     const c = u.color.value; op = 9; set(1, c?.r); set(2, c?.g); set(3, c?.b);
+  } else if (has('tDiffuse') && has('luminosityThreshold') && has('smoothWidth') &&
+      has('defaultColor') && has('defaultOpacity')) {
+    // UnrealBloomPass / LuminosityHighPassShader (r186), including its
+    // non-black default color/alpha contract.
+    const c = u.defaultColor.value;
+    op = 13; set(1, value('luminosityThreshold', 1)); set(2, value('smoothWidth', 1));
+    set(3, c?.r); set(4, c?.g); set(5, c?.b); set(6, value('defaultOpacity'));
+  } else if (has('colorTexture') && has('invSize') && has('direction') &&
+      has('centerWeight') && has('gaussianOffsets') && has('gaussianWeights') &&
+      fragment.includes('diffuseSum')) {
+    // UnrealBloomPass._getSeparableBlurMaterial: the source arrays are
+    // forwarded verbatim (bounded to the official maximum of 11 pairs).
+    const offsets = u.gaussianOffsets.value, weights = u.gaussianWeights.value;
+    const invSize = vector('invSize', 0.5, 0.5), direction = vector('direction', 0.5, 0.5);
+    const pairs = offsets?.length === weights?.length ? offsets.length : 0;
+    if (pairs > 0 && pairs <= 11) {
+      op = 14; map = u.colorTexture.value || null;
+      set(1, value('centerWeight')); set(2, invSize[0]); set(3, invSize[1]);
+      set(4, direction[0]); set(5, direction[1]); set(6, pairs);
+      for (let i = 0; i < pairs; i++) { set(7 + i, offsets[i]); set(18 + i, weights[i]); }
+    }
+  } else if (has('blurTexture1') && has('blurTexture2') && has('blurTexture3') &&
+      has('blurTexture4') && has('blurTexture5') && has('bloomStrength') &&
+      has('bloomRadius') && has('bloomFactors') && has('bloomTintColors') &&
+      fragment.includes('lerpBloomFactor')) {
+    const factors = u.bloomFactors.value, tints = u.bloomTintColors.value;
+    if (factors?.length === 5 && tints?.length === 5) {
+      op = 15; map = u.blurTexture1.value || null; right = u.blurTexture2.value || null;
+      textures = [u.blurTexture3.value || null, u.blurTexture4.value || null, u.blurTexture5.value || null];
+      set(1, value('bloomStrength', 1)); set(2, value('bloomRadius'));
+      for (let i = 0; i < 5; i++) {
+        set(3 + i, factors[i]);
+        set(8 + i * 3, tints[i]?.r); set(9 + i * 3, tints[i]?.g); set(10 + i * 3, tints[i]?.b);
+      }
+    }
   } else if (has('tDiffuse') && !has('h') && !has('v') &&
       (fragment.includes('LinearTosRGB') || fragment.includes('sRGBTransferOETF'))) {
     op = 10;
@@ -1642,7 +1678,7 @@ function postShaderAdaptation(source, fragment) {
   }
   if (!op) return null;
   p[0] = op;
-  return { op, map, right, left: p.slice(0, 9), rightMatrix: p.slice(9) };
+  return { op, map, right, textures, left: p.slice(0, 9), rightMatrix: p.slice(9, 18), params: p.slice(18) };
 }
 
 function adaptedShaderDraw(object, viewMatrix = null, pixelRatio = 1) {
@@ -1661,7 +1697,8 @@ function adaptedShaderDraw(object, viewMatrix = null, pixelRatio = 1) {
     }
     const material = copyShaderFlags(source, new MeshBasicMaterial({ map: post.map, toneMapped: false }));
     material._r1NativeKind = 'post';
-    material._r1Anaglyph = { right: post.right, left: post.left, rightMatrix: post.rightMatrix };
+    material._r1Anaglyph = { right: post.right, left: post.left, rightMatrix: post.rightMatrix,
+      textures: post.textures, params: post.params };
     adaptationWarn(source, '_r1PostShaderWarned',
       'R1 evaluates the recognised postprocessing shader in the native kind-14 fragment lane.');
     return { material, geometry: object.geometry };
@@ -3305,6 +3342,9 @@ export class JsrWebGLRenderer {
     const mapId = this._ensureTexture(shaderMap, commands);
     const anaglyph = material._r1Anaglyph || null;
     const mapRightId = kind === 11 || kind === 14 ? this._ensureTexture(anaglyph.right, commands) : 0;
+    const postTextures = kind === 14 ? (anaglyph.textures || []) : [];
+    const postTextureIds = [0, 1, 2].map(index => this._ensureTexture(postTextures[index] || null, commands));
+    const postParams = kind === 14 ? (anaglyph.params || []) : [];
     const alphaMapId = this._ensureTexture(material.alphaMap || null, commands);
     const envMapId = this._ensureTexture(material.envMap || null, commands, 'envMap');
     const matcapId = material.isMeshMatcapMaterial ? this._ensureTexture(material.matcap || null, commands, 'matcap') : (material.matcap ? unsupported('materialTexture', `${material.type}.matcap`) : 0);
@@ -3369,6 +3409,7 @@ export class JsrWebGLRenderer {
       mapUvMatrix ? mapUvMatrix.join(',') : 'I', alphaMapUvMatrix ? alphaMapUvMatrix.join(',') : 'I',
       matcapId, gradientMapId, spriteRotation, normalMapId, normalScaleX, normalScaleY, bumpMapId, bumpScale, roughnessMapId, metalnessMapId,
       mapRightId, anaglyph ? anaglyph.left.join(',') : '', anaglyph ? anaglyph.rightMatrix.join(',') : '',
+      postTextureIds.join(','), postParams.join(','),
       stencil ? [stencil.stencilWrite, stencil.stencilFunc, stencil.stencilRef, stencil.stencilFuncMask,
         stencil.stencilWriteMask, stencil.stencilFailOp, stencil.stencilZFailOp, stencil.stencilZPassOp].join(':') : ''].join('|');
     const changed = this._nextVersion(this._state.materials, id, signature);
@@ -3378,7 +3419,8 @@ export class JsrWebGLRenderer {
         { matcapId, gradientMapId, rotation: spriteRotation },
         { normalMapId, normalScaleX, normalScaleY, bumpMapId, bumpScale, roughnessMapId, metalnessMapId },
         kind === 11 || kind === 14 ? { rightId: mapRightId, left: anaglyph.left, right: anaglyph.rightMatrix } : null,
-        stencil));
+        stencil,
+        kind === 14 ? { textureIds: postTextureIds, params: postParams } : null));
       this._mapSet(this._state.materials, id, { signature, version: changed.version, object: material });
     }
     material._r1EnsureSnap = this._materialTakeSnapshot(material, kind, shaderMap, mapUvMatrix, alphaMapUvMatrix,
