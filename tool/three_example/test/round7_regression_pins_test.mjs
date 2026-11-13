@@ -50,5 +50,6 @@ assert.ok(swept >= 300, `swept ${swept} prepared widgets`);
 const pointsWidget = await read('example/widgets/three-points-dynamic/widget.js');
 assert.ok(!/\.render\(\s*(?:0?\.01|0\.01|1e-2)\s*\)/.test(pointsWidget), 'points-dynamic: composer.render(0.01) is gone');
 assert.match(pointsWidget, /[A-Za-z_$][\w$]{0,63}\.render\([A-Za-z_$][\w$]{0,63},[A-Za-z_$][\w$]{0,63}\)/, 'points-dynamic: direct scene render present');
+assert.ok(pointsWidget.includes('.autoClear = true') || pointsWidget.includes('.autoClear=!0'), 'points-dynamic: direct render restores autoClear (no accumulation smear)');
 
 console.log(`round7_regression_pins_test: PASS (warm-bytes image contract, ${swept} prepared widgets, points-dynamic direct render)`);

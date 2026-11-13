@@ -30,6 +30,15 @@ const COMPOSER_RENDER_REPLACEMENT = `// JSR direct render (points_dynamic): R1 l
 				// the bloom/film/focus math dropped, so the RT-pass chain only added
 				// full-screen envelope cost. Render the scene directly; the composer
 				// still exists and is resized for parity.
+				//
+				// The official module sets renderer.autoClear = false for the
+				// composer chain (its passes clear explicitly). Without the chain
+				// that flag makes every direct frame LOAD the previous color
+				// attachment: the animation accumulates into a permanent smear
+				// (fallen-point puddle that never shows the risen humanoids,
+				// with fill-rate fps decay). Restore autoClear so each direct
+				// frame clears like the composer's own RenderPass did.
+				renderer.autoClear = true;
 				renderer.render( scene, camera );`;
 
 export function applyPointsDynamicDirectRenderPatch(bytes) {
