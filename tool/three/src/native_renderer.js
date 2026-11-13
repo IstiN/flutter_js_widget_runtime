@@ -3233,11 +3233,16 @@ export class JsrWebGLRenderer {
           expanded[i * 4 + 3] = 255;
         }
         bytes = expanded;
-      } else if (!(data instanceof Uint8Array)) {
+      } else if (!(bytes instanceof Uint8Array)) {
         // Float-typed default-type textures (gpgpu position/velocity
         // DataTextures with UnsignedByteType defaults) belong to the adapted
         // float-sampler lanes, not the RGBA8 raw lane: drop the map (warn)
         // instead of failing the frame — the owning lane keeps drawing.
+        // Test the POST-expansion bytes, not the original data: the
+        // HalfFloat/Float branches above already produced RGBA8 bytes, and
+        // checking data dropped their result every frame before the cache
+        // write (webgl_materials_envmaps_exr re-expanded 2M texels per frame
+        // and never bound the environment map at all).
         adaptationWarn(texture, '_r1FloatTextureWarned',
           'R1 drops this non-RGBA8 raw sampler (float-typed data); the owning adapted lane continues without it.');
         return 0;
