@@ -4284,8 +4284,29 @@ webgl_geometry_shapes: {
       module: 'b2253e4e903723acaece947589747bfc2b8fbf963da5fa143bcd3104b8687bf2'
     },
     discoverAssets: true,
+    importOverrides: {
+      'three/addons/loaders/USDLoader.js': 'degrades/loader_usdz_prebuilt.mjs'
+    },
+    // QuickJS grinds for minutes inside the r186 USDA text parse (the worker
+    // sits at 100% CPU; the host sees a permanent loading overlay).
+    // generate_usdz_scenes.mjs parses the pinned USDZ offline in Node and the
+    // pinned .usdz URL now carries the prebuilt J3MF-style document;
+    // degrades/loader_usdz_prebuilt.mjs rebuilds the scene from zero-copy
+    // views. The embedded PNG ships as a separate pinned texture asset.
     assets: [
-      { hdrRgba: true, url: 'textures/equirectangular/venice_sunset_1k.hdr', sha256: '0e72ed46b5316cb5fb67fc81ff85b024a09146fd89ef3811a8d2299647ada118', mime: 'image/vnd.radiance' }
+      { hdrRgba: true, url: 'textures/equirectangular/venice_sunset_1k.hdr', sha256: '0e72ed46b5316cb5fb67fc81ff85b024a09146fd89ef3811a8d2299647ada118', mime: 'image/vnd.radiance' },
+      {
+        url: 'models/usdz/saeukkang.usdz', output: 'models__usdz__saeukkang.usdz',
+        mime: 'application/octet-stream', diagnostic: 'generated:usdzScene',
+        generated: 'example/widgets/three-loader-usdz/models__usdz__saeukkang.usdz',
+        sha256: 'b3611cfc1156b44726f713dab2822e70d36c1111027c808b6c069e4bf6b77976'
+      },
+      {
+        url: 'models/usdz/tex/baked_mesh_tex0.png', output: 'models__usdz__tex__baked_mesh_tex0.png',
+        mime: 'image/png', diagnostic: 'generated:usdzTexture',
+        generated: 'example/widgets/three-loader-usdz/models__usdz__tex__baked_mesh_tex0.png',
+        sha256: 'f2ebb4790904ad7d756ce12e2058a42d7363262d0426ec69cd51aa86c32d04ea'
+      }
     ]
   },
   webgl_loader_vox: {

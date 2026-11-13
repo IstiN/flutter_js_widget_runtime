@@ -508,6 +508,10 @@ class JsWidgetBridge {
     try {
       final arguments =
           (request['args'] as Map?)?.cast<String, dynamic>() ?? const {};
+      if (arguments['action'] == 'decodeImage') {
+        debugPrint('[canvas2d] decodeImage ${arguments['canvasId']} '
+            'bytes=${(arguments['data'] as String?)?.length ?? 0}');
+      }
       final result = await host.rasterizeCanvas2D(threeEngineId, arguments);
       final bytes = result.data;
       resolveCallback(id, {
@@ -522,6 +526,7 @@ class JsWidgetBridge {
         'data': bytes == null ? null : base64Encode(bytes),
       });
     } catch (error) {
+      debugPrint('[canvas2d] host error: $error');
       resolveCallback(id, {'__error': error.toString()});
     }
   }

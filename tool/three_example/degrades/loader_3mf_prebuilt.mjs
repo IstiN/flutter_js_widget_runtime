@@ -156,10 +156,10 @@ export class ThreeMFLoader extends Loader {
     const loader = new FileLoader(this.manager);
     loader.setPath(this.path).setRequestHeader(this.requestHeader).setResponseType('arraybuffer');
     loader.load(url, buffer => {
-      console.time('jsr.3mf.prebuilt');
+      if (console.time) console.time('jsr.3mf.prebuilt');
       try {
         const group = rebuild.call(this, buffer, url);
-        console.timeEnd('jsr.3mf.prebuilt');
+        if (console.timeEnd) console.timeEnd('jsr.3mf.prebuilt');
         // Texture items issued during rebuild keep the manager busy, so this
         // matches the stock lane: onLoad(group) first, manager.onLoad when the
         // bin and every texture finished.

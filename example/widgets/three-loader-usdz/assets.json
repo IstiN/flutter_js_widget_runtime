@@ -9,10 +9,21 @@
       "mime": "application/octet-stream",
       "width": 0,
       "height": 0,
-      "bytes": 3842733,
-      "sha256": "dcc70e52a2468aeea3f63da3505ffe371bc7cf7c22e81b6c53b7f909a3e44d42",
+      "bytes": 2400139,
+      "sha256": "b3611cfc1156b44726f713dab2822e70d36c1111027c808b6c069e4bf6b77976",
       "aliases": [],
-      "diagnostic": "auto:models/usdz/saeukkang.usdz"
+      "diagnostic": "generated:usdzScene"
+    },
+    {
+      "url": "models/usdz/tex/baked_mesh_tex0.png",
+      "file": "models__usdz__tex__baked_mesh_tex0.png",
+      "mime": "image/png",
+      "width": 1024,
+      "height": 1024,
+      "bytes": 1959311,
+      "sha256": "f2ebb4790904ad7d756ce12e2058a42d7363262d0426ec69cd51aa86c32d04ea",
+      "aliases": [],
+      "diagnostic": "generated:usdzTexture"
     },
     {
       "url": "textures/equirectangular/venice_sunset_1k.hdr",
