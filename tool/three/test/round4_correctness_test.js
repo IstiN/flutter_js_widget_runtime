@@ -156,6 +156,18 @@ function createHost() {
     // zeroes the base contribution; guard the base term explicitly.
     assert.ok(Math.abs(out[1] - expected[1]) < 1e-4,
       `base position collapsed (out[1]=${out[1]}, expected ${expected[1]})`);
+    const positionAttribute = active[0].geometry.attributes.position;
+    const initialVersion = positionAttribute.version;
+    renderer.render(scene, camera);
+    await new Promise(resolve => setTimeout(resolve, 20));
+    assert.equal(positionAttribute.version, initialVersion,
+      'an unchanged representative pose must not re-blend or re-version its bucket');
+    for (let i = 0; i < 4; i++) array[i * 2 + 1] = 0.75;
+    mesh.morphTexture.needsUpdate = true;
+    renderer.render(scene, camera);
+    await new Promise(resolve => setTimeout(resolve, 20));
+    assert.ok(positionAttribute.version > initialVersion,
+      'a real representative weight edit must invalidate the bucket pose');
     assert.ok(packets2().length, 'no packets');
   }
   console.log('PIN OK instanced-morph relative blend');

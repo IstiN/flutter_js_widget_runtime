@@ -94,7 +94,7 @@ function createHost() {
   };
   const context = vm.createContext({ jsr, console, TextEncoder, TextDecoder, sendMessage() {}, setTimeout, clearTimeout });
   vm.runInContext(nativeBytes, context, { filename: 'native-source-test.js' });
-  return { THREE: context.THREE, jsr, packets: () => packets.map(decode), rawPackets: packets };
+  return { THREE: context.THREE, context, jsr, packets: () => packets.map(decode), rawPackets: packets };
 }
 
 function pairGeometry(T) {
@@ -597,6 +597,53 @@ test('invisible subtrees defer wireframe resources and visible toggles preserve 
   assert.equal(host.rawPackets.length, 5);
 });
 
+test('fast nodes update moving transforms without re-uploading clean resources', async () => {
+  const host = createHost();
+  const T = host.THREE;
+  const { renderer, scene, camera } = rendererHost(host);
+  // Shadow flags deliberately keep this out of the color-batch lane.
+  const mesh = new T.Mesh(triangleGeometry(T), new T.MeshBasicMaterial());
+  mesh.castShadow = true;
+  scene.add(mesh);
+  renderer.render(scene, camera);
+  await drain();
+  renderer.render(scene, camera);
+  await drain();
+  assert.deepEqual(opcodes(host.packets()[1]), [8], 'the stationary fast node emits no resources or transform');
+  mesh.position.x = 2;
+  renderer.render(scene, camera);
+  await drain();
+  const packet = host.packets()[2];
+  assert.deepEqual(opcodes(packet), [4, 8], 'a matrix-only tick emits one node upsert plus FRAME');
+  assert.equal(only(packet, 1).length, 0, 'clean geometry is not re-encoded');
+  assert.equal(only(packet, 3).length, 0, 'clean material is not re-encoded');
+  const nodes = only(packet, 4);
+  assert.equal(nodes.length, 1);
+  assert.equal(u32(nodes[0].body, 0), id(mesh));
+  mesh.geometry.attributes.position.setX(0, 1.5);
+  mesh.geometry.attributes.position.needsUpdate = true;
+  renderer.render(scene, camera);
+  await drain();
+  assert.ok(only(host.packets()[3], 1).length > 0, 'attribute versioning still forces full geometry validation');
+});
+
+test('DOM control containers expose finite offsets for FlyControls', () => {
+  const host = createHost();
+  const runtime = new host.THREE.ThreeCompatibilityRuntime(host.jsr);
+  const element = Object.create(runtime.document.defaultView.Element.prototype);
+  element.style = { left: '12.5px', top: '-4px' };
+  assert.equal(element.offsetLeft, 12.5);
+  assert.equal(element.offsetTop, -4);
+  element.style = {};
+  assert.equal(element.offsetLeft, 0);
+  assert.equal(element.offsetTop, 0);
+  const halfWidth = runtime.document.defaultView.innerWidth / 2;
+  const halfHeight = runtime.document.defaultView.innerHeight / 2;
+  const yaw = -((400 - element.offsetLeft) - halfWidth) / halfWidth;
+  const pitch = ((150 - element.offsetTop) - halfHeight) / halfHeight;
+  assert.ok(Number.isFinite(yaw) && Number.isFinite(pitch));
+});
+
 test('manual shadow revisions are explicit and ignore ordinary scene uploads', async () => {
   const host = createHost();
   const T = host.THREE;
@@ -703,6 +750,64 @@ const geometryAttributeF32 = (body, wanted) => {
   }
   return null;
 };
+
+test('tessellation amplitude reuses static attribute encodings and preserves exact displacement arithmetic', async () => {
+  const host = createHost();
+  const T = host.THREE;
+  const { renderer, scene, camera } = rendererHost(host);
+  const geometry = new T.BufferGeometry();
+  geometry.setAttribute('position', new T.Float32BufferAttribute([
+    0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9
+  ], 3));
+  geometry.setAttribute('normal', new T.Float32BufferAttribute([
+    1, 0, 0, 0, 1, 0, 0, 0, 1
+  ], 3));
+  const customColor = new T.Float32BufferAttribute([
+    0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1
+  ], 3);
+  geometry.setAttribute('customColor', customColor);
+  geometry.setAttribute('displacement', new T.Float32BufferAttribute([0.25, -0.5, 0.75], 1));
+  const material = new T.ShaderMaterial({
+    uniforms: { amplitude: { value: 2 } },
+    vertexShader: 'uniform float amplitude; void main() { gl_Position = vec4(position + normal * displacement * amplitude, 1.0); }',
+    fragmentShader: 'void main() { gl_FragColor = vec4(1.0); }'
+  });
+  const mesh = new T.Mesh(geometry, material);
+  scene.add(mesh);
+  renderer.render(scene, camera);
+  await drain();
+  const firstGeometry = only(host.packets()[0], 1)[0];
+  assert.equal(u32(firstGeometry.body, 8) & 11, 11, 'initial position, normal and color upload');
+  const adapted = renderer._adaptedShaderDraws.get(mesh).geometry;
+  const firstUpload = renderer._geometryUploadCache.get(adapted);
+  const staticNormal = firstUpload.attributes[1].values;
+  const staticColor = firstUpload.attributes[3].values;
+  const staticColorVersion = firstUpload.attributes[3].version;
+
+  material.uniforms.amplitude.value = -3;
+  renderer.render(scene, camera);
+  await drain();
+  const secondGeometries = only(host.packets()[1], 1);
+  assert.equal(secondGeometries.length, 1);
+  assert.equal(u32(secondGeometries[0].body, 8), 11, 'the existing whole-record wire contract stays unchanged');
+  const secondUpload = renderer._geometryUploadCache.get(adapted);
+  assert.equal(secondUpload.attributes[1].values, staticNormal, 'static normal encoding is reused');
+  assert.equal(secondUpload.attributes[3].values, staticColor, 'amplitude alone reuses the static color encoding');
+  assert.equal(secondUpload.attributes[3].version, staticColorVersion);
+  const positions = geometryAttributeF32(secondGeometries[0].body, 'position');
+  assert.equal(positions[0], Math.fround(0.1 + 1 * (0.25 * -3)));
+  assert.equal(positions[4], Math.fround(0.5 + 1 * (-0.5 * -3)));
+  assert.equal(positions[8], Math.fround(0.9 + 1 * (0.75 * -3)));
+
+  renderer.render(scene, camera);
+  await drain();
+  assert.equal(only(host.packets()[2], 1).length, 0, 'unchanged shader and amplitude reuse the adapted geometry');
+  customColor.needsUpdate = true;
+  renderer.render(scene, camera);
+  await drain();
+  const colorUpdate = only(host.packets()[3], 1)[0];
+  assert.equal(u32(colorUpdate.body, 8) & 8, 8, 'a real customColor edit invalidates the static color cache');
+});
 
 test('billboard CPU lane clamps default instanceCount, bakes exact view-space offsets, and skips unchanged frames', async () => {
   const host = createHost();

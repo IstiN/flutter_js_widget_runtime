@@ -475,7 +475,23 @@ function eventTarget(target) {
   return target;
 }
 
-class JsrThreeDomElement {}
+class JsrThreeDomElement {
+  // example_adapter supplies offsetWidth/offsetHeight on each local element,
+  // while FlyControls also subtracts offsetLeft/offsetTop on every pointer
+  // move. Without these prototype getters the full-screen container yielded
+  // undefined offsets, making its rotation vector (and then the camera
+  // matrix) non-finite on the first mouse move. Keep the same bounded CSS
+  // number semantics as the adapter's rectangle lane.
+  get offsetLeft() {
+    const value = Number.parseFloat(this.style && this.style.left);
+    return Number.isFinite(value) ? value : 0;
+  }
+
+  get offsetTop() {
+    const value = Number.parseFloat(this.style && this.style.top);
+    return Number.isFinite(value) ? value : 0;
+  }
+}
 
 class JsrThreeDocument {
   constructor(runtime) {

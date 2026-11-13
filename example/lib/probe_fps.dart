@@ -41,6 +41,11 @@ final _kOut = Platform.environment['JSR_OUT'] ?? '';
 final _kQueue = Platform.environment['JSR_QUEUE'] ?? '';
 final _kNoStub = Platform.environment['JSR_NO_STUB'] == '1';
 final _kStorm = Platform.environment['JSR_STORM'] == '1';
+// Keep the second measurement window but leave it free for a real macOS
+// window-drag stressor instead of injecting synthetic pointer events.
+final _kOsStorm = Platform.environment['JSR_OS_STORM'] == '1';
+final _kWindowSeconds =
+    int.tryParse(Platform.environment['JSR_WINDOW_SECONDS'] ?? '') ?? 2;
 // Attribution flag: short-circuit Raycaster.intersectObject so the storm
 // measures everything EXCEPT the official module's own BVH hover raycast.
 final _kSkipRaycast = Platform.environment['JSR_SKIP_RAYCAST'] == '1';
@@ -138,6 +143,7 @@ const _kR1TimingPrelude = '''
 (function(){
 globalThis.__JSR_R1_STAGES=1;
 globalThis.__JSR_BATCH_DEBUG=1;
+globalThis.__JSR_R1PROBE={};
 if(!globalThis.THREE||!THREE.WebGLRenderer) return;
 var rp=THREE.WebGLRenderer.prototype;
 if(!rp.render) return;
@@ -147,6 +153,13 @@ var acc=globalThis.__jsrR1Acc={renderMs:0,renderN:0,loopMs:0,loopN:0,fastNodeMs:
   batchWalkCalls:0,batchRejMesh:0,batchRejKind:0,batchRejVis:0,batchRejElig:0,batchRejGeom:0,batchRejKey:0,batchRejGroup:0,
   eligFlag:0,eligKind:0,eligBlend:0,eligMap:0,eligClip:0};
 var now=globalThis.performance&&performance.now?function(){return performance.now();}:function(){return Date.now();};
+var __profileNames=[['_ensureGeometry','geoMs'],['_uploadAttribute','attrMs'],['_adaptDrawable','adaptMs'],['_geometrySignatureCached','sigMs'],['_ensureMaterial','matMs'],['_ensureNode','nodeMs']];
+__profileNames.forEach(function(pair){
+  var original=rp[pair[0]]; if(typeof original!=='function') return;
+  acc[pair[1]]=0; acc[pair[1]+'N']=0;
+  rp[pair[0]]=function(){ var t0=now(); try{ return original.apply(this,arguments); }
+    finally{ acc[pair[1]]+=now()-t0; acc[pair[1]+'N']++; } };
+});
 var origRender=rp.render;
 rp.render=function(scene,camera){
   var t0=now();
@@ -192,7 +205,7 @@ if(__jsr&&typeof __jsr.exportState==='function'){
   var origExport=__jsr.exportState;
   __jsr.exportState=function(st){
     st=st||{};
-    try{ st.probe={renderMs:acc.renderMs,renderN:acc.renderN,loopMs:acc.loopMs,loopN:acc.loopN,fastNodeMs:acc.fastNodeMs,fastNodeN:acc.fastNodeN,sendMs:acc.sendMs,sendN:acc.sendN,worldMs:acc.worldMs,worldN:acc.worldN,stageN:acc.stageN,stageWorld:acc.stageWorld,stageWalk:acc.stageWalk,stageFlush:acc.stageFlush,stageEmit:acc.stageEmit,batchGroups:acc.batchGroups,batchMembers:acc.batchMembers,batchEvictA:acc.batchEvictA,batchEvictB:acc.batchEvictB,batchJoins:acc.batchJoins,batchWalkCalls:acc.batchWalkCalls,batchRejMesh:acc.batchRejMesh,batchRejKind:acc.batchRejKind,batchRejVis:acc.batchRejVis,batchRejElig:acc.batchRejElig,batchRejGeom:acc.batchRejGeom,batchRejKey:acc.batchRejKey,batchRejGroup:acc.batchRejGroup,eligFlag:acc.eligFlag,eligKind:acc.eligKind,eligBlend:acc.eligBlend,eligMap:acc.eligMap,eligClip:acc.eligClip}; }catch(e){}
+    try{ st.probe={renderMs:acc.renderMs,renderN:acc.renderN,loopMs:acc.loopMs,loopN:acc.loopN,fastNodeMs:acc.fastNodeMs,fastNodeN:acc.fastNodeN,sendMs:acc.sendMs,sendN:acc.sendN,worldMs:acc.worldMs,worldN:acc.worldN,stageN:acc.stageN,stageWorld:acc.stageWorld,stageWalk:acc.stageWalk,stageFlush:acc.stageFlush,stageEmit:acc.stageEmit,batchGroups:acc.batchGroups,batchMembers:acc.batchMembers,batchEvictA:acc.batchEvictA,batchEvictB:acc.batchEvictB,batchJoins:acc.batchJoins,batchWalkCalls:acc.batchWalkCalls,batchRejMesh:acc.batchRejMesh,batchRejKind:acc.batchRejKind,batchRejVis:acc.batchRejVis,batchRejElig:acc.batchRejElig,batchRejGeom:acc.batchRejGeom,batchRejKey:acc.batchRejKey,batchRejGroup:acc.batchRejGroup,eligFlag:acc.eligFlag,eligKind:acc.eligKind,eligBlend:acc.eligBlend,eligMap:acc.eligMap,eligClip:acc.eligClip}; st.probe.fast=globalThis.__JSR_R1PROBE; __profileNames.forEach(function(pair){ st.probe[pair[1]]=acc[pair[1]]||0; st.probe[pair[1]+'N']=acc[pair[1]+'N']||0; }); }catch(e){}
     return origExport.call(__jsr,st);
   };
 }
@@ -474,7 +487,7 @@ class _ProbeFrameState extends State<_ProbeFrame> {
       _window = 0;
       _windowStartFrames = presented.toInt();
       _windowStartMs = _clock.elapsedMilliseconds;
-      Timer(const Duration(seconds: 2), _finishWindow);
+      Timer(Duration(seconds: _kWindowSeconds), _finishWindow);
       return;
     }
     // Window B: storm (if enabled), otherwise mirror window A.
@@ -484,7 +497,7 @@ class _ProbeFrameState extends State<_ProbeFrame> {
       _stormDone = true;
       _windowStartFrames = presented.toInt();
       _windowStartMs = _clock.elapsedMilliseconds;
-      _stormTimer = Timer.periodic(const Duration(milliseconds: 8), (t) {
+      if (!_kOsStorm) _stormTimer = Timer.periodic(const Duration(milliseconds: 8), (t) {
         _stormPhase += 0.35;
         final x = (400 + 300 * _stormPhase) % 700;
         final y = 150 + 250 * (0.5 + 0.5 * (_stormPhase % 1));
@@ -509,7 +522,7 @@ class _ProbeFrameState extends State<_ProbeFrame> {
         _stormDispatchUs += sw.elapsedMicroseconds;
         _stormEvents += 4;
       });
-      Timer(const Duration(seconds: 2), _finishWindow);
+      Timer(Duration(seconds: _kWindowSeconds), _finishWindow);
       return;
     }
     _captureAndExit();

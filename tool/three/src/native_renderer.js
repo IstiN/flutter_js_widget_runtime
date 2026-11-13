@@ -496,8 +496,19 @@ function supportsEmissive(material) {
 
 function sourceTokens(source) { return String(source || '').replace(/\s+/g, ''); }
 
+const SHADER_TOKEN_CACHE = new WeakMap();
 function shaderTokens(material) {
-  return `${sourceTokens(material.fragmentShader)} ${sourceTokens(material.vertexShader)}`;
+  const fragment = material.fragmentShader;
+  const vertex = material.vertexShader;
+  const cached = SHADER_TOKEN_CACHE.get(material);
+  // QuickJS's global whitespace regexp over large shader sources dominated
+  // cached ShaderMaterial hits (notably modifier_tessellation). Compare the
+  // actual source strings as well as material identity so in-place edits are
+  // never hidden, even when the caller forgets needsUpdate.
+  if (cached && cached.fragment === fragment && cached.vertex === vertex) return cached.value;
+  const value = `${sourceTokens(fragment)} ${sourceTokens(vertex)}`;
+  SHADER_TOKEN_CACHE.set(material, { fragment, vertex, value });
+  return value;
 }
 
 const RTT_VERTEX = 'varyingvec2vUv;voidmain(){vUv=uv;gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.0);}';
@@ -580,9 +591,34 @@ function refreshTimeColorGeometry(geometry, time) {
   const source = geometry._r1TimeColor;
   if (!source) return;
   const output = geometry.attributes.color;
-  for (let i = 0; i < output.count; i++) {
-    const red = source.color.getComponent(i, 0) + Math.sin(source.position.getComponent(i, 0) * 10 + time) * 0.5;
-    output.setXYZ(i, red, source.color.getComponent(i, 1), source.color.getComponent(i, 2));
+  const position = source.position;
+  const color = source.color;
+  // Official TessellateModifier/custom-color geometries are plain float
+  // BufferAttributes. Avoid ~5 QuickJS accessor calls per vertex on every
+  // animation tick (the entire 18fps tessellation bottleneck), while keeping
+  // the exact getComponent/setXYZ fallback for normalized or interleaved
+  // inputs whose conversion semantics differ.
+  if (!position.isInterleavedBufferAttribute && !color.isInterleavedBufferAttribute &&
+      !position.normalized && !color.normalized && !output.isInterleavedBufferAttribute &&
+      position.array && color.array && output.array && output.itemSize === 3) {
+    const positions = position.array;
+    const colors = color.array;
+    const values = output.array;
+    const positionStride = position.itemSize;
+    const colorStride = color.itemSize;
+    for (let i = 0; i < output.count; i++) {
+      const pi = i * positionStride;
+      const ci = i * colorStride;
+      const oi = i * 3;
+      values[oi] = colors[ci] + Math.sin(positions[pi] * 10 + time) * 0.5;
+      values[oi + 1] = colors[ci + 1];
+      values[oi + 2] = colors[ci + 2];
+    }
+  } else {
+    for (let i = 0; i < output.count; i++) {
+      const red = color.getComponent(i, 0) + Math.sin(position.getComponent(i, 0) * 10 + time) * 0.5;
+      output.setXYZ(i, red, color.getComponent(i, 1), color.getComponent(i, 2));
+    }
   }
   output._r1DynamicContent = true;
   output.needsUpdate = true;
@@ -4554,7 +4590,7 @@ export class JsrWebGLRenderer {
       kind, adaptedAttributeVersion(attrs.position), adaptedAttributeVersion(attrs.normal),
       kind === 'integerTextures' ? adaptedAttributeVersion(attrs.textureIndex) : 0,
       kind === 'integerTextures' ? uniforms.uTextures.value.map(texture => resourceId(texture)).join(',') : '',
-      adaptedAttributeVersion(attrs.color), adaptedAttributeVersion(pointColorAttribute),
+      adaptedAttributeVersion(kind === 'tessellation' ? attrs.customColor : attrs.color), adaptedAttributeVersion(pointColorAttribute),
       adaptedAttributeVersion(attrs.vertColor), adaptedAttributeVersion(attrs.visible),
       adaptedAttributeVersion(attrs.displacement), adaptedAttributeVersion(sizeAttribute),
       adaptedAttributeVersion(source.index), source.drawRange.start, source.drawRange.count,
@@ -4881,25 +4917,101 @@ export class JsrWebGLRenderer {
         geometry.setAttribute('color', new Float32BufferAttribute(new Float32Array(count * 3), 3));
         geometry.setDrawRange(source.drawRange.start, source.drawRange.count);
       } else geometry = previous.geometry;
+      if (geometry.attributes.normal !== attrs.normal) geometry.setAttribute('normal', attrs.normal);
+      geometry.setDrawRange(source.drawRange.start, source.drawRange.count);
       const positions = geometry.attributes.position;
       const colors = geometry.attributes.color;
-      for (let i = 0; i < count; i++) {
-        const nx = attrs.normal.getComponent(i, 0);
-        const ny = attrs.normal.getComponent(i, 1);
-        const nz = attrs.normal.getComponent(i, 2);
-        const displacement = attrs.displacement.getComponent(i, 0) * amplitude;
-        for (let c = 0; c < 3; c++) {
-          const normal = c === 0 ? nx : c === 1 ? ny : nz;
-          positions.array[i * 3 + c] = attrs.position.getComponent(i, c) + normal * displacement;
+      const positionArray = positions.array;
+      const colorArray = colors.array;
+      const sourcePositions = attrs.position.array;
+      const sourceNormals = attrs.normal.array;
+      const sourceDisplacement = attrs.displacement.array;
+      const sourceColors = attrs.customColor.array;
+      const fastArrays = count > 0 &&
+        !attrs.position.isInterleavedBufferAttribute && !attrs.normal.isInterleavedBufferAttribute &&
+        !attrs.displacement.isInterleavedBufferAttribute && !attrs.customColor.isInterleavedBufferAttribute &&
+        sourcePositions instanceof Float32Array && sourceNormals instanceof Float32Array &&
+        sourceDisplacement instanceof Float32Array && sourceColors instanceof Float32Array &&
+        positionArray instanceof Float32Array && colorArray instanceof Float32Array &&
+        sourcePositions.length >= count * 3 && sourceNormals.length >= count * 3 &&
+        sourceColors.length >= count * 3 && sourceDisplacement.length >= count &&
+        positionArray.length >= count * 3 && colorArray.length >= count * 3;
+      if (fastArrays) {
+        // The official tessellation shader animates ONLY amplitude. Position
+        // arithmetic deliberately stays in the original order so the f32
+        // stores are identical; direct typed-array access removes four
+        // getComponent calls per vertex. Directional color is independent of
+        // amplitude, so recompute/upload it only when a source attribute
+        // really changes instead of on every animation tick.
+        requireFinite(amplitude, 'amplitude uniform');
+        const sourceKey = [
+          adaptedAttributeVersion(attrs.position), adaptedAttributeVersion(attrs.normal),
+          adaptedAttributeVersion(attrs.displacement), adaptedAttributeVersion(attrs.customColor)
+        ].join('|');
+        let meta = geometry._r1TessellationMeta;
+        if (!meta || meta.key !== sourceKey) {
+          let sweep = 0;
+          for (let i = 0, i3 = 0; i < count; i++, i3 += 3) {
+            const px = sourcePositions[i3], py = sourcePositions[i3 + 1], pz = sourcePositions[i3 + 2];
+            const nx = sourceNormals[i3], ny = sourceNormals[i3 + 1], nz = sourceNormals[i3 + 2];
+            const displacement = sourceDisplacement[i];
+            requireFinite(px, 'position attribute');
+            requireFinite(py, 'position attribute');
+            requireFinite(pz, 'position attribute');
+            requireFinite(nx, 'normal attribute');
+            requireFinite(ny, 'normal attribute');
+            requireFinite(nz, 'normal attribute');
+            requireFinite(displacement, 'displacement attribute');
+            const length = Math.hypot(nx * displacement, ny * displacement, nz * displacement);
+            if (length > sweep) sweep = length;
+            const shade = 0.4 + Math.max(0, (nx + ny + nz) / Math.sqrt(3));
+            colorArray[i3] = sourceColors[i3] * shade;
+            colorArray[i3 + 1] = sourceColors[i3 + 1] * shade;
+            colorArray[i3 + 2] = sourceColors[i3 + 2] * shade;
+          }
+          source.computeBoundingSphere();
+          meta = {
+            key: sourceKey,
+            center: source.boundingSphere.center.clone(),
+            radius: source.boundingSphere.radius,
+            sweep
+          };
+          geometry._r1TessellationMeta = meta;
+          colors.needsUpdate = true;
         }
-        const shade = 0.4 + Math.max(0, (nx + ny + nz) / Math.sqrt(3));
-        for (let c = 0; c < 3; c++) colors.array[i * 3 + c] = attrs.customColor.getComponent(i, c) * shade;
+        for (let i = 0, i3 = 0; i < count; i++, i3 += 3) {
+          // Keep normal * (displacement * amplitude), not a precomputed
+          // normal*displacement product: association changes f32 edge cases.
+          const displacement = sourceDisplacement[i] * amplitude;
+          positionArray[i3] = sourcePositions[i3] + sourceNormals[i3] * displacement;
+          positionArray[i3 + 1] = sourcePositions[i3 + 1] + sourceNormals[i3 + 1] * displacement;
+          positionArray[i3 + 2] = sourcePositions[i3 + 2] + sourceNormals[i3 + 2] * displacement;
+        }
+        // A conservative sphere encloses the complete displacement sweep;
+        // clipped off-screen triangles are irrelevant, and no visible vertex
+        // can be culled by a too-small animated bound.
+        if (!geometry.boundingSphere) geometry.boundingSphere = new Sphere();
+        geometry.boundingSphere.center.copy(meta.center);
+        geometry.boundingSphere.radius = meta.radius + meta.sweep * Math.abs(amplitude);
+      } else {
+        for (let i = 0; i < count; i++) {
+          const nx = attrs.normal.getComponent(i, 0);
+          const ny = attrs.normal.getComponent(i, 1);
+          const nz = attrs.normal.getComponent(i, 2);
+          const displacement = attrs.displacement.getComponent(i, 0) * amplitude;
+          for (let c = 0; c < 3; c++) {
+            const normal = c === 0 ? nx : c === 1 ? ny : nz;
+            positions.array[i * 3 + c] = attrs.position.getComponent(i, c) + normal * displacement;
+          }
+          const shade = 0.4 + Math.max(0, (nx + ny + nz) / Math.sqrt(3));
+          for (let c = 0; c < 3; c++) colors.array[i * 3 + c] = attrs.customColor.getComponent(i, c) * shade;
+        }
+        colors.needsUpdate = true;
+        geometry.computeBoundingSphere();
       }
       positions._r1DynamicContent = true;
       colors._r1DynamicContent = true;
       positions.needsUpdate = true;
-      colors.needsUpdate = true;
-      geometry.computeBoundingSphere();
       adaptedMaterial = previous && previous.kind === kind ? previous.material :
         new MeshBasicMaterial({ vertexColors: true, side: material.side, fog: material.fog });
       adaptationWarn(material, '_r1TessellationWarned',
@@ -5121,7 +5233,12 @@ export class JsrWebGLRenderer {
         morphLength: morphData.length,
         instanceKey: '',
         lastPhaseKey: '',
-        members: proxies.map(() => [])
+        instanceMatrixVersion: -1,
+        instanceColorVersion: -2,
+        matrixSource: null,
+        colorSource: null,
+        members: proxies.map(() => []),
+        poseKeys: proxies.map(() => '')
       };
       this._instancedMorphProxies.set(object, record);
       adaptationWarn(object, '_r1InstancedMorphWarned',
@@ -5134,9 +5251,11 @@ export class JsrWebGLRenderer {
     // Bucket assignment: the first morph weight cycles with the animation
     // phase (upstream's mixer drives all 15 weights from one time curve);
     // instances with a nearby phase share a bucket and a representative pose.
-    const phaseKey = [matrixSource.length, colorSource ? colorSource.length : 0].join(':');
+    const phaseKey = [object.count, matrixSource.length, colorSource ? colorSource.length : 0].join(':');
     if (phaseKey !== record.instanceKey) {
       record.instanceKey = phaseKey;
+      record.instanceMatrixVersion = -1;
+      record.instanceColorVersion = -2;
       const members = record.members;
       for (const list of members) list.length = 0;
       for (let i = 0; i < object.count; i++) {
@@ -5151,29 +5270,37 @@ export class JsrWebGLRenderer {
     // not).
     const base = geometry.attributes.position.array;
     const vertexCount = base.length;
+    const refreshInstances = record.instanceMatrixVersion !== object.instanceMatrix.version ||
+      record.instanceColorVersion !== (colorSource ? object.instanceColor.version : -1) ||
+      record.matrixSource !== object.instanceMatrix ||
+      record.colorSource !== (object.instanceColor || null);
     for (let bucket = 0; bucket < record.buckets; bucket++) {
       const proxy = record.proxies[bucket];
       const members = record.members[bucket];
       proxy.count = members.length;
       if (!members.length) continue;
-      const matrixArray = proxy.instanceMatrix.array;
-      for (let m = 0; m < members.length; m++) {
-        const source = members[m] * 16;
-        for (let c = 0; c < 16; c++) matrixArray[m * 16 + c] = matrixSource[source + c];
-      }
-      proxy.instanceMatrix.needsUpdate = true;
-      if (colorSource) {
-        if (!proxy.instanceColor || proxy.instanceColor.array.length < members.length * 3) {
-          proxy.instanceColor = new InstancedBufferAttribute(new Float32Array(members.length * 3), 3);
-        }
-        const colorArray = proxy.instanceColor.array;
+      if (refreshInstances) {
+        const matrixArray = proxy.instanceMatrix.array;
         for (let m = 0; m < members.length; m++) {
-          const source = members[m] * 3;
-          colorArray[m * 3] = colorSource[source];
-          colorArray[m * 3 + 1] = colorSource[source + 1];
-          colorArray[m * 3 + 2] = colorSource[source + 2];
+          const source = members[m] * 16;
+          for (let c = 0; c < 16; c++) matrixArray[m * 16 + c] = matrixSource[source + c];
         }
-        proxy.instanceColor.needsUpdate = true;
+        proxy.instanceMatrix.needsUpdate = true;
+        if (colorSource) {
+          if (!proxy.instanceColor || proxy.instanceColor.array.length < members.length * 3) {
+            proxy.instanceColor = new InstancedBufferAttribute(new Float32Array(members.length * 3), 3);
+          }
+          const colorArray = proxy.instanceColor.array;
+          for (let m = 0; m < members.length; m++) {
+            const source = members[m] * 3;
+            colorArray[m * 3] = colorSource[source];
+            colorArray[m * 3 + 1] = colorSource[source + 1];
+            colorArray[m * 3 + 2] = colorSource[source + 2];
+          }
+          proxy.instanceColor.needsUpdate = true;
+        } else {
+          proxy.instanceColor = null;
+        }
       }
       // CPU blend of the representative weights into the bucket geometry.
       // morphinstance_vertex/morphtarget_vertex contract: the base position
@@ -5186,11 +5313,20 @@ export class JsrWebGLRenderer {
       if (!positionAttribute) continue;
       const out = positionAttribute.array;
       const weightOffset = members[0] * stride + 1;
-      let weightSum = 0;
-      for (let j = 0; j < record.morphCount; j++) weightSum += morphData[weightOffset + j];
       const relative = !!geometry.morphTargetsRelative;
+      const poseParts = [members[0], vertexCount, relative ? 1 : 0,
+        adaptedAttributeVersion(geometry.attributes.position)];
+      let weightSum = 0;
+      for (let j = 0; j < record.morphCount; j++) {
+        const weight = morphData[weightOffset + j];
+        weightSum += weight;
+        poseParts.push(adaptedAttributeVersion(morphPositions[j]), weight);
+      }
+      const poseKey = poseParts.join('|');
+      if (record.poseKeys[bucket] === poseKey) continue;
       const baseWeight = relative ? 1 : 1 - weightSum;
-      for (let v = 0; v < vertexCount; v++) out[v] = base[v] * baseWeight;
+      if (baseWeight === 1) out.set(base);
+      else for (let v = 0; v < vertexCount; v++) out[v] = base[v] * baseWeight;
       for (let j = 0; j < record.morphCount; j++) {
         const weight = morphData[weightOffset + j];
         if (weight === 0) continue;
@@ -5198,8 +5334,18 @@ export class JsrWebGLRenderer {
         if (!target || target.length < vertexCount) continue;
         for (let v = 0; v < vertexCount; v++) out[v] += target[v] * weight;
       }
+      // The pose key proves this is a CPU-authored content revision, so the
+      // geometry signature need not hash the whole array again merely to
+      // disprove an unchanged helper upload. Finite validation still runs in
+      // attributeFloats; only the redundant content hash is skipped.
+      positionAttribute._r1DynamicContent = true;
       positionAttribute.needsUpdate = true;
+      record.poseKeys[bucket] = poseKey;
     }
+    record.instanceMatrixVersion = object.instanceMatrix.version;
+    record.instanceColorVersion = colorSource ? object.instanceColor.version : -1;
+    record.matrixSource = object.instanceMatrix;
+    record.colorSource = object.instanceColor || null;
   }
 
   _ensureNode(object, parentId, commands, drawVisible) {
@@ -5477,8 +5623,25 @@ export class JsrWebGLRenderer {
     if (!gate || !gate.clean) return miss('gate');
     const elements = object.matrixWorld.elements;
     const saved = rec.matrix;
+    let matrixChanged = false;
     for (let i = 0; i < 16; i++) {
-      if (elements[i] !== saved[i]) return miss('matrix');
+      if (elements[i] !== saved[i]) { matrixChanged = true; break; }
+    }
+    if (matrixChanged) {
+      // Geometry/material identity, resource versions and node flags have
+      // all passed above. A moving transform only needs the existing cheap
+      // node upsert; rebuilding the draw and re-walking every attribute was
+      // the dominant cost in animated mesh scenes. _updateNode also performs
+      // the final finite/matrix diff and marks shadow content dirty through
+      // the ordinary command stream, so pixels and shadow revisions retain
+      // the full-lane semantics.
+      const old = this._state.nodes.get(id);
+      if (!old) return miss('retired');
+      this._updateNode(object, id, parentId, old.geometryId, old.materialId,
+        visible, old.objectKind, commands,
+        { x: old.spriteCenterX, y: old.spriteCenterY });
+      for (let i = 0; i < 16; i++) saved[i] = elements[i];
+      if (dbg) dbg.matrixHits = (dbg.matrixHits || 0) + 1;
     }
     if (dbg) dbg.hits = (dbg.hits || 0) + 1;
     const culed = object.frustumCulled && !_frustum.intersectsObject(object);
