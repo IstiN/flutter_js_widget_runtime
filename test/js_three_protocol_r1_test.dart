@@ -495,6 +495,32 @@ void main() {
     }
   });
 
+  test('dynamic point positions tolerate non-finite vertices only for points', () {
+    final body = threeGeometry(
+      mask: 1,
+      vertexCount: 2,
+      primitive: 2,
+      indices: const [],
+    );
+    setF32(body, 32, double.nan);
+    setF32(body, 36, double.infinity);
+    setF32(body, 40, double.negativeInfinity);
+    final geometry = threeProtocolDecoder
+        .decodeR1(threeR1([(1, body)]))
+        .commands
+        .single as JsThreeGeometryUpsert;
+    expect(geometry.primitive, JsThreePrimitive.points);
+    expect(geometry.positions[0].isNaN, isTrue);
+    expect(geometry.positions[1], double.infinity);
+    expect(geometry.positions[2], double.negativeInfinity);
+
+    final triangles = threeGeometry(mask: 1, indices: const []);
+    setF32(triangles, 32, double.nan);
+    threeBad(
+      () => threeProtocolDecoder.decodeR1(threeR1([(1, triangles)])),
+    );
+  });
+
   group('R1 v3', () {
     Uint8List spotLight({
       double angle = 0.6283,

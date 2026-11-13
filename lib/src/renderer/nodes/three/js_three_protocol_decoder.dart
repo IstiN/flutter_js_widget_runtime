@@ -170,7 +170,16 @@ final class JsThreeProtocolDecoder {
 
   JsThreeGeometryUpsert _geometry(_Reader body) {
     final header = _readGeometryHeader(body);
-    final positions = body.attribute(header.vertexCount, 3, 'position');
+    // Upstream WebGL clips a point whose dynamic position becomes NaN/Inf;
+    // rejecting the whole R1 packet instead freezes webgl_points_dynamic on
+    // its last good frame. Only the points primitive may carry those values
+    // across the strict bridge; three_r1.vert clips them before transform.
+    final positions = body.attribute(
+      header.vertexCount,
+      3,
+      'position',
+      allowNonFinite: header.primitive == JsThreePrimitive.points,
+    );
     final normals = header.mask & 2 == 0
         ? null
         : body.attribute(header.vertexCount, 3, 'normal');

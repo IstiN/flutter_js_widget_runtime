@@ -14,6 +14,17 @@ void main() {
     );
   });
 
+  test('dynamic non-finite point positions clip before transform', () {
+    final source = File('shaders/three_r1.vert').readAsStringSync();
+    final mainStart = source.indexOf('void main() {');
+    final transformStart = source.indexOf('mat4 instanceModel', mainStart);
+    final guard = source.substring(mainStart, transformStart);
+    expect(guard, contains('any(isnan(position))'));
+    expect(guard, contains('any(isinf(position))'));
+    expect(guard, contains('gl_Position = vec4(0.0, 0.0, 2.0, 1.0)'));
+    expect(guard, contains('return;'));
+  });
+
   test('Lambert cube maps use upstream multiply combine, not standard IBL', () {
     final source = File('shaders/three_r1.frag').readAsStringSync();
     final envStart = source.indexOf('float encodedEnv =');

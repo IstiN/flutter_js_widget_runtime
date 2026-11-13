@@ -249,20 +249,31 @@ final class _Reader {
     return value;
   }
 
-  Float32List float32List(int count, String label) {
+  Float32List float32List(
+    int count,
+    String label, {
+    bool allowNonFinite = false,
+  }) {
     final byteCount = product(count, 4, '$label byte length');
     require(byteCount, label);
     final values = Float32List(count);
     for (var index = 0; index < count; index++) {
       final value = _data.getFloat32(_offset, Endian.little);
-      if (!value.isFinite) fail('$label contains a non-finite float');
+      if (!allowNonFinite && !value.isFinite) {
+        fail('$label contains a non-finite float');
+      }
       values[index] = value;
       _offset += 4;
     }
     return values.asUnmodifiableView();
   }
 
-  Float32List attribute(int vertexCount, int components, String label) {
+  Float32List attribute(
+    int vertexCount,
+    int components,
+    String label, {
+    bool allowNonFinite = false,
+  }) {
     final byteLength = u32('$label byte length');
     final expected = product(
       product(vertexCount, components, '$label floats'),
@@ -270,7 +281,11 @@ final class _Reader {
       '$label bytes',
     );
     if (byteLength != expected) fail('$label byte length is not exact');
-    return float32List(vertexCount * components, '$label attribute');
+    return float32List(
+      vertexCount * components,
+      '$label attribute',
+      allowNonFinite: allowNonFinite,
+    );
   }
 
   Uint32List indices(int count, int vertexCount) {

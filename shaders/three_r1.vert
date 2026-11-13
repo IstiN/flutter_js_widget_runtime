@@ -57,6 +57,15 @@ vec2 jsrDepthClipRange() {
 }
 
 void main() {
+  // Dynamic point simulations can transiently divide by a zero distance and
+  // produce NaN/Inf positions. WebGL clips those vertices; do the same before
+  // any matrix multiply instead of letting the strict host reject the packet.
+  // The R1 decoder permits non-finite positions only for the points primitive.
+  if (any(isnan(position)) || any(isinf(position))) {
+    gl_Position = vec4(0.0, 0.0, 2.0, 1.0);
+    gl_PointSize = 0.0;
+    return;
+  }
   mat4 instanceModel = mat4(
     instanceModel0,
     instanceModel1,
