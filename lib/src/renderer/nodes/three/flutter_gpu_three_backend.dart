@@ -95,6 +95,7 @@ final class FlutterGpuThreeBackend {
   gpu.Texture? _pointShadowBackColorTexture;
   gpu.Texture? _pointShadowBackDepthTexture;
   ui.Image? _currentImage;
+  final Set<_ThreeResourceKey> _staleTargetWarnings = <_ThreeResourceKey>{};
   ThreeDrawPlan? _lastPlan;
   Future<void> _renderTail = Future<void>.value();
   var _disposed = false;
@@ -571,13 +572,21 @@ final class FlutterGpuThreeBackend {
       target.source.width == frame.targetWidth &&
       target.source.height == frame.targetHeight;
 
-  _GpuRenderTarget _targetForFrame(JsThreeSubmitFrame frame) {
+  _GpuRenderTarget? _targetForFrame(JsThreeSubmitFrame frame) {
     final target = _renderTargets[_key(frame.renderTargetId)];
     if (target == null || !_targetDimensionsMatch(target, frame)) {
-      throw const FlutterGpuThreeException(
-        'renderTarget',
-        'frame target is missing or has stale dimensions',
-      );
+      // A render-target resize/create and the frames that reference it can
+      // arrive one batch apart (postprocessing composers resize their targets
+      // on the first layout). Skipping that single offscreen pass keeps the
+      // previous target contents for one frame instead of dropping the whole
+      // surface frame with a PUMP_ERROR.
+      if (_staleTargetWarnings.add(_key(frame.renderTargetId))) {
+        debugPrint(
+          '[three] skip offscreen pass: target ${frame.renderTargetId} '
+          'missing or has stale dimensions (one frame)',
+        );
+      }
+      return null;
     }
     return target;
   }
@@ -605,6 +614,7 @@ final class FlutterGpuThreeBackend {
   }) {
     final frame = plan.frame!;
     final target = _targetForFrame(frame);
+    if (target == null) return 0;
     _checkTargetFeedback(plan, target.source.textureId);
     _shadowFrameActive = false;
     final encoder = _ThreeFrameEncoder(
@@ -708,6 +718,12 @@ final class FlutterGpuThreeBackend {
           .where((plan) => plan.frame!.renderTargetId == 0)
           .toList();
       if (mainPlans.isEmpty) {
+        // GPGPU compute, cube-camera and render-to-mipmap ticks legitimately
+        // submit batches with ONLY offscreen passes between surface frames.
+        // The offscreen passes above still execute; the surface simply keeps
+        // the previously presented image instead of reporting an error.
+        final previous = _currentImage;
+        if (previous != null) return previous;
         throw const FlutterGpuThreeException(
           'presentation',
           'an offscreen-only batch has no surface frame to present',
