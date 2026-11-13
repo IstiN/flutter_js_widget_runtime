@@ -668,6 +668,7 @@ export * from 'three';
 export { JsrPMREMGenerator as PMREMGenerator, JsrCanvasTextureLoader as TextureLoader };
 export { getNativeRaycastDiagnostics } from './native_raycast_bvh.js';
 export { JsrWebGLRenderer as WebGLRenderer } from './native_renderer.js';
+export { postShaderAdaptation } from './native_renderer.js';
 export { JsrFileLoader as FileLoader, JsrImageLoader as ImageLoader } from './native_loaders.js';
 export { JsrImageBitmapLoader as ImageBitmapLoader };
 export { JsrDataTextureLoader as DataTextureLoader } from './native_loaders.js';

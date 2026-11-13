@@ -2,7 +2,7 @@
   "id": "three-cinematic-showcase",
   "name": "cinematic showcase — deterministic rendering",
   "description": "Deterministic cinematic rendering showcase: explicit frame clock, subframe sampling, post chain, presets, PNG capture.",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "icon": "🎬",
   "allowedCommands": [],
   "network": false,

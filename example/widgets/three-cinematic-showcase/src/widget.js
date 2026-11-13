@@ -14,7 +14,7 @@ import { createShowcaseScene, updateShowcaseScene } from './scene.js';
     frame: 0,
     // Presentation default: the owner bar asks for >=60 presented fps. The
     // 24 fps 'draft' cinematic preset stays available via the fps chips.
-    fps: 60,
+    fps: 120,
     shutter: 0.5,
     samples: 1,
     preset: 'draft',
@@ -161,7 +161,7 @@ import { createShowcaseScene, updateShowcaseScene } from './scene.js';
 
     children.push({ type: 'divider' });
 
-    children.push(chipRow('fps', [12, 24, 30, 60].map(function (fps) {
+    children.push(chipRow('fps', [12, 24, 30, 60, 120].map(function (fps) {
       return chip(String(fps), 'setFps', { fps: fps }, state.fps === fps, false);
     })));
 

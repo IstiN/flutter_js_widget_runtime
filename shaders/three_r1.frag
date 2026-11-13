@@ -603,6 +603,38 @@ vec4 r1PostColor(vec2 uv) {
     return vec4(vec3(r1PostLuma(base.rgb)) * vec3(r1PostParam(1), r1PostParam(2), r1PostParam(3)), base.a);
   }
   if (op == 10) return vec4(linearToSrgb(base.rgb), base.a);
+  if (op == 14) {
+    // FXAA (three.js FXAShader algorithm, native kind-14 lane): local luma
+    // edge detection + directional blend, 5-9 taps only on edge pixels.
+    vec2 texel = vec2(1.0 / max(r1PostParam(1), 1.0), 1.0 / max(r1PostParam(2), 1.0));
+    vec3 rgbNW = texture(mapTexture, uv + vec2(-1.0, -1.0) * texel).rgb;
+    vec3 rgbNE = texture(mapTexture, uv + vec2(1.0, -1.0) * texel).rgb;
+    vec3 rgbSW = texture(mapTexture, uv + vec2(-1.0, 1.0) * texel).rgb;
+    vec3 rgbSE = texture(mapTexture, uv + vec2(1.0, 1.0) * texel).rgb;
+    vec3 lumaWeights = vec3(0.299, 0.587, 0.114);
+    float lumaNW = dot(rgbNW, lumaWeights);
+    float lumaNE = dot(rgbNE, lumaWeights);
+    float lumaSW = dot(rgbSW, lumaWeights);
+    float lumaSE = dot(rgbSE, lumaWeights);
+    float lumaM = dot(base.rgb, lumaWeights);
+    float lumaMin = min(lumaM, min(min(lumaNW, lumaNE), min(lumaSW, lumaSE)));
+    float lumaMax = max(lumaM, max(max(lumaNW, lumaNE), max(lumaSW, lumaSE)));
+    if (lumaMax - lumaMin < max(0.0312, lumaMax * 0.125)) return base;
+    vec2 dir = vec2(
+      -((lumaNW + lumaNE) - (lumaSW + lumaSE)),
+      ((lumaNW + lumaSW) - (lumaNE + lumaSE)));
+    float dirReduce = max((lumaNW + lumaNE + lumaSW + lumaSE) * 0.03125, 0.0078125);
+    float rcpDirMin = 1.0 / (min(abs(dir.x), abs(dir.y)) + dirReduce);
+    dir = clamp(dir * rcpDirMin, vec2(-8.0), vec2(8.0)) * texel;
+    vec3 rgbA = 0.5 * (
+      texture(mapTexture, uv + dir * (1.0 / 3.0 - 0.5)).rgb +
+      texture(mapTexture, uv + dir * (2.0 / 3.0 - 0.5)).rgb);
+    vec3 rgbB = rgbA * 0.5 + 0.25 * (
+      texture(mapTexture, uv + dir * -0.5).rgb +
+      texture(mapTexture, uv + dir * 0.5).rgb);
+    float lumaB = dot(rgbB, lumaWeights);
+    return vec4((lumaB < lumaMin || lumaB > lumaMax) ? rgbA : rgbB, base.a);
+  }
   if (op == 11 || op == 12) {
     vec2 direction = op == 11 ? vec2(r1PostParam(1), 0.0) : vec2(0.0, r1PostParam(1));
     vec3 sum = base.rgb * 0.227027;

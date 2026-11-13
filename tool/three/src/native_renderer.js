@@ -1591,7 +1591,7 @@ function refreshBoidsShaderGeometry(geometry, uniforms) {
 // be ambiguous, a distinctive source token), then evaluated by kind 14 in
 // three_r1.frag. Unknown shaders still take the capability error instead of
 // silently pretending that arbitrary GLSL ran.
-function postShaderAdaptation(source, fragment) {
+export function postShaderAdaptation(source, fragment) {
   const u = source.uniforms || {};
   const has = name => u[name] !== undefined;
   const value = (name, fallback = 0) => {
@@ -1612,6 +1612,11 @@ function postShaderAdaptation(source, fragment) {
   const set = (index, v) => { p[index] = Number.isFinite(v) ? v : 0; };
   if (has('tOld') && has('tNew') && has('damp')) {
     op = 1; map = u.tNew.value || null; right = u.tOld.value || null; set(1, value('damp', 0.96));
+  } else if (has('tDiffuse') && has('resolution') && fragment.includes('rgbNW') && fragment.includes('rgbNE')) {
+    // three.js FXAShader: same tDiffuse/resolution contract as Sobel but the
+    // distinctive rgbNW/rgbNE corner samples. Evaluated natively (op 14;
+    // op 13 is UnrealBloom).
+    const size = vector('resolution', 1, 1); op = 14; set(1, size[0]); set(2, size[1]);
   } else if (has('tDiffuse') && has('resolution') && fragment.includes('valueGx') && fragment.includes('valueGy')) {
     const size = vector('resolution', 1, 1); op = 2; set(1, size[0]); set(2, size[1]);
   } else if (has('tDiffuse') && has('radius') && has('rotateR') && has('rotateG') && has('rotateB') && has('shape')) {
@@ -1691,7 +1696,7 @@ function adaptedShaderDraw(object, viewMatrix = null, pixelRatio = 1) {
     // Sobel/Halftone uniforms are authored in CSS pixels by the official
     // examples, while the native render targets use drawing-buffer pixels.
     // Scale their resolution parameters or edges/dots become DPR-dependent.
-    if ((post.op === 2 || post.op === 3) && pixelRatio !== 1) {
+    if ((post.op === 2 || post.op === 3 || post.op === 14) && pixelRatio !== 1) {
       post.left[1] *= pixelRatio;
       post.left[2] *= pixelRatio;
     }

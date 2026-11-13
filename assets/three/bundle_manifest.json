@@ -27,10 +27,10 @@
       "tool/three/src/errors.js": "a816e842488f759d202f284ff64e1f237c6d4474cdfcdcf1cf707e4a5506c887",
       "tool/three/src/native_audio.js": "6c4cb5e303a6a76af503df646a99114a2c740cd49ea03f5035f1233258e860ba",
       "tool/three/src/native_canvas2d.js": "c8a7cda446ee4cc47c81fd87fa829cd94e67faa5c53de12e3be8cf7a95ba810c",
-      "tool/three/src/native_entry.js": "266571775162c40823fbb4249715a070b898e67cb5ffa848458f34f74c8f49c8",
+      "tool/three/src/native_entry.js": "e0bfb2ca963ff60db7ebd850290f71ac3b247f3cdd4b8ec890f92d83739fe7fd",
       "tool/three/src/native_loaders.js": "3a1bae2ae416d16f737aac5f2d0e8253a49fb914c65159e1ab8781b3009cb10e",
       "tool/three/src/native_raycast_bvh.js": "9aada0445e0fb5d1cba38ea8e801588d8b496cce8531f57ab9c60e61d7049384",
-      "tool/three/src/native_renderer.js": "bf54ae6ecd9748b4208c420441a084350ab6763bcc2c745ac03f0798d93161b8",
+      "tool/three/src/native_renderer.js": "ec20a7d9c905f304b2313abfea88fde0cf53f2008d10530b68be413b70e5c0d4",
       "tool/three/src/native_three_shim.js": "3f29d9215d19ec495af2e3aab9ac785429a471e4867fe3fbd4784f38515ea096",
       "tool/three/src/r1.js": "c278b351ee61d16e727b6a4b01590bbd2bb10255f0cc60b9d690b575f1a2e9f8",
       "tool/three/src/runtime.js": "94c1481d3b98378c1a9470a3481e4ac29f48881a43de53c3e259d2cb6117fc6f",
@@ -46,8 +46,8 @@
   },
   "outputs": {
     "jsr_three_native.js": {
-      "bytes": 883776,
-      "sha256": "255c30e164a521cbbc542d02f002940fe2eda6ea6871839f83e3491ab226a880"
+      "bytes": 883948,
+      "sha256": "e6ee494dd48ba3bc6a6745f1be59393ab3789235e76df6f071464bb8c0ce6bdb"
     },
     "jsr_three_web.js": {
       "bytes": 859738,
