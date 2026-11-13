@@ -2402,6 +2402,19 @@ export class JsrWebGLRenderer {
     this.autoClearColor = true;
     this.autoClearDepth = true;
     this.autoClearStencil = true;
+    // WebGL drawing-buffer semantics: with preserveDrawingBuffer=false the
+    // browser INVALIDATES the default framebuffer after every composited
+    // present, so autoClear=false can never leave stale pixels behind. R1
+    // reuses surface backing textures, so it must force the FIRST
+    // default-framebuffer pass of each presented batch to clear color+depth
+    // even when the widget asks for LoadAction.load (autoClear=false) —
+    // otherwise previous frames' silhouettes persist as ghost trails
+    // (three-materials-normalmap during orbit drags). Later passes of the
+    // same batch keep autoClear semantics so multi-pass scenes still
+    // compose. preserveDrawingBuffer=true (pathtracer accumulation) is
+    // exempt.
+    this._preserveDrawingBuffer = !!parameters.preserveDrawingBuffer;
+    this._defaultFbPassIndex = 0;
     this.sortObjects = true;
     this.clippingPlanes = [];
     this.localClippingEnabled = false;
@@ -2770,6 +2783,7 @@ export class JsrWebGLRenderer {
       if (this._disposed || this._animationLoop !== callback) return;
       this._animationHandle = this.runtime.requestAnimationFrame(tick);
       this._animationBatch = { commands: [] };
+      this._defaultFbPassIndex = 0;
       try {
         callback(time);
       } catch (error) {
@@ -6466,6 +6480,7 @@ export class JsrWebGLRenderer {
     // while keeping one bridge crossing and one pump per tick.
     if (this._renderBatch === null) {
       this._renderBatch = { commands: [] };
+      this._defaultFbPassIndex = 0;
       Promise.resolve().then(() => this._flushRenderBatch());
     }
     this._renderBatch.commands.push(...commands);
@@ -6490,8 +6505,13 @@ export class JsrWebGLRenderer {
     const scissor = this._rectangle(scissorRect.x, scissorRect.y, scissorRect.z, scissorRect.w);
     const scissorTest = target ? target.scissorTest : this._scissorTest;
     let flags = FRAME_TARGET_FLAGS.viewport | (scissorTest ? FRAME_TARGET_FLAGS.scissor : 0) | this._clearFlags;
-    if (this.autoClear && this.autoClearColor) flags |= FRAME_TARGET_FLAGS.clearColor;
-    if (this.autoClear && this.autoClearDepth) flags |= FRAME_TARGET_FLAGS.clearDepth;
+    let forceDefaultClear = false;
+    if (targetId === 0 && !this._preserveDrawingBuffer) {
+      forceDefaultClear = this._defaultFbPassIndex === 0;
+      this._defaultFbPassIndex++;
+    }
+    if (forceDefaultClear || (this.autoClear && this.autoClearColor)) flags |= FRAME_TARGET_FLAGS.clearColor;
+    if (forceDefaultClear || (this.autoClear && this.autoClearDepth)) flags |= FRAME_TARGET_FLAGS.clearDepth;
     // Upstream auto-clears the stencil at frame start (autoClearStencil
     // defaults true). R1 sets the bit only when this frame actually touches
     // stencil state, keeping stenciless frames' flags word byte-stable.
