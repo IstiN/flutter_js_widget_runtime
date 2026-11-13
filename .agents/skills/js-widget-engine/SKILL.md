@@ -418,6 +418,41 @@ heavy local reference profile is documented in
 nonzero surfaces, increasing presented frames and zero upload/presentation
 failures, not merely R1 packets or a live JavaScript RAF loop.
 
+## Headless THREE Verification and Performance
+
+No mouse driving needed anywhere:
+
+- `node tool/three_example/test/r1_boot_probe.mjs <example/widgets/three-*> [frames]`
+  boots a prepared widget in a node vm (native bundle + asset stubs with
+  assets.json URL mapping), drives RAF ticks and prints per-tick ms,
+  rejections and R1 submit counts. Run with
+  `node --cpu-prof --cpu-prof-dir=<dir>` to attribute JS hotspots; the
+  instant `__jsrSkinBytes` stub keeps profiles aligned with the app's
+  native-lane cost split.
+- `node tool/three_example/test/reference_chrome.mjs <ids|--file ids.txt>`
+  serves the OFFICIAL r186 examples through a pinned GitHub proxy and drives
+  headless Chrome over CDP: real upstream rAF fps (vsync-capped ~60) plus
+  reference PNGs (`/tmp/round11/refs`). `proof_report.py` merges the native
+  sweep + refs into a side-by-side HTML with RMSE.
+- Native JS frame cost: `[lane-prof] raf eval=Nms` (isolate worker logs RAF
+  evals >40ms). The R1 in-render stage profiler
+  (`globalThis.__JSR_R1_STAGES`) accumulates world/walk/flush/emit ms on
+  `renderer._stageSum`; heavy scenes split into render vs module-animate
+  cost this way.
+- Expensive upstream parsers belong OFFLINE: `generate_3mf_scenes.mjs` and
+  `generate_usdz_scenes.mjs` run the pinned loaders in Node and ship J3MF
+  blobs rebuilt by `degrades/loader_{3mf,usdz}_prebuilt.mjs` from zero-copy
+  views (usdz: minutes of 100% CPU → 753ms first frame). The override key
+  must match the module's actual import (`USDLoader.js`, not the deprecated
+  `USDZLoader.js`).
+- Backend tolerance (flutter_gpu_three_backend.dart): offscreen-only batches
+  (GPGPU/cube-camera/mipmap ticks) execute and keep the previous surface
+  image; a render-target resize racing its referencing frame skips one
+  offscreen pass instead of dropping the surface frame.
+- Float textures: HalfFloat/Float raw data expands to RGBA8 once and caches;
+  the graceful float-drop gates on `UnsignedByteType` + non-byte data only
+  (batch_test 17). Never test the expanded `bytes` or the raw `data` alone.
+
 ## Engine Lifecycle
 
 - `JsWidgetEngine.run(widgetJs)` starts the runtime, evaluates bootstrap + optional host bootstrap + widget JS.
