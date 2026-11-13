@@ -14,6 +14,15 @@ const widgetDir = process.argv[2];
 if (!widgetDir) throw new Error('usage: r1_boot_probe.mjs <example/widgets/three-*> [frames]');
 const OUT = path.isAbsolute(widgetDir) ? widgetDir : path.join(ROOT, 'example/widgets', widgetDir);
 const FRAMES = Number(process.argv[3] || 30);
+let assetMap = null;
+try {
+  const manifest = JSON.parse(await readFile(path.join(OUT, 'assets.json'), 'utf8'));
+  assetMap = new Map();
+  for (const asset of manifest.assets || []) {
+    assetMap.set(asset.url, asset.file);
+    for (const alias of asset.aliases || []) assetMap.set(alias, asset.file);
+  }
+} catch { /* widgets without external assets */ }
 const [widget, native] = await Promise.all([
   readFile(path.join(OUT, 'widget.js'), 'utf8'),
   readFile(path.join(ROOT, 'assets/three/jsr_three_native.js'), 'utf8')
@@ -43,7 +52,8 @@ const jsr = {
     }
     if (name === 'three.asset') {
       const url = args && (args.url || args.path || args.src);
-      const file = String(url).replaceAll('/', '__');
+      let file = String(url).replaceAll('/', '__');
+      if (assetMap && assetMap.has(String(url))) file = assetMap.get(String(url));
       const bytes = await readFile(path.join(OUT, file));
       return { data: bytes.toString('base64'), mime: 'application/octet-stream' };
     }
@@ -60,7 +70,13 @@ const context = vm.createContext({
     info() {}, debug() {},
     time() {}, timeEnd() {}
   },
-  performance, sendMessage() {}, TextEncoder, TextDecoder, atob, setTimeout, clearTimeout
+  performance, sendMessage() {}, TextEncoder, TextDecoder, atob, setTimeout, clearTimeout,
+  // The app runs skinning on the native bytes lane; stub it as instant so the
+  // profile shows the frame cost that REMAINS in the app (not the JS fallback).
+  __jsrSkinBytes(name, bytes) {
+    const floats = new Float32Array(bytes.buffer, bytes.byteOffset, bytes.byteLength / 4);
+    floats[3] = 1;
+  }
 });
 vm.runInContext(native, context, { filename: 'jsr_three_native.js' });
 vm.runInContext('globalThis.THREE = THREE;', context);
