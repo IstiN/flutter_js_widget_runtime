@@ -6574,7 +6574,10 @@ const _dir = new Vector3();
 const _color = new Color();
 const _shBasis = [0, 0, 0, 0, 0, 0, 0, 0, 0];
 function convertColorToLinear(color, colorSpace) {
-  if (colorSpace === 'srgb' || colorSpace === 3001 || colorSpace === 'srgb-linear') {
+  // Match upstream LightProbeGenerator: only sRGB faces are decoded here.
+  // Linear-sRGB and untagged face bytes already hold linear working-space
+  // values; decoding those a second time made the helper nearly black.
+  if (colorSpace === 'srgb' || colorSpace === 3001) {
     color.convertSRGBToLinear();
   }
   return color;

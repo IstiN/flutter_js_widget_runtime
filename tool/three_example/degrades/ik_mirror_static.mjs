@@ -20,9 +20,10 @@
 // reads each face through its raw RGBA8 `{ data, width, height }` image
 // view, so the CubeTexture is built from the DataTextures' `.image` views.
 //
-// Shading: upstream uses MeshBasicMaterial({ envMap: rt.texture }) and R1
-// composites envMap on the ADD path, so black albedo (color 0x000000) means
-// pure env = upstream's white-albedo MULTIPLY mirror look.
+// Shading: upstream uses a white-albedo MeshBasicMaterial with the default
+// MultiplyOperation. R1's round-4b env lane now implements that same multiply
+// combine, so the baked mirror must also use white albedo: the old black
+// workaround for R1's former ADD combine multiplies every reflection to zero.
 //
 // Every anchor below is verified verbatim against the pinned r186 module;
 // prepare throws if upstream drifts.
@@ -42,9 +43,9 @@ const INIT_REPLACEMENT = `\t\t\t// JSR R1 degrade (degrades/ik_mirror_static.mjs
 \t\t\t// accepts, and not a render target, so the six per-frame face
 \t\t\t// renders are gone entirely. A featureless gradient samples fine but
 \t\t\t// reads as matte shading; recognizable shapes read as reflections.
-\t\t\t// Upstream shades the mirror white * env (MULTIPLY); R1 composites
-\t\t\t// envMap on the ADD path, so black albedo + pure env reproduces the
-\t\t\t// upstream mirror appearance. Caps on R1 stencil are unrelated here.
+\t\t\t// Upstream shades the mirror white * env (MULTIPLY), and R1's
+\t\t\t// round-4b env lane implements that same combine. Keep the albedo
+\t\t\t// white: the former black ADD-combine workaround now zeroes env.
 \t\t\tfunction jsrStaticMirrorRoomCube( THREE ) {
 
 \t\t\t\tconst size = 128;
@@ -141,7 +142,7 @@ const INIT_REPLACEMENT = `\t\t\t// JSR R1 degrade (degrades/ik_mirror_static.mjs
 \t\t\t}
 
 \t\t\tmirrorSphereCamera = null;
-\t\t\tconst mirrorSphereMaterial = new THREE.MeshBasicMaterial( { envMap: jsrStaticMirrorRoomCube( THREE ), color: 0x000000 } );
+\t\t\tconst mirrorSphereMaterial = new THREE.MeshBasicMaterial( { envMap: jsrStaticMirrorRoomCube( THREE ), color: 0xffffff } );
 \t\t\tOOI.sphere.material = mirrorSphereMaterial;`;
 
 const ANIMATE_ANCHOR = `\t\t\tif ( OOI.sphere && mirrorSphereCamera ) {

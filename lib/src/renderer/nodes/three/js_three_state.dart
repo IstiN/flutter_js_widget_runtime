@@ -154,8 +154,9 @@ abstract interface class JsThreeFrameResources {
 /// snapshot instead; GPU resource caches keep following the final state.
 /// mutation after it was taken.
 final class _SnapshotMaps {
-  _SnapshotMaps(this.revision);
+  _SnapshotMaps(this.revision, this.cameraRevision);
   final int revision;
+  final int cameraRevision;
   late final Map<int, JsThreeGeometryUpsert> geometries;
   late final Map<int, JsThreeTextureUpsert> textures;
   late final Map<int, JsThreeRenderTargetUpsert> renderTargets;
@@ -197,8 +198,9 @@ final class JsThreeFramePlanView implements JsThreeFrameResources {
     // a mutation after it was taken.
     var maps = state._snapshotCache;
     final revision = state.contentRevision;
+    final cameraRevision = state._cameraRevision;
     if (maps == null || maps.revision != revision) {
-      maps = _SnapshotMaps(revision)
+      maps = _SnapshotMaps(revision, cameraRevision)
         ..geometries = Map.of(state._geometries)
         ..textures = Map.of(state._textures)
         ..renderTargets = Map.of(state._renderTargets)
@@ -208,6 +210,23 @@ final class JsThreeFramePlanView implements JsThreeFrameResources {
         ..cameras = Map.of(state._cameras)
         ..lights = Map.of(state._lights)
         ..clippings = Map.of(state._clippings);
+      state._snapshotCache = maps;
+    } else if (maps.cameraRevision != cameraRevision) {
+      // Camera-only controls must see the new matrices without invalidating
+      // the draw-walk revision: culling still comes from the frame's cull
+      // sets, so unchanged scene maps and draw-list reuse remain valid.
+      // Copy just the camera map; previously queued views retain the old
+      // immutable map and therefore their own camera pose.
+      maps = _SnapshotMaps(revision, cameraRevision)
+        ..geometries = maps.geometries
+        ..textures = maps.textures
+        ..renderTargets = maps.renderTargets
+        ..materials = maps.materials
+        ..nodes = maps.nodes
+        ..batches = maps.batches
+        ..cameras = Map.of(state._cameras)
+        ..lights = maps.lights
+        ..clippings = maps.clippings;
       state._snapshotCache = maps;
     }
     return JsThreeFramePlanView._(
@@ -304,6 +323,10 @@ final class JsThreeSurfaceState implements JsThreeFrameResources {
   bool get disposed => _disposed;
   int _lastSequence = 0;
   int _contentRevision = 0;
+  // Snapshot-map generation for camera pose changes. Kept separate from the
+  // draw-walk content revision so OrbitControls updates neither invalidate
+  // composer draw-list reuse nor leave queued views on the boot camera.
+  int _cameraRevision = 0;
   bool _disposed = false;
 
   Map<int, JsThreeGeometryUpsert> get geometries =>
@@ -585,6 +608,7 @@ extension _JsThreeSurfaceStateOperations on JsThreeSurfaceState {
     switch (command) {
       case final JsThreeCameraUpsert value:
         _cameras[value.cameraId] = value;
+        _cameraRevision++;
         batch.changes.add(value);
       case final JsThreeLightUpsert value:
         _markShadow(batch, 'light:${value.lightId}');

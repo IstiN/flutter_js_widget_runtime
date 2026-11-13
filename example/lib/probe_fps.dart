@@ -41,9 +41,10 @@ final _kOut = Platform.environment['JSR_OUT'] ?? '';
 final _kQueue = Platform.environment['JSR_QUEUE'] ?? '';
 final _kNoStub = Platform.environment['JSR_NO_STUB'] == '1';
 final _kStorm = Platform.environment['JSR_STORM'] == '1';
-// Keep the second measurement window but leave it free for a real macOS
-// window-drag stressor instead of injecting synthetic pointer events.
-final _kOsStorm = Platform.environment['JSR_OS_STORM'] == '1';
+// JSR_DRAG=1 turns the in-app synthetic storm into a genuine held-primary
+// pointer gesture (down -> moves with buttons=1 -> up). This exercises
+// OrbitControls/MapControls without any OS-level input injection.
+final _kDrag = Platform.environment['JSR_DRAG'] == '1';
 final _kWindowSeconds =
     int.tryParse(Platform.environment['JSR_WINDOW_SECONDS'] ?? '') ?? 2;
 // Attribution flag: short-circuit Raycaster.intersectObject so the storm
@@ -228,8 +229,10 @@ class _MissingWidgetCard extends StatelessWidget {
         children: [
           const Icon(Icons.error_outline, size: 40, color: Colors.amber),
           const SizedBox(height: 12),
-          Text('Widget unavailable in this build: $id',
-              style: const TextStyle(fontSize: 16)),
+          Text(
+            'Widget unavailable in this build: $id',
+            style: const TextStyle(fontSize: 16),
+          ),
           const SizedBox(height: 6),
           const Text(
             'Rebuild the example app so all prepared widgets are embedded.',
@@ -273,11 +276,12 @@ Future<void> main() async {
               return const Center(child: CircularProgressIndicator());
             }
             return _ProbeFrame(
-              jsSource: '${_kRafTrace ? "$_kRafTracePrelude\n" : ''}$_kR1TimingPrelude\n${_kSkipRaycast
-                  ? '$_kSkipRaycastPrelude\n${snap.data!}'
-                  : _kNoStub
-                  ? '$_kNoStubPrelude\n${snap.data!}'
-                  : snap.data!}',
+              jsSource:
+                  '${_kRafTrace ? "$_kRafTracePrelude\n" : ''}$_kR1TimingPrelude\n${_kSkipRaycast
+                      ? '$_kSkipRaycastPrelude\n${snap.data!}'
+                      : _kNoStub
+                      ? '$_kNoStubPrelude\n${snap.data!}'
+                      : snap.data!}',
             );
           },
         ),
@@ -309,7 +313,10 @@ class _QueueHostState extends State<_QueueHost> {
     List<String> lines;
     try {
       final q = File(_kQueue);
-      if (!q.existsSync()) { exit(4); return; }
+      if (!q.existsSync()) {
+        exit(4);
+        return;
+      }
       lines = q
           .readAsStringSync()
           .split('\n')
@@ -319,12 +326,18 @@ class _QueueHostState extends State<_QueueHost> {
       exit(4);
       return;
     }
-    if (lines.isEmpty) { exit(0); return; }
+    if (lines.isEmpty) {
+      exit(0);
+      return;
+    }
     final id = lines.first.trim();
     try {
       File(_kQueue).writeAsStringSync(lines.skip(1).join('\n'));
     } catch (_) {}
-    if (!mounted) { exit(0); return; }
+    if (!mounted) {
+      exit(0);
+      return;
+    }
     setState(() => _current = id);
   }
 
@@ -406,6 +419,8 @@ class _ProbeFrameState extends State<_ProbeFrame> {
   int _stormEvents = 0;
   int _stormDispatchUs = 0;
   double _stormPhase = 0;
+  double _lastStormX = 400;
+  double _lastStormY = 400;
   bool _stormActive = false;
   bool _stormDone = false;
 
@@ -424,11 +439,14 @@ class _ProbeFrameState extends State<_ProbeFrame> {
       // window can drive them. A stable single presented frame for 3s is a
       // valid boot for that class: the storm window measures their
       // event-driven presented fps.
-      final stable = presented >= 1 &&
+      final stable =
+          presented >= 1 &&
           presented == _bootStablePresented &&
           _clock.elapsedMilliseconds - _bootStableSinceMs > 3000;
       if (presented != _bootStablePresented) {
-        _bootStablePresented = presented is int ? presented : int.tryParse('$presented') ?? 0;
+        _bootStablePresented = presented is int
+            ? presented
+            : int.tryParse('$presented') ?? 0;
         _bootStableSinceMs = _clock.elapsedMilliseconds;
       }
       if (presented >= 3 || stable) {
@@ -446,8 +464,7 @@ class _ProbeFrameState extends State<_ProbeFrame> {
           try {
             final direct = await _surface?.capture();
             if (direct != null) {
-              File('/tmp/bloom_backend_image.png')
-                  .writeAsBytesSync(direct);
+              File('/tmp/bloom_backend_image.png').writeAsBytesSync(direct);
               probeDiag('THREE probe: backend image ${direct.lengthInBytes}B');
             } else {
               probeDiag('THREE probe: backend image NULL');
@@ -471,13 +488,35 @@ class _ProbeFrameState extends State<_ProbeFrame> {
     _safety?.cancel();
     _ticker?.cancel();
     _stormTimer?.cancel();
-    if (!mounted) { exit(code); return; }
+    if (!mounted) {
+      exit(code);
+      return;
+    }
     probeDiag('THREE probe widgetEnd: $_id code=$code');
     if (widget.onDone != null) {
       Future.microtask(() => widget.onDone!(code));
       return;
     }
     exit(code);
+  }
+
+  void _stormPointer(String type, double x, double y, int buttons) {
+    _lastStormX = x;
+    _lastStormY = y;
+    _engine?.dispatchHostEvent('three.input:main', <String, dynamic>{
+      'type': type,
+      'pointerId': 7,
+      'pointerType': 'mouse',
+      'isPrimary': true,
+      'button': 0,
+      'buttons': buttons,
+      'clientX': x,
+      'clientY': y,
+      'pageX': x,
+      'pageY': y,
+      'offsetX': x,
+      'offsetY': y,
+    });
   }
 
   void _startWindow() {
@@ -497,27 +536,16 @@ class _ProbeFrameState extends State<_ProbeFrame> {
       _stormDone = true;
       _windowStartFrames = presented.toInt();
       _windowStartMs = _clock.elapsedMilliseconds;
-      if (!_kOsStorm) _stormTimer = Timer.periodic(const Duration(milliseconds: 8), (t) {
+      if (_kDrag) _stormPointer('pointerdown', 400, 400, 1);
+      _stormTimer = Timer.periodic(const Duration(milliseconds: 8), (t) {
         _stormPhase += 0.35;
         final x = (400 + 300 * _stormPhase) % 700;
         final y = 150 + 250 * (0.5 + 0.5 * (_stormPhase % 1));
         final sw = Stopwatch()..start();
-        // 4 back-to-back events per tick (~100 Hz): real OS mice flood the
-        // pointer channel between frames; a single event per tick would be
-        // frame-rate limited and never reproduce a handler-cost collapse.
+        // 4 back-to-back events per tick (~500 Hz): a held-primary variant
+        // exercises controls while the hover variant stresses raycasters.
         for (var i = 0; i < 4; i++) {
-          _engine?.dispatchHostEvent('three.input:main', <String, dynamic>{
-            'type': 'pointermove',
-            'pointerId': 7,
-            'pointerType': 'mouse',
-            'isPrimary': true,
-            'button': 0,
-            'buttons': 0,
-            'clientX': x + i,
-            'clientY': y,
-            'pageX': x + i,
-            'pageY': y,
-          });
+          _stormPointer('pointermove', x + i, y, _kDrag ? 1 : 0);
         }
         _stormDispatchUs += sw.elapsedMicroseconds;
         _stormEvents += 4;
@@ -530,6 +558,9 @@ class _ProbeFrameState extends State<_ProbeFrame> {
 
   void _finishWindow() {
     _stormTimer?.cancel();
+    if (_kDrag && _stormActive) {
+      _stormPointer('pointerup', _lastStormX, _lastStormY, 0);
+    }
     _stormActive = false;
     final presented = _surface?.diagnostics['presentedFrames'] ?? 0;
     final elapsedMs = _clock.elapsedMilliseconds - _windowStartMs;
@@ -538,7 +569,7 @@ class _ProbeFrameState extends State<_ProbeFrame> {
         1000 /
         (elapsedMs < 1 ? 1 : elapsedMs);
     probeDiag(
-      'THREE probe: ${jsonEncode({'window': _window == 0 ? 'static' : 'storm', 'presentedFps': double.parse(fps.toStringAsFixed(1)), 'sampleMs': elapsedMs, 'stormEvents': _stormEvents, 'dispatchMsPerEvent': _stormEvents == 0 ? 0.0 : double.parse((_stormDispatchUs / _stormEvents / 1000).toStringAsFixed(2)), 'noStub': _kNoStub, 'skipRaycast': _kSkipRaycast})}',
+      'THREE probe: ${jsonEncode({'window': _window == 0 ? 'static' : 'storm', 'presentedFps': double.parse(fps.toStringAsFixed(1)), 'sampleMs': elapsedMs, 'stormEvents': _stormEvents, 'dispatchMsPerEvent': _stormEvents == 0 ? 0.0 : double.parse((_stormDispatchUs / _stormEvents / 1000).toStringAsFixed(2)), 'noStub': _kNoStub, 'skipRaycast': _kSkipRaycast, 'drag': _kDrag})}',
     );
     _startWindow();
   }

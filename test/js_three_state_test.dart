@@ -481,6 +481,48 @@ void main() {
   );
 
   test(
+    'camera-only upserts refresh queued snapshots without invalidating scene maps',
+    () {
+      final store = JsThreeStateStore();
+      store.apply(_envelope(1, [(6, _camera(9)), (8, _frame(1, 9))]));
+      final state = store.surface('engine', 'surface')!;
+      final first = JsThreeFramePlanView.snapshot(
+        state,
+        state.pendingFrames.single,
+        const [],
+      );
+      expect(first.cameras[9]!.matrixWorldInverse[0], 0);
+      final revision = state.contentRevision;
+
+      store.apply(
+        _envelope(2, [(6, _camera(9, matrix: 7)), (8, _frame(1, 9))]),
+      );
+      final second = JsThreeFramePlanView.snapshot(
+        state,
+        state.pendingFrames.last,
+        const [],
+      );
+      expect(
+        second.cameras[9]!.matrixWorldInverse[0],
+        7,
+        reason: 'OrbitControls must not keep rendering the boot camera',
+      );
+      expect(
+        first.cameras[9]!.matrixWorldInverse[0],
+        0,
+        reason: 'an already queued frame retains its own camera pose',
+      );
+      expect(identical(first.cameras, second.cameras), isFalse);
+      expect(
+        identical(first.nodes, second.nodes),
+        isTrue,
+        reason: 'camera motion keeps composer draw-walk reuse intact',
+      );
+      expect(state.contentRevision, revision);
+    },
+  );
+
+  test(
     'resource disposal clears all kinds, is idempotent, and resets versions',
     () {
       final store = JsThreeStateStore();
