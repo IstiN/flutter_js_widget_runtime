@@ -15,6 +15,7 @@ import { applyPointsDynamicSimFastPathPatch } from './degrades/points_dynamic_si
 import { applyInstancingDynamicFastPathPatch } from './degrades/instancing_dynamic_fast_path.mjs';
 import { applyProtoplanetBoundedResolutionPatch } from './degrades/protoplanet_bounded_resolution.mjs';
 import { applyLodBoundedCountPatch } from './degrades/lod_bounded_count.mjs';
+import { applyShadowmapBoundedCountPatch } from './degrades/shadowmap_bounded_count.mjs';
 import { applyPointsDynamicLoaderPatch } from './degrades/points_dynamic_loader_patch.mjs';
 import { applyWidgetTextDecodeJoinPatch } from './degrades/widget_text_decode_join.mjs';
 import { applySponzaStandInPatch, buildSponzaStandin } from './degrades/sponza_standin.mjs';
@@ -1998,6 +1999,8 @@ webgl_geometry_shapes: {
     id: 'three-shadowmap-performance',
     directory: 'three-shadowmap-performance',
     name: 'Shadowmap Performance — three.js r186',
+    shadowmapBoundedCount: true,
+    compat: "import { installAnimation15Hz } from './degrades/animation_15hz.mjs'; installAnimation15Hz();",
     description: 'Unmodified official webgl_shadowmap_performance module on the JSR THREE R1/WebGL2 runtime.',
     icon: '🧩',
     expected: {
@@ -3706,6 +3709,7 @@ webgl_geometry_shapes: {
     id: 'three-loader-fbx',
     directory: 'three-loader-fbx',
     name: 'FBX loader — three.js r186',
+    compat: "import { installAnimation15Hz } from './degrades/animation_15hz.mjs'; installAnimation15Hz();",
     description: 'Unmodified official webgl_loader_fbx module on the JSR THREE R1/WebGL2 runtime.',
     icon: '🧊',
     expected: {
@@ -7403,6 +7407,9 @@ async function main() {
   }
   if (definition.lodBoundedCount) {
     officialBuildBytes = applyLodBoundedCountPatch(officialBuildBytes);
+  }
+  if (definition.shadowmapBoundedCount) {
+    officialBuildBytes = applyShadowmapBoundedCountPatch(officialBuildBytes);
   }
   if (definition.pointsDynamicLoaderPatch) {
     // Bounded degrade: route the bundled OBJLoader addon instance through the
