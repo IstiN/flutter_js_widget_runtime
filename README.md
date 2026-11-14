@@ -411,6 +411,13 @@ alphaMap UV paths) with a real `capabilities.getMaxAnisotropy()` (clamped
 to the native sampler maximum of 1), and material texture slots beyond
 `map`: `alphaMap` (alpha multiply + alphaTest) and `envMap`
 (equirect reflection via reflect(viewDir, normal), `envMapIntensity`).
+Native `PMREMGenerator` remains a bounded approximation rather than a CubeUV
+render-target implementation: ordinary equirect/cube sources use direct
+reflection sampling, while a sparse HDR point-source environment (including
+`webgl_pmrem_test`'s RGBE byte lane) receives a CPU area-average + separable
+blur into one 64x32 prefiltered image. The source image is retained for the
+background, and roughness-dependent CubeUV mip convolution remains an
+explicitly warned degrade.
 Graduated to the app sidebar + expanded suite: `webgl_geometry_shapes`,
 `webgl_materials_texture_rotation`, `webgl_points_billboards`,
 `webgl_shadowmap_pointlight`.

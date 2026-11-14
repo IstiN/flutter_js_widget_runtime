@@ -7,6 +7,7 @@ import { fileURLToPath } from 'node:url';
 import { helperFastPathPlugin } from './helper_fast_path_plugin.mjs';
 import { applyIkMirrorStaticPatch } from './degrades/ik_mirror_static.mjs';
 import { applyTexture3dSlice2dPatch } from './degrades/texture3d_slice2d.mjs';
+import { applyScissoredResizePatch } from './degrades/scissored_resize.mjs';
 import { applyGpgpuBirdsGltfCpuFlockPatch } from './degrades/gpgpu_birds_gltf_cpu_flock.mjs';
 import { applyVrmlDeferredSwapPatch } from './degrades/vrml_deferred_swap.mjs';
 import { mergeGlbByMaterial } from './degrades/glb_material_merge.mjs';
@@ -1294,6 +1295,8 @@ webgl_geometry_shapes: {
     directory: 'three-materials-texture-filters',
     name: 'Materials Texture Filters — three.js r186',
     description: 'Unmodified official webgl_materials_texture_filters module on the JSR THREE R1/WebGL2 runtime.',
+    version: '0.1.1',
+    scissoredResize: true,
     icon: '📐',
     expected: {
       html: 'd6ce875f22df04b91e87151119fc6e8553522e8db3f321dd00850fa1ed3fcd06',
@@ -1359,6 +1362,7 @@ webgl_geometry_shapes: {
     directory: 'three-materials-texture-anisotropy',
     name: 'Materials Texture Anisotropy — three.js r186',
     description: 'Unmodified official webgl_materials_texture_anisotropy module on the JSR THREE R1/WebGL2 runtime.',
+    scissoredResize: true,
     icon: '📐',
     expected: {
       html: 'f139a7724d0bd0bd38754e6c7dadf248c616c330590f85b20c001a95a950fe00',
@@ -4567,6 +4571,8 @@ webgl_geometry_shapes: {
     directory: 'three-materials-texture-manualmipmap',
     name: 'materials - manual mipmaping — three.js r186',
     description: 'Unmodified official webgl_materials_texture_manualmipmap module on the JSR THREE R1/WebGL2 runtime.',
+    version: '0.1.1',
+    scissoredResize: true,
     icon: '🧊',
     expected: {
       html: '59e775b82821b759caad44ccc2bd9976a7fd8b13928ace93ae25a0099b93742d',
@@ -5269,6 +5275,7 @@ webgl_geometry_shapes: {
     directory: 'three-postprocessing-unreal-bloom-selective',
     name: 'postprocessing - unreal bloom selective — three.js r186',
     description: 'Unmodified official webgl_postprocessing_unreal_bloom_selective module on the JSR THREE R1/WebGL2 runtime.',
+    version: '0.1.1',
     icon: '🧊',
     expected: {
       html: '55e63e413e2d38f4f6b2b7153e6ea63742906b5258038abb4f8b5ffa3e911edb',
@@ -7376,6 +7383,12 @@ async function main() {
     // throws on drift; official_module.js keeps the pinned bytes.
     officialBuildBytes = applyTexture3dSlice2dPatch(officialBuildBytes);
   }
+  if (definition.scissoredResize) {
+    // The official split-screen modules capture their dimensions before the
+    // native host's first viewport event. Refresh those captured values and
+    // the camera/renderer on resize (degrades/scissored_resize.mjs).
+    officialBuildBytes = applyScissoredResizePatch(officialBuildBytes);
+  }
   if (definition.dragThrottleHover) {
     // Bounded degrade: coalesce the official per-pointermove hover raycast
     // (see applyDragThrottleHover). Anchored patch throws on drift;
@@ -7653,7 +7666,7 @@ async function main() {
     id: definition.id,
     name: definition.name,
     description: definition.description,
-    version: '0.1.0',
+    version: definition.version || '0.1.0',
     icon: definition.icon,
     allowedCommands: [],
     network: false,

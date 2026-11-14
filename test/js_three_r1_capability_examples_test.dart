@@ -52,7 +52,7 @@ void main() {
     'three-multiple-rendertargets': 'MRT attachment 0',
     'three-pmrem-cubemap': 'PMREM',
     'three-pmrem-equirectangular': 'PMREM',
-    'three-pmrem-test': 'PMREM',
+    'three-pmrem-test': 'bounded 64x32 environment',
     'three-postprocessing-3dlut': null,
     'three-rendertarget-texture2darray': 'array render target',
     'three-lightprobe': 'light-probe band 0',

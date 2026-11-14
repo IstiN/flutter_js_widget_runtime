@@ -6355,7 +6355,7 @@ export class JsrWebGLRenderer {
       this._backgroundMesh.renderOrder = -1e6;
     }
     const mesh = this._backgroundMesh;
-    mesh.material.envMap = background;
+    mesh.material.envMap = background._r1PmremSource || background;
     camera.getWorldPosition(_position);
     mesh.position.copy(_position);
     mesh.scale.setScalar(Math.max(0.001, (camera.near || 0.1) * 2));
@@ -6823,11 +6823,25 @@ export class JsrWebGLRenderer {
       // chain, visibility flags, node ensure, per-mesh lanes): their frame
       // validation lives in _flushColorBatches. Two expando reads instead
       // of ~80 — the 2000-mesh interactive-cubes walk is dominated by this.
-      if (object._r1ColorBatchMember) {
-        const wdiag = this._batchDiag;
-        if (wdiag) wdiag.early++;
-        object.__r1Pid = 0;
-        return;
+      const previousBatchMember = object._r1ColorBatchMember;
+      if (previousBatchMember) {
+        const canRejoinNow = previousBatchMember.material !== object.material &&
+          object.material && !Array.isArray(object.material) &&
+          this._colorBatchMaterialEligible(object.material);
+        if (!canRejoinNow) {
+          const wdiag = this._batchDiag;
+          if (wdiag) wdiag.early++;
+          object.__r1Pid = 0;
+          return;
+        }
+        // A composer pass can temporarily replace a material (selective
+        // bloom darkens non-bloomed meshes, then restores them before the
+        // next render). The old early-out skipped the walk for the restored
+        // mesh; flush evicted the stale member only AFTER traversal, leaving
+        // a blank frame and no chance to rejoin until another tick. Evict
+        // before the walk so an eligible swap re-registers in this same pass.
+        // Keep the historical deferred exit for ineligible/array materials.
+        this._colorBatchEvict(previousBatchMember.group, object);
       }
       // THREE.LOD selects the active level per frame; upstream WebGLRenderer
       // does the same in projectObject before visibility is flattened.

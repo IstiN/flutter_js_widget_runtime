@@ -1086,12 +1086,16 @@ void main() {
     // examples use 1 or 0.9; ratio drives the visible distortion anyway).
     float envIntensity = encodedEnv < 0.0 ? 1.0 : encodedEnv;
     if (kind == 2) {
-      // MeshStandardMaterial: approximate split IBL instead of adding a roughness-scaled mirror to
-      // every material. Diffuse irradiance survives roughness 1 and preserves
-      // albedo/maps; only the specular lobe vanishes at full roughness.
+      // MeshStandardMaterial: bounded split IBL. A rough metal still has a
+      // broad environment lobe; multiplying its only specular term by
+      // (1-roughness) made metalness=1/roughness=1 objects exactly black
+      // when the scene had no direct lights (RoomEnvironment/selective
+      // bloom). Redistribute the metallic environment response between a
+      // diffuse-like broad lobe and the mirror lobe instead of deleting it.
+      // This is an explicit no-PMREM approximation, not a prefiltered IBL.
       float metal = clamp(metalnessFactor, 0.0, 1.0);
       float rough = clamp(roughnessFactor, 0.0, 1.0);
-      vec3 diffuseIbl = albedo.rgb * (1.0 - metal);
+      vec3 diffuseIbl = albedo.rgb * (1.0 - metal + metal * rough);
       vec3 f0 = mix(vec3(0.04), albedo.rgb, metal);
       color += envColor * envIntensity *
           (diffuseIbl + f0 * (1.0 - rough));

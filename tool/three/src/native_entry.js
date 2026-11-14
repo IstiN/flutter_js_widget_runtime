@@ -1,6 +1,6 @@
 import {
   Box3, CubeCamera as CoreCubeCamera, Mesh, DataTexture, EquirectangularReflectionMapping,
-  LinearFilter, Matrix3, Matrix4, PMREMGenerator as CorePMREMGenerator, RGBAFormat, SkinnedMesh as CoreSkinnedMesh,
+  FloatType, HalfFloatType, LinearFilter, Matrix3, Matrix4, PMREMGenerator as CorePMREMGenerator, RGBAFormat, SkinnedMesh as CoreSkinnedMesh,
   Sphere, UnsignedByteType
 } from 'three';
 import { installThreeRuntime } from './runtime.js';
@@ -8,6 +8,7 @@ import { installNativeCanvas2D } from './native_canvas2d.js';
 import { installNativeRaycastBVH } from './native_raycast_bvh.js';
 import { JsrWebGLRenderer } from './native_renderer.js';
 import { JsrImageLoader, JsrTextureLoader } from './native_loaders.js';
+import { prefilterSparseEquirect } from './native_pmrem.js';
 
 // Addon passes construct Image directly for embedded lookup textures. Route
 // those elements through the same host decoder as ImageLoader, including the
@@ -222,6 +223,25 @@ export class JsrPMREMGenerator extends CorePMREMGenerator {
   fromEquirectangular(equirectangular) {
     const renderer = this._renderer;
     if (renderer instanceof JsrWebGLRenderer) {
+      const image = equirectangular?.image;
+      const filtered = (equirectangular?.type === HalfFloatType || equirectangular?.type === FloatType ||
+          equirectangular?.type === UnsignedByteType)
+        ? prefilterSparseEquirect(image, equirectangular.type === HalfFloatType)
+        : null;
+      if (filtered) {
+        const texture = new DataTexture(filtered.data, filtered.width, filtered.height, RGBAFormat, FloatType);
+        texture.mapping = equirectangular.mapping || EquirectangularReflectionMapping;
+        texture.colorSpace = equirectangular.colorSpace;
+        texture.minFilter = LinearFilter;
+        texture.magFilter = LinearFilter;
+        texture.generateMipmaps = false;
+        texture.needsUpdate = true;
+        // Keep the original for the background: upstream displays the source
+        // environment separately from the prefiltered material irradiance.
+        texture._r1PmremSource = equirectangular;
+        this._warn(renderer, 'R1 CPU-prefilters a sparse HDR equirect into one bounded 64x32 environment; roughness-dependent CubeUV mips are omitted.');
+        return { texture, dispose() {} };
+      }
       this._warn(renderer, 'R1 samples the source equirectangular texture directly; PMREM CubeUV prefiltering and roughness blur are omitted.');
       return { texture: equirectangular, dispose() {} };
     }

@@ -924,6 +924,36 @@ test('a scene mixing ShaderMaterial and basic meshes renders without a capabilit
   assert.ok(packet && packet.commands.length > 0, 'basic mesh still drew after the shader-material rejection');
 });
 
+test('an eligible material swap rejoins its color batch in the same composer tick', async () => {
+  const host = createHost();
+  const T = host.THREE;
+  const { renderer: value, scene, camera } = rendererHost(host);
+  const original = new T.MeshStandardMaterial({ color: 0x336699, roughness: 1, metalness: 1 });
+  const dark = new T.MeshBasicMaterial({ color: 0x000000 });
+  const mesh = new T.Mesh(triangleGeometry(T), dark);
+  scene.add(mesh);
+  value.render(scene, camera);
+  await drain();
+  // Selective bloom restores the original material between two renders in
+  // one JS tick. The second render must not merely evict the dark batch and
+  // present an empty frame.
+  mesh.material = original;
+  value.render(scene, camera);
+  await drain();
+  const packet = host.packets()[1];
+  const batch = only(packet, 11)[0].body;
+  assert.equal(u32(batch, 4), 1, 'restored mesh is present in the second pass');
+  assert.equal(u32(batch, 12), 3, 'the color-batch lane carries instance colors');
+  assert.equal(batch.length, 112, 'one matrix and one RGB instance follow the part');
+  const colorOffset = 36 + 16 * 4;
+  near(f32(batch, colorOffset), original.color.r);
+  near(f32(batch, colorOffset + 4), original.color.g);
+  near(f32(batch, colorOffset + 8), original.color.b);
+  value.render(scene, camera);
+  await drain();
+  assert.deepEqual(opcodes(host.packets()[2]), [8], 'the restored batch is stable on the next frame');
+});
+
 test('a fast color pass restores the node material after a depth override', async () => {
   const host = createHost();
   const T = host.THREE;

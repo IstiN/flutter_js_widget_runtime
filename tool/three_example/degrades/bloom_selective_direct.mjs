@@ -42,8 +42,15 @@ export class EffectComposer {
   }
   addPass(pass) { this.passes.push(pass); }
   render(deltaTime) {
+    // The offscreen bloom composer has no bounded render-target/mip lane.
+    // Skip it entirely: rendering its darkened scene directly would replace
+    // the restored beauty pass with the temporary black materials.
+    if (!this.renderToScreen) return;
     for (const pass of this.passes) {
-      if (pass instanceof RenderPass) pass.render(this.renderer, deltaTime);
+      if (pass instanceof RenderPass) {
+        pass.renderToScreen = true;
+        pass.render(this.renderer, null, null, deltaTime);
+      }
       // The real RenderPass.render writes straight into the composer's
       // current target; direct mode keeps the canvas as the one target.
       else if (typeof pass.render === 'function') pass.render(this.renderer, deltaTime);

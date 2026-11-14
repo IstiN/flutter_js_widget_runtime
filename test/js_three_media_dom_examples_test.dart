@@ -11,6 +11,7 @@ Future<(ThreeQuickjsExampleHarness, ThreeDrawPlan)> _render(
   String id, {
   bool allowLightCaps = false,
   bool startOnGesture = false,
+  int targetFrames = 2,
 }) async {
   final harness = await ThreeQuickjsExampleHarness.boot(
     tester,
@@ -27,7 +28,12 @@ Future<(ThreeQuickjsExampleHarness, ThreeDrawPlan)> _render(
     });
   }
   if (!allowLightCaps) {
-    final plan = await pumpThreeExampleHealthy(tester, harness, _exampleId(id));
+    final plan = await pumpThreeExampleHealthy(
+      tester,
+      harness,
+      _exampleId(id),
+      targetFrames: targetFrames,
+    );
     return (harness, plan);
   }
   await harness.pumpUntil(
@@ -118,8 +124,22 @@ void main() {
     'three-postprocessing-unreal-bloom-selective',
   ]) {
     testWidgets('$id submits its native degraded scene', (tester) async {
-      final (harness, plan) = await _render(tester, id);
+      final selectiveBloom =
+          id == 'three-postprocessing-unreal-bloom-selective';
+      final (harness, plan) = await _render(
+        tester,
+        id,
+        // The bounded selective-bloom degrade intentionally skips the
+        // offscreen darkened composer and submits only the restored beauty
+        // pass. Two submits would mean the temporary black-material scene
+        // leaked into the presented stream again.
+        targetFrames: selectiveBloom ? 1 : 2,
+      );
       expect(plan.draws, isNotEmpty);
+      if (selectiveBloom) {
+        expect(harness.state!.submittedFrameCount, 1);
+        _expectWarning(harness, 'selective-bloom scene passes directly');
+      }
       _expectNoJsErrors(harness);
       await harness.dispose(tester);
     }, timeout: const Timeout(Duration(seconds: 180)));
