@@ -3264,7 +3264,8 @@ export class JsrWebGLRenderer {
           expanded[i * 4 + 3] = 255;
         }
         bytes = expanded;
-      } else if (texture.type === UnsignedByteType && !(data instanceof Uint8Array)) {
+      } else if (texture.type === UnsignedByteType && !(data instanceof Uint8Array) &&
+          Object.prototype.toString.call(data) !== '[object Uint8Array]') {
         // Float-typed default-type textures (gpgpu position/velocity
         // DataTextures with UnsignedByteType defaults) belong to the adapted
         // float-sampler lanes, not the RGBA8 raw lane: drop the map (warn)
@@ -5710,6 +5711,11 @@ export class JsrWebGLRenderer {
     if (!material || Array.isArray(material) || material !== rec.material) return miss('material');
     const old = this._state.nodes.get(id);
     const expectedMaterialId = resourceId(material);
+    // Disposing a resource does not dispose the upstream Mesh/node. A fast
+    // hit that checks only the node would keep drawing a stale reference and
+    // never re-upload the disposed geometry/material on the next render.
+    if (!this._state.geometries.has(old.geometryId) ||
+        !this._state.materials.has(expectedMaterialId)) return miss('resourceDisposed');
     // A composer depth/override pass rewrites this node's materialId without
     // changing object.material. The next color pass must restore the cached
     // material even when matrix/geometry/identity are all unchanged; simply
@@ -5796,6 +5802,9 @@ export class JsrWebGLRenderer {
   /// ~30-read validation outside the traverse, where the 2000-mesh
   /// interactive-cubes family previously paid ~80 reads inside it.
   _colorBatchWalk(object, id, parentId, visibleHere) {
+    // Low-level protocol decoder tests use ordinary per-node draws; the
+    // production color-batch contract is covered separately by batch_test.
+    if (globalThis.__JSR_NO_COLOR_BATCH) return null;
     const diag = this._batchDiag;
     if (diag) diag.walkCalls++;
     if (!object.isMesh) { if (diag) diag.rejectMesh++; return null; }
@@ -6157,7 +6166,12 @@ export class JsrWebGLRenderer {
         seenNodes.add(variant.batchId);
       }
       const count = group.count;
-      const signature = `1:${count}:${group.epoch}:${group.matrixEpoch}:${materialId}`;
+      // Dynamic topology (MarchingCubes drawRange, morph uploads, indexed
+      // edits) changes the part window even when every instance matrix and
+      // color is unchanged. Retain the batch but re-emit its part against
+      // the exact geometry version/range validated above.
+      const geometryVersion = this._state.geometries.get(geometry.id)?.version || 0;
+      const signature = `1:${count}:${group.epoch}:${group.matrixEpoch}:${materialId}:${geometryVersion}:${geometry.rangeStart}:${geometry.drawCount}`;
       const previous = this._state.batches.get(current.batchId);
       if (chainVisible && (!previous || previous.signature !== signature)) {
         const changed = this._nextVersion(this._state.batches, current.batchId, signature);
@@ -6172,7 +6186,6 @@ export class JsrWebGLRenderer {
         ));
         current.validatedEpoch = group.epoch;
         current.validatedMatrixEpoch = group.matrixEpoch;
-        const geometryVersion = this._state.geometries.get(geometry.id)?.version || 0;
         const materialVersion = this._state.materials.get(materialId)?.version || 0;
         this._mapSet(this._state.batches, current.batchId, {
           signature, version: changed.version, object: current.anchor, parts,

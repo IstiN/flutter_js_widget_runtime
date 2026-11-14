@@ -38,9 +38,10 @@ function decode(packet) {
   // Pin the accepted range, not one number, so a bump does not silently
   // stale this suite. R1 v7 carries renderOrder and PointLight decay;
   // v8 carries the material stencil tail, colorWrite flag bit and
-  // OPCODE.STENCIL_CLEAR markers.
+  // OPCODE.STENCIL_CLEAR markers. v9 adds scissored multi-view clears and
+  // the generic post tail (composite textures 3..5 + scalar parameters).
   const envelopeVersion = payload.readUInt16LE(4);
-  assert.ok(envelopeVersion >= 3 && envelopeVersion <= 8, `unexpected R1 envelope version ${envelopeVersion}`);
+  assert.ok(envelopeVersion >= 3 && envelopeVersion <= 9, `unexpected R1 envelope version ${envelopeVersion}`);
   assert.equal(payload.readUInt16LE(6), 0);
   const count = payload.readUInt32LE(8);
   const commands = [];
@@ -102,6 +103,11 @@ function createHost(web = false, options = {}) {
   };
   const sandbox = {
     jsr, console, sendMessage() {}, setTimeout, clearTimeout,
+    // These decoder tests assert immediately after renderer.render(). The
+    // production task-end composer coalescing has its own batch_test.js;
+    // disable it here so the unit host observes one synchronous envelope.
+    __JSR_NO_RENDER_BATCH: true,
+    __JSR_NO_COLOR_BATCH: true,
     postMessage(message, transfer) { structured.push({ message, transfer: transfer || [] }); }
   };
   if (!options.noTextCodecs) Object.assign(sandbox, { TextEncoder, TextDecoder });

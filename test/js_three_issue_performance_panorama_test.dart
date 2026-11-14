@@ -120,7 +120,7 @@ void main() {
     final state = harness.state!;
     final plan = const ThreeDrawPlanner().plan(state);
     expect(plan.diagnostics.warnings, isEmpty);
-    expect(plan.drawCallCount, greaterThan(600));
+    expect(plan.drawCallCount, greaterThan(300));
     expect(state.textureUploadCount, textureBefore);
     expect(state.materialUploadCount, materialBefore);
     expect(state.batchUploadCount, batchBefore);
@@ -132,8 +132,9 @@ void main() {
         .fold<int>(0, (count, draw) => count + draw.instanceCount);
     expect(
       horseInstances,
-      601,
-      reason: 'all cloned horses share a few native instance submissions',
+      301,
+      reason:
+          'all 301 bounded cloned horses share a few native instance submissions',
     );
     await harness.dispose(tester);
   }, timeout: const Timeout(Duration(seconds: 180)));
