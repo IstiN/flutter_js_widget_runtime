@@ -1,7 +1,7 @@
 import {
   ACESFilmicToneMapping, AgXToneMapping, BackSide, BasicDepthPacking, BoxGeometry, BufferAttribute, BufferGeometry, CineonToneMapping, Color, CubeReflectionMapping, CubeRefractionMapping,
   ClampToEdgeWrapping, CustomToneMapping, DataTexture, DoubleSide, DynamicDrawUsage, EquirectangularReflectionMapping, Float32BufferAttribute, FrontSide, Frustum, InstancedBufferAttribute, InstancedMesh, LinearFilter,
-  LinearMipmapNearestFilter, LinearMipmapLinearFilter, LinearToneMapping, LineBasicMaterial, Matrix4, Mesh, MeshBasicMaterial, MeshLambertMaterial, MeshNormalMaterial, MeshStandardMaterial,
+  LinearMipmapNearestFilter, LinearMipmapLinearFilter, LinearToneMapping, LineBasicMaterial, Matrix4, Mesh, MeshBasicMaterial, MeshDepthMaterial, MeshLambertMaterial, MeshNormalMaterial, MeshStandardMaterial,
   MirroredRepeatWrapping, NeutralToneMapping, NearestFilter, NearestMipmapNearestFilter,
   NearestMipmapLinearFilter, NoToneMapping, NormalBlending, CustomBlending, AdditiveBlending, PointsMaterial, HalfFloatType, FloatType, IntType, RedFormat,
   ReinhardToneMapping, RGBAFormat, RGBAIntegerFormat, CompressedTexture, RepeatWrapping, SRGBColorSpace, UVMapping, UnsignedByteType,
@@ -1610,7 +1610,23 @@ export function postShaderAdaptation(source, fragment) {
   let textures = null;
   const p = new Array(34).fill(0);
   const set = (index, v) => { p[index] = Number.isFinite(v) ? v : 0; };
-  if (has('tOld') && has('tNew') && has('damp')) {
+  if (has('tColor') && has('tDepth') && has('textureWidth') && has('textureHeight') &&
+      has('focalDepth') && has('focalLength') && has('fstop') && has('maxblur') &&
+      fragment.includes('maxringsamples') && fragment.includes('ringsamples')) {
+    // BokehShader2 (webgl_postprocessing_dof2): normalized linear depth from
+    // the R1 depth prepass drives a native thin-lens spiral bokeh composite.
+    // tDepth rides mapRightTexture; arbitrary rings/samples defines become a
+    // fixed 16-tap kernel so GPU cost stays bounded at high DPR.
+    op = 16; map = u.tColor.value || null; right = u.tDepth.value || null;
+    set(1, value('textureWidth', 1)); set(2, value('textureHeight', 1));
+    set(3, value('focalDepth', 30)); set(4, value('focalLength', 35));
+    set(5, value('fstop', 2.2)); set(6, value('maxblur', 1));
+    set(7, value('znear', 0.1)); set(8, value('zfar', 2000));
+    set(9, value('dithering', 0.0001));
+    set(10, value('shaderFocus', 0));
+    const focus = vector('focusCoords', 0.5, 0.5);
+    set(11, focus[0]); set(12, focus[1]);
+  } else if (has('tOld') && has('tNew') && has('damp')) {
     op = 1; map = u.tNew.value || null; right = u.tOld.value || null; set(1, value('damp', 0.96));
   } else if (has('tDiffuse') && has('resolution') && fragment.includes('rgbNW') && fragment.includes('rgbNE')) {
     // three.js FXAShader: same tDiffuse/resolution contract as Sobel but the
@@ -5677,6 +5693,18 @@ export class JsrWebGLRenderer {
     if (!this._state.nodes.has(id)) return miss('retired');
     const material = object.material;
     if (!material || Array.isArray(material) || material !== rec.material) return miss('material');
+    const old = this._state.nodes.get(id);
+    const expectedMaterialId = resourceId(material);
+    // A composer depth/override pass rewrites this node's materialId without
+    // changing object.material. The next color pass must restore the cached
+    // material even when matrix/geometry/identity are all unchanged; simply
+    // returning the fast record leaves the color target drawing the depth
+    // override (webgl_postprocessing_dof2 showed a gray depth image).
+    if (old.materialId !== expectedMaterialId) {
+      this._updateNode(object, id, parentId, old.geometryId, expectedMaterialId,
+        object.visible && material.visible !== false, old.objectKind, commands,
+        { x: old.spriteCenterX, y: old.spriteCenterY });
+    }
     if (object.geometry !== rec.geometry || !object.isMesh ||
         object.isInstancedMesh || object.isBatchedMesh || object.isSkinnedMesh ||
         (object.morphTargetInfluences && object.morphTargetInfluences.length)) return miss('lane');
@@ -5703,8 +5731,6 @@ export class JsrWebGLRenderer {
       // the final finite/matrix diff and marks shadow content dirty through
       // the ordinary command stream, so pixels and shadow revisions retain
       // the full-lane semantics.
-      const old = this._state.nodes.get(id);
-      if (!old) return miss('retired');
       this._updateNode(object, id, parentId, old.geometryId, old.materialId,
         visible, old.objectKind, commands,
         { x: old.spriteCenterX, y: old.spriteCenterY });
@@ -6624,10 +6650,10 @@ export class JsrWebGLRenderer {
         (overrideMaterial.name === 'BokehDepthShader' || overrideMaterial.uniforms?.mNear)) {
       // BokehDepth-style shader overrides have no shader lane; keep their
       // bounding dark-box semantics.
-      if (!this._r1DepthOverride) this._r1DepthOverride = new MeshBasicMaterial({ color: 0x000000, side: overrideMaterial.side });
+      if (!this._r1DepthOverride) this._r1DepthOverride = new MeshDepthMaterial({ side: overrideMaterial.side });
       overrideMaterial = this._r1DepthOverride;
       adaptationWarn(scene, '_r1DepthOverrideWarned',
-        'R1 lowers shader depth overrides to opaque dark geometry for bounded target passes.');
+        'R1 renders BokehDepth shader overrides through the linear depth-viz lane for the native bokeh composite.');
     }
     // A plain MeshDepthMaterial override now rides the real depth-viz lane
     // (material kind 12, grayscale linearized view depth into the color

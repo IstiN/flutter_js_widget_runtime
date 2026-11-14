@@ -669,6 +669,46 @@ vec4 r1PostColor(vec2 uv) {
     }
     return vec4(diffuseSum, 1.0);
   }
+  if (op == 16) {
+    // BokehShader2: normalized linear depth from the R1 depth prepass.
+    // Reconstruct view-space meters and evaluate the official thin-lens CoC.
+    float depth01 = texture(mapRightTexture, uv).r;
+    float znear = max(r1PostParam(7), 0.0001);
+    float zfar = max(r1PostParam(8), znear + 0.001);
+    float depth = znear + depth01 * (zfar - znear);
+    float fDepth = max(r1PostParam(3), znear);
+    if (r1PostParam(10) > 0.5) {
+      vec2 focusUv = vec2(r1PostParam(11), r1PostParam(12));
+      fDepth = znear + texture(mapRightTexture, focusUv).r * (zfar - znear);
+    }
+    float f = max(r1PostParam(4), 1.0);
+    float d = max(fDepth * 1000.0, f + 0.001);
+    float o = max(depth * 1000.0, f + 0.001);
+    float a = (o * f) / (o - f);
+    float b = (d * f) / (d - f);
+    float c = (d - f) / (d * max(r1PostParam(5), 0.1) * 0.03);
+    float blur = clamp(abs(a - b) * c, 0.0, 1.0);
+    if (blur < 0.025) return base;
+    vec2 texel = vec2(1.0 / max(r1PostParam(1), 1.0),
+                      1.0 / max(r1PostParam(2), 1.0));
+    float radius = blur * max(r1PostParam(6), 0.0);
+    float noise = fract(sin(dot(uv, vec2(12.9898, 78.233))) * 43758.5453);
+    float angle = noise * 6.2831853;
+    vec3 sum = base.rgb;
+    float weight = 1.0;
+    // Two eight-tap spiral rings; center-weighted to keep the focused shape.
+    for (int i = 0; i < 16; i++) {
+      float fi = float(i);
+      float ring = fi < 8.0 ? 0.45 : 1.0;
+      float theta = angle + fi * 2.39996323;
+      vec2 offset = vec2(cos(theta), sin(theta)) * texel * radius * ring;
+      vec3 sampleColor = texture(mapTexture, uv + offset).rgb;
+      float w = fi < 8.0 ? 1.0 : 0.75;
+      sum += sampleColor * w;
+      weight += w;
+    }
+    return vec4(sum / weight, base.a);
+  }
   if (op == 15) {
     vec3 bloom = r1BloomContribution(0, base.rgb);
     bloom += r1BloomContribution(1, texture(mapRightTexture, uv).rgb);

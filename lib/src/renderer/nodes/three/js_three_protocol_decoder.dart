@@ -609,8 +609,8 @@ final class JsThreeProtocolDecoder {
   ) {
     final wireOp = dubois.left[0];
     final op = wireOp.round();
-    if (wireOp != op || op < 1 || op > 15) {
-      body.fail('postprocessing operation must be an integer in 1..15');
+    if (wireOp != op || op < 1 || op > 16) {
+      body.fail('postprocessing operation must be an integer in 1..16');
     }
     final extraTextures =
         post.texture3Id != 0 || post.texture4Id != 0 || post.texture5Id != 0;

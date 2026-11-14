@@ -924,6 +924,33 @@ test('a scene mixing ShaderMaterial and basic meshes renders without a capabilit
   assert.ok(packet && packet.commands.length > 0, 'basic mesh still drew after the shader-material rejection');
 });
 
+test('a fast color pass restores the node material after a depth override', async () => {
+  const host = createHost();
+  const T = host.THREE;
+  const { renderer: value, scene, camera } = rendererHost(host);
+  const mesh = new T.Mesh(triangleGeometry(T), new T.MeshPhongMaterial({ color: 0x4477ff }));
+  mesh.receiveShadow = true; // keep the ordinary node out of the color-batch lane
+  scene.add(mesh);
+  const depth = new T.MeshDepthMaterial();
+  value.render(scene, camera);
+  await drain();
+  scene.overrideMaterial = depth;
+  value.render(scene, camera);
+  await drain();
+  scene.overrideMaterial = null;
+  value.render(scene, camera);
+  await drain();
+  const packets = host.packets().slice(-3);
+  const materialFor = packet => {
+    const node = only(packet, 4).find(command => u32(command.body, 0) === id(mesh));
+    assert.ok(node, 'mesh node emitted');
+    return u32(node.body, 12);
+  };
+  assert.equal(materialFor(packets[2]), materialFor(packets[0]),
+    'the unchanged fast mesh must not leave the depth override on the color pass');
+  assert.notEqual(materialFor(packets[1]), materialFor(packets[0]));
+});
+
 test('color-batch anchors stay owned by their scene: foreign-scene renders must not re-parent them and hidden ancestors must hide them', async () => {
   const host = createHost();
   const T = host.THREE;
