@@ -44,9 +44,10 @@ void main() {
       final state = harness.state!;
       final uploadsBefore = state.geometryUploadCount;
       final submittedBefore = state.submittedFrameCount;
-      // The official example rewrites the per-point size attribute every
-      // frame; sizes are represented by their mean, so no geometry data
-      // changes. Every animated frame must ride the material lane only.
+      // The R1-prepared example rewrites the per-point size attribute every
+      // second display frame; sizes are represented by their mean, so no
+      // geometry data changes. Updates ride the material lane only while
+      // rotation and presentation remain full-rate.
       await harness.pumpFrames(tester, 10);
       final state2 = harness.state!;
       expect(

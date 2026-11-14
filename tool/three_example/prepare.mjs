@@ -16,6 +16,8 @@ import { applyInstancingDynamicFastPathPatch } from './degrades/instancing_dynam
 import { applyProtoplanetBoundedResolutionPatch } from './degrades/protoplanet_bounded_resolution.mjs';
 import { applyLodBoundedCountPatch } from './degrades/lod_bounded_count.mjs';
 import { applyShadowmapBoundedCountPatch } from './degrades/shadowmap_bounded_count.mjs';
+import { applyCustomPoints30HzPatch, applyInterleaved30HzPatch, applyMemoryGeometryPatch, applyMemoryMaterialCadencePatch, applyGpgpuBirds30HzPatch } from './degrades/bounded_30hz_updates.mjs';
+import { applyLayerUpdateRawArrayPatch, applyPartialUpdateRawCheckerPatch, applyKtx2UprightPatch } from './degrades/raw_texture_fallbacks.mjs';
 import { applyPointsDynamicLoaderPatch } from './degrades/points_dynamic_loader_patch.mjs';
 import { applyWidgetTextDecodeJoinPatch } from './degrades/widget_text_decode_join.mjs';
 import { applySponzaStandInPatch, buildSponzaStandin } from './degrades/sponza_standin.mjs';
@@ -71,6 +73,7 @@ const EXAMPLES = Object.freeze({
     id: 'three-interactive-raycasting-points',
     directory: 'three-interactive-raycasting-points',
     name: 'Raycasting Points — three.js r186',
+    compat: "import { installPointsRaycast30Hz } from './degrades/raycast_30hz.mjs'; installPointsRaycast30Hz();",
     description: 'Unmodified official webgl_interactive_raycasting_points module on the JSR THREE R1/WebGL2 runtime.',
     icon: '✨',
     expected: {
@@ -1033,6 +1036,7 @@ webgl_loader_ply: {
     id: 'three-materials-partialupdate',
     directory: 'three-materials-partialupdate',
     name: 'Materials Texture Partialupdate — three.js r186',
+    partialUpdateRawChecker: true,
     description: 'Unmodified official webgl_materials_texture_partialupdate module on the JSR THREE R1/WebGL2 runtime.',
     icon: '📐',
     expected: {
@@ -2985,6 +2989,7 @@ webgl_geometry_shapes: {
     id: 'three-buffergeometry-instancing-interleaved',
     directory: 'three-buffergeometry-instancing-interleaved',
     name: 'indexed instancing (single box), interleaved buffers — three.js r186',
+    interleaved30Hz: true,
     description: 'Unmodified official webgl_buffergeometry_instancing_interleaved module on the JSR THREE R1/WebGL2 runtime.',
     icon: '🧊',
     expected: {
@@ -3073,6 +3078,7 @@ webgl_geometry_shapes: {
     id: 'three-custom-attributes-points',
     directory: 'three-custom-attributes-points',
     name: 'custom attributes [particles] — three.js r186',
+    customPoints30Hz: true,
     description: 'Unmodified official webgl_custom_attributes_points module on the JSR THREE R1/WebGL2 runtime.',
     icon: '🧊',
     expected: {
@@ -3192,6 +3198,7 @@ webgl_geometry_shapes: {
     id: 'three-gpgpu-birds',
     directory: 'three-gpgpu-birds',
     name: 'gpgpu - flocking — three.js r186',
+    gpgpuBirds30Hz: true,
     description: 'Unmodified official webgl_gpgpu_birds module on the JSR THREE R1/WebGL2 runtime.',
     icon: '🧊',
     expected: {
@@ -5550,6 +5557,9 @@ webgl_geometry_shapes: {
     id: 'three-test-memory2',
     directory: 'three-test-memory2',
     name: 'Test Memory2 — three.js r186',
+    memoryGeometry: true,
+    memoryMaterialCadence: true,
+    compat: "import { installDedupWarnings } from './degrades/dedup_warnings.mjs'; installDedupWarnings();",
     description: 'Unmodified official webgl_test_memory2 module on the JSR THREE R1/WebGL2 runtime.',
     icon: '🧊',
     expected: {
@@ -5588,6 +5598,7 @@ webgl_geometry_shapes: {
     id: 'three-texture2darray-compressed',
     directory: 'three-texture2darray-compressed',
     name: '2D compressed texture array — three.js r186',
+    ktx2Upright: true,
     description: 'Unmodified official webgl_texture2darray_compressed module on the JSR THREE R1/WebGL2 runtime.',
     icon: '🧊',
     expected: {
@@ -5601,6 +5612,8 @@ webgl_geometry_shapes: {
     id: 'three-texture2darray-layerupdate',
     directory: 'three-texture2darray-layerupdate',
     name: 'texture array layer update — three.js r186',
+    layerUpdateRawArray: true,
+    ktx2Upright: true,
     description: 'Unmodified official webgl_texture2darray_layerupdate module on the JSR THREE R1/WebGL2 runtime.',
     icon: '🧊',
     expected: {
@@ -7410,6 +7423,30 @@ async function main() {
   }
   if (definition.shadowmapBoundedCount) {
     officialBuildBytes = applyShadowmapBoundedCountPatch(officialBuildBytes);
+  }
+  if (definition.gpgpuBirds30Hz) {
+    officialBuildBytes = applyGpgpuBirds30HzPatch(officialBuildBytes);
+  }
+  if (definition.memoryMaterialCadence) {
+    officialBuildBytes = applyMemoryMaterialCadencePatch(officialBuildBytes);
+  }
+  if (definition.memoryGeometry) {
+    officialBuildBytes = applyMemoryGeometryPatch(officialBuildBytes);
+  }
+  if (definition.customPoints30Hz) {
+    officialBuildBytes = applyCustomPoints30HzPatch(officialBuildBytes);
+  }
+  if (definition.interleaved30Hz) {
+    officialBuildBytes = applyInterleaved30HzPatch(officialBuildBytes);
+  }
+  if (definition.layerUpdateRawArray) {
+    officialBuildBytes = applyLayerUpdateRawArrayPatch(officialBuildBytes);
+  }
+  if (definition.ktx2Upright) {
+    officialBuildBytes = applyKtx2UprightPatch(officialBuildBytes);
+  }
+  if (definition.partialUpdateRawChecker) {
+    officialBuildBytes = applyPartialUpdateRawCheckerPatch(officialBuildBytes);
   }
   if (definition.pointsDynamicLoaderPatch) {
     // Bounded degrade: route the bundled OBJLoader addon instance through the

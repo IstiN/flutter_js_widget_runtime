@@ -23,7 +23,8 @@ class FlutterGpuThreeHost implements JsThreeHost {
     this.assetLoader,
     required this.shaderAsset,
     JsThreeCanvas2DRasterizer? canvas2dRasterizer,
-  }) : _canvas2dRasterizer = canvas2dRasterizer ?? rasterizeJsThreeCanvas2D;
+  }) : _canvas2dRasterizer = canvas2dRasterizer ?? rasterizeJsThreeCanvas2D,
+       _copyCanvas2dResultBytes = canvas2dRasterizer != null;
 
   static const int maxSurfaces = 64;
   static const int maxCanvas2dSurfaces = 256;
@@ -32,6 +33,8 @@ class FlutterGpuThreeHost implements JsThreeHost {
   final JsThreeAssetLoader? assetLoader;
   final String shaderAsset;
   final JsThreeCanvas2DRasterizer _canvas2dRasterizer;
+  // The built-in rasterizer returns owned bytes; custom ones may retain theirs.
+  final bool _copyCanvas2dResultBytes;
   final JsThreeProtocolDecoder _decoder = JsThreeProtocolDecoder();
   final Map<JsThreeSurfaceKey, FlutterGpuThreeSurface> _surfaces = {};
   final Map<JsThreeSurfaceKey, Map<String, _FlutterCanvas2DState>> _canvas2d =
@@ -233,7 +236,11 @@ class FlutterGpuThreeHost implements JsThreeHost {
       if (!_canvas2dCurrent(key, state, parsed)) {
         return _canvas2dResult(parsed, null, true);
       }
-      return _canvas2dResult(parsed, Uint8List.fromList(bytes), false);
+      return _canvas2dResult(
+        parsed,
+        _copyCanvas2dResultBytes ? Uint8List.fromList(bytes) : bytes,
+        false,
+      );
     } catch (_) {
       if (!_canvas2dCurrent(key, state, parsed)) {
         return _canvas2dResult(parsed, null, true);
@@ -525,7 +532,6 @@ _ThreeRenderRequest? _createThreeRenderRequest(FlutterGpuThreeSurface surface) {
   if (current == null || current.pendingFrameCount == 0) return null;
   // Whole-tick dropping: superseded composer ticks never render.
   current.retainLatestThreeBatch();
-  if (current.pendingFrameCount == 0) return null;
   return _threeRequestForFrames(
     surface,
     current,

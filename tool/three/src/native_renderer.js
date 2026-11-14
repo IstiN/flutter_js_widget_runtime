@@ -1221,6 +1221,7 @@ function sliceDataArrayTexture(source, meta) {
     slice.mipmaps = [{ data: sliceData, width, height }];
     slice.generateMipmaps = false;
     slice.colorSpace = source.colorSpace;
+  slice.flipY = source.flipY;
     slice.wrapS = source.wrapS; slice.wrapT = source.wrapT;
     slice.magFilter = source.magFilter; slice.minFilter = source.minFilter;
     slice._r1ArraySlice = { source, meta, layer, stamp: `${layer}:${source.version || 0}` };
@@ -1264,6 +1265,7 @@ function sliceDataArrayTexture(source, meta) {
   }
   const slice = new DataTexture(out, width, height);
   slice.colorSpace = source.colorSpace;
+  slice.flipY = source.flipY;
   slice.wrapS = source.wrapS; slice.wrapT = source.wrapT;
   slice.magFilter = source.magFilter || LinearFilter;
   slice.minFilter = source.minFilter || LinearFilter;

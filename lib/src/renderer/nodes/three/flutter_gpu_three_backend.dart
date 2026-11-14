@@ -21,6 +21,110 @@ part 'gpu/three_gpu_draw.dart';
 
 const _threeShadowTrace = bool.fromEnvironment('JSR_THREE_SHADOW_TRACE');
 
+List<ThreeDrawPlan> _planThreeFrameList(
+  JsThreeSurfaceState state,
+  JsThreeSubmitFrame? frame,
+  List<JsThreeFramePlanView>? frames,
+  ThreeDrawPlanner planner,
+  ThreeLineMode lineMode,
+) {
+  final List<({JsThreeFrameResources state, JsThreeSubmitFrame? frame})>
+  frameList = frames != null
+      ? [for (final view in frames) (state: view, frame: view.frame)]
+      : <({JsThreeFrameResources state, JsThreeSubmitFrame? frame})>[
+          (state: state, frame: frame),
+        ];
+  final plans = <ThreeDrawPlan>[];
+  // Lever 2: composer passes queue ~15 render-target frames per JS tick
+  // with an unchanged resource revision between them. Plan once and clone
+  // the shell per frame (shared draw lists/lights/stream) instead of
+  // re-walking and re-sorting the scene for every sub-pass. Any state
+  // mutation, scene/camera switch, or cull-set difference between queued
+  // frames forces a fresh plan — composer depth passes swap materials and
+  // the main pass culls differently, so they never share a stale walk.
+  ThreeDrawPlan? reusedPlan;
+  var reusedRevision = -1;
+  var reusedScene = -1;
+  var reusedCamera = -1;
+  Set<int>? reusedCulled;
+  for (final item in frameList) {
+    final frame = item.frame;
+    if (frame == null) {
+      plans.add(planner.plan(item.state, lineMode: lineMode));
+      reusedPlan = null;
+      continue;
+    }
+    final culled = frame.culledNodeIds;
+    final sameWalk =
+        reusedPlan != null &&
+        item.state.contentRevision == reusedRevision &&
+        frame.sceneId == reusedScene &&
+        frame.cameraId == reusedCamera &&
+        FlutterGpuThreeBackend._sameNodeIds(culled, reusedCulled);
+    if (sameWalk) {
+      plans.add(reusedPlan.withFrame(frame));
+      continue;
+    }
+    final plan = planner.plan(item.state, frame: frame, lineMode: lineMode);
+    reusedPlan = plan;
+    reusedRevision = item.state.contentRevision;
+    reusedScene = frame.sceneId;
+    reusedCamera = frame.cameraId;
+    reusedCulled = culled;
+    plans.add(plan);
+  }
+  return plans;
+}
+
+@visibleForTesting
+List<ThreeDrawPlan> debugPlanThreeFrames(
+  JsThreeSurfaceState state, {
+  JsThreeSubmitFrame? frame,
+  List<JsThreeFramePlanView>? frames,
+  ThreeLineMode lineMode = ThreeLineMode.lines,
+}) => _planThreeFrameList(
+  state,
+  frame,
+  frames,
+  const ThreeDrawPlanner(autoInstance: true),
+  lineMode,
+);
+
+bool _dropThreeClear(
+  JsThreeSubmitFrame frame,
+  Set<int> clearedTargets,
+) =>
+    frame.scissorTest && clearedTargets.contains(frame.renderTargetId);
+
+@visibleForTesting
+bool debugThreeDropClear(JsThreeSubmitFrame frame, Set<int> clearedTargets) =>
+    _dropThreeClear(frame, clearedTargets);
+
+void _warnStaleThreeTarget(
+  FlutterGpuThreeBackend backend,
+  JsThreeSubmitFrame frame,
+) {
+  // A render-target resize/create and the frames that reference it can
+  // arrive one batch apart (postprocessing composers resize their targets
+  // on the first layout). Skipping that single offscreen pass keeps the
+  // previous target contents for one frame instead of dropping the whole
+  // surface frame with a PUMP_ERROR.
+  if (backend._staleTargetWarnings.add(backend._key(frame.renderTargetId))) {
+    debugPrint(
+      '[three] skip offscreen pass: target ${frame.renderTargetId} '
+      'missing or has stale dimensions (one frame)',
+    );
+  }
+}
+
+ui.Image _threeOffscreenOnlyImage(ui.Image? previous) {
+  if (previous != null) return previous;
+  throw const FlutterGpuThreeException(
+    'presentation',
+    'an offscreen-only batch has no surface frame to present',
+  );
+}
+
 final class FlutterGpuThreeBackend {
   FlutterGpuThreeBackend._(
     this.engineId,
@@ -277,51 +381,13 @@ final class FlutterGpuThreeBackend {
     JsThreeSubmitFrame? frame,
     List<JsThreeFramePlanView>? frames,
   ) {
-    final List<({JsThreeFrameResources state, JsThreeSubmitFrame? frame})>
-    frameList = frames != null
-        ? [for (final view in frames) (state: view, frame: view.frame)]
-        : <({JsThreeFrameResources state, JsThreeSubmitFrame? frame})>[
-            (state: state, frame: frame),
-          ];
-    final plans = <ThreeDrawPlan>[];
-    // Lever 2: composer passes queue ~15 render-target frames per JS tick
-    // with an unchanged resource revision between them. Plan once and clone
-    // the shell per frame (shared draw lists/lights/stream) instead of
-    // re-walking and re-sorting the scene for every sub-pass. Any state
-    // mutation, scene/camera switch, or cull-set difference between queued
-    // frames forces a fresh plan — composer depth passes swap materials and
-    // the main pass culls differently, so they never share a stale walk.
-    ThreeDrawPlan? reusedPlan;
-    var reusedRevision = -1;
-    var reusedScene = -1;
-    var reusedCamera = -1;
-    Set<int>? reusedCulled;
-    for (final item in frameList) {
-      final frame = item.frame;
-      if (frame == null) {
-        plans.add(_planner.plan(item.state, lineMode: lineMode));
-        reusedPlan = null;
-        continue;
-      }
-      final culled = frame.culledNodeIds;
-      final sameWalk =
-          reusedPlan != null &&
-          item.state.contentRevision == reusedRevision &&
-          frame.sceneId == reusedScene &&
-          frame.cameraId == reusedCamera &&
-          _sameNodeIds(culled, reusedCulled);
-      if (sameWalk) {
-        plans.add(reusedPlan.withFrame(frame));
-        continue;
-      }
-      final plan = _planner.plan(item.state, frame: frame, lineMode: lineMode);
-      reusedPlan = plan;
-      reusedRevision = item.state.contentRevision;
-      reusedScene = frame.sceneId;
-      reusedCamera = frame.cameraId;
-      reusedCulled = culled;
-      plans.add(plan);
-    }
+    final plans = _planThreeFrameList(
+      state,
+      frame,
+      frames,
+      _planner,
+      lineMode,
+    );
     for (final current in plans) {
       for (final warning in current.diagnostics.warnings) {
         _note(warning);
@@ -575,17 +641,7 @@ final class FlutterGpuThreeBackend {
   _GpuRenderTarget? _targetForFrame(JsThreeSubmitFrame frame) {
     final target = _renderTargets[_key(frame.renderTargetId)];
     if (target == null || !_targetDimensionsMatch(target, frame)) {
-      // A render-target resize/create and the frames that reference it can
-      // arrive one batch apart (postprocessing composers resize their targets
-      // on the first layout). Skipping that single offscreen pass keeps the
-      // previous target contents for one frame instead of dropping the whole
-      // surface frame with a PUMP_ERROR.
-      if (_staleTargetWarnings.add(_key(frame.renderTargetId))) {
-        debugPrint(
-          '[three] skip offscreen pass: target ${frame.renderTargetId} '
-          'missing or has stale dimensions (one frame)',
-        );
-      }
+      _warnStaleThreeTarget(this, frame);
       return null;
     }
     return target;
@@ -647,8 +703,7 @@ final class FlutterGpuThreeBackend {
     final clearedTargets = <int>{};
     for (final plan in plans.where((plan) => plan.frame!.renderTargetId != 0)) {
       final frame = plan.frame!;
-      final dropClear =
-          frame.scissorTest && clearedTargets.contains(frame.renderTargetId);
+      final dropClear = _dropThreeClear(frame, clearedTargets);
       clearedTargets.add(frame.renderTargetId);
       draws += _recordTargetPass(
         plan,
@@ -673,8 +728,7 @@ final class FlutterGpuThreeBackend {
     for (var index = 0; index < plans.length; index++) {
       final plan = plans[index];
       final frame = plan.frame!;
-      final dropClear =
-          frame.scissorTest && clearedTargets.contains(frame.renderTargetId);
+      final dropClear = _dropThreeClear(frame, clearedTargets);
       clearedTargets.add(frame.renderTargetId);
       final result = dropClear
           ? _recordThreePassWithClears(
@@ -722,12 +776,7 @@ final class FlutterGpuThreeBackend {
         // submit batches with ONLY offscreen passes between surface frames.
         // The offscreen passes above still execute; the surface simply keeps
         // the previously presented image instead of reporting an error.
-        final previous = _currentImage;
-        if (previous != null) return previous;
-        throw const FlutterGpuThreeException(
-          'presentation',
-          'an offscreen-only batch has no surface frame to present',
-        );
+        return _threeOffscreenOnlyImage(_currentImage);
       }
       final surface = _imageSurface!;
       final surfaceFrame = surface.acquireNextFrame();

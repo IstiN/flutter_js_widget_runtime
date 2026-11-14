@@ -137,7 +137,7 @@ jobs:
           fi
 
       - name: Install crap4dart
-        run: dart pub global activate crap4dart '>=0.15.0 <0.16.0'
+        run: dart pub global activate crap4dart '>=0.30.0 <0.31.0'
 
       - name: CRAP ratchet
         run: crap4dart analyze

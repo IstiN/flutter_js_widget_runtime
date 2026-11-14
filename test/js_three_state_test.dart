@@ -5,6 +5,8 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:js_widget_runtime/src/renderer/nodes/three/js_three_protocol.dart';
 import 'package:js_widget_runtime/src/renderer/nodes/three/js_three_state.dart';
 
+import 'support/three_protocol_cases.dart';
+
 ByteData _view(Uint8List bytes) => ByteData.sublistView(bytes);
 void _u16(Uint8List b, int o, int v) => _view(b).setUint16(o, v, Endian.little);
 void _u32(Uint8List b, int o, int v) => _view(b).setUint32(o, v, Endian.little);
@@ -881,6 +883,176 @@ void main() {
       expect(state.lastSequence, 4);
     },
   );
+
+  group('latest THREE batch retention', () {
+    void applyBatch(
+      JsThreeStateStore store,
+      int sequence,
+      List<int> targetIds,
+    ) {
+      store.apply(
+        threeT1(
+          threeR1([
+            for (final targetId in targetIds)
+              (
+                8,
+                threeFrameV6Target(
+                  targetId: targetId,
+                  width: targetId == 0 ? 0 : 640,
+                  height: targetId == 0 ? 0 : 360,
+                ),
+              ),
+          ], version: 6),
+          sequence: sequence,
+        ),
+      );
+    }
+
+    List<int> pendingTargets(JsThreeSurfaceState state) =>
+        state.pendingFrames.map((frame) => frame.renderTargetId).toList();
+
+    test('ignores fewer than two frames and an all-newest queue', () {
+      final store = JsThreeStateStore();
+      store.apply(threeT1(threeR1(const [], version: 6)));
+      final state = store.surface('engine', 'surface')!;
+      expect(state.pendingFrameCount, 0);
+      expect(state.retainLatestThreeBatch(), 0);
+
+      applyBatch(store, 2, [0]);
+      expect(state.pendingFrameCount, 1);
+      expect(state.retainLatestThreeBatch(), 0);
+      expect(pendingTargets(state), [0]);
+      expect(state.pendingFrameViewCount, 1);
+      expect(state.droppedStaleFrameCount, 0);
+
+      final oneBatchStore = JsThreeStateStore();
+      applyBatch(oneBatchStore, 1, [2, 3, 0]);
+      final oneBatchState = oneBatchStore.surface('engine', 'surface')!;
+      expect(oneBatchState.pendingFrameCount, 3);
+      expect(oneBatchState.retainLatestThreeBatch(), 0);
+      expect(pendingTargets(oneBatchState), [2, 3, 0]);
+      expect(oneBatchState.pendingFrameViewCount, 3);
+      expect(oneBatchState.droppedStaleFrameCount, 0);
+    });
+
+    test('keeps older batches when the newest batch has no surface', () {
+      final store = JsThreeStateStore();
+      applyBatch(store, 1, [2, 0]);
+      applyBatch(store, 2, [2]);
+      final state = store.surface('engine', 'surface')!;
+      final frames = List.of(state.pendingFrames);
+
+      expect(state.retainLatestThreeBatch(), 0);
+      expect(state.pendingFrames, [
+        same(frames[0]),
+        same(frames[1]),
+        same(frames[2]),
+      ]);
+      expect(
+        state.pendingFrames.map((frame) => frame.batchSequence),
+        [1, 1, 2],
+      );
+      expect(state.pendingFrameViewCount, 3);
+      expect(state.droppedStaleFrameCount, 0);
+    });
+
+    test('drops and counts a superseded old surface batch', () {
+      final store = JsThreeStateStore();
+      applyBatch(store, 1, [2, 0]);
+      applyBatch(store, 2, [2, 0]);
+      final state = store.surface('engine', 'surface')!;
+      final frames = List.of(state.pendingFrames);
+
+      expect(state.retainLatestThreeBatch(), 2);
+      expect(state.pendingFrames, [same(frames[2]), same(frames[3])]);
+      expect(pendingTargets(state), [2, 0]);
+      expect(state.pendingFrameViewCount, 2);
+      expect(state.droppedStaleFrameCount, 2);
+
+      expect(state.retainLatestThreeBatch(), 0);
+      expect(state.droppedStaleFrameCount, 2);
+    });
+
+    test('keeps unrewritten targets and old batches without a surface', () {
+      final targetStore = JsThreeStateStore();
+      applyBatch(targetStore, 1, [2, 0]);
+      applyBatch(targetStore, 2, [3, 0]);
+      final targetState = targetStore.surface('engine', 'surface')!;
+      expect(targetState.retainLatestThreeBatch(), 0);
+      expect(pendingTargets(targetState), [2, 0, 3, 0]);
+      expect(targetState.pendingFrameViewCount, 4);
+      expect(targetState.droppedStaleFrameCount, 0);
+
+      final offscreenStore = JsThreeStateStore();
+      applyBatch(offscreenStore, 1, [2]);
+      applyBatch(offscreenStore, 2, [0]);
+      final offscreenState = offscreenStore.surface('engine', 'surface')!;
+      expect(offscreenState.retainLatestThreeBatch(), 0);
+      expect(pendingTargets(offscreenState), [2, 0]);
+      expect(offscreenState.pendingFrameViewCount, 2);
+      expect(offscreenState.droppedStaleFrameCount, 0);
+    });
+
+    test('mixed retention preserves frame and view identity alignment', () {
+      final store = JsThreeStateStore();
+      applyBatch(store, 1, [1, 0]);
+      applyBatch(store, 2, [2, 0]);
+      applyBatch(store, 3, [2, 0]);
+      final state = store.surface('engine', 'surface')!;
+      final frames = List.of(state.pendingFrames);
+      final expectedFrames = [frames[0], frames[1], frames[4], frames[5]];
+
+      expect(state.retainLatestThreeBatch(), 2);
+      expect(state.pendingFrames, [
+        same(expectedFrames[0]),
+        same(expectedFrames[1]),
+        same(expectedFrames[2]),
+        same(expectedFrames[3]),
+      ]);
+      expect(
+        state.pendingFrames.map((frame) => frame.batchSequence),
+        [1, 1, 3, 3],
+      );
+      expect(state.pendingFrameViewCount, 4);
+      expect(state.droppedStaleFrameCount, 2);
+
+      for (final expectedFrame in expectedFrames) {
+        final pending = state.takePendingFrameWithView()!;
+        expect(pending.frame, same(expectedFrame));
+        expect(pending.view.frame, same(expectedFrame));
+      }
+      expect(state.takePendingFrameWithView(), isNull);
+      expect(state.pendingFrameViewCount, 0);
+    });
+
+    test('desynced views exercise both clamps without RangeError', () {
+      for (final removedViews in [1, 5]) {
+        final store = JsThreeStateStore();
+        applyBatch(store, 1, [1, 0]);
+        applyBatch(store, 2, [2, 0]);
+        applyBatch(store, 3, [2, 0]);
+        final state = store.surface('engine', 'surface')!;
+        for (var index = 0; index < removedViews; index++) {
+          expect(state.takePendingFrameView(), isNotNull);
+        }
+        expect(state.pendingFrameCount, 6);
+        expect(state.pendingFrameViewCount, 6 - removedViews);
+
+        expect(
+          state.retainLatestThreeBatch(),
+          2,
+          reason: '$removedViews views removed before retention',
+        );
+        expect(pendingTargets(state), [1, 0, 2, 0]);
+        expect(
+          state.pendingFrameViewCount,
+          removedViews == 1 ? 3 : 1,
+          reason: '$removedViews views removed before retention',
+        );
+        expect(state.droppedStaleFrameCount, 2);
+      }
+    });
+  });
 
   group('R1 v8 stencil-clear routing', () {
     // Full v8 frame body: the v4 tone tail, the v5 point-shadow tail and

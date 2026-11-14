@@ -2,22 +2,18 @@ import 'dart:convert';
 import 'dart:typed_data';
 
 import 'package:flutter_test/flutter_test.dart';
+import 'package:js_widget_runtime/src/renderer/nodes/three/flutter_gpu_three_backend.dart';
 import 'package:js_widget_runtime/src/renderer/nodes/three/js_three_protocol.dart';
 import 'package:js_widget_runtime/src/renderer/nodes/three/js_three_state.dart';
-import 'package:js_widget_runtime/src/renderer/nodes/three/three_draw_plan.dart';
 
 import 'support/three_draw_plan_bytes.dart';
 
 /// Lever 2 (round 3): composer sub-pass plan reuse.
 ///
 /// Multi-pass effects queue ~15 frames per JS tick with an unchanged
-/// resource revision between them. The planner must:
-///   1. reuse one walk across those frames (shared draw lists, per-frame
-///      shell),
-///   2. RE-PLAN when the scene mutates between queued frames (depth passes
-///      swap materials; a stale walk would bind the wrong material),
-///   3. treat a content-identical node re-upsert as unchanged (composer
-///      ticks re-send every node once per pass).
+/// resource revision between them. The production planner must reuse one
+/// walk across those frames, while any resource, scene, camera, or cull-set
+/// change forces a fresh walk.
 JsThreeSurfaceState _apply(
   JsThreeStateStore store,
   List<Uint8List> commands, {
@@ -74,77 +70,182 @@ List<Uint8List> _scene({double nodeX = 0}) => [
   r1Command(6, r1Camera(9)),
 ];
 
-bool _sameSet(Set<int> a, Set<int> b) =>
-    a.length == b.length && a.every(b.contains);
+List<JsThreeFramePlanView> _views(JsThreeSurfaceState state) => [
+  for (final frame in state.pendingFrames)
+    JsThreeFramePlanView.snapshot(state, frame, const []),
+];
 
 void main() {
-  test('unchanged tick: queued frames share one walk, keep their own frame', () {
+  test('frames == null handles both a null frame and the current frame', () {
     final store = JsThreeStateStore();
-    final state = _apply(store, [..._scene(), r1Command(8, r1Frame(sceneId: 1, cameraId: 9))]);
-    final rev = state.contentRevision;
-    final first = JsThreeFramePlanView.snapshot(state, state.currentFrame!, const []);
-    // Composer pass 2 re-sends the same node content; the revision must not
-    // move, and the snapshot must reuse the shared map set.
+    final emptyState = _apply(store, _scene());
+
+    final emptyPlans = debugPlanThreeFrames(emptyState);
+
+    expect(emptyPlans, hasLength(1));
+    expect(emptyPlans.single.frame, isNull);
+    expect(emptyPlans.single.opaque, isEmpty);
+    expect(
+      emptyPlans.single.diagnostics.warnings,
+      contains('surface JsThreeSurfaceKey(engine, surface) has no submitted frame'),
+    );
+
+    final framedState = _apply(
+      store,
+      [r1Command(8, r1Frame(sceneId: 1, cameraId: 9))],
+      sequence: 2,
+    );
+    final framedPlans = debugPlanThreeFrames(framedState);
+
+    expect(framedPlans, hasLength(1));
+    expect(framedPlans.single.frame, same(framedState.currentFrame));
+    expect(framedPlans.single.opaque, hasLength(1));
+  });
+
+  test('content-identical re-upserts retain the revision and share a plan', () {
+    final store = JsThreeStateStore();
+    final state = _apply(store, [
+      ..._scene(),
+      r1Command(8, r1Frame(sceneId: 1, cameraId: 9)),
+    ]);
+    final revision = state.contentRevision;
+    final first = JsThreeFramePlanView.snapshot(
+      state,
+      state.currentFrame!,
+      const [],
+    );
     final state2 = _apply(
       store,
       [..._scene(), r1Command(8, r1Frame(sceneId: 1, cameraId: 9))],
       sequence: 2,
     );
+    final second = JsThreeFramePlanView.snapshot(
+      state2,
+      state2.currentFrame!,
+      const [],
+    );
+
     expect(state2, same(state));
-    expect(state2.contentRevision, rev, reason: 'content-identical re-upserts must not bump the revision');
-    final second = JsThreeFramePlanView.snapshot(state2, state2.currentFrame!, const []);
-    expect(identical(first.geometries, second.geometries), isTrue, reason: 'snapshot map set must be shared across unchanged frames');
+    expect(state2.contentRevision, revision);
+    expect(identical(first.geometries, second.geometries), isTrue);
     expect(identical(first.nodes, second.nodes), isTrue);
 
-    const planner = ThreeDrawPlanner();
-    final planA = planner.plan(first, frame: first.frame);
-    final planB = planner.plan(second, frame: second.frame);
-    expect(identical(planA.opaque, planB.opaque), isFalse, reason: 'independent plans still walk (no reuse without the backend memo)');
+    final plans = debugPlanThreeFrames(state2, frames: [first, second]);
+
+    expect(identical(plans[0].opaque, plans[1].opaque), isTrue);
+    expect(plans[1].frame, same(second.frame));
   });
 
-  test('backend reuse: identical frames share draw lists, clone keeps frame', () {
+  test('repeated view identity reuses draws and still clones the plan shell', () {
+    final store = JsThreeStateStore();
+    final state = _apply(store, [
+      ..._scene(),
+      r1Command(
+        8,
+        r1Frame(sceneId: 1, cameraId: 9, culledNodeIds: const [4]),
+      ),
+    ]);
+    final view = JsThreeFramePlanView.snapshot(
+      state,
+      state.currentFrame!,
+      const [],
+    );
+
+    final plans = debugPlanThreeFrames(state, frames: [view, view]);
+
+    expect(plans, hasLength(2));
+    expect(plans[1], isNot(same(plans[0])));
+    expect(identical(plans[0].opaque, plans[1].opaque), isTrue);
+    expect(identical(plans[0].stream, plans[1].stream), isTrue);
+    expect(identical(plans[0].diagnostics, plans[1].diagnostics), isTrue);
+    expect(plans[0].frame, same(view.frame));
+    expect(plans[1].frame, same(view.frame));
+  });
+
+  test('equal non-identical cull sets share draws and retain their frames', () {
+    final store = JsThreeStateStore();
+    final state = _apply(store, [
+      ..._scene(),
+      r1Command(
+        8,
+        r1Frame(sceneId: 1, cameraId: 9, culledNodeIds: const [4]),
+      ),
+      r1Command(
+        8,
+        r1Frame(sceneId: 1, cameraId: 9, culledNodeIds: const [4]),
+      ),
+    ]);
+    final views = _views(state);
+    expect(
+      identical(views[0].frame.culledNodeIds, views[1].frame.culledNodeIds),
+      isFalse,
+    );
+
+    final plans = debugPlanThreeFrames(state, frames: views);
+
+    expect(plans[1], isNot(same(plans[0])));
+    expect(identical(plans[0].opaque, plans[1].opaque), isTrue);
+    expect(identical(plans[0].transparent, plans[1].transparent), isTrue);
+    expect(identical(plans[0].stream, plans[1].stream), isTrue);
+    expect(plans[0].frame, same(views[0].frame));
+    expect(plans[1].frame, same(views[1].frame));
+  });
+
+  test('same-length cull sets with different IDs force fresh plans', () {
+    final store = JsThreeStateStore();
+    final state = _apply(store, [
+      ..._scene(),
+      r1Command(
+        8,
+        r1Frame(sceneId: 1, cameraId: 9, culledNodeIds: const [4]),
+      ),
+      r1Command(
+        8,
+        r1Frame(sceneId: 1, cameraId: 9, culledNodeIds: const [999]),
+      ),
+    ]);
+    final views = _views(state);
+    expect(views[0].frame.culledNodeIds, hasLength(1));
+    expect(views[1].frame.culledNodeIds, hasLength(1));
+
+    final plans = debugPlanThreeFrames(state, frames: views);
+
+    expect(identical(plans[0].opaque, plans[1].opaque), isFalse);
+    expect(plans[0].opaque.single.culledFromMain, isTrue);
+    expect(plans[1].opaque.single.culledFromMain, isFalse);
+  });
+
+  test('empty and non-empty cull sets force fresh plans', () {
     final store = JsThreeStateStore();
     final state = _apply(store, [
       ..._scene(),
       r1Command(8, r1Frame(sceneId: 1, cameraId: 9)),
-      r1Command(8, r1Frame(sceneId: 1, cameraId: 9)),
+      r1Command(
+        8,
+        r1Frame(sceneId: 1, cameraId: 9, culledNodeIds: const [4]),
+      ),
     ]);
-    final views = <JsThreeFramePlanView>[
-      for (final frame in state.pendingFrames)
-        JsThreeFramePlanView.snapshot(state, frame, const []),
-    ];
-    // Mirror the backend reuse memo (unchanged revision + same scene/camera
-    // + equal culls => clone, else plan).
-    final plans = <ThreeDrawPlan>[];
-    ThreeDrawPlan? reused;
-    for (final view in views) {
-      final canReuse = reused != null &&
-          views[0].contentRevision == view.contentRevision &&
-          reused.frame!.sceneId == view.frame!.sceneId &&
-          reused.frame!.cameraId == view.frame!.cameraId &&
-          _sameSet(
-            reused.frame!.culledNodeIds,
-            view.frame!.culledNodeIds,
-          );
-      final plan = canReuse
-          ? reused.withFrame(view.frame!)
-          : const ThreeDrawPlanner().plan(view, frame: view.frame);
-      reused = plan;
-      plans.add(plan);
-    }
-    expect(plans, hasLength(2));
-    expect(identical(plans[0].opaque, plans[1].opaque), isTrue, reason: 'unchanged revision reuses the walk');
-    expect(plans[1].frame, same(views[1].frame), reason: 'clone keeps its own frame binding');
-    expect(plans[0].frame, same(views[0].frame));
+    final views = _views(state);
+
+    final plans = debugPlanThreeFrames(state, frames: views);
+
+    expect(identical(plans[0].opaque, plans[1].opaque), isFalse);
+    expect(plans[0].opaque.single.culledFromMain, isFalse);
+    expect(plans[1].opaque.single.culledFromMain, isTrue);
   });
 
-  test('scene mutation between queued frames forces a fresh plan', () {
+  test('a changed resource revision forces a fresh plan', () {
     final store = JsThreeStateStore();
-    _apply(store, [..._scene(), r1Command(8, r1Frame(sceneId: 1, cameraId: 9))]);
-    final before = JsThreeFramePlanView.snapshot(store.surface('engine', 'surface')!, store.surface('engine', 'surface')!.currentFrame!, const []);
-    // Depth pass swaps the node's material (different content) — revision
-    // must bump and the snapshot maps must be re-copied.
-    final state = _apply(
+    final beforeState = _apply(store, [
+      ..._scene(),
+      r1Command(8, r1Frame(sceneId: 1, cameraId: 9)),
+    ]);
+    final before = JsThreeFramePlanView.snapshot(
+      beforeState,
+      beforeState.currentFrame!,
+      const [],
+    );
+    final afterState = _apply(
       store,
       [
         r1Command(
@@ -163,40 +264,62 @@ void main() {
       ],
       sequence: 2,
     );
-    expect(state.contentRevision, isNot(before.contentRevision));
-    final after = JsThreeFramePlanView.snapshot(state, state.currentFrame!, const []);
-    expect(identical(before.nodes, after.nodes), isFalse, reason: 'mutated tick must not share snapshot maps');
-    expect(after.nodes[4]!.materialId, 5);
+    final after = JsThreeFramePlanView.snapshot(
+      afterState,
+      afterState.currentFrame!,
+      const [],
+    );
+    expect(after.contentRevision, isNot(before.contentRevision));
+    expect(identical(before.nodes, after.nodes), isFalse);
 
-    final planA = const ThreeDrawPlanner().plan(before, frame: before.frame);
-    final planB = const ThreeDrawPlanner().plan(after, frame: after.frame);
-    expect(planA.opaque.single.material.materialId, 3);
-    expect(planB.opaque.single.material.materialId, 5);
-    // And the reuse gate itself must refuse:
-    final sameWalk = before.contentRevision == after.contentRevision;
-    expect(sameWalk, isFalse);
+    final plans = debugPlanThreeFrames(afterState, frames: [before, after]);
+
+    expect(identical(plans[0].opaque, plans[1].opaque), isFalse);
+    expect(plans[0].opaque.single.material.materialId, 3);
+    expect(plans[1].opaque.single.material.materialId, 5);
   });
 
-  test('cull-set difference between frames forces a fresh plan', () {
+  test('a scene change forces a fresh plan', () {
     final store = JsThreeStateStore();
     final state = _apply(store, [
       ..._scene(),
+      r1Command(4, r1Node(10, objectKind: JsThreeObjectKind.group)),
+      r1Command(
+        4,
+        r1Node(
+          11,
+          parentId: 10,
+          geometryId: 2,
+          materialId: 3,
+          objectKind: JsThreeObjectKind.mesh,
+        ),
+      ),
       r1Command(8, r1Frame(sceneId: 1, cameraId: 9)),
-      r1Command(8, r1Frame(sceneId: 1, cameraId: 9, culledNodeIds: const [4])),
+      r1Command(8, r1Frame(sceneId: 10, cameraId: 9)),
     ]);
-    final views = [
-      for (final frame in state.pendingFrames)
-        JsThreeFramePlanView.snapshot(state, frame, const []),
-    ];
-    final planA = const ThreeDrawPlanner().plan(views[0], frame: views[0].frame);
-    final planB = const ThreeDrawPlanner().plan(views[1], frame: views[1].frame);
-    expect(planA.opaque, hasLength(1));
-    expect(planB.opaque.single.culledFromMain, isTrue);
-    // The cull sets differ so the backend memo would re-plan:
-    final culledA = views[0].frame!.culledNodeIds;
-    final culledB = views[1].frame!.culledNodeIds;
-    final sameCull = culledA.length == culledB.length &&
-        culledA.every(culledB.contains);
-    expect(sameCull, isFalse);
+    final views = _views(state);
+
+    final plans = debugPlanThreeFrames(state, frames: views);
+
+    expect(identical(plans[0].opaque, plans[1].opaque), isFalse);
+    expect(plans[0].opaque.single.node.nodeId, 4);
+    expect(plans[1].opaque.single.node.nodeId, 11);
+  });
+
+  test('a camera change forces a fresh plan and rebinds the camera', () {
+    final store = JsThreeStateStore();
+    final state = _apply(store, [
+      ..._scene(),
+      r1Command(6, r1Camera(10)),
+      r1Command(8, r1Frame(sceneId: 1, cameraId: 9)),
+      r1Command(8, r1Frame(sceneId: 1, cameraId: 10)),
+    ]);
+    final views = _views(state);
+
+    final plans = debugPlanThreeFrames(state, frames: views);
+
+    expect(identical(plans[0].opaque, plans[1].opaque), isFalse);
+    expect(plans[0].camera!.cameraId, 9);
+    expect(plans[1].camera!.cameraId, 10);
   });
 }

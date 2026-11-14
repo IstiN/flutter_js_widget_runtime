@@ -696,6 +696,13 @@ gpu.DepthStencilAttachment _threeDepthAttachment(
   depthClearValue: 1,
 );
 
+gpu.LoadAction _threeLoadAction(bool requested, bool enabled) =>
+    requested && enabled ? gpu.LoadAction.clear : gpu.LoadAction.load;
+
+@visibleForTesting
+gpu.LoadAction debugThreeLoadAction(bool requested, bool enabled) =>
+    _threeLoadAction(requested, enabled);
+
 gpu.RenderPass _createThreeRenderPass(
   FlutterGpuThreeBackend backend,
   ThreeDrawPlan plan,
@@ -714,9 +721,7 @@ gpu.RenderPass _createThreeRenderPass(
     gpu.RenderTarget.singleColor(
       gpu.ColorAttachment(
         texture: surfaceFrame.colorTexture,
-        loadAction: clearColor && frame.clearColor
-            ? gpu.LoadAction.clear
-            : gpu.LoadAction.load,
+        loadAction: _threeLoadAction(frame.clearColor, clearColor),
         clearValue: _threeClearValue(plan),
       ),
       depthStencilAttachment: _threeDepthAttachment(
@@ -747,9 +752,7 @@ gpu.RenderPass _createThreeTargetPass(
     gpu.RenderTarget.singleColor(
       gpu.ColorAttachment(
         texture: target.color,
-        loadAction: clearColor && frame.clearColor
-            ? gpu.LoadAction.clear
-            : gpu.LoadAction.load,
+        loadAction: _threeLoadAction(frame.clearColor, clearColor),
         clearValue: _threeClearValue(plan),
       ),
       depthStencilAttachment: depth == null
@@ -788,12 +791,7 @@ void _submitThreeFrame(
     completionCallback: (success) {
       _traceThreeShadow('main complete sequence=$sequence success=$success');
       if (targetPass) {
-        if (backend._pendingTargetSubmits > 0) backend._pendingTargetSubmits--;
-        if (!success) {
-          backend._failedPresentationCount++;
-          backend._note('GPU target-pass completion reported failure');
-        }
-        _releaseThreePresentationWaiters(backend);
+        _threeTargetSubmitCompleted(backend, success);
       } else {
         _threePresentationCompleted(backend, success);
       }
@@ -818,6 +816,15 @@ void _submitThreeShadow(
       }
     },
   );
+}
+
+void _threeTargetSubmitCompleted(FlutterGpuThreeBackend backend, bool success) {
+  if (backend._pendingTargetSubmits > 0) backend._pendingTargetSubmits--;
+  if (!success) {
+    backend._failedPresentationCount++;
+    backend._note('GPU target-pass completion reported failure');
+  }
+  _releaseThreePresentationWaiters(backend);
 }
 
 void _threePresentationCompleted(FlutterGpuThreeBackend backend, bool success) {

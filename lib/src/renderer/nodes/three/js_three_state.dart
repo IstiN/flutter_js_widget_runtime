@@ -1,6 +1,7 @@
 import 'dart:collection';
 import 'dart:typed_data';
 
+import 'package:collection/collection.dart';
 import 'package:js_widget_runtime/src/renderer/nodes/three/js_three_protocol.dart';
 
 /// The complete isolation key for every THREE resource.
@@ -285,6 +286,27 @@ final class JsThreeFramePlanView implements JsThreeFrameResources {
   JsThreeSubmitFrame get currentFrame => frame;
 }
 
+({int end, bool surface, Set<int> targets}) _threeBatchFootprint(
+  List<JsThreeSubmitFrame> frames,
+  int start,
+  int limit,
+) {
+  final batch = frames[start].batchSequence;
+  var end = start;
+  var surface = false;
+  final targets = <int>{};
+  while (end < limit && frames[end].batchSequence == batch) {
+    final frame = frames[end];
+    if (frame.renderTargetId == 0) {
+      surface = true;
+    } else {
+      targets.add(frame.renderTargetId);
+    }
+    end++;
+  }
+  return (end: end, surface: surface, targets: targets);
+}
+
 /// Current drawing state plus lifetime upload/presentation diagnostics.
 final class JsThreeSurfaceState implements JsThreeFrameResources {
   JsThreeSurfaceState._(this.key);
@@ -421,36 +443,21 @@ final class JsThreeSurfaceState implements JsThreeFrameResources {
       start--;
     }
     if (start == 0) return 0;
-    var newestSurface = false;
-    final newestTargets = <int>{};
-    for (var i = start; i < _pendingFrames.length; i++) {
-      final frame = _pendingFrames[i];
-      if (frame.renderTargetId == 0) {
-        newestSurface = true;
-      } else {
-        newestTargets.add(frame.renderTargetId);
-      }
-    }
-    if (!newestSurface) return 0;
+    final newest = _threeBatchFootprint(
+      _pendingFrames,
+      start,
+      _pendingFrames.length,
+    );
+    if (!newest.surface) return 0;
     var dropped = 0;
     final keptFrames = <JsThreeSubmitFrame>[];
     final keptViews = <JsThreeFramePlanView>[];
     var index = 0;
     while (index < start) {
-      final batch = _pendingFrames[index].batchSequence;
-      var end = index;
-      var surface = false;
-      final targets = <int>{};
-      while (end < start && _pendingFrames[end].batchSequence == batch) {
-        final frame = _pendingFrames[end];
-        if (frame.renderTargetId == 0) {
-          surface = true;
-        } else {
-          targets.add(frame.renderTargetId);
-        }
-        end++;
-      }
-      final superseded = surface && newestTargets.containsAll(targets);
+      final batch = _threeBatchFootprint(_pendingFrames, index, start);
+      final end = batch.end;
+      final superseded =
+          batch.surface && newest.targets.containsAll(batch.targets);
       if (superseded) {
         dropped += end - index;
       } else {
@@ -693,13 +700,10 @@ extension _JsThreeSurfaceStateOperations on JsThreeSurfaceState {
             a.spriteCenterY != b.spriteCenterY)) {
       return false;
     }
-    final am = a.matrixWorld;
-    final bm = b.matrixWorld;
-    if (am.length != bm.length) return false;
-    for (var i = 0; i < am.length; i++) {
-      if (am[i] != bm[i]) return false;
-    }
-    return true;
+    return const ListEquality<double>().equals(
+      a.matrixWorld,
+      b.matrixWorld,
+    );
   }
 
   bool _castsShadow(JsThreeNodeUpsert value) =>

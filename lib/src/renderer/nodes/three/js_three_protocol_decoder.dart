@@ -396,22 +396,8 @@ final class JsThreeProtocolDecoder {
         alphaMapUvMatrix: _threeIdentityUvMatrix,
       ),
     };
-    final v5 = switch (streamVersion) {
-      >= 5 => _materialV5Tail(body, kind),
-      _ => (matcapTextureId: 0, gradientMapTextureId: 0, spriteRotation: 0.0),
-    };
-    final v6 = switch (streamVersion) {
-      >= 6 => _materialV6Tail(body, kind),
-      _ => (
-        normalMapTextureId: 0,
-        normalScaleX: 1.0,
-        normalScaleY: 1.0,
-        bumpMapTextureId: 0,
-        bumpScale: 1.0,
-        roughnessMapTextureId: 0,
-        metalnessMapTextureId: 0,
-      ),
-    };
+    final v5 = _materialV5ForVersion(body, streamVersion, kind);
+    final v6 = _materialV6ForVersion(body, streamVersion, kind);
     final stencilBytes = _materialStencilBytes(streamVersion, flags);
     final postBytes = streamVersion >= 9 && kind == JsThreeMaterialKind.postProcessing
         ? 80
@@ -612,6 +598,17 @@ final class JsThreeProtocolDecoder {
     if (wireOp != op || op < 1 || op > 16) {
       body.fail('postprocessing operation must be an integer in 1..16');
     }
+    _validateBloomCompositeTextures(body, op, dubois, post, mapId);
+    _validateBloomGaussianPairs(body, op, dubois.left);
+  }
+
+  void _validateBloomCompositeTextures(
+    _Reader body,
+    int op,
+    ({int mapRightTextureId, Float32List left, Float32List right}) dubois,
+    ({int texture3Id, int texture4Id, int texture5Id, Float32List params}) post,
+    int mapId,
+  ) {
     final extraTextures =
         post.texture3Id != 0 || post.texture4Id != 0 || post.texture5Id != 0;
     if (op == 15) {
@@ -625,8 +622,11 @@ final class JsThreeProtocolDecoder {
     } else if (extraTextures) {
       body.fail('extra post textures require the bloom composite operation');
     }
+  }
+
+  void _validateBloomGaussianPairs(_Reader body, int op, Float32List left) {
     if (op == 14) {
-      final pairs = dubois.left[8];
+      final pairs = left[8];
       if (pairs != pairs.round() || pairs < 1 || pairs > 11) {
         body.fail('bloom Gaussian pair count must be an integer in 1..11');
       }
@@ -663,6 +663,32 @@ final class JsThreeProtocolDecoder {
       body.fail('Dubois matrix padding must be zero');
     }
   }
+
+  ({
+    int normalMapTextureId,
+    double normalScaleX,
+    double normalScaleY,
+    int bumpMapTextureId,
+    double bumpScale,
+    int roughnessMapTextureId,
+    int metalnessMapTextureId,
+  })
+  _materialV6ForVersion(
+    _Reader body,
+    int streamVersion,
+    JsThreeMaterialKind kind,
+  ) => switch (streamVersion) {
+    >= 6 => _materialV6Tail(body, kind),
+    _ => (
+      normalMapTextureId: 0,
+      normalScaleX: 1.0,
+      normalScaleY: 1.0,
+      bumpMapTextureId: 0,
+      bumpScale: 1.0,
+      roughnessMapTextureId: 0,
+      metalnessMapTextureId: 0,
+    ),
+  };
 
   /// Decodes the R1 v6 material tail: tangentless normal-map texture id and
   /// the per-axis normal scale (only lit mesh materials may carry one).
@@ -703,6 +729,16 @@ final class JsThreeProtocolDecoder {
       metalnessMapTextureId: metalnessMapTextureId,
     );
   }
+
+  ({int matcapTextureId, int gradientMapTextureId, double spriteRotation})
+  _materialV5ForVersion(
+    _Reader body,
+    int streamVersion,
+    JsThreeMaterialKind kind,
+  ) => switch (streamVersion) {
+    >= 5 => _materialV5Tail(body, kind),
+    _ => (matcapTextureId: 0, gradientMapTextureId: 0, spriteRotation: 0.0),
+  };
 
   /// Decodes the R1 v5 material tail: matcap + gradient-map texture ids and
   /// the SpriteMaterial rotation (radians; zero for non-sprite materials).

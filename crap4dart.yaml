@@ -29,6 +29,11 @@ coverage:
   required: true
   branch_coverage: true
 
+profile:
+  enabled: true
+  threshold_ms: 10.0
+  top: 10
+
 gates:
   # CRAP-only ratchet for now. Enable other gates only after the baseline
   # improves enough that they pass; otherwise every commit would fail.
@@ -104,6 +109,11 @@ gates:
     containment: 0.85
     exclude:
       - '.git/**'
+      - '.fah/**'
+      - 'third_party/**'
+      - 'example/**'
+      - 'tool/**'
+      - 'lib/src/flame_3d_vendor/**'
       - '**/ephemeral/**'
       - '**/build/**'
       - '**/node_modules/**'

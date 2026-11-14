@@ -608,6 +608,11 @@ class NativeFolder {
     } else if (options.length === 1 && options[0] && typeof options[0] === 'object') {
       const map = options[0];
       controller = new OptionsController(this, object, property, Object.values(map), Object.keys(map));
+    } else if (options.length === 1 && typeof options[0] === 'string' &&
+               typeof object[property] === 'function') {
+      // lil-gui's function-button shorthand: add(object, method, 'Label').
+      controller = new FunctionController(this, object, property);
+      controller.name(options[0]);
     } else if (options.length === 2 || options.length === 3) {
       controller = new NumberController(this, object, property, options[0], options[1], options[2]);
     } else {
@@ -723,6 +728,11 @@ class NativeGUI {
     } else if (options.length === 1 && options[0] && typeof options[0] === 'object') {
       const map = options[0];
       controller = new OptionsController(this, object, property, Object.values(map), Object.keys(map));
+    } else if (options.length === 1 && typeof options[0] === 'string' &&
+               typeof object[property] === 'function') {
+      // lil-gui's function-button shorthand: add(object, method, 'Label').
+      controller = new FunctionController(this, object, property);
+      controller.name(options[0]);
     } else if (options.length === 2 || options.length === 3) {
       controller = new NumberController(
         this, object, property, options[0], options[1], options[2]);
