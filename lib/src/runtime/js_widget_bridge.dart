@@ -142,6 +142,13 @@ class JsWidgetBridge {
   late final JsStorageChannel _store;
   final Map<String, Js3dController> _sceneControllers = {};
 
+  // THREE loaders frequently request the same immutable URL from several
+  // textures/models. Keep a small per-run LRU of completed/in-flight encoded
+  // responses: this shares both host I/O and the base64 encode, without
+  // retaining bytes across widget generations.
+  static const int _maxThreeAssetCacheEntries = 8;
+  final Map<String, Future<Map<String, dynamic>>> _threeAssetCache = {};
+
   /// Voxel world state backing `jsr.hostCall('voxel.*')` and the `voxel`
   /// renderer node. Owned by the bridge — core capability, always present.
   final JsVoxelWorld voxelWorld = JsVoxelWorld();
@@ -193,9 +200,14 @@ class JsWidgetBridge {
   // cost being measured.
   final Map<String, int> _trafficCounts = <String, int>{};
   DateTime _trafficSince = DateTime.now();
+  int _trafficMessages = 0;
 
   void _trackTraffic(String channel) {
     _trafficCounts[channel] = (_trafficCounts[channel] ?? 0) + 1;
+    // DateTime.now() is substantially more expensive than the counter on
+    // high-frequency RAF/log channels. A 64-message sampling window keeps
+    // the 15-second diagnostic cadence without a clock read per message.
+    if ((++_trafficMessages & 63) != 0) return;
     final now = DateTime.now();
     if (now.difference(_trafficSince).inSeconds >= 15) {
       final parts = _trafficCounts.entries
@@ -326,6 +338,7 @@ class JsWidgetBridge {
   }
 
   void _resetSceneState() {
+    _threeAssetCache.clear();
     for (final controller in _sceneControllers.values) {
       controller.dispose();
     }
@@ -348,6 +361,10 @@ class JsWidgetBridge {
   }
 
   Map<String, dynamic> _parseArgs(dynamic args) {
+    // dispatch() already removed the routing tag from native map payloads.
+    // Those maps are read-only for the duration of the handler, so avoid a
+    // second full map allocation on every storage/RAF/host-call message.
+    if (args is Map<String, dynamic> && !args.containsKey('iid')) return args;
     final decoded = (args is Map)
         ? Map<String, dynamic>.from(args)
         : jsonDecode(args?.toString() ?? '{}') as Map<String, dynamic>;
@@ -434,12 +451,14 @@ class JsWidgetBridge {
   void _submitThree(Uint8List data) {
     final host = threeHost;
     if (host == null) return;
-    final ssw = Stopwatch()..start();
+    // Small envelopes dominate the stream; do not allocate a Stopwatch for
+    // them just to support the large-packet diagnostic below.
+    final ssw = data.length > 200000 ? (Stopwatch()..start()) : null;
     try {
       // Native typed-array views are call-scoped. The host may retain data
       // for coalescing/GPU upload, so ownership crosses with an explicit copy.
       host.submit(threeEngineId, Uint8List.fromList(data));
-      if (data.length > 200000) {
+      if (ssw != null) {
         debugPrint(
           '[lane-prof] three.r1 submit ${data.length}B '
           'copy+submit=${ssw.elapsedMilliseconds}ms',
@@ -509,8 +528,10 @@ class JsWidgetBridge {
       final arguments =
           (request['args'] as Map?)?.cast<String, dynamic>() ?? const {};
       if (arguments['action'] == 'decodeImage') {
-        debugPrint('[canvas2d] decodeImage ${arguments['canvasId']} '
-            'bytes=${(arguments['data'] as String?)?.length ?? 0}');
+        debugPrint(
+          '[canvas2d] decodeImage ${arguments['canvasId']} '
+          'bytes=${(arguments['data'] as String?)?.length ?? 0}',
+        );
       }
       final result = await host.rasterizeCanvas2D(threeEngineId, arguments);
       final bytes = result.data;
@@ -535,8 +556,7 @@ class JsWidgetBridge {
     String id,
     Map<String, dynamic> request,
   ) async {
-    final host = threeHost;
-    if (host == null) {
+    if (threeHost == null) {
       resolveCallback(id, const {'__error': 'three.unsupported: host'});
       return;
     }
@@ -545,22 +565,50 @@ class JsWidgetBridge {
           (request['args'] as Map?)?.cast<String, dynamic>() ?? const {};
       final url = arguments['url'] as String? ?? '';
       _validateThreeAssetUrl(url);
-      final asset = await host.loadAsset(threeEngineId, url);
+      resolveCallback(id, await _threeAssetResponse(url));
+    } catch (error) {
+      resolveCallback(id, {'__error': error.toString()});
+    }
+  }
+
+  Future<Map<String, dynamic>> _threeAssetResponse(String url) {
+    final key = '$threeEngineId\n$url';
+    final cached = _threeAssetCache.remove(key);
+    if (cached != null) {
+      // LinkedHashMap insertion order is the LRU order.
+      _threeAssetCache[key] = cached;
+      return cached;
+    }
+    final host = threeHost!;
+    final response = host.loadAsset(threeEngineId, url).then((asset) {
       final bsw = Stopwatch()..start();
       final encoded = base64Encode(asset.data);
       debugPrint(
         '[lane-prof] three.asset $url ${asset.data.length}B '
         'b64Encode=${bsw.elapsedMilliseconds}ms',
       );
-      resolveCallback(id, {
+      return <String, dynamic>{
         'data': encoded,
         'mimeType': asset.mimeType,
         'width': asset.width,
         'height': asset.height,
-      });
-    } catch (error) {
-      resolveCallback(id, {'__error': error.toString()});
+      };
+    });
+    _threeAssetCache[key] = response;
+    if (_threeAssetCache.length > _maxThreeAssetCacheEntries) {
+      _threeAssetCache.remove(_threeAssetCache.keys.first);
     }
+    // Failed requests must be retryable; successful responses remain shared
+    // until the per-run LRU is reset or evicted.
+    response.then(
+      (_) {},
+      onError: (_, __) {
+        if (identical(_threeAssetCache[key], response)) {
+          _threeAssetCache.remove(key);
+        }
+      },
+    );
+    return response;
   }
 
   void _validateThreeAssetUrl(String url) {
@@ -1035,6 +1083,15 @@ class JsRafScheduler with WidgetsBindingObserver {
     var ms = _tickerEpochBase + e;
     if (ms <= _lastSentMs) ms = _lastSentMs + 1;
     _lastSentMs = ms;
+    // The usual widget has exactly one outstanding RAF. Avoid allocating a
+    // temporary key list in that case; multi-subscriber ticks still snapshot
+    // keys because callbacks may register/cancel IDs reentrantly.
+    if (_pending.length == 1) {
+      final id = _pending.keys.first;
+      _pending.clear();
+      onTick?.call(id, ms);
+      return;
+    }
     final ids = List<String>.from(_pending.keys);
     _pending.clear();
     for (final id in ids) {

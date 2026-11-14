@@ -36,30 +36,57 @@ bool applyThreeMorphPacket(Uint8List bytes) {
     if (header.relative == 0) baseInfluence -= weight;
   }
 
+  // Cache nonzero weights/target offsets once per packet instead of reading
+  // the same weight for every vertex component (positions and normals share
+  // the influence array).
+  final targetCount = header.positionTargetCount > header.normalTargetCount
+      ? header.positionTargetCount
+      : header.normalTargetCount;
+  final active = _activeMorphWeights(values, weightOffset, targetCount);
+
   if (!_applyMorphTargets(
     values,
     targetCount: header.positionTargetCount,
-    weightOffset: weightOffset,
     targetOffset: positionTargetOffset,
     outputOffset: positionOffset,
     stride: stride,
     baseInfluence: baseInfluence,
+    activeTargets: active.targets,
+    activeWeights: active.weights,
   )) {
     return false;
   }
   if (!_applyMorphTargets(
     values,
     targetCount: header.normalTargetCount,
-    weightOffset: weightOffset,
     targetOffset: normalTargetOffset,
     outputOffset: normalOffset,
     stride: stride,
     baseInfluence: baseInfluence,
+    activeTargets: active.targets,
+    activeWeights: active.weights,
   )) {
     return false;
   }
   values[5] = 1;
   return true;
+}
+
+({List<int> targets, List<double> weights}) _activeMorphWeights(
+  Float32List values,
+  int weightOffset,
+  int targetCount,
+) {
+  final targets = <int>[];
+  final weights = <double>[];
+  for (var target = 0; target < targetCount; target++) {
+    final weight = values[weightOffset + target];
+    if (weight != 0) {
+      targets.add(target);
+      weights.add(weight);
+    }
+  }
+  return (targets: targets, weights: weights);
 }
 
 /// Decoded and validated morph packet header.
@@ -79,6 +106,9 @@ final class _MorphHeader {
   final int relative;
 }
 
+bool _validMorphCount(double value, int count, int min, int max) =>
+    value == count && count >= min && count <= max;
+
 /// Validates the packet header; returns null when any field is a
 /// non-integer or out of range.
 _MorphHeader? _readMorphHeader(Float32List values) {
@@ -87,17 +117,16 @@ _MorphHeader? _readMorphHeader(Float32List values) {
   final positionTargetCount = values[2].toInt();
   final normalTargetCount = values[3].toInt();
   final relative = values[4].toInt();
-  // (value, min, max) inclusive integer bounds; the `value != toInt()`
-  // term rejects non-integral counts.
-  final limits = <(double, int, int)>[
-    (values[0], 1, double.maxFinite.toInt()),
-    (values[1], 1, double.maxFinite.toInt()),
-    (values[2], 0, influenceCount),
-    (values[3], 0, influenceCount),
-  ];
-  for (final (value, min, max) in limits) {
-    final count = value.toInt();
-    if (value != count || count < min || count > max) return null;
+  // Keep validation scalar: allocating four records for every morph packet
+  // was measurable beside the vertex loop.
+  final maxCount = double.maxFinite.toInt();
+  if (!_validMorphCount(values[0], vertexCount, 1, maxCount)) return null;
+  if (!_validMorphCount(values[1], influenceCount, 1, maxCount)) return null;
+  if (!_validMorphCount(values[2], positionTargetCount, 0, influenceCount)) {
+    return null;
+  }
+  if (!_validMorphCount(values[3], normalTargetCount, 0, influenceCount)) {
+    return null;
   }
   if (positionTargetCount + normalTargetCount == 0) return null;
   // `relative & ~1 != 0` rejects any value outside {0, 1}.
@@ -117,19 +146,20 @@ _MorphHeader? _readMorphHeader(Float32List values) {
 bool _applyMorphTargets(
   Float32List values, {
   required int targetCount,
-  required int weightOffset,
   required int targetOffset,
   required int outputOffset,
   required int stride,
   required double baseInfluence,
+  required List<int> activeTargets,
+  required List<double> activeWeights,
 }) {
   if (targetCount == 0) return true;
   for (var i = 0; i < stride; i++) {
     var value = values[outputOffset + i] * baseInfluence;
-    for (var target = 0; target < targetCount; target++) {
-      final weight = values[weightOffset + target];
-      if (weight == 0) continue;
-      value += weight * values[targetOffset + target * stride + i];
+    for (var j = 0; j < activeTargets.length; j++) {
+      final target = activeTargets[j];
+      if (target >= targetCount) break;
+      value += activeWeights[j] * values[targetOffset + target * stride + i];
     }
     if (!value.isFinite) return false;
     values[outputOffset + i] = value;

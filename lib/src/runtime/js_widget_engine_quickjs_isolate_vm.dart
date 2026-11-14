@@ -629,15 +629,12 @@ final class _QuickJsWorker {
         );
       case 'interval':
         final id = jsonEncode(raw['id']);
-        _eval('if(__iv_cbs[$id])__iv_cbs[$id]()', '<js_widget_interval>');
+        _eval('__jsrInterval($id)', '<js_widget_interval>');
       case 'raf':
         final id = jsonEncode(raw['id']);
         final elapsed = (raw['elapsed'] as num).toInt();
         final rafSw = Stopwatch()..start();
-        _eval(
-          'if(__raf_cbs[$id]){__raf_cbs[$id]($elapsed);delete __raf_cbs[$id];}',
-          '<js_widget_raf>',
-        );
+        _eval('__jsrRaf($id,$elapsed)', '<js_widget_raf>');
         // Permanent JS-side frame-cost diagnostic: native frameMs can be
         // tiny while the widget still runs at 4fps because the QuickJS RAF
         // eval itself is slow (per-frame resource re-encoding).
@@ -670,23 +667,15 @@ final class _QuickJsWorker {
         '<js_widget_resolve_warm>',
       );
       _profileResolve(esw, 'eval', value.length);
-    } else if (warm is Uint8List &&
-        warm.isNotEmpty &&
-        value.length < 200000) {
+    } else if (warm is Uint8List && warm.isNotEmpty && value.length < 200000) {
       // Legacy engines without the bytes export re-encode to the
       // previous inline-base64 literal path; like the historical `break`,
       // it skips the eval-time profile line below.
       final restored = Map<String, dynamic>.from(raw['value'] as Map);
       restored['data'] = base64Encode(warm);
-      _eval(
-        'if(__cbs[$id]){__cbs[$id](${jsonEncode(restored)});delete __cbs[$id];}',
-        '<js_widget_resolve>',
-      );
+      _eval('__jsrResolve($id,${jsonEncode(restored)})', '<js_widget_resolve>');
     } else {
-      _eval(
-        'if(__cbs[$id]){__cbs[$id]($value);delete __cbs[$id];}',
-        '<js_widget_resolve>',
-      );
+      _eval('__jsrResolve($id,$value)', '<js_widget_resolve>');
       _profileResolve(esw, 'eval', value.length);
     }
   }

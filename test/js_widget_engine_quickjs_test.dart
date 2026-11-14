@@ -135,19 +135,22 @@ void main() {
       expect(rt.eval('40+2'), '42');
     });
 
-    test('promise chains settle automatically after eval (0.3.x auto-drain)', () {
-      final rt = QuickjsRuntime();
-      addTearDown(rt.close);
-      rt.eval(
-        'var __r = null; '
-        'Promise.resolve(41).then(function(v){ __r = v + 1; });',
-      );
-      // quickjs_runtime >= 0.3.0 drains the microtask queue after every
-      // successful eval, so the reaction has already run — no manual
-      // executePendingJobs() needed.
-      expect(rt.eval('__r'), '42');
-      expect(rt.executePendingJobs(), 0);
-    });
+    test(
+      'promise chains settle automatically after eval (0.3.x auto-drain)',
+      () {
+        final rt = QuickjsRuntime();
+        addTearDown(rt.close);
+        rt.eval(
+          'var __r = null; '
+          'Promise.resolve(41).then(function(v){ __r = v + 1; });',
+        );
+        // quickjs_runtime >= 0.3.0 drains the microtask queue after every
+        // successful eval, so the reaction has already run — no manual
+        // executePendingJobs() needed.
+        expect(rt.eval('__r'), '42');
+        expect(rt.executePendingJobs(), 0);
+      },
+    );
 
     test('close is idempotent', () {
       final rt = QuickjsRuntime();
@@ -388,6 +391,30 @@ void main() {
       expect(backend.exportedState?['resp'], true);
     });
 
+    test('large promise payloads use the global-value resolve lane', () async {
+      void Function(String id, dynamic value) resolve = (_, _) {};
+      final backend = _backend(
+        _Recorder(),
+        onResolveReady: (fn) => resolve = fn,
+        secretsGetHandler: (id, key) async {
+          final text = List<String>.filled(20000, 'x').join();
+          resolve(id, key == 'map' ? {'data': text} : text);
+        },
+      );
+      await backend.init();
+      await backend.run('''
+(function() {
+  jsr.secrets.get('map').then(function(m) {
+    jsr.secrets.get('text').then(function(t) {
+      jsr.exportState({mapLength: m.data.length, textLength: t.length});
+    });
+  });
+})();
+''');
+      await pumpEventQueue();
+      expect(backend.exportedState, {'mapLength': 20000, 'textLength': 20000});
+    });
+
     test(
       'overridden exec/secrets.set/loadAsset handlers resolve promises',
       () async {
@@ -436,20 +463,20 @@ void main() {
       );
       _backends.add(backend);
       await backend.init();
-        await backend.run('''
+      await backend.run('''
 (function() {
   jsr.loadAsset('hello.txt').then(function(text) {
     jsr.exportState({head: text.substring(0, 5)});
   });
 })();
 ''');
-        // Real file I/O needs event-loop turns; pumpEventQueue alone is not
-        // guaranteed to flush it under load.
-        for (var i = 0; i < 50 && backend.exportedState == null; i++) {
-          await Future<void>.delayed(const Duration(milliseconds: 10));
-        }
-        expect(backend.exportedState, {'head': 'hello'});
-      });
+      // Real file I/O needs event-loop turns; pumpEventQueue alone is not
+      // guaranteed to flush it under load.
+      for (var i = 0; i < 50 && backend.exportedState == null; i++) {
+        await Future<void>.delayed(const Duration(milliseconds: 10));
+      }
+      expect(backend.exportedState, {'head': 'hello'});
+    });
 
     test('setTimeout fires through the Dart-backed interval timer', () async {
       final r = _Recorder();
@@ -495,8 +522,9 @@ void main() {
       _backends.remove(backend);
     });
 
-    testWidgets('RAF and timer callback exceptions surface as error trees',
-        (tester) async {
+    testWidgets('RAF and timer callback exceptions surface as error trees', (
+      tester,
+    ) async {
       final r = _Recorder();
       final backend = _backend(r);
       await backend.init();
@@ -508,10 +536,7 @@ void main() {
       await tester.pump(const Duration(milliseconds: 100));
       // The throw previously vanished silently (eval returns null instead
       // of throwing); it must now render the standard error card.
-      expect(
-        r.renders.last.toString(),
-        contains('raf boom'),
-      );
+      expect(r.renders.last.toString(), contains('raf boom'));
       await backend.dispose();
       _backends.remove(backend);
     });

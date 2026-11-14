@@ -37,6 +37,12 @@ class FlutterGpuThreeHost implements JsThreeHost {
   final bool _copyCanvas2dResultBytes;
   final JsThreeProtocolDecoder _decoder = JsThreeProtocolDecoder();
   final Map<JsThreeSurfaceKey, FlutterGpuThreeSurface> _surfaces = {};
+  // Most R1 envelopes target the same surface for their entire lifetime.
+  // Cache the last validated identity to avoid allocating a key and hashing
+  // two strings on every frame; all removal paths invalidate it below.
+  String? _lastSurfaceEngineId;
+  String? _lastSurfaceId;
+  FlutterGpuThreeSurface? _lastSurface;
   final Map<JsThreeSurfaceKey, Map<String, _FlutterCanvas2DState>> _canvas2d =
       {};
   var _canvas2dCount = 0;
@@ -68,6 +74,11 @@ class FlutterGpuThreeHost implements JsThreeHost {
     surface._attached = false;
     if (surface.isDisposed) {
       _surfaces.remove(key);
+      if (identical(_lastSurface, surface)) {
+        _lastSurface = null;
+        _lastSurfaceEngineId = null;
+        _lastSurfaceId = null;
+      }
       surface.dispose();
     }
   }
@@ -82,13 +93,32 @@ class FlutterGpuThreeHost implements JsThreeHost {
         'T1 engine id does not match the bridge-bound engine',
       );
     }
-    final key = JsThreeSurfaceKey(boundEngineId, decoded.envelope.surfaceId);
-    final surface = _obtainSurface(key);
+    final surface = _obtainSurfaceForIds(
+      boundEngineId,
+      decoded.envelope.surfaceId,
+    );
     if (surface.isDisposed) return;
     surface._apply(decoded);
     if (surface.isDisposed) {
       _disposeCanvas2dSurface(boundEngineId, decoded.envelope.surfaceId);
     }
+  }
+
+  FlutterGpuThreeSurface _obtainSurfaceForIds(
+    String engineId,
+    String surfaceId,
+  ) {
+    final cached = _lastSurface;
+    if (cached != null &&
+        _lastSurfaceEngineId == engineId &&
+        _lastSurfaceId == surfaceId) {
+      return cached;
+    }
+    final surface = _obtainSurface(JsThreeSurfaceKey(engineId, surfaceId));
+    _lastSurfaceEngineId = engineId;
+    _lastSurfaceId = surfaceId;
+    _lastSurface = surface;
+    return surface;
   }
 
   FlutterGpuThreeSurface _obtainSurface(JsThreeSurfaceKey key) {
@@ -290,6 +320,11 @@ class FlutterGpuThreeHost implements JsThreeHost {
         .toList();
     for (final entry in entries) {
       _surfaces.remove(entry.key);
+      if (identical(_lastSurface, entry.value)) {
+        _lastSurface = null;
+        _lastSurfaceEngineId = null;
+        _lastSurfaceId = null;
+      }
       entry.value.dispose();
     }
   }

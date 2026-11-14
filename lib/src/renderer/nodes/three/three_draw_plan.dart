@@ -622,12 +622,17 @@ final class ThreeDrawPlanner {
     List<JsThreeStencilClear> clears,
     JsThreeFrameResources state,
   ) {
-    final draws = [...opaque, ...transparent];
     if (clears.isEmpty) {
-      return List.unmodifiable([
-        for (final draw in draws) ThreeDrawStreamDraw(draw),
+      if (opaque.isEmpty && transparent.isEmpty) {
+        return const <ThreeDrawStreamEntry>[];
+      }
+      // Avoid the intermediate spread list on every stenciless frame.
+      return List<ThreeDrawStreamEntry>.unmodifiable(<ThreeDrawStreamEntry>[
+        for (final draw in opaque) ThreeDrawStreamDraw(draw),
+        for (final draw in transparent) ThreeDrawStreamDraw(draw),
       ]);
     }
+    final draws = [...opaque, ...transparent];
     final anchored = <(int, int)>[
       for (var index = 0; index < clears.length; index++)
         (_stencilClearAnchor(draws, clears[index], state), index),
@@ -1131,28 +1136,51 @@ final class ThreeDrawPlanner {
 
   void _checkMaterialMap(_DrawContext context, JsThreeMaterialUpsert material) {
     if (!context.checkedMaterials.add(material.materialId)) return;
-    for (final (label, id) in <(String, int)>[
-      ('map', material.mapTextureId),
-      ('alphaMap', material.alphaMapTextureId),
-      ('envMap', material.envMapTextureId),
-      ('matcap', material.matcapTextureId),
-      ('gradientMap', material.gradientMapTextureId),
-      ('normalMap', material.normalMapTextureId),
-      ('bumpMap', material.bumpMapTextureId),
-      ('roughnessMap', material.roughnessMapTextureId),
-      ('metalnessMap', material.metalnessMapTextureId),
-      ('mapRight', material.mapRightTextureId),
-    ]) {
-      if (id != 0 &&
-          !context.state.textures.containsKey(id) &&
-          !context.state.renderTargets.containsKey(id)) {
-        context.diagnostics.missingResourceCount++;
-        context.diagnostics.warn(
-          'material ${material.materialId} $label $id is '
-          'missing; a white fallback will be used',
-        );
-      }
+    // Direct checks avoid allocating ten (label, id) records per material on
+    // every plan while retaining the exact diagnostic labels and order.
+    _checkTexture(context, material, 'map', material.mapTextureId);
+    _checkTexture(context, material, 'alphaMap', material.alphaMapTextureId);
+    _checkTexture(context, material, 'envMap', material.envMapTextureId);
+    _checkTexture(context, material, 'matcap', material.matcapTextureId);
+    _checkTexture(
+      context,
+      material,
+      'gradientMap',
+      material.gradientMapTextureId,
+    );
+    _checkTexture(context, material, 'normalMap', material.normalMapTextureId);
+    _checkTexture(context, material, 'bumpMap', material.bumpMapTextureId);
+    _checkTexture(
+      context,
+      material,
+      'roughnessMap',
+      material.roughnessMapTextureId,
+    );
+    _checkTexture(
+      context,
+      material,
+      'metalnessMap',
+      material.metalnessMapTextureId,
+    );
+    _checkTexture(context, material, 'mapRight', material.mapRightTextureId);
+  }
+
+  void _checkTexture(
+    _DrawContext context,
+    JsThreeMaterialUpsert material,
+    String label,
+    int id,
+  ) {
+    if (id == 0 ||
+        context.state.textures.containsKey(id) ||
+        context.state.renderTargets.containsKey(id)) {
+      return;
     }
+    context.diagnostics.missingResourceCount++;
+    context.diagnostics.warn(
+      'material ${material.materialId} $label $id is '
+      'missing; a white fallback will be used',
+    );
   }
 
   ThreeDrawPrimitive? _primitiveFor(

@@ -611,6 +611,34 @@ void main() {
       bridge.dispose();
     });
 
+    test('shares encoded asset responses and resets the per-run LRU', () async {
+      final host = FakeThreeHost()
+        ..assets['atlas.png'] = JsThreeAsset(
+          data: Uint8List.fromList(List<int>.generate(4096, (i) => i & 255)),
+          mimeType: 'image/png',
+          width: 64,
+          height: 64,
+        );
+      final resolved = <String, dynamic>{};
+      final bridge = _makeBridge(resolved: resolved, threeHost: host);
+      Future<void> request(String id) => bridge.dispatch(
+        '__jsr_host_call',
+        '{"id":"$id","name":"three.asset","args":{"url":"atlas.png"}}',
+      );
+      await Future.wait([request('a1'), request('a2')]);
+      await pumpEventQueue();
+      expect(host.assetLoadCount, 1);
+      expect(resolved['a1'], resolved['a2']);
+      await request('a3');
+      await pumpEventQueue();
+      expect(host.assetLoadCount, 1);
+      bridge.resetForRun();
+      await request('a4');
+      await pumpEventQueue();
+      expect(host.assetLoadCount, 2);
+      bridge.dispose();
+    });
+
     test('denies network assets when fetch permission is disabled', () async {
       final host = FakeThreeHost();
       final resolved = <String, dynamic>{};

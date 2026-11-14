@@ -135,14 +135,19 @@ class QuickjsWidgetEngineBackend
       // bootstrap's {iid,id} tagging (the JSC cross-engine router never
       // sees these messages).
       runtime.setGlobal('__JSR_RAW_BINARY__', 1);
+      // Theme initialization is pure JS and has no host await. Evaluate it
+      // with the bootstrap so startup pays one fewer full QuickJS parse/eval
+      // round trip (bootstrap, theme, and widget used to be three evals).
       final bootstrapError = <String?>[];
-      runtime.eval(kJsWidgetBootstrap, errMsg: bootstrapError);
+      runtime.eval(
+        '$kJsWidgetBootstrap\n${JsWidgetBridge.updateThemeJs(initialTheme)}',
+        errMsg: bootstrapError,
+      );
       if (bootstrapError.isNotEmpty) {
         debugPrint(
           '[QuickjsWidgetEngineBackend] bootstrap error: ${bootstrapError.single}',
         );
       }
-      updateTheme(initialTheme);
 
       final hostBootstrap = hostBootstrapJs ?? '';
       final code =
@@ -428,7 +433,7 @@ class QuickjsWidgetEngineBackend
     if (!_isLive(rt)) return;
     final evalError = <String?>[];
     try {
-      rt.eval('if(__iv_cbs["$id"])__iv_cbs["$id"]()', errMsg: evalError);
+      rt.eval('__jsrInterval(${jsonEncode(id)})', errMsg: evalError);
       rt.executePendingJobs();
     } catch (e) {
       _reportAsyncError(rt, 'interval tick', e.toString());
@@ -442,10 +447,7 @@ class QuickjsWidgetEngineBackend
     if (!_isLive(rt)) return;
     final evalError = <String?>[];
     try {
-      rt.eval(
-        'if(__raf_cbs["$id"]){__raf_cbs["$id"]($elapsedMs);delete __raf_cbs["$id"];}',
-        errMsg: evalError,
-      );
+      rt.eval('__jsrRaf(${jsonEncode(id)},$elapsedMs)', errMsg: evalError);
       rt.executePendingJobs();
     } catch (e) {
       _reportAsyncError(rt, 'RAF tick', e.toString());
@@ -473,10 +475,21 @@ class QuickjsWidgetEngineBackend
     if (!_isLive(rt)) return;
     final evalError = <String?>[];
     try {
-      rt.eval(
-        'if(__cbs["$id"]){__cbs["$id"](${jsonEncode(value)});delete __cbs["$id"];}',
-        errMsg: evalError,
-      );
+      // Large host payloads are JSON-marshalled straight into globals by the
+      // FFI bridge. This avoids reparsing a second, much larger JavaScript
+      // string literal (notably base64 asset responses) on every resolve.
+      if (_resolvePrefersGlobal(value)) {
+        rt.setGlobal('__jsrHostResolveValue', value);
+        rt.eval(
+          '__jsrResolve(${jsonEncode(id)},__jsrHostResolveValue)',
+          errMsg: evalError,
+        );
+      } else {
+        rt.eval(
+          '__jsrResolve(${jsonEncode(id)},${jsonEncode(value)})',
+          errMsg: evalError,
+        );
+      }
       rt.executePendingJobs();
     } catch (e) {
       _reportAsyncError(rt, 'resolve callback', e.toString());
@@ -486,4 +499,17 @@ class QuickjsWidgetEngineBackend
       _reportAsyncError(rt, 'resolve callback', evalError.single!);
     }
   }
+}
+
+/// Avoid an extra JSON encode just to choose the large-payload lane. Asset
+/// and file responses carry their bulk in a top-level string field.
+bool _resolvePrefersGlobal(dynamic value) {
+  if (value is String) return value.length >= 16384;
+  if (value is! Map) return false;
+  for (final entry in value.entries) {
+    if (entry.value is String && (entry.value as String).length >= 16384) {
+      return true;
+    }
+  }
+  return false;
 }

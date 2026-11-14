@@ -52,6 +52,7 @@ class FakeThreeHost implements JsThreeHost {
   final disposedEngines = <String>[];
   final assets = <String, JsThreeAsset>{};
   int attachCount = 0;
+  int assetLoadCount = 0;
 
   static String key(String engineId, String surfaceId) =>
       '$engineId/$surfaceId';
@@ -91,6 +92,7 @@ class FakeThreeHost implements JsThreeHost {
 
   @override
   Future<JsThreeAsset> loadAsset(String engineId, String url) async {
+    assetLoadCount++;
     final asset = assets[url];
     if (asset == null) throw StateError('three.assetFailure');
     return asset;

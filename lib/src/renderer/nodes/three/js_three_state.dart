@@ -1,7 +1,6 @@
 import 'dart:collection';
 import 'dart:typed_data';
 
-import 'package:collection/collection.dart';
 import 'package:js_widget_runtime/src/renderer/nodes/three/js_three_protocol.dart';
 
 /// The complete isolation key for every THREE resource.
@@ -92,22 +91,39 @@ final class JsThreeStateStore {
 
   final JsThreeProtocolDecoder decoder;
   final Map<JsThreeSurfaceKey, JsThreeSurfaceState> _surfaces = {};
-
-  Map<JsThreeSurfaceKey, JsThreeSurfaceState> get surfaces =>
+  JsThreeSurfaceKey? _lastKey;
+  JsThreeSurfaceState? _lastState;
+  late final Map<JsThreeSurfaceKey, JsThreeSurfaceState> _surfaceView =
       UnmodifiableMapView(_surfaces);
 
-  JsThreeSurfaceState? surface(String engineId, String surfaceId) =>
-      _surfaces[JsThreeSurfaceKey(engineId, surfaceId)];
+  Map<JsThreeSurfaceKey, JsThreeSurfaceState> get surfaces => _surfaceView;
 
-  JsThreeSurfaceState? surfaceByKey(JsThreeSurfaceKey key) => _surfaces[key];
+  JsThreeSurfaceState? surface(String engineId, String surfaceId) {
+    final key = _lastKey;
+    if (key != null && key.engineId == engineId && key.surfaceId == surfaceId) {
+      return _lastState;
+    }
+    return _surfaces[JsThreeSurfaceKey(engineId, surfaceId)];
+  }
+
+  JsThreeSurfaceState? surfaceByKey(JsThreeSurfaceKey key) {
+    if (_lastKey == key) return _lastState;
+    return _surfaces[key];
+  }
 
   JsThreeApplyResult apply(Uint8List bytes) =>
       applyDecoded(decoder.decode(bytes));
 
   JsThreeApplyResult applyDecoded(JsThreeDecodedR1 decoded) {
     final envelope = decoded.envelope;
-    final key = JsThreeSurfaceKey(envelope.engineId, envelope.surfaceId);
-    final existing = _surfaces[key];
+    final cachedKey = _lastKey;
+    final key =
+        cachedKey != null &&
+            cachedKey.engineId == envelope.engineId &&
+            cachedKey.surfaceId == envelope.surfaceId
+        ? cachedKey
+        : JsThreeSurfaceKey(envelope.engineId, envelope.surfaceId);
+    final existing = identical(key, cachedKey) ? _lastState : _surfaces[key];
     JsThreeProtocolDecoder.validateSequence(
       envelope.sequence,
       lastSequence: existing?.lastSequence ?? 0,
@@ -115,6 +131,8 @@ final class JsThreeStateStore {
     final state = existing ?? JsThreeSurfaceState._(key);
     final result = state._apply(decoded.stream, envelope.sequence);
     if (existing == null) _surfaces[key] = state;
+    _lastKey = key;
+    _lastState = state;
     return result;
   }
 }
@@ -351,19 +369,31 @@ final class JsThreeSurfaceState implements JsThreeFrameResources {
   int _cameraRevision = 0;
   bool _disposed = false;
 
-  Map<int, JsThreeGeometryUpsert> get geometries =>
-      UnmodifiableMapView(_geometries);
-  Map<int, JsThreeTextureUpsert> get textures => UnmodifiableMapView(_textures);
-  Map<int, JsThreeRenderTargetUpsert> get renderTargets =>
+  // These views never change identity when the underlying maps mutate. Make
+  // them once, lazily, instead of allocating a wrapper on every planner or
+  // quota access (the previous getter showed up in the inlined apply path).
+  late final Map<int, JsThreeGeometryUpsert> geometries = UnmodifiableMapView(
+    _geometries,
+  );
+  late final Map<int, JsThreeTextureUpsert> textures = UnmodifiableMapView(
+    _textures,
+  );
+  late final Map<int, JsThreeRenderTargetUpsert> renderTargets =
       UnmodifiableMapView(_renderTargets);
-  Map<int, JsThreeMaterialUpsert> get materials =>
-      UnmodifiableMapView(_materials);
-  Map<int, JsThreeNodeUpsert> get nodes => UnmodifiableMapView(_nodes);
-  Map<int, JsThreeDrawBatchUpsert> get batches => UnmodifiableMapView(_batches);
-  Map<int, JsThreeCameraUpsert> get cameras => UnmodifiableMapView(_cameras);
-  Map<int, JsThreeLightUpsert> get lights => UnmodifiableMapView(_lights);
-  Map<int, JsThreeClippingUpsert> get clippings =>
-      UnmodifiableMapView(_clippings);
+  late final Map<int, JsThreeMaterialUpsert> materials = UnmodifiableMapView(
+    _materials,
+  );
+  late final Map<int, JsThreeNodeUpsert> nodes = UnmodifiableMapView(_nodes);
+  late final Map<int, JsThreeDrawBatchUpsert> batches = UnmodifiableMapView(
+    _batches,
+  );
+  late final Map<int, JsThreeCameraUpsert> cameras = UnmodifiableMapView(
+    _cameras,
+  );
+  late final Map<int, JsThreeLightUpsert> lights = UnmodifiableMapView(_lights);
+  late final Map<int, JsThreeClippingUpsert> clippings = UnmodifiableMapView(
+    _clippings,
+  );
 
   /// R1 v8 STENCIL_CLEAR markers attached to [currentFrame], in stream
   /// order; empty for stenciless frames.
@@ -539,21 +569,26 @@ extension _JsThreeSurfaceStateOperations on JsThreeSurfaceState {
   }
 
   void _validateTargetQuota(JsThreeR1Stream stream) {
-    final targetIds = _renderTargets.keys.toSet();
+    // Frame/texture/geometry streams vastly outnumber target mutations. Build
+    // the quota set only when this envelope actually changes target membership.
+    Set<int>? targetIds;
     for (final command in stream.commands) {
       switch (command) {
         case final JsThreeRenderTargetUpsert value:
-          targetIds.add(value.targetId);
+          (targetIds ??= _renderTargets.keys.toSet()).add(value.targetId);
         case final JsThreeDisposeResource value:
           if (value.resourceKind == JsThreeResourceKind.renderTarget) {
-            targetIds.remove(value.resourceId);
+            (targetIds ??= _renderTargets.keys.toSet()).remove(
+              value.resourceId,
+            );
           }
         case JsThreeDisposeSurface _:
-          targetIds.clear();
+          (targetIds ??= _renderTargets.keys.toSet()).clear();
         default:
-          break;
+          continue;
       }
-      if (targetIds.length > JsThreeProtocolDecoder.maxRenderTargetCount) {
+      if (targetIds != null &&
+          targetIds.length > JsThreeProtocolDecoder.maxRenderTargetCount) {
         throw const JsThreeProtocolException('render target count exceeds 16');
       }
     }
@@ -592,26 +627,11 @@ extension _JsThreeSurfaceStateOperations on JsThreeSurfaceState {
   }
 
   void _applyCommand(JsThreeCommand command, _ApplyBatch batch) {
+    // Uploads are the hot majority. Keep one fast probe for them, then a
+    // companion switch for scene mutations (the old dispatcher used three
+    // failed type-switch probes for most non-upload commands). Cold frame
+    // markers fall through to a small helper to bound dispatch complexity.
     if (_applyUploadCommand(command, batch)) return;
-    if (_applyIndexedUpsert(command, batch)) return;
-    if (_applyRemovalCommand(command, batch)) return;
-    switch (command) {
-      case final JsThreeNodeUpsert value:
-        _upsertNode(value, batch);
-      case final JsThreeSubmitFrame value:
-        _recordFrame(value, batch);
-      case final JsThreeStencilClear value:
-        _recordStencilClear(value, batch);
-      case final JsThreeDisposeSurface value:
-        batch.surfaceDispose = value;
-      default:
-        throw StateError('Unhandled THREE command ${command.runtimeType}');
-    }
-  }
-
-  /// Camera and light upserts land in an id-indexed map plus the change
-  /// list; lights also dirty the shadow pass.
-  bool _applyIndexedUpsert(JsThreeCommand command, _ApplyBatch batch) {
     switch (command) {
       case final JsThreeCameraUpsert value:
         _cameras[value.cameraId] = value;
@@ -621,16 +641,6 @@ extension _JsThreeSurfaceStateOperations on JsThreeSurfaceState {
         _markShadow(batch, 'light:${value.lightId}');
         _lights[value.lightId] = value;
         batch.changes.add(value);
-      default:
-        return false;
-    }
-    return true;
-  }
-
-  /// Node/batch removals and generic resource disposals free the matching
-  /// resource and record the removal for host notification.
-  bool _applyRemovalCommand(JsThreeCommand command, _ApplyBatch batch) {
-    switch (command) {
       case final JsThreeRemoveBatch value:
         _recordRemoval(_removeBatch(value.nodeId), value, batch);
       case final JsThreeRemoveNode value:
@@ -645,6 +655,40 @@ extension _JsThreeSurfaceStateOperations on JsThreeSurfaceState {
           value,
           batch,
         );
+      case final JsThreeNodeUpsert value:
+        _upsertNode(value, batch);
+      default:
+        _applyFrameCommand(command, batch);
+    }
+  }
+
+  void _applyFrameCommand(JsThreeCommand command, _ApplyBatch batch) {
+    switch (command) {
+      case final JsThreeSubmitFrame value:
+        _recordFrame(value, batch);
+      case final JsThreeStencilClear value:
+        _recordStencilClear(value, batch);
+      case final JsThreeDisposeSurface value:
+        batch.surfaceDispose = value;
+      default:
+        throw StateError('Unhandled THREE command ${command.runtimeType}');
+    }
+  }
+
+  bool _applyUploadCommand(JsThreeCommand command, _ApplyBatch batch) {
+    switch (command) {
+      case final JsThreeGeometryUpsert value:
+        _recordUpload(_upsertGeometry(value), value, batch);
+      case final JsThreeTextureUpsert value:
+        _recordUpload(_upsertTexture(value), value, batch);
+      case final JsThreeMaterialUpsert value:
+        _recordUpload(_upsertMaterial(value), value, batch);
+      case final JsThreeDrawBatchUpsert value:
+        _recordUpload(_upsertBatch(value), value, batch);
+      case final JsThreeClippingUpsert value:
+        _recordUpload(_upsertClipping(value), value, batch);
+      case final JsThreeRenderTargetUpsert value:
+        _upsertRenderTarget(value, batch);
       default:
         return false;
     }
@@ -684,7 +728,10 @@ extension _JsThreeSurfaceStateOperations on JsThreeSurfaceState {
   /// Field-for-field equality for node re-upserts. Every planning-relevant
   /// input participates (matrix, flags, ids, sprite anchor, render order) so
   /// an equal verdict guarantees an identical draw plan.
-  static bool _nodeUpsertEquals(JsThreeNodeUpsert a, JsThreeNodeUpsert b) {
+  static bool _nodeUpsertEquals(JsThreeNodeUpsert a, JsThreeNodeUpsert b) =>
+      _nodeMetadataEquals(a, b) && _matrixEquals(a.matrixWorld, b.matrixWorld);
+
+  static bool _nodeMetadataEquals(JsThreeNodeUpsert a, JsThreeNodeUpsert b) {
     if (a.nodeId != b.nodeId ||
         a.parentId != b.parentId ||
         a.geometryId != b.geometryId ||
@@ -695,39 +742,22 @@ extension _JsThreeSurfaceStateOperations on JsThreeSurfaceState {
         a.renderOrder != b.renderOrder) {
       return false;
     }
-    if (a.objectKind == JsThreeObjectKind.sprite &&
-        (a.spriteCenterX != b.spriteCenterX ||
-            a.spriteCenterY != b.spriteCenterY)) {
-      return false;
+    return a.objectKind != JsThreeObjectKind.sprite ||
+        (a.spriteCenterX == b.spriteCenterX &&
+            a.spriteCenterY == b.spriteCenterY);
+  }
+
+  static bool _matrixEquals(Float32List a, Float32List b) {
+    if (identical(a, b)) return true;
+    if (a.length != b.length) return false;
+    for (var i = 0; i < a.length; i++) {
+      if (a[i] != b[i]) return false;
     }
-    return const ListEquality<double>().equals(
-      a.matrixWorld,
-      b.matrixWorld,
-    );
+    return true;
   }
 
   bool _castsShadow(JsThreeNodeUpsert value) =>
       value.castShadow && value.objectKind != JsThreeObjectKind.group;
-
-  bool _applyUploadCommand(JsThreeCommand command, _ApplyBatch batch) {
-    switch (command) {
-      case final JsThreeGeometryUpsert value:
-        _recordUpload(_upsertGeometry(value), value, batch);
-      case final JsThreeTextureUpsert value:
-        _recordUpload(_upsertTexture(value), value, batch);
-      case final JsThreeMaterialUpsert value:
-        _recordUpload(_upsertMaterial(value), value, batch);
-      case final JsThreeDrawBatchUpsert value:
-        _recordUpload(_upsertBatch(value), value, batch);
-      case final JsThreeClippingUpsert value:
-        _recordUpload(_upsertClipping(value), value, batch);
-      case final JsThreeRenderTargetUpsert value:
-        _upsertRenderTarget(value, batch);
-      default:
-        return false;
-    }
-    return true;
-  }
 
   bool _upsertClipping(JsThreeClippingUpsert value) {
     final previous = _clippings[value.clipId];
@@ -758,7 +788,9 @@ extension _JsThreeSurfaceStateOperations on JsThreeSurfaceState {
 
   void _recordFrame(JsThreeSubmitFrame frame, _ApplyBatch batch) {
     frame.batchSequence = batch.sequence;
-    _currentFrameStencilClears = List.unmodifiable(_pendingStencilClears);
+    _currentFrameStencilClears = _pendingStencilClears.isEmpty
+        ? const <JsThreeStencilClear>[]
+        : List<JsThreeStencilClear>.unmodifiable(_pendingStencilClears);
     _pendingStencilClears.clear();
     if (_submitFrame(frame)) batch.coalesced++;
     batch.changes.add(frame);

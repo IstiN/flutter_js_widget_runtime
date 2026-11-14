@@ -12,6 +12,26 @@ var __cbs = {};
 var __iv_cbs = {};
 var __raf_cbs = {};
 
+// Keep host-originated callback delivery in pre-parsed bootstrap functions.
+// The VM backends still supply the id/value, but no longer re-parse the
+// callback lookup/delete prologue for every promise, timer, or RAF tick.
+function __jsrResolve(id,value){
+  var cb=__cbs[id];
+  if(!cb)return;
+  cb(value);
+  delete __cbs[id];
+}
+function __jsrInterval(id){
+  var cb=__iv_cbs[id];
+  if(cb)cb();
+}
+function __jsrRaf(id,elapsed){
+  var cb=__raf_cbs[id];
+  if(!cb)return;
+  cb(elapsed);
+  delete __raf_cbs[id];
+}
+
 // Cross-engine routing tag: on macOS (JSC) the native sendMessage callback
 // is process-global and dispatches through the LAST-created runtime's
 // channel map. Every message payload below carries the engine __IID so the

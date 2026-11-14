@@ -465,7 +465,7 @@ class FlutterJsWidgetEngineBackend implements JsWidgetEngineBackend {
   void _handleIntervalTick(JavascriptRuntime rt, String id) {
     if (!_isLive(rt)) return;
     try {
-      rt.evaluate('if(__iv_cbs["$id"])__iv_cbs["$id"]()');
+      rt.evaluate('__jsrInterval(${jsonEncode(id)})');
       rt.executePendingJob();
     } catch (_) {}
   }
@@ -473,9 +473,7 @@ class FlutterJsWidgetEngineBackend implements JsWidgetEngineBackend {
   void _handleRafTick(JavascriptRuntime rt, String id, int elapsedMs) {
     if (!_isLive(rt)) return;
     try {
-      rt.evaluate(
-        'if(__raf_cbs["$id"]){__raf_cbs["$id"]($elapsedMs);delete __raf_cbs["$id"];}',
-      );
+      rt.evaluate('__jsrRaf(${jsonEncode(id)},$elapsedMs)');
       rt.executePendingJob();
     } catch (e) {
       debugPrint('[FlutterJsWidgetEngineBackend] RAF tick error: $e');
@@ -485,9 +483,7 @@ class FlutterJsWidgetEngineBackend implements JsWidgetEngineBackend {
   void _resolveCallback(JavascriptRuntime rt, String id, dynamic value) {
     if (!_isLive(rt)) return;
     try {
-      rt.evaluate(
-        'if(__cbs["$id"]){__cbs["$id"](${jsonEncode(value)});delete __cbs["$id"];}',
-      );
+      rt.evaluate('__jsrResolve(${jsonEncode(id)},${jsonEncode(value)})');
       rt.executePendingJob();
     } catch (e) {
       debugPrint('[FlutterJsWidgetEngineBackend] resolve callback error: $e');
