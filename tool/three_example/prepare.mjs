@@ -4845,7 +4845,7 @@ webgl_geometry_shapes: {
     },
     discoverAssets: true,
     // Fast OBJ fetch (bypasses the per-codepoint decodeUtf8 boot stall) plus
-    // the measured stride-2 point-count degrade — see
+    // the measured point-count degrade — see
     // degrades/points_dynamic_compat.mjs for the split and the deviation.
     compat: "import { installPointsDynamicCompat } from './degrades/points_dynamic_compat.mjs'; installPointsDynamicCompat();",
     facadeWraps: {

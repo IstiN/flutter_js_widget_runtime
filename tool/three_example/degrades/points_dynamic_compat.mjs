@@ -21,11 +21,13 @@
 //    (submit stays 931081B across stride 2 and 4) — an R1 lane residual,
 //    not a widget cost. Deviation: half the points per cloud, same
 //    layout/colors/point sizes (positions are a subset; the animation math
-//    and materials are untouched).
+//    and materials are untouched). The later typed-array simulation patch
+//    made QuickJS vertex math dominant again; stride 3 (~50k points) measures
+//    72–80 presented fps and keeps the human clouds legible.
 import { BufferAttribute } from 'three';
 import { bytesToText } from './fast_text_decode.mjs';
 
-const POINT_STRIDE = 2;
+const POINT_STRIDE = 3;
 
 function decimateGeometry(geometry, stride) {
   const attributes = geometry.attributes;
