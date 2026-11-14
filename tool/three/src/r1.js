@@ -421,7 +421,12 @@ export function drawBatchCommand(id, version, instanceCount, flags, parts, matri
   const colorLength = flags === 3 ? instanceCount * 3 : 0;
   if (colorLength > 0) {
     if (!colors || colors.length < colorLength) throw new Error('three.invalid: batch instance color payload');
-    if (!validated) for (let i = 0; i < colorLength; i++) {
+    if (!validated && ArrayBuffer.isView(colors)) {
+      const bits = new Uint32Array(colors.buffer, colors.byteOffset, colorLength);
+      for (let i = 0; i < colorLength; i++) {
+        if ((bits[i] & 0x7f800000) === 0x7f800000) throw new Error('three.invalid: batch instance colors must be finite');
+      }
+    } else if (!validated) for (let i = 0; i < colorLength; i++) {
       if (!Number.isFinite(colors[i])) throw new Error('three.invalid: batch instance colors must be finite');
     }
   }
@@ -446,10 +451,13 @@ export function drawBatchCommand(id, version, instanceCount, flags, parts, matri
     // instanceMatrix version bump on 5000-instance scenes. Rejection
     // semantics are identical: same check, same message, and the command is
     // still never pushed when any component is non-finite.
-    if (!validated) for (let i = 0; i < matrixLength; i++) {
-      const value = matrices[i];
-      if (value !== value || value === Infinity || value === -Infinity) {
-        throw new Error('three.invalid: instanceMatrix must be finite');
+    if (!validated) {
+      // Float32 exponent bits: 0xff means NaN or either infinity. One mask +
+      // one compare replaces three floating comparisons per component (the
+      // 10k-instance dynamic example scans ~190k floats per frame).
+      const bits = new Uint32Array(matrices.buffer, matrices.byteOffset, matrixLength);
+      for (let i = 0; i < matrixLength; i++) {
+        if ((bits[i] & 0x7f800000) === 0x7f800000) throw new Error('three.invalid: instanceMatrix must be finite');
       }
     }
     body.bytes(new Uint8Array(matrices.buffer, matrices.byteOffset, matrixLength * 4));

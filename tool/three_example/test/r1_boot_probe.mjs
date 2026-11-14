@@ -71,6 +71,8 @@ const context = vm.createContext({
     time() {}, timeEnd() {}
   },
   performance, sendMessage() {}, TextEncoder, TextDecoder, atob, setTimeout, clearTimeout,
+  setInterval(fn, ms, ...args) { const timer = setInterval(fn, ms, ...args); timer.unref(); return timer; },
+  clearInterval,
   // The app runs skinning on the native bytes lane; stub it as instant so the
   // profile shows the frame cost that REMAINS in the app (not the JS fallback).
   __jsrSkinBytes(name, bytes) {

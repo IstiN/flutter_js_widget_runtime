@@ -12,6 +12,7 @@ import { applyVrmlDeferredSwapPatch } from './degrades/vrml_deferred_swap.mjs';
 import { mergeGlbByMaterial } from './degrades/glb_material_merge.mjs';
 import { applyPointsDynamicDirectRenderPatch } from './degrades/points_dynamic_direct_render.mjs';
 import { applyPointsDynamicSimFastPathPatch } from './degrades/points_dynamic_sim_fast_path.mjs';
+import { applyInstancingDynamicFastPathPatch } from './degrades/instancing_dynamic_fast_path.mjs';
 import { applyPointsDynamicLoaderPatch } from './degrades/points_dynamic_loader_patch.mjs';
 import { applyWidgetTextDecodeJoinPatch } from './degrades/widget_text_decode_join.mjs';
 import { applySponzaStandInPatch, buildSponzaStandin } from './degrades/sponza_standin.mjs';
@@ -1678,6 +1679,7 @@ webgl_geometry_shapes: {
     id: 'three-instancing-dynamic',
     directory: 'three-instancing-dynamic',
     name: 'Instancing Dynamic — three.js r186',
+    instancingDynamicFastPath: true,
     description: 'Unmodified official webgl_instancing_dynamic module on the JSR THREE R1/WebGL2 runtime.',
     icon: '🧩',
     expected: {
@@ -7388,6 +7390,9 @@ async function main() {
     // QuickJS sim fast path: typed-array vertex loop (see
     // degrades/points_dynamic_sim_fast_path.mjs). Anchored; throws on drift.
     officialBuildBytes = applyPointsDynamicSimFastPathPatch(officialBuildBytes);
+  }
+  if (definition.instancingDynamicFastPath) {
+    officialBuildBytes = applyInstancingDynamicFastPathPatch(officialBuildBytes);
   }
   if (definition.pointsDynamicLoaderPatch) {
     // Bounded degrade: route the bundled OBJLoader addon instance through the
