@@ -14,6 +14,7 @@ import { applyPointsDynamicDirectRenderPatch } from './degrades/points_dynamic_d
 import { applyPointsDynamicSimFastPathPatch } from './degrades/points_dynamic_sim_fast_path.mjs';
 import { applyInstancingDynamicFastPathPatch } from './degrades/instancing_dynamic_fast_path.mjs';
 import { applyProtoplanetBoundedResolutionPatch } from './degrades/protoplanet_bounded_resolution.mjs';
+import { applyLodBoundedCountPatch } from './degrades/lod_bounded_count.mjs';
 import { applyPointsDynamicLoaderPatch } from './degrades/points_dynamic_loader_patch.mjs';
 import { applyWidgetTextDecodeJoinPatch } from './degrades/widget_text_decode_join.mjs';
 import { applySponzaStandInPatch, buildSponzaStandin } from './degrades/sponza_standin.mjs';
@@ -1426,6 +1427,7 @@ webgl_geometry_shapes: {
     id: 'three-lod',
     directory: 'three-lod',
     name: 'Lod — three.js r186',
+    lodBoundedCount: true,
     description: 'Unmodified official webgl_lod module on the JSR THREE R1/WebGL2 runtime.',
     icon: '🔭',
     expected: {
@@ -7398,6 +7400,9 @@ async function main() {
   }
   if (definition.protoplanetBoundedResolution) {
     officialBuildBytes = applyProtoplanetBoundedResolutionPatch(officialBuildBytes);
+  }
+  if (definition.lodBoundedCount) {
+    officialBuildBytes = applyLodBoundedCountPatch(officialBuildBytes);
   }
   if (definition.pointsDynamicLoaderPatch) {
     // Bounded degrade: route the bundled OBJLoader addon instance through the
