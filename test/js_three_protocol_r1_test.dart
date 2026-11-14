@@ -947,7 +947,7 @@ void main() {
       }
       threeBad(
         () => threeProtocolDecoder.decodeR1(
-          threeR1([(3, _postMaterialV9(op: 16))], version: 9),
+          threeR1([(3, _postMaterialV9(op: 17))], version: 9),
         ),
       );
     });

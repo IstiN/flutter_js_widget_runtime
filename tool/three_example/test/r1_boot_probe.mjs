@@ -81,6 +81,7 @@ const context = vm.createContext({
 vm.runInContext(native, context, { filename: 'jsr_three_native.js' });
 vm.runInContext('globalThis.THREE = THREE;', context);
 if (process.env.R1_TEXDEBUG === '1') vm.runInContext('globalThis.__R1_TEXDEBUG = true;', context);
+if (process.env.R1_STAGES === '1') vm.runInContext('globalThis.__JSR_R1_STAGES = true; globalThis.__JSR_BATCH_DEBUG = true;', context);
 vm.runInContext(`
 globalThis.__rejections = [];
 const origThen = Promise.prototype.then;
@@ -114,6 +115,7 @@ for (let frame = 0; frame < FRAMES && rafs.size > 0; frame++) {
   for (let i = 0; i < 4; i++) await new Promise(resolve => setImmediate(resolve));
 }
 console.log('r1 submits:', globalThis.__r1Submits || 0);
+if (process.env.R1_STAGES === '1') console.log('batchDiag:', vm.runInContext('JSON.stringify({diag: globalThis.__batchDiag || null, state: globalThis.__batchState || null})', context));
 console.log('rejections:', vm.runInContext('JSON.stringify(globalThis.__rejections.slice(0,6))', context));
 console.log('logs (last 12):');
 for (const line of logs.filter(l=>l.includes('RAF-ERR')).slice(0,4)) console.log(' ', line.slice(0,200));

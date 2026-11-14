@@ -403,7 +403,11 @@ export function removeNodeCommand(id) {
   return command(OPCODE.REMOVE_NODE, body.finish());
 }
 
-export function drawBatchCommand(id, version, instanceCount, flags, parts, matrices = null, colors = null) {
+export function drawBatchCommand(id, version, instanceCount, flags, parts, matrices = null, colors = null, validated = false) {
+  // `validated` is reserved for retained renderer-owned buffers whose exact
+  // epoch already passed this function's finite scan. A material-only batch
+  // switch can then re-encode headers + bytes without rescanning 30k floats.
+  // All external/test callers keep the default full validation.
   checkedU32(id, 'batch nodeId');
   checkedU32(version, 'batch version');
   checkedU32(instanceCount, 'batch instanceCount');
@@ -417,7 +421,7 @@ export function drawBatchCommand(id, version, instanceCount, flags, parts, matri
   const colorLength = flags === 3 ? instanceCount * 3 : 0;
   if (colorLength > 0) {
     if (!colors || colors.length < colorLength) throw new Error('three.invalid: batch instance color payload');
-    for (let i = 0; i < colorLength; i++) {
+    if (!validated) for (let i = 0; i < colorLength; i++) {
       if (!Number.isFinite(colors[i])) throw new Error('three.invalid: batch instance colors must be finite');
     }
   }
@@ -442,7 +446,7 @@ export function drawBatchCommand(id, version, instanceCount, flags, parts, matri
     // instanceMatrix version bump on 5000-instance scenes. Rejection
     // semantics are identical: same check, same message, and the command is
     // still never pushed when any component is non-finite.
-    for (let i = 0; i < matrixLength; i++) {
+    if (!validated) for (let i = 0; i < matrixLength; i++) {
       const value = matrices[i];
       if (value !== value || value === Infinity || value === -Infinity) {
         throw new Error('three.invalid: instanceMatrix must be finite');

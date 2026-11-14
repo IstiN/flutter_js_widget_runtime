@@ -669,6 +669,16 @@ vec4 r1PostColor(vec2 uv) {
     }
     return vec4(diffuseSum, 1.0);
   }
+  if (op == 15) {
+    vec3 bloom = r1BloomContribution(0, base.rgb);
+    bloom += r1BloomContribution(1, texture(mapRightTexture, uv).rgb);
+    bloom += r1BloomContribution(2, texture(postTexture3, uv).rgb);
+    bloom += r1BloomContribution(3, texture(postTexture4, uv).rgb);
+    bloom += r1BloomContribution(4, texture(postTexture5, uv).rgb);
+    bloom *= 3.0 * r1PostParam(1);
+    float bloomAlpha = max(bloom.r, max(bloom.g, bloom.b));
+    return vec4(bloom, bloomAlpha);
+  }
   if (op == 16) {
     // BokehShader2: normalized linear depth from the R1 depth prepass.
     // Reconstruct view-space meters and evaluate the official thin-lens CoC.
@@ -708,16 +718,6 @@ vec4 r1PostColor(vec2 uv) {
       weight += w;
     }
     return vec4(sum / weight, base.a);
-  }
-  if (op == 15) {
-    vec3 bloom = r1BloomContribution(0, base.rgb);
-    bloom += r1BloomContribution(1, texture(mapRightTexture, uv).rgb);
-    bloom += r1BloomContribution(2, texture(postTexture3, uv).rgb);
-    bloom += r1BloomContribution(3, texture(postTexture4, uv).rgb);
-    bloom += r1BloomContribution(4, texture(postTexture5, uv).rgb);
-    bloom *= 3.0 * r1PostParam(1);
-    float bloomAlpha = max(bloom.r, max(bloom.g, bloom.b));
-    return vec4(bloom, bloomAlpha);
   }
   return base;
 }

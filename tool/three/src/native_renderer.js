@@ -5834,7 +5834,7 @@ export class JsrWebGLRenderer {
       if (diag) diag.eligBlend++;
       return false;
     }
-    if (material.map || material.alphaMap || material.envMap || material.matcap ||
+    if (material.map || material.alphaMap || material.matcap ||
         material.gradientMap || material.normalMap || material.bumpMap ||
         material.roughnessMap || material.metalnessMap) {
       if (diag) diag.eligMap++;
@@ -5860,7 +5860,15 @@ export class JsrWebGLRenderer {
       material.roughness === undefined ? 0 : material.roughness,
       material.metalness === undefined ? 0 : material.metalness,
       material.alphaTest || 0, material.side, material.blending || 0,
-      !!material.flatShading, material.envMapIntensity === undefined ? 1 : material.envMapIntensity
+      !!material.flatShading, material.envMapIntensity === undefined ? 1 : material.envMapIntensity,
+      // A SHARED environment map is safe: the group clone owns it and the
+      // per-instance diffuse color still multiplies albedo before lighting.
+      // Identity/mapping/combine must partition the group (dof's 1764 Phong
+      // spheres share one cube map and previously fell through to 1764 nodes).
+      material.envMap ? resourceId(material.envMap) : 0,
+      material.envMap ? material.envMap.mapping : 0,
+      material.combine || 0, material.reflectivity === undefined ? 1 : material.reflectivity,
+      material.refractionRatio === undefined ? 0.98 : material.refractionRatio
     ];
     const specular = material.isMeshPhongMaterial ? material.specular : null;
     if (specular) parts.push(specular.r, specular.g, specular.b, material.shininess);
@@ -5895,6 +5903,7 @@ export class JsrWebGLRenderer {
       capacity: 64,
       count: 0,
       anchor: new Object3D(),
+      variants: new Map(),
       dirty: true,
       parentId: 0,
       epoch: 0
@@ -5924,7 +5933,8 @@ export class JsrWebGLRenderer {
     colors[0] = color.r; colors[1] = color.g; colors[2] = color.b;
     const member = {
       group, key: group.key, slot, material: object.material,
-      matrix, color: colors, parentId, visible: visibleHere,
+      matrix, color: colors, rawMatrix: Array.from(elements), rawColor: [color.r, color.g, color.b],
+      parentId, visible: visibleHere,
       renderOrder: object.renderOrder, version: object.material.version
     };
     group.members.set(object, member);
@@ -6060,21 +6070,37 @@ export class JsrWebGLRenderer {
         const elements = object.matrixWorld.elements;
         const matrix = member.matrix;
         let changed = false;
+        const rawMatrix = member.rawMatrix;
         for (let i = 0; i < 16; i++) {
-          const quantized = Math.fround(elements[i]);
+          const value = elements[i];
+          if (value === rawMatrix[i]) continue; // static fast path: no fround call
+          rawMatrix[i] = value;
+          const quantized = Math.fround(value);
           if (quantized !== matrix[i]) { changed = true; matrix[i] = quantized; }
         }
-        // Color channels are doubles (THREE Color) over a Float32Array
-        // instance buffer — same fround rule as the matrix diff.
+        // Color channels use the same raw-double-first diff. Quantization is
+        // only needed after an actual source change (dof validates 1764
+        // static spheres in both the color and depth pass every tick).
         const color = material.color;
         const colors = member.color;
         if (!color) { this._colorBatchEvict(group, object); continue; }
-        const cr = Math.fround(color.r);
-        const cg = Math.fround(color.g);
-        const cb = Math.fround(color.b);
-        if (cr !== colors[0] || cg !== colors[1] || cb !== colors[2]) {
-          colors[0] = cr; colors[1] = cg; colors[2] = cb;
-          changed = true;
+        const rawColor = member.rawColor;
+        // Unrolled: allocating a [r,g,b] array per member per pass costs more
+        // than the saved fround calls in QuickJS (several thousand arrays).
+        if (color.r !== rawColor[0]) {
+          rawColor[0] = color.r;
+          const q = Math.fround(color.r);
+          if (q !== colors[0]) { colors[0] = q; changed = true; }
+        }
+        if (color.g !== rawColor[1]) {
+          rawColor[1] = color.g;
+          const q = Math.fround(color.g);
+          if (q !== colors[1]) { colors[1] = q; changed = true; }
+        }
+        if (color.b !== rawColor[2]) {
+          rawColor[2] = color.b;
+          const q = Math.fround(color.b);
+          if (q !== colors[2]) { colors[2] = q; changed = true; }
         }
         if (changed) {
           group.dirty = true; group.matrixEpoch++;
@@ -6092,36 +6118,55 @@ export class JsrWebGLRenderer {
       }
       group.parentId = renderedSceneId;
       const geometry = this._ensureGeometry(group.geometry, 0, 'triangles', commands);
-      const materialId = this._ensureMaterial(group.material, commands);
-      const geometryVersion = this._state.geometries.get(geometry.id)?.version || 0;
-      const materialVersion = this._state.materials.get(materialId)?.version || 0;
-      this._updateNode(group.anchor, group.batchId, group.parentId, 0, 0, chainVisible, 1, commands,
-        { x: 0.5, y: 0.5 });
-      const nodeEntry = this._state.nodes.get(group.batchId);
-      if (nodeEntry) nodeEntry.sceneId = renderedSceneId;
-      seenNodes.add(group.batchId);
-      if (group.dirty && chainVisible) {
-        group.dirty = false;
-        const count = group.count;
-        const signature = `1:${count}:${group.epoch}:${group.matrixEpoch}`;
-        const previous = this._state.batches.get(group.batchId);
-        if (!previous || previous.signature !== signature) {
-          const changed = this._nextVersion(this._state.batches, group.batchId, signature);
-          if (!changed) throw new Error('three.internal: color batch signature change must allocate a version');
-          const parts = [{ geometryId: geometry.id, materialId, offset: 0, count: geometry.drawCount }];
-          commands.push(drawBatchCommand(
-            group.batchId, changed.version, count, 3, parts,
-            group.matrices.subarray(0, count * 16), group.colors.subarray(0, count * 3)
-          ));
-          this._mapSet(this._state.batches, group.batchId, {
-            signature, version: changed.version, object: group.anchor, parts,
-            simpleInstanced: true, geometry: group.geometry, geometryVersion,
-            material: group.material, materialVersion,
-            instanceMatrix: null, instanceVersion: 0, instanceAttributeCount: 0,
-            instanceArray: null, instanceColor: null, instanceColorVersion: 0,
-            instanceColorArray: null, instanceColorCapacity: 0, instanceCount: count
-          });
-        }
+      const drawMaterial = this._sceneOverrideMaterial || group.material;
+      const materialId = this._ensureMaterial(drawMaterial, commands);
+      let current = group.variants.get(materialId);
+      if (!current) {
+        const primary = group.variants.size === 0;
+        current = {
+          batchId: primary ? group.batchId : 0xfff00000 + this._nextColorBatchId++,
+          anchor: primary ? group.anchor : new Object3D()
+        };
+        group.variants.set(materialId, current);
+      }
+      // A composer tick may snapshot color -> depth -> color before Dart
+      // reconciles GPU resources. Reusing one batch id would leave only the
+      // last (depth) upload in the native cache and the color RT would sample
+      // black. Keep one retained anchor + DRAW_BATCH per material variant;
+      // every variant stays in seenNodes, with only the current one visible.
+      for (const variant of group.variants.values()) {
+        this._updateNode(variant.anchor, variant.batchId, group.parentId, 0, 0,
+          chainVisible && variant === current, 1, commands, { x: 0.5, y: 0.5 });
+        const nodeEntry = this._state.nodes.get(variant.batchId);
+        if (nodeEntry) nodeEntry.sceneId = renderedSceneId;
+        seenNodes.add(variant.batchId);
+      }
+      const count = group.count;
+      const signature = `1:${count}:${group.epoch}:${group.matrixEpoch}:${materialId}`;
+      const previous = this._state.batches.get(current.batchId);
+      if (chainVisible && (!previous || previous.signature !== signature)) {
+        const changed = this._nextVersion(this._state.batches, current.batchId, signature);
+        if (!changed) throw new Error('three.internal: color batch signature change must allocate a version');
+        const parts = [{ geometryId: geometry.id, materialId, offset: 0, count: geometry.drawCount }];
+        const dataValidated = current.validatedEpoch === group.epoch &&
+          current.validatedMatrixEpoch === group.matrixEpoch;
+        commands.push(drawBatchCommand(
+          current.batchId, changed.version, count, 3, parts,
+          group.matrices.subarray(0, count * 16), group.colors.subarray(0, count * 3),
+          dataValidated
+        ));
+        current.validatedEpoch = group.epoch;
+        current.validatedMatrixEpoch = group.matrixEpoch;
+        const geometryVersion = this._state.geometries.get(geometry.id)?.version || 0;
+        const materialVersion = this._state.materials.get(materialId)?.version || 0;
+        this._mapSet(this._state.batches, current.batchId, {
+          signature, version: changed.version, object: current.anchor, parts,
+          simpleInstanced: true, geometry: group.geometry, geometryVersion,
+          material: drawMaterial, materialVersion,
+          instanceMatrix: null, instanceVersion: 0, instanceAttributeCount: 0,
+          instanceArray: null, instanceColor: null, instanceColorVersion: 0,
+          instanceColorArray: null, instanceColorCapacity: 0, instanceCount: count
+        });
       }
     }
   }
@@ -6786,9 +6831,7 @@ export class JsrWebGLRenderer {
       // Color-batch lane first: a registered member validates with ~20
       // number compares and contributes to ONE instanced DRAW_BATCH; the
       // per-mesh fast/full lanes below must not re-ensure it.
-      const batchMember = !this._sceneOverrideMaterial
-        ? this._colorBatchWalk(object, resourceId(object), parentId, visibleHere)
-        : null;
+      const batchMember = this._colorBatchWalk(object, resourceId(object), parentId, visibleHere);
       if (batchMember) {
         object.__r1Pid = batchMember;
         return;
@@ -6834,6 +6877,10 @@ export class JsrWebGLRenderer {
     });
     if (_stageAt) _stageAt('walkMs');
     this._flushColorBatches(commands, seenNodes, renderedSceneId, scene);
+    if (globalThis.__JSR_BATCH_DEBUG && this._batchDiag) {
+      globalThis.__batchDiag = this._batchDiag;
+      globalThis.__batchState = { nodes: this._state.nodes.size, groups: [...this._colorBatches.values()].map(g => g.count).join('+'), keys: this._colorBatches.size };
+    }
     if (_stageAt) _stageAt('flushMs');
     for (const [id, node] of this._state.nodes) {
       if (!seenNodes.has(id) && node.sceneId === renderedSceneId) {

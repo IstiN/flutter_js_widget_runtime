@@ -951,6 +951,40 @@ test('a fast color pass restores the node material after a depth override', asyn
   assert.notEqual(materialFor(packets[1]), materialFor(packets[0]));
 });
 
+test('composer override batches retain independent color/depth resources', async () => {
+  const host = createHost();
+  const T = host.THREE;
+  const { renderer: value, scene, camera } = rendererHost(host);
+  const geometry = triangleGeometry(T);
+  const envMap = new T.CubeTexture();
+  // dof shape: shared geometry + shared envMap, different diffuse colors.
+  for (const color of [0x44ff77, 0xff4488]) {
+    scene.add(new T.Mesh(geometry, new T.MeshPhongMaterial({ color, envMap })));
+  }
+  const depth = new T.MeshDepthMaterial();
+  const batchInfo = packet => {
+    const commands = only(packet, 11);
+    assert.equal(commands.length, 1, 'one instanced batch per override pass');
+    const body = commands[0].body;
+    return { nodeId: u32(body, 0), materialId: u32(body, 24), count: u32(body, 8) };
+  };
+  value.render(scene, camera); await drain();
+  scene.overrideMaterial = depth; value.render(scene, camera); await drain();
+  scene.overrideMaterial = null;
+  scene.children[0].material.color.setHex(0x3366ff); // force a fresh retained-color upload
+  value.render(scene, camera); await drain();
+  const packets = host.packets().slice(-3);
+  const color = batchInfo(packets[0]);
+  const depthInfo = batchInfo(packets[1]);
+  const restored = batchInfo(packets[2]);
+  assert.equal(color.count, 2);
+  assert.notEqual(color.nodeId, depthInfo.nodeId,
+    'color and depth must not overwrite one GPU batch version in the same tick');
+  assert.equal(restored.nodeId, color.nodeId, 'the retained color anchor is reused');
+  assert.equal(restored.materialId, color.materialId);
+  assert.notEqual(depthInfo.materialId, color.materialId);
+});
+
 test('color-batch anchors stay owned by their scene: foreign-scene renders must not re-parent them and hidden ancestors must hide them', async () => {
   const host = createHost();
   const T = host.THREE;
