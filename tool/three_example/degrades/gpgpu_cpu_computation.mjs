@@ -217,8 +217,8 @@ class BoidsPositionKernel {
 class ProtoVelocityKernel {
   // Budget note: the official kernel is O(N²) (4096² = 16.7M pair probes —
   // hopeless in QuickJS). Collapsed to: pair-exact aggregation collisions on a
-  // fine local hash evaluated every 4th tick (agregation is a slow process;
-  // a 15Hz scan is visually identical and cuts the pair traversal 4×), and
+  // fine local hash evaluated every 8th tick (agregation is a slow process;
+  // a 7.5Hz scan is visually identical and cuts the pair traversal 8×), and
   // gravityConstant pairwise 1/r² collapsed onto an 8³ particle-mesh
   // (±400u cells of 100u, 8 cell reads per particle, clamped d² floor like
   // the official min(g, 1000) clamp). All buffers persist across ticks.
@@ -245,22 +245,22 @@ class ProtoVelocityKernel {
     const gravityConstant = Number(uniforms.gravityConstant?.value) || 100.0;
     const density = Number(uniforms.density?.value) || 0.45;
     const delta = Number(uniforms.delta?.value) || (1.0 / 60.0);
-    const doCollisions = (this.tick % 4) === 0;
+    const doCollisions = (this.tick % 8) === 0;
     this.tick++;
     const dim = this.dim, cell = this.cellSize, invCell = 1 / cell, cells = dim * dim * dim;
     const head = this.head, next = this.next;
     head.fill(-1);
     const dead = this._dead || (this._dead = new Uint8Array(n));
     dead.fill(0);
-    const clampCell = (v) => {
-      let g = Math.floor((v + 400) * invCell);
-      return g < 0 ? 0 : g >= dim ? dim - 1 : g;
-    };
+
     for (let i = 0; i < n; i++) {
       const m = velData[i * 4 + 3];
       if (m <= 0) { dead[i] = 1; continue; }
-      const key = (clampCell(posData[i * 4]) * dim + clampCell(posData[i * 4 + 1])) * dim +
-        clampCell(posData[i * 4 + 2]);
+      const px = posData[i * 4], py = posData[i * 4 + 1], pz = posData[i * 4 + 2];
+      let gx = Math.floor((px + 400) * invCell); gx = gx < 0 ? 0 : gx >= dim ? dim - 1 : gx;
+      let gy = Math.floor((py + 400) * invCell); gy = gy < 0 ? 0 : gy >= dim ? dim - 1 : gy;
+      let gz = Math.floor((pz + 400) * invCell); gz = gz < 0 ? 0 : gz >= dim ? dim - 1 : gz;
+      const key = (gx * dim + gy) * dim + gz;
       next[i] = head[key];
       head[key] = i;
     }
@@ -268,15 +268,14 @@ class ProtoVelocityKernel {
     const meshDim = this.meshDim, meshCell = this.meshCell, extent = this.meshExtent;
     const meshMass = this.meshMass, meshX = this.meshX, meshY = this.meshY, meshZ = this.meshZ;
     meshMass.fill(0);
-    const toCell = (v) => {
-      let c = Math.floor((v + extent) / meshCell);
-      return c < 0 ? 0 : c >= meshDim ? meshDim - 1 : c;
-    };
+
     for (let i = 0; i < n; i++) {
       const m = velData[i * 4 + 3];
       if (m <= 0) continue;
-      const c = (toCell(posData[i * 4]) * meshDim + toCell(posData[i * 4 + 1])) * meshDim +
-        toCell(posData[i * 4 + 2]);
+      let mx = Math.floor((posData[i * 4] + extent) / meshCell); mx = mx < 0 ? 0 : mx >= meshDim ? meshDim - 1 : mx;
+      let my = Math.floor((posData[i * 4 + 1] + extent) / meshCell); my = my < 0 ? 0 : my >= meshDim ? meshDim - 1 : my;
+      let mz = Math.floor((posData[i * 4 + 2] + extent) / meshCell); mz = mz < 0 ? 0 : mz >= meshDim ? meshDim - 1 : mz;
+      const c = (mx * meshDim + my) * meshDim + mz;
       if (meshMass[c] === 0) {
         meshMass[c] = m;
         meshX[c] = posData[i * 4];
@@ -305,7 +304,9 @@ class ProtoVelocityKernel {
         // Pair-exact aggregation collisions through the local hash. Smaller
         // id aggregates the larger (official rule); a dead particle stops
         // participating (official `break`), the aggregate keeps scanning.
-        const gx = clampCell(sx), gy = clampCell(sy), gz = clampCell(sz);
+        let gx = Math.floor((sx + 400) * invCell); gx = gx < 0 ? 0 : gx >= dim ? dim - 1 : gx;
+        let gy = Math.floor((sy + 400) * invCell); gy = gy < 0 ? 0 : gy >= dim ? dim - 1 : gy;
+        let gz = Math.floor((sz + 400) * invCell); gz = gz < 0 ? 0 : gz >= dim ? dim - 1 : gz;
         const selfRadius = radiusFromMass(mass, density);
         outer:
         for (let ox = -1; ox <= 1; ox++) {
@@ -347,7 +348,9 @@ class ProtoVelocityKernel {
         if (dead[i]) { out[k] = 0; out[k + 1] = 0; out[k + 2] = 0; out[k + 3] = 0; continue; }
       }
       // Mesh gravity: the 2x2x2 cell neighborhood around the particle.
-      const mx = toCell(sx), my = toCell(sy), mz = toCell(sz);
+      let mx = Math.floor((sx + extent) / meshCell); mx = mx < 0 ? 0 : mx >= meshDim ? meshDim - 1 : mx;
+      let my = Math.floor((sy + extent) / meshCell); my = my < 0 ? 0 : my >= meshDim ? meshDim - 1 : my;
+      let mz = Math.floor((sz + extent) / meshCell); mz = mz < 0 ? 0 : mz >= meshDim ? meshDim - 1 : mz;
       for (let ox = -1; ox <= 1; ox += 2) {
         const cx = mx + ox; if (cx < 0 || cx >= meshDim) continue;
         for (let oy = -1; oy <= 1; oy += 2) {

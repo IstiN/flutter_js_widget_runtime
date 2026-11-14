@@ -303,6 +303,21 @@ function attributeFloats(attribute, vertexCount, components, name, vertexOffset 
         }
         return values;
       }
+      if (array instanceof Float32Array) {
+        // Common all-finite path: exponent-bit scan + native bulk copy. The
+        // scalar fallback below preserves the exact NaN/Inf neutral/warn
+        // semantics for the exceptional frame (and for Float64Array input).
+        const bits = new Uint32Array(array.buffer, array.byteOffset + componentOffset * 4, total);
+        let finite = true;
+        for (let i = 0; i < total; i++) {
+          if ((bits[i] & 0x7f800000) === 0x7f800000) { finite = false; break; }
+        }
+        if (finite) {
+          if (values !== array) values.set(componentOffset === 0 && total === array.length ? array :
+            array.subarray(componentOffset, componentOffset + total));
+          return values;
+        }
+      }
       for (let i = 0; i < total; i++) {
         let value = array[componentOffset + i];
         // Keep the strict finite contract without a QuickJS function call for

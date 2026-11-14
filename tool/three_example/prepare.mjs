@@ -13,6 +13,7 @@ import { mergeGlbByMaterial } from './degrades/glb_material_merge.mjs';
 import { applyPointsDynamicDirectRenderPatch } from './degrades/points_dynamic_direct_render.mjs';
 import { applyPointsDynamicSimFastPathPatch } from './degrades/points_dynamic_sim_fast_path.mjs';
 import { applyInstancingDynamicFastPathPatch } from './degrades/instancing_dynamic_fast_path.mjs';
+import { applyProtoplanetBoundedResolutionPatch } from './degrades/protoplanet_bounded_resolution.mjs';
 import { applyPointsDynamicLoaderPatch } from './degrades/points_dynamic_loader_patch.mjs';
 import { applyWidgetTextDecodeJoinPatch } from './degrades/widget_text_decode_join.mjs';
 import { applySponzaStandInPatch, buildSponzaStandin } from './degrades/sponza_standin.mjs';
@@ -3215,6 +3216,7 @@ webgl_geometry_shapes: {
     id: 'three-gpgpu-protoplanet',
     directory: 'three-gpgpu-protoplanet',
     name: 'gpgpu - protoplanet — three.js r186',
+    protoplanetBoundedResolution: true,
     description: 'Unmodified official webgl_gpgpu_protoplanet module on the JSR THREE R1/WebGL2 runtime.',
     icon: '🧊',
     expected: {
@@ -7393,6 +7395,9 @@ async function main() {
   }
   if (definition.instancingDynamicFastPath) {
     officialBuildBytes = applyInstancingDynamicFastPathPatch(officialBuildBytes);
+  }
+  if (definition.protoplanetBoundedResolution) {
+    officialBuildBytes = applyProtoplanetBoundedResolutionPatch(officialBuildBytes);
   }
   if (definition.pointsDynamicLoaderPatch) {
     // Bounded degrade: route the bundled OBJLoader addon instance through the
