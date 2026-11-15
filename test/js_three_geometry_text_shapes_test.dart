@@ -8,8 +8,7 @@ import 'package:js_widget_runtime/src/renderer/nodes/three/three_draw_plan.dart'
 
 import 'support/three_quickjs_example_harness.dart';
 import 'support/widget_logic_helper.dart';
-import 'support/three_patch_once.dart' as patch_support;
-import 'support/three_probe_state.dart';
+import 'support/three_patch_once.dart' show patchProbeOnce;
 
 /// webgl_geometry_text_shapes — official r186 FontLoader example, healthy
 /// on the native THREE R1 pipeline (exercises the NEW application/json
@@ -46,8 +45,7 @@ void main() {
   }
 
   testWidgets('webgl_geometry_text_shapes renders the font fill mesh and 26 '
-      'outline lines from the embedded typeface.json asset',
-      (tester) async {
+      'outline lines from the embedded typeface.json asset', (tester) async {
     // Part 1 — the unmodified widget renders the official scene.
     final harness = await ThreeQuickjsExampleHarness.boot(
       tester,
@@ -69,7 +67,8 @@ void main() {
     // NEW asset lane: the typeface font registers as application/json.
     final assets = exported['assets'] as Map<String, dynamic>;
     final font =
-        assets['fonts/helvetiker_regular.typeface.json'] as Map<String, dynamic>;
+        assets['fonts/helvetiker_regular.typeface.json']
+            as Map<String, dynamic>;
     expect(font['registered'], isTrue);
     expect(font['bytes'], 63182);
 
@@ -133,21 +132,15 @@ void main() {
     // exactly once, generateShapes produces the official 21 glyph
     // shapes (+5 hole contours → 26 outline lines, matching part 1's
     // line-draw count), and the on-demand render() succeeds on R1.
-    final probe = await ThreeQuickjsExampleHarness.bootSource(
+    final (probe, findings) = await ThreeQuickjsExampleHarness.bootProbe(
       tester,
       source: _textProbeSource(),
       instanceId: 'three-geometry-text-shapes-probe',
-    );
-    Map<String, dynamic>? findings;
-    for (var attempt = 0; attempt < 120; attempt++) {
-      findings = probeFindings(probe);
-      final ready = findings != null &&
+      ready: (findings) =>
           (findings['fontOnLoad'] as int? ?? 0) > 0 &&
           (findings['shapes'] as int? ?? 0) > 0 &&
-          (findings['renders'] as int? ?? 0) > 0;
-      if (ready) break;
-      await probe.pumpFrame(tester);
-    }
+          (findings['renders'] as int? ?? 0) > 0,
+    );
     expect(findings, isNotNull, reason: 'probe findings never exported');
     expect(findings!['fontOnLoad'], 1);
     expect(findings['fontType'], isNotEmpty);
@@ -156,10 +149,7 @@ void main() {
     // 5 pushed hole contours (glyph counters: e/e/e/p + one more).
     expect(findings['holes'], 5);
     // 21 + 5 = 26 outline line draws — the part-1 opaque count.
-    expect(
-      (findings['shapes'] as int) + (findings['holes'] as int),
-      26,
-    );
+    expect((findings['shapes'] as int) + (findings['holes'] as int), 26);
     // The module's on-demand render() succeeded on R1.
     expect(findings['renders'] as int, greaterThanOrEqualTo(1));
     expect(findings['renderErrors'], 0);
@@ -168,16 +158,6 @@ void main() {
     await probe.dispose(tester);
   }, timeout: const Timeout(Duration(seconds: 180)));
 }
-
-
-/// Label-first wrapper around the shared patchOnce (matches exactly once).
-String patchOnce(
-  String label,
-  String source,
-  RegExp re,
-  String Function(Match) build,
-) =>
-    patch_support.patchOnce(source, label, re, build);
 
 /// The text-shapes widget.js instrumented with a state-flag probe.
 /// Findings live on `globalThis.__JSR_PROBE` and are re-exported via
@@ -201,7 +181,7 @@ String _textProbeSource() {
     'example/widgets/three-geometry-text-shapes/widget.js',
   ).readAsStringSync();
 
-  source = patchOnce(
+  source = patchProbeOnce(
     'font onLoad',
     source,
     RegExp(
@@ -211,14 +191,14 @@ String _textProbeSource() {
     (m) => '${m[0]}globalThis.__JSR_PROBE.fontOnLoad++;',
   );
 
-  source = patchOnce(
+  source = patchProbeOnce(
     'generateShapes call',
     source,
     RegExp(r'=([\w$]+)\.generateShapes\('),
     (m) => '=globalThis.__JSR_PROBE_FONT(${m[1]}).generateShapes(',
   );
 
-  source = patchOnce(
+  source = patchProbeOnce(
     'holes push',
     source,
     RegExp(r'\.push\(\.\.\.([\w$]+)\)'),
@@ -230,41 +210,42 @@ String _textProbeSource() {
   final moduleStart = source.lastIndexOf('helvetiker_regular.typeface.json');
   final head = source.substring(0, moduleStart);
   var tail = source.substring(moduleStart);
-  tail = patchOnce(
+  tail = patchProbeOnce(
     'module tail render',
     tail,
     RegExp(r'function ([\w$]+)\(\)\{([\w$]+)\.render\(([\w$]+),([\w$]+)\)\}'),
-    (m) => 'function ${m[1]}(){globalThis.__JSR_PROBE_RENDER('
+    (m) =>
+        'function ${m[1]}(){globalThis.__JSR_PROBE_RENDER('
         '${m[2]},${m[3]},${m[4]})}',
   );
 
   return head +
       tail +
       'globalThis.__JSR_PROBE={fontOnLoad:0,fontType:"unreached",shapes:0,'
-      'holes:0,renders:0,renderErrors:0,renderCode:"",renderFeature:"",'
-      'renderMsg:""};'
-      'globalThis.__JSR_PROBE_FONT=function(f){var p=globalThis.__JSR_PROBE;'
-      'p.fontType=f&&f.constructor&&f.constructor.name||"font";'
-      'var orig=f.generateShapes;'
-      'f.generateShapes=function(msg,size){'
-      'var r=orig.call(f,msg,size);p.shapes=r.length;return r};'
-      'return f};'
-      'globalThis.__JSR_PROBE_HOLES=function(h){var p=globalThis.__JSR_PROBE;'
-      'p.holes=h.length};'
-      'globalThis.__JSR_PROBE_EXPORT=function(){try{'
-      'var p=globalThis.__JSR_PROBE;'
-      'if(globalThis.jsr&&jsr.exportState)jsr.exportState({probe:{'
-      'fontOnLoad:p.fontOnLoad,fontType:p.fontType,shapes:p.shapes,'
-      'holes:p.holes,renders:p.renders,renderErrors:p.renderErrors,'
-      'renderCode:p.renderCode,renderFeature:p.renderFeature,'
-      'renderMsg:p.renderMsg}})}catch(e){}};'
-      'globalThis.__JSR_PROBE_RENDER=function(r,s,c){try{'
-      'r.render(s,c);globalThis.__JSR_PROBE.renders++}catch(e){'
-      'var p=globalThis.__JSR_PROBE;'
-      'if(p.renderErrors===0){p.renderCode=String(e.code||"");'
-      'p.renderFeature=String(e.feature||"");'
-      'p.renderMsg=String(e.message||"")}p.renderErrors++}'
-      'globalThis.__JSR_PROBE_EXPORT()};';
+          'holes:0,renders:0,renderErrors:0,renderCode:"",renderFeature:"",'
+          'renderMsg:""};'
+          'globalThis.__JSR_PROBE_FONT=function(f){var p=globalThis.__JSR_PROBE;'
+          'p.fontType=f&&f.constructor&&f.constructor.name||"font";'
+          'var orig=f.generateShapes;'
+          'f.generateShapes=function(msg,size){'
+          'var r=orig.call(f,msg,size);p.shapes=r.length;return r};'
+          'return f};'
+          'globalThis.__JSR_PROBE_HOLES=function(h){var p=globalThis.__JSR_PROBE;'
+          'p.holes=h.length};'
+          'globalThis.__JSR_PROBE_EXPORT=function(){try{'
+          'var p=globalThis.__JSR_PROBE;'
+          'if(globalThis.jsr&&jsr.exportState)jsr.exportState({probe:{'
+          'fontOnLoad:p.fontOnLoad,fontType:p.fontType,shapes:p.shapes,'
+          'holes:p.holes,renders:p.renders,renderErrors:p.renderErrors,'
+          'renderCode:p.renderCode,renderFeature:p.renderFeature,'
+          'renderMsg:p.renderMsg}})}catch(e){}};'
+          'globalThis.__JSR_PROBE_RENDER=function(r,s,c){try{'
+          'r.render(s,c);globalThis.__JSR_PROBE.renders++}catch(e){'
+          'var p=globalThis.__JSR_PROBE;'
+          'if(p.renderErrors===0){p.renderCode=String(e.code||"");'
+          'p.renderFeature=String(e.feature||"");'
+          'p.renderMsg=String(e.message||"")}p.renderErrors++}'
+          'globalThis.__JSR_PROBE_EXPORT()};';
 }
 
 /// sRGB channel (0..255) → linear, matching THREE.Color's working space.

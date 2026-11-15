@@ -154,6 +154,19 @@ void _addProjectedTri(
   });
 }
 
+void _addNearGreenPair(JsVoxelWorld world) {
+  _addProjectedTri(world, '0,green', [40, 40, 40, 160, 160, 40], [2, 10, 2], [
+    0.2,
+    0.8,
+    0.2,
+  ]);
+  _addProjectedTri(world, '0,brown', [50, 50, 50, 80, 120, 50], [4, 4, 4], [
+    0.8,
+    0.4,
+    0.1,
+  ]);
+}
+
 JsVoxelWorld _capturedOverlapWorld({
   String keyA = '2,0',
   String keyB = '2,-1',
@@ -217,6 +230,23 @@ JsVoxelWorld _sharedEdgeWorld({String prefix = '0'}) {
   );
   return world;
 }
+
+Future<void> _pumpVoxelNode(
+  WidgetTester tester, {
+  JsVoxelWorld? world,
+  Map<String, dynamic>? node,
+}) => tester.pumpWidget(
+  MaterialApp(
+    home: Scaffold(
+      body: JsonWidgetRenderer(onEvent: (_, __) {}, voxelWorld: world).build({
+        'type': 'stack',
+        'children': [
+          node ?? {'type': 'voxel', 'id': 'w'},
+        ],
+      }),
+    ),
+  ),
+);
 
 void main() {
   // Most cases below pin the legacy topological path; BSP regressions opt in
@@ -376,7 +406,11 @@ void main() {
         'fov': 90,
       });
 
-      final front = await _pixel(voxelPainterFor(world), 100, const Offset(50, 50));
+      final front = await _pixel(
+        voxelPainterFor(world),
+        100,
+        const Offset(50, 50),
+      );
       expect(front, const Color(0xFFFF0000), reason: 'face color × light 1');
 
       // Yaw 180° looks at the quad from behind → backface culled → sky.
@@ -387,7 +421,11 @@ void main() {
         'pitch': 0,
         'fov': 90,
       });
-      final back = await _pixel(voxelPainterFor(world), 100, const Offset(50, 50));
+      final back = await _pixel(
+        voxelPainterFor(world),
+        100,
+        const Offset(50, 50),
+      );
       expect(back, isNot(const Color(0xFFFF0000)));
     });
 
@@ -723,20 +761,7 @@ void main() {
       () async {
         final output = _captureVoxelFrames();
         final world = _projectedWorld();
-        _addProjectedTri(
-          world,
-          '0,green',
-          [40, 40, 40, 160, 160, 40],
-          [2, 10, 2],
-          [0.2, 0.8, 0.2],
-        );
-        _addProjectedTri(
-          world,
-          '0,brown',
-          [50, 50, 50, 80, 120, 50],
-          [4, 4, 4],
-          [0.8, 0.4, 0.1],
-        );
+        _addNearGreenPair(world);
         final first = await _pixel(
           voxelPainterFor(world),
           200,
@@ -838,7 +863,10 @@ void main() {
           VoxelPainter(world: world, id: 'other').debugWorkspaceId,
           isNot(workspace),
         );
-        expect(voxelPainterFor(JsVoxelWorld()).debugWorkspaceId, isNot(workspace));
+        expect(
+          voxelPainterFor(JsVoxelWorld()).debugWorkspaceId,
+          isNot(workspace),
+        );
       },
     );
 
@@ -1103,20 +1131,7 @@ void main() {
             );
           }
         }
-        _addProjectedTri(
-          world,
-          '0,green',
-          [40, 40, 40, 160, 160, 40],
-          [2, 10, 2],
-          [0.2, 0.8, 0.2],
-        );
-        _addProjectedTri(
-          world,
-          '0,brown',
-          [50, 50, 50, 80, 120, 50],
-          [4, 4, 4],
-          [0.8, 0.4, 0.1],
-        );
+        _addNearGreenPair(world);
         final painter = voxelPainterFor(world);
         final pixel = await _pixel(painter, 200, const Offset(60, 60));
         expect(painter.lastTriCount, 40);
@@ -1178,7 +1193,11 @@ void main() {
         expect(pixel, const Color(0xFF800000));
 
         // Corner outside the projected quad shows the sky.
-        final sky = await _pixel(voxelPainterFor(world), 100, const Offset(2, 2));
+        final sky = await _pixel(
+          voxelPainterFor(world),
+          100,
+          const Offset(2, 2),
+        );
         expect(sky, const Color(0xFF0F172A));
       },
     );
@@ -1231,7 +1250,11 @@ void main() {
         'position': [0.5, 0.5, 5],
         'fov': 90,
       });
-      final pixel = await _pixel(voxelPainterFor(world), 100, const Offset(50, 50));
+      final pixel = await _pixel(
+        voxelPainterFor(world),
+        100,
+        const Offset(50, 50),
+      );
       expect(pixel, const Color(0xFF87CEEB), reason: 'sky, chunk culled');
     });
   });
@@ -1241,19 +1264,7 @@ void main() {
       tester,
     ) async {
       final world = JsVoxelWorld();
-      await tester.pumpWidget(
-        MaterialApp(
-          home: Scaffold(
-            body: JsonWidgetRenderer(onEvent: (_, __) {}, voxelWorld: world)
-                .build({
-                  'type': 'stack',
-                  'children': [
-                    {'type': 'voxel', 'id': 'w'},
-                  ],
-                }),
-          ),
-        ),
-      );
+      await _pumpVoxelNode(tester, world: world);
       expect(find.byType(JsVoxelNode), findsOneWidget);
 
       world.handleHostCall('voxel.mesh', _meshArgs(_facingQuad(), 'k'));
@@ -1263,18 +1274,7 @@ void main() {
     });
 
     testWidgets('renders a placeholder without a voxel world', (tester) async {
-      await tester.pumpWidget(
-        MaterialApp(
-          home: Scaffold(
-            body: JsonWidgetRenderer(onEvent: (_, __) {}).build({
-              'type': 'stack',
-              'children': [
-                {'type': 'voxel', 'id': 'w'},
-              ],
-            }),
-          ),
-        ),
-      );
+      await _pumpVoxelNode(tester);
       expect(find.byType(JsVoxelNode), findsNothing);
       expect(find.text('Voxel world'), findsOneWidget);
     });
@@ -1283,23 +1283,14 @@ void main() {
       tester,
     ) async {
       final world = JsVoxelWorld();
-      await tester.pumpWidget(
-        MaterialApp(
-          home: Scaffold(
-            body: JsonWidgetRenderer(onEvent: (_, __) {}, voxelWorld: world)
-                .build({
-                  'type': 'stack',
-                  'children': [
-                    {'type': 'voxel', 'id': 'w', 'width': 120, 'height': 80},
-                  ],
-                }),
-          ),
-        ),
+      await _pumpVoxelNode(
+        tester,
+        world: world,
+        node: {'type': 'voxel', 'id': 'w', 'width': 120, 'height': 80},
       );
       final sized = tester.getSize(find.byType(SizedBox).first);
       expect(sized.width, 120);
       expect(sized.height, 80);
     });
   });
-
 }

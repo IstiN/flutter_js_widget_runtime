@@ -1,23 +1,16 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:js_widget_runtime/js_widget_runtime.dart';
 import 'package:js_widget_runtime/src/renderer/nodes/js_node_helpers.dart';
+
+import 'renderer_test_scaffold.dart';
 
 void main() {
   group('JsonWidgetRenderer M3 overlay nodes', () {
-    late List<(String, Map<String, dynamic>)> events;
-    late JsonWidgetRenderer renderer;
+    late RendererScaffold scaffold;
 
-    setUp(() {
-      events = [];
-      renderer = JsonWidgetRenderer(
-        onEvent: (id, payload) => events.add((id, payload)),
-      );
-    });
+    setUp(() => scaffold = RendererScaffold());
 
-    Widget buildTree(Map<String, dynamic>? tree) {
-      return MaterialApp(home: Scaffold(body: renderer.build(tree)));
-    }
+    Widget buildTree(Map<String, dynamic>? tree) => scaffold.buildTree(tree);
 
     Future<void> pumpOverlay(
       WidgetTester tester,
@@ -51,8 +44,8 @@ void main() {
       await tester.drag(find.text('sheet body'), const Offset(0, 400));
       await tester.pumpAndSettle();
       expect(find.text('sheet body'), findsNothing);
-      expect(events.single.$1, 'bottomSheetDismiss');
-      expect(events.single.$2, <String, dynamic>{});
+      expect(scaffold.events.single.$1, 'bottomSheetDismiss');
+      expect(scaffold.events.single.$2, <String, dynamic>{});
     });
 
     testWidgets('bottomSheet fires custom onDismiss on barrier tap', (
@@ -71,7 +64,7 @@ void main() {
 
       await tester.tapAt(const Offset(10, 10));
       await tester.pumpAndSettle();
-      expect(events.single.$1, 'sheet_closed');
+      expect(scaffold.events.single.$1, 'sheet_closed');
     });
 
     testWidgets('removing bottomSheet node pops the sheet without throwing', (
@@ -104,7 +97,7 @@ void main() {
       expect(find.text('sheet body'), findsNothing);
       expect(find.text('no sheet'), findsOneWidget);
       // The node was unmounted when the sheet closed: no dismiss event.
-      expect(events, isEmpty);
+      expect(scaffold.events, isEmpty);
     });
 
     testWidgets('dialog action pops the dialog and fires onTap only', (
@@ -129,7 +122,7 @@ void main() {
       await tester.tap(find.text('Delete'));
       await tester.pumpAndSettle();
       expect(find.text('Confirm'), findsNothing);
-      expect(events.single.$1, 'delete');
+      expect(scaffold.events.single.$1, 'delete');
     });
 
     testWidgets('dialog barrier dismiss fires dialogDismiss', (tester) async {
@@ -147,7 +140,7 @@ void main() {
       await tester.tapAt(const Offset(10, 10));
       await tester.pumpAndSettle();
       expect(find.text('custom body'), findsNothing);
-      expect(events.single.$1, 'dialogDismiss');
+      expect(scaffold.events.single.$1, 'dialogDismiss');
     });
 
     testWidgets('removing dialog node closes it without firing dismiss', (
@@ -167,7 +160,7 @@ void main() {
       await tester.pumpWidget(buildTree({'type': 'text', 'data': 'gone'}));
       await tester.pumpAndSettle();
       expect(find.text('Confirm'), findsNothing);
-      expect(events, isEmpty);
+      expect(scaffold.events, isEmpty);
     });
 
     testWidgets('snackBar shows message and action fires onAction', (
@@ -187,7 +180,7 @@ void main() {
 
       await tester.tap(find.text('Undo'));
       await tester.pump();
-      expect(events.single.$1, 'undo');
+      expect(scaffold.events.single.$1, 'undo');
     });
 
     testWidgets('snackBar without messenger ancestor is a no-op', (
@@ -196,7 +189,10 @@ void main() {
       await tester.pumpWidget(
         Directionality(
           textDirection: TextDirection.ltr,
-          child: renderer.build({'type': 'snackBar', 'message': 'never shown'}),
+          child: scaffold.renderer.build({
+            'type': 'snackBar',
+            'message': 'never shown',
+          }),
         ),
       );
       await tester.pump();
@@ -228,8 +224,8 @@ void main() {
 
       await tester.tap(find.byIcon(Icons.home));
       await tester.pump();
-      expect(events.single.$1, 'rail_changed');
-      expect(events.single.$2, {'value': 0});
+      expect(scaffold.events.single.$1, 'rail_changed');
+      expect(scaffold.events.single.$2, {'value': 0});
     });
 
     testWidgets('carousel renders children', (tester) async {
@@ -269,8 +265,8 @@ void main() {
       await tester.pump();
       await tapOverlayButton(tester, 'OK');
       expect(find.byType(DatePickerDialog), findsNothing);
-      expect(events.single.$1, 'date_picked');
-      expect(events.single.$2, {'value': '2024-05-15'});
+      expect(scaffold.events.single.$1, 'date_picked');
+      expect(scaffold.events.single.$2, {'value': '2024-05-15'});
     });
 
     testWidgets('datePicker cancel fires custom onDismiss', (tester) async {
@@ -286,8 +282,8 @@ void main() {
       expect(find.byType(DatePickerDialog), findsOneWidget);
 
       await tapOverlayButton(tester, 'Cancel');
-      expect(events.single.$1, 'date_cancelled');
-      expect(events.single.$2, <String, dynamic>{});
+      expect(scaffold.events.single.$1, 'date_cancelled');
+      expect(scaffold.events.single.$2, <String, dynamic>{});
     });
 
     testWidgets('datePicker cancel without onDismiss fires default event', (
@@ -297,7 +293,7 @@ void main() {
       expect(find.byType(DatePickerDialog), findsOneWidget);
 
       await tapOverlayButton(tester, 'Cancel');
-      expect(events.single.$1, 'datePickerDismiss');
+      expect(scaffold.events.single.$1, 'datePickerDismiss');
     });
 
     testWidgets('timePicker posts the initial time on OK', (tester) async {
@@ -310,8 +306,8 @@ void main() {
 
       await tapOverlayButton(tester, 'OK');
       expect(find.byType(TimePickerDialog), findsNothing);
-      expect(events.single.$1, 'time_picked');
-      expect(events.single.$2, {'value': '14:05'});
+      expect(scaffold.events.single.$1, 'time_picked');
+      expect(scaffold.events.single.$2, {'value': '14:05'});
     });
 
     testWidgets('timePicker cancel fires default dismiss event', (
@@ -322,7 +318,7 @@ void main() {
       expect(find.byType(TimePickerDialog), findsOneWidget);
 
       await tapOverlayButton(tester, 'Cancel');
-      expect(events.single.$1, 'timePickerDismiss');
+      expect(scaffold.events.single.$1, 'timePickerDismiss');
     });
 
     testWidgets('timePicker cancel honors custom onDismiss', (tester) async {
@@ -334,7 +330,7 @@ void main() {
       expect(find.byType(TimePickerDialog), findsOneWidget);
 
       await tapOverlayButton(tester, 'Cancel');
-      expect(events.single.$1, 'time_cancelled');
+      expect(scaffold.events.single.$1, 'time_cancelled');
     });
   });
 

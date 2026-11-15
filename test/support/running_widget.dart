@@ -1,5 +1,4 @@
-import 'dart:async';
-
+import 'package:flutter_test/flutter_test.dart';
 import 'package:js_widget_runtime/js_widget_runtime.dart';
 import 'package:js_widget_runtime/src/runtime/js_widget_engine_quickjs.dart';
 
@@ -24,6 +23,43 @@ void dispatchThreePointerEvent(
     'clientY': y,
     'pageX': x,
     'pageY': y,
+  });
+}
+
+Future<void> dragThreeCamera(
+  WidgetTester tester,
+  JsWidgetEngineBackend backend,
+  List<double> Function() cameraMatrix, {
+  required String reason,
+}) async {
+  final initial = cameraMatrix();
+  dispatchThreePointerEvent(backend, 'pointerdown', x: 100, y: 100, buttons: 1);
+  dispatchThreePointerEvent(backend, 'pointermove', x: 155, y: 125, buttons: 1);
+  dispatchThreePointerEvent(backend, 'pointerup', x: 155, y: 125);
+  for (var attempt = 0; attempt < 80; attempt++) {
+    await tester.runAsync(
+      () => Future<void>.delayed(const Duration(milliseconds: 20)),
+    );
+    await tester.pump(const Duration(milliseconds: 30));
+    if (cameraMatrix().join(',') != initial.join(',')) break;
+  }
+  expect(cameraMatrix().join(','), isNot(initial.join(',')), reason: reason);
+}
+
+void dispatchThreeWheelEvent(
+  JsWidgetEngineBackend backend, {
+  required double deltaY,
+  required double x,
+  required double y,
+}) {
+  backend.dispatchHostEvent('three.input:main', <String, dynamic>{
+    'type': 'wheel',
+    'pointerId': 0,
+    'deltaY': deltaY,
+    'deltaX': 0.0,
+    'deltaMode': 0,
+    'clientX': x,
+    'clientY': y,
   });
 }
 

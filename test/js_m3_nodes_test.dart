@@ -1,22 +1,15 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:js_widget_runtime/js_widget_runtime.dart';
+
+import 'renderer_test_scaffold.dart';
 
 void main() {
   group('JsonWidgetRenderer M3 nodes', () {
-    late List<(String, Map<String, dynamic>)> events;
-    late JsonWidgetRenderer renderer;
+    late RendererScaffold scaffold;
 
-    setUp(() {
-      events = [];
-      renderer = JsonWidgetRenderer(
-        onEvent: (id, payload) => events.add((id, payload)),
-      );
-    });
+    setUp(() => scaffold = RendererScaffold());
 
-    Widget buildTree(Map<String, dynamic>? tree) {
-      return MaterialApp(home: Scaffold(body: renderer.build(tree)));
-    }
+    Widget buildTree(Map<String, dynamic>? tree) => scaffold.buildTree(tree);
 
     testWidgets('appBar renders title and fires action taps', (tester) async {
       await tester.pumpWidget(
@@ -34,10 +27,10 @@ void main() {
       expect(find.text('Dashboard'), findsOneWidget);
 
       await tester.tap(find.byIcon(Icons.arrow_back));
-      expect(events.single.$1, 'back');
+      expect(scaffold.events.single.$1, 'back');
 
       await tester.tap(find.byIcon(Icons.search));
-      expect(events.last.$1, 'search');
+      expect(scaffold.events.last.$1, 'search');
     });
 
     testWidgets('navigationBar posts selected index', (tester) async {
@@ -58,8 +51,8 @@ void main() {
 
       await tester.tap(find.text('Settings'));
       await tester.pump();
-      expect(events.single.$1, 'nav_changed');
-      expect(events.single.$2, {'value': 1});
+      expect(scaffold.events.single.$1, 'nav_changed');
+      expect(scaffold.events.single.$2, {'value': 1});
     });
 
     testWidgets('tabBar renders tabs and pads missing children', (
@@ -91,7 +84,7 @@ void main() {
       expect(find.byType(FloatingActionButton), findsOneWidget);
       await tester.tap(find.byType(FloatingActionButton));
       await tester.pump();
-      expect(events.single.$1, 'add_item');
+      expect(scaffold.events.single.$1, 'add_item');
     });
 
     testWidgets('fab with label renders extended variant', (tester) async {
@@ -101,12 +94,10 @@ void main() {
       expect(find.text('Compose'), findsOneWidget);
       await tester.tap(find.text('Compose'));
       await tester.pump();
-      expect(events.single.$1, 'compose');
+      expect(scaffold.events.single.$1, 'compose');
     });
 
-    testWidgets('segmentedButton posts single selection value', (
-      tester,
-    ) async {
+    testWidgets('segmentedButton posts single selection value', (tester) async {
       await tester.pumpWidget(
         buildTree({
           'type': 'segmentedButton',
@@ -121,13 +112,11 @@ void main() {
       expect(find.byType(SegmentedButton<String>), findsOneWidget);
       await tester.tap(find.text('Medium'));
       await tester.pump();
-      expect(events.single.$1, 'size_changed');
-      expect(events.single.$2, {'value': 'm'});
+      expect(scaffold.events.single.$1, 'size_changed');
+      expect(scaffold.events.single.$2, {'value': 'm'});
     });
 
-    testWidgets('segmentedButton multiSelect posts value list', (
-      tester,
-    ) async {
+    testWidgets('segmentedButton multiSelect posts value list', (tester) async {
       await tester.pumpWidget(
         buildTree({
           'type': 'segmentedButton',
@@ -142,8 +131,8 @@ void main() {
       );
       await tester.tap(find.text('B'));
       await tester.pump();
-      expect(events.single.$1, 'filters_changed');
-      expect(events.single.$2, {
+      expect(scaffold.events.single.$1, 'filters_changed');
+      expect(scaffold.events.single.$2, {
         'value': ['a', 'b'],
       });
     });
@@ -163,8 +152,8 @@ void main() {
 
       await tester.tap(find.byType(Radio<String>));
       await tester.pump();
-      expect(events.single.$1, 'picked');
-      expect(events.single.$2, {'value': 'a'});
+      expect(scaffold.events.single.$1, 'picked');
+      expect(scaffold.events.single.$2, {'value': 'a'});
     });
 
     testWidgets('searchBar posts changed text', (tester) async {
@@ -178,8 +167,8 @@ void main() {
       expect(find.byType(SearchBar), findsOneWidget);
       await tester.enterText(find.byType(SearchBar), 'hello');
       await tester.pump();
-      expect(events.last.$1, 'query');
-      expect(events.last.$2, {'value': 'hello'});
+      expect(scaffold.events.last.$1, 'query');
+      expect(scaffold.events.last.$2, {'value': 'hello'});
     });
 
     testWidgets('tooltip wraps child', (tester) async {
@@ -211,8 +200,8 @@ void main() {
       await tester.pumpAndSettle();
       await tester.tap(find.text('Delete'));
       await tester.pumpAndSettle();
-      expect(events.single.$1, 'menu_pick');
-      expect(events.single.$2, {'value': 'delete'});
+      expect(scaffold.events.single.$1, 'menu_pick');
+      expect(scaffold.events.single.$2, {'value': 'delete'});
     });
 
     testWidgets('banner renders message and action taps', (tester) async {
@@ -231,7 +220,7 @@ void main() {
 
       await tester.tap(find.text('Dismiss'));
       await tester.pump();
-      expect(events.single.$1, 'dismiss');
+      expect(scaffold.events.single.$1, 'dismiss');
     });
 
     testWidgets('bottomAppBar renders children in a row', (tester) async {

@@ -238,27 +238,39 @@ final class ThreeDrawPlanFixture {
     );
   }
 
-  JsThreeSurfaceState state() {
-    final engine = utf8.encode('engine');
-    final surface = utf8.encode('surface');
-    final payload = r1Envelope(commands, version: r1Version);
-    final headerBytes = 32 + engine.length + surface.length;
-    final result = Uint8List(headerBytes + payload.length);
-    final data = ByteData.sublistView(result);
-    result.setRange(0, 4, ascii.encode('JSR3'));
-    data.setUint8(4, 1);
-    data.setUint8(5, 1);
-    data.setUint16(6, headerBytes, Endian.little);
-    data.setUint32(8, sequence, Endian.little);
-    data.setUint32(12, payload.length, Endian.little);
-    data.setUint16(16, engine.length, Endian.little);
-    data.setUint16(18, surface.length, Endian.little);
-    data.setUint32(24, result.length, Endian.little);
-    result.setRange(32, 32 + engine.length, engine);
-    result.setRange(32 + engine.length, headerBytes, surface);
-    result.setRange(headerBytes, result.length, payload);
-    return JsThreeStateStore().apply(result).surface;
-  }
+  JsThreeSurfaceState state() => applyThreeDrawPlanCommands(
+    JsThreeStateStore(),
+    commands,
+    sequence: sequence,
+    version: r1Version,
+  );
+}
+
+JsThreeSurfaceState applyThreeDrawPlanCommands(
+  JsThreeStateStore store,
+  List<Uint8List> commands, {
+  int sequence = 1,
+  int version = 2,
+}) {
+  final engine = utf8.encode('engine');
+  final surface = utf8.encode('surface');
+  final payload = r1Envelope(commands, version: version);
+  final headerBytes = 32 + engine.length + surface.length;
+  final result = Uint8List(headerBytes + payload.length);
+  final data = ByteData.sublistView(result);
+  result.setRange(0, 4, ascii.encode('JSR3'));
+  data.setUint8(4, 1);
+  data.setUint8(5, 1);
+  data.setUint16(6, headerBytes, Endian.little);
+  data.setUint32(8, sequence, Endian.little);
+  data.setUint32(12, payload.length, Endian.little);
+  data.setUint16(16, engine.length, Endian.little);
+  data.setUint16(18, surface.length, Endian.little);
+  data.setUint32(24, result.length, Endian.little);
+  result.setRange(32, 32 + engine.length, engine);
+  result.setRange(32 + engine.length, headerBytes, surface);
+  result.setRange(headerBytes, result.length, payload);
+  return store.apply(result).surface;
 }
 
 Uint8List r1Envelope(List<Uint8List> commands, {int version = 2}) {

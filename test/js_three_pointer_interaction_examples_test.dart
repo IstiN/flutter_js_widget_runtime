@@ -23,16 +23,7 @@ void main() {
         widgetId: 'three-decals',
         instanceId: 'three-decals-pointer-test',
       );
-      await harness.pumpUntil(
-        tester,
-        (state, plan) =>
-            state.submittedFrameCount >= 3 && plan.draws.isNotEmpty,
-      );
-      await tester.runAsync(
-        () => Future<void>.delayed(const Duration(seconds: 2)),
-      );
-      await harness.pumpFrames(tester, 30);
-      expect(harness.state, isNotNull);
+      await _settlePointerExample(harness, tester);
       expect(harness.engine.exportedState?['example'], 'webgl_decals');
 
       // The official window pointermove listener raycasts the loaded head and
@@ -76,16 +67,7 @@ void main() {
         widgetId: widgetId,
         instanceId: '$widgetId-pointer-test',
       );
-      await harness.pumpUntil(
-        tester,
-        (state, plan) =>
-            state.submittedFrameCount >= 3 && plan.draws.isNotEmpty,
-      );
-      await tester.runAsync(
-        () => Future<void>.delayed(const Duration(seconds: 2)),
-      );
-      await harness.pumpFrames(tester, 30);
-      expect(harness.state, isNotNull);
+      await _settlePointerExample(harness, tester);
 
       final nodesBefore = _nodeMatrices(harness);
       final cameraBefore = harness.state!.camera!.matrixWorld.join(',');
@@ -111,6 +93,19 @@ void main() {
       await harness.dispose(tester);
     }, timeout: const Timeout(Duration(seconds: 180)));
   }
+}
+
+Future<void> _settlePointerExample(
+  ThreeQuickjsExampleHarness harness,
+  WidgetTester tester,
+) async {
+  await harness.pumpUntil(
+    tester,
+    (state, plan) => state.submittedFrameCount >= 3 && plan.draws.isNotEmpty,
+  );
+  await tester.runAsync(() => Future<void>.delayed(const Duration(seconds: 2)));
+  await harness.pumpFrames(tester, 30);
+  expect(harness.state, isNotNull);
 }
 
 void _input(

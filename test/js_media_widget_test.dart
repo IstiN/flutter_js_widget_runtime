@@ -6,8 +6,7 @@ import 'package:js_widget_runtime/js_widget_runtime.dart';
 
 import 'support/fake_media_controllers.dart';
 
-class _FakeVideoController extends JsVideoController
-    with FakePlaybackStreams {
+class _FakeVideoController extends JsVideoController with FakePlaybackStreams {
   _FakeVideoController(this.src);
 
   final String src;
@@ -33,17 +32,15 @@ class _FakeVideoController extends JsVideoController
     BoxFit fit = BoxFit.contain,
     double? width,
     double? height,
-  }) =>
-      Container(
-        key: ValueKey('video-$src'),
-        width: width,
-        height: height,
-        color: Colors.black,
-      );
+  }) => Container(
+    key: ValueKey('video-$src'),
+    width: width,
+    height: height,
+    color: Colors.black,
+  );
 }
 
-class _FakeAudioController extends JsAudioController
-    with FakePlaybackStreams {
+class _FakeAudioController extends JsAudioController with FakePlaybackStreams {
   _FakeAudioController(this.src);
 
   final String src;
@@ -65,8 +62,15 @@ class _FakeMediaHost extends JsMediaHost {
   }
 
   @override
-  JsAudioController createAudioController(String src) => _FakeAudioController(src);
+  JsAudioController createAudioController(String src) =>
+      _FakeAudioController(src);
 }
+
+Future<void> _pumpMediaNode(
+  WidgetTester tester,
+  JsonWidgetRenderer renderer,
+  Map<String, dynamic> node,
+) => tester.pumpWidget(MaterialApp(home: Scaffold(body: renderer.build(node))));
 
 void main() {
   group('JsonWidgetRenderer media nodes', () {
@@ -77,31 +81,28 @@ void main() {
         onEvent: (_, __) {},
         mediaHost: _FakeMediaHost(),
       );
-      await tester.pumpWidget(
-        MaterialApp(
-          home: Scaffold(
-            body: renderer.build({
-              'type': 'video',
-              'src': '/tmp/video.mp4',
-              'width': 200.0,
-              'height': 100.0,
-            }),
-          ),
-        ),
-      );
+      await _pumpMediaNode(tester, renderer, {
+        'type': 'video',
+        'src': '/tmp/video.mp4',
+        'width': 200.0,
+        'height': 100.0,
+      });
       await tester.pump();
-      expect(find.byKey(const ValueKey('video-/tmp/video.mp4')), findsOneWidget);
+      expect(
+        find.byKey(const ValueKey('video-/tmp/video.mp4')),
+        findsOneWidget,
+      );
     });
 
     testWidgets('video switches controller when src changes', (tester) async {
       final host = _FakeMediaHost();
       final renderer = JsonWidgetRenderer(onEvent: (_, __) {}, mediaHost: host);
       Map<String, dynamic> node(String src) => {
-            'type': 'video',
-            'src': src,
-            'width': 200.0,
-            'height': 100.0,
-          };
+        'type': 'video',
+        'src': src,
+        'width': 200.0,
+        'height': 100.0,
+      };
       await tester.pumpWidget(
         MaterialApp(home: Scaffold(body: renderer.build(node('/tmp/a.mp4')))),
       );
@@ -131,34 +132,23 @@ void main() {
       await tester.pumpWidget(
         MaterialApp(
           home: Scaffold(
-            body: renderer.build({
-              'type': 'video',
-              'src': '/tmp/video.mp4',
-            }),
+            body: renderer.build({'type': 'video', 'src': '/tmp/video.mp4'}),
           ),
         ),
       );
       expect(find.byIcon(Icons.videocam), findsOneWidget);
     });
 
-    testWidgets('audio renders controls when mediaHost is set', (
-      tester,
-    ) async {
+    testWidgets('audio renders controls when mediaHost is set', (tester) async {
       final renderer = JsonWidgetRenderer(
         onEvent: (_, __) {},
         mediaHost: _FakeMediaHost(),
       );
-      await tester.pumpWidget(
-        MaterialApp(
-          home: Scaffold(
-            body: renderer.build({
-              'type': 'audio',
-              'src': '/tmp/audio.mp3',
-              'title': 'My Track',
-            }),
-          ),
-        ),
-      );
+      await _pumpMediaNode(tester, renderer, {
+        'type': 'audio',
+        'src': '/tmp/audio.mp3',
+        'title': 'My Track',
+      });
       await tester.pump();
       expect(find.text('My Track'), findsOneWidget);
       expect(find.byIcon(Icons.play_arrow), findsOneWidget);

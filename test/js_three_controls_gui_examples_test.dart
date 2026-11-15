@@ -5,6 +5,7 @@ import 'package:js_widget_runtime/src/renderer/nodes/three/js_three_protocol.dar
 import 'package:js_widget_runtime/src/renderer/nodes/three/js_three_state.dart';
 import 'package:js_widget_runtime/src/renderer/nodes/three/three_draw_plan.dart';
 
+import 'support/running_widget.dart';
 import 'support/three_quickjs_example_harness.dart';
 import 'support/widget_logic_helper.dart';
 
@@ -64,66 +65,14 @@ void main() {
 
     List<double> cameraMatrix() =>
         List<double>.from(state!.camera!.matrixWorld);
-    final initial = cameraMatrix();
-    void input(Map<String, dynamic> event) => backend.dispatchHostEvent(
-      'three.input:main',
-      {'type': event['type'], ...event},
-    );
-    input({
-      'type': 'pointerdown',
-      'pointerId': 7,
-      'pointerType': 'mouse',
-      'button': 0,
-      'buttons': 1,
-      'clientX': 100.0,
-      'clientY': 100.0,
-      'pageX': 100.0,
-      'pageY': 100.0,
-    });
-    input({
-      'type': 'pointermove',
-      'pointerId': 7,
-      'pointerType': 'mouse',
-      'button': 0,
-      'buttons': 1,
-      'clientX': 155.0,
-      'clientY': 125.0,
-      'pageX': 155.0,
-      'pageY': 125.0,
-    });
-    input({
-      'type': 'pointerup',
-      'pointerId': 7,
-      'pointerType': 'mouse',
-      'button': 0,
-      'buttons': 0,
-      'clientX': 155.0,
-      'clientY': 125.0,
-      'pageX': 155.0,
-      'pageY': 125.0,
-    });
-    for (var attempt = 0; attempt < 80; attempt++) {
-      await tester.runAsync(
-        () => Future<void>.delayed(const Duration(milliseconds: 20)),
-      );
-      await tester.pump(const Duration(milliseconds: 30));
-      if (cameraMatrix().join(',') != initial.join(',')) break;
-    }
-    expect(
-      cameraMatrix().join(','),
-      isNot(initial.join(',')),
+    await dragThreeCamera(
+      tester,
+      backend,
+      cameraMatrix,
       reason: 'pinned OrbitControls drag must mutate the R1 camera',
     );
     final dragged = cameraMatrix();
-    input({
-      'type': 'wheel',
-      'pointerId': 0,
-      'deltaY': -120.0,
-      'deltaX': 0.0,
-      'deltaMode': 0,
-      'clientX': 155.0,
-      'clientY': 125.0,
-    });
+    dispatchThreeWheelEvent(backend, deltaY: -120, x: 155, y: 125);
     for (var attempt = 0; attempt < 80; attempt++) {
       await tester.runAsync(
         () => Future<void>.delayed(const Duration(milliseconds: 20)),

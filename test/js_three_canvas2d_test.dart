@@ -27,7 +27,8 @@ Map<String, dynamic> _request({
   'width': width,
   'height': height,
   'action': action,
-  'commands': commands ??
+  'commands':
+      commands ??
       [
         {
           'op': 'fillRect',
@@ -84,65 +85,8 @@ Uint8List _disposePacket(String engine, String surface) {
   return out;
 }
 
-void main() {
-  TestWidgetsFlutterBinding.ensureInitialized();
-
-  test('Flutter Canvas radial gradient returns exact raw RGBA pixels', () async {
-    final host = createFlutterGpuThreeHost();
-    final result = await host.rasterizeCanvas2D('engine-a', _request());
-    final data = result.data!;
-    expect(result.engineId, 'engine-a');
-    expect(result.surfaceId, 'main#1');
-    expect(result.canvasId, '2d-1');
-    expect(result.generation, 1);
-    expect(result.requestId, 1);
-    expect(result.width, 16);
-    expect(result.height, 16);
-    expect(result.stale, isFalse);
-    expect(data.length, 16 * 16 * 4);
-    final center = (8 * 16 + 8) * 4;
-    expect(data.sublist(center, center + 4), [210, 210, 210, 255]);
-    expect(data.sublist(0, 4), [255, 255, 255, 255]);
-    for (var offset = 0; offset < data.length; offset += 4) {
-      expect(data[offset + 3], 255);
-      expect(data[offset], data[offset + 1]);
-      expect(data[offset + 1], data[offset + 2]);
-    }
-    host.disposeEngine('engine-a');
-  });
-
-  test('protocol rejects cross-engine, dimensions, quotas and operations', () async {
-    final host = createFlutterGpuThreeHost();
-    await expectLater(
-      host.rasterizeCanvas2D('engine-b', _request()),
-      throwsA(isA<JsThreeProtocolException>()),
-    );
-    await expectLater(
-      host.rasterizeCanvas2D('engine-a', _request(width: 4097)),
-      throwsA(isA<FormatException>()),
-    );
-    await expectLater(
-      host.rasterizeCanvas2D(
-        'engine-a',
-        _request(commands: List.filled(1025, const {})),
-      ),
-      throwsA(isA<FormatException>()),
-    );
-    await expectLater(
-      host.rasterizeCanvas2D(
-        'engine-a',
-        _request(commands: [
-          {'op': 'drawImage'},
-        ]),
-      ),
-      throwsA(isA<JsThreeUnsupportedException>()),
-    );
-    host.disposeEngine('engine-a');
-  });
-
-  test('newer requests win and returned storage owns its bytes', () async {
-    final pending = <Completer<Uint8List>>[];
-    final host = FlutterGpuThreeHost(
+FlutterGpuThreeHost _pendingCanvasHost(List<Completer<Uint8List>> pending) =>
+    FlutterGpuThreeHost(
       shaderAsset: 'unused',
       canvas2dRasterizer: (request) {
         final completer = Completer<Uint8List>();
@@ -150,11 +94,76 @@ void main() {
         return completer.future;
       },
     );
+
+void main() {
+  TestWidgetsFlutterBinding.ensureInitialized();
+
+  test(
+    'Flutter Canvas radial gradient returns exact raw RGBA pixels',
+    () async {
+      final host = createFlutterGpuThreeHost();
+      final result = await host.rasterizeCanvas2D('engine-a', _request());
+      final data = result.data!;
+      expect(result.engineId, 'engine-a');
+      expect(result.surfaceId, 'main#1');
+      expect(result.canvasId, '2d-1');
+      expect(result.generation, 1);
+      expect(result.requestId, 1);
+      expect(result.width, 16);
+      expect(result.height, 16);
+      expect(result.stale, isFalse);
+      expect(data.length, 16 * 16 * 4);
+      final center = (8 * 16 + 8) * 4;
+      expect(data.sublist(center, center + 4), [210, 210, 210, 255]);
+      expect(data.sublist(0, 4), [255, 255, 255, 255]);
+      for (var offset = 0; offset < data.length; offset += 4) {
+        expect(data[offset + 3], 255);
+        expect(data[offset], data[offset + 1]);
+        expect(data[offset + 1], data[offset + 2]);
+      }
+      host.disposeEngine('engine-a');
+    },
+  );
+
+  test(
+    'protocol rejects cross-engine, dimensions, quotas and operations',
+    () async {
+      final host = createFlutterGpuThreeHost();
+      await expectLater(
+        host.rasterizeCanvas2D('engine-b', _request()),
+        throwsA(isA<JsThreeProtocolException>()),
+      );
+      await expectLater(
+        host.rasterizeCanvas2D('engine-a', _request(width: 4097)),
+        throwsA(isA<FormatException>()),
+      );
+      await expectLater(
+        host.rasterizeCanvas2D(
+          'engine-a',
+          _request(commands: List.filled(1025, const {})),
+        ),
+        throwsA(isA<FormatException>()),
+      );
+      await expectLater(
+        host.rasterizeCanvas2D(
+          'engine-a',
+          _request(
+            commands: [
+              {'op': 'drawImage'},
+            ],
+          ),
+        ),
+        throwsA(isA<JsThreeUnsupportedException>()),
+      );
+      host.disposeEngine('engine-a');
+    },
+  );
+
+  test('newer requests win and returned storage owns its bytes', () async {
+    final pending = <Completer<Uint8List>>[];
+    final host = _pendingCanvasHost(pending);
     final first = host.rasterizeCanvas2D('engine-a', _request());
-    final second = host.rasterizeCanvas2D(
-      'engine-a',
-      _request(requestId: 2),
-    );
+    final second = host.rasterizeCanvas2D('engine-a', _request(requestId: 2));
     expect(pending, hasLength(2));
     final secondBytes = _pixels(16, 16, 2);
     pending[1].complete(secondBytes);
@@ -162,7 +171,11 @@ void main() {
     expect(secondResult.stale, isFalse);
     expect(secondResult.data, everyElement(anything));
     secondBytes.fillRange(0, secondBytes.length, 99);
-    expect(secondResult.data![0], 2, reason: 'host result owns an explicit byte copy');
+    expect(
+      secondResult.data![0],
+      2,
+      reason: 'host result owns an explicit byte copy',
+    );
     pending[0].complete(_pixels(16, 16, 1));
     final firstResult = await first;
     expect(firstResult.stale, isTrue);
@@ -170,35 +183,37 @@ void main() {
     host.disposeEngine('engine-a');
   });
 
-  test('canvas, engine and R1 surface disposal invalidate in-flight writes', () async {
-    final pending = <Completer<Uint8List>>[];
-    final host = FlutterGpuThreeHost(
-      shaderAsset: 'unused',
-      canvas2dRasterizer: (request) {
-        final completer = Completer<Uint8List>();
-        pending.add(completer);
-        return completer.future;
-      },
-    );
-    final canvasDispose = host.rasterizeCanvas2D('engine-a', _request());
-    final disposed = await host.rasterizeCanvas2D(
-      'engine-a',
-      _request(action: 'dispose', requestId: 2, width: 0, height: 0, commands: []),
-    );
-    expect(disposed.stale, isTrue);
-    pending[0].complete(_pixels(16, 16, 1));
-    expect((await canvasDispose).stale, isTrue);
+  test(
+    'canvas, engine and R1 surface disposal invalidate in-flight writes',
+    () async {
+      final pending = <Completer<Uint8List>>[];
+      final host = _pendingCanvasHost(pending);
+      final canvasDispose = host.rasterizeCanvas2D('engine-a', _request());
+      final disposed = await host.rasterizeCanvas2D(
+        'engine-a',
+        _request(
+          action: 'dispose',
+          requestId: 2,
+          width: 0,
+          height: 0,
+          commands: [],
+        ),
+      );
+      expect(disposed.stale, isTrue);
+      pending[0].complete(_pixels(16, 16, 1));
+      expect((await canvasDispose).stale, isTrue);
 
-    final engineDispose = host.rasterizeCanvas2D('engine-a', _request());
-    host.disposeEngine('engine-a');
-    pending[1].complete(_pixels(16, 16, 2));
-    expect((await engineDispose).stale, isTrue);
+      final engineDispose = host.rasterizeCanvas2D('engine-a', _request());
+      host.disposeEngine('engine-a');
+      pending[1].complete(_pixels(16, 16, 2));
+      expect((await engineDispose).stale, isTrue);
 
-    final surfaceDispose = host.rasterizeCanvas2D('engine-a', _request());
-    host.submit('engine-a', _disposePacket('engine-a', 'main#1'));
-    pending[2].complete(_pixels(16, 16, 3));
-    expect((await surfaceDispose).stale, isTrue);
-  });
+      final surfaceDispose = host.rasterizeCanvas2D('engine-a', _request());
+      host.submit('engine-a', _disposePacket('engine-a', 'main#1'));
+      pending[2].complete(_pixels(16, 16, 3));
+      expect((await surfaceDispose).stale, isTrue);
+    },
+  );
 
   test('same canvas id is isolated by engine and surface', () async {
     final host = createFlutterGpuThreeHost();

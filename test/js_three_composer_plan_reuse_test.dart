@@ -1,4 +1,3 @@
-import 'dart:convert';
 import 'dart:typed_data';
 
 import 'package:flutter_test/flutter_test.dart';
@@ -18,27 +17,7 @@ JsThreeSurfaceState _apply(
   JsThreeStateStore store,
   List<Uint8List> commands, {
   int sequence = 1,
-}) {
-  final engine = utf8.encode('engine');
-  final surface = utf8.encode('surface');
-  final payload = r1Envelope(commands, version: 2);
-  final headerBytes = 32 + engine.length + surface.length;
-  final result = Uint8List(headerBytes + payload.length);
-  final data = ByteData.sublistView(result);
-  result.setRange(0, 4, ascii.encode('JSR3'));
-  data.setUint8(4, 1);
-  data.setUint8(5, 1);
-  data.setUint16(6, headerBytes, Endian.little);
-  data.setUint32(8, sequence, Endian.little);
-  data.setUint32(12, payload.length, Endian.little);
-  data.setUint16(16, engine.length, Endian.little);
-  data.setUint16(18, surface.length, Endian.little);
-  data.setUint32(24, result.length, Endian.little);
-  result.setRange(32, 32 + engine.length, engine);
-  result.setRange(32 + engine.length, headerBytes, surface);
-  result.setRange(headerBytes, result.length, payload);
-  return store.apply(result).surface;
-}
+}) => applyThreeDrawPlanCommands(store, commands, sequence: sequence);
 
 List<Uint8List> _scene({double nodeX = 0}) => [
   r1Command(4, r1Node(1, objectKind: JsThreeObjectKind.group)),
@@ -87,14 +66,14 @@ void main() {
     expect(emptyPlans.single.opaque, isEmpty);
     expect(
       emptyPlans.single.diagnostics.warnings,
-      contains('surface JsThreeSurfaceKey(engine, surface) has no submitted frame'),
+      contains(
+        'surface JsThreeSurfaceKey(engine, surface) has no submitted frame',
+      ),
     );
 
-    final framedState = _apply(
-      store,
-      [r1Command(8, r1Frame(sceneId: 1, cameraId: 9))],
-      sequence: 2,
-    );
+    final framedState = _apply(store, [
+      r1Command(8, r1Frame(sceneId: 1, cameraId: 9)),
+    ], sequence: 2);
     final framedPlans = debugPlanThreeFrames(framedState);
 
     expect(framedPlans, hasLength(1));
@@ -114,11 +93,10 @@ void main() {
       state.currentFrame!,
       const [],
     );
-    final state2 = _apply(
-      store,
-      [..._scene(), r1Command(8, r1Frame(sceneId: 1, cameraId: 9))],
-      sequence: 2,
-    );
+    final state2 = _apply(store, [
+      ..._scene(),
+      r1Command(8, r1Frame(sceneId: 1, cameraId: 9)),
+    ], sequence: 2);
     final second = JsThreeFramePlanView.snapshot(
       state2,
       state2.currentFrame!,
@@ -136,44 +114,41 @@ void main() {
     expect(plans[1].frame, same(second.frame));
   });
 
-  test('repeated view identity reuses draws and still clones the plan shell', () {
-    final store = JsThreeStateStore();
-    final state = _apply(store, [
-      ..._scene(),
-      r1Command(
-        8,
-        r1Frame(sceneId: 1, cameraId: 9, culledNodeIds: const [4]),
-      ),
-    ]);
-    final view = JsThreeFramePlanView.snapshot(
-      state,
-      state.currentFrame!,
-      const [],
-    );
+  test(
+    'repeated view identity reuses draws and still clones the plan shell',
+    () {
+      final store = JsThreeStateStore();
+      final state = _apply(store, [
+        ..._scene(),
+        r1Command(
+          8,
+          r1Frame(sceneId: 1, cameraId: 9, culledNodeIds: const [4]),
+        ),
+      ]);
+      final view = JsThreeFramePlanView.snapshot(
+        state,
+        state.currentFrame!,
+        const [],
+      );
 
-    final plans = debugPlanThreeFrames(state, frames: [view, view]);
+      final plans = debugPlanThreeFrames(state, frames: [view, view]);
 
-    expect(plans, hasLength(2));
-    expect(plans[1], isNot(same(plans[0])));
-    expect(identical(plans[0].opaque, plans[1].opaque), isTrue);
-    expect(identical(plans[0].stream, plans[1].stream), isTrue);
-    expect(identical(plans[0].diagnostics, plans[1].diagnostics), isTrue);
-    expect(plans[0].frame, same(view.frame));
-    expect(plans[1].frame, same(view.frame));
-  });
+      expect(plans, hasLength(2));
+      expect(plans[1], isNot(same(plans[0])));
+      expect(identical(plans[0].opaque, plans[1].opaque), isTrue);
+      expect(identical(plans[0].stream, plans[1].stream), isTrue);
+      expect(identical(plans[0].diagnostics, plans[1].diagnostics), isTrue);
+      expect(plans[0].frame, same(view.frame));
+      expect(plans[1].frame, same(view.frame));
+    },
+  );
 
   test('equal non-identical cull sets share draws and retain their frames', () {
     final store = JsThreeStateStore();
     final state = _apply(store, [
       ..._scene(),
-      r1Command(
-        8,
-        r1Frame(sceneId: 1, cameraId: 9, culledNodeIds: const [4]),
-      ),
-      r1Command(
-        8,
-        r1Frame(sceneId: 1, cameraId: 9, culledNodeIds: const [4]),
-      ),
+      r1Command(8, r1Frame(sceneId: 1, cameraId: 9, culledNodeIds: const [4])),
+      r1Command(8, r1Frame(sceneId: 1, cameraId: 9, culledNodeIds: const [4])),
     ]);
     final views = _views(state);
     expect(
@@ -195,10 +170,7 @@ void main() {
     final store = JsThreeStateStore();
     final state = _apply(store, [
       ..._scene(),
-      r1Command(
-        8,
-        r1Frame(sceneId: 1, cameraId: 9, culledNodeIds: const [4]),
-      ),
+      r1Command(8, r1Frame(sceneId: 1, cameraId: 9, culledNodeIds: const [4])),
       r1Command(
         8,
         r1Frame(sceneId: 1, cameraId: 9, culledNodeIds: const [999]),
@@ -220,10 +192,7 @@ void main() {
     final state = _apply(store, [
       ..._scene(),
       r1Command(8, r1Frame(sceneId: 1, cameraId: 9)),
-      r1Command(
-        8,
-        r1Frame(sceneId: 1, cameraId: 9, culledNodeIds: const [4]),
-      ),
+      r1Command(8, r1Frame(sceneId: 1, cameraId: 9, culledNodeIds: const [4])),
     ]);
     final views = _views(state);
 
@@ -245,25 +214,21 @@ void main() {
       beforeState.currentFrame!,
       const [],
     );
-    final afterState = _apply(
-      store,
-      [
-        r1Command(
+    final afterState = _apply(store, [
+      r1Command(
+        4,
+        r1Node(
           4,
-          r1Node(
-            4,
-            parentId: 1,
-            geometryId: 2,
-            materialId: 5,
-            objectKind: JsThreeObjectKind.mesh,
-            matrixWorld: [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1],
-          ),
+          parentId: 1,
+          geometryId: 2,
+          materialId: 5,
+          objectKind: JsThreeObjectKind.mesh,
+          matrixWorld: [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1],
         ),
-        r1Command(3, r1Material(5)),
-        r1Command(8, r1Frame(sceneId: 1, cameraId: 9)),
-      ],
-      sequence: 2,
-    );
+      ),
+      r1Command(3, r1Material(5)),
+      r1Command(8, r1Frame(sceneId: 1, cameraId: 9)),
+    ], sequence: 2);
     final after = JsThreeFramePlanView.snapshot(
       afterState,
       afterState.currentFrame!,

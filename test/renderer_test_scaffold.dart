@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_test/flutter_test.dart';
 import 'package:js_widget_runtime/js_widget_runtime.dart';
 
 /// Shared pump-and-build scaffold for the JsonWidgetRenderer suites.
@@ -18,9 +17,8 @@ class RendererScaffold {
     renderer = _newRenderer();
   }
 
-  JsonWidgetRenderer _newRenderer() => JsonWidgetRenderer(
-        onEvent: (id, payload) => events.add((id, payload)),
-      );
+  JsonWidgetRenderer _newRenderer() =>
+      JsonWidgetRenderer(onEvent: (id, payload) => events.add((id, payload)));
 
   /// Builds [tree] inside a MaterialApp/Scaffold body. [width] pins the
   /// body width (adaptive/LayoutBuilder nodes); [hideText] renders the
@@ -37,17 +35,19 @@ class RendererScaffold {
             onGestureEvent: onGestureEvent,
           )
         : (hideText
-            ? JsonWidgetRenderer(
-                onEvent: (id, payload) => events.add((id, payload)),
-                hideText: true,
-              )
-            : renderer);
+              ? JsonWidgetRenderer(
+                  onEvent: (id, payload) => events.add((id, payload)),
+                  hideText: true,
+                )
+              : renderer);
     final body = r.build(tree);
     return MaterialApp(
       home: Scaffold(
         body: width == null
             ? body
-            : Center(child: SizedBox(width: width, child: body)),
+            : Center(
+                child: SizedBox(width: width, child: body),
+              ),
       ),
     );
   }

@@ -20,37 +20,33 @@ Future<WidgetManifest?> _manifest(String icon) async {
   return WidgetManifest.fromStorage('widgets/demo', reader: reader);
 }
 
+Future<void> _pumpMenu(WidgetTester tester, WidgetManifest manifest) =>
+    tester.pumpWidget(
+      MaterialApp(
+        home: JsWidgetDemoMenu(
+          manifests: [manifest],
+          reader: MemoryWidgetFileReader(const {}),
+          makeConfig: ([String? _]) => JsRuntimeConfig(
+            onRender: (_) {},
+            onSetTitle: (_) {},
+            onStorageUpdate: (_) {},
+          ),
+        ),
+      ),
+    );
+
 void main() {
   testWidgets('emoji icon renders as text in the demo menu', (tester) async {
     final manifest = await _manifest('🧮');
-    await tester.pumpWidget(MaterialApp(
-      home: JsWidgetDemoMenu(
-        manifests: [manifest!],
-        reader: MemoryWidgetFileReader(const {}),
-        makeConfig: ([String? _]) => JsRuntimeConfig(
-          onRender: (_) {},
-          onSetTitle: (_) {},
-          onStorageUpdate: (_) {},
-        ),
-      ),
-    ));
+    await _pumpMenu(tester, manifest!);
     expect(find.text('🧮'), findsOneWidget);
   });
 
   testWidgets('svg markup icon never leaks raw markup', (tester) async {
     final manifest = await _manifest(
-        "<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'><path d='M12 2'/></svg>");
-    await tester.pumpWidget(MaterialApp(
-      home: JsWidgetDemoMenu(
-        manifests: [manifest!],
-        reader: MemoryWidgetFileReader(const {}),
-        makeConfig: ([String? _]) => JsRuntimeConfig(
-          onRender: (_) {},
-          onSetTitle: (_) {},
-          onStorageUpdate: (_) {},
-        ),
-      ),
-    ));
+      "<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'><path d='M12 2'/></svg>",
+    );
+    await _pumpMenu(tester, manifest!);
     expect(find.textContaining('<svg'), findsNothing);
     expect(find.byIcon(Icons.widgets), findsOneWidget);
   });

@@ -41,6 +41,30 @@ void main() {
   RenderParagraph paragraphOf(WidgetTester tester, String label) =>
       tester.renderObject<RenderParagraph>(find.text(label));
 
+  List<Map<String, Object>> markerChildren({
+    required double secondWidth,
+    double? secondScale,
+  }) {
+    final second = <String, Object>{
+      'type': 'container',
+      'width': secondWidth,
+      'height': 40,
+      'color': '#0000ff',
+      'child': {'type': 'text', 'data': 'BBB', 'textAlign': 'left'},
+    };
+    if (secondScale != null) second['scale'] = secondScale;
+    return [
+      {
+        'type': 'container',
+        'width': 160,
+        'height': 40,
+        'color': '#ff0000',
+        'child': {'type': 'text', 'data': 'AAA', 'textAlign': 'left'},
+      },
+      second,
+    ];
+  }
+
   group('text width/height', () {
     testWidgets('text honors width and centers within it (nested column)', (
       tester,
@@ -91,22 +115,7 @@ void main() {
             'type': 'column',
             'width': 680,
             'crossAxisAlignment': 'center',
-            'children': [
-              {
-                'type': 'container',
-                'width': 160,
-                'height': 40,
-                'color': '#ff0000',
-                'child': {'type': 'text', 'data': 'AAA', 'textAlign': 'left'},
-              },
-              {
-                'type': 'container',
-                'width': 100,
-                'height': 40,
-                'color': '#0000ff',
-                'child': {'type': 'text', 'data': 'BBB', 'textAlign': 'left'},
-              },
-            ],
+            'children': markerChildren(secondWidth: 100),
           }),
         ),
       );
@@ -150,23 +159,7 @@ void main() {
             'type': 'column',
             'width': 680,
             'crossAxisAlignment': 'center',
-            'children': [
-              {
-                'type': 'container',
-                'width': 160,
-                'height': 40,
-                'color': '#ff0000',
-                'child': {'type': 'text', 'data': 'AAA', 'textAlign': 'left'},
-              },
-              {
-                'type': 'container',
-                'width': 160,
-                'height': 40,
-                'color': '#0000ff',
-                'scale': 1.5,
-                'child': {'type': 'text', 'data': 'BBB', 'textAlign': 'left'},
-              },
-            ],
+            'children': markerChildren(secondWidth: 160, secondScale: 1.5),
           }),
         ),
       );
@@ -176,16 +169,18 @@ void main() {
       // the blue box's ancestor Transform because the size shield may insert
       // a Center(widthFactor:1, heightFactor:1) between them.
       final transform = tester.renderObject<RenderBox>(
-        find.ancestor(
-          of: find.byWidgetPredicate((w) {
-            if (w is! Container) return false;
-            const blue = Color(0xFF0000FF);
-            return w.color == blue ||
-                (w.decoration is BoxDecoration &&
-                    (w.decoration! as BoxDecoration).color == blue);
-          }),
-          matching: find.byType(Transform),
-        ).first,
+        find
+            .ancestor(
+              of: find.byWidgetPredicate((w) {
+                if (w is! Container) return false;
+                const blue = Color(0xFF0000FF);
+                return w.color == blue ||
+                    (w.decoration is BoxDecoration &&
+                        (w.decoration! as BoxDecoration).color == blue);
+              }),
+              matching: find.byType(Transform),
+            )
+            .first,
       );
       // Layout footprint is identical to the unscaled sibling (160x40) and
       // centered across the 680 column like every other child.

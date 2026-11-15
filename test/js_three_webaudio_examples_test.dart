@@ -40,6 +40,50 @@ Future<Object?> Function(String, Map<String, dynamic>) _audioHost(
   };
 }
 
+void _audioPointerDown(
+  ThreeQuickjsExampleHarness harness, {
+  int x = 160,
+  int y = 120,
+}) {
+  harness.backend.dispatchHostEvent('three.input:main', {
+    'type': 'pointerdown',
+    'pointerId': 1,
+    'clientX': x,
+    'clientY': y,
+    'button': 0,
+  });
+}
+
+Future<ThreeQuickjsExampleHarness> _bootAudioExample(
+  WidgetTester tester,
+  String widgetId,
+  List<Map<String, dynamic>> audioCalls, {
+  List<String>? audioUrls,
+  int x = 160,
+  int y = 120,
+}) async {
+  final instanceId = '$widgetId-test';
+  final harness = audioUrls == null
+      ? await ThreeQuickjsExampleHarness.boot(
+          tester,
+          widgetId: widgetId,
+          instanceId: instanceId,
+          onHostCall: (name, args) async {
+            if (name != 'three.audio') throw ArgumentError(name);
+            audioCalls.add(Map<String, dynamic>.from(args));
+            return <String, Object>{'ok': true};
+          },
+        )
+      : await ThreeQuickjsExampleHarness.bootSource(
+          tester,
+          source: await _sourceWithAudioAssets(tester, widgetId, audioUrls),
+          instanceId: instanceId,
+          onHostCall: _audioHost(audioCalls),
+        );
+  _audioPointerDown(harness, x: x, y: y);
+  return harness;
+}
+
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
   if (!hasQuickjsNativeLib) {
@@ -55,23 +99,13 @@ void main() {
     'webaudio_timing starts on a gesture and routes positional playback',
     (tester) async {
       final audioCalls = <Map<String, dynamic>>[];
-      final harness = await ThreeQuickjsExampleHarness.boot(
+      final harness = await _bootAudioExample(
         tester,
-        widgetId: 'three-webaudio-timing',
-        instanceId: 'three-webaudio-timing-test',
-        onHostCall: (name, args) async {
-          if (name != 'three.audio') throw ArgumentError(name);
-          audioCalls.add(Map<String, dynamic>.from(args));
-          return <String, Object>{'ok': true};
-        },
+        'three-webaudio-timing',
+        audioCalls,
+        x: 100,
+        y: 100,
       );
-      harness.backend.dispatchHostEvent('three.input:main', {
-        'type': 'pointerdown',
-        'pointerId': 1,
-        'clientX': 100,
-        'clientY': 100,
-        'button': 0,
-      });
       final ready = await harness.pumpUntil(
         tester,
         (state, plan) =>
@@ -99,23 +133,11 @@ void main() {
     'webaudio_orientation renders embedded textures and unlocks audio',
     (tester) async {
       final audioCalls = <Map<String, dynamic>>[];
-      final harness = await ThreeQuickjsExampleHarness.boot(
+      final harness = await _bootAudioExample(
         tester,
-        widgetId: 'three-webaudio-orientation',
-        instanceId: 'three-webaudio-orientation-test',
-        onHostCall: (name, args) async {
-          if (name != 'three.audio') throw ArgumentError(name);
-          audioCalls.add(Map<String, dynamic>.from(args));
-          return <String, Object>{'ok': true};
-        },
+        'three-webaudio-orientation',
+        audioCalls,
       );
-      harness.backend.dispatchHostEvent('three.input:main', {
-        'type': 'pointerdown',
-        'pointerId': 1,
-        'clientX': 160,
-        'clientY': 120,
-        'button': 0,
-      });
       final ready = await harness.pumpUntil(
         tester,
         (state, plan) =>
@@ -128,13 +150,7 @@ void main() {
       expect(ready, isNotNull);
       expect(harness.state!.textureUploadCount, greaterThanOrEqualTo(4));
 
-      harness.backend.dispatchHostEvent('three.input:main', {
-        'type': 'pointerdown',
-        'pointerId': 1,
-        'clientX': 160,
-        'clientY': 120,
-        'button': 0,
-      });
+      _audioPointerDown(harness);
       await harness.pumpFrames(tester, 3);
       expect(audioCalls.map((call) => call['action']), contains('resume'));
       expect(
@@ -155,24 +171,12 @@ void main() {
         'sounds/376737_Skullbeatz___Bad_Cat_Maste.mp3',
         'sounds/Project_Utopia.mp3',
       ];
-      final source = await _sourceWithAudioAssets(
+      final harness = await _bootAudioExample(
         tester,
         'three-webaudio-sandbox',
-        audioUrls,
+        audioCalls,
+        audioUrls: audioUrls,
       );
-      final harness = await ThreeQuickjsExampleHarness.bootSource(
-        tester,
-        source: source,
-        instanceId: 'three-webaudio-sandbox-test',
-        onHostCall: _audioHost(audioCalls),
-      );
-      harness.backend.dispatchHostEvent('three.input:main', {
-        'type': 'pointerdown',
-        'pointerId': 1,
-        'clientX': 160,
-        'clientY': 120,
-        'button': 0,
-      });
       final ready = await harness.pumpUntil(
         tester,
         (state, plan) =>
@@ -214,24 +218,12 @@ void main() {
     'webaudio_visualizer unlocks audio and renders its explicit R1 fallback',
     (tester) async {
       final audioCalls = <Map<String, dynamic>>[];
-      final source = await _sourceWithAudioAssets(
+      final harness = await _bootAudioExample(
         tester,
         'three-webaudio-visualizer',
-        const ['sounds/376737_Skullbeatz___Bad_Cat_Maste.mp3'],
+        audioCalls,
+        audioUrls: const ['sounds/376737_Skullbeatz___Bad_Cat_Maste.mp3'],
       );
-      final harness = await ThreeQuickjsExampleHarness.bootSource(
-        tester,
-        source: source,
-        instanceId: 'three-webaudio-visualizer-test',
-        onHostCall: _audioHost(audioCalls),
-      );
-      harness.backend.dispatchHostEvent('three.input:main', {
-        'type': 'pointerdown',
-        'pointerId': 1,
-        'clientX': 160,
-        'clientY': 120,
-        'button': 0,
-      });
       final ready = await harness.pumpUntil(
         tester,
         (state, plan) =>

@@ -7,3 +7,19 @@ Map<String, dynamic>? probeFindings(dynamic probe) {
   if (probeState is Map) return probeState.cast<String, dynamic>();
   return null;
 }
+
+/// Pumps an instrumented example until its exported probe satisfies [ready].
+Future<Map<String, dynamic>?> pumpThreeProbeUntil(
+  dynamic probe,
+  dynamic tester,
+  bool Function(Map<String, dynamic>) ready, {
+  int attempts = 120,
+}) async {
+  Map<String, dynamic>? findings;
+  for (var attempt = 0; attempt < attempts; attempt++) {
+    findings = probeFindings(probe);
+    if (findings != null && ready(findings)) break;
+    await probe.pumpFrame(tester);
+  }
+  return findings;
+}

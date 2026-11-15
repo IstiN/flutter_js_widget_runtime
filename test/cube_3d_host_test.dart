@@ -3,6 +3,22 @@ import 'package:flutter_cube/flutter_cube.dart' as cube;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:js_widget_runtime/js_widget_runtime.dart';
 
+Cube3dController _controllerWithPrimitive(String modelId, String primitive) {
+  final controller =
+      createCube3dHost().createController('s1', <String, dynamic>{})
+          as Cube3dController;
+  controller.onSceneCreated(cube.Scene());
+  controller.apply(
+    Js3dCommand(
+      kind: 'addModel',
+      sceneId: 's1',
+      modelId: modelId,
+      payload: {'primitive': primitive},
+    ),
+  );
+  return controller;
+}
+
 void main() {
   group('createCube3dHost', () {
     test('creates a Cube3dHost', () {
@@ -10,10 +26,9 @@ void main() {
     });
 
     test('controller applies commands after scene is created', () {
-      final controller = createCube3dHost().createController(
-        's1',
-        <String, dynamic>{},
-      ) as Cube3dController;
+      final controller =
+          createCube3dHost().createController('s1', <String, dynamic>{})
+              as Cube3dController;
 
       var updates = 0;
       final scene = cube.Scene(onUpdate: () => updates++);
@@ -82,11 +97,7 @@ void main() {
       expect(scene.light.position.x, 5.0);
 
       controller.apply(
-        const Js3dCommand(
-          kind: 'removeModel',
-          sceneId: 's1',
-          modelId: 'box',
-        ),
+        const Js3dCommand(kind: 'removeModel', sceneId: 's1', modelId: 'box'),
       );
       expect(controller.objects, isNot(contains('box')));
 
@@ -94,10 +105,9 @@ void main() {
     });
 
     test('controller queues commands until scene is ready', () {
-      final controller = createCube3dHost().createController(
-        's1',
-        <String, dynamic>{},
-      ) as Cube3dController;
+      final controller =
+          createCube3dHost().createController('s1', <String, dynamic>{})
+              as Cube3dController;
 
       controller.apply(
         const Js3dCommand(
@@ -119,20 +129,7 @@ void main() {
     });
 
     test('controller creates city primitive with many faces', () {
-      final controller = createCube3dHost().createController(
-        's1',
-        <String, dynamic>{},
-      ) as Cube3dController;
-
-      controller.onSceneCreated(cube.Scene());
-      controller.apply(
-        const Js3dCommand(
-          kind: 'addModel',
-          sceneId: 's1',
-          modelId: 'city',
-          payload: {'primitive': 'city'},
-        ),
-      );
+      final controller = _controllerWithPrimitive('city', 'city');
 
       final city = controller.object('city')!;
       expect(city.mesh.indices.length, greaterThan(100));
@@ -143,20 +140,7 @@ void main() {
 
     test('animation speed changes rotation rate', () {
       fakeAsync((async) {
-        final controller = createCube3dHost().createController(
-          's1',
-          <String, dynamic>{},
-        ) as Cube3dController;
-
-        controller.onSceneCreated(cube.Scene());
-        controller.apply(
-          const Js3dCommand(
-            kind: 'addModel',
-            sceneId: 's1',
-            modelId: 'box',
-            payload: {'primitive': 'cube'},
-          ),
-        );
+        final controller = _controllerWithPrimitive('box', 'cube');
         controller.apply(
           const Js3dCommand(
             kind: 'playAnimation',
@@ -219,27 +203,24 @@ void main() {
 
       controller.dispose();
     });
-
   });
-    test('GLB/GLTF src fails soft (no OBJ parse, object still added)', () {
-      final controller = createCube3dHost().createController(
-        'glb-guard',
-        <String, dynamic>{},
-      ) as Cube3dController;
-      controller.onSceneCreated(cube.Scene());
-      controller.apply(
-        const Js3dCommand(
-          kind: 'addModel',
-          sceneId: 'glb-guard',
-          modelId: 'helmet',
-          payload: {'src': 'https://x.test/helmet.glb'},
-        ),
-      );
-      // Misconfigured GLB on the cube host must not throw and must still
-      // register the model (empty placeholder object).
-      expect(controller.objects, contains('helmet'));
-    });
-
+  test('GLB/GLTF src fails soft (no OBJ parse, object still added)', () {
+    final controller =
+        createCube3dHost().createController('glb-guard', <String, dynamic>{})
+            as Cube3dController;
+    controller.onSceneCreated(cube.Scene());
+    controller.apply(
+      const Js3dCommand(
+        kind: 'addModel',
+        sceneId: 'glb-guard',
+        modelId: 'helmet',
+        payload: {'src': 'https://x.test/helmet.glb'},
+      ),
+    );
+    // Misconfigured GLB on the cube host must not throw and must still
+    // register the model (empty placeholder object).
+    expect(controller.objects, contains('helmet'));
+  });
 }
 
 extension _TestableController on Cube3dController {
@@ -248,10 +229,9 @@ extension _TestableController on Cube3dController {
 
 /// Builds a controller with a ready scene and a single `box` cube model.
 Cube3dController controllerWithBox(String sceneId) {
-  final controller = createCube3dHost().createController(
-    sceneId,
-    <String, dynamic>{},
-  ) as Cube3dController;
+  final controller =
+      createCube3dHost().createController(sceneId, <String, dynamic>{})
+          as Cube3dController;
   controller.onSceneCreated(cube.Scene());
   controller.apply(
     Js3dCommand(

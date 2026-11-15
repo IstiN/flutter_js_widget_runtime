@@ -6,8 +6,7 @@ import 'package:js_widget_runtime/src/renderer/nodes/three/three_draw_plan.dart'
 
 import 'support/three_quickjs_example_harness.dart';
 import 'support/widget_logic_helper.dart';
-import 'support/three_patch_once.dart' as patch_support;
-import 'support/three_probe_state.dart';
+import 'support/three_patch_once.dart' show patchProbeOnce;
 
 /// webgl_loader_xyz — official r186 XYZLoader example, healthy on the
 /// native THREE R1 pipeline.
@@ -112,21 +111,14 @@ void main() {
     // XYZLoader pipeline inside QuickJS: the loader onLoad fires with
     // the exact official vertex count, geometry.center() ran on a
     // colorless geometry, and renderer.render() succeeds every tick.
-    var source = _xyzProbeSource();
-    final probe = await ThreeQuickjsExampleHarness.bootSource(
+    final (probe, findings) = await ThreeQuickjsExampleHarness.bootProbe(
       tester,
-      source: source,
+      source: _xyzProbeSource(),
       instanceId: 'three-loader-xyz-probe',
-    );
-    Map<String, dynamic>? findings;
-    for (var attempt = 0; attempt < 120; attempt++) {
-      findings = probeFindings(probe);
-      final ready = findings != null &&
+      ready: (findings) =>
           (findings['xyzOnLoad'] as int? ?? 0) > 0 &&
-          (findings['renders'] as int? ?? 0) > 3;
-      if (ready) break;
-      await probe.pumpFrame(tester);
-    }
+          (findings['renders'] as int? ?? 0) > 3,
+    );
     expect(findings, isNotNull, reason: 'probe findings never exported');
     expect(findings!['xyzOnLoad'], 1);
     // XYZLoader parsed exactly the 201 official data lines.
@@ -142,16 +134,6 @@ void main() {
     await probe.dispose(tester);
   }, timeout: const Timeout(Duration(seconds: 180)));
 }
-
-
-/// Label-first wrapper around the shared patchOnce (matches exactly once).
-String patchOnce(
-  String label,
-  String source,
-  RegExp re,
-  String Function(Match) build,
-) =>
-    patch_support.patchOnce(source, label, re, build);
 
 /// The xyz widget.js instrumented with a state-flag probe. Findings live
 /// on `globalThis.__JSR_PROBE` and are re-exported via
@@ -170,11 +152,12 @@ String _xyzProbeSource() {
   ).readAsStringSync();
 
   // Anchor 1 — XYZLoader onLoad (unique via the embedded asset URL).
-  source = patchOnce(
+  source = patchProbeOnce(
     'xyz onLoad',
     source,
     RegExp(r'\.load\("models/xyz/helix_201\.xyz",function\(([\w$]+)\)\{'),
-    (m) => '${m[0]}globalThis.__JSR_PROBE.xyzOnLoad++,'
+    (m) =>
+        '${m[0]}globalThis.__JSR_PROBE.xyzOnLoad++,'
         'globalThis.__JSR_PROBE.positionCount='
         '${m[1]}.attributes.position.count,'
         'globalThis.__JSR_PROBE.hasColorAttribute='
@@ -187,7 +170,7 @@ String _xyzProbeSource() {
   final moduleStart = source.lastIndexOf('helix_201.xyz');
   final head = source.substring(0, moduleStart);
   var tail = source.substring(moduleStart);
-  tail = patchOnce(
+  tail = patchProbeOnce(
     'module tail render',
     tail,
     RegExp(r'([\w$]+)\.render\(([\w$]+),([\w$]+)\)\}\}\)\(\);'),

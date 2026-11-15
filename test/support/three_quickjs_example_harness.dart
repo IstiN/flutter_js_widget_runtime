@@ -10,6 +10,7 @@ import 'package:js_widget_runtime/src/renderer/nodes/three/js_three_state.dart';
 import 'package:js_widget_runtime/src/renderer/nodes/three/three_draw_plan.dart';
 import 'package:js_widget_runtime/src/runtime/js_widget_engine_quickjs.dart';
 
+import 'three_probe_state.dart';
 import 'three_test_config.dart';
 
 /// Serves a prepared example's external assets (schema
@@ -77,6 +78,7 @@ final class ThreeQuickjsExampleHarness {
     Future<Object?> Function(String name, Map<String, dynamic> args)?
     onHostCall,
     JsThreeAssetLoader? assetLoader,
+
     /// Prepended to the widget source before eval (probe preludes); assets
     /// still resolve from the widget directory lane.
     String? sourcePrelude,
@@ -129,6 +131,21 @@ final class ThreeQuickjsExampleHarness {
       onHostCall: onHostCall,
       assetLoader: assetLoader,
     );
+  }
+
+  static Future<(ThreeQuickjsExampleHarness, Map<String, dynamic>?)> bootProbe(
+    WidgetTester tester, {
+    required String source,
+    required String instanceId,
+    required bool Function(Map<String, dynamic>) ready,
+  }) async {
+    final probe = await bootSource(
+      tester,
+      source: source,
+      instanceId: instanceId,
+    );
+    final findings = await pumpThreeProbeUntil(probe, tester, ready);
+    return (probe, findings);
   }
 
   static Future<ThreeQuickjsExampleHarness> _start({

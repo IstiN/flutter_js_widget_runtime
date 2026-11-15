@@ -21,3 +21,11 @@ String patchOnce(
     build(matches.single),
   );
 }
+
+/// Label-first variant used by the structural probe builders.
+String patchProbeOnce(
+  String label,
+  String source,
+  RegExp re,
+  String Function(Match) build,
+) => patchOnce(source, label, re, build);
