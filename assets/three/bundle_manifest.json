@@ -28,7 +28,7 @@
       "tool/three/src/native_audio.js": "6c4cb5e303a6a76af503df646a99114a2c740cd49ea03f5035f1233258e860ba",
       "tool/three/src/native_canvas2d.js": "c8a7cda446ee4cc47c81fd87fa829cd94e67faa5c53de12e3be8cf7a95ba810c",
       "tool/three/src/native_entry.js": "09f0317fc237150fef60338aed2d0a54a6318c280bfd39fb1f75e2af88ef0580",
-      "tool/three/src/native_loaders.js": "3a1bae2ae416d16f737aac5f2d0e8253a49fb914c65159e1ab8781b3009cb10e",
+      "tool/three/src/native_loaders.js": "3bbacffef19edf3c313d8ea01aee86b88a158a072efde62bca6e4a84152ae86c",
       "tool/three/src/native_pmrem.js": "cc08dc0036fd14f8cd04a160c969ca4d77736ab6904542cd3d2ae39630efc0a0",
       "tool/three/src/native_raycast_bvh.js": "9aada0445e0fb5d1cba38ea8e801588d8b496cce8531f57ab9c60e61d7049384",
       "tool/three/src/native_renderer.js": "467cf91ac1162b934ac7df59ac7e6ea9322bb97b2c1ab447973cc09e1ed29d4d",
@@ -47,8 +47,8 @@
   },
   "outputs": {
     "jsr_three_native.js": {
-      "bytes": 895019,
-      "sha256": "2a541b7addf2e8515e572117bf966fc14171e2486d5851a0c640d73ea4b88a09"
+      "bytes": 895085,
+      "sha256": "7ce03be6131321b068923d781fe920f3239a1db5e6937dc4534cf7d103cc9c1b"
     },
     "jsr_three_web.js": {
       "bytes": 859738,

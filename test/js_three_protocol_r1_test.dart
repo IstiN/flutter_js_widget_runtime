@@ -1245,6 +1245,32 @@ void main() {
         expect(surface.nodes[2]!.skinBoneCount, 1);
         expect(surface.nodes[2]!.skinBoneMatrices, orderedEquals(bones));
 
+        // A moving GPU pose is a real node mutation: rigid matrixWorld and
+        // all metadata stay identical while only the bone uniforms change.
+        // Treating this re-upsert as unchanged freezes the first dance pose.
+        final movingBones = List<double>.of(bones)..[12] = 3;
+        Uint8List movingNode() => draw_bytes.r1Node(
+          2,
+          geometryId: 1,
+          materialId: 1,
+          objectKind: JsThreeObjectKind.mesh,
+          extendedLayout: true,
+          skinBoneMatrices: movingBones,
+        );
+        final bindRevision = surface.contentRevision;
+        store.apply(
+          threeT1(threeR1([(4, movingNode())], version: 11), sequence: 2),
+        );
+        expect(surface.nodes[2]!.skinBoneMatrices, orderedEquals(movingBones));
+        expect(surface.contentRevision, greaterThan(bindRevision));
+
+        // Composer-style identical re-upserts remain deduplicated.
+        final movingRevision = surface.contentRevision;
+        store.apply(
+          threeT1(threeR1([(4, movingNode())], version: 11), sequence: 3),
+        );
+        expect(surface.contentRevision, movingRevision);
+
         store.apply(
           threeT1(
             threeR1([
@@ -1263,7 +1289,7 @@ void main() {
                 ),
               ),
             ], version: 11),
-            sequence: 2,
+            sequence: 4,
           ),
         );
         expect(surface.geometries[1]!.positions[2], 1);

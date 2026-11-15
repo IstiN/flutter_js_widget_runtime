@@ -43,7 +43,7 @@ export class JsrFileLoader extends Loader {
 
   load(url, onLoad, onProgress, onError) {
     if (url === undefined) url = '';
-    url = this.path + url;
+    if (this.path !== undefined) url = this.path + url;
     url = this.manager.resolveURL(url);
     const runtime = getThreeRuntime(false);
     const canvas = associatedCanvas(this, runtime);
@@ -211,7 +211,7 @@ export class JsrImageLoader extends Loader {
         for (const callback of (listeners.get(event.type) || []).slice()) callback.call(image, event);
       }
     };
-    url = this.path + (url === undefined ? '' : url);
+    if (this.path !== undefined) url = this.path + (url === undefined ? '' : url);
     url = this.manager.resolveURL(url);
     const runtime = getThreeRuntime(false);
     const canvas = associatedCanvas(this, runtime);
@@ -270,7 +270,7 @@ export class JsrTextureLoader extends Loader {
 
   load(url, onLoad, onProgress, onError) {
     const texture = new Texture();
-    url = this.path + (url === undefined ? '' : url);
+    if (this.path !== undefined) url = this.path + (url === undefined ? '' : url);
     url = this.manager.resolveURL(url);
     const runtime = getThreeRuntime(false);
     const canvas = associatedCanvas(this, runtime);

@@ -40,9 +40,9 @@ function decode(packet) {
   // v8 carries the material stencil tail, colorWrite flag bit and
   // OPCODE.STENCIL_CLEAR markers. v9 adds scissored multi-view clears and
   // the generic post tail (composite textures 3..5 + scalar parameters).
-  // v10 adds retained dynamic-geometry updates.
+  // v10 adds retained dynamic-geometry updates; v11 adds GPU skin matrices.
   const envelopeVersion = payload.readUInt16LE(4);
-  assert.ok(envelopeVersion >= 3 && envelopeVersion <= 10, `unexpected R1 envelope version ${envelopeVersion}`);
+  assert.ok(envelopeVersion >= 3 && envelopeVersion <= 11, `unexpected R1 envelope version ${envelopeVersion}`);
   assert.equal(payload.readUInt16LE(6), 0);
   const count = payload.readUInt32LE(8);
   const commands = [];
@@ -866,6 +866,14 @@ test('TextureLoader/FileLoader/GLTFLoader use registered bytes and DataTexture u
   const json = JSON.stringify({ hello: 'world' });
   host.jsr.three.registerAsset('config.json', { data: Buffer.from(json).toString('base64'), mime: 'application/json' });
   assert.equal((await new T.FileLoader().setResponseType('json').loadAsync('config.json')).hello, 'world');
+  // FBXLoader deliberately clears the texture path for embedded blob URLs.
+  // Native loaders must preserve that upstream sentinel instead of producing
+  // the string "undefinedblob:..." and asking the host for a missing asset.
+  host.jsr.three.registerAsset('blob:jsr-example-1', { data: png, mime: 'image/png', width: 1, height: 1 });
+  const embedded = await new T.TextureLoader().setPath(undefined).loadAsync('blob:jsr-example-1');
+  assert.equal(embedded.userData.jsrAssetUrl, 'blob:jsr-example-1');
+  host.jsr.three.registerAsset('blob:jsr-example-json', { data: Buffer.from(json).toString('base64'), mime: 'application/json' });
+  assert.equal((await new T.FileLoader().setPath(undefined).setResponseType('json').loadAsync('blob:jsr-example-json')).hello, 'world');
   const positions = new Float32Array([0, 0, 0, 1, 0, 0, 0, 1, 0]);
   const bufferUri = `data:application/octet-stream;base64,${Buffer.from(positions.buffer).toString('base64')}`;
   const gltf = { asset: { version: '2.0' }, scene: 0, scenes: [{ nodes: [0] }], nodes: [{ mesh: 0 }], meshes: [{ primitives: [{ attributes: { POSITION: 0 } }] }], buffers: [{ byteLength: 36, uri: bufferUri }], bufferViews: [{ buffer: 0, byteOffset: 0, byteLength: 36 }], accessors: [{ bufferView: 0, componentType: 5126, count: 3, type: 'VEC3', min: [0, 0, 0], max: [1, 1, 0] }] };

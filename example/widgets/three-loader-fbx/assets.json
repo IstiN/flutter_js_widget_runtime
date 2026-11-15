@@ -1,8 +1,217 @@
 {
   "schema": "jsr-three-example-external-assets-v1",
   "id": "three-loader-fbx",
-  "inlineMaxBytes": 1500000,
+  "inlineMaxBytes": 0,
   "assets": [
+    {
+      "url": "models/fbx/ALPHA.png",
+      "file": "models__fbx__ALPHA.png",
+      "mime": "application/x-r1-rgba",
+      "width": 1,
+      "height": 1,
+      "bytes": 4,
+      "sha256": "ad95131bc0b799c0b1af477fb14fcf26a6a9f76079e48bf090acb7e8367bfd0e",
+      "aliases": [],
+      "diagnostic": "generated:neutral opaque texture for an upstream-missing FBX reference"
+    },
+    {
+      "url": "models/fbx/archer/ArcherRi01_W.PNG",
+      "file": "models__fbx__archer__ArcherRi01_W.PNG",
+      "mime": "image/png",
+      "width": 256,
+      "height": 256,
+      "bytes": 68725,
+      "sha256": "d296d1ce268adbe42c54bcd249dd49e3445f24df1cb6605ee5717562df67801f",
+      "aliases": [],
+      "diagnostic": "auto:models/fbx/archer/ArcherRi01_W.PNG"
+    },
+    {
+      "url": "models/fbx/archer/ArcherRi01.fbx",
+      "file": "models__fbx__archer__ArcherRi01.fbx",
+      "mime": "application/octet-stream",
+      "width": 0,
+      "height": 0,
+      "bytes": 318160,
+      "sha256": "f926e7439bcd6e733b05e6f7fa18aae011cfeed424d24ae5f4ca2fe434ab7115",
+      "aliases": [],
+      "diagnostic": "auto:models/fbx/archer/ArcherRi01.fbx"
+    },
+    {
+      "url": "models/fbx/archer/ArcherRi01.png",
+      "file": "models__fbx__archer__ArcherRi01.png",
+      "mime": "image/png",
+      "width": 512,
+      "height": 512,
+      "bytes": 334963,
+      "sha256": "f0a1fd55bd6e141476e9c024f275cf2851da527c890f98a6d9b4256169f4e465",
+      "aliases": [],
+      "diagnostic": "auto:models/fbx/archer/ArcherRi01.png"
+    },
+    {
+      "url": "models/fbx/ball_anims_asc_2018.fbx",
+      "file": "models__fbx__ball_anims_asc_2018.fbx",
+      "mime": "application/octet-stream",
+      "width": 0,
+      "height": 0,
+      "bytes": 122821,
+      "sha256": "75588ca4acd1bfe331e1879322dbcd7c7c4d259f44a5a3c027874000f9b81b04",
+      "aliases": [],
+      "diagnostic": "auto:models/fbx/ball_anims_asc_2018.fbx"
+    },
+    {
+      "url": "models/fbx/bunny_thickness.jpg",
+      "file": "models__fbx__bunny_thickness.jpg",
+      "mime": "image/jpeg",
+      "width": 512,
+      "height": 512,
+      "bytes": 59419,
+      "sha256": "e9af62ada3f96ce8d88470ed612d6a2741e96ccb695358a3864f83608e6dea61",
+      "aliases": [],
+      "diagnostic": "auto:models/fbx/bunny_thickness.jpg"
+    },
+    {
+      "url": "models/fbx/Chene.jpg",
+      "file": "models__fbx__Chene.jpg",
+      "mime": "application/x-r1-rgba",
+      "width": 1,
+      "height": 1,
+      "bytes": 4,
+      "sha256": "ad95131bc0b799c0b1af477fb14fcf26a6a9f76079e48bf090acb7e8367bfd0e",
+      "aliases": [],
+      "diagnostic": "generated:neutral opaque texture for an upstream-missing FBX reference"
+    },
+    {
+      "url": "models/fbx/exampleWindow.fbx",
+      "file": "models__fbx__exampleWindow.fbx",
+      "mime": "application/octet-stream",
+      "width": 0,
+      "height": 0,
+      "bytes": 70560,
+      "sha256": "fc221e730c8a61e2a34fa3fc59e2308f4d6eb6e9154b44a7b7bb76ebab2fc126",
+      "aliases": [],
+      "diagnostic": "auto:models/fbx/exampleWindow.fbx"
+    },
+    {
+      "url": "models/fbx/Head_69.fbx",
+      "file": "models__fbx__Head_69.fbx",
+      "mime": "application/octet-stream",
+      "width": 0,
+      "height": 0,
+      "bytes": 2082668,
+      "sha256": "a2dc2123f49667d0f8881fa079b68be6fc054d36b31bbaf4d94fdcbc76acbfa2",
+      "aliases": [],
+      "diagnostic": "auto:models/fbx/Head_69.fbx"
+    },
+    {
+      "url": "models/fbx/mixamo.fbx",
+      "file": "models__fbx__mixamo.fbx",
+      "mime": "application/octet-stream",
+      "width": 0,
+      "height": 0,
+      "bytes": 3080384,
+      "sha256": "062bfc75d03a68b8a4aaa4cae6d50c6624bef45684df8aca5302ab1023e27d6c",
+      "aliases": [],
+      "diagnostic": "auto:models/fbx/mixamo.fbx"
+    },
+    {
+      "url": "models/fbx/monkey_embedded_texture.fbx",
+      "file": "models__fbx__monkey_embedded_texture.fbx",
+      "mime": "application/octet-stream",
+      "width": 0,
+      "height": 0,
+      "bytes": 319516,
+      "sha256": "3294f519234496ef6db3f0ca4d8c43f2b6f54ca2083910d4b05b2a2f5d564973",
+      "aliases": [],
+      "diagnostic": "auto:models/fbx/monkey_embedded_texture.fbx"
+    },
+    {
+      "url": "models/fbx/monkey.fbm/UVTexture.png",
+      "file": "models__fbx__monkey.fbm__UVTexture.png",
+      "mime": "image/png",
+      "width": 1024,
+      "height": 1024,
+      "bytes": 151327,
+      "sha256": "8200107eb0de55345adcb827f7e0605f32b3ba025e095f05fa579e6ee4379d86",
+      "aliases": [],
+      "diagnostic": "fbxMonkeyTexture"
+    },
+    {
+      "url": "models/fbx/monkey.fbx",
+      "file": "models__fbx__monkey.fbx",
+      "mime": "application/octet-stream",
+      "width": 0,
+      "height": 0,
+      "bytes": 44892,
+      "sha256": "e233cfc62c7a20f2e639abac8754158af036cdc3ca753488447bba37b45e9232",
+      "aliases": [],
+      "diagnostic": "fbxMonkeyModel"
+    },
+    {
+      "url": "models/fbx/morph_test.fbx",
+      "file": "models__fbx__morph_test.fbx",
+      "mime": "application/octet-stream",
+      "width": 0,
+      "height": 0,
+      "bytes": 16556,
+      "sha256": "8a3d7775324f480abc282eb007e3f319780060eedcef238c3af99df5961399b8",
+      "aliases": [],
+      "diagnostic": "auto:models/fbx/morph_test.fbx"
+    },
+    {
+      "url": "models/fbx/morph-translation.fbx",
+      "file": "models__fbx__morph-translation.fbx",
+      "mime": "application/octet-stream",
+      "width": 0,
+      "height": 0,
+      "bytes": 759424,
+      "sha256": "73e25274d6e28713da60dbf110fd90cb49cefb891fd3c86b6e9127daaeb96bb2",
+      "aliases": [],
+      "diagnostic": "auto:models/fbx/morph-translation.fbx"
+    },
+    {
+      "url": "models/fbx/nurbs.fbx",
+      "file": "models__fbx__nurbs.fbx",
+      "mime": "application/octet-stream",
+      "width": 0,
+      "height": 0,
+      "bytes": 4299,
+      "sha256": "18a1a98f97575e24f581ed38acdddfd194ce77edb6bad089ba9bbbe1223793c4",
+      "aliases": [],
+      "diagnostic": "auto:models/fbx/nurbs.fbx"
+    },
+    {
+      "url": "models/fbx/paillotte extremite.png",
+      "file": "models__fbx__paillotte__extremite.png",
+      "mime": "application/x-r1-rgba",
+      "width": 1,
+      "height": 1,
+      "bytes": 4,
+      "sha256": "ad95131bc0b799c0b1af477fb14fcf26a6a9f76079e48bf090acb7e8367bfd0e",
+      "aliases": [],
+      "diagnostic": "generated:neutral opaque texture for an upstream-missing FBX reference"
+    },
+    {
+      "url": "models/fbx/paillotte.png",
+      "file": "models__fbx__paillotte.png",
+      "mime": "application/x-r1-rgba",
+      "width": 1,
+      "height": 1,
+      "bytes": 4,
+      "sha256": "ad95131bc0b799c0b1af477fb14fcf26a6a9f76079e48bf090acb7e8367bfd0e",
+      "aliases": [],
+      "diagnostic": "generated:neutral opaque texture for an upstream-missing FBX reference"
+    },
+    {
+      "url": "models/fbx/RotationTest.fbx",
+      "file": "models__fbx__RotationTest.fbx",
+      "mime": "application/octet-stream",
+      "width": 0,
+      "height": 0,
+      "bytes": 19228,
+      "sha256": "ef6783a6a39b74ef46d23160e3beec4047408c49d270d1bb8db2745db0832695",
+      "aliases": [],
+      "diagnostic": "auto:models/fbx/RotationTest.fbx"
+    },
     {
       "url": "models/fbx/Samba Dancing.fbx",
       "file": "models__fbx__Samba__Dancing.fbx",
@@ -15,6 +224,38 @@
       "diagnostic": "fbxDefaultModel"
     },
     {
+      "url": "models/fbx/stanford-bunny.fbx",
+      "file": "models__fbx__stanford-bunny.fbx",
+      "mime": "application/octet-stream",
+      "width": 0,
+      "height": 0,
+      "bytes": 8067084,
+      "sha256": "d93bc888e6bd7d205792a90ac21443286eb189bc15f56326b3b8becff17665e5",
+      "aliases": [],
+      "diagnostic": "auto:models/fbx/stanford-bunny.fbx"
+    },
+    {
+      "url": "models/fbx/vCube.fbx",
+      "file": "models__fbx__vCube.fbx",
+      "mime": "application/octet-stream",
+      "width": 0,
+      "height": 0,
+      "bytes": 12460,
+      "sha256": "c0c2d4a07aae2060d4c623e2642a7f9d576ff8f2dc595152ddcfc2a07d214304",
+      "aliases": [],
+      "diagnostic": "auto:models/fbx/vCube.fbx"
+    },
+    {
+      "url": "models/fbx/warrior/100820_kl_npc_d_512.png",
+      "file": "models__fbx__warrior__100820_kl_npc_d_512.png",
+      "mime": "image/png",
+      "width": 512,
+      "height": 512,
+      "bytes": 299490,
+      "sha256": "471baf52cea616c6cf672a87e0a6b512e159c11512ff00c7ee9650a6caf5dfed",
+      "aliases": []
+    },
+    {
       "url": "models/fbx/warrior/Warrior.fbx",
       "file": "models__fbx__warrior__Warrior.fbx",
       "mime": "application/octet-stream",
@@ -23,6 +264,17 @@
       "bytes": 2052864,
       "sha256": "f00e5b65fface7d30beeb96b7469f129809810020b694af53c7e25affcb6762c",
       "aliases": []
+    },
+    {
+      "url": "models/fbx/white.jpg",
+      "file": "models__fbx__white.jpg",
+      "mime": "image/jpeg",
+      "width": 256,
+      "height": 256,
+      "bytes": 1642,
+      "sha256": "5916d841b03e6f8bf712b3195b66d7a922861b8753f94c28e8ea5d4ea99ef545",
+      "aliases": [],
+      "diagnostic": "auto:models/fbx/white.jpg"
     }
   ]
 }

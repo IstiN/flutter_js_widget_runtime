@@ -732,10 +732,18 @@ extension _JsThreeSurfaceStateOperations on JsThreeSurfaceState {
   }
 
   /// Field-for-field equality for node re-upserts. Every planning-relevant
-  /// input participates (matrix, flags, ids, sprite anchor, render order) so
-  /// an equal verdict guarantees an identical draw plan.
+  /// input participates (rigid and skin matrices, flags, ids, sprite anchor,
+  /// render order) so an equal verdict guarantees an identical draw plan.
   static bool _nodeUpsertEquals(JsThreeNodeUpsert a, JsThreeNodeUpsert b) =>
-      _nodeMetadataEquals(a, b) && _matrixEquals(a.matrixWorld, b.matrixWorld);
+      _nodeMetadataEquals(a, b) &&
+      _matrixEquals(a.matrixWorld, b.matrixWorld) &&
+      _optionalMatrixEquals(a.skinBoneMatrices, b.skinBoneMatrices);
+
+  static bool _optionalMatrixEquals(Float32List? a, Float32List? b) {
+    if (identical(a, b)) return true;
+    if (a == null || b == null) return false;
+    return _matrixEquals(a, b);
+  }
 
   static bool _nodeMetadataEquals(JsThreeNodeUpsert a, JsThreeNodeUpsert b) {
     if (a.nodeId != b.nodeId ||

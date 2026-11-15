@@ -43,9 +43,286 @@
       "sha256": "fdf0048c372f466499603a4e5a9d1dc835080b20df3764c8d172f326100a005f"
     }
   },
+  "assetDiscovery": [
+    {
+      "url": "models/fbx/archer/ArcherRi01_W.PNG",
+      "output": "models__fbx__archer__ArcherRi01_W.PNG",
+      "mime": "image/png",
+      "diagnostic": "auto:models/fbx/archer/ArcherRi01_W.PNG",
+      "sha256": "d296d1ce268adbe42c54bcd249dd49e3445f24df1cb6605ee5717562df67801f",
+      "discovered": true
+    },
+    {
+      "url": "models/fbx/archer/ArcherRi01.fbx",
+      "output": "models__fbx__archer__ArcherRi01.fbx",
+      "mime": "application/octet-stream",
+      "diagnostic": "auto:models/fbx/archer/ArcherRi01.fbx",
+      "sha256": "f926e7439bcd6e733b05e6f7fa18aae011cfeed424d24ae5f4ca2fe434ab7115",
+      "discovered": true
+    },
+    {
+      "url": "models/fbx/archer/ArcherRi01.png",
+      "output": "models__fbx__archer__ArcherRi01.png",
+      "mime": "image/png",
+      "diagnostic": "auto:models/fbx/archer/ArcherRi01.png",
+      "sha256": "f0a1fd55bd6e141476e9c024f275cf2851da527c890f98a6d9b4256169f4e465",
+      "discovered": true
+    },
+    {
+      "url": "models/fbx/ball_anims_asc_2018.fbx",
+      "output": "models__fbx__ball_anims_asc_2018.fbx",
+      "mime": "application/octet-stream",
+      "diagnostic": "auto:models/fbx/ball_anims_asc_2018.fbx",
+      "sha256": "75588ca4acd1bfe331e1879322dbcd7c7c4d259f44a5a3c027874000f9b81b04",
+      "discovered": true
+    },
+    {
+      "url": "models/fbx/bunny_thickness.jpg",
+      "output": "models__fbx__bunny_thickness.jpg",
+      "mime": "image/jpeg",
+      "diagnostic": "auto:models/fbx/bunny_thickness.jpg",
+      "sha256": "e9af62ada3f96ce8d88470ed612d6a2741e96ccb695358a3864f83608e6dea61",
+      "discovered": true
+    },
+    {
+      "url": "models/fbx/exampleWindow.fbx",
+      "output": "models__fbx__exampleWindow.fbx",
+      "mime": "application/octet-stream",
+      "diagnostic": "auto:models/fbx/exampleWindow.fbx",
+      "sha256": "fc221e730c8a61e2a34fa3fc59e2308f4d6eb6e9154b44a7b7bb76ebab2fc126",
+      "discovered": true
+    },
+    {
+      "url": "models/fbx/Head_69.fbx",
+      "output": "models__fbx__Head_69.fbx",
+      "mime": "application/octet-stream",
+      "diagnostic": "auto:models/fbx/Head_69.fbx",
+      "sha256": "a2dc2123f49667d0f8881fa079b68be6fc054d36b31bbaf4d94fdcbc76acbfa2",
+      "discovered": true
+    },
+    {
+      "url": "models/fbx/mixamo.fbx",
+      "output": "models__fbx__mixamo.fbx",
+      "mime": "application/octet-stream",
+      "diagnostic": "auto:models/fbx/mixamo.fbx",
+      "sha256": "062bfc75d03a68b8a4aaa4cae6d50c6624bef45684df8aca5302ab1023e27d6c",
+      "discovered": true
+    },
+    {
+      "url": "models/fbx/monkey_embedded_texture.fbx",
+      "output": "models__fbx__monkey_embedded_texture.fbx",
+      "mime": "application/octet-stream",
+      "diagnostic": "auto:models/fbx/monkey_embedded_texture.fbx",
+      "sha256": "3294f519234496ef6db3f0ca4d8c43f2b6f54ca2083910d4b05b2a2f5d564973",
+      "discovered": true
+    },
+    {
+      "url": "models/fbx/monkey.fbm/UVTexture.png",
+      "output": "models__fbx__monkey.fbm__UVTexture.png",
+      "mime": "image/png",
+      "diagnostic": "fbxMonkeyTexture",
+      "sha256": "8200107eb0de55345adcb827f7e0605f32b3ba025e095f05fa579e6ee4379d86"
+    },
+    {
+      "url": "models/fbx/monkey.fbx",
+      "output": "models__fbx__monkey.fbx",
+      "mime": "application/octet-stream",
+      "diagnostic": "fbxMonkeyModel",
+      "sha256": "e233cfc62c7a20f2e639abac8754158af036cdc3ca753488447bba37b45e9232"
+    },
+    {
+      "url": "models/fbx/morph_test.fbx",
+      "output": "models__fbx__morph_test.fbx",
+      "mime": "application/octet-stream",
+      "diagnostic": "auto:models/fbx/morph_test.fbx",
+      "sha256": "8a3d7775324f480abc282eb007e3f319780060eedcef238c3af99df5961399b8",
+      "discovered": true
+    },
+    {
+      "url": "models/fbx/morph-translation.fbx",
+      "output": "models__fbx__morph-translation.fbx",
+      "mime": "application/octet-stream",
+      "diagnostic": "auto:models/fbx/morph-translation.fbx",
+      "sha256": "73e25274d6e28713da60dbf110fd90cb49cefb891fd3c86b6e9127daaeb96bb2",
+      "discovered": true
+    },
+    {
+      "url": "models/fbx/nurbs.fbx",
+      "output": "models__fbx__nurbs.fbx",
+      "mime": "application/octet-stream",
+      "diagnostic": "auto:models/fbx/nurbs.fbx",
+      "sha256": "18a1a98f97575e24f581ed38acdddfd194ce77edb6bad089ba9bbbe1223793c4",
+      "discovered": true
+    },
+    {
+      "url": "models/fbx/RotationTest.fbx",
+      "output": "models__fbx__RotationTest.fbx",
+      "mime": "application/octet-stream",
+      "diagnostic": "auto:models/fbx/RotationTest.fbx",
+      "sha256": "ef6783a6a39b74ef46d23160e3beec4047408c49d270d1bb8db2745db0832695",
+      "discovered": true
+    },
+    {
+      "url": "models/fbx/Samba Dancing.fbx",
+      "output": "models__fbx__Samba__Dancing.fbx",
+      "mime": "application/octet-stream",
+      "diagnostic": "fbxDefaultModel",
+      "sha256": "b9003ee562c87bf03051c3a502411b0808d3513f1d74a2011f7530d9f067069f"
+    },
+    {
+      "url": "models/fbx/stanford-bunny.fbx",
+      "output": "models__fbx__stanford-bunny.fbx",
+      "mime": "application/octet-stream",
+      "diagnostic": "auto:models/fbx/stanford-bunny.fbx",
+      "sha256": "d93bc888e6bd7d205792a90ac21443286eb189bc15f56326b3b8becff17665e5",
+      "discovered": true
+    },
+    {
+      "url": "models/fbx/vCube.fbx",
+      "output": "models__fbx__vCube.fbx",
+      "mime": "application/octet-stream",
+      "diagnostic": "auto:models/fbx/vCube.fbx",
+      "sha256": "c0c2d4a07aae2060d4c623e2642a7f9d576ff8f2dc595152ddcfc2a07d214304",
+      "discovered": true
+    },
+    {
+      "url": "models/fbx/warrior/100820_kl_npc_d_512.png",
+      "output": "models__fbx__warrior__100820_kl_npc_d_512.png",
+      "mime": "image/png",
+      "sha256": "471baf52cea616c6cf672a87e0a6b512e159c11512ff00c7ee9650a6caf5dfed"
+    },
+    {
+      "url": "models/fbx/warrior/Warrior.fbx",
+      "output": "models__fbx__warrior__Warrior.fbx",
+      "mime": "application/octet-stream",
+      "sha256": "f00e5b65fface7d30beeb96b7469f129809810020b694af53c7e25affcb6762c"
+    },
+    {
+      "url": "models/fbx/white.jpg",
+      "output": "models__fbx__white.jpg",
+      "mime": "image/jpeg",
+      "diagnostic": "auto:models/fbx/white.jpg",
+      "sha256": "5916d841b03e6f8bf712b3195b66d7a922861b8753f94c28e8ea5d4ea99ef545",
+      "discovered": true
+    }
+  ],
   "assetPolicy": {
-    "inlineMaxBytes": 1500000,
+    "inlineMaxBytes": 0,
     "externalAssets": [
+      {
+        "url": "models/fbx/ALPHA.png",
+        "file": "models__fbx__ALPHA.png",
+        "bytes": 4,
+        "sha256": "ad95131bc0b799c0b1af477fb14fcf26a6a9f76079e48bf090acb7e8367bfd0e"
+      },
+      {
+        "url": "models/fbx/archer/ArcherRi01_W.PNG",
+        "file": "models__fbx__archer__ArcherRi01_W.PNG",
+        "bytes": 68725,
+        "sha256": "d296d1ce268adbe42c54bcd249dd49e3445f24df1cb6605ee5717562df67801f"
+      },
+      {
+        "url": "models/fbx/archer/ArcherRi01.fbx",
+        "file": "models__fbx__archer__ArcherRi01.fbx",
+        "bytes": 318160,
+        "sha256": "f926e7439bcd6e733b05e6f7fa18aae011cfeed424d24ae5f4ca2fe434ab7115"
+      },
+      {
+        "url": "models/fbx/archer/ArcherRi01.png",
+        "file": "models__fbx__archer__ArcherRi01.png",
+        "bytes": 334963,
+        "sha256": "f0a1fd55bd6e141476e9c024f275cf2851da527c890f98a6d9b4256169f4e465"
+      },
+      {
+        "url": "models/fbx/ball_anims_asc_2018.fbx",
+        "file": "models__fbx__ball_anims_asc_2018.fbx",
+        "bytes": 122821,
+        "sha256": "75588ca4acd1bfe331e1879322dbcd7c7c4d259f44a5a3c027874000f9b81b04"
+      },
+      {
+        "url": "models/fbx/bunny_thickness.jpg",
+        "file": "models__fbx__bunny_thickness.jpg",
+        "bytes": 59419,
+        "sha256": "e9af62ada3f96ce8d88470ed612d6a2741e96ccb695358a3864f83608e6dea61"
+      },
+      {
+        "url": "models/fbx/Chene.jpg",
+        "file": "models__fbx__Chene.jpg",
+        "bytes": 4,
+        "sha256": "ad95131bc0b799c0b1af477fb14fcf26a6a9f76079e48bf090acb7e8367bfd0e"
+      },
+      {
+        "url": "models/fbx/exampleWindow.fbx",
+        "file": "models__fbx__exampleWindow.fbx",
+        "bytes": 70560,
+        "sha256": "fc221e730c8a61e2a34fa3fc59e2308f4d6eb6e9154b44a7b7bb76ebab2fc126"
+      },
+      {
+        "url": "models/fbx/Head_69.fbx",
+        "file": "models__fbx__Head_69.fbx",
+        "bytes": 2082668,
+        "sha256": "a2dc2123f49667d0f8881fa079b68be6fc054d36b31bbaf4d94fdcbc76acbfa2"
+      },
+      {
+        "url": "models/fbx/mixamo.fbx",
+        "file": "models__fbx__mixamo.fbx",
+        "bytes": 3080384,
+        "sha256": "062bfc75d03a68b8a4aaa4cae6d50c6624bef45684df8aca5302ab1023e27d6c"
+      },
+      {
+        "url": "models/fbx/monkey_embedded_texture.fbx",
+        "file": "models__fbx__monkey_embedded_texture.fbx",
+        "bytes": 319516,
+        "sha256": "3294f519234496ef6db3f0ca4d8c43f2b6f54ca2083910d4b05b2a2f5d564973"
+      },
+      {
+        "url": "models/fbx/monkey.fbm/UVTexture.png",
+        "file": "models__fbx__monkey.fbm__UVTexture.png",
+        "bytes": 151327,
+        "sha256": "8200107eb0de55345adcb827f7e0605f32b3ba025e095f05fa579e6ee4379d86"
+      },
+      {
+        "url": "models/fbx/monkey.fbx",
+        "file": "models__fbx__monkey.fbx",
+        "bytes": 44892,
+        "sha256": "e233cfc62c7a20f2e639abac8754158af036cdc3ca753488447bba37b45e9232"
+      },
+      {
+        "url": "models/fbx/morph_test.fbx",
+        "file": "models__fbx__morph_test.fbx",
+        "bytes": 16556,
+        "sha256": "8a3d7775324f480abc282eb007e3f319780060eedcef238c3af99df5961399b8"
+      },
+      {
+        "url": "models/fbx/morph-translation.fbx",
+        "file": "models__fbx__morph-translation.fbx",
+        "bytes": 759424,
+        "sha256": "73e25274d6e28713da60dbf110fd90cb49cefb891fd3c86b6e9127daaeb96bb2"
+      },
+      {
+        "url": "models/fbx/nurbs.fbx",
+        "file": "models__fbx__nurbs.fbx",
+        "bytes": 4299,
+        "sha256": "18a1a98f97575e24f581ed38acdddfd194ce77edb6bad089ba9bbbe1223793c4"
+      },
+      {
+        "url": "models/fbx/paillotte extremite.png",
+        "file": "models__fbx__paillotte__extremite.png",
+        "bytes": 4,
+        "sha256": "ad95131bc0b799c0b1af477fb14fcf26a6a9f76079e48bf090acb7e8367bfd0e"
+      },
+      {
+        "url": "models/fbx/paillotte.png",
+        "file": "models__fbx__paillotte.png",
+        "bytes": 4,
+        "sha256": "ad95131bc0b799c0b1af477fb14fcf26a6a9f76079e48bf090acb7e8367bfd0e"
+      },
+      {
+        "url": "models/fbx/RotationTest.fbx",
+        "file": "models__fbx__RotationTest.fbx",
+        "bytes": 19228,
+        "sha256": "ef6783a6a39b74ef46d23160e3beec4047408c49d270d1bb8db2745db0832695"
+      },
       {
         "url": "models/fbx/Samba Dancing.fbx",
         "file": "models__fbx__Samba__Dancing.fbx",
@@ -53,10 +330,34 @@
         "sha256": "b9003ee562c87bf03051c3a502411b0808d3513f1d74a2011f7530d9f067069f"
       },
       {
+        "url": "models/fbx/stanford-bunny.fbx",
+        "file": "models__fbx__stanford-bunny.fbx",
+        "bytes": 8067084,
+        "sha256": "d93bc888e6bd7d205792a90ac21443286eb189bc15f56326b3b8becff17665e5"
+      },
+      {
+        "url": "models/fbx/vCube.fbx",
+        "file": "models__fbx__vCube.fbx",
+        "bytes": 12460,
+        "sha256": "c0c2d4a07aae2060d4c623e2642a7f9d576ff8f2dc595152ddcfc2a07d214304"
+      },
+      {
+        "url": "models/fbx/warrior/100820_kl_npc_d_512.png",
+        "file": "models__fbx__warrior__100820_kl_npc_d_512.png",
+        "bytes": 299490,
+        "sha256": "471baf52cea616c6cf672a87e0a6b512e159c11512ff00c7ee9650a6caf5dfed"
+      },
+      {
         "url": "models/fbx/warrior/Warrior.fbx",
         "file": "models__fbx__warrior__Warrior.fbx",
         "bytes": 2052864,
         "sha256": "f00e5b65fface7d30beeb96b7469f129809810020b694af53c7e25affcb6762c"
+      },
+      {
+        "url": "models/fbx/white.jpg",
+        "file": "models__fbx__white.jpg",
+        "bytes": 1642,
+        "sha256": "5916d841b03e6f8bf712b3195b66d7a922861b8753f94c28e8ea5d4ea99ef545"
       }
     ]
   },
@@ -526,8 +827,8 @@
   },
   "inputs": {
     "assets/three/jsr_three_native.js": {
-      "bytes": 895019,
-      "sha256": "2a541b7addf2e8515e572117bf966fc14171e2486d5851a0c640d73ea4b88a09"
+      "bytes": 895085,
+      "sha256": "7ce03be6131321b068923d781fe920f3239a1db5e6937dc4534cf7d103cc9c1b"
     },
     "assets/three/jsr_three_web.js": {
       "bytes": 859738,
@@ -569,9 +870,93 @@
       "bytes": 113372,
       "sha256": "7fb8586158a2cf98477b2ee40a82ebec10a81040c70369bb177043375c355322"
     },
+    "source/examples/models/fbx/ALPHA.png": {
+      "bytes": 4,
+      "sha256": "ad95131bc0b799c0b1af477fb14fcf26a6a9f76079e48bf090acb7e8367bfd0e"
+    },
+    "source/examples/models/fbx/Chene.jpg": {
+      "bytes": 4,
+      "sha256": "ad95131bc0b799c0b1af477fb14fcf26a6a9f76079e48bf090acb7e8367bfd0e"
+    },
+    "source/examples/models/fbx/Head_69.fbx": {
+      "bytes": 2082668,
+      "sha256": "a2dc2123f49667d0f8881fa079b68be6fc054d36b31bbaf4d94fdcbc76acbfa2"
+    },
+    "source/examples/models/fbx/RotationTest.fbx": {
+      "bytes": 19228,
+      "sha256": "ef6783a6a39b74ef46d23160e3beec4047408c49d270d1bb8db2745db0832695"
+    },
     "source/examples/models/fbx/Samba Dancing.fbx": {
       "bytes": 3681360,
       "sha256": "b9003ee562c87bf03051c3a502411b0808d3513f1d74a2011f7530d9f067069f"
+    },
+    "source/examples/models/fbx/archer/ArcherRi01.fbx": {
+      "bytes": 318160,
+      "sha256": "f926e7439bcd6e733b05e6f7fa18aae011cfeed424d24ae5f4ca2fe434ab7115"
+    },
+    "source/examples/models/fbx/archer/ArcherRi01.png": {
+      "bytes": 334963,
+      "sha256": "f0a1fd55bd6e141476e9c024f275cf2851da527c890f98a6d9b4256169f4e465"
+    },
+    "source/examples/models/fbx/archer/ArcherRi01_W.PNG": {
+      "bytes": 68725,
+      "sha256": "d296d1ce268adbe42c54bcd249dd49e3445f24df1cb6605ee5717562df67801f"
+    },
+    "source/examples/models/fbx/ball_anims_asc_2018.fbx": {
+      "bytes": 122821,
+      "sha256": "75588ca4acd1bfe331e1879322dbcd7c7c4d259f44a5a3c027874000f9b81b04"
+    },
+    "source/examples/models/fbx/bunny_thickness.jpg": {
+      "bytes": 59419,
+      "sha256": "e9af62ada3f96ce8d88470ed612d6a2741e96ccb695358a3864f83608e6dea61"
+    },
+    "source/examples/models/fbx/exampleWindow.fbx": {
+      "bytes": 70560,
+      "sha256": "fc221e730c8a61e2a34fa3fc59e2308f4d6eb6e9154b44a7b7bb76ebab2fc126"
+    },
+    "source/examples/models/fbx/mixamo.fbx": {
+      "bytes": 3080384,
+      "sha256": "062bfc75d03a68b8a4aaa4cae6d50c6624bef45684df8aca5302ab1023e27d6c"
+    },
+    "source/examples/models/fbx/monkey.fbm/UVTexture.png": {
+      "bytes": 151327,
+      "sha256": "8200107eb0de55345adcb827f7e0605f32b3ba025e095f05fa579e6ee4379d86"
+    },
+    "source/examples/models/fbx/monkey.fbx": {
+      "bytes": 44892,
+      "sha256": "e233cfc62c7a20f2e639abac8754158af036cdc3ca753488447bba37b45e9232"
+    },
+    "source/examples/models/fbx/monkey_embedded_texture.fbx": {
+      "bytes": 319516,
+      "sha256": "3294f519234496ef6db3f0ca4d8c43f2b6f54ca2083910d4b05b2a2f5d564973"
+    },
+    "source/examples/models/fbx/morph-translation.fbx": {
+      "bytes": 759424,
+      "sha256": "73e25274d6e28713da60dbf110fd90cb49cefb891fd3c86b6e9127daaeb96bb2"
+    },
+    "source/examples/models/fbx/morph_test.fbx": {
+      "bytes": 16556,
+      "sha256": "8a3d7775324f480abc282eb007e3f319780060eedcef238c3af99df5961399b8"
+    },
+    "source/examples/models/fbx/nurbs.fbx": {
+      "bytes": 4299,
+      "sha256": "18a1a98f97575e24f581ed38acdddfd194ce77edb6bad089ba9bbbe1223793c4"
+    },
+    "source/examples/models/fbx/paillotte extremite.png": {
+      "bytes": 4,
+      "sha256": "ad95131bc0b799c0b1af477fb14fcf26a6a9f76079e48bf090acb7e8367bfd0e"
+    },
+    "source/examples/models/fbx/paillotte.png": {
+      "bytes": 4,
+      "sha256": "ad95131bc0b799c0b1af477fb14fcf26a6a9f76079e48bf090acb7e8367bfd0e"
+    },
+    "source/examples/models/fbx/stanford-bunny.fbx": {
+      "bytes": 8067084,
+      "sha256": "d93bc888e6bd7d205792a90ac21443286eb189bc15f56326b3b8becff17665e5"
+    },
+    "source/examples/models/fbx/vCube.fbx": {
+      "bytes": 12460,
+      "sha256": "c0c2d4a07aae2060d4c623e2642a7f9d576ff8f2dc595152ddcfc2a07d214304"
     },
     "source/examples/models/fbx/warrior/100820_kl_npc_d_512.png": {
       "bytes": 299490,
@@ -580,6 +965,10 @@
     "source/examples/models/fbx/warrior/Warrior.fbx": {
       "bytes": 2052864,
       "sha256": "f00e5b65fface7d30beeb96b7469f129809810020b694af53c7e25affcb6762c"
+    },
+    "source/examples/models/fbx/white.jpg": {
+      "bytes": 1642,
+      "sha256": "5916d841b03e6f8bf712b3195b66d7a922861b8753f94c28e8ea5d4ea99ef545"
     },
     "source/examples/webgl_loader_fbx.html": {
       "bytes": 7060,
@@ -610,12 +999,12 @@
       "sha256": "3bb5bcd47d637e187e79fd7463ba4247e3cc7b5705e62229983e8e607fccf753"
     },
     "tool/three_example/lil_gui_adapter.js": {
-      "bytes": 32789,
-      "sha256": "ceb4c2b0bd47cbe6ed04169fd6042fa40fe3085eab13c2061be29414fdfa0f74"
+      "bytes": 33836,
+      "sha256": "ea96c0a05d085289b62839060923353157e0d3f8da1abb27c089e4053e561a6b"
     },
     "tool/three_example/prepare.mjs": {
-      "bytes": 379609,
-      "sha256": "b3832906855e25896cb9f87d651a918d59508bd138a4538b053695545f85258e"
+      "bytes": 380967,
+      "sha256": "5665052bdb7ad6438e4678f84f59d7a31412a4ea42cf3b87ec7fd9061ca096b6"
     },
     "tool/three_example/stats_adapter.js": {
       "bytes": 2107,
@@ -636,16 +1025,100 @@
       "sha256": "8b378ebe60e2fe500158cb0ac71cb5e8b7d92953c2abcc63a0eb90499653b5bc"
     },
     "assets.json": {
-      "bytes": 801,
-      "sha256": "2e73ae076350c756a8c0302a8d335189ad1a47eda2ffce6f581d458baf7b74b0"
+      "bytes": 9229,
+      "sha256": "b99e42fe9e303d6ab87d002bede93f9ac05c104446b67ffabbe77b0ea67f3be5"
     },
     "manifest.json": {
       "bytes": 327,
-      "sha256": "d57f01e5e70a647581f7056593c6f7baadb46b8da68c930e7830a5fd704950d1"
+      "sha256": "c8393f58a743015c05b8d53c9cd9b577eaba8a2fd49f760c50174914ff61e36d"
+    },
+    "models__fbx__ALPHA.png": {
+      "bytes": 4,
+      "sha256": "ad95131bc0b799c0b1af477fb14fcf26a6a9f76079e48bf090acb7e8367bfd0e"
+    },
+    "models__fbx__Chene.jpg": {
+      "bytes": 4,
+      "sha256": "ad95131bc0b799c0b1af477fb14fcf26a6a9f76079e48bf090acb7e8367bfd0e"
+    },
+    "models__fbx__Head_69.fbx": {
+      "bytes": 2082668,
+      "sha256": "a2dc2123f49667d0f8881fa079b68be6fc054d36b31bbaf4d94fdcbc76acbfa2"
+    },
+    "models__fbx__RotationTest.fbx": {
+      "bytes": 19228,
+      "sha256": "ef6783a6a39b74ef46d23160e3beec4047408c49d270d1bb8db2745db0832695"
     },
     "models__fbx__Samba__Dancing.fbx": {
       "bytes": 3681360,
       "sha256": "b9003ee562c87bf03051c3a502411b0808d3513f1d74a2011f7530d9f067069f"
+    },
+    "models__fbx__archer__ArcherRi01.fbx": {
+      "bytes": 318160,
+      "sha256": "f926e7439bcd6e733b05e6f7fa18aae011cfeed424d24ae5f4ca2fe434ab7115"
+    },
+    "models__fbx__archer__ArcherRi01.png": {
+      "bytes": 334963,
+      "sha256": "f0a1fd55bd6e141476e9c024f275cf2851da527c890f98a6d9b4256169f4e465"
+    },
+    "models__fbx__archer__ArcherRi01_W.PNG": {
+      "bytes": 68725,
+      "sha256": "d296d1ce268adbe42c54bcd249dd49e3445f24df1cb6605ee5717562df67801f"
+    },
+    "models__fbx__ball_anims_asc_2018.fbx": {
+      "bytes": 122821,
+      "sha256": "75588ca4acd1bfe331e1879322dbcd7c7c4d259f44a5a3c027874000f9b81b04"
+    },
+    "models__fbx__bunny_thickness.jpg": {
+      "bytes": 59419,
+      "sha256": "e9af62ada3f96ce8d88470ed612d6a2741e96ccb695358a3864f83608e6dea61"
+    },
+    "models__fbx__exampleWindow.fbx": {
+      "bytes": 70560,
+      "sha256": "fc221e730c8a61e2a34fa3fc59e2308f4d6eb6e9154b44a7b7bb76ebab2fc126"
+    },
+    "models__fbx__mixamo.fbx": {
+      "bytes": 3080384,
+      "sha256": "062bfc75d03a68b8a4aaa4cae6d50c6624bef45684df8aca5302ab1023e27d6c"
+    },
+    "models__fbx__monkey.fbm__UVTexture.png": {
+      "bytes": 151327,
+      "sha256": "8200107eb0de55345adcb827f7e0605f32b3ba025e095f05fa579e6ee4379d86"
+    },
+    "models__fbx__monkey.fbx": {
+      "bytes": 44892,
+      "sha256": "e233cfc62c7a20f2e639abac8754158af036cdc3ca753488447bba37b45e9232"
+    },
+    "models__fbx__monkey_embedded_texture.fbx": {
+      "bytes": 319516,
+      "sha256": "3294f519234496ef6db3f0ca4d8c43f2b6f54ca2083910d4b05b2a2f5d564973"
+    },
+    "models__fbx__morph-translation.fbx": {
+      "bytes": 759424,
+      "sha256": "73e25274d6e28713da60dbf110fd90cb49cefb891fd3c86b6e9127daaeb96bb2"
+    },
+    "models__fbx__morph_test.fbx": {
+      "bytes": 16556,
+      "sha256": "8a3d7775324f480abc282eb007e3f319780060eedcef238c3af99df5961399b8"
+    },
+    "models__fbx__nurbs.fbx": {
+      "bytes": 4299,
+      "sha256": "18a1a98f97575e24f581ed38acdddfd194ce77edb6bad089ba9bbbe1223793c4"
+    },
+    "models__fbx__paillotte.png": {
+      "bytes": 4,
+      "sha256": "ad95131bc0b799c0b1af477fb14fcf26a6a9f76079e48bf090acb7e8367bfd0e"
+    },
+    "models__fbx__paillotte__extremite.png": {
+      "bytes": 4,
+      "sha256": "ad95131bc0b799c0b1af477fb14fcf26a6a9f76079e48bf090acb7e8367bfd0e"
+    },
+    "models__fbx__stanford-bunny.fbx": {
+      "bytes": 8067084,
+      "sha256": "d93bc888e6bd7d205792a90ac21443286eb189bc15f56326b3b8becff17665e5"
+    },
+    "models__fbx__vCube.fbx": {
+      "bytes": 12460,
+      "sha256": "c0c2d4a07aae2060d4c623e2642a7f9d576ff8f2dc595152ddcfc2a07d214304"
     },
     "models__fbx__warrior__100820_kl_npc_d_512.png": {
       "bytes": 299490,
@@ -654,6 +1127,10 @@
     "models__fbx__warrior__Warrior.fbx": {
       "bytes": 2052864,
       "sha256": "f00e5b65fface7d30beeb96b7469f129809810020b694af53c7e25affcb6762c"
+    },
+    "models__fbx__white.jpg": {
+      "bytes": 1642,
+      "sha256": "5916d841b03e6f8bf712b3195b66d7a922861b8753f94c28e8ea5d4ea99ef545"
     },
     "official_module.js": {
       "bytes": 6031,
@@ -664,8 +1141,8 @@
       "sha256": "9ad3920575e7a36a2a7797f9ed520d901eccca50de17ec016c3ab1070fe0b839"
     },
     "widget.js": {
-      "bytes": 576550,
-      "sha256": "e3fd9cb58228aa92857873a128c41ddb9a98691c70a8fb606cdda4849b597dfa"
+      "bytes": 184275,
+      "sha256": "1f4dc3bb40302bd973b263497969cbcd9887c2ee3c04e4bcea0e28d1a59ce3c2"
     }
   }
 }

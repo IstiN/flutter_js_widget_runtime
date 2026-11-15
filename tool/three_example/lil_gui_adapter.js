@@ -138,6 +138,20 @@ function toggleRow(target, title, closed, style) {
   };
 }
 
+function appendFolderRows(children, folder, depth) {
+  if (folder._hidden) return;
+  const title = depth > 1 ? `${'  '.repeat(depth - 1)}${folder._title}` : folder._title;
+  children.push(toggleRow(folder, title, folder._closed,
+    { color: '#FF9E9EA6', fontSize: 11, fontWeight: 'w600' }));
+  if (folder._closed) return;
+  for (const controller of folder.controllers) {
+    if (!controller._hidden) children.push(controllerRow(controller));
+  }
+  for (const nested of folder.folders) {
+    appendFolderRows(children, nested, depth + 1);
+  }
+}
+
 function rootTree(root) {
   if (root._hidden) return null;
   const children = [toggleRow(root, root._title, root._closed,
@@ -146,15 +160,7 @@ function rootTree(root) {
     for (const controller of root.controllers) {
       if (!controller._hidden) children.push(controllerRow(controller));
     }
-    for (const folder of root.folders) {
-      if (folder._hidden) continue;
-      children.push(toggleRow(folder, folder._title, folder._closed,
-        { color: '#FF9E9EA6', fontSize: 11, fontWeight: 'w600' }));
-      if (folder._closed) continue;
-      for (const controller of folder.controllers) {
-        if (!controller._hidden) children.push(controllerRow(controller));
-      }
-    }
+    for (const folder of root.folders) appendFolderRows(children, folder, 1);
   }
   return {
     type: 'container',
@@ -558,14 +564,16 @@ export class NumberController extends Controller {
   }
 }
 
-// A bounded folder section: one nesting level only, no tap-to-collapse (the
-// native facade has no header gestures); open()/close() stay programmatic.
+// Bounded folder sections support the official FBX Morphs → mesh → slider
+// hierarchy (two levels below the GUI root). Deeper trees stay unsupported.
 class NativeFolder {
-  constructor(root, title) {
-    if (root.folders.length >= MAX_FOLDERS) {
+  constructor(parent, title) {
+    if (parent.folders.length >= MAX_FOLDERS) {
       throw new Error('three.invalid: lil-gui folder quota exceeded');
     }
-    this.root = root;
+    this.parent = parent;
+    this.root = parent.root !== undefined ? parent.root : parent;
+    this._depth = parent._depth === undefined ? 1 : parent._depth + 1;
     this.controllers = [];
     this.folders = [];
     this._title = String(title).slice(0, 128);
@@ -633,21 +641,32 @@ class NativeFolder {
       object: controller.object, property: controller.property,
       value: controller.getValue(), controller
     });
-    this.root._callOnChange(controller);
+    this.parent._callOnChange(controller);
   }
   _callOnFinishChange(controller) {
     if (this._onFinishChange) this._onFinishChange.call(this, {
       object: controller.object, property: controller.property,
       value: controller.getValue(), controller
     });
-    this.root._callOnFinishChange(controller);
+    this.parent._callOnFinishChange(controller);
   }
-  reset() { for (const controller of this.controllers) controller.reset(); return this; }
+  reset() {
+    for (const controller of this.controllers) controller.reset();
+    for (const folder of this.folders) folder.reset();
+    return this;
+  }
   // Upstream lil-gui keeps one flat `.children` array per GUI/folder; official
   // modules (webgl_loader_fbx) iterate it with `forEach(child => child.destroy())`.
   get children() { return this.controllers.concat(this.folders); }
-  controllersRecursive() { return this.controllers.slice(); }
-  foldersRecursive() { return []; }
+  controllersRecursive() {
+    return [
+      ...this.controllers,
+      ...this.folders.flatMap(folder => folder.controllersRecursive())
+    ];
+  }
+  foldersRecursive() {
+    return this.folders.flatMap(folder => [folder, ...folder.foldersRecursive()]);
+  }
   save() { unsupported('save'); }
   load() { unsupported('load'); }
   addColor(object, property) {
@@ -655,12 +674,22 @@ class NativeFolder {
     reportRoots();
     return controller;
   }
-  addFolder() { unsupported('addFolder.nested'); }
+  addFolder(title) {
+    if (this._depth >= 2) unsupported('addFolder.nested');
+    if (typeof title !== 'string' || !title || title.length > 128) {
+      throw new Error('three.invalid: lil-gui folder title is required');
+    }
+    const folder = new NativeFolder(this, title);
+    this.folders.push(folder);
+    reportRoots();
+    return folder;
+  }
   openAnimated() { unsupported('openAnimated'); }
   destroy() {
     for (const controller of this.controllers.slice()) controller.destroy();
-    const index = this.root.folders.indexOf(this);
-    if (index >= 0) this.root.folders.splice(index, 1);
+    for (const folder of this.folders.slice()) folder.destroy();
+    const index = this.parent.folders.indexOf(this);
+    if (index >= 0) this.parent.folders.splice(index, 1);
     for (const [action, entry] of [...toggles]) {
       if (entry.target === this) toggles.delete(action);
     }
@@ -769,10 +798,12 @@ class NativeGUI {
   controllersRecursive() {
     return [
       ...this.controllers,
-      ...this.folders.flatMap(folder => folder.controllers)
+      ...this.folders.flatMap(folder => folder.controllersRecursive())
     ];
   }
-  foldersRecursive() { return this.folders.slice(); }
+  foldersRecursive() {
+    return this.folders.flatMap(folder => [folder, ...folder.foldersRecursive()]);
+  }
   // Upstream `.children` parity (webgl_loader_fbx destroys folder contents).
   get children() { return this.controllers.concat(this.folders); }
   save() { unsupported('save'); }

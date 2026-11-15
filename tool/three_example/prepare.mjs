@@ -3733,26 +3733,45 @@ webgl_geometry_shapes: {
     id: 'three-loader-fbx',
     directory: 'three-loader-fbx',
     name: 'FBX loader — three.js r186',
-    version: '0.1.2',
+    version: '0.1.3',
     description: 'Unmodified official webgl_loader_fbx module on the JSR THREE R1/WebGL2 runtime.',
     icon: '🧊',
     expected: {
       html: '9ad3920575e7a36a2a7797f9ed520d901eccca50de17ec016c3ab1070fe0b839',
       module: 'fdf0048c372f466499603a4e5a9d1dc835080b20df3764c8d172f326100a005f'
     },
-    // Discovery sweeps every .fbx string literal in the module's GUI dropdown
-    // (22 models, ~23 MB of binaries → a 29 MB embedded widget source that the
-    // isolate runtime cannot carry). Keep a bounded two-model lane: Samba is
-    // the default and Warrior exercises both the official model selector and
-    // its multi-clip animation selector. Unpackaged entries still degrade
-    // loudly through three.assetFailure instead of leaving the old model on
-    // screen without an error.
-    discoverAssets: false,
+    // Package the complete official model dropdown. Externalizing EVERY
+    // asset keeps the ~23 MB of FBX/texture bytes out of the isolate's JS
+    // source while preserving every selector entry, including the small
+    // models that the default inline threshold would otherwise embed.
+    discoverAssets: true,
+    inlineMaxBytes: 0,
+    // These external references are embedded in the official binary FBX
+    // files, but the corresponding images are absent from the upstream r186
+    // tree (the browser example also requests missing URLs). Keep every model
+    // selectable with a deterministic neutral opaque texture instead of an
+    // assetFailure; discovery fails if upstream later supplies the real file.
+    neutralTexturePlaceholders: [
+      'models/fbx/ALPHA.png',
+      'models/fbx/Chene.jpg',
+      'models/fbx/paillotte extremite.png',
+      'models/fbx/paillotte.png'
+    ],
     assets: [{
       url: 'models/fbx/Samba Dancing.fbx',
       output: 'models__fbx__Samba__Dancing.fbx',
       mime: 'application/octet-stream', diagnostic: 'fbxDefaultModel',
       sha256: 'b9003ee562c87bf03051c3a502411b0808d3513f1d74a2011f7530d9f067069f'
+    }, {
+      url: 'models/fbx/monkey.fbx',
+      output: 'models__fbx__monkey.fbx',
+      mime: 'application/octet-stream', diagnostic: 'fbxMonkeyModel',
+      sha256: 'e233cfc62c7a20f2e639abac8754158af036cdc3ca753488447bba37b45e9232'
+    }, {
+      url: 'models/fbx/monkey.fbm/UVTexture.png',
+      output: 'models__fbx__monkey.fbm__UVTexture.png',
+      mime: 'image/png', diagnostic: 'fbxMonkeyTexture',
+      sha256: '8200107eb0de55345adcb827f7e0605f32b3ba025e095f05fa579e6ee4379d86'
     }, {
       url: 'models/fbx/warrior/Warrior.fbx',
       output: 'models__fbx__warrior__Warrior.fbx',
@@ -7813,6 +7832,20 @@ async function main() {
     officialBuildBytes = applySponzaStandInPatch(officialBuildBytes);
   }
   const assets = await prepareAssets(source, assetDefinitions);
+  for (const url of definition.neutralTexturePlaceholders || []) {
+    if (assets.some(asset => asset.url === url)) {
+      throw new Error(`neutralTexturePlaceholders: upstream now provides ${url}`);
+    }
+    assets.push({
+      url,
+      output: assetOutputName(url),
+      mime: 'application/x-r1-rgba',
+      width: 1,
+      height: 1,
+      bytes: Buffer.from([255, 255, 255, 255]),
+      diagnostic: 'generated:neutral opaque texture for an upstream-missing FBX reference'
+    });
+  }
   if (definition.sponzaStandIn) {
     // Pinned generated courtyard GLB (see degrades/sponza_standin.mjs) — the
     // official module fetches Sponza over the network, which the bounded

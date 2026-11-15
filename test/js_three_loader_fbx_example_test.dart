@@ -17,6 +17,22 @@ Iterable<Map<dynamic, dynamic>> _treeMaps(dynamic value) sync* {
   }
 }
 
+int _skinPoseSignature(ThreeDrawPlan plan) {
+  var hash = 0x811c9dc5;
+  var found = false;
+  for (final draw in plan.draws) {
+    final matrices = draw.node.skinBoneMatrices;
+    if (matrices == null) continue;
+    found = true;
+    for (final value in matrices) {
+      hash = (hash ^ value.hashCode) * 0x01000193;
+      hash &= 0x7fffffff;
+    }
+  }
+  expect(found, isTrue, reason: 'the FBX mesh must use the GPU skin lane');
+  return hash;
+}
+
 int _skinnedPayloadSignature(ThreeDrawPlan plan) {
   var hash = 0x811c9dc5;
   var found = false;
@@ -55,6 +71,21 @@ void main() {
         attempts: 400,
       );
       harness.expectHealthy('webgl_loader_fbx');
+
+      // Presented-pose prerequisite: with a constant rigid matrixWorld, the
+      // animated bone uniforms themselves must reach the current draw plan.
+      // The old state equality dropped every update after the bind pose.
+      final firstPose = _skinPoseSignature(harness.plan!);
+      await harness.pumpUntil(
+        tester,
+        (state, plan) => _skinPoseSignature(plan) != firstPose,
+        attempts: 100,
+      );
+      expect(
+        _skinPoseSignature(harness.plan!),
+        isNot(firstPose),
+        reason: 'Samba must keep dancing after the first GPU-skinned frame',
+      );
 
       List<dynamic> guiValues() =>
           harness.engine.exportedState!['gui']['values'] as List<dynamic>;

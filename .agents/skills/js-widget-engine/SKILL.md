@@ -153,6 +153,8 @@ identity lives in `ThreeUpstreamBundle`, `tool/three/source-pin.json` and
   matrices for supported large, single-material, non-morph meshes (at most
   91 bones). The vertex shader applies the full bind-matrix chain to position
   and normal; small/morph/shader/unsupported meshes keep exact CPU skinning.
+  Dart per-node dedup MUST compare `skinBoneMatrices` alongside `matrixWorld`:
+  an unchanged rigid transform does not imply an unchanged animated pose.
   Vertex stride is 80 bytes. Impeller's reflected `SkinInfo` is 5888 bytes:
   91 mat4s, `params` at byte 5824, then 48 required tail-padding bytes. Keep
   the JS encoder, strict decoder, 80-byte planner interleave, shader bundle
@@ -226,6 +228,13 @@ identity lives in `ThreeUpstreamBundle`, `tool/three/source-pin.json` and
   assets with `convertToPng: true`. An example whose official module loads a
   texture MUST pin it in its `prepare.mjs` asset list — `assets: []` plus a
   texture load fails at runtime with `no host asset loader is configured`.
+  `JsrFileLoader`/`JsrImageLoader`/`JsrTextureLoader` MUST honor upstream
+  `setPath(undefined)` for embedded blob/data URLs: concatenating the sentinel
+  creates `undefinedblob:...` and loses FBX embedded textures. The example
+  adapter's Blob/object-URL facade registers the original bytes in this same
+  asset lane. Known upstream-missing FBX image references use explicit,
+  deterministic `neutralTexturePlaceholders` at prepare time; never suppress
+  the general `three.assetFailure` contract to hide a missing pin.
   r186 `WebGLRenderTarget.setSize()` disposes; the R1 dispose listener must
   queue the kind-7 disposal through `_pendingDisposals` (never `_queueDisposal`,
   which does not exist) so Dart sees DISPOSE_RESOURCE before the re-tracked
@@ -247,11 +256,12 @@ identity lives in `ThreeUpstreamBundle`, `tool/three/source-pin.json` and
   in both the main and shadow fragment shaders, and `clipShadows` gates the
   shadow-pass discard. Lights UBO is 832 bytes (spot block at 576+), and
   legacy v1/v2 envelopes stay decodable. Reference module: `webgl_clipping`.
-- The bounded native lil-gui facade supports one-level `addFolder` sections
-  (quota 8/root, programmatic open/close, no tap-to-collapse gesture);
-  controller change/finish callbacks bubble folder → root, and the shared
-  64-controller quota counts folder controllers. Nested folders, options
-  dropdowns, addColor and listen() remain explicit `three.unsupported`.
+- The bounded native lil-gui facade supports two `addFolder` levels below
+  the GUI root (quota 8 siblings/parent; deeper nesting is unsupported), with
+  recursive rendering/destruction and title tap-to-collapse gestures. The
+  official FBX Morphs → mesh → slider hierarchy depends on this. Controller
+  change/finish callbacks bubble nested folder → parent → root, and the shared
+  64-controller quota counts controllers at every depth.
 - Native large indexed single-material meshes accelerate `Raycaster` with a
   cached BVH (`native_raycast_bvh.js`). It only filters candidates; upstream
   `_computeIntersections` still performs final triangle/UV/normal/material
