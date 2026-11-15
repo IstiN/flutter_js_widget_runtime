@@ -17,8 +17,10 @@ final class ThreeDrawPlanFixture {
     r1Command(3, r1Material(1)),
   ]);
 
-  factory ThreeDrawPlanFixture.withCommands(List<Uint8List> commands, {int sequence = 1}) =>
-      ThreeDrawPlanFixture(commands)..sequence = sequence;
+  factory ThreeDrawPlanFixture.withCommands(
+    List<Uint8List> commands, {
+    int sequence = 1,
+  }) => ThreeDrawPlanFixture(commands)..sequence = sequence;
 
   final List<Uint8List> commands;
   int sequence = 1;
@@ -32,6 +34,8 @@ final class ThreeDrawPlanFixture {
     List<double>? normals,
     List<double>? uvs,
     List<double>? colors,
+    List<double>? skinIndices,
+    List<double>? skinWeights,
     List<int> indices = const [],
     List<int>? wireIndices,
   }) {
@@ -46,6 +50,8 @@ final class ThreeDrawPlanFixture {
           normals: normals,
           uvs: uvs,
           colors: colors,
+          skinIndices: skinIndices,
+          skinWeights: skinWeights,
           indices: indices,
           wireIndices: wireIndices,
         ),
@@ -124,6 +130,7 @@ final class ThreeDrawPlanFixture {
     bool castShadow = false,
     bool receiveShadow = false,
     double renderOrder = 0,
+    List<double>? skinBoneMatrices,
   }) {
     commands.add(
       r1Command(
@@ -139,6 +146,7 @@ final class ThreeDrawPlanFixture {
           castShadow: castShadow,
           receiveShadow: receiveShadow,
           renderOrder: renderOrder,
+          skinBoneMatrices: skinBoneMatrices,
           extendedLayout: r1Version >= 5,
         ),
       ),
@@ -282,14 +290,19 @@ Uint8List r1Geometry(
   required List<double>? uvs,
   required List<double>? colors,
   required List<int> indices,
+  List<double>? skinIndices,
+  List<double>? skinWeights,
   List<int>? wireIndices,
+  bool retainUnchanged = false,
 }) {
   final vertexCount = positions.length ~/ 3;
   final mask =
       1 |
       (normals == null ? 0 : 2) |
       (uvs == null ? 0 : 4) |
-      (colors == null ? 0 : 8);
+      (colors == null ? 0 : 8) |
+      (skinIndices == null ? 0 : 16) |
+      (skinWeights == null ? 0 : 32);
   final builder = R1BodyBuilder()
     ..u32(id)
     ..u32(version)
@@ -297,11 +310,17 @@ Uint8List r1Geometry(
     ..u32(vertexCount)
     ..u32(indices.length)
     ..u32(primitive.wireValue)
-    ..u32(0)
+    ..u32(retainUnchanged ? 1 : 0)
     ..floats(positions, byteLengthPrefix: true);
   if (normals != null) builder.floats(normals, byteLengthPrefix: true);
   if (uvs != null) builder.floats(uvs, byteLengthPrefix: true);
   if (colors != null) builder.floats(colors, byteLengthPrefix: true);
+  if (skinIndices != null) {
+    builder.floats(skinIndices, byteLengthPrefix: true);
+  }
+  if (skinWeights != null) {
+    builder.floats(skinWeights, byteLengthPrefix: true);
+  }
   for (final index in indices) {
     builder.u32(index);
   }
@@ -343,6 +362,7 @@ Uint8List r1Material(
   JsThreeStencilOp stencilZPassOp = JsThreeStencilOp.keep,
   int? clipId,
   int clipFlags = 0,
+
   /// v4+ material layering: clip id/flags, texture slots + UV matrices,
   /// v5 matcap/gradient, v6 normal/bump/roughness/metalness + anaglyph
   /// tails, all ahead of the optional v8 stencil tail. Required whenever
@@ -366,18 +386,18 @@ Uint8List r1Material(
     final clipBytes = v3 ? 8 : 0;
     final base = (phong ? 72 : 56) + clipBytes;
     final data = ByteData(base + (emissive ? 16 : 0) + (stencil ? 32 : 0));
-      _writeR1MaterialHead(
-        data,
-        id: id,
-        version: version,
-        kind: kind,
-        mapTextureId: mapTextureId,
-        flags: flags,
-        side: side,
-        color: color,
-        opacity: opacity,
-        pointSize: pointSize,
-      );
+    _writeR1MaterialHead(
+      data,
+      id: id,
+      version: version,
+      kind: kind,
+      mapTextureId: mapTextureId,
+      flags: flags,
+      side: side,
+      color: color,
+      opacity: opacity,
+      pointSize: pointSize,
+    );
     if (v3) {
       data.setUint32(56, clipId, Endian.little);
       data.setUint32(60, clipFlags, Endian.little);
@@ -395,18 +415,27 @@ Uint8List r1Material(
       data.setFloat32(offset + 8, 0.5, Endian.little);
       data.setFloat32(offset + 12, 3, Endian.little);
     }
-    if (stencil) _writeStencilTail(data, base + (emissive ? 16 : 0), stencilWrite, stencilFunc, stencilRef, stencilFuncMask, stencilWriteMask, stencilFailOp, stencilZFailOp, stencilZPassOp);
+    if (stencil)
+      _writeStencilTail(
+        data,
+        base + (emissive ? 16 : 0),
+        stencilWrite,
+        stencilFunc,
+        stencilRef,
+        stencilFuncMask,
+        stencilWriteMask,
+        stencilFailOp,
+        stencilZFailOp,
+        stencilZPassOp,
+      );
     return Uint8List.view(data.buffer);
   }
   // v4+ layout: legacy head + clip + slots + v5 + v6 + [phong] +
   // [emissive] + anaglyph + [stencil tail].
   final data = ByteData(
-    304 +
-        (phong ? 16 : 0) +
-        (emissive ? 16 : 0) +
-        (stencil ? 32 : 0),
+    304 + (phong ? 16 : 0) + (emissive ? 16 : 0) + (stencil ? 32 : 0),
   );
-_writeR1MaterialHead(
+  _writeR1MaterialHead(
     data,
     id: id,
     version: version,
@@ -453,7 +482,19 @@ _writeR1MaterialHead(
   // column-padded 3x3 matrices (all zero = identity-free disabled state).
   offset += 16;
   offset += 96;
-  if (stencil) _writeStencilTail(data, offset, stencilWrite, stencilFunc, stencilRef, stencilFuncMask, stencilWriteMask, stencilFailOp, stencilZFailOp, stencilZPassOp);
+  if (stencil)
+    _writeStencilTail(
+      data,
+      offset,
+      stencilWrite,
+      stencilFunc,
+      stencilRef,
+      stencilFuncMask,
+      stencilWriteMask,
+      stencilFailOp,
+      stencilZFailOp,
+      stencilZPassOp,
+    );
   return Uint8List.view(data.buffer);
 }
 
@@ -528,12 +569,17 @@ Uint8List r1Node(
   bool receiveShadow = false,
   double renderOrder = 0,
   bool extendedLayout = false,
+  List<double>? skinBoneMatrices,
 }) {
   // v5+ nodes carry sprite center (0.5, 0.5) after the shadow flags and
   // v7+ adds renderOrder (zeroed bytes keep the v5/v6 reserved-u32 valid);
-  // older streams end at the flags.
-  final extended = extendedLayout || renderOrder != 0;
-  final data = ByteData(extended ? 104 : 92);
+  // older streams end at the flags. R1 v11 appends bone count + matrices.
+  final extended =
+      extendedLayout || renderOrder != 0 || skinBoneMatrices != null;
+  final data = ByteData(
+    (extended ? 104 : 92) +
+        (skinBoneMatrices == null ? 0 : 4 + skinBoneMatrices.length * 4),
+  );
   data.setUint32(0, id, Endian.little);
   data.setUint32(4, parentId, Endian.little);
   data.setUint32(8, geometryId, Endian.little);
@@ -550,6 +596,10 @@ Uint8List r1Node(
     data.setFloat32(92, 0.5, Endian.little);
     data.setFloat32(96, 0.5, Endian.little);
     data.setFloat32(100, renderOrder, Endian.little);
+  }
+  if (skinBoneMatrices != null) {
+    data.setUint32(104, skinBoneMatrices.length ~/ 16, Endian.little);
+    _writeFloats(data, 108, skinBoneMatrices);
   }
   return Uint8List.view(data.buffer);
 }

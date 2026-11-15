@@ -406,6 +406,7 @@ bool _eligibleAutoInstanceDraw(ThreeDrawItem draw) =>
     !draw.transparent &&
     !draw.wireframe &&
     draw.node.objectKind != JsThreeObjectKind.sprite &&
+    draw.node.skinBoneMatrices == null &&
     // R1 v8 stencil-tail materials carry per-draw stencil state that must
     // not be merged across distinct draw references; colorWrite-off is
     // already excluded by flags inequality inside the merge checks.
@@ -1043,6 +1044,12 @@ final class ThreeDrawPlanner {
     if (resources == null) return null;
     final geometry = resources.geometry;
     final material = resources.material;
+    final skinError = validateThreeGpuSkin(node, geometry);
+    if (skinError != null) {
+      diagnostics.invalidGeometryCount++;
+      diagnostics.warn('node ${node.nodeId}: $skinError');
+      return null;
+    }
     final primitive = _primitiveFor(node, geometry, material, context.lineMode);
     if (primitive == null ||
         !_compatibleMaterial(node.objectKind, material.kind)) {
@@ -1269,6 +1276,18 @@ String? validateThreeGeometry(
         _product(vertices, 2),
         'uv presence/length does not match attribute mask',
       ) ??
+      _validateOptionalAttribute(
+        geometry.skinIndices,
+        geometry.attributeMask & 16 != 0,
+        _product(vertices, 4),
+        'skinIndex presence/length does not match attribute mask',
+      ) ??
+      _validateOptionalAttribute(
+        geometry.skinWeights,
+        geometry.attributeMask & 32 != 0,
+        _product(vertices, 4),
+        'skinWeight presence/length does not match attribute mask',
+      ) ??
       _validateColorPresence(geometry) ??
       _validateColorStride(geometry) ??
       _validateColorLength(geometry) ??
@@ -1363,6 +1382,8 @@ String? _validateGeometryValues(
     geometry.normals,
     geometry.uvs,
     geometry.colors,
+    geometry.skinIndices,
+    geometry.skinWeights,
   ]) {
     if (list != null && list.any((value) => !value.isFinite)) {
       return 'vertex attributes must be finite';
@@ -1376,6 +1397,38 @@ String? _validateGeometryValues(
   for (final index in geometry.wireIndices ?? const <int>[]) {
     if (index >= geometry.vertexCount) {
       return 'wire index $index exceeds vertex range';
+    }
+  }
+  return null;
+}
+
+String? validateThreeGpuSkin(
+  JsThreeNodeUpsert node,
+  JsThreeGeometryUpsert geometry,
+) {
+  final matrices = node.skinBoneMatrices;
+  if (matrices == null) return null;
+  final boneCount = node.skinBoneCount;
+  if (boneCount == 0 ||
+      boneCount > maxThreeSkinBones ||
+      matrices.length != boneCount * 16) {
+    return 'invalid GPU skin bone matrix payload';
+  }
+  final indices = geometry.skinIndices;
+  final weights = geometry.skinWeights;
+  if (node.objectKind != JsThreeObjectKind.mesh ||
+      geometry.primitive != JsThreePrimitive.triangles ||
+      indices == null ||
+      weights == null) {
+    return 'GPU skin node requires triangle geometry with skin attributes';
+  }
+  return _validateGpuSkinIndices(indices, boneCount);
+}
+
+String? _validateGpuSkinIndices(Float32List indices, int boneCount) {
+  for (final index in indices) {
+    if (index < 0 || index >= boneCount || index != index.roundToDouble()) {
+      return 'skinIndex $index exceeds the node bone count $boneCount';
     }
   }
   return null;
@@ -1398,7 +1451,7 @@ final class ThreeInterleavedGeometry {
     required this.indexCount,
   });
 
-  static const int strideInBytes = 48;
+  static const int strideInBytes = 80;
   final ByteData vertices;
   final ByteData? indices;
   final ByteData? wireIndices;
@@ -1406,8 +1459,9 @@ final class ThreeInterleavedGeometry {
   final int indexCount;
 }
 
-/// Packs position/normal/uv/color into 48-byte vertices and checked u32 indices.
-/// Missing normals face +Z, UVs are zero and missing colors are opaque white.
+/// Packs position/normal/uv/color/skin into 80-byte vertices and checked u32
+/// indices. Missing normals face +Z, UVs are zero, colors are opaque white,
+/// and missing skin attributes select bone zero with unit weight.
 ThreeInterleavedGeometry interleaveThreeGeometry(
   JsThreeGeometryUpsert geometry,
 ) {
@@ -1448,6 +1502,19 @@ ThreeInterleavedGeometry interleaveThreeGeometry(
           ? color[vertex * geometry.colorStride + component]
           : 1.0;
       vertices.setFloat32(offset + 32 + component * 4, value, Endian.little);
+    }
+    for (var component = 0; component < 4; component++) {
+      vertices.setFloat32(
+        offset + 48 + component * 4,
+        geometry.skinIndices?[vertex * 4 + component] ?? 0.0,
+        Endian.little,
+      );
+      vertices.setFloat32(
+        offset + 64 + component * 4,
+        geometry.skinWeights?[vertex * 4 + component] ??
+            (component == 0 ? 1.0 : 0.0),
+        Endian.little,
+      );
     }
   }
 

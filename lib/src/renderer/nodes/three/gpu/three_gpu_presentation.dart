@@ -80,6 +80,16 @@ gpu.VertexLayout _threeVertexLayout() => gpu.VertexLayout(
           format: gpu.VertexFormat.float32x4,
           offsetInBytes: 32,
         ),
+        gpu.VertexAttribute(
+          name: 'skinIndex',
+          format: gpu.VertexFormat.float32x4,
+          offsetInBytes: 48,
+        ),
+        gpu.VertexAttribute(
+          name: 'skinWeight',
+          format: gpu.VertexFormat.float32x4,
+          offsetInBytes: 64,
+        ),
       ],
     ),
     const gpu.VertexBuffer(
@@ -180,6 +190,9 @@ ByteData debugThreeVertexUniform(
   viewportHeight: viewportHeight,
   shadowPass: shadowPass,
 );
+
+@visibleForTesting
+ByteData debugThreeSkinUniform(ThreeDrawItem draw) => _threeSkinUniform(draw);
 
 @visibleForTesting
 ByteData debugThreeFrameUniform(ThreeDrawPlan plan) => _threeFrameUniform(plan);

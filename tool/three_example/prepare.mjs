@@ -19,6 +19,7 @@ import { applyLodBoundedCountPatch } from './degrades/lod_bounded_count.mjs';
 import { applyShadowmapBoundedCountPatch } from './degrades/shadowmap_bounded_count.mjs';
 import { applyCustomPoints30HzPatch, applyInterleaved30HzPatch, applyMemoryGeometryPatch, applyMemoryMaterialCadencePatch, applyGpgpuBirds30HzPatch } from './degrades/bounded_30hz_updates.mjs';
 import { applyCustomAttributeAnimationFastPath } from './degrades/custom_attribute_animation_fast_path.mjs';
+import { applyCustomLineWalkFastPath } from './degrades/custom_line_walk_fast_path.mjs';
 import { applyLayerUpdateRawArrayPatch, applyPartialUpdateRawCheckerPatch, applyKtx2UprightPatch } from './degrades/raw_texture_fallbacks.mjs';
 import { applyPointsDynamicLoaderPatch } from './degrades/points_dynamic_loader_patch.mjs';
 import { applyWidgetTextDecodeJoinPatch } from './degrades/widget_text_decode_join.mjs';
@@ -3073,6 +3074,8 @@ webgl_geometry_shapes: {
     id: 'three-custom-attributes-lines',
     directory: 'three-custom-attributes-lines',
     name: 'custom attributes [lines] — three.js r186',
+    version: '0.1.1',
+    customLineWalkFastPath: true,
     description: 'Unmodified official webgl_custom_attributes_lines module on the JSR THREE R1/WebGL2 runtime.',
     icon: '🧊',
     expected: {
@@ -3730,7 +3733,7 @@ webgl_geometry_shapes: {
     id: 'three-loader-fbx',
     directory: 'three-loader-fbx',
     name: 'FBX loader — three.js r186',
-    version: '0.1.1',
+    version: '0.1.2',
     description: 'Unmodified official webgl_loader_fbx module on the JSR THREE R1/WebGL2 runtime.',
     icon: '🧊',
     expected: {
@@ -3739,15 +3742,27 @@ webgl_geometry_shapes: {
     },
     // Discovery sweeps every .fbx string literal in the module's GUI dropdown
     // (22 models, ~23 MB of binaries → a 29 MB embedded widget source that the
-    // isolate runtime cannot carry). Bounded lane: pin only the module's
-    // default `Samba Dancing` model; switching to another dropdown entry
-    // degrades loudly via three.assetFailure at runtime.
+    // isolate runtime cannot carry). Keep a bounded two-model lane: Samba is
+    // the default and Warrior exercises both the official model selector and
+    // its multi-clip animation selector. Unpackaged entries still degrade
+    // loudly through three.assetFailure instead of leaving the old model on
+    // screen without an error.
     discoverAssets: false,
     assets: [{
       url: 'models/fbx/Samba Dancing.fbx',
       output: 'models__fbx__Samba__Dancing.fbx',
       mime: 'application/octet-stream', diagnostic: 'fbxDefaultModel',
       sha256: 'b9003ee562c87bf03051c3a502411b0808d3513f1d74a2011f7530d9f067069f'
+    }, {
+      url: 'models/fbx/warrior/Warrior.fbx',
+      output: 'models__fbx__warrior__Warrior.fbx',
+      mime: 'application/octet-stream',
+      sha256: 'f00e5b65fface7d30beeb96b7469f129809810020b694af53c7e25affcb6762c'
+    }, {
+      url: 'models/fbx/warrior/100820_kl_npc_d_512.png',
+      output: 'models__fbx__warrior__100820_kl_npc_d_512.png',
+      mime: 'image/png',
+      sha256: '471baf52cea616c6cf672a87e0a6b512e159c11512ff00c7ee9650a6caf5dfed'
     }]
   },
   webgl_loader_fbx_nurbs: {
@@ -7757,6 +7772,9 @@ async function main() {
   }
   if (definition.customAttributeAnimationFastPath) {
     officialBuildBytes = applyCustomAttributeAnimationFastPath(officialBuildBytes, options.example);
+  }
+  if (definition.customLineWalkFastPath) {
+    officialBuildBytes = applyCustomLineWalkFastPath(officialBuildBytes);
   }
   if (definition.customPoints30Hz) {
     officialBuildBytes = applyCustomPoints30HzPatch(officialBuildBytes);

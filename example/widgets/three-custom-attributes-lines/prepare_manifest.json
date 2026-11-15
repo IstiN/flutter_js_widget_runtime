@@ -519,8 +519,8 @@
   },
   "inputs": {
     "assets/three/jsr_three_native.js": {
-      "bytes": 891641,
-      "sha256": "069763ef65451ac400ae9fd50119a7824eb0af93a0737f93f877805e6e4095f4"
+      "bytes": 895019,
+      "sha256": "2a541b7addf2e8515e572117bf966fc14171e2486d5851a0c640d73ea4b88a09"
     },
     "assets/three/jsr_three_web.js": {
       "bytes": 859738,
@@ -575,8 +575,8 @@
       "sha256": "ceb4c2b0bd47cbe6ed04169fd6042fa40fe3085eab13c2061be29414fdfa0f74"
     },
     "tool/three_example/prepare.mjs": {
-      "bytes": 378748,
-      "sha256": "0119b23cb3cdd970126e0297783e147dc0a6a2aa33970134e9c42319932cde02"
+      "bytes": 379609,
+      "sha256": "b3832906855e25896cb9f87d651a918d59508bd138a4538b053695545f85258e"
     },
     "tool/three_example/stats_adapter.js": {
       "bytes": 2107,
@@ -602,7 +602,7 @@
     },
     "manifest.json": {
       "bytes": 368,
-      "sha256": "f3ff0fe0529ca853bf3de0fe34de8bde24acee4deb0bb8ec089f1cd500f968f5"
+      "sha256": "ff521520b40e23d294b2cd1877c7d863b56f7646b17b9fa9714bfc45930e14d3"
     },
     "official_module.js": {
       "bytes": 3429,
@@ -613,8 +613,8 @@
       "sha256": "dd9ba3293b6f3e6689a35e762f74a2f0fcb28be45e4252bf9b2021c88c8b1fdb"
     },
     "widget.js": {
-      "bytes": 142609,
-      "sha256": "0b1056447a7084eeed0181fc06410efc6bc464755e3dee2566b810b252aa9477"
+      "bytes": 142765,
+      "sha256": "345610355cb4a508d7174a75ed3fe1591b708d62dd5c5d7b76009cb7d3fe647b"
     }
   }
 }

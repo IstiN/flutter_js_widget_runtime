@@ -51,6 +51,12 @@
         "file": "models__fbx__Samba__Dancing.fbx",
         "bytes": 3681360,
         "sha256": "b9003ee562c87bf03051c3a502411b0808d3513f1d74a2011f7530d9f067069f"
+      },
+      {
+        "url": "models/fbx/warrior/Warrior.fbx",
+        "file": "models__fbx__warrior__Warrior.fbx",
+        "bytes": 2052864,
+        "sha256": "f00e5b65fface7d30beeb96b7469f129809810020b694af53c7e25affcb6762c"
       }
     ]
   },
@@ -520,8 +526,8 @@
   },
   "inputs": {
     "assets/three/jsr_three_native.js": {
-      "bytes": 891641,
-      "sha256": "069763ef65451ac400ae9fd50119a7824eb0af93a0737f93f877805e6e4095f4"
+      "bytes": 895019,
+      "sha256": "2a541b7addf2e8515e572117bf966fc14171e2486d5851a0c640d73ea4b88a09"
     },
     "assets/three/jsr_three_web.js": {
       "bytes": 859738,
@@ -567,6 +573,14 @@
       "bytes": 3681360,
       "sha256": "b9003ee562c87bf03051c3a502411b0808d3513f1d74a2011f7530d9f067069f"
     },
+    "source/examples/models/fbx/warrior/100820_kl_npc_d_512.png": {
+      "bytes": 299490,
+      "sha256": "471baf52cea616c6cf672a87e0a6b512e159c11512ff00c7ee9650a6caf5dfed"
+    },
+    "source/examples/models/fbx/warrior/Warrior.fbx": {
+      "bytes": 2052864,
+      "sha256": "f00e5b65fface7d30beeb96b7469f129809810020b694af53c7e25affcb6762c"
+    },
     "source/examples/webgl_loader_fbx.html": {
       "bytes": 7060,
       "sha256": "9ad3920575e7a36a2a7797f9ed520d901eccca50de17ec016c3ab1070fe0b839"
@@ -600,8 +614,8 @@
       "sha256": "ceb4c2b0bd47cbe6ed04169fd6042fa40fe3085eab13c2061be29414fdfa0f74"
     },
     "tool/three_example/prepare.mjs": {
-      "bytes": 378748,
-      "sha256": "0119b23cb3cdd970126e0297783e147dc0a6a2aa33970134e9c42319932cde02"
+      "bytes": 379609,
+      "sha256": "b3832906855e25896cb9f87d651a918d59508bd138a4538b053695545f85258e"
     },
     "tool/three_example/stats_adapter.js": {
       "bytes": 2107,
@@ -622,16 +636,24 @@
       "sha256": "8b378ebe60e2fe500158cb0ac71cb5e8b7d92953c2abcc63a0eb90499653b5bc"
     },
     "assets.json": {
-      "bytes": 483,
-      "sha256": "1be804f5002eebd5613bfda50a16a29615e1b87dbf6c2003a3af75ba0355f741"
+      "bytes": 801,
+      "sha256": "2e73ae076350c756a8c0302a8d335189ad1a47eda2ffce6f581d458baf7b74b0"
     },
     "manifest.json": {
       "bytes": 327,
-      "sha256": "2e0fdd4297696264d81455ee72935b3c0a4ba21d1031ba70011d7bf3f6b48bf0"
+      "sha256": "d57f01e5e70a647581f7056593c6f7baadb46b8da68c930e7830a5fd704950d1"
     },
     "models__fbx__Samba__Dancing.fbx": {
       "bytes": 3681360,
       "sha256": "b9003ee562c87bf03051c3a502411b0808d3513f1d74a2011f7530d9f067069f"
+    },
+    "models__fbx__warrior__100820_kl_npc_d_512.png": {
+      "bytes": 299490,
+      "sha256": "471baf52cea616c6cf672a87e0a6b512e159c11512ff00c7ee9650a6caf5dfed"
+    },
+    "models__fbx__warrior__Warrior.fbx": {
+      "bytes": 2052864,
+      "sha256": "f00e5b65fface7d30beeb96b7469f129809810020b694af53c7e25affcb6762c"
     },
     "official_module.js": {
       "bytes": 6031,
@@ -642,8 +664,8 @@
       "sha256": "9ad3920575e7a36a2a7797f9ed520d901eccca50de17ec016c3ab1070fe0b839"
     },
     "widget.js": {
-      "bytes": 176865,
-      "sha256": "59b46e4151035629938ebd99679797b0721d9bee2f4b5cfa2cd45dce7d42a580"
+      "bytes": 576550,
+      "sha256": "e3fd9cb58228aa92857873a128c41ddb9a98691c70a8fb606cdda4849b597dfa"
     }
   }
 }

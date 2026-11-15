@@ -139,7 +139,7 @@ identity lives in `ThreeUpstreamBundle`, `tool/three/source-pin.json` and
 
 - Native evaluates upstream core on QuickJS/JSC. Its `THREE.WebGLRenderer`
   export is the explicit `JsrWebGLRenderer` alias. It emits versioned
-  `JSR3D-T1` / `R1-v10` packets over `jsr.hostCallBinary('three.r1', bytes)`;
+  `JSR3D-T1` / `R1-v11` packets over `jsr.hostCallBinary('three.r1', bytes)`;
   strict Dart decode also accepts legacy R1 streams. `rawWebGL == false`,
   `getContext()` and unlowerable ShaderMaterial fail with
   `three.unsupported`. It is NOT WebGL in a WebView.
@@ -149,6 +149,15 @@ identity lives in `ThreeUpstreamBundle`, `tool/three/source-pin.json` and
   Keep the version gate and Dart retention fallback on both attr/bin lanes.
   Native prepared 3D LUTs use bounded post-pass opcode 17; `.CUBE`, `.3dl`
   and PNG LUTs retain their official controls and analytical LUT identity.
+- R1 v11 retains bind-pose geometry/skin attributes and sends animated bone
+  matrices for supported large, single-material, non-morph meshes (at most
+  91 bones). The vertex shader applies the full bind-matrix chain to position
+  and normal; small/morph/shader/unsupported meshes keep exact CPU skinning.
+  Vertex stride is 80 bytes. Impeller's reflected `SkinInfo` is 5888 bytes:
+  91 mat4s, `params` at byte 5824, then 48 required tail-padding bytes. Keep
+  the JS encoder, strict decoder, 80-byte planner interleave, shader bundle
+  and host uniform allocation in sync; reject fractional/out-of-range bones
+  and exclude skinned draws from auto-instancing.
 - Multi-`render()` ticks composite into one present (per-pass command
   buffers, color LOAD + depth clear on later passes); node/light retirement
   is scoped to the rendered scene (`sceneId`), or alternating scenes delete
@@ -256,6 +265,15 @@ identity lives in `ThreeUpstreamBundle`, `tool/three/source-pin.json` and
   output is copied back to ordinary dynamic attributes, and only revisions
   whose finite values were validated natively may bypass the JS finite loop.
   Malformed or non-finite packets retain the original upstream JS fallback.
+- The prepared custom-attributes lines example uses the private synchronous
+  `__jsrLineWalkBytes('three.lineWalk', bytes)` lane on direct/isolated
+  QuickJS. Dart applies one uniform xorshift32 increment to EVERY displacement
+  component per frame; the same private lane's `three.linePositions` packet
+  evaluates `position + displacement*amplitude` with a status-gated JS
+  fallback. Web/unsupported engines retain the official full-rate
+  `Math.random()` and vertex loops. This is an internal prepare-time
+  optimization, not a public `jsr` API, and must never reduce vertices or
+  update cadence.
 - `webgl_marchingcubes` is a documented prepare-time degrade: its field still
   animates every frame, but bundled resolution and the GUI range are capped
   at 20. The pinned official bytes remain unchanged in `official_module.js`.

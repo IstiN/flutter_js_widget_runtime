@@ -11,14 +11,14 @@ import { unsupported, requireFinite } from './errors.js';
 import { getThreeRuntime } from './runtime.js';
 import { isNativeCanvas2D } from './native_canvas2d.js';
 import {
-  MATERIAL_FLAG_COLOR_WRITE_OFF, MATERIAL_FLAG_STENCIL, OPCODE, NO_SHADOW, STENCIL_FUNC, STENCIL_OP,
+  MATERIAL_FLAG_COLOR_WRITE_OFF, MATERIAL_FLAG_STENCIL, MAX_SKIN_BONES, OPCODE, NO_SHADOW, STENCIL_FUNC, STENCIL_OP,
   cameraCommand, clippingCommand, command, disposeResourceCommand, disposeSurfaceCommand,
   drawBatchCommand, encodeEnvelope, frameCommand, geometryCommand, lightCommand,
   materialCommand, nodeCommand, removeBatchCommand, removeNodeCommand, renderTargetCommand, resourceId,
   stencilClearCommand, textureCommand
 } from './r1.js';
 
-const ATTR_NAMES = ['position', 'normal', 'uv', 'color'];
+const ATTR_NAMES = ['position', 'normal', 'uv', 'color', 'skinIndex', 'skinWeight'];
 // Every upstream tone mapping constant has an R1 fragment implementation
 // (shaders/three_r1.frag, three.js r186 tonemapping_pars_fragment math).
 const TONE_MAPPINGS = new Set([NoToneMapping, LinearToneMapping, ReinhardToneMapping,
@@ -71,6 +71,15 @@ function cachedMatrixEquals(cached, matrix) {
   const elements = matrix.elements;
   for (let index = 0; index < 16; index++) {
     if (cached[index] !== elements[index]) return false;
+  }
+  return true;
+}
+
+function cachedFloatsEqual(cached, values) {
+  if (cached === values) return true;
+  if (!cached || !values || cached.length !== values.length) return false;
+  for (let index = 0; index < values.length; index++) {
+    if (cached[index] !== values[index]) return false;
   }
   return true;
 }
@@ -3969,7 +3978,9 @@ export class JsrWebGLRenderer {
       position: this._uploadAttribute(upload, 0, position, vertexCount, 3, 'position', vertexOffset),
       normal: this._uploadAttribute(upload, 1, normal, vertexCount, 3, 'normal', vertexOffset),
       uv: this._uploadAttribute(upload, 2, geometry.attributes.uv, vertexCount, 2, 'uv', vertexOffset),
-      color: this._uploadAttribute(upload, 3, color, vertexCount, color ? color.itemSize : 3, 'color', vertexOffset)
+      color: this._uploadAttribute(upload, 3, color, vertexCount, color ? color.itemSize : 3, 'color', vertexOffset),
+      skinIndex: this._uploadAttribute(upload, 4, geometry.attributes.skinIndex, vertexCount, 4, 'skinIndex', vertexOffset),
+      skinWeight: this._uploadAttribute(upload, 5, geometry.attributes.skinWeight, vertexCount, 4, 'skinWeight', vertexOffset)
     };
     if (color && color.itemSize !== 3 && color.itemSize !== 4) throw new Error('three.invalid: color attribute must have 3 or 4 components');
     const index = geometry.index;
@@ -3994,9 +4005,10 @@ export class JsrWebGLRenderer {
         upload.indexVersion = attributeVersionKey(index); upload.indices = indices;
       }
     }
-    const sourceAttributes = [position, normal, geometry.attributes.uv, color];
-    const attributeComponents = [3, 3, 2, color ? color.itemSize : 3];
-    const omitted = [false, false, false, false];
+    const sourceAttributes = [position, normal, geometry.attributes.uv, color,
+      geometry.attributes.skinIndex, geometry.attributes.skinWeight];
+    const attributeComponents = [3, 3, 2, color ? color.itemSize : 3, 4, 4];
+    const omitted = [false, false, false, false, false, false];
     let retainUnchanged = !!(old && old.object === geometry && !fullRange &&
       previousAttributes && previousVertexCount === vertexCount &&
       previousIndex === index && previousIndexArray === (index ? index.array : null) &&
@@ -4004,7 +4016,7 @@ export class JsrWebGLRenderer {
       includeWire === !!old.hasWireIndices &&
       (volatileAttribute(position) || volatileAttribute(normal)));
     if (retainUnchanged) {
-      for (let slot = 1; slot < 4; slot++) {
+      for (let slot = 1; slot < 6; slot++) {
         const attribute = sourceAttributes[slot];
         const previous = previousAttributes[slot];
         const unchanged = previous && previous.attribute === attribute &&
@@ -4022,7 +4034,7 @@ export class JsrWebGLRenderer {
       }
     }
     if (retainUnchanged) {
-      for (let slot = 1; slot < 4; slot++) {
+      for (let slot = 1; slot < 6; slot++) {
         if (omitted[slot]) attributes[ATTR_NAMES[slot]] = null;
       }
       indices = null;
@@ -4060,26 +4072,29 @@ export class JsrWebGLRenderer {
     const castShadow = object.castShadow === true && !object.isSprite;
     const receiveShadow = object.receiveShadow === true && !object.isSprite;
     const old = this._state.nodes.get(id);
+    const skinBoneMatrices = geometryId !== 0 ? (object._r1GpuSkin || null) : null;
     const unchanged = old && old.parentId === parentId &&
       old.geometryId === geometryId && old.materialId === materialId &&
       old.visible === visible && old.objectKind === objectKind &&
       old.castShadow === castShadow && old.receiveShadow === receiveShadow &&
       old.spriteCenterX === spriteCenter.x && old.spriteCenterY === spriteCenter.y &&
-      old.renderOrder === renderOrder && cachedMatrixEquals(old.matrix, matrix);
+      old.renderOrder === renderOrder && cachedMatrixEquals(old.matrix, matrix) &&
+      cachedFloatsEqual(old.skinBoneMatrices, skinBoneMatrices);
     if (!unchanged) {
       if (!Number.isFinite(renderOrder)) {
         throw new Error(`three.invalid: node renderOrder must be finite (${object.type}/${object.name}/${id}: ${object.renderOrder})`);
       }
       finiteArray(matrix.elements, 'matrixWorld');
+      if (skinBoneMatrices) finiteArray(skinBoneMatrices, 'skin bone matrix');
       requireFinite(spriteCenter.x, 'sprite center');
       requireFinite(spriteCenter.y, 'sprite center');
       commands.push(nodeCommand(id, parentId, geometryId, materialId, visible, objectKind, matrix,
-        { cast: castShadow, receive: receiveShadow }, spriteCenter, renderOrder));
+        { cast: castShadow, receive: receiveShadow }, spriteCenter, renderOrder, skinBoneMatrices));
       this._mapSet(this._state.nodes, id, {
         parentId, geometryId, materialId, visible, objectKind,
         castShadow, receiveShadow, matrix: matrix.elements.slice(), object,
         spriteCenterX: spriteCenter.x, spriteCenterY: spriteCenter.y,
-        renderOrder
+        renderOrder, skinBoneMatrices: skinBoneMatrices ? skinBoneMatrices.slice() : null
       });
     }
   }
@@ -4440,10 +4455,57 @@ export class JsrWebGLRenderer {
     if (morphNormals && morphNormals.length && base.normal) blend('normal', morphNormals, base.normal);
   }
 
-  /// CPU skeletal animation: B_i = bindMatrixInverse * boneMatrix_i *
-  /// bindMatrix composed once per frame, then a typed-array weighted blend
-  /// per vertex. Same upload lane as CPU morphing; GPU skinning remains a
-  /// possible later optimization for very large meshes.
+  _computeSkinMatrices(object, target) {
+    const skeleton = object.skeleton;
+    const tmpA = this._r1SkinTmpA || (this._r1SkinTmpA = new object.bindMatrix.constructor());
+    const tmpB = this._r1SkinTmpB || (this._r1SkinTmpB = new object.bindMatrix.constructor());
+    for (let bone = 0; bone < skeleton.bones.length; bone++) {
+      tmpA.fromArray(skeleton.boneMatrices, bone * 16);
+      tmpB.multiplyMatrices(object.bindMatrixInverse, tmpA);
+      tmpA.multiplyMatrices(tmpB, object.bindMatrix);
+      target.set(tmpA.elements, bone * 16);
+    }
+    return target;
+  }
+
+  // Conservative union of the bind-pose bounding sphere transformed by every
+  // final bone matrix. A weighted vertex is a convex blend of those same
+  // transforms, so the AABB union cannot cull a visible skinned vertex. This
+  // costs O(bones), rather than the CPU lane's O(vertices) exact bound scan.
+  _refreshGpuSkinCullSphere(object, matrices) {
+    const geometry = object.geometry;
+    if (!geometry.boundingSphere) geometry.computeBoundingSphere();
+    const bindSphere = geometry.boundingSphere;
+    if (!bindSphere) return;
+    const center = bindSphere.center;
+    const x = center.x, y = center.y, z = center.z, radius = bindSphere.radius;
+    let minX = Infinity, minY = Infinity, minZ = Infinity;
+    let maxX = -Infinity, maxY = -Infinity, maxZ = -Infinity;
+    for (let offset = 0; offset < matrices.length; offset += 16) {
+      const m0 = matrices[offset], m1 = matrices[offset + 1], m2 = matrices[offset + 2];
+      const m4 = matrices[offset + 4], m5 = matrices[offset + 5], m6 = matrices[offset + 6];
+      const m8 = matrices[offset + 8], m9 = matrices[offset + 9], m10 = matrices[offset + 10];
+      const scale = Math.max(Math.hypot(m0, m1, m2), Math.hypot(m4, m5, m6), Math.hypot(m8, m9, m10));
+      const cx = m0 * x + m4 * y + m8 * z + matrices[offset + 12];
+      const cy = m1 * x + m5 * y + m9 * z + matrices[offset + 13];
+      const cz = m2 * x + m6 * y + m10 * z + matrices[offset + 14];
+      const extent = radius * scale;
+      if (cx - extent < minX) minX = cx - extent;
+      if (cy - extent < minY) minY = cy - extent;
+      if (cz - extent < minZ) minZ = cz - extent;
+      if (cx + extent > maxX) maxX = cx + extent;
+      if (cy + extent > maxY) maxY = cy + extent;
+      if (cz + extent > maxZ) maxZ = cz + extent;
+    }
+    const sphere = object.boundingSphere || (object.boundingSphere = new Sphere());
+    sphere.center.set((minX + maxX) / 2, (minY + maxY) / 2, (minZ + maxZ) / 2);
+    sphere.radius = 0.5 * Math.hypot(maxX - minX, maxY - minY, maxZ - minZ);
+  }
+
+  /// Skeletal animation: B_i = bindMatrixInverse * boneMatrix_i * bindMatrix.
+  /// Supported large, non-morph meshes retain bind-pose vertices and evaluate
+  /// that weighted blend in the vertex shader. Morph/oversized/unsupported
+  /// lanes keep the exact CPU implementation below as a compatibility path.
   _applySkining(object) {
     const geometry = object.geometry;
     const skeleton = object.skeleton;
@@ -4463,6 +4525,18 @@ export class JsrWebGLRenderer {
     const skinIndex = geometry.attributes.skinIndex;
     const skinWeight = geometry.attributes.skinWeight;
     const morphKey = geometry._r1MorphBase ? geometry._r1MorphBase.key : '';
+    const material = object.material;
+    const gpuEligible = boneCount > 0 && boneCount <= MAX_SKIN_BONES &&
+      position.count >= 4096 && position.itemSize === 3 && !!position.array &&
+      !!geometry.attributes.normal && geometry.attributes.normal.itemSize === 3 &&
+      !!geometry.attributes.normal.array &&
+      !!skinIndex && skinIndex.itemSize === 4 && !!skinIndex.array &&
+      !!skinWeight && skinWeight.itemSize === 4 && !!skinWeight.array &&
+      !geometry._r1MorphBase && !object.morphTexture &&
+      !(geometry.morphAttributes.position && geometry.morphAttributes.position.length) &&
+      !(geometry.morphAttributes.normal && geometry.morphAttributes.normal.length) &&
+      !Array.isArray(material) && !material.isShaderMaterial && !material.isRawShaderMaterial;
+    object._r1GpuSkin = null;
     let cache = object._r1SkinCache;
     if (!cache || cache.boneMatrices.length !== boneCount * 16) {
       cache = { boneMatrices: new Float32Array(boneCount * 16), valid: false };
@@ -4472,7 +4546,8 @@ export class JsrWebGLRenderer {
       cache.skinIndex === skinIndex && cache.skinIndexArray === skinIndex.array &&
       cache.skinWeight === skinWeight && cache.skinWeightArray === skinWeight.array &&
       cache.skinIndexVersion === skinIndex.version && cache.skinWeightVersion === skinWeight.version &&
-      cache.morphKey === morphKey && cachedMatrixEquals(cache.bindMatrix, object.bindMatrix) &&
+      cache.morphKey === morphKey && !!cache.gpuSkin === gpuEligible &&
+      cachedMatrixEquals(cache.bindMatrix, object.bindMatrix) &&
       cachedMatrixEquals(cache.bindMatrixInverse, object.bindMatrixInverse);
     if (unchanged) {
       for (let i = 0; i < boneMatrices.length; i++) {
@@ -4528,7 +4603,40 @@ export class JsrWebGLRenderer {
     // Paused mixers and duplicate render() calls still invoke skeleton.update,
     // but identical bone/bind state must not re-skin and re-upload every vertex.
     if (unchanged) {
-      refreshCullSphere();
+      if (gpuEligible) {
+        object._r1GpuSkin = cache.gpuSkin;
+        this._refreshGpuSkinCullSphere(object, cache.gpuSkin);
+      } else {
+        refreshCullSphere();
+      }
+      return;
+    }
+    if (gpuEligible) {
+      // A preceding CPU frame rewrote the attributes in place. Restore the
+      // bind pose before the retained geometry gate sees this lane change.
+      if (cache.valid && !cache.gpuSkin) {
+        position.array.set(base.position);
+        position.version++;
+        if (geometry.attributes.normal && base.normal) {
+          geometry.attributes.normal.array.set(base.normal);
+          geometry.attributes.normal.version++;
+        }
+      }
+      if (!cache.gpuSkin || cache.gpuSkin.length !== boneCount * 16) {
+        cache.gpuSkin = new Float32Array(boneCount * 16);
+      }
+      this._computeSkinMatrices(object, cache.gpuSkin);
+      object._r1GpuSkin = cache.gpuSkin;
+      this._refreshGpuSkinCullSphere(object, cache.gpuSkin);
+      cache.geometry = geometry;
+      cache.skinIndex = skinIndex; cache.skinIndexArray = skinIndex.array;
+      cache.skinWeight = skinWeight; cache.skinWeightArray = skinWeight.array;
+      cache.skinIndexVersion = skinIndex.version; cache.skinWeightVersion = skinWeight.version;
+      cache.morphKey = morphKey;
+      cache.bindMatrix = object.bindMatrix.elements.slice();
+      cache.bindMatrixInverse = object.bindMatrixInverse.elements.slice();
+      cache.boneMatrices.set(boneMatrices);
+      cache.valid = true;
       return;
     }
     const readAccessor = (attribute) => {
@@ -4577,15 +4685,8 @@ export class JsrWebGLRenderer {
     if (!this._r1SkinMatrices || this._r1SkinMatrices.length < boneCount * 16) {
       this._r1SkinMatrices = new Float32Array(boneCount * 16);
     }
-    const B = this._r1SkinMatrices;
-    const tmpA = this._r1SkinTmpA || (this._r1SkinTmpA = new object.bindMatrix.constructor());
-    const tmpB = this._r1SkinTmpB || (this._r1SkinTmpB = new object.bindMatrix.constructor());
-    for (let b = 0; b < boneCount; b++) {
-      tmpA.fromArray(skeleton.boneMatrices, b * 16);
-      tmpB.multiplyMatrices(object.bindMatrixInverse, tmpA);
-      tmpA.multiplyMatrices(tmpB, object.bindMatrix);
-      B.set(tmpA.elements, b * 16);
-    }
+    const B = this._computeSkinMatrices(object, this._r1SkinMatrices);
+    cache.gpuSkin = null;
     const basePos = base.position;
     const outPos = position.array;
     const normal = geometry.attributes.normal;
@@ -5002,15 +5103,47 @@ export class JsrWebGLRenderer {
           colors.needsUpdate = true;
         }
         const absA = a < 0 ? -a : a;
+        // Native QuickJS computes the same position+displacement*amplitude
+        // field without an interpreted per-component loop. Source bytes are
+        // restaged only on a real source revision; displacement and output
+        // use bulk typed-array copies. The packet status preserves the exact
+        // JS fallback for other engines and malformed/non-finite packets.
+        let nativePositions = false;
+        const nativeLinePositions = globalThis.__jsrLineWalkBytes;
+        if (typeof nativeLinePositions === 'function') {
+          const sourceVersion = attributeVersionKey(attrs.position);
+          let packet = geometry._r1LinePositionPacket;
+          if (!packet || packet.length !== 4 + n * 3 ||
+              geometry._r1LinePositionSource !== sourceArray ||
+              geometry._r1LinePositionDisplacement !== displacementArray ||
+              geometry._r1LinePositionSourceVersion !== sourceVersion) {
+            packet = new Float32Array(4 + n * 3);
+            packet[0] = count;
+            packet.set(sourceArray.subarray(0, n), 4);
+            geometry._r1LinePositionPacket = packet;
+            geometry._r1LinePositionBytes = new Uint8Array(packet.buffer);
+            geometry._r1LinePositionSource = sourceArray;
+            geometry._r1LinePositionDisplacement = displacementArray;
+            geometry._r1LinePositionSourceVersion = sourceVersion;
+          }
+          packet[1] = a;
+          packet[2] = 0;
+          packet.set(displacementArray.subarray(0, n), 4 + n);
+          nativeLinePositions('three.linePositions', geometry._r1LinePositionBytes);
+          if (packet[2] === 1) {
+            positionArray.set(packet.subarray(4 + n * 2, 4 + n * 3));
+            nativePositions = true;
+          }
+        }
         // Float32 ceiling: any |source| + sweep*|amplitude| below it cannot
         // produce a non-finite float32 when written back.
-        if (meta.maxAbsSource + meta.sweep * absA < 3.4e38) {
+        if (!nativePositions && meta.maxAbsSource + meta.sweep * absA < 3.4e38) {
           for (let i3 = 0; i3 < n; i3 += 3) {
             positionArray[i3] = sourceArray[i3] + displacementArray[i3] * a;
             positionArray[i3 + 1] = sourceArray[i3 + 1] + displacementArray[i3 + 1] * a;
             positionArray[i3 + 2] = sourceArray[i3 + 2] + displacementArray[i3 + 2] * a;
           }
-        } else {
+        } else if (!nativePositions) {
           let sum = 0;
           for (let i3 = 0; i3 < n; i3 += 3) {
             const x = sourceArray[i3] + displacementArray[i3] * a;

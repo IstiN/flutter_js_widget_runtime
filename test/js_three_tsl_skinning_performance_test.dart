@@ -53,21 +53,21 @@ void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
   if (!hasQuickjsNativeLib) return;
 
-  testWidgets(
-    'tsl-skinning keeps the skinned-frame budget on the native lanes',
-    (WidgetTester tester) async {
-      // Structural pin: the R1 renderer must keep the native skinning lane
-      // (the per-vertex JS loop is the fallback, not the path).
-      final rendererSource = await tester.runAsync(
-        () async => File('tool/three/src/native_renderer.js').readAsString(),
-      );
-      expect(
-        rendererSource!.contains('globalThis.__jsrSkinBytes'),
-        isTrue,
-        reason: '_applySkining must route through the native skin lane',
-      );
+  testWidgets('tsl-skinning keeps geometry static while GPU bone poses animate', (
+    WidgetTester tester,
+  ) async {
+    // Structural pin: the R1 renderer carries immutable bind attributes
+    // and animated bone matrices instead of resubmitting skinned vertices.
+    final rendererSource = await tester.runAsync(
+      () async => File('tool/three/src/native_renderer.js').readAsString(),
+    );
+    expect(
+      rendererSource!.contains('mode: 1,'),
+      isTrue,
+      reason: '_emitGeometry must select the GPU skinning mode',
+    );
 
-      const prelude = '''
+    const prelude = '''
 ;(function(){
   globalThis.__TSLPIN__ = {
     ticks: 0, tickMs: 0, frames: 0, bytes: 0,
@@ -111,162 +111,152 @@ void main() {
   }, 250);
 })();
 ''';
-      final widgetSource = await tester.runAsync(
-        () async =>
-            File('example/widgets/three-tsl-skinning/widget.js').readAsString(),
-      );
-      final harness = await ThreeQuickjsExampleHarness.bootSource(
-        tester,
-        source: prelude + widgetSource!,
-        instanceId: 'three-tsl-skinning-pin',
-        useIsolate: true,
-        assetLoader: widgetDirAssetLoader('example/widgets/three-tsl-skinning'),
-      );
-      addTearDown(() => harness.dispose(tester));
+    final widgetSource = await tester.runAsync(
+      () async =>
+          File('example/widgets/three-tsl-skinning/widget.js').readAsString(),
+    );
+    final harness = await ThreeQuickjsExampleHarness.bootSource(
+      tester,
+      source: prelude + widgetSource!,
+      instanceId: 'three-tsl-skinning-pin',
+      useIsolate: true,
+      assetLoader: widgetDirAssetLoader('example/widgets/three-tsl-skinning'),
+    );
+    addTearDown(() => harness.dispose(tester));
 
-      final backend = harness.backend;
-      final rows = <Map<String, dynamic>>[];
-      void collect() {
-        for (final log in backend.flushLogs()) {
-          final message = (log['msg'] ?? log['message'])?.toString() ?? '';
-          if (!message.startsWith('TSLSKINPIN ')) continue;
-          try {
-            rows.add(
-              jsonDecode(message.substring('TSLSKINPIN '.length))
-                  as Map<String, dynamic>,
-            );
-          } on FormatException {
-            // Truncated console line — skip.
-          }
+    final backend = harness.backend;
+    final rows = <Map<String, dynamic>>[];
+    void collect() {
+      for (final log in backend.flushLogs()) {
+        final message = (log['msg'] ?? log['message'])?.toString() ?? '';
+        if (!message.startsWith('TSLSKINPIN ')) continue;
+        try {
+          rows.add(
+            jsonDecode(message.substring('TSLSKINPIN '.length))
+                as Map<String, dynamic>,
+          );
+        } on FormatException {
+          // Truncated console line — skip.
         }
       }
+    }
 
-      Map<String, dynamic> lastPin() =>
-          rows.isEmpty ? <String, dynamic>{} : rows.last;
+    Map<String, dynamic> lastPin() =>
+        rows.isEmpty ? <String, dynamic>{} : rows.last;
 
-      // Warm up: the GLB loads asynchronously, the character joins the scene,
-      // the skin lane engages, and the diagnostics publisher runs on its
-      // 250ms cadence so the probe observes at least one row.
-      final warmPlan = await harness.pumpUntil(
-        tester,
-        (state, plan) {
-          collect();
-          return plan.draws.length >= 1 &&
-              (lastPin()['frames'] as int? ?? 0) >= 20 &&
-              state.submittedFrameCount >= 20;
-        },
-        attempts: 900,
-      );
-      expect(
-        warmPlan,
-        isNotNull,
-        reason: 'tsl-skinning must reach an animated steady state',
-      );
-      harness.expectHealthy('webgl_tsl_skinning');
-
-      // Fixed measurement window: 60 pumped frames (~1.5s wall). Windowed
-      // deltas keep the load-time spikes (GLB decode, first texture uploads)
-      // out of the steady-state budget.
-      final state0 = harness.state!;
+    // Warm up: the GLB loads asynchronously, the character joins the scene,
+    // the skin lane engages, and the diagnostics publisher runs on its
+    // 250ms cadence so the probe observes at least one row.
+    final warmPlan = await harness.pumpUntil(tester, (state, plan) {
       collect();
-      final pin0 = lastPin();
-      final frames0 = state0.submittedFrameCount;
-      final geometries0 = state0.geometryUploadCount;
-      final textures0 = state0.textureUploadCount;
-      final sw = Stopwatch()..start();
-      await harness.pumpFrames(tester, 60);
-      final windowSeconds = sw.elapsedMicroseconds / 1e6;
-      collect();
+      return plan.draws.length >= 1 &&
+          (lastPin()['frames'] as int? ?? 0) >= 20 &&
+          state.submittedFrameCount >= 20;
+    }, attempts: 900);
+    expect(
+      warmPlan,
+      isNotNull,
+      reason: 'tsl-skinning must reach an animated steady state',
+    );
+    harness.expectHealthy('webgl_tsl_skinning');
 
-      final state1 = harness.state!;
-      final pin1 = lastPin();
-      final submitted = state1.submittedFrameCount - frames0;
-      final geometries = state1.geometryUploadCount - geometries0;
-      final textures = state1.textureUploadCount - textures0;
-      final ticks = (pin1['ticks'] as int? ?? 0) - (pin0['ticks'] as int? ?? 0);
-      final tickMs =
-          (pin1['tickMs'] as num? ?? 0) - (pin0['tickMs'] as num? ?? 0);
-      final jsFrames =
-          (pin1['frames'] as int? ?? 0) - (pin0['frames'] as int? ?? 0);
-      final jsBytes =
-          (pin1['bytes'] as int? ?? 0) - (pin0['bytes'] as int? ?? 0);
-      final skinCalls =
-          (pin1['skinCalls'] as int? ?? 0) - (pin0['skinCalls'] as int? ?? 0);
-      final draws = (const ThreeDrawPlanner().plan(state1)).draws.length;
+    // Fixed measurement window: 60 pumped frames (~1.5s wall). Windowed
+    // deltas keep the load-time spikes (GLB decode, first texture uploads)
+    // out of the steady-state budget.
+    final state0 = harness.state!;
+    collect();
+    final pin0 = lastPin();
+    final frames0 = state0.submittedFrameCount;
+    final animatedNodeId = state0.nodes.values
+        .firstWhere((node) => node.skinBoneCount > 0)
+        .nodeId;
+    final geometries0 = state0.geometryUploadCount;
+    final textures0 = state0.textureUploadCount;
+    final sw = Stopwatch()..start();
+    await harness.pumpFrames(tester, 60);
+    final windowSeconds = sw.elapsedMicroseconds / 1e6;
+    collect();
 
-      // 1. Animation stays alive and plans cleanly.
-      expect(submitted, greaterThan(0), reason: 'frames must keep submitting');
-      final finalPlan = const ThreeDrawPlanner().plan(state1);
-      expect(finalPlan.draws.length, greaterThanOrEqualTo(1));
-      expect(finalPlan.diagnostics.warnings, isEmpty);
+    final state1 = harness.state!;
+    final pin1 = lastPin();
+    final submitted = state1.submittedFrameCount - frames0;
+    final geometries = state1.geometryUploadCount - geometries0;
+    final textures = state1.textureUploadCount - textures0;
+    final ticks = (pin1['ticks'] as int? ?? 0) - (pin0['ticks'] as int? ?? 0);
+    final tickMs =
+        (pin1['tickMs'] as num? ?? 0) - (pin0['tickMs'] as num? ?? 0);
+    final jsFrames =
+        (pin1['frames'] as int? ?? 0) - (pin0['frames'] as int? ?? 0);
+    final jsBytes = (pin1['bytes'] as int? ?? 0) - (pin0['bytes'] as int? ?? 0);
+    final skinCalls =
+        (pin1['skinCalls'] as int? ?? 0) - (pin0['skinCalls'] as int? ?? 0);
+    final draws = (const ThreeDrawPlanner().plan(state1)).draws.length;
 
-      // 2. Steady-state JS frame budget. Measured anchors on this harness:
-      // ~60ms/tick before the lanes (per-vertex skin loop + b64 encode of the
-      // 868KB envelope), ~16ms/tick after (debug JIT; ~4ms in the release
-      // worker). The bound keeps ~4x headroom to the fix and fails ~2x below
-      // the regression shape.
-      final tickAvgMs = ticks > 0 ? tickMs / ticks : 0.0;
-      // ignore: avoid_print
-      print(
-        'TSLSKINPIN window=${windowSeconds.toStringAsFixed(2)}s '
-        'submitted=$submitted submittedPerS='
-        '${(submitted / windowSeconds).toStringAsFixed(1)} '
-        'jsFrames=$jsFrames tickAvgMs=${tickAvgMs.toStringAsFixed(2)} '
-        'bytesPerEnvelope='
-        '${(jsBytes / (jsFrames < 1 ? 1 : jsFrames)).toStringAsFixed(0)} '
-        'skinCalls=$skinCalls geometryUpserts=$geometries '
-        'geoPerFrame=${(geometries / (submitted < 1 ? 1 : submitted))
-            .toStringAsFixed(2)} textures=$textures draws=$draws',
-      );
-      expect(
-        tickAvgMs,
-        lessThan(30),
-        reason:
-            'steady rAF tick must stay far below the ~60ms '
-            'JS-skin-loop + b64 regression shape',
-      );
+    // 1. Animation stays alive and plans cleanly.
+    expect(submitted, greaterThan(0), reason: 'frames must keep submitting');
+    final finalPlan = const ThreeDrawPlanner().plan(state1);
+    expect(finalPlan.draws.length, greaterThanOrEqualTo(1));
+    expect(finalPlan.diagnostics.warnings, isEmpty);
 
-      // 3. Protocol byte bound: ~868KB blended envelope (positions+normals
-      // with the pose, uv+indices static), never a duplicated stream or the
-      // ~4MB skin-packet payload per frame.
-      expect(jsFrames, greaterThan(0), reason: 'envelopes must keep flowing');
-      final bytesPerEnvelope = jsBytes / jsFrames;
-      expect(
-        bytesPerEnvelope,
-        lessThan(1200000),
-        reason:
-            'per-frame envelope must stay O(base geometry) '
-            '(position+normal+uv+index), not O(skin storage)',
-      );
+    // 2. Steady-state JS frame budget. Measured anchors on this harness:
+    // ~60ms/tick before the lanes (per-vertex skin loop + b64 encode of the
+    // 868KB envelope), ~16ms/tick after (debug JIT; ~4ms in the release
+    // worker). The bound keeps ~4x headroom to the fix and fails ~2x below
+    // the regression shape.
+    final tickAvgMs = ticks > 0 ? tickMs / ticks : 0.0;
+    // ignore: avoid_print
+    print(
+      'TSLSKINPIN window=${windowSeconds.toStringAsFixed(2)}s '
+      'submitted=$submitted submittedPerS='
+      '${(submitted / windowSeconds).toStringAsFixed(1)} '
+      'jsFrames=$jsFrames tickAvgMs=${tickAvgMs.toStringAsFixed(2)} '
+      'bytesPerEnvelope='
+      '${(jsBytes / (jsFrames < 1 ? 1 : jsFrames)).toStringAsFixed(0)} '
+      'skinCalls=$skinCalls geometryUpserts=$geometries '
+      'geoPerFrame=${(geometries / (submitted < 1 ? 1 : submitted)).toStringAsFixed(2)} textures=$textures draws=$draws',
+    );
+    expect(
+      tickAvgMs,
+      lessThan(30),
+      reason:
+          'steady rAF tick must stay far below the ~60ms '
+          'JS-skin-loop + b64 regression shape',
+    );
 
-      // 4. Geometry churn bound: the skinned character's geometry re-upserts
-      // per animated frame; nothing else may churn. Textures are all uploaded
-      // during warmup — zero in the window.
-      expect(
-        geometries / (submitted < 1 ? 1 : submitted),
-        lessThan(2.5),
-        reason: 'only the skinned geometry may re-upsert per frame',
-      );
-      expect(textures, equals(0), reason: 'textures must not re-upload');
+    // 3. GPU skinning leaves only node updates in the steady envelope;
+    // immutable positions/normals/UVs/indices and bind attributes stay
+    // cached instead of repeating the old ~868KB geometry stream.
+    expect(jsFrames, greaterThan(0), reason: 'envelopes must keep flowing');
+    final bytesPerEnvelope = jsBytes / jsFrames;
+    expect(
+      bytesPerEnvelope,
+      lessThan(20000),
+      reason: 'steady envelopes must contain nodes, not skinned geometry',
+    );
 
-      // 5. Native lanes engaged: the worker exposes the skin bytes fn and
-      // drives it on (nearly) every animated frame, and envelopes submitted
-      // to the host keep up with envelopes sent from JS (a b64/JSON transport
-      // regression or a drop stream would open a gap).
-      expect(pin1['noSkinFn'], equals(0), reason: 'skin bytes fn must exist');
-      expect(
-        skinCalls,
-        greaterThanOrEqualTo(jsFrames * 0.5),
-        reason: 'the native skin lane must drive the animated frames',
-      );
-      expect(
-        submitted,
-        greaterThanOrEqualTo(jsFrames - 2),
-        reason: 'envelopes must reach the host (no drop stream)',
-      );
+    // 4. No geometry or texture churn is permitted after warm-up.
+    expect(geometries, equals(0));
+    expect(textures, equals(0), reason: 'textures must not re-upload');
 
-      await harness.dispose(tester);
-    },
-    timeout: const Timeout(Duration(minutes: 8)),
-  );
+    // 5. The planned draw carries the real bone matrices plus immutable
+    // bind attributes. CPU skinning must not silently return as a fallback;
+    // the FBX selector regression separately proves changing bone poses.
+    final animatedNode = state1.nodes[animatedNodeId]!;
+    expect(animatedNode.skinBoneCount, greaterThan(0));
+    final skinnedDraw = finalPlan.draws.singleWhere(
+      (draw) => draw.node.nodeId == animatedNodeId,
+    );
+    expect(skinnedDraw.node.skinBoneCount, greaterThan(0));
+    expect(skinnedDraw.geometry.skinIndices, isNotNull);
+    expect(skinnedDraw.geometry.skinWeights, isNotNull);
+    expect(pin1['noSkinFn'], equals(0), reason: 'skin bytes fn must exist');
+    expect(skinCalls, equals(0), reason: 'GPU skinning needs no CPU skin');
+    expect(
+      submitted,
+      greaterThanOrEqualTo(jsFrames - 2),
+      reason: 'envelopes must reach the host (no drop stream)',
+    );
+
+    await harness.dispose(tester);
+  }, timeout: const Timeout(Duration(minutes: 8)));
 }

@@ -877,18 +877,32 @@ void main() {
 
       final packed = interleaveThreeGeometry(geometry);
 
-      expect(packed.vertices.lengthInBytes, 3 * 48);
+      expect(packed.vertices.lengthInBytes, 3 * 80);
       expect(packed.indices, isNotNull);
       expect(packed.indexCount, 3);
       expect(packed.vertices.getFloat32(0, Endian.little), 0);
       expect(packed.vertices.getFloat32(20, Endian.little), 1);
       expect(packed.vertices.getFloat32(24, Endian.little), 0);
       for (var vertex = 0; vertex < 3; vertex++) {
-        final offset = vertex * 48 + 32;
+        final offset = vertex * 80 + 32;
         for (var component = 0; component < 4; component++) {
           expect(
             packed.vertices.getFloat32(offset + component * 4, Endian.little),
             1,
+          );
+          expect(
+            packed.vertices.getFloat32(
+              vertex * 80 + 48 + component * 4,
+              Endian.little,
+            ),
+            0,
+          );
+          expect(
+            packed.vertices.getFloat32(
+              vertex * 80 + 64 + component * 4,
+              Endian.little,
+            ),
+            component == 0 ? 1 : 0,
           );
         }
       }
@@ -921,17 +935,100 @@ void main() {
       expect(rgb.vertices.getFloat32(32, Endian.little), closeTo(0.2, 1e-6));
       expect(rgb.vertices.getFloat32(44, Endian.little), 1);
       expect(
-        rgb.vertices.getFloat32(48 + 32, Endian.little),
+        rgb.vertices.getFloat32(80 + 32, Endian.little),
         closeTo(0.5, 1e-6),
       );
 
       final rgba = interleaveThreeGeometry(state.geometries[2]!);
       expect(rgba.vertices.getFloat32(44, Endian.little), closeTo(0.4, 1e-6));
       expect(
-        rgba.vertices.getFloat32(48 + 44, Endian.little),
+        rgba.vertices.getFloat32(80 + 44, Endian.little),
         closeTo(0.8, 1e-6),
       );
       expect(rgba.indices, isNull);
+    });
+
+    test('R1 v11 skin attributes interleave and bind exact bone matrices', () {
+      const bones = <double>[1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 2, 3, 4, 1];
+      ThreeDrawPlanFixture skinFixture(double boneIndex) {
+        final fixture = ThreeDrawPlanFixture.withCommands(<Uint8List>[])
+          ..r1Version = 11;
+        fixture
+          ..node(1, objectKind: JsThreeObjectKind.group)
+          ..camera(1)
+          ..material(1)
+          ..geometry(
+            1,
+            skinIndices: [
+              boneIndex,
+              0,
+              0,
+              0,
+              boneIndex,
+              0,
+              0,
+              0,
+              boneIndex,
+              0,
+              0,
+              0,
+            ],
+            skinWeights: const [
+              1,
+              0,
+              0,
+              0,
+              0.5,
+              0.5,
+              0,
+              0,
+              0.25,
+              0.25,
+              0.25,
+              0.25,
+            ],
+          )
+          ..node(2, parentId: 1, skinBoneMatrices: bones);
+        fixture.commands.add(
+          r1Command(8, r1Frame(sceneId: 1, cameraId: 1, v5Tail: true)),
+        );
+        return fixture;
+      }
+
+      final plan = const ThreeDrawPlanner().plan(skinFixture(0).state());
+      expect(plan.diagnostics.warnings, isEmpty);
+      final draw = plan.draws.single;
+      expect(draw.node.skinBoneCount, 1);
+      final packed = interleaveThreeGeometry(draw.geometry);
+      expect(packed.vertices.lengthInBytes, 3 * 80);
+      expect(packed.vertices.getFloat32(48, Endian.little), 0);
+      expect(packed.vertices.getFloat32(64, Endian.little), 1);
+      expect(packed.vertices.getFloat32(80 + 64, Endian.little), 0.5);
+      expect(packed.vertices.getFloat32(80 + 68, Endian.little), 0.5);
+      expect(packed.vertices.getFloat32(2 * 80 + 76, Endian.little), 0.25);
+
+      final skin = debugThreeSkinUniform(draw);
+      expect(skin.lengthInBytes, 5888);
+      expect(skin.lengthInBytes + 320, 6208);
+      expect(skin.getFloat32(48, Endian.little), 2);
+      expect(skin.getFloat32(52, Endian.little), 3);
+      expect(skin.getFloat32(56, Endian.little), 4);
+      expect(skin.getFloat32(91 * 64, Endian.little), 1);
+
+      final ordinary = ThreeDrawPlanFixture.basic()
+        ..geometry(1)
+        ..node(2, parentId: 1);
+      final ordinaryPlan = const ThreeDrawPlanner().plan(ordinary.state());
+      final noSkin = debugThreeSkinUniform(ordinaryPlan.draws.single);
+      expect(noSkin.getFloat32(91 * 64, Endian.little), 0);
+
+      final invalid = const ThreeDrawPlanner().plan(skinFixture(1).state());
+      expect(invalid.draws, isEmpty);
+      expect(invalid.diagnostics.invalidGeometryCount, 1);
+      expect(
+        invalid.diagnostics.warnings.join('\n'),
+        contains('exceeds the node bone count'),
+      );
     });
 
     test('GPU shadow uniforms preserve the reflected ABI and node flags', () {
@@ -1264,10 +1361,10 @@ void main() {
   });
 
   group('R1 v8 stencil draw state and clear markers', () {
-    Iterable<ThreeStencilClearMarker> markers(ThreeDrawPlan plan) =>
-        plan.mainStream
-            .whereType<ThreeDrawStreamStencilClear>()
-            .map((entry) => entry.clear);
+    Iterable<ThreeStencilClearMarker> markers(ThreeDrawPlan plan) => plan
+        .mainStream
+        .whereType<ThreeDrawStreamStencilClear>()
+        .map((entry) => entry.clear);
 
     /// v8 fixture: the extended node layout (v5+ sprite center) is chosen
     /// at encode time, so the root group must be added after r1Version.
@@ -1284,8 +1381,10 @@ void main() {
       return fixture;
     }
 
-    void v8Frame(ThreeDrawPlanFixture fixture,
-        {List<int> culledNodeIds = const []}) {
+    void v8Frame(
+      ThreeDrawPlanFixture fixture, {
+      List<int> culledNodeIds = const [],
+    }) {
       fixture.commands.add(
         r1Command(
           8,
@@ -1313,15 +1412,15 @@ void main() {
       // Byte-identical contract: no stencil state, no markers, pre-v8 order.
       expect(plan.stream, everyElement(isA<ThreeDrawStreamDraw>()));
       expect(
-        plan.stream
-            .whereType<ThreeDrawStreamDraw>()
-            .map((entry) => entry.draw.node.nodeId),
+        plan.stream.whereType<ThreeDrawStreamDraw>().map(
+          (entry) => entry.draw.node.nodeId,
+        ),
         [10, 11],
       );
       expect(
-        plan.mainStream
-            .whereType<ThreeDrawStreamDraw>()
-            .every((entry) => entry.draw.stencil == null),
+        plan.mainStream.whereType<ThreeDrawStreamDraw>().every(
+          (entry) => entry.draw.stencil == null,
+        ),
         isTrue,
       );
       expect(plan.diagnostics.warnings, isEmpty);
@@ -1392,9 +1491,11 @@ void main() {
         (11, 7),
       ]);
       expect(
-        plan.mainStream.map((entry) => entry is ThreeDrawStreamDraw
-            ? 'd${entry.draw.node.nodeId}'
-            : 'c${(entry as ThreeDrawStreamStencilClear).clear.value}'),
+        plan.mainStream.map(
+          (entry) => entry is ThreeDrawStreamDraw
+              ? 'd${entry.draw.node.nodeId}'
+              : 'c${(entry as ThreeDrawStreamStencilClear).clear.value}',
+        ),
         ['c1', 'd10', 'c2', 'd11', 'c7'],
       );
     });
@@ -1420,9 +1521,9 @@ void main() {
       expect(plan.mainDraws.map((draw) => draw.node.nodeId), [10, 11]);
       expect(markers(plan).single.value, 4);
       expect(
-        plan.mainStream
-            .whereType<ThreeDrawStreamDraw>()
-            .map((entry) => entry.draw.node.nodeId),
+        plan.mainStream.whereType<ThreeDrawStreamDraw>().map(
+          (entry) => entry.draw.node.nodeId,
+        ),
         [10, 11],
       );
       expect(

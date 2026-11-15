@@ -18,9 +18,9 @@ import 'support/widget_logic_helper.dart' show hasQuickjsNativeLib;
 /// The skeletal/morph animation siblings were once preview-swept by eye with a
 /// single static frame, which cannot distinguish a live mixer from a frozen
 /// one. This test boots each prepared example in the real QuickJS harness,
-/// samples the scene graph across ~10s of pumped frames and requires the
-/// bones (and skin packets) to actually move. A frozen AnimationMixer shows up
-/// as exactly-zero deltas on every sample.
+/// samples the scene graph across ~10s of pumped frames and requires moving
+/// bones plus either CPU skin packets or GPU bone poses. A frozen
+/// AnimationMixer shows up as exactly-zero deltas on every sample.
 ///
 /// The probe is appended to the prepared bundle's tail: the last `.render(`
 /// call names the module-local scene variable, and the two trailing braces
@@ -45,9 +45,10 @@ const _sweepProbeJs = '''
   }
   function sample(scene, out) {
     var boneDelta = 0, moving = 0;
-    var morphDelta = 0;
+    var morphDelta = 0, gpuSkin = 0;
     scene.traverse(function(o){
       if (o.isSkinnedMesh && o.skeleton && o.skeleton.bones.length) {
+        if (o._r1GpuSkin && o._r1GpuSkin.length) gpuSkin++;
         var bones = o.skeleton.bones;
         S.last = S.last || {};
         for (var i = 0; i < bones.length; i++) {
@@ -76,6 +77,7 @@ const _sweepProbeJs = '''
     out.movingBones = moving;
     out.morphDelta = morphDelta;
     out.skinCount = S.skin.count;
+    out.gpuSkinCount = gpuSkin;
   }
   setInterval(function(){
     S.ticks++;
@@ -214,6 +216,10 @@ void main() {
         0,
         (int sum, r) => sum + (((r['skinCount'] as num?) ?? 0).toInt()),
       );
+      final gpuSkinPoses = samples.fold(
+        0,
+        (int sum, r) => sum + (((r['gpuSkinCount'] as num?) ?? 0).toInt()),
+      );
       expect(
         movingTicks,
         greaterThan(0),
@@ -222,9 +228,11 @@ void main() {
             'maxMorphDelta=$maxMorph samples=${samples.length}',
       );
       expect(
-        skinPackets,
+        skinPackets + gpuSkinPoses,
         greaterThan(0),
-        reason: '$widgetId skinned meshes must stream skin packets',
+        reason:
+            '$widgetId skinned meshes must stream CPU skin packets or '
+            'GPU bone poses',
       );
     }, timeout: const Timeout(Duration(seconds: 240)));
   }

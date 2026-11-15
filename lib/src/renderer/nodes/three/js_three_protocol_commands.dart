@@ -5,6 +5,8 @@ final class JsThreeProtocolException extends FormatException {
   const JsThreeProtocolException(super.message, [super.source, super.offset]);
 }
 
+const maxThreeSkinBones = 91;
+
 enum JsThreePrimitive {
   triangles(0),
   lines(1),
@@ -295,6 +297,8 @@ final class JsThreeGeometryUpsert extends JsThreeCommand {
     required this.uvs,
     required this.colors,
     required this.colorStride,
+    required this.skinIndices,
+    required this.skinWeights,
     required this.indices,
     required this.wireIndices,
     this.retainUnchanged = false,
@@ -311,6 +315,8 @@ final class JsThreeGeometryUpsert extends JsThreeCommand {
   final Float32List? uvs;
   final Float32List? colors;
   final int colorStride;
+  final Float32List? skinIndices;
+  final Float32List? skinWeights;
   final Uint32List indices;
 
   /// R1 v10: omitted fields retain the preceding version in the state store.
@@ -326,33 +332,43 @@ final class JsThreeGeometryUpsert extends JsThreeCommand {
 
   JsThreeGeometryUpsert resolveRetained(JsThreeGeometryUpsert? previous) {
     if (!retainUnchanged) return this;
-    if (previous == null ||
-        previous.geometryId != geometryId ||
-        previous.vertexCount != vertexCount ||
-        previous.primitive != primitive) {
-      throw const JsThreeProtocolException(
-        'retained geometry update lacks a compatible preceding version',
-      );
-    }
+    final retained = _compatibleRetained(previous);
     final keepNormal = attributeMask & 2 == 0;
     final keepUv = attributeMask & 4 == 0;
     final keepColor = attributeMask & 8 == 0;
+    final keepSkinIndices = attributeMask & 16 == 0;
+    final keepSkinWeights = attributeMask & 32 == 0;
     final keepIndices = indexCount == 0;
     return JsThreeGeometryUpsert._(
       geometryId: geometryId,
       version: version,
-      attributeMask: attributeMask | previous.attributeMask,
+      attributeMask: attributeMask | retained.attributeMask,
       vertexCount: vertexCount,
-      indexCount: keepIndices ? previous.indexCount : indexCount,
+      indexCount: keepIndices ? retained.indexCount : indexCount,
       primitive: primitive,
       positions: positions,
-      normals: keepNormal ? previous.normals : normals,
-      uvs: keepUv ? previous.uvs : uvs,
-      colors: keepColor ? previous.colors : colors,
-      colorStride: keepColor ? previous.colorStride : colorStride,
-      indices: keepIndices ? previous.indices : indices,
-      wireIndices: wireIndices ?? previous.wireIndices,
+      normals: keepNormal ? retained.normals : normals,
+      uvs: keepUv ? retained.uvs : uvs,
+      colors: keepColor ? retained.colors : colors,
+      colorStride: keepColor ? retained.colorStride : colorStride,
+      skinIndices: keepSkinIndices ? retained.skinIndices : skinIndices,
+      skinWeights: keepSkinWeights ? retained.skinWeights : skinWeights,
+      indices: keepIndices ? retained.indices : indices,
+      wireIndices: wireIndices ?? retained.wireIndices,
     );
+  }
+
+  JsThreeGeometryUpsert _compatibleRetained(JsThreeGeometryUpsert? previous) {
+    final retained = previous;
+    if (retained == null ||
+        retained.geometryId != geometryId ||
+        retained.vertexCount != vertexCount ||
+        retained.primitive != primitive) {
+      throw const JsThreeProtocolException(
+        'retained geometry update lacks a compatible preceding version',
+      );
+    }
+    return retained;
   }
 }
 
@@ -611,6 +627,7 @@ final class JsThreeNodeUpsert extends JsThreeCommand {
     required this.spriteCenterX,
     required this.spriteCenterY,
     required this.renderOrder,
+    required this.skinBoneMatrices,
   }) : super._(4);
 
   final int nodeId;
@@ -629,6 +646,10 @@ final class JsThreeNodeUpsert extends JsThreeCommand {
 
   /// Upstream Object3D.renderOrder (R1 v7), zero for older streams.
   final double renderOrder;
+
+  /// R1 v11 final bind-space bone matrices; null for ordinary/CPU-skinned nodes.
+  final Float32List? skinBoneMatrices;
+  int get skinBoneCount => (skinBoneMatrices?.length ?? 0) ~/ 16;
 
   bool get visible => flags & 1 != 0;
   bool get castShadow => shadowFlags & 1 != 0;

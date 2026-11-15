@@ -313,6 +313,7 @@ final class _ThreeFrameEncoder {
       pointShadowFace: face,
     );
     if (geometry == null) return 0;
+    _bindThreeSkinUniform(backend, pass, draw);
     _bindThreeUniform(
       backend,
       pass,
@@ -429,6 +430,7 @@ final class _ThreeFrameEncoder {
     pass.setCullMode(_threeShadowCull(draw));
     final geometry = _bindShadowGeometry(pass, vertexSlot, draw);
     if (geometry == null) return 0;
+    _bindThreeSkinUniform(backend, pass, draw);
     _bindShadowClipping(backend, pass, clippingSlot, plan, draw.material);
     _drawThreeGeometry(pass, draw, geometry);
     return 1;

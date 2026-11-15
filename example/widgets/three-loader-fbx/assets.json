@@ -13,6 +13,16 @@
       "sha256": "b9003ee562c87bf03051c3a502411b0808d3513f1d74a2011f7530d9f067069f",
       "aliases": [],
       "diagnostic": "fbxDefaultModel"
+    },
+    {
+      "url": "models/fbx/warrior/Warrior.fbx",
+      "file": "models__fbx__warrior__Warrior.fbx",
+      "mime": "application/octet-stream",
+      "width": 0,
+      "height": 0,
+      "bytes": 2052864,
+      "sha256": "f00e5b65fface7d30beeb96b7469f129809810020b694af53c7e25affcb6762c",
+      "aliases": []
     }
   ]
 }

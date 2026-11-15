@@ -8,6 +8,8 @@ const utf8 = value => (typeof TextEncoder !== 'undefined')
   : Uint8Array.from(Buffer.from(value, 'utf8'));
 
 export const T1_VERSION = 1;
+// v11: GPU-skinned geometry carries skinIndex/skinWeight attribute bits 4/5;
+// a skinned NODE appends its bone count and final bind-space bone matrices.
 // v10: dynamic geometry may set GEOMETRY.reserved bit 0 to retain unchanged
 // attributes, indices and wire indices from the preceding version. Position
 // is always sent; omitted fields are explicit retention, not removal.
@@ -21,7 +23,10 @@ export const T1_VERSION = 1;
 // map slots and the Dubois anaglyph tail. v5: matcap/gradient slots, sprite
 // rotation, point-shadow block, cube texture flag. v4: alpha/env texture
 // slots, UV transforms, tone mapping + FogExp2 density.
-export const R1_VERSION = 10;
+export const R1_VERSION = 11;
+// 320-byte VertexInfo + 16-byte skin params + 91 mat4s = 6160 bytes,
+// within Impeller's 6208-byte per-stage uniform budget.
+export const MAX_SKIN_BONES = 91;
 export const STREAM_R1 = 1;
 const NATIVE_U32_LITTLE_ENDIAN = new Uint8Array(new Uint32Array([1]).buffer)[0] === 1;
 export const MAX_ENVELOPE = 64 * 1024 * 1024;
@@ -143,7 +148,7 @@ export function encodeEnvelope(commands, engineId, surfaceId, sequence) {
 export function geometryCommand(id, version, primitive, vertexCount, attributes, indices, wireIndices = null, retainUnchanged = false) {
   let indexCount = indices ? indices.length : 0;
   let mask = 0;
-  const names = ['position', 'normal', 'uv', 'color'];
+  const names = ['position', 'normal', 'uv', 'color', 'skinIndex', 'skinWeight'];
   for (let i = 0; i < names.length; i++) if (attributes[names[i]]) mask |= 1 << i;
   if (wireIndices && (primitive !== 0 || wireIndices.length % 2 !== 0)) throw new Error('three.invalid: wire indices require complete triangle-mesh edges');
   const wireBytes = wireIndices ? 4 + wireIndices.length * 4 : 0;
@@ -379,9 +384,13 @@ function writeDuboisMatrix(body, matrix) {
   }
 }
 
-export function nodeCommand(id, parentId, geometryId, materialId, visible, objectKind, matrixWorld, shadows = {}, spriteCenter = null, renderOrder = 0) {
+export function nodeCommand(id, parentId, geometryId, materialId, visible, objectKind, matrixWorld, shadows = {}, spriteCenter = null, renderOrder = 0, skinBoneMatrices = null) {
   const center = spriteCenter || { x: 0.5, y: 0.5 };
-  const body = new ByteWriter(108);
+  if (skinBoneMatrices && (!skinBoneMatrices.length || skinBoneMatrices.length % 16 !== 0 ||
+      skinBoneMatrices.length > MAX_SKIN_BONES * 16)) {
+    throw new Error('three.invalid: node skin bone matrices require 1..91 mat4 values');
+  }
+  const body = new ByteWriter(108 + (skinBoneMatrices ? 4 + skinBoneMatrices.length * 4 : 0));
   body.u32(id);
   body.u32(parentId);
   body.u32(geometryId);
@@ -397,6 +406,10 @@ export function nodeCommand(id, parentId, geometryId, materialId, visible, objec
   // v7 tail: upstream Object3D.renderOrder, reusing the v5 reserved word.
   if (!Number.isFinite(renderOrder)) throw new Error('three.invalid: node renderOrder must be finite');
   body.f32(renderOrder);
+  if (skinBoneMatrices) {
+    body.u32(skinBoneMatrices.length / 16);
+    body.bytes(new Uint8Array(skinBoneMatrices.buffer, skinBoneMatrices.byteOffset, skinBoneMatrices.byteLength));
+  }
   return command(OPCODE.NODE, body.finish());
 }
 

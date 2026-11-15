@@ -22,7 +22,7 @@ final class JsThreeProtocolDecoder {
   // v9: fixed 80-byte postprocessing tail (three texture ids + 16 floats)
   // before the Dubois suffix. v8: material stencil tail + colorWrite flag bit,
   // OPCODE.STENCIL_CLEAR mid-stream markers and the frame-start stencil bit.
-  static const int latestR1Version = 10;
+  static const int latestR1Version = 11;
   static const int defaultMaxEnvelopeBytes = 64 * 1024 * 1024;
   static const int maxEncodedTextureBytes = 64 * 1024 * 1024;
   static const int maxCommandCount = 100000;
@@ -188,6 +188,7 @@ final class JsThreeProtocolDecoder {
         ? null
         : body.attribute(header.vertexCount, 2, 'uv');
     final color = _readGeometryColor(body, header);
+    final skin = _readGeometrySkin(body, header);
     final indices = header.indexCount == 0
         ? Uint32List(0).asUnmodifiableView()
         : body.indices(header.indexCount, header.vertexCount);
@@ -217,18 +218,38 @@ final class JsThreeProtocolDecoder {
       uvs: uvs,
       colors: color.colors,
       colorStride: color.stride,
+      skinIndices: skin.indices,
+      skinWeights: skin.weights,
       indices: indices,
       wireIndices: wireIndices,
       retainUnchanged: header.retainUnchanged,
     );
   }
 
+  ({Float32List? indices, Float32List? weights}) _readGeometrySkin(
+    _Reader body,
+    _GeometryHeader header,
+  ) {
+    if (header.mask & 0x30 == 0) return (indices: null, weights: null);
+    final indices = body.attribute(header.vertexCount, 4, 'skinIndex');
+    final weights = body.attribute(header.vertexCount, 4, 'skinWeight');
+    for (final index in indices) {
+      if (index < 0 || index > 65535 || index != index.roundToDouble()) {
+        body.fail('skinIndex must contain nonnegative integer bone indices');
+      }
+    }
+    return (indices: indices, weights: weights);
+  }
+
   _GeometryHeader _readGeometryHeader(_Reader body) {
     final id = body.nonzeroId('geometry id');
     final version = body.nonzeroVersion();
     final mask = body.u32('attribute mask');
-    if (mask & ~0x0f != 0 || mask & 1 == 0) {
-      body.fail('attribute mask requires position and only bits 0..3');
+    if (mask & ~0x3f != 0 || mask & 1 == 0) {
+      body.fail('attribute mask requires position and only bits 0..5');
+    }
+    if (mask & 0x30 != 0 && (_streamVersion < 11 || mask & 0x30 != 0x30)) {
+      body.fail('paired skin attributes require R1 v11');
     }
     final vertexCount = body.u32('vertex count');
     if (vertexCount == 0 || vertexCount > maxVertexCount) {
@@ -243,6 +264,9 @@ final class JsThreeProtocolDecoder {
       body.u32('primitive'),
       'primitive',
     );
+    if (mask & 0x30 != 0 && primitive != JsThreePrimitive.triangles) {
+      body.fail('skin attributes require triangle geometry');
+    }
     final geometryFlags = body.u32('geometry flags');
     final retainUnchanged = _geometryRetention(body, geometryFlags);
     _validateGeometryDrawCount(
@@ -401,6 +425,12 @@ final class JsThreeProtocolDecoder {
         (geometryId == 0 || materialId == 0)) {
       body.fail('sprite node requires geometry and material ids');
     }
+    final skinBoneMatrices = _readNodeSkin(
+      body,
+      streamVersion,
+      geometryId,
+      kind,
+    );
     return JsThreeNodeUpsert._(
       nodeId: id,
       parentId: parentId,
@@ -413,7 +443,32 @@ final class JsThreeProtocolDecoder {
       spriteCenterX: sprite.x,
       spriteCenterY: sprite.y,
       renderOrder: sprite.renderOrder,
+      skinBoneMatrices: skinBoneMatrices,
     );
+  }
+
+  Float32List? _readNodeSkin(
+    _Reader body,
+    int streamVersion,
+    int geometryId,
+    JsThreeObjectKind kind,
+  ) {
+    if (body.remaining == 0) return null;
+    if (streamVersion < 11 ||
+        geometryId == 0 ||
+        kind != JsThreeObjectKind.mesh) {
+      body.fail('skin matrices require an R1 v11 drawable mesh node');
+    }
+    final boneCount = body.u32('skin bone count');
+    if (boneCount == 0 || boneCount > maxThreeSkinBones) {
+      body.fail('skin bone count outside 1..$maxThreeSkinBones');
+    }
+    final matrices = body.float32List(
+      body.product(boneCount, 16, 'skin bone matrix floats'),
+      'skin bone matrices',
+    );
+    if (body.remaining != 0) body.fail('trailing skin node payload');
+    return matrices;
   }
 
   /// Reads the sprite center and render order (R1 v5+, render order from

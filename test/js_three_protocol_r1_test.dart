@@ -5,6 +5,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:js_widget_runtime/src/renderer/nodes/three/js_three_protocol.dart';
 import 'package:js_widget_runtime/src/renderer/nodes/three/js_three_state.dart';
 
+import 'support/three_draw_plan_bytes.dart' as draw_bytes;
 import 'support/three_protocol_bytes.dart';
 import 'support/three_protocol_cases.dart';
 
@@ -190,7 +191,7 @@ void main() {
         () => threeProtocolDecoder.decodeR1(threeR1(const [], version: 0)),
       );
       threeBad(
-        () => threeProtocolDecoder.decodeR1(threeR1(const [], version: 11)),
+        () => threeProtocolDecoder.decodeR1(threeR1(const [], version: 12)),
       );
       threeBad(
         () => threeProtocolDecoder.decodeR1(threeR1(const [], flags: 1)),
@@ -1200,11 +1201,114 @@ void main() {
       );
     });
 
-    test('latestR1Version is 10', () {
-      expect(JsThreeProtocolDecoder.latestR1Version, 10);
+    test(
+      'R1 v11 decodes and retains paired skin attributes and node bones',
+      () {
+        const positions = <double>[0, 0, 0, 1, 0, 0, 0, 1, 0];
+        const indices = <double>[0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+        const weights = <double>[1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0];
+        const bones = <double>[1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 2, 0, 0, 1];
+        drawBytes() => draw_bytes.r1Geometry(
+          1,
+          version: 1,
+          primitive: JsThreePrimitive.triangles,
+          positions: positions,
+          normals: null,
+          uvs: null,
+          colors: null,
+          indices: const [],
+          skinIndices: indices,
+          skinWeights: weights,
+        );
+        final store = JsThreeStateStore();
+        store.apply(
+          threeT1(
+            threeR1([
+              (1, drawBytes()),
+              (
+                4,
+                draw_bytes.r1Node(
+                  2,
+                  geometryId: 1,
+                  materialId: 1,
+                  objectKind: JsThreeObjectKind.mesh,
+                  extendedLayout: true,
+                  skinBoneMatrices: bones,
+                ),
+              ),
+            ], version: 11),
+          ),
+        );
+        final surface = store.surface('engine', 'surface')!;
+        expect(surface.geometries[1]!.skinIndices, orderedEquals(indices));
+        expect(surface.geometries[1]!.skinWeights, orderedEquals(weights));
+        expect(surface.nodes[2]!.skinBoneCount, 1);
+        expect(surface.nodes[2]!.skinBoneMatrices, orderedEquals(bones));
+
+        store.apply(
+          threeT1(
+            threeR1([
+              (
+                1,
+                draw_bytes.r1Geometry(
+                  1,
+                  version: 2,
+                  primitive: JsThreePrimitive.triangles,
+                  positions: const [0, 0, 1, 1, 0, 1, 0, 1, 1],
+                  normals: null,
+                  uvs: null,
+                  colors: null,
+                  indices: const [],
+                  retainUnchanged: true,
+                ),
+              ),
+            ], version: 11),
+            sequence: 2,
+          ),
+        );
+        expect(surface.geometries[1]!.positions[2], 1);
+        expect(surface.geometries[1]!.skinIndices, orderedEquals(indices));
+        expect(surface.geometries[1]!.skinWeights, orderedEquals(weights));
+        expect(surface.geometries[1]!.attributeMask & 0x30, 0x30);
+
+        threeBad(
+          () => threeProtocolDecoder.decodeR1(
+            threeR1([(1, drawBytes())], version: 10),
+          ),
+        );
+        threeBad(
+          () => threeProtocolDecoder.decodeR1(
+            threeR1([
+              (
+                1,
+                draw_bytes.r1Geometry(
+                  1,
+                  version: 1,
+                  primitive: JsThreePrimitive.triangles,
+                  positions: positions,
+                  normals: null,
+                  uvs: null,
+                  colors: null,
+                  indices: const [],
+                  skinIndices: const [1.5, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+                  skinWeights: weights,
+                ),
+              ),
+            ], version: 11),
+          ),
+        );
+      },
+    );
+
+    test('latestR1Version is 11 and v10 remains decodable', () {
+      expect(JsThreeProtocolDecoder.latestR1Version, 11);
       expect(
         threeProtocolDecoder.decodeR1(threeR1(const [], version: 10)).version,
         10,
+      );
+      expect(
+        threeProtocolDecoder.decodeR1(threeR1(const [], version: 11)).version,
+        11,
       );
     });
   });

@@ -5,6 +5,7 @@ import 'dart:isolate';
 import 'package:flutter/foundation.dart';
 import 'package:js_widget_runtime/src/defaults/vm_default_handlers.dart';
 import 'package:js_widget_runtime/src/model/js_runtime_config.dart';
+import 'package:js_widget_runtime/src/renderer/nodes/three/three_line_walk_native.dart';
 import 'package:js_widget_runtime/src/renderer/nodes/three/three_morph_native.dart';
 import 'package:js_widget_runtime/src/renderer/nodes/three/three_skinning_native.dart';
 import 'package:js_widget_runtime/src/runtime/js_widget_bootstrap.dart';
@@ -687,6 +688,48 @@ final class _QuickJsWorker {
     );
   }
 
+  void _registerByteLanes(QuickjsRuntime runtime) {
+    if (!runtime.hasBytesFn) return;
+    runtime.registerHostBytesFn('__jsrSkinBytes', (name, data) {
+      if (name == 'three.skin') applyThreeSkinningPacket(data);
+    });
+    // CPU morph-target fast lane: mirrors the main-isolate wiring in
+    // js_widget_engine_quickjs.dart. The isolate port crosses a COPY for
+    // __jsrSendBytes, but the morph packet must mutate in place for the
+    // JS readback contract — keep the morph lane registered only where
+    // the bytes fn is synchronous (this VM's registerHostBytesFn is).
+    runtime.registerHostBytesFn('__jsrMorphBytes', (name, data) {
+      if (name == 'three.morph') applyThreeMorphPacket(data);
+    });
+    final lineWalk = ThreeLineWalkNative();
+    runtime.registerHostBytesFn('__jsrLineWalkBytes', (name, data) {
+      if (name == 'three.lineWalk') lineWalk.apply(data);
+      if (name == 'three.linePositions') applyThreeLinePositionsPacket(data);
+    });
+    runtime.registerHostBytesFn('__jsrSendBytes', (name, data) {
+      _mainPort.send({
+        'type': 'binary',
+        'generation': _generation,
+        'name': name,
+        'bytes': Uint8List.fromList(data),
+      });
+    });
+    // Warm-asset resolve lane: JS preallocates the array and this fills
+    // the call-scoped view from the bytes that crossed with the resolve
+    // message — no base64 literal is ever parsed in QuickJS. See
+    // _resolveWithWarmBytes on the main isolate and __jsrWarmResolve in
+    // the bootstrap.
+    runtime.registerHostBytesFn('__jsrWarmFill', (name, data) {
+      final pending = _warmPending.remove(name);
+      if (pending == null || data.isEmpty) return;
+      data.setRange(
+        0,
+        pending.length < data.length ? pending.length : data.length,
+        pending,
+      );
+    });
+  }
+
   void _run(Map<dynamic, dynamic> raw) {
     // BOOT PROBE (debug only): QuickJS runtime creation + full widget eval
     // (prepared widgets inline the whole three bundle — ~600KB per module).
@@ -725,41 +768,7 @@ final class _QuickJsWorker {
     //     variant is what raced the marker above). The b64 lane measured
     //     ~40ms/frame just to encode an 868KB envelope in QuickJS; the copy
     //     crossing the port costs well under a millisecond.
-    if (runtime.hasBytesFn) {
-      runtime.registerHostBytesFn('__jsrSkinBytes', (name, data) {
-        if (name == 'three.skin') applyThreeSkinningPacket(data);
-      });
-      // CPU morph-target fast lane: mirrors the main-isolate wiring in
-      // js_widget_engine_quickjs.dart. The isolate port crosses a COPY for
-      // __jsrSendBytes, but the morph packet must mutate in place for the
-      // JS readback contract — keep the morph lane registered only where
-      // the bytes fn is synchronous (this VM's registerHostBytesFn is).
-      runtime.registerHostBytesFn('__jsrMorphBytes', (name, data) {
-        if (name == 'three.morph') applyThreeMorphPacket(data);
-      });
-      runtime.registerHostBytesFn('__jsrSendBytes', (name, data) {
-        _mainPort.send({
-          'type': 'binary',
-          'generation': _generation,
-          'name': name,
-          'bytes': Uint8List.fromList(data),
-        });
-      });
-      // Warm-asset resolve lane: JS preallocates the array and this fills
-      // the call-scoped view from the bytes that crossed with the resolve
-      // message — no base64 literal is ever parsed in QuickJS. See
-      // _resolveWithWarmBytes on the main isolate and __jsrWarmResolve in
-      // the bootstrap.
-      runtime.registerHostBytesFn('__jsrWarmFill', (name, data) {
-        final pending = _warmPending.remove(name);
-        if (pending == null || data.isEmpty) return;
-        data.setRange(
-          0,
-          pending.length < data.length ? pending.length : data.length,
-          pending,
-        );
-      });
-    }
+    _registerByteLanes(runtime);
     runtime.setGlobal('__IID', raw['instanceId']);
     runtime.setGlobal('__JSR_RAW_BINARY__', nativeBytes);
     _mainPort.send({

@@ -4,6 +4,8 @@ in vec3 position;
 in vec3 normal;
 in vec2 uv;
 in vec4 color;
+in vec4 skinIndex;
+in vec4 skinWeight;
 in vec4 instanceModel0;
 in vec4 instanceModel1;
 in vec4 instanceModel2;
@@ -42,6 +44,38 @@ uniform VertexInfo {
   vec4 spriteParams;
 } vertex_info;
 
+// R1 v11: final bind-space bone matrices, equivalent to the native CPU
+// skinning B_i = bindMatrixInverse * boneMatrix_i * bindMatrix. params.x is
+// the active bone count; zero selects the ordinary rigid-mesh branch.
+uniform SkinInfo {
+  mat4 bones[91];
+  vec4 params;
+} skin_info;
+
+void jsrSkinPositionNormal(out vec3 skinnedPosition, out vec3 skinnedNormal) {
+  if (skin_info.params.x < 0.5) {
+    skinnedPosition = position;
+    skinnedNormal = normal;
+    return;
+  }
+  ivec4 indices = ivec4(skinIndex + vec4(0.5));
+  mat4 bone0 = skin_info.bones[indices.x];
+  mat4 bone1 = skin_info.bones[indices.y];
+  mat4 bone2 = skin_info.bones[indices.z];
+  mat4 bone3 = skin_info.bones[indices.w];
+  vec4 sourcePosition = vec4(position, 1.0);
+  skinnedPosition = skinWeight.x * (bone0 * sourcePosition).xyz +
+      skinWeight.y * (bone1 * sourcePosition).xyz +
+      skinWeight.z * (bone2 * sourcePosition).xyz +
+      skinWeight.w * (bone3 * sourcePosition).xyz;
+  vec3 blendedNormal = skinWeight.x * (bone0 * vec4(normal, 0.0)).xyz +
+      skinWeight.y * (bone1 * vec4(normal, 0.0)).xyz +
+      skinWeight.z * (bone2 * vec4(normal, 0.0)).xyz +
+      skinWeight.w * (bone3 * vec4(normal, 0.0)).xyz;
+  float normalLength = length(blendedNormal);
+  skinnedNormal = normalLength > 0.0 ? blendedNormal / normalLength : vec3(0.0);
+}
+
 // R1 v7 MeshDepthMaterial: recover (near, far) from the column-major
 // projection matrix. Perspective (projection[2][3] = -1): m[2][2] =
 // (f+n)/(n-f), m[3][2] = 2fn/(n-f), so near = B/(A-1), far = B/(A+1).
@@ -66,6 +100,9 @@ void main() {
     gl_PointSize = 0.0;
     return;
   }
+  vec3 skinnedPosition;
+  vec3 skinnedNormal;
+  jsrSkinPositionNormal(skinnedPosition, skinnedNormal);
   mat4 instanceModel = mat4(
     instanceModel0,
     instanceModel1,
@@ -73,7 +110,7 @@ void main() {
     instanceModel3
   );
   mat4 worldModel = vertex_info.model * instanceModel;
-  vec4 world = worldModel * vec4(position, 1.0);
+  vec4 world = worldModel * vec4(skinnedPosition, 1.0);
 
   // R1 v5 point-light shadow pass: dual-paraboloid warp. The classic
   // Heidrich/Seidel projection — a ray from the light origin maps to the
@@ -90,7 +127,7 @@ void main() {
     vec2 disk = vec2(lightSpace.x, sign_ * lightSpace.y) / denominator;
     gl_Position = vec4(disk, length_ * vertex_info.shadowNormalBiasReserved.w, 1.0);
     worldPosition = world.xyz;
-    worldNormal = normal;
+    worldNormal = skinnedNormal;
     viewNormal = vec3(0.0);
     viewPosition = vec3(0.0);
     materialState = vec2(0.0);
@@ -104,7 +141,7 @@ void main() {
   }
 
   worldPosition = world.xyz;
-  worldNormal = mat3(transpose(inverse(worldModel))) * normal;
+  worldNormal = mat3(transpose(inverse(worldModel))) * skinnedNormal;
   viewNormal = mat3(vertex_info.view) * worldNormal;
   materialState = vertex_info.pointSize.zw;
   if (materialState.x > 0.5 && materialState.x < 1.5) {

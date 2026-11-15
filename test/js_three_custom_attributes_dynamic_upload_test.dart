@@ -20,11 +20,16 @@ import 'support/three_quickjs_example_harness.dart';
 
 const _timeout = Timeout(Duration(seconds: 180));
 
-Future<ThreeQuickjsExampleHarness> _boot(WidgetTester tester, String id) async {
+Future<ThreeQuickjsExampleHarness> _boot(
+  WidgetTester tester,
+  String id, {
+  String? sourcePrelude,
+}) async {
   final harness = await ThreeQuickjsExampleHarness.boot(
     tester,
     widgetId: id,
     instanceId: '$id-dynamic-upload-test',
+    sourcePrelude: sourcePrelude,
   );
   // Let boot settle (font load, first adapted frame), then snapshot.
   await pumpThreeExampleHealthy(
@@ -118,7 +123,28 @@ void main() {
   testWidgets(
     'custom-attributes lines re-encodes positions but not the static colors',
     (tester) async {
-      final harness = await _boot(tester, 'three-custom-attributes-lines');
+      final harness = await _boot(
+        tester,
+        'three-custom-attributes-lines',
+        sourcePrelude: '''
+globalThis.__jsrLineWalkNativeCalls = 0;
+globalThis.__jsrLinePositionNativeCalls = 0;
+jsr.onKey(function() {
+  jsr.exportState({
+    calls: globalThis.__jsrLineWalkNativeCalls,
+    positionCalls: globalThis.__jsrLinePositionNativeCalls
+  });
+});
+if (typeof globalThis.__jsrLineWalkBytes === 'function') {
+  var nativeLineWalk = globalThis.__jsrLineWalkBytes;
+  globalThis.__jsrLineWalkBytes = function(name, data) {
+    if (name === 'three.lineWalk') globalThis.__jsrLineWalkNativeCalls++;
+    if (name === 'three.linePositions') globalThis.__jsrLinePositionNativeCalls++;
+    return nativeLineWalk(name, data);
+  };
+}
+''',
+      );
       final state = harness.state!;
       expect(state.geometries, hasLength(1));
       final first = state.geometries.values.single;
@@ -171,6 +197,17 @@ void main() {
         state2.geometries,
         hasLength(1),
         reason: 'the adapted geometry id must stay stable across frames',
+      );
+      harness.backend.dispatchHostEvent('key', {'key': 'a', 'down': true});
+      expect(
+        harness.engine.exportedState?['calls'],
+        greaterThan(0),
+        reason: 'the prepared example must use the synchronous native walk',
+      );
+      expect(
+        harness.engine.exportedState?['positionCalls'],
+        greaterThan(0),
+        reason: 'the custom vertex field must use the native position lane',
       );
       await harness.dispose(tester);
     },

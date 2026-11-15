@@ -46,6 +46,7 @@ void _bindThreeDrawUniforms(
       ),
     ),
   );
+  _bindThreeSkinUniform(backend, pass, draw);
   pass.bindUniform(slots.frame, frameUniform);
   pass.bindUniform(slots.lights, lightsUniform);
   pass.bindUniform(
@@ -125,6 +126,19 @@ void _bindThreeDrawUniforms(
     slots.metalnessMap,
     metalnessBinding.texture,
     sampler: metalnessBinding.sampler(),
+  );
+}
+
+void _bindThreeSkinUniform(
+  FlutterGpuThreeBackend backend,
+  gpu.RenderPass pass,
+  ThreeDrawItem draw,
+) {
+  _bindThreeUniform(
+    backend,
+    pass,
+    backend._vertexShader.getUniformSlot('SkinInfo'),
+    _threeSkinUniform(draw),
   );
 }
 
@@ -213,6 +227,23 @@ ByteData _threeVertexUniform(
     draw.node.spriteCenterX,
     draw.node.spriteCenterY,
     sprite ? 1 : 0,
+  ]);
+  return data;
+}
+
+ByteData _threeSkinUniform(ThreeDrawItem draw) {
+  // Impeller rounds the reflected uniform block to a 64-byte boundary. The
+  // params vec4 still starts immediately after the 91 matrices at byte 5824;
+  // bytes 5840..5887 are required trailing block padding.
+  final data = ByteData(maxThreeSkinBones * 64 + 64);
+  final matrices = draw.node.skinBoneMatrices;
+  if (matrices == null) return data;
+  _writeFloats(data, 0, matrices);
+  _writeFloats(data, maxThreeSkinBones * 64, [
+    draw.node.skinBoneCount.toDouble(),
+    0,
+    0,
+    0,
   ]);
   return data;
 }
