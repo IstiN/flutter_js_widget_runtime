@@ -43,9 +43,12 @@ const result = await build({
 const nativeBytes = result.outputFiles[0].text;
 
 function createHost() {
+  const r1Packets = [];
   const jsr = {
     instanceId: 'skin-cull-memo-test',
-    hostCallBinary() {},
+    hostCallBinary(name, data) {
+      if (name === 'three.r1') r1Packets.push(data.slice());
+    },
     async hostCall() { throw new Error('unexpected host call'); },
     render() {},
     requestAnimationFrame() { return 1; },
@@ -53,10 +56,10 @@ function createHost() {
   };
   const context = vm.createContext({ jsr, console, TextEncoder, TextDecoder, sendMessage() {}, setTimeout, clearTimeout });
   vm.runInContext(nativeBytes, context, { filename: 'skin-cull-memo-test.js' });
-  return { THREE: context.THREE, jsr };
+  return { THREE: context.THREE, jsr, r1Packets };
 }
 
-const { THREE, jsr } = createHost();
+const { THREE, jsr, r1Packets } = createHost();
 
 function skinnedScene() {
   const canvas = jsr.three.createCanvas('main');
@@ -115,4 +118,69 @@ await test('cull sphere refresh is memoized per attribute version', async () => 
   renderer.render(scene, camera);
   assert.notEqual(mesh._r1CullSphereMemo, memo2,
     'a new pose change must refresh the cull memo again');
+});
+
+await test('multi-material skinned parts retain bind geometry and share GPU bones', async () => {
+  const { renderer, scene, camera, mesh, bone } = skinnedScene();
+  const vertexCount = 4098; // Above the GPU lane's large-mesh threshold; divisible into triangles.
+  const positions = new Float32Array(vertexCount * 3);
+  const normals = new Float32Array(vertexCount * 3);
+  const indices = new Float32Array(vertexCount * 4);
+  const weights = new Float32Array(vertexCount * 4);
+  for (let vertex = 0; vertex < vertexCount; vertex++) {
+    positions[vertex * 3] = (vertex % 100) * 0.01;
+    positions[vertex * 3 + 1] = Math.floor(vertex / 100) * 0.01;
+    normals[vertex * 3 + 2] = 1;
+    weights[vertex * 4] = 1;
+  }
+  const geometry = new THREE.BufferGeometry();
+  geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+  geometry.setAttribute('normal', new THREE.BufferAttribute(normals, 3));
+  geometry.setAttribute('skinIndex', new THREE.BufferAttribute(indices, 4));
+  geometry.setAttribute('skinWeight', new THREE.BufferAttribute(weights, 4));
+  geometry.addGroup(0, 2049, 0);
+  geometry.addGroup(2049, 2049, 1);
+  mesh.geometry = geometry;
+  mesh.material = [new THREE.MeshStandardMaterial(), new THREE.MeshStandardMaterial()];
+  const bindPose = positions.slice();
+
+  renderer.render(scene, camera);
+  await Promise.resolve(); // Flush the per-task R1 envelope.
+  bone.position.set(3, 0, 0);
+  renderer.render(scene, camera);
+  await Promise.resolve();
+
+  assert.equal(renderer.info.render.calls, 2, 'both material groups remain separate draw parts');
+  assert.equal(mesh._r1GpuSkin.length, 16, 'the shared node must publish one bone matrix');
+  assert.equal(mesh._r1GpuSkin[12], 3, 'the GPU matrix must contain the animated pose');
+  assert.equal(geometry.attributes.position.version, 0, 'GPU skinning must not rewrite positions');
+  assert.equal(geometry.attributes.normal.version, 0, 'GPU skinning must not rewrite normals');
+  assert.deepEqual(geometry.attributes.position.array, bindPose,
+    'every multi-material part must read the immutable bind pose');
+
+  // Batch nodes have geometryId 0. Their NODE command must nevertheless carry
+  // the shared skeleton tail; otherwise every material part decodes as rigid.
+  const skinNodes = [];
+  for (const packet of r1Packets) {
+    const view = new DataView(packet.buffer, packet.byteOffset, packet.byteLength);
+    const payload = view.getUint16(6, true);
+    const commandCount = view.getUint32(payload + 8, true);
+    let offset = payload + 12;
+    for (let command = 0; command < commandCount; command++) {
+      const opcode = view.getUint8(offset);
+      const length = view.getUint32(offset + 4, true);
+      const body = offset + 8;
+      if (opcode === 4 && length > 104) {
+        skinNodes.push({
+          geometryId: view.getUint32(body + 8, true),
+          boneCount: view.getUint32(body + 104, true),
+          translationX: view.getFloat32(body + 108 + 12 * 4, true)
+        });
+      }
+      offset = body + length;
+    }
+  }
+  assert.deepEqual(skinNodes[skinNodes.length - 1],
+    { geometryId: 0, boneCount: 1, translationX: 3 },
+    'the zero-geometry batch node must publish its animated GPU bone matrix');
 });

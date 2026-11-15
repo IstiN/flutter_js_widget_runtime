@@ -44,6 +44,21 @@ int _sceneSignature(ThreeDrawPlan plan) {
   return hash;
 }
 
+int _nodeSkinPoseSignature(ThreeDrawPlan plan, int nodeId) {
+  var hash = 0x811c9dc5;
+  for (final draw in plan.draws) {
+    if (draw.node.nodeId != nodeId) continue;
+    final matrices = draw.node.skinBoneMatrices;
+    if (matrices == null) continue;
+    for (final value in matrices) {
+      hash = (hash ^ value.hashCode) * 0x01000193;
+      hash &= 0x7fffffff;
+    }
+    break; // Every material part of this node carries the same matrices.
+  }
+  return hash;
+}
+
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
   if (!hasQuickjsNativeLib) return;
@@ -137,14 +152,20 @@ void main() {
       );
       expect(assetControl()['value'], name);
       if (name == 'morph_test') {
-        final gui = harness.engine.exportedState!['gui'] as Map<String, dynamic>;
+        final gui =
+            harness.engine.exportedState!['gui'] as Map<String, dynamic>;
         final morphControls = (gui['values'] as List<dynamic>)
             .cast<Map<String, dynamic>>()
-            .where((value) =>
-                value['kind'] == 'number' && value['folder'] != 'Morphs')
+            .where(
+              (value) =>
+                  value['kind'] == 'number' && value['folder'] != 'Morphs',
+            )
             .toList();
-        expect(morphControls, isNotEmpty,
-            reason: 'nested mesh folders must expose their morph sliders');
+        expect(
+          morphControls,
+          isNotEmpty,
+          reason: 'nested mesh folders must expose their morph sliders',
+        );
         for (final control in morphControls) {
           expect(
             _treeContainsAction(
@@ -168,6 +189,54 @@ void main() {
             .singleWhere((value) => value['action'] == control['action']);
         expect(updated['value'], closeTo(0.73, 0.00001));
         expect(updatedGui['changes'], greaterThan(beforeChanges));
+      }
+      if (name == 'Head_69') {
+        // One 215,931-vertex SkinnedMesh is partitioned into 266 material
+        // parts. Every part must consume the same node-level GPU bone pose;
+        // the old multi-material exclusion CPU-skinned all 25 bones and
+        // re-uploaded 5,182,344 position/normal bytes on every frame.
+        final headDraws = harness.plan!.draws
+            .where((draw) => draw.geometry.vertexCount == 215931)
+            .toList();
+        expect(headDraws, hasLength(266));
+        expect(
+          headDraws.every((draw) => draw.node.skinBoneCount == 25),
+          isTrue,
+          reason: 'all Head_69 material parts must retain GPU skinning',
+        );
+        expect(
+          headDraws.every(
+            (draw) =>
+                draw.geometry.skinIndices != null &&
+                draw.geometry.skinWeights != null,
+          ),
+          isTrue,
+          reason: 'GPU draws must read immutable bind-pose skin attributes',
+        );
+        final headNodeId = headDraws.first.node.nodeId;
+        expect(
+          headDraws.every((draw) => draw.node.nodeId == headNodeId),
+          isTrue,
+        );
+        final firstPose = _nodeSkinPoseSignature(harness.plan!, headNodeId);
+        await harness.pumpUntil(
+          tester,
+          (state, plan) =>
+              _nodeSkinPoseSignature(plan, headNodeId) != firstPose,
+          attempts: 100,
+        );
+        expect(
+          _nodeSkinPoseSignature(harness.plan!, headNodeId),
+          isNot(firstPose),
+          reason: 'Head_69 bone uniforms must continue animating',
+        );
+        final settledUploads = harness.state!.geometryUploadCount;
+        await harness.pumpFrames(tester, 5);
+        expect(
+          harness.state!.geometryUploadCount,
+          settledUploads,
+          reason: 'animated bone poses must not re-upload Head_69 geometry',
+        );
       }
       await harness.pumpFrames(tester, 3);
     }

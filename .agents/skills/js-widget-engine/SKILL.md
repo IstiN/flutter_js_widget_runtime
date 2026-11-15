@@ -150,9 +150,11 @@ identity lives in `ThreeUpstreamBundle`, `tool/three/source-pin.json` and
   Native prepared 3D LUTs use bounded post-pass opcode 17; `.CUBE`, `.3dl`
   and PNG LUTs retain their official controls and analytical LUT identity.
 - R1 v11 retains bind-pose geometry/skin attributes and sends animated bone
-  matrices for supported large, single-material, non-morph meshes (at most
-  91 bones). The vertex shader applies the full bind-matrix chain to position
-  and normal; small/morph/shader/unsupported meshes keep exact CPU skinning.
+  matrices for supported large, non-morph meshes (at most 91 bones), including
+  multi-material meshes whose DRAW_BATCH parts share one node-level pose;
+  their batch node legitimately has geometryId 0. The vertex shader applies
+  the full bind-matrix chain to position and normal;
+  small/morph/shader/unsupported meshes keep exact CPU skinning.
   Dart per-node dedup MUST compare `skinBoneMatrices` alongside `matrixWorld`:
   an unchanged rigid transform does not imply an unchanged animated pose.
   Vertex stride is 80 bytes. Impeller's reflected `SkinInfo` is 5888 bytes:

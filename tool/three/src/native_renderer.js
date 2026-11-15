@@ -4072,7 +4072,9 @@ export class JsrWebGLRenderer {
     const castShadow = object.castShadow === true && !object.isSprite;
     const receiveShadow = object.receiveShadow === true && !object.isSprite;
     const old = this._state.nodes.get(id);
-    const skinBoneMatrices = geometryId !== 0 ? (object._r1GpuSkin || null) : null;
+    // Multi-material/instanced batch nodes intentionally have geometryId 0;
+    // their draw parts still consume this node's GPU skeleton pose.
+    const skinBoneMatrices = object._r1GpuSkin || null;
     const unchanged = old && old.parentId === parentId &&
       old.geometryId === geometryId && old.materialId === materialId &&
       old.visible === visible && old.objectKind === objectKind &&
@@ -4504,8 +4506,9 @@ export class JsrWebGLRenderer {
 
   /// Skeletal animation: B_i = bindMatrixInverse * boneMatrix_i * bindMatrix.
   /// Supported large, non-morph meshes retain bind-pose vertices and evaluate
-  /// that weighted blend in the vertex shader. Morph/oversized/unsupported
-  /// lanes keep the exact CPU implementation below as a compatibility path.
+  /// that weighted blend in the vertex shader. Multi-material parts share the
+  /// same node-level matrices. Morph/oversized/shader lanes keep the exact CPU
+  /// implementation below as a compatibility path.
   _applySkining(object) {
     const geometry = object.geometry;
     const skeleton = object.skeleton;
@@ -4526,6 +4529,16 @@ export class JsrWebGLRenderer {
     const skinWeight = geometry.attributes.skinWeight;
     const morphKey = geometry._r1MorphBase ? geometry._r1MorphBase.key : '';
     const material = object.material;
+    // Multi-material meshes still share ONE node and one skeleton: the R1
+    // batch planner only partitions their geometry groups into draw parts.
+    // Keeping them on the CPU lane is pathological for assets such as FBX
+    // Head_69 (215,931 vertices, 25 bones, 44 materials / 266 groups): every
+    // animation frame re-skinned and re-uploaded 5,182,344 bytes of positions
+    // and normals. Every part can consume the same node-level bone matrices,
+    // provided none of the materials requires an adapted shader draw lane.
+    const gpuMaterialsCompatible = Array.isArray(material)
+      ? material.every(item => item && !item.isShaderMaterial && !item.isRawShaderMaterial)
+      : !!material && !material.isShaderMaterial && !material.isRawShaderMaterial;
     const gpuEligible = boneCount > 0 && boneCount <= MAX_SKIN_BONES &&
       position.count >= 4096 && position.itemSize === 3 && !!position.array &&
       !!geometry.attributes.normal && geometry.attributes.normal.itemSize === 3 &&
@@ -4535,7 +4548,7 @@ export class JsrWebGLRenderer {
       !geometry._r1MorphBase && !object.morphTexture &&
       !(geometry.morphAttributes.position && geometry.morphAttributes.position.length) &&
       !(geometry.morphAttributes.normal && geometry.morphAttributes.normal.length) &&
-      !Array.isArray(material) && !material.isShaderMaterial && !material.isRawShaderMaterial;
+      gpuMaterialsCompatible;
     object._r1GpuSkin = null;
     let cache = object._r1SkinCache;
     if (!cache || cache.boneMatrices.length !== boneCount * 16) {
@@ -5760,6 +5773,9 @@ export class JsrWebGLRenderer {
 
   _ensureNode(object, parentId, commands, drawVisible) {
     const id = resourceId(object);
+    // Early no-draw returns must not retain a previous frame's bone payload;
+    // the supported skinning lane repopulates it below for the current draw.
+    if (object.isSkinnedMesh) object._r1GpuSkin = null;
     // Fast path for many-object scenes (e.g. webgl_interactive_cubes' 2000
     // unit boxes with one material each): an unchanged plain mesh reuses the
     // cached geometry/material ids and draw descriptor instead of re-running

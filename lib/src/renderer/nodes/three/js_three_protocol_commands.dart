@@ -648,6 +648,8 @@ final class JsThreeNodeUpsert extends JsThreeCommand {
   final double renderOrder;
 
   /// R1 v11 final bind-space bone matrices; null for ordinary/CPU-skinned nodes.
+  /// Multi-material batch nodes carry these even with geometryId 0: every
+  /// DRAW_BATCH part reads the same skeleton pose from this node.
   final Float32List? skinBoneMatrices;
   int get skinBoneCount => (skinBoneMatrices?.length ?? 0) ~/ 16;
 

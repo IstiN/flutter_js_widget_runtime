@@ -1297,6 +1297,30 @@ void main() {
         expect(surface.geometries[1]!.skinWeights, orderedEquals(weights));
         expect(surface.geometries[1]!.attributeMask & 0x30, 0x30);
 
+        // Multi-material batch nodes deliberately have no direct geometry or
+        // material ids; their DRAW_BATCH parts still consume the node pose.
+        store.apply(
+          threeT1(
+            threeR1([
+              (
+                4,
+                draw_bytes.r1Node(
+                  3,
+                  geometryId: 0,
+                  materialId: 0,
+                  objectKind: JsThreeObjectKind.mesh,
+                  extendedLayout: true,
+                  skinBoneMatrices: movingBones,
+                ),
+              ),
+            ], version: 11),
+            sequence: 5,
+          ),
+        );
+        expect(surface.nodes[3]!.geometryId, 0);
+        expect(surface.nodes[3]!.skinBoneCount, 1);
+        expect(surface.nodes[3]!.skinBoneMatrices, orderedEquals(movingBones));
+
         threeBad(
           () => threeProtocolDecoder.decodeR1(
             threeR1([(1, drawBytes())], version: 10),

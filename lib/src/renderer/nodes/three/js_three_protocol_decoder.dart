@@ -425,12 +425,7 @@ final class JsThreeProtocolDecoder {
         (geometryId == 0 || materialId == 0)) {
       body.fail('sprite node requires geometry and material ids');
     }
-    final skinBoneMatrices = _readNodeSkin(
-      body,
-      streamVersion,
-      geometryId,
-      kind,
-    );
+    final skinBoneMatrices = _readNodeSkin(body, streamVersion, kind);
     return JsThreeNodeUpsert._(
       nodeId: id,
       parentId: parentId,
@@ -450,14 +445,14 @@ final class JsThreeProtocolDecoder {
   Float32List? _readNodeSkin(
     _Reader body,
     int streamVersion,
-    int geometryId,
     JsThreeObjectKind kind,
   ) {
     if (body.remaining == 0) return null;
-    if (streamVersion < 11 ||
-        geometryId == 0 ||
-        kind != JsThreeObjectKind.mesh) {
-      body.fail('skin matrices require an R1 v11 drawable mesh node');
+    // Batch nodes carry geometryId 0 because their geometry/material pairs
+    // live in DRAW_BATCH parts. Their SkinnedMesh parts still share this
+    // node's bone matrices, so only the mesh-kind check applies here.
+    if (streamVersion < 11 || kind != JsThreeObjectKind.mesh) {
+      body.fail('skin matrices require an R1 v11 mesh node');
     }
     final boneCount = body.u32('skin bone count');
     if (boneCount == 0 || boneCount > maxThreeSkinBones) {
