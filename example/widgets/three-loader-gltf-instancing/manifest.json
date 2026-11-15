@@ -1,8 +1,8 @@
 {
   "id": "three-loader-gltf-instancing",
   "name": "GLTFloader + Instancing — three.js r186",
-  "description": "Unmodified official webgl_loader_gltf_instancing module on the JSR THREE R1/WebGL2 runtime.",
-  "version": "0.1.0",
+  "description": "Official instancing with the unsupported white emissive-map contribution explicitly omitted on JSR THREE R1.",
+  "version": "0.1.1",
   "icon": "🧊",
   "allowedCommands": [],
   "network": false,

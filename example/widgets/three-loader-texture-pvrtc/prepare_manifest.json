@@ -43,6 +43,59 @@
       "sha256": "26a9bb477d8b4f941d42c44c5918cf1210e0ce104a5d082dc542e25ac0603f49"
     }
   },
+  "assetPolicy": {
+    "inlineMaxBytes": 0,
+    "externalAssets": [
+      {
+        "url": "textures/compressed/disturb_2bpp_rgb.pvr",
+        "file": "textures__compressed__disturb_2bpp_rgb.pvr",
+        "bytes": 262239,
+        "sha256": "11530f27c32d22df3ea65772ad33546eacc98ced6c0862a8f0123203b590285d"
+      },
+      {
+        "url": "textures/compressed/disturb_4bpp_rgb_mips.pvr",
+        "file": "textures__compressed__disturb_4bpp_rgb_mips.pvr",
+        "bytes": 262239,
+        "sha256": "91404c92909dd31789c44c389191861bb2d5c5ccd5007aeb4c57949d06d176fd"
+      },
+      {
+        "url": "textures/compressed/disturb_4bpp_rgb_v3.pvr",
+        "file": "textures__compressed__disturb_4bpp_rgb_v3.pvr",
+        "bytes": 262239,
+        "sha256": "91404c92909dd31789c44c389191861bb2d5c5ccd5007aeb4c57949d06d176fd"
+      },
+      {
+        "url": "textures/compressed/disturb_4bpp_rgb.pvr",
+        "file": "textures__compressed__disturb_4bpp_rgb.pvr",
+        "bytes": 262239,
+        "sha256": "91404c92909dd31789c44c389191861bb2d5c5ccd5007aeb4c57949d06d176fd"
+      },
+      {
+        "url": "textures/compressed/flare_2bpp_rgba.pvr",
+        "file": "textures__compressed__flare_2bpp_rgba.pvr",
+        "bytes": 262239,
+        "sha256": "02cc55d5be15e7569cabfbbe49e8c0488da420bd5e0d7bef90e6ea648a5d13fb"
+      },
+      {
+        "url": "textures/compressed/flare_4bpp_rgba.pvr",
+        "file": "textures__compressed__flare_4bpp_rgba.pvr",
+        "bytes": 262239,
+        "sha256": "fbfb1b5f72d7b2170c8c0322ed04cb05704206b7b7d065eb327876901371fd93"
+      },
+      {
+        "url": "textures/compressed/park3_cube_mip_2bpp_rgb_v3.pvr",
+        "file": "textures__compressed__park3_cube_mip_2bpp_rgb_v3.pvr",
+        "bytes": 1572958,
+        "sha256": "f617010f1775dff43616e782411af786b337a719db85edf249a891bc4e569f84"
+      },
+      {
+        "url": "textures/compressed/park3_cube_nomip_4bpp_rgb.pvr",
+        "file": "textures__compressed__park3_cube_nomip_4bpp_rgb.pvr",
+        "bytes": 1572958,
+        "sha256": "cbe3df237d79b337e531a5d0387891757e2ec50698d52fbe0a5edef3e992bf26"
+      }
+    ]
+  },
   "facade": {
     "global": "globalThis.THREE",
     "exports": [
@@ -509,8 +562,8 @@
   },
   "inputs": {
     "assets/three/jsr_three_native.js": {
-      "bytes": 886541,
-      "sha256": "0a24a3d38e96fe453a7c0a042473bc59b9df8d2c9e577461f0f90710049bef55"
+      "bytes": 891641,
+      "sha256": "069763ef65451ac400ae9fd50119a7824eb0af93a0737f93f877805e6e4095f4"
     },
     "assets/three/jsr_three_web.js": {
       "bytes": 859738,
@@ -520,9 +573,37 @@
       "bytes": 1081,
       "sha256": "8b378ebe60e2fe500158cb0ac71cb5e8b7d92953c2abcc63a0eb90499653b5bc"
     },
-    "source/examples/jsm/loaders/PVRLoader.js": {
-      "bytes": 5411,
-      "sha256": "4e61e0da18ccd3b3aee323320c44270a0eb1b52abf68bf364dfee6ac5fe676ec"
+    "source/examples/textures/compressed/disturb_2bpp_rgb.pvr": {
+      "bytes": 16436,
+      "sha256": "ae1e03edd495975a2c877e1d9671d7c08e27d26e31a8385aac2a8de0c6a53a13"
+    },
+    "source/examples/textures/compressed/disturb_4bpp_rgb.pvr": {
+      "bytes": 32820,
+      "sha256": "de2f102990ef66d5cc33bc982f3af21ade3e70d97670a5f17aa2300c1cb8f114"
+    },
+    "source/examples/textures/compressed/disturb_4bpp_rgb_mips.pvr": {
+      "bytes": 43828,
+      "sha256": "218679d885a8499ef666dc5fbdb7250c3b9126b2ffc0437ec3aa77ac926a3756"
+    },
+    "source/examples/textures/compressed/disturb_4bpp_rgb_v3.pvr": {
+      "bytes": 32859,
+      "sha256": "e4911097c932f08c5b8be824b513f7666edd9c6eb4577415a8037f01505e60aa"
+    },
+    "source/examples/textures/compressed/flare_2bpp_rgba.pvr": {
+      "bytes": 16436,
+      "sha256": "405081a36f4fde500453d184ffb285bbb0d685f0720df8017b7b41fdccd1a228"
+    },
+    "source/examples/textures/compressed/flare_4bpp_rgba.pvr": {
+      "bytes": 32820,
+      "sha256": "d9c3398e944962f2a3b8ae3ce8ee0d2da213f1a93b47f62143b2d2f1c50eadce"
+    },
+    "source/examples/textures/compressed/park3_cube_mip_2bpp_rgb_v3.pvr": {
+      "bytes": 131779,
+      "sha256": "fa92c0fc73c48b7b26a18c3e605f3cd5ff75b14a70ea86eda068f39bee999db5"
+    },
+    "source/examples/textures/compressed/park3_cube_nomip_4bpp_rgb.pvr": {
+      "bytes": 196660,
+      "sha256": "ae4d3b02365c113965c5df71f755b1874bc7364b0be5ba00967967a423df851c"
     },
     "source/examples/webgl_loader_texture_pvrtc.html": {
       "bytes": 6334,
@@ -533,12 +614,12 @@
       "sha256": "29492424209a17a723b3b0c8e9c83995697a4c466840d1b33ba6f6ff2b7542a4"
     },
     "tool/three/src/native_entry.js": {
-      "bytes": 31684,
-      "sha256": "e0bfb2ca963ff60db7ebd850290f71ac3b247f3cdd4b8ec890f92d83739fe7fd"
+      "bytes": 32919,
+      "sha256": "09f0317fc237150fef60338aed2d0a54a6318c280bfd39fb1f75e2af88ef0580"
     },
     "tool/three_example/asset_decode.mjs": {
-      "bytes": 51634,
-      "sha256": "273d0f8261829418eb08a93177990de1fb76cda9211852d578439a39ceb61af1"
+      "bytes": 55156,
+      "sha256": "e8ade24b03a7df661cc15a09858a358c98693065c45d1fb9e362b9e3fd9728a1"
     },
     "tool/three_example/asset_discovery.mjs": {
       "bytes": 12424,
@@ -557,8 +638,8 @@
       "sha256": "ceb4c2b0bd47cbe6ed04169fd6042fa40fe3085eab13c2061be29414fdfa0f74"
     },
     "tool/three_example/prepare.mjs": {
-      "bytes": 360337,
-      "sha256": "46ba5ac3c31cded946f6985d249eb944b750be55ae9c69319eeaad04fa4353c3"
+      "bytes": 378748,
+      "sha256": "0119b23cb3cdd970126e0297783e147dc0a6a2aa33970134e9c42319932cde02"
     },
     "tool/three_example/stats_adapter.js": {
       "bytes": 2107,
@@ -578,9 +659,13 @@
       "bytes": 1081,
       "sha256": "8b378ebe60e2fe500158cb0ac71cb5e8b7d92953c2abcc63a0eb90499653b5bc"
     },
+    "assets.json": {
+      "bytes": 3151,
+      "sha256": "63f4ede116480ce672bb8c7023928aa113c84e45c9d6a1acbbd7efc4889119f3"
+    },
     "manifest.json": {
-      "bytes": 368,
-      "sha256": "ca6c4db4e61a89357eaa7cc5792d1ccbc7458c8f35e5d71628b071bcad9f9097"
+      "bytes": 402,
+      "sha256": "6cfc73c9609059d74e3cbda452ba9214256a505e61de010708b7784b7fd4183f"
     },
     "official_module.js": {
       "bytes": 5335,
@@ -590,9 +675,41 @@
       "bytes": 6334,
       "sha256": "7b7005a70fd899a28c83173efdd53a26a41af4da759f2be15c96d48d895e8bfe"
     },
+    "textures__compressed__disturb_2bpp_rgb.pvr": {
+      "bytes": 262239,
+      "sha256": "11530f27c32d22df3ea65772ad33546eacc98ced6c0862a8f0123203b590285d"
+    },
+    "textures__compressed__disturb_4bpp_rgb.pvr": {
+      "bytes": 262239,
+      "sha256": "91404c92909dd31789c44c389191861bb2d5c5ccd5007aeb4c57949d06d176fd"
+    },
+    "textures__compressed__disturb_4bpp_rgb_mips.pvr": {
+      "bytes": 262239,
+      "sha256": "91404c92909dd31789c44c389191861bb2d5c5ccd5007aeb4c57949d06d176fd"
+    },
+    "textures__compressed__disturb_4bpp_rgb_v3.pvr": {
+      "bytes": 262239,
+      "sha256": "91404c92909dd31789c44c389191861bb2d5c5ccd5007aeb4c57949d06d176fd"
+    },
+    "textures__compressed__flare_2bpp_rgba.pvr": {
+      "bytes": 262239,
+      "sha256": "02cc55d5be15e7569cabfbbe49e8c0488da420bd5e0d7bef90e6ea648a5d13fb"
+    },
+    "textures__compressed__flare_4bpp_rgba.pvr": {
+      "bytes": 262239,
+      "sha256": "fbfb1b5f72d7b2170c8c0322ed04cb05704206b7b7d065eb327876901371fd93"
+    },
+    "textures__compressed__park3_cube_mip_2bpp_rgb_v3.pvr": {
+      "bytes": 1572958,
+      "sha256": "f617010f1775dff43616e782411af786b337a719db85edf249a891bc4e569f84"
+    },
+    "textures__compressed__park3_cube_nomip_4bpp_rgb.pvr": {
+      "bytes": 1572958,
+      "sha256": "cbe3df237d79b337e531a5d0387891757e2ec50698d52fbe0a5edef3e992bf26"
+    },
     "widget.js": {
-      "bytes": 58273,
-      "sha256": "030aeaa1476ec7b1800b76efc11d0cdc5c1e5f5450f48c0decd1aede81da6bbf"
+      "bytes": 60454,
+      "sha256": "2a39c5c126c52a279229fa34da45c9a0a999e0d5bcb19036612c3ee7bac20ddb"
     }
   }
 }

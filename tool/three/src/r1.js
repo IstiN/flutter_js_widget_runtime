@@ -8,6 +8,9 @@ const utf8 = value => (typeof TextEncoder !== 'undefined')
   : Uint8Array.from(Buffer.from(value, 'utf8'));
 
 export const T1_VERSION = 1;
+// v10: dynamic geometry may set GEOMETRY.reserved bit 0 to retain unchanged
+// attributes, indices and wire indices from the preceding version. Position
+// is always sent; omitted fields are explicit retention, not removal.
 // v9: recognised postprocessing materials carry three extra texture ids and
 // sixteen extra scalar uniforms before the Dubois suffix. This bounded tail
 // holds UnrealBloomPass's five-mip composite and at most eleven Gaussian
@@ -18,7 +21,7 @@ export const T1_VERSION = 1;
 // map slots and the Dubois anaglyph tail. v5: matcap/gradient slots, sprite
 // rotation, point-shadow block, cube texture flag. v4: alpha/env texture
 // slots, UV transforms, tone mapping + FogExp2 density.
-export const R1_VERSION = 9;
+export const R1_VERSION = 10;
 export const STREAM_R1 = 1;
 const NATIVE_U32_LITTLE_ENDIAN = new Uint8Array(new Uint32Array([1]).buffer)[0] === 1;
 export const MAX_ENVELOPE = 64 * 1024 * 1024;
@@ -137,7 +140,7 @@ export function encodeEnvelope(commands, engineId, surfaceId, sequence) {
   return output;
 }
 
-export function geometryCommand(id, version, primitive, vertexCount, attributes, indices, wireIndices = null) {
+export function geometryCommand(id, version, primitive, vertexCount, attributes, indices, wireIndices = null, retainUnchanged = false) {
   let indexCount = indices ? indices.length : 0;
   let mask = 0;
   const names = ['position', 'normal', 'uv', 'color'];
@@ -156,7 +159,7 @@ export function geometryCommand(id, version, primitive, vertexCount, attributes,
   body.u32(vertexCount);
   body.u32(indexCount);
   body.u32(primitive);
-  body.u32(0);
+  body.u32(retainUnchanged ? 1 : 0);
   for (const name of names) {
     const values = attributes[name];
     if (!values) continue;

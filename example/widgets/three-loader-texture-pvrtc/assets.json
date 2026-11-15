@@ -1,0 +1,95 @@
+{
+  "schema": "jsr-three-example-external-assets-v1",
+  "id": "three-loader-texture-pvrtc",
+  "inlineMaxBytes": 0,
+  "assets": [
+    {
+      "url": "textures/compressed/disturb_2bpp_rgb.pvr",
+      "file": "textures__compressed__disturb_2bpp_rgb.pvr",
+      "mime": "application/x-jsr-ktx2-rgba",
+      "width": 0,
+      "height": 0,
+      "bytes": 262239,
+      "sha256": "11530f27c32d22df3ea65772ad33546eacc98ced6c0862a8f0123203b590285d",
+      "aliases": [],
+      "diagnostic": "pvr2bpp"
+    },
+    {
+      "url": "textures/compressed/disturb_4bpp_rgb_mips.pvr",
+      "file": "textures__compressed__disturb_4bpp_rgb_mips.pvr",
+      "mime": "application/x-jsr-ktx2-rgba",
+      "width": 0,
+      "height": 0,
+      "bytes": 262239,
+      "sha256": "91404c92909dd31789c44c389191861bb2d5c5ccd5007aeb4c57949d06d176fd",
+      "aliases": [],
+      "diagnostic": "pvrMips"
+    },
+    {
+      "url": "textures/compressed/disturb_4bpp_rgb_v3.pvr",
+      "file": "textures__compressed__disturb_4bpp_rgb_v3.pvr",
+      "mime": "application/x-jsr-ktx2-rgba",
+      "width": 0,
+      "height": 0,
+      "bytes": 262239,
+      "sha256": "91404c92909dd31789c44c389191861bb2d5c5ccd5007aeb4c57949d06d176fd",
+      "aliases": [],
+      "diagnostic": "pvrV3"
+    },
+    {
+      "url": "textures/compressed/disturb_4bpp_rgb.pvr",
+      "file": "textures__compressed__disturb_4bpp_rgb.pvr",
+      "mime": "application/x-jsr-ktx2-rgba",
+      "width": 0,
+      "height": 0,
+      "bytes": 262239,
+      "sha256": "91404c92909dd31789c44c389191861bb2d5c5ccd5007aeb4c57949d06d176fd",
+      "aliases": [],
+      "diagnostic": "pvr4bpp"
+    },
+    {
+      "url": "textures/compressed/flare_2bpp_rgba.pvr",
+      "file": "textures__compressed__flare_2bpp_rgba.pvr",
+      "mime": "application/x-jsr-ktx2-rgba",
+      "width": 0,
+      "height": 0,
+      "bytes": 262239,
+      "sha256": "02cc55d5be15e7569cabfbbe49e8c0488da420bd5e0d7bef90e6ea648a5d13fb",
+      "aliases": [],
+      "diagnostic": "pvrAlpha2"
+    },
+    {
+      "url": "textures/compressed/flare_4bpp_rgba.pvr",
+      "file": "textures__compressed__flare_4bpp_rgba.pvr",
+      "mime": "application/x-jsr-ktx2-rgba",
+      "width": 0,
+      "height": 0,
+      "bytes": 262239,
+      "sha256": "fbfb1b5f72d7b2170c8c0322ed04cb05704206b7b7d065eb327876901371fd93",
+      "aliases": [],
+      "diagnostic": "pvrAlpha4"
+    },
+    {
+      "url": "textures/compressed/park3_cube_mip_2bpp_rgb_v3.pvr",
+      "file": "textures__compressed__park3_cube_mip_2bpp_rgb_v3.pvr",
+      "mime": "application/x-jsr-ktx2-rgba",
+      "width": 0,
+      "height": 0,
+      "bytes": 1572958,
+      "sha256": "f617010f1775dff43616e782411af786b337a719db85edf249a891bc4e569f84",
+      "aliases": [],
+      "diagnostic": "pvrCubeMip"
+    },
+    {
+      "url": "textures/compressed/park3_cube_nomip_4bpp_rgb.pvr",
+      "file": "textures__compressed__park3_cube_nomip_4bpp_rgb.pvr",
+      "mime": "application/x-jsr-ktx2-rgba",
+      "width": 0,
+      "height": 0,
+      "bytes": 1572958,
+      "sha256": "cbe3df237d79b337e531a5d0387891757e2ec50698d52fbe0a5edef3e992bf26",
+      "aliases": [],
+      "diagnostic": "pvrCube"
+    }
+  ]
+}

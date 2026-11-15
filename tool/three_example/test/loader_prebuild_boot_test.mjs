@@ -38,19 +38,24 @@ const OUT = path.join(ROOT, 'example/widgets', options.widget);
 function bmpToRgba(bytes) {
   const pixelOffset = bytes.readUInt32LE(10);
   const width = bytes.readInt32LE(18);
-  const height = bytes.readInt32LE(22);
+  const signedHeight = bytes.readInt32LE(22);
+  const height = Math.abs(signedHeight);
   const bpp = bytes.readUInt16LE(28);
-  assert.equal(bpp, 32, 'sips must emit a 32bpp BMP');
+  assert.ok(bpp === 24 || bpp === 32, 'sips must emit a 24/32bpp BMP');
   const rgba = new Uint8Array(width * height * 4);
   const rowSize = width * 4;
+  const sourcePixelSize = bpp / 8;
+  const sourceRowSize = (width * sourcePixelSize + 3) & ~3;
   for (let y = 0; y < height; y++) {
-    const source = pixelOffset + y * rowSize;
-    const target = (height - 1 - y) * rowSize; // BMP rows are bottom-up
-    for (let x = 0; x < rowSize; x += 4) {
-      rgba[target + x] = bytes[source + x + 2];
-      rgba[target + x + 1] = bytes[source + x + 1];
-      rgba[target + x + 2] = bytes[source + x];
-      rgba[target + x + 3] = bytes[source + x + 3];
+    const source = pixelOffset + y * sourceRowSize;
+    const target = (signedHeight > 0 ? height - 1 - y : y) * rowSize;
+    for (let x = 0; x < width; x++) {
+      const input = source + x * sourcePixelSize;
+      const output = target + x * 4;
+      rgba[output] = bytes[input + 2];
+      rgba[output + 1] = bytes[input + 1];
+      rgba[output + 2] = bytes[input];
+      rgba[output + 3] = bpp === 32 ? bytes[input + 3] : 255;
     }
   }
   return { rgba, width, height };
@@ -119,7 +124,7 @@ const jsr = {
       const bytes = await readFile(path.join(OUT, entry.file));
       const decoded = decodedImages.get(url);
       return {
-        data: bytes.toString('base64'),
+        data: decoded ? Buffer.from(decoded.rgba).toString('base64') : bytes.toString('base64'),
         mime: decoded ? 'application/x-rgba' : entry.mime,
         width: decoded ? decoded.width : entry.width,
         height: decoded ? decoded.height : entry.height

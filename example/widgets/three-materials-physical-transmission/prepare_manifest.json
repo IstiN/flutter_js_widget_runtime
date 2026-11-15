@@ -513,14 +513,14 @@
       "warnOnce"
     ],
     "source": {
-      "bytes": 40912,
-      "sha256": "02b1f144e0b42954f33fea1235c19b145425bc1bd055caed41a3dfa5e5df9613"
+      "bytes": 45086,
+      "sha256": "41d87df8e4705c63d928bee988a01050bd8f4c2e689de669a26cc9edcee8fb3b"
     }
   },
   "inputs": {
     "assets/three/jsr_three_native.js": {
-      "bytes": 886541,
-      "sha256": "0a24a3d38e96fe453a7c0a042473bc59b9df8d2c9e577461f0f90710049bef55"
+      "bytes": 891641,
+      "sha256": "069763ef65451ac400ae9fd50119a7824eb0af93a0737f93f877805e6e4095f4"
     },
     "assets/three/jsr_three_web.js": {
       "bytes": 859738,
@@ -551,12 +551,12 @@
       "sha256": "29492424209a17a723b3b0c8e9c83995697a4c466840d1b33ba6f6ff2b7542a4"
     },
     "tool/three/src/native_entry.js": {
-      "bytes": 31684,
-      "sha256": "e0bfb2ca963ff60db7ebd850290f71ac3b247f3cdd4b8ec890f92d83739fe7fd"
+      "bytes": 32919,
+      "sha256": "09f0317fc237150fef60338aed2d0a54a6318c280bfd39fb1f75e2af88ef0580"
     },
     "tool/three_example/asset_decode.mjs": {
-      "bytes": 51634,
-      "sha256": "273d0f8261829418eb08a93177990de1fb76cda9211852d578439a39ceb61af1"
+      "bytes": 55156,
+      "sha256": "e8ade24b03a7df661cc15a09858a358c98693065c45d1fb9e362b9e3fd9728a1"
     },
     "tool/three_example/asset_discovery.mjs": {
       "bytes": 12424,
@@ -575,8 +575,8 @@
       "sha256": "ceb4c2b0bd47cbe6ed04169fd6042fa40fe3085eab13c2061be29414fdfa0f74"
     },
     "tool/three_example/prepare.mjs": {
-      "bytes": 360337,
-      "sha256": "46ba5ac3c31cded946f6985d249eb944b750be55ae9c69319eeaad04fa4353c3"
+      "bytes": 378748,
+      "sha256": "0119b23cb3cdd970126e0297783e147dc0a6a2aa33970134e9c42319932cde02"
     },
     "tool/three_example/stats_adapter.js": {
       "bytes": 2107,
@@ -597,8 +597,8 @@
       "sha256": "8b378ebe60e2fe500158cb0ac71cb5e8b7d92953c2abcc63a0eb90499653b5bc"
     },
     "manifest.json": {
-      "bytes": 390,
-      "sha256": "eb5527105e749d62e5b2aa1ca52669383292aea85483575b5f87d02fe0c3d9c2"
+      "bytes": 396,
+      "sha256": "f2194cc7d03930eba02799d51b85da81182406191c887409504452ee490d3802"
     },
     "official_module.js": {
       "bytes": 5317,
@@ -613,8 +613,8 @@
       "sha256": "b05a664c5fb022ddc6104f253a6684570e99876d30b41a220c8dea4482df6d64"
     },
     "widget.js": {
-      "bytes": 858700,
-      "sha256": "802a1d39aafcae0667a1144945a4dfb068a08fc3467703ba8b5e02413f0bc6f0"
+      "bytes": 861509,
+      "sha256": "6b773d46a8b1e5d470cd512738b022eff498d44eec7d923e9bc8355f627d02a9"
     }
   }
 }

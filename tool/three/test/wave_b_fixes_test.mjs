@@ -52,6 +52,7 @@ const buffer = body => Buffer.from(body.buffer, body.byteOffset, body.byteLength
 const u32 = (body, offset) => buffer(body).readUInt32LE(offset);
 const only = (packet, opcode) => packet.commands.filter(command => command.opcode === opcode);
 const opcodes = packet => packet.commands.map(command => command.opcode);
+const drain = () => new Promise(resolve => setTimeout(resolve, 0));
 
 function decode(packet) {
   const bytes = buffer(packet);
@@ -62,7 +63,7 @@ function decode(packet) {
   const payload = bytes.subarray(headerBytes);
   assert.equal(payload.subarray(0, 4).toString(), 'JSR1');
   const envelopeVersion = payload.readUInt16LE(4);
-  assert.ok(envelopeVersion >= 3 && envelopeVersion <= 8, `unexpected R1 envelope version ${envelopeVersion}`); // v8 adds the stencil lane
+  assert.ok(envelopeVersion >= 3 && envelopeVersion <= 10, `unexpected R1 envelope version ${envelopeVersion}`); // v10 adds retained dynamic geometry
   const count = payload.readUInt32LE(8);
   const commands = [];
   let offset = 12;
@@ -220,7 +221,7 @@ test('room gradient equirect: >=128x64, LinearFilter, smooth rows (no jump > 0.1
   assert.equal(texture.image.data[3], 255, 'alpha stays opaque');
 });
 
-test('instanceMatrix finiteness rides the encode pass: same message, transactional, byte-identical for valid input', () => {
+test('instanceMatrix finiteness rides the encode pass: same message, transactional, byte-identical for valid input', async () => {
   const identity = new Float32Array(32);
   identity[0] = identity[5] = identity[10] = identity[15] = 1;
   identity[16] = identity[21] = identity[26] = identity[31] = 1;
@@ -243,11 +244,13 @@ test('instanceMatrix finiteness rides the encode pass: same message, transaction
   const T = host.THREE;
   const scene = new T.Scene();
   const camera = new T.PerspectiveCamera();
+  camera.position.z = 3;
   const mesh = new T.InstancedMesh(triangle(T), new T.MeshBasicMaterial(), 2);
   mesh.instanceMatrix.array.set(identity);
   scene.add(mesh);
   const renderer = new T.WebGLRenderer({ canvas: stubCanvas(host, 'a') });
   renderer.render(scene, camera);
+  await drain();
   const first = host.packets()[0];
   assert.ok(opcodes(first).includes(11), 'instanced draws emit a DRAW_BATCH');
   const batch = only(first, 11)[0].body;
@@ -266,6 +269,7 @@ test('instanceMatrix finiteness rides the encode pass: same message, transaction
   mesh.instanceMatrix.array.set(identity);
   mesh.instanceMatrix.needsUpdate = true;
   renderer.render(scene, camera);
+  await drain();
   const second = host.packets()[1];
   assert.deepEqual(opcodes(second), [11, 8], 'a valid re-encode re-emits only the batch');
   const secondBatch = only(second, 11)[0].body;
@@ -276,15 +280,17 @@ test('instanceMatrix finiteness rides the encode pass: same message, transaction
   );
 });
 
-test('MeshDepthMaterial encodes as material kind 12; RGBA packing, wireframe and MeshDistanceMaterial stay loud', () => {
+test('MeshDepthMaterial encodes as kind 12 with bounded packing; wireframe and MeshDistanceMaterial stay loud', async () => {
   const host = createHost();
   const T = host.THREE;
   const scene = new T.Scene();
   const camera = new T.PerspectiveCamera();
+  camera.position.z = 3;
   const mesh = new T.Mesh(triangle(T), new T.MeshDepthMaterial());
   scene.add(mesh);
   const renderer = new T.WebGLRenderer({ canvas: stubCanvas(host, 'd') });
   renderer.render(scene, camera);
+  await drain();
   const packets = host.packets();
   assert.ok(opcodes(packets[0]).includes(3), 'first render uploads a material');
   assert.ok(opcodes(packets[0]).includes(11) === false, 'plain meshes draw per node, not as a batch');
@@ -297,8 +303,12 @@ test('MeshDepthMaterial encodes as material kind 12; RGBA packing, wireframe and
   const scene2 = new T2.Scene();
   scene2.add(new T2.Mesh(triangle(T2), new T2.MeshDepthMaterial({ depthPacking: T2.RGBADepthPacking })));
   const renderer2 = new T2.WebGLRenderer({ canvas: stubCanvas(host2, 'b') });
-  assert.throws(() => renderer2.render(scene2, new T2.PerspectiveCamera()), error =>
-    error.code === 'three.unsupported' && /BasicDepthPacking only/.test(error.message));
+  const camera2 = new T2.PerspectiveCamera();
+  camera2.position.z = 3;
+  renderer2.render(scene2, camera2);
+  await drain();
+  assert.equal(u32(only(host2.packets()[0], 3)[0].body, 8), 12,
+    'RGBA depth packing uses the same bounded linear-depth material');
 
   const host3 = createHost();
   const T3 = host3.THREE;

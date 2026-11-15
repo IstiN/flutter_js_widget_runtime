@@ -40,8 +40,9 @@ function decode(packet) {
   // v8 carries the material stencil tail, colorWrite flag bit and
   // OPCODE.STENCIL_CLEAR markers. v9 adds scissored multi-view clears and
   // the generic post tail (composite textures 3..5 + scalar parameters).
+  // v10 adds retained dynamic-geometry updates.
   const envelopeVersion = payload.readUInt16LE(4);
-  assert.ok(envelopeVersion >= 3 && envelopeVersion <= 9, `unexpected R1 envelope version ${envelopeVersion}`);
+  assert.ok(envelopeVersion >= 3 && envelopeVersion <= 10, `unexpected R1 envelope version ${envelopeVersion}`);
   assert.equal(payload.readUInt16LE(6), 0);
   const count = payload.readUInt32LE(8);
   const commands = [];

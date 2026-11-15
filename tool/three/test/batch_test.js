@@ -56,7 +56,7 @@ function decode(packet) {
   assert.equal(payload.subarray(0, 4).toString(), 'JSR1');
   // Accept the same v3..v9 envelopes as the strict Dart decoder.
   const envelopeVersion = payload.readUInt16LE(4);
-  assert.ok(envelopeVersion >= 3 && envelopeVersion <= 9, `unexpected R1 envelope version ${envelopeVersion}`); // v9 adds the postprocessing tail
+  assert.ok(envelopeVersion >= 3 && envelopeVersion <= 10, `unexpected R1 envelope version ${envelopeVersion}`); // v10 adds retained dynamic geometry
   const commands = [];
   let offset = 12;
   for (let i = 0; i < payload.readUInt32LE(8); i++) {
@@ -789,7 +789,8 @@ test('tessellation amplitude reuses static attribute encodings and preserves exa
   await drain();
   const secondGeometries = only(host.packets()[1], 1);
   assert.equal(secondGeometries.length, 1);
-  assert.equal(u32(secondGeometries[0].body, 8), 11, 'the existing whole-record wire contract stays unchanged');
+  assert.equal(u32(secondGeometries[0].body, 8), 1, 'dynamic displacement sends only position');
+  assert.equal(u32(secondGeometries[0].body, 24), 1, 'normal, color, UV and indices are explicitly retained');
   const secondUpload = renderer._geometryUploadCache.get(adapted);
   assert.equal(secondUpload.attributes[1].values, staticNormal, 'static normal encoding is reused');
   assert.equal(secondUpload.attributes[3].values, staticColor, 'amplitude alone reuses the static color encoding');

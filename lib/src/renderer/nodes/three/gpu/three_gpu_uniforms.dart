@@ -486,17 +486,29 @@ ByteData _threeMaterialUniform(ThreeDrawItem draw, [ThreeDrawPlan? plan]) {
     // w (R1 v6): bump-map height scale.
     material.bumpScale,
   ]);
-  _writeFloats(data, 224, [material.mapRightTextureId.toDouble(), 0, 0, 0]);
+  // WebGLState.setMaterial: NormalBlending is disabled for opaque
+  // materials; every other non-NoBlending mode is active. This mirrors the
+  // upstream zero_alpha_discard condition without changing opaque writes.
+  final zeroAlphaDiscard = _threeZeroAlphaDiscard(material);
+  _writeFloats(data, 224, [
+    material.mapRightTextureId.toDouble(),
+    zeroAlphaDiscard ? 1 : 0,
+    0,
+    0,
+  ]);
   _writeFloats(data, 240, material.duboisLeftMatrix);
   _writeFloats(data, 288, material.duboisRightMatrix);
-  final postParamCount = material.postParams.length < 16
-      ? material.postParams.length
-      : 16;
+  final postParamCount = math.min(material.postParams.length, 16);
   for (var index = 0; index < postParamCount; index++) {
     data.setFloat32(336 + index * 4, material.postParams[index], Endian.little);
   }
   return data;
 }
+
+bool _threeZeroAlphaDiscard(JsThreeMaterialUpsert material) =>
+    material.alphaTest > 0 ||
+    (material.blending != 0 &&
+        (material.blending != 1 || material.transparent));
 
 void _writeUvMatrix(ByteData data, int offset, Float32List matrix) {
   for (var column = 0; column < 3; column++) {

@@ -108,8 +108,10 @@ ThreeDrawItem _draw({
   List<double>? matrixWorld,
   List<double> color = const [1, 1, 1],
   double opacity = 1,
+  bool transparent = false,
+  int blending = 0,
+  double alphaTest = 0,
 }) {
-
   final geometry = Uint8List(
     68 +
         (indexed ? 24 : 0) +
@@ -140,7 +142,11 @@ ThreeDrawItem _draw({
   setU32(material, 0, 1);
   setU32(material, 4, 1);
   setU32(material, 8, kind.wireValue);
-  setU32(material, 16, 24 | (wireframe ? 32 : 0));
+  setU32(
+    material,
+    16,
+    24 | (transparent ? 4 : 0) | (wireframe ? 32 : 0) | (blending << 7),
+  );
   setU32(material, 20, side.wireValue);
   setF32(material, 24, color[0]);
   setF32(material, 28, color[1]);
@@ -148,6 +154,7 @@ ThreeDrawItem _draw({
   setF32(material, 36, opacity);
   setF32(material, 40, 0.5);
   setF32(material, 44, 0.5);
+  setF32(material, 48, alphaTest);
   setF32(material, 52, 1);
   if (phong) {
     setF32(material, 56, specularR);
@@ -363,6 +370,25 @@ void main() {
       throwsArgumentError,
     );
     expect(() => debugThreeVertexRange(_draw()), throwsArgumentError);
+  });
+
+  test('zero-alpha discard follows upstream active blending and alphaTest', () {
+    double discardFlag(ThreeDrawItem draw) =>
+        debugThreeMaterialUniform(draw).getFloat32(228, Endian.little);
+
+    expect(discardFlag(_draw()), 0);
+    expect(
+      discardFlag(_draw(blending: 1)),
+      0,
+      reason: 'opaque NormalBlending disables blending upstream',
+    );
+    expect(discardFlag(_draw(blending: 1, transparent: true)), 1);
+    expect(
+      discardFlag(_draw(blending: 2)),
+      1,
+      reason: 'additive sprite blending remains active even when opaque',
+    );
+    expect(discardFlag(_draw(alphaTest: 0.5)), 1);
   });
 
   test(

@@ -19,8 +19,8 @@
     "global": "THREE",
     "target": "es2020",
     "minify": true,
-    "command": "node tool/three/build.mjs --source /tmp/jsr-three-r186",
-    "verifyCommand": "node tool/three/build.mjs --source /tmp/jsr-three-r186 --verify",
+    "command": "node tool/three/build.mjs --source /tmp/jsr-three-r186-perf",
+    "verifyCommand": "node tool/three/build.mjs --source /tmp/jsr-three-r186-perf --verify",
     "sourceEnvironment": "THREE_SRC may replace --source /tmp/jsr-three-r186",
     "inputSha256": {
       "sourceTree": "46f76c91c965a0ac416a8e89f104af288ad177d2ad344204851f0febc502c995",
@@ -31,9 +31,9 @@
       "tool/three/src/native_loaders.js": "3a1bae2ae416d16f737aac5f2d0e8253a49fb914c65159e1ab8781b3009cb10e",
       "tool/three/src/native_pmrem.js": "cc08dc0036fd14f8cd04a160c969ca4d77736ab6904542cd3d2ae39630efc0a0",
       "tool/three/src/native_raycast_bvh.js": "9aada0445e0fb5d1cba38ea8e801588d8b496cce8531f57ab9c60e61d7049384",
-      "tool/three/src/native_renderer.js": "fa2205f5ff81e1f1fb99a6d5d9379a7f720c127f39e66d7c65c9c692dcec2378",
+      "tool/three/src/native_renderer.js": "f686a0a627ae3a596d006f1e880ca1b08f8ee77102a5377e3709396571bfeff4",
       "tool/three/src/native_three_shim.js": "3f29d9215d19ec495af2e3aab9ac785429a471e4867fe3fbd4784f38515ea096",
-      "tool/three/src/r1.js": "01bb0a97ff9d5d88d1f23edd477687c3f82883844dd6f5e837f9ca055a9c7fa0",
+      "tool/three/src/r1.js": "8352e0c38efb11dad70e137f1e8089d56f0e3c5da6099405614f23805c0fb300",
       "tool/three/src/runtime.js": "94c1481d3b98378c1a9470a3481e4ac29f48881a43de53c3e259d2cb6117fc6f",
       "tool/three/src/web_entry.js": "538a1625cffb9539d70055b173c98320799457a9c5e7b5a4c0577c22841cd3ad",
       "tool/three/src/web_renderer.js": "2b808b22123fce8e49b9ed8d76f75872199efb527b477e202f295ed6a244819c",
@@ -47,8 +47,8 @@
   },
   "outputs": {
     "jsr_three_native.js": {
-      "bytes": 888934,
-      "sha256": "09d49786bb6def36ce122a32ea07b5ca841ce4ff753f4936ccdcbd71ae85a083"
+      "bytes": 891641,
+      "sha256": "069763ef65451ac400ae9fd50119a7824eb0af93a0737f93f877805e6e4095f4"
     },
     "jsr_three_web.js": {
       "bytes": 859738,

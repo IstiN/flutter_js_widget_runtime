@@ -4,4 +4,5 @@ import 'dart:typed_data';
 
 part 'js_three_protocol_commands.dart';
 part 'js_three_protocol_decoder.dart';
+part 'js_three_protocol_decoder_material.dart';
 part 'js_three_protocol_r1.dart';

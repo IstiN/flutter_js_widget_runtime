@@ -69,21 +69,45 @@ void main() {
     expect(lane, isNot(contains('applyToneMapping')));
   });
 
-  test('UnrealBloom uses threshold, bounded Gaussian mips and the five-mip composite', () {
+  test(
+    'UnrealBloom uses threshold, bounded Gaussian mips and the five-mip composite',
+    () {
+      final source = File('shaders/three_r1.frag').readAsStringSync();
+      final start = source.indexOf('if (op == 13) {');
+      final end = source.indexOf('return base;', start);
+      final bloom = source.substring(start, end);
+      expect(
+        bloom,
+        contains(
+          'smoothstep(threshold, threshold + r1PostParam(2), luminance)',
+        ),
+      );
+      expect(bloom, contains('mix(outputColor, base, alpha)'));
+      expect(bloom, contains('for (int i = 0; i < 11; i++)'));
+      expect(bloom, contains('texture(mapTexture, uv + uvOffset).rgb'));
+      expect(bloom, contains('texture(mapTexture, uv - uvOffset).rgb'));
+      expect(
+        bloom,
+        contains('r1BloomContribution(4, texture(postTexture5, uv).rgb)'),
+      );
+      expect(bloom, contains('bloom *= 3.0 * r1PostParam(1);'));
+      expect(bloom, contains('max(bloom.r, max(bloom.g, bloom.b))'));
+      expect(source, contains('float r1PostParam(int index)'));
+      expect(source, contains('vec4 postParams[4];'));
+    },
+  );
+
+  test('active blending discards exact zero alpha before lighting', () {
     final source = File('shaders/three_r1.frag').readAsStringSync();
-    final start = source.indexOf('if (op == 13) {');
-    final end = source.indexOf('return base;', start);
-    final bloom = source.substring(start, end);
-    expect(bloom, contains('smoothstep(threshold, threshold + r1PostParam(2), luminance)'));
-    expect(bloom, contains('mix(outputColor, base, alpha)'));
-    expect(bloom, contains('for (int i = 0; i < 11; i++)'));
-    expect(bloom, contains('texture(mapTexture, uv + uvOffset).rgb'));
-    expect(bloom, contains('texture(mapTexture, uv - uvOffset).rgb'));
-    expect(bloom, contains('r1BloomContribution(4, texture(postTexture5, uv).rgb)'));
-    expect(bloom, contains('bloom *= 3.0 * r1PostParam(1);'));
-    expect(bloom, contains('max(bloom.r, max(bloom.g, bloom.b))'));
-    expect(source, contains('float r1PostParam(int index)'));
-    expect(source, contains('vec4 postParams[4];'));
+    final albedo = source.indexOf('vec4 albedo =');
+    final alphaTest = source.indexOf('if (albedo.a <', albedo);
+    final zeroDiscard = source.indexOf('albedo.a == 0.0', albedo);
+    expect(zeroDiscard, greaterThan(albedo));
+    expect(zeroDiscard, lessThan(alphaTest));
+    expect(
+      source.substring(albedo, alphaTest),
+      contains('material_info.mapRightHas.y > 0.5'),
+    );
   });
 
   test('point-shadow MaterialInfo keeps the full 400-byte ABI layout', () {
@@ -112,9 +136,15 @@ void main() {
       return units;
     }
 
-    expect(std140Vec4Units('shaders/three_r1.frag'), 25,
-        reason: 'main MaterialInfo must stay 25 vec4s = 400 bytes');
-    expect(std140Vec4Units('shaders/three_r1_point_shadow.frag'), 25,
-        reason: 'point-shadow MaterialInfo must match the 400-byte encoder');
+    expect(
+      std140Vec4Units('shaders/three_r1.frag'),
+      25,
+      reason: 'main MaterialInfo must stay 25 vec4s = 400 bytes',
+    );
+    expect(
+      std140Vec4Units('shaders/three_r1_point_shadow.frag'),
+      25,
+      reason: 'point-shadow MaterialInfo must match the 400-byte encoder',
+    );
   });
 }

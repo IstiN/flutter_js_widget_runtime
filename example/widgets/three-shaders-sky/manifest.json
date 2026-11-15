@@ -2,7 +2,7 @@
   "id": "three-shaders-sky",
   "name": "shaders - sky sun shader — three.js r186",
   "description": "Unmodified official webgl_shaders_sky module on the JSR THREE R1/WebGL2 runtime.",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "icon": "🧊",
   "allowedCommands": [],
   "network": false,

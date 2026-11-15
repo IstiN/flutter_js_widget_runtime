@@ -104,7 +104,8 @@ uniform MaterialInfo {
   vec4 matcapGradientCube;
   // x = cube atlas height in texels; yzw reserved.
   vec4 atlasParams;
-  // Recognized Dubois composite: right texture presence and two std140 mat3s.
+  // x = Dubois right texture presence, y = upstream zero-alpha discard.
+  // Two std140 mat3s follow for the recognized Dubois composite.
   vec4 mapRightHas;
   mat3 duboisLeft;
   mat3 duboisRight;
@@ -602,7 +603,10 @@ vec4 r1PostColor(vec2 uv) {
   if (op == 9) {
     return vec4(vec3(r1PostLuma(base.rgb)) * vec3(r1PostParam(1), r1PostParam(2), r1PostParam(3)), base.a);
   }
-  if (op == 10) return vec4(linearToSrgb(base.rgb), base.a);
+  // OutputPass owns tone mapping and the output transfer in main(). Keep its
+  // input linear here: encoding in this helper as well encoded twice onscreen
+  // and tone-mapped an already display-referred value between composer passes.
+  if (op == 10) return base;
   if (op == 14) {
     // FXAA (three.js FXAShader algorithm, native kind-14 lane): local luma
     // edge detection + directional blend, 5-9 taps only on edge pixels.
@@ -719,6 +723,22 @@ vec4 r1PostColor(vec2 uv) {
     }
     return vec4(sum / weight, base.a);
   }
+  if (op == 17) {
+    // LUTPass: sampler3D lowered to a horizontal strip of z slices. Clamp
+    // each slice's x footprint before the hardware x/y filter, then perform
+    // the missing z filter explicitly to avoid cross-slice bleeding.
+    if (material_info.mapRightHas.x < 0.5) return base;
+    float size = max(r1PostParam(1), 2.0);
+    vec3 coord = clamp(base.rgb, 0.0, 1.0) * (size - 1.0);
+    float z0 = floor(coord.b);
+    float z1 = min(z0 + 1.0, size - 1.0);
+    float y = (coord.g + 0.5) / size;
+    vec2 uv0 = vec2((z0 * size + coord.r + 0.5) / (size * size), y);
+    vec2 uv1 = vec2((z1 * size + coord.r + 0.5) / (size * size), y);
+    vec3 graded = mix(texture(mapRightTexture, uv0).rgb,
+                      texture(mapRightTexture, uv1).rgb, fract(coord.b));
+    return vec4(mix(base.rgb, graded, r1PostParam(2)), base.a);
+  }
   return base;
 }
 
@@ -727,9 +747,22 @@ void main() {
   int kind = int(material_info.roughnessMetalnessAlphaTestKind.w + 0.5);
   if (kind == 14) {
     vec4 post = r1PostColor(textureUv);
+    int postOp = int(r1PostParam(0) + 0.5);
+    if (postOp == 17) {
+      // The official chain places LUTPass AFTER OutputPass. Both its input
+      // and its creative-LUT result are display-referred sRGB; applying ACES
+      // or linearToSrgb again here destroys the graded midtones.
+      outColor = post;
+      return;
+    }
     vec3 color = post.rgb * frame_info.cameraPositionExposure.w;
     color = applyToneMapping(color);
-    if (frame_info.fogFarModeReserved.w < 0.5) color = linearToSrgb(color);
+    // OutputPass explicitly applies renderer.outputColorSpace even when its
+    // destination is an intermediate RT. Other bounded post operations keep
+    // the established screen-only transfer for compatibility.
+    if (postOp == 10 || frame_info.fogFarModeReserved.w < 0.5) {
+      color = linearToSrgb(color);
+    }
     outColor = vec4(color, post.a);
     return;
   }
@@ -745,13 +778,20 @@ void main() {
     // the environment by view DIRECTION (no reflection, no lighting, no
     // fog/clipping), then follows the same exposure/tone/sRGB tail.
     vec3 bgDir = normalize(worldPosition - frame_info.cameraPositionExposure.xyz);
+    // CubeTexturePass stores official tFlip in the otherwise unused
+    // reflectivity/env-intensity slot; ordinary scene backgrounds keep +1.
+    bgDir.x *= sign(material_info.alphaEnvIntensity.z);
     vec3 bgColor = material_info.matcapGradientCube.z > 0.5
         ? texture(envMapTexture, cubeAtlasUv(bgDir)).rgb
         : texture(envMapTexture, equirectUv(bgDir)).rgb;
     bgColor *= frame_info.cameraPositionExposure.w;
-    bgColor = applyToneMapping(bgColor);
-    if (frame_info.fogFarModeReserved.w < 0.5) bgColor = linearToSrgb(bgColor);
-    outColor = vec4(bgColor, 1.0);
+    // Match ordinary materials: an offscreen RenderPass remains linear so a
+    // following OutputPass performs the single official tone-map/transfer.
+    if (frame_info.fogFarModeReserved.w < 0.5) {
+      bgColor = applyToneMapping(bgColor);
+      bgColor = linearToSrgb(bgColor);
+    }
+    outColor = vec4(bgColor, material_info.colorOpacity.a);
     return;
   }
   if (kind == 11) {
@@ -824,6 +864,13 @@ void main() {
   if (material_info.alphaEnvIntensity.x > 0.5) {
     vec2 alphaUv = kind == 4 ? mapUv : textureUv;
     albedo.a *= texture(alphaMapTexture, transformedAlphaMapUv(alphaUv)).g;
+  }
+  // Upstream zero_alpha_discard (WebGLProgram): when blending is active,
+  // an exactly-zero alpha contributes nothing to color, depth or stencil.
+  // Skipping it before lighting/fog is exact and removes the large empty
+  // additive-sprite fill area in the custom-attribute point examples.
+  if (material_info.mapRightHas.y > 0.5 && albedo.a == 0.0) {
+    discard;
   }
   if (albedo.a < material_info.roughnessMetalnessAlphaTestKind.z) {
     discard;
@@ -1051,7 +1098,14 @@ void main() {
   }
 
   if (kind == 1 || kind == 2 || kind == 5) {
-    color += material_info.emissiveIntensity.rgb * material_info.emissiveIntensity.a;
+    vec3 emissive = material_info.emissiveIntensity.rgb *
+                    material_info.emissiveIntensity.a;
+    // For these kinds matcapTexture is the bounded emissiveMap binding. The
+    // base UV transform covers the official GLTF DamagedHelmet layout.
+    if (material_info.matcapGradientCube.x > 0.5) {
+      emissive *= texture(matcapTexture, transformedMapUv(textureUv)).rgb;
+    }
+    color += emissive;
   }
   // R1 env reflection (three.js envmap_fragment shape): sample the
   // environment at reflect(fragment->camera inverted, normal) scaled by
@@ -1111,7 +1165,10 @@ void main() {
     }
   }
   color *= frame_info.cameraPositionExposure.w;
-  color = applyToneMapping(color);
+  // WebGLRenderer disables material tone mapping for ordinary render targets;
+  // a following OutputPass owns that transform. Tone-mapping the RenderPass
+  // as well made the 3DLUT chain apply ACES before both OutputPass and LUT.
+  if (frame_info.fogFarModeReserved.w < 0.5) color = applyToneMapping(color);
   int fogMode = int(frame_info.fogFarModeReserved.y + 0.5);
   if (fogMode == 1) {
     float fogFactor = smoothstep(

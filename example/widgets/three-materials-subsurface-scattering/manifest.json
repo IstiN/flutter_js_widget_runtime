@@ -1,8 +1,8 @@
 {
   "id": "three-materials-subsurface-scattering",
   "name": "Fast subsurface scattering in Blinn-Phong shading demo — three.js r186",
-  "description": "Unmodified official webgl_materials_subsurface_scattering module on the JSR THREE R1/WebGL2 runtime.",
-  "version": "0.1.0",
+  "description": "Official subsurface controls with a live red Phong/thickness-scattering native approximation.",
+  "version": "0.1.1",
   "icon": "🧊",
   "allowedCommands": [],
   "network": false,

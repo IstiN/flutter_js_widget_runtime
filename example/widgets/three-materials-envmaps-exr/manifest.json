@@ -1,8 +1,8 @@
 {
   "id": "three-materials-envmaps-exr",
   "name": "Materials Envmaps EXR — three.js r186",
-  "description": "Unmodified official webgl_materials_envmaps_exr module on the JSR THREE R1/WebGL2 runtime.",
-  "version": "0.1.0",
+  "description": "Official webgl_materials_envmaps_exr with a bounded HDR-preserving native EXR material decode.",
+  "version": "0.1.1",
   "icon": "🧊",
   "allowedCommands": [],
   "network": false,

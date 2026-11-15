@@ -2,7 +2,7 @@
   "id": "three-buffergeometry-custom-attributes-particles",
   "name": "buffer geometry custom attributes - particles — three.js r186",
   "description": "Unmodified official webgl_buffergeometry_custom_attributes_particles module on the JSR THREE R1/WebGL2 runtime.",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "icon": "🧊",
   "allowedCommands": [],
   "network": false,

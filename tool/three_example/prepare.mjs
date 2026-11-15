@@ -18,12 +18,14 @@ import { applyProtoplanetBoundedResolutionPatch } from './degrades/protoplanet_b
 import { applyLodBoundedCountPatch } from './degrades/lod_bounded_count.mjs';
 import { applyShadowmapBoundedCountPatch } from './degrades/shadowmap_bounded_count.mjs';
 import { applyCustomPoints30HzPatch, applyInterleaved30HzPatch, applyMemoryGeometryPatch, applyMemoryMaterialCadencePatch, applyGpgpuBirds30HzPatch } from './degrades/bounded_30hz_updates.mjs';
+import { applyCustomAttributeAnimationFastPath } from './degrades/custom_attribute_animation_fast_path.mjs';
 import { applyLayerUpdateRawArrayPatch, applyPartialUpdateRawCheckerPatch, applyKtx2UprightPatch } from './degrades/raw_texture_fallbacks.mjs';
 import { applyPointsDynamicLoaderPatch } from './degrades/points_dynamic_loader_patch.mjs';
 import { applyWidgetTextDecodeJoinPatch } from './degrades/widget_text_decode_join.mjs';
 import { applySponzaStandInPatch, buildSponzaStandin } from './degrades/sponza_standin.mjs';
 import { assetDependencyAlias, assetOutputName, discoverAssets } from './asset_discovery.mjs';
-import { decodeColladaAsset, decodeDdsAsset, decodeDracoAsset, decodeGlbAsset, decodeKtx2Asset, decodeVrmlAsset } from './asset_decode.mjs';
+import { ldrawSceneAssets } from './degrades/ldraw_scene_manifest.mjs';
+import { decodeColladaAsset, decodeDdsAsset, decodeDracoAsset, decodeGlbAsset, decodeKtx2Asset, decodePvrAsset, decodeVrmlAsset } from './asset_decode.mjs';
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.resolve(HERE, '../..');
@@ -2937,6 +2939,8 @@ webgl_geometry_shapes: {
     id: 'three-buffergeometry-custom-attributes-particles',
     directory: 'three-buffergeometry-custom-attributes-particles',
     name: 'buffer geometry custom attributes - particles — three.js r186',
+    version: '0.1.1',
+    customAttributeAnimationFastPath: true,
     description: 'Unmodified official webgl_buffergeometry_custom_attributes_particles module on the JSR THREE R1/WebGL2 runtime.',
     icon: '🧊',
     expected: {
@@ -3082,7 +3086,8 @@ webgl_geometry_shapes: {
     id: 'three-custom-attributes-points',
     directory: 'three-custom-attributes-points',
     name: 'custom attributes [particles] — three.js r186',
-    customPoints30Hz: true,
+    version: '0.1.1',
+    customAttributeAnimationFastPath: true,
     description: 'Unmodified official webgl_custom_attributes_points module on the JSR THREE R1/WebGL2 runtime.',
     icon: '🧊',
     expected: {
@@ -3118,6 +3123,8 @@ webgl_geometry_shapes: {
     id: 'three-custom-attributes-points3',
     directory: 'three-custom-attributes-points3',
     name: 'custom attributes [particles][billboards][alphatest] — three.js r186',
+    version: '0.1.1',
+    customAttributeAnimationFastPath: true,
     description: 'Unmodified official webgl_custom_attributes_points3 module on the JSR THREE R1/WebGL2 runtime.',
     icon: '🧊',
     expected: {
@@ -3134,6 +3141,7 @@ webgl_geometry_shapes: {
     id: 'three-depth-texture',
     directory: 'three-depth-texture',
     name: 'Depth Texture — three.js r186',
+    version: '0.1.1',
     description: 'Unmodified official webgl_depth_texture module on the JSR THREE R1/WebGL2 runtime.',
     icon: '🧊',
     expected: {
@@ -3143,7 +3151,9 @@ webgl_geometry_shapes: {
     // DepthTexture is aliased onto the RT color attachment in the bounded R1
     // lane, so the RT scene pass renders through scene.overrideMaterial =
     // MeshDepthMaterial (R1 v7 kind 12) and the depth rides the color
-    // channel. GUI format/type/samples toggles are documented no-ops there.
+    // channel. White/far clears plus native SubtractiveBlending restore the
+    // official post shader's 1-depth polarity after its bounded Basic
+    // lowering. GUI format/type/samples toggles are documented no-ops there.
     compat: "import { installDepthTextureVisualization } from './degrades/depth_texture_visualization.mjs'; installDepthTextureVisualization();",
     assets: []
   },
@@ -3720,7 +3730,7 @@ webgl_geometry_shapes: {
     id: 'three-loader-fbx',
     directory: 'three-loader-fbx',
     name: 'FBX loader — three.js r186',
-    compat: "import { installAnimation15Hz } from './degrades/animation_15hz.mjs'; installAnimation15Hz();",
+    version: '0.1.1',
     description: 'Unmodified official webgl_loader_fbx module on the JSR THREE R1/WebGL2 runtime.',
     icon: '🧊',
     expected: {
@@ -3879,9 +3889,11 @@ webgl_geometry_shapes: {
   webgl_loader_gltf_instancing: {
     id: 'three-loader-gltf-instancing',
     directory: 'three-loader-gltf-instancing',
+    version: '0.1.1',
     name: 'GLTFloader + Instancing — three.js r186',
-    description: 'Unmodified official webgl_loader_gltf_instancing module on the JSR THREE R1/WebGL2 runtime.',
+    description: 'Official instancing with the unsupported white emissive-map contribution explicitly omitted on JSR THREE R1.',
     icon: '🧊',
+    moduleOverride: 'degrades/loader_gltf_instancing.mjs',
     expected: {
       html: 'd0a5ccd5df8fb32dc9a17f2aa6ac2c29ac0ddb6b1d472fae90ec66d7f9891296',
       module: 'd3e63ccfc116efab51f5a8f2305bdbd6635425e99eae455e84fd98d8296b383f'
@@ -4034,15 +4046,21 @@ webgl_geometry_shapes: {
   webgl_loader_ldraw: {
     id: 'three-loader-ldraw',
     directory: 'three-loader-ldraw',
+    version: '0.1.1',
     name: 'LDrawLoader — three.js r186',
-    description: 'Unmodified official webgl_loader_ldraw module on the JSR THREE R1/WebGL2 runtime.',
+    description: 'Official LDraw controls over cached offline scenes; conditional lines use bounded native line materials on JSR THREE R1.',
     icon: '🧊',
+    moduleOverride: 'degrades/loader_ldraw.mjs',
+    addonShims: {
+      'three/addons/loaders/LDrawLoader.js': "export { LDrawLoader } from './degrades/ldraw_prebuilt_loader.mjs';"
+    },
     expected: {
       html: 'ca8c1279fecd8707e599961882a65e4243aa22abcbecb511c3189fdfda679837',
       module: '6e2312b5c918168418957bd9304fffecb2dfca572438f88e5975e4832b0e0afa'
     },
+    inlineMaxBytes: 0,
     discoverAssets: true,
-    assets: []
+    assets: ldrawSceneAssets
   },
   webgl_loader_md2: {
     id: 'three-loader-md2',
@@ -4235,14 +4253,25 @@ webgl_geometry_shapes: {
   webgl_loader_texture_pvrtc: {
     id: 'three-loader-texture-pvrtc',
     directory: 'three-loader-texture-pvrtc',
+    version: '0.1.1',
     name: 'materials - compressed textures — three.js r186',
-    description: 'Unmodified official webgl_loader_texture_pvrtc module on the JSR THREE R1/WebGL2 runtime.',
+    description: 'Official PVRTC example with pinned textures decoded to RGBA at prepare time; mip chains use the base level on JSR THREE R1.',
     icon: '🧊',
     expected: {
       html: '7b7005a70fd899a28c83173efdd53a26a41af4da759f2be15c96d48d895e8bfe',
       module: '26a9bb477d8b4f941d42c44c5918cf1210e0ce104a5d082dc542e25ac0603f49'
     },
-    assets: []
+    inlineMaxBytes: 0,
+    assets: [
+      { url: 'textures/compressed/disturb_2bpp_rgb.pvr', output: 'textures__compressed__disturb_2bpp_rgb.pvr', mime: 'application/octet-stream', diagnostic: 'pvr2bpp', preparePvr: true, sha256: 'ae1e03edd495975a2c877e1d9671d7c08e27d26e31a8385aac2a8de0c6a53a13' },
+      { url: 'textures/compressed/disturb_4bpp_rgb.pvr', output: 'textures__compressed__disturb_4bpp_rgb.pvr', mime: 'application/octet-stream', diagnostic: 'pvr4bpp', preparePvr: true, sha256: 'de2f102990ef66d5cc33bc982f3af21ade3e70d97670a5f17aa2300c1cb8f114' },
+      { url: 'textures/compressed/disturb_4bpp_rgb_v3.pvr', output: 'textures__compressed__disturb_4bpp_rgb_v3.pvr', mime: 'application/octet-stream', diagnostic: 'pvrV3', preparePvr: true, sha256: 'e4911097c932f08c5b8be824b513f7666edd9c6eb4577415a8037f01505e60aa' },
+      { url: 'textures/compressed/disturb_4bpp_rgb_mips.pvr', output: 'textures__compressed__disturb_4bpp_rgb_mips.pvr', mime: 'application/octet-stream', diagnostic: 'pvrMips', preparePvr: true, sha256: '218679d885a8499ef666dc5fbdb7250c3b9126b2ffc0437ec3aa77ac926a3756' },
+      { url: 'textures/compressed/flare_2bpp_rgba.pvr', output: 'textures__compressed__flare_2bpp_rgba.pvr', mime: 'application/octet-stream', diagnostic: 'pvrAlpha2', preparePvr: true, sha256: '405081a36f4fde500453d184ffb285bbb0d685f0720df8017b7b41fdccd1a228' },
+      { url: 'textures/compressed/flare_4bpp_rgba.pvr', output: 'textures__compressed__flare_4bpp_rgba.pvr', mime: 'application/octet-stream', diagnostic: 'pvrAlpha4', preparePvr: true, sha256: 'd9c3398e944962f2a3b8ae3ce8ee0d2da213f1a93b47f62143b2d2f1c50eadce' },
+      { url: 'textures/compressed/park3_cube_mip_2bpp_rgb_v3.pvr', output: 'textures__compressed__park3_cube_mip_2bpp_rgb_v3.pvr', mime: 'application/octet-stream', diagnostic: 'pvrCubeMip', preparePvr: true, sha256: 'fa92c0fc73c48b7b26a18c3e605f3cd5ff75b14a70ea86eda068f39bee999db5' },
+      { url: 'textures/compressed/park3_cube_nomip_4bpp_rgb.pvr', output: 'textures__compressed__park3_cube_nomip_4bpp_rgb.pvr', mime: 'application/octet-stream', diagnostic: 'pvrCube', preparePvr: true, sha256: 'ae4d3b02365c113965c5df71f755b1874bc7364b0be5ba00967967a423df851c' }
+    ]
   },
   webgl_loader_texture_tiff: {
     id: 'three-loader-texture-tiff',
@@ -4297,7 +4326,8 @@ webgl_geometry_shapes: {
     id: 'three-loader-usdz',
     directory: 'three-loader-usdz',
     name: 'loaders - USDZLoader — three.js r186',
-    description: 'Unmodified official webgl_loader_usdz module on the JSR THREE R1/WebGL2 runtime.',
+    description: 'Official USDZ framing and materials on JSR R1, with verified offline scene binary views.',
+    version: '0.1.1',
     icon: '🧊',
     hdrRgba: true,
     expected: {
@@ -4458,11 +4488,94 @@ webgl_geometry_shapes: {
     id: 'three-materials-envmaps-exr',
     directory: 'three-materials-envmaps-exr',
     name: 'Materials Envmaps EXR — three.js r186',
-    description: 'Unmodified official webgl_materials_envmaps_exr module on the JSR THREE R1/WebGL2 runtime.',
+    description: 'Official webgl_materials_envmaps_exr with a bounded HDR-preserving native EXR material decode.',
+    version: '0.1.1',
     icon: '🧊',
     expected: {
       html: 'ddf161a1c589e9728b7ede5b656da28e2020840f65ba5edac89985c72f7669ff',
       module: '8114d7691e37ce972d26e380a9115a9a8847c4b718752e305f28e54d020bf2e1'
+    },
+    facadeWraps: {
+      // A one-mesh color batch retains the clone created before the async
+      // environment arrives. Two ordinary draws are cheaper and preserve the
+      // live EXR/PNG material assignments here.
+      WebGLRenderer: `Base => class extends Base {
+        _colorBatchGroupKey() { return null; }
+      }`,
+      MeshBasicMaterial: `Base => class extends Base {
+        get map() { return this._r1DebugMap || null; }
+        set map(texture) {
+          if (!texture || texture.mapping === __three.UVMapping) {
+            this._r1DebugMap = texture;
+            return;
+          }
+          this._r1DebugMaps ||= new WeakMap();
+          let record = this._r1DebugMaps.get(texture);
+          if (!record) {
+            const hdr = globalThis.__jsrExrMaterialTextures && globalThis.__jsrExrMaterialTextures.get(texture);
+            const source = hdr || texture;
+            const converted = source.clone();
+            converted.mapping = __three.UVMapping;
+            converted.needsUpdate = true;
+            record = { texture: converted, hdr: !!hdr };
+            this._r1DebugMaps.set(texture, record);
+          }
+          this._r1DebugMap = record.texture;
+          const intensity = record.hdr ? 16 : 1;
+          this.color.setRGB(intensity, intensity, intensity);
+        }
+      }`,
+      // The pinned EXR is RGBA half-float with radiance up to 19.97. R1's
+      // generic material sampler can leave that texture unbound (env id 0)
+      // even though the background upload succeeds. Decode explicitly to a
+      // bounded RGBA8 /16 radiance texture and compensate with env intensity;
+      // this retains the HDR range instead of clipping every bright texel.
+      MeshStandardMaterial: `Base => {
+        let warned = false;
+        const cache = new WeakMap();
+        globalThis.__jsrExrMaterialTextures = cache;
+        return class extends Base {
+          get envMap() { return this._r1EnvMap || null; }
+          set envMap(texture) {
+            let converted = texture;
+            let intensity = 1;
+            const image = texture && texture.image;
+            const data = image && image.data;
+            if (texture && data && (data.BYTES_PER_ELEMENT === 2 || data.BYTES_PER_ELEMENT === 4)) {
+              converted = cache.get(texture);
+              if (!converted) {
+                const bytes = new Uint8Array(data.length);
+                for (let i = 0; i < data.length; i += 4) {
+                  for (let c = 0; c < 3; c++) {
+                    const value = data.BYTES_PER_ELEMENT === 2
+                      ? __three.DataUtils.fromHalfFloat(data[i + c]) : data[i + c];
+                    bytes[i + c] = Math.max(0, Math.min(255, Math.round(value * 255 / 16)));
+                  }
+                  const alpha = data.BYTES_PER_ELEMENT === 2
+                    ? __three.DataUtils.fromHalfFloat(data[i + 3]) : data[i + 3];
+                  bytes[i + 3] = Math.max(0, Math.min(255, Math.round(alpha * 255)));
+                }
+                converted = new __three.DataTexture(bytes, image.width, image.height,
+                  __three.RGBAFormat, __three.UnsignedByteType);
+                converted.mapping = texture.mapping;
+                converted.colorSpace = texture.colorSpace;
+                converted.minFilter = __three.LinearFilter;
+                converted.magFilter = __three.LinearFilter;
+                converted.generateMipmaps = false;
+                converted.needsUpdate = true;
+                cache.set(texture, converted);
+                if (!warned) {
+                  warned = true;
+                  console.warn('three-materials-envmaps-exr: R1 uses a bounded RGBA8 EXR material decode scaled by 1/16 with envMapIntensity 16; 8-bit quantization and direct equirect sampling replace PMREM.');
+                }
+              }
+              intensity = 16;
+            }
+            this._r1EnvMap = converted;
+            this.envMapIntensity = intensity;
+          }
+        };
+      }`
     },
     discoverAssets: true,
     assets: []
@@ -4518,11 +4631,85 @@ webgl_geometry_shapes: {
     id: 'three-materials-physical-transmission',
     directory: 'three-materials-physical-transmission',
     name: 'Materials Physical Transmission — three.js r186',
-    description: 'Unmodified official webgl_materials_physical_transmission module on the JSR THREE R1/WebGL2 runtime.',
+    description: 'Official physical-transmission controls with a bounded, live Standard-material transmission approximation.',
+    version: '0.1.1',
     icon: '🧊',
     expected: {
       html: '53574f462a5578c31e7add5506415f78ddd0deaa68a71cad4bc993319b198060',
       module: '494f3562007e6da414a3a5683ba2f901d285838c186cfeb7288dd801d9142e6b'
+    },
+    facadeWraps: {
+      WebGLRenderer: `Base => class extends Base {
+        get transmissionResolutionScale() {
+          return globalThis.__jsrTransmissionResolutionScale ?? 1;
+        }
+        set transmissionResolutionScale(value) {
+          globalThis.__jsrTransmissionResolutionScale = value;
+          const materials = globalThis.__jsrTransmissionMaterials;
+          if (materials) for (const material of materials) material.needsUpdate = true;
+        }
+      }`,
+      MeshPhysicalMaterial: `Base => {
+        const materials = globalThis.__jsrTransmissionMaterials ||= new Set();
+        class VersionedColor extends __three.Color {
+          constructor(owner, value) { super(); this.owner = owner; this.set(value); }
+          set(value) { super.set(value); if (this.owner) this.owner.needsUpdate = true; return this; }
+        }
+        return class extends Base {
+          constructor(params = {}) {
+            const baseParams = { ...params };
+            for (const key of ['transmission', 'ior', 'thickness', 'specularIntensity',
+              'specularColor', 'attenuationColor', 'attenuationDistance']) delete baseParams[key];
+            super(baseParams);
+            this._r1Opacity = params.opacity ?? 1;
+            this._r1Roughness = params.roughness ?? 0;
+            this._r1Transmission = params.transmission ?? 0;
+            this._r1Ior = params.ior ?? 1.5;
+            this._r1Thickness = params.thickness ?? 0;
+            this._r1SpecularIntensity = params.specularIntensity ?? 1;
+            this._r1EnvMapIntensity = params.envMapIntensity ?? 1;
+            this.specularColor = new VersionedColor(this, params.specularColor ?? 0xffffff);
+            this.attenuationColor = new __three.Color(params.attenuationColor ?? 0xffffff);
+            this.attenuationDistance = params.attenuationDistance ?? Infinity;
+            this._r1SyncTransparency();
+            materials.add(this);
+            console.warn('three-materials-physical-transmission: R1 approximates refraction with alpha/transmission, thickness attenuation, IOR/specular environment response and resolution-dependent roughness; no offscreen transmission buffer is claimed.');
+          }
+          _r1SyncTransparency() {
+            this.transparent = this._r1Transmission > 0 || this._r1Opacity < 1;
+            this.depthWrite = !this.transparent;
+            this.needsUpdate = true;
+          }
+          get opacity() {
+            const thickness = Math.tanh(Math.max(0, this._r1Thickness ?? 0));
+            return Math.max(0.04, Math.min(1, (this._r1Opacity ?? 1) *
+              (1 - (this._r1Transmission ?? 0) * (0.45 + 0.1 * thickness))));
+          }
+          set opacity(value) { this._r1Opacity = value; this._r1SyncTransparency(); }
+          get transmission() { return this._r1Transmission; }
+          set transmission(value) { this._r1Transmission = value; this._r1SyncTransparency(); }
+          get thickness() { return this._r1Thickness; }
+          set thickness(value) { this._r1Thickness = value; this.needsUpdate = true; }
+          get roughness() {
+            const scale = globalThis.__jsrTransmissionResolutionScale ?? 1;
+            const base = this._r1Roughness ?? 0;
+            return base + (1 - base) * (1 - Math.max(0, Math.min(1, scale))) * 0.25;
+          }
+          set roughness(value) { this._r1Roughness = value; this.needsUpdate = true; }
+          get ior() { return this._r1Ior; }
+          set ior(value) { this._r1Ior = value; this.needsUpdate = true; }
+          get specularIntensity() { return this._r1SpecularIntensity; }
+          set specularIntensity(value) { this._r1SpecularIntensity = value; this.needsUpdate = true; }
+          get envMapIntensity() {
+            const color = this.specularColor;
+            const luminance = color ? 0.2126 * color.r + 0.7152 * color.g + 0.0722 * color.b : 1;
+            return (this._r1EnvMapIntensity ?? 1) * ((this._r1Ior ?? 1.5) / 1.5) *
+              (0.25 + 0.75 * (this._r1SpecularIntensity ?? 1)) * (0.35 + 0.65 * luminance);
+          }
+          set envMapIntensity(value) { this._r1EnvMapIntensity = value; this.needsUpdate = true; }
+          dispose() { materials.delete(this); super.dispose(); }
+        };
+      }`
     },
     discoverAssets: true,
     assets: []
@@ -4544,11 +4731,75 @@ webgl_geometry_shapes: {
     id: 'three-materials-subsurface-scattering',
     directory: 'three-materials-subsurface-scattering',
     name: 'Fast subsurface scattering in Blinn-Phong shading demo — three.js r186',
-    description: 'Unmodified official webgl_materials_subsurface_scattering module on the JSR THREE R1/WebGL2 runtime.',
+    description: 'Official subsurface controls with a live red Phong/thickness-scattering native approximation.',
+    version: '0.1.1',
     icon: '🧊',
     expected: {
       html: 'ebb175bc77ccc8b493c49f7c15ccaba5e70d39bbc5634c407d59e943b454e8e3',
       module: '8ad16204df62a961c7e4f1a1e8701e1fbb4298f2b8fc636fa94851fc72da39a1'
+    },
+    facadeWraps: {
+      ShaderMaterial: `Base => {
+        let warned = false;
+        return class extends __three.MeshPhongMaterial {
+          constructor(params = {}) {
+            const uniforms = params.uniforms || {};
+            const diffuse = uniforms.diffuse?.value || { x: 1, y: 0.2, z: 0.2 };
+            const thickness = uniforms.thicknessColor?.value || { x: 0.5, y: 0.3, z: 0 };
+            super({
+              color: new __three.Color(diffuse.x, diffuse.y, diffuse.z),
+              // white.jpg is a plain white diffuse texture. The pinned
+              // thickness image carries the spatial information that R1's
+              // generic first-texture lowering previously discarded.
+              map: uniforms.thicknessMap?.value || uniforms.map?.value,
+              specular: uniforms.specular?.value || new __three.Color(0x111111),
+              shininess: uniforms.shininess?.value || 500,
+              emissive: new __three.Color(thickness.x, thickness.y, thickness.z)
+            });
+            this.uniforms = uniforms;
+            this.vertexShader = params.vertexShader;
+            this.fragmentShader = params.fragmentShader;
+            this._r1BaseShininess = uniforms.shininess?.value || 500;
+            this._r1BaseEmissiveIntensity = 1;
+            for (const name of ['thicknessDistortion', 'thicknessAmbient',
+              'thicknessAttenuation', 'thicknessPower', 'thicknessScale']) {
+              const uniform = uniforms[name];
+              if (!uniform) continue;
+              let value = uniform.value;
+              Object.defineProperty(uniform, 'value', {
+                configurable: true, enumerable: true,
+                get: () => value,
+                set: next => { value = next; this.needsUpdate = true; }
+              });
+            }
+            if (!warned) {
+              warned = true;
+              console.warn('three-materials-subsurface-scattering: R1 approximates the custom back-light shader with red Phong lighting, thickness-modulated diffuse and live control-driven emissive scattering; original GLSL scattering is not executed.');
+            }
+          }
+          get shininess() {
+            const uniforms = this.uniforms;
+            if (!uniforms) return this._r1BaseShininess || 30;
+            const distortion = uniforms.thicknessDistortion?.value ?? 0.1;
+            const power = Math.max(0.01, uniforms.thicknessPower?.value ?? 2);
+            return Math.max(1, Math.min(2048, (this._r1BaseShininess || 500) *
+              2 / power * ((0.25 + distortion) / 0.35)));
+          }
+          set shininess(value) { this._r1BaseShininess = value; }
+          get emissiveIntensity() {
+            const uniforms = this.uniforms;
+            if (!uniforms) return this._r1BaseEmissiveIntensity ?? 1;
+            const ambient = uniforms.thicknessAmbient?.value ?? 0.4;
+            const attenuation = uniforms.thicknessAttenuation?.value ?? 0.8;
+            const power = Math.max(0.01, uniforms.thicknessPower?.value ?? 2);
+            const scale = uniforms.thicknessScale?.value ?? 16;
+            const distortion = uniforms.thicknessDistortion?.value ?? 0.1;
+            return (this._r1BaseEmissiveIntensity ?? 1) * Math.min(1.5,
+              ambient * attenuation * (scale / 16) * (0.25 + distortion) / power);
+          }
+          set emissiveIntensity(value) { this._r1BaseEmissiveIntensity = value; }
+        };
+      }`
     },
     discoverAssets: true,
     assets: []
@@ -4902,6 +5153,7 @@ webgl_geometry_shapes: {
     id: 'three-postprocessing-3dlut',
     directory: 'three-postprocessing-3dlut',
     name: '3d luts — three.js r186',
+    version: '0.1.1',
     description: 'Unmodified official webgl_postprocessing_3dlut module on the JSR THREE R1/WebGL2 runtime.',
     icon: '🧊',
     expected: {
@@ -4964,19 +5216,33 @@ webgl_geometry_shapes: {
     id: 'three-postprocessing-backgrounds',
     directory: 'three-postprocessing-backgrounds',
     name: 'postprocessing backgrounds — three.js r186',
+    version: '0.1.1',
     description: 'Unmodified official webgl_postprocessing_backgrounds module on the JSR THREE R1/WebGL2 runtime.',
     icon: '🧊',
     expected: {
       html: '59cfe9f960efd98fe03f6ed3bcaebcf2d301d5314f87de344186bed78f622528',
       module: '9d5e88a362aa49029109fcb7af61477712dce54531c7495c7044d5c00860ef50'
     },
-        assets: [
+    importOverrides: {
+      'three/addons/postprocessing/ClearPass.js': 'degrades/backgrounds_clear_native.mjs'
+    },
+    assets: [
       {
         'url': 'textures/hardwood2_diffuse.jpg',
         'mime': 'image/jpeg',
         'output': 'hardwood2_diffuse.jpg',
         'sha256': '3986fe3bd7d3c24b18e7da17ae72bbef9385dbc355c931c52a04dbfe1412c802'
-      }
+      },
+      ...pisaCubeAssets().map(asset => {
+        const output = `textures/cube/pisa/${asset.url.split('/').pop()}`;
+        return {
+          ...asset,
+          output,
+          // These six tracked, hash-pinned upstream PNGs already ship with
+          // this widget; reuse them verbatim instead of adding binary copies.
+          generated: `example/widgets/three-postprocessing-backgrounds/${output}`
+        };
+      })
     ]
   },
   webgl_postprocessing_dof: {
@@ -5437,23 +5703,48 @@ webgl_geometry_shapes: {
     id: 'three-shaders-ocean',
     directory: 'three-shaders-ocean',
     name: 'shaders - ocean — three.js r186',
+    version: '0.1.1',
     description: 'Unmodified official webgl_shaders_ocean module on the JSR THREE R1/WebGL2 runtime.',
     icon: '🧊',
     expected: {
       html: '87b6965af1d05c32eebe21d1dba3e55c6b5981703c7c87992b359416fdc1ff5e',
       module: '1512f890e35a610458f94c484d754469e666c4b40d7bf2515f809a23ebf30a86'
     },
-    assets: []
+    // Keep the official uniforms/GUI, but replace unsupported arbitrary Sky,
+    // Water and bloom GLSL with bounded native-material evaluations. The
+    // generated Sky also feeds PMREM/environment reflections (no six flat
+    // faces), and Water's size/distortion/time uniforms drive real UV/normal
+    // state rather than the unused mirrorSampler blit.
+    importOverrides: {
+      'three/addons/objects/Sky.js': 'degrades/sky_water_native.mjs',
+      'three/addons/objects/Water.js': 'degrades/sky_water_native.mjs',
+      'three/addons/postprocessing/UnrealBloomPass.js': 'degrades/sky_water_native.mjs'
+    },
+    assets: [{
+      url: 'textures/waternormals.jpg',
+      mime: 'image/jpeg',
+      output: 'textures/waternormals.jpg',
+      generated: 'example/widgets/three-shaders-ocean/textures/waternormals.jpg',
+      sha256: 'add9912b158a4fe9c12421745babe68c44c8af75631ac4837236cb2a03bc373f'
+    }]
   },
   webgl_shaders_sky: {
     id: 'three-shaders-sky',
     directory: 'three-shaders-sky',
     name: 'shaders - sky sun shader — three.js r186',
+    version: '0.1.1',
     description: 'Unmodified official webgl_shaders_sky module on the JSR THREE R1/WebGL2 runtime.',
     icon: '🧊',
     expected: {
       html: '0ff9fde8861d424fc633c0d67fb61745849dd669b28a3cf2679814a978a19c23',
       module: '525d77b73e19bb3e142959f446c7cc83bd606a2d7d5e6f4f22ccb9e38e1f0cea'
+    },
+    // The old neutral Basic lowering lost all scattering controls, and
+    // CubeCamera aliased one 2D target onto six faces (black center sphere).
+    // CPU r186 scattering/clouds feed both the sky and its equirectangular
+    // reflection, with every official uniform still live.
+    importOverrides: {
+      'three/addons/objects/Sky.js': 'degrades/sky_water_native.mjs'
     },
     assets: []
   },
@@ -6975,7 +7266,7 @@ export class KTX2Loader extends Loader {
 }`;
 }
 
-function dsLoaderShim() {
+function dsLoaderShim(className = 'DDSLoader', label = 'DDS') {
   // Mirrors the stock CompressedTextureLoader contract over the shared
   // JSRKTEX2 container that asset_decode.mjs decodeDdsAsset emits: load()
   // returns an empty CompressedTexture synchronously (the official module
@@ -6987,7 +7278,7 @@ function dsLoaderShim() {
   // Mip chains collapse to the base level; the official module keeps
   // authority over colorSpace/anisotropy/alphaTest.
   return `import { CompressedTexture, CubeReflectionMapping, FileLoader, LinearFilter, Loader, RGBAFormat } from 'three';
-export class DDSLoader extends Loader {
+export class ${className} extends Loader {
   load(url, onLoad, onProgress, onError) {
     const texture = new CompressedTexture();
     texture.format = RGBAFormat;
@@ -7011,7 +7302,7 @@ export class DDSLoader extends Loader {
         if (!header.width || !header.height || data.length !== faceBytes * faceCount) {
           throw new Error(url + ': invalid prepare-decoded RGBA dimensions');
         }
-        console.warn('three: R1 renders DDS via the prepare-time RGBA decode lane (BC1/BC2/BC3 + uncompressed); mip chains collapse to the base level with LinearFilter.');
+        console.warn('three: R1 renders ${label} via the prepare-time RGBA decode lane; mip chains collapse to the base level with LinearFilter.');
         if (header.cube) {
           const faces = [];
           for (let face = 0; face < 6; face++) faces.push({ data: data.subarray(face * faceBytes, (face + 1) * faceBytes), width: header.width, height: header.height });
@@ -7053,6 +7344,9 @@ function automaticAssetAddonShims(definitions) {
   if (definitions.some(definition => definition.prepareDds)) {
     shims['three/addons/loaders/DDSLoader.js'] = dsLoaderShim();
   }
+  if (definitions.some(definition => definition.preparePvr)) {
+    shims['three/addons/loaders/PVRLoader.js'] = dsLoaderShim('PVRLoader', 'PVRTC');
+  }
   if (definitions.some(definition => definition.prepareVrml)) {
     shims['three/addons/loaders/VRMLLoader.js'] = vrmlLoaderShim();
   }
@@ -7073,11 +7367,21 @@ function automaticAssetAddonShims(definitions) {
   // ignore the HDR data type in the bounded SDR lane.
   if (definitions.some(definition => definition.url.endsWith('.hdr.jpg'))) {
     shims['three/addons/loaders/UltraHDRLoader.js'] = `
-import { TextureLoader } from 'three';
+import { TextureLoader, SRGBColorSpace } from 'three';
 export class UltraHDRLoader extends TextureLoader {
   setDataType() {
-    console.warn('three: UltraHDRLoader SDR lane ignores the HDR data type; the gain map is not applied.');
+    console.warn('three: UltraHDRLoader SDR lane ignores the HDR data type and gain map; the base JPEG is decoded as sRGB.');
     return this;
+  }
+  load(url, onLoad, onProgress, onError) {
+    return super.load(url, texture => {
+      // The official loader converts the display-referred base JPEG to linear
+      // HDR through its gain map. This bounded SDR degrade omits the gain map,
+      // but must still decode the base JPEG's sRGB transfer before lighting.
+      texture.colorSpace = SRGBColorSpace;
+      texture.needsUpdate = true;
+      if (onLoad) onLoad(texture);
+    }, onProgress, onError);
   }
 }
 `;
@@ -7121,6 +7425,11 @@ async function prepareAssets(source, definitions) {
     }
     if (definition.prepareDds) {
       bytes = await decodeDdsAsset(source, bytes, definition.url);
+      assets.push({ ...definition, bytes, mime: 'application/x-jsr-ktx2-rgba' });
+      continue;
+    }
+    if (definition.preparePvr) {
+      bytes = await decodePvrAsset(source, bytes, definition.url);
       assets.push({ ...definition, bytes, mime: 'application/x-jsr-ktx2-rgba' });
       continue;
     }
@@ -7445,6 +7754,9 @@ async function main() {
   }
   if (definition.memoryGeometry) {
     officialBuildBytes = applyMemoryGeometryPatch(officialBuildBytes);
+  }
+  if (definition.customAttributeAnimationFastPath) {
+    officialBuildBytes = applyCustomAttributeAnimationFastPath(officialBuildBytes, options.example);
   }
   if (definition.customPoints30Hz) {
     officialBuildBytes = applyCustomPoints30HzPatch(officialBuildBytes);

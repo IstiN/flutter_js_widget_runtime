@@ -45,8 +45,16 @@ final _kStorm = Platform.environment['JSR_STORM'] == '1';
 // pointer gesture (down -> moves with buttons=1 -> up). This exercises
 // OrbitControls/MapControls without any OS-level input injection.
 final _kDrag = Platform.environment['JSR_DRAG'] == '1';
-final _kWindowSeconds =
-    int.tryParse(Platform.environment['JSR_WINDOW_SECONDS'] ?? '') ?? 2;
+final _kWindowSeconds = int.tryParse(
+      Platform.environment['JSR_SECONDS'] ??
+          Platform.environment['JSR_WINDOW_SECONDS'] ??
+          '',
+    ) ??
+    2;
+// Optional focused GUI control probe: JSR_GUI_ACTION='intensity=0.25' (or
+// 'enabled=false', 'lut=NightLUT'). The action is resolved from exported
+// lil-gui state and delivered through the normal host callEvent path.
+final _kGuiAction = Platform.environment['JSR_GUI_ACTION'] ?? '';
 // Attribution flag: short-circuit Raycaster.intersectObject so the storm
 // measures everything EXCEPT the official module's own BVH hover raycast.
 final _kSkipRaycast = Platform.environment['JSR_SKIP_RAYCAST'] == '1';
@@ -315,7 +323,6 @@ class _QueueHostState extends State<_QueueHost> {
       final q = File(_kQueue);
       if (!q.existsSync()) {
         exit(4);
-        return;
       }
       lines = q
           .readAsStringSync()
@@ -324,11 +331,9 @@ class _QueueHostState extends State<_QueueHost> {
           .toList();
     } catch (_) {
       exit(4);
-      return;
     }
     if (lines.isEmpty) {
       exit(0);
-      return;
     }
     final id = lines.first.trim();
     try {
@@ -336,7 +341,6 @@ class _QueueHostState extends State<_QueueHost> {
     } catch (_) {}
     if (!mounted) {
       exit(0);
-      return;
     }
     setState(() => _current = id);
   }
@@ -423,6 +427,7 @@ class _ProbeFrameState extends State<_ProbeFrame> {
   double _lastStormY = 400;
   bool _stormActive = false;
   bool _stormDone = false;
+  bool _guiActionDone = false;
 
   @override
   void initState() {
@@ -490,7 +495,6 @@ class _ProbeFrameState extends State<_ProbeFrame> {
     _stormTimer?.cancel();
     if (!mounted) {
       exit(code);
-      return;
     }
     probeDiag('THREE probe widgetEnd: $_id code=$code');
     if (widget.onDone != null) {
@@ -519,9 +523,46 @@ class _ProbeFrameState extends State<_ProbeFrame> {
     });
   }
 
+  Future<void> _applyGuiAction() async {
+    if (_guiActionDone || _kGuiAction.isEmpty) return;
+    _guiActionDone = true;
+    final split = _kGuiAction.indexOf('=');
+    if (split < 1) {
+      probeDiag('THREE probe guiAction error: expected name=value');
+      return;
+    }
+    final name = _kGuiAction.substring(0, split);
+    final raw = _kGuiAction.substring(split + 1);
+    final exported = _engine?.exportedState;
+    final gui = exported?['gui'];
+    final values = gui is Map ? gui['values'] : null;
+    if (values is! List) {
+      probeDiag('THREE probe guiAction error: no exported lil-gui values');
+      return;
+    }
+    final entry = values.whereType<Map>().cast<Map<String, dynamic>?>().firstWhere(
+          (value) => value?['name'] == name,
+          orElse: () => null,
+        );
+    if (entry == null) {
+      probeDiag('THREE probe guiAction error: unknown controller $name');
+      return;
+    }
+    final Object value = switch (entry['kind']) {
+      'boolean' => raw == 'true',
+      'number' => double.parse(raw),
+      _ => raw,
+    };
+    await _engine?.callEvent('${entry['action']}', {'value': value});
+    probeDiag(
+      'THREE probe guiAction: ${jsonEncode({'name': name, 'value': value, 'action': entry['action']})}',
+    );
+  }
+
   void _startWindow() {
     final presented = _surface?.diagnostics['presentedFrames'] ?? 0;
     if (_windowStartFrames == null) {
+      unawaited(_applyGuiAction());
       // Window A: static (no input).
       _window = 0;
       _windowStartFrames = presented.toInt();
@@ -643,7 +684,8 @@ class _ProbeFrameState extends State<_ProbeFrame> {
         child: _tree == null
             ? const Center(child: CircularProgressIndicator())
             : JsonWidgetRenderer(
-                onEvent: (_, _) {},
+                onEvent: (actionId, payload) =>
+                    _engine?.callEvent(actionId, payload),
                 threeHost: _threeHost,
                 onThreeEvent: (canvasId, payload) => _engine?.dispatchHostEvent(
                   'three.input:$canvasId',

@@ -139,10 +139,16 @@ identity lives in `ThreeUpstreamBundle`, `tool/three/source-pin.json` and
 
 - Native evaluates upstream core on QuickJS/JSC. Its `THREE.WebGLRenderer`
   export is the explicit `JsrWebGLRenderer` alias. It emits versioned
-  `JSR3D-T1` / `R1-v2` packets over `jsr.hostCallBinary('three.r1', bytes)`;
-  strict Dart decode also accepts legacy R1-v1 streams. `rawWebGL == false`,
-  `getContext()` and ShaderMaterial fail with
+  `JSR3D-T1` / `R1-v10` packets over `jsr.hostCallBinary('three.r1', bytes)`;
+  strict Dart decode also accepts legacy R1 streams. `rawWebGL == false`,
+  `getContext()` and unlowerable ShaderMaterial fail with
   `three.unsupported`. It is NOT WebGL in a WebView.
+- R1 v10 uses GEOMETRY.reserved bit 0 for retained dynamic geometry: position
+  is sent every changed frame, while unchanged normal/UV/color, index and
+  wire-index payloads are omitted explicitly (never treated as removal).
+  Keep the version gate and Dart retention fallback on both attr/bin lanes.
+  Native prepared 3D LUTs use bounded post-pass opcode 17; `.CUBE`, `.3dl`
+  and PNG LUTs retain their official controls and analytical LUT identity.
 - Multi-`render()` ticks composite into one present (per-pass command
   buffers, color LOAD + depth clear on later passes); node/light retirement
   is scoped to the rendered scene (`sceneId`), or alternating scenes delete

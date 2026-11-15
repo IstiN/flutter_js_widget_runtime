@@ -1,8 +1,8 @@
 {
   "id": "three-loader-ldraw",
   "name": "LDrawLoader — three.js r186",
-  "description": "Unmodified official webgl_loader_ldraw module on the JSR THREE R1/WebGL2 runtime.",
-  "version": "0.1.0",
+  "description": "Official LDraw controls over cached offline scenes; conditional lines use bounded native line materials on JSR THREE R1.",
+  "version": "0.1.1",
   "icon": "🧊",
   "allowedCommands": [],
   "network": false,

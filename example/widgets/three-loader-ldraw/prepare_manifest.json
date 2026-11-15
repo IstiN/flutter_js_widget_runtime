@@ -41,7 +41,8 @@
     "officialModule": {
       "bytes": 8753,
       "sha256": "6e2312b5c918168418957bd9304fffecb2dfca572438f88e5975e4832b0e0afa"
-    }
+    },
+    "buildTransform": "explicit bounded native replacement: degrades/loader_ldraw.mjs"
   },
   "assetDiscovery": [
     {
@@ -53,12 +54,28 @@
       "discovered": true
     },
     {
+      "url": "models/ldraw/officialLibrary/models/10174-1-ImperialAT-ST-UCS.mpd_Packed.mpd.bin",
+      "output": "models__ldraw__officialLibrary__models__10174-1-ImperialAT-ST-UCS.mpd_Packed.mpd.bin",
+      "mime": "application/octet-stream",
+      "diagnostic": "generated:ldrawScene",
+      "generated": "example/widgets/three-loader-ldraw/models__ldraw__officialLibrary__models__10174-1-ImperialAT-ST-UCS.mpd_Packed.mpd.bin",
+      "sha256": "06b7c738cdde896a817773cd0cedf645612c8289918c7d057daf1b9e09ac4696"
+    },
+    {
       "url": "models/ldraw/officialLibrary/models/1621-1-LunarMPVVehicle.mpd_Packed.mpd",
       "output": "models__ldraw__officialLibrary__models__1621-1-LunarMPVVehicle.mpd_Packed.mpd",
       "mime": "application/octet-stream",
       "diagnostic": "auto:models/ldraw/officialLibrary/models/1621-1-LunarMPVVehicle.mpd_Packed.mpd",
       "sha256": "7588ea4cdf8461721d05858ba839912768c197a29b9fe546ec63edf149ebf33e",
       "discovered": true
+    },
+    {
+      "url": "models/ldraw/officialLibrary/models/1621-1-LunarMPVVehicle.mpd_Packed.mpd.bin",
+      "output": "models__ldraw__officialLibrary__models__1621-1-LunarMPVVehicle.mpd_Packed.mpd.bin",
+      "mime": "application/octet-stream",
+      "diagnostic": "generated:ldrawScene",
+      "generated": "example/widgets/three-loader-ldraw/models__ldraw__officialLibrary__models__1621-1-LunarMPVVehicle.mpd_Packed.mpd.bin",
+      "sha256": "d8b31f9c7b05496c39b5247a7461c913fc17a89fb506b988ff8c94150b85d8e7"
     },
     {
       "url": "models/ldraw/officialLibrary/models/30023-1-Lighthouse.ldr_Packed.mpd",
@@ -69,12 +86,28 @@
       "discovered": true
     },
     {
+      "url": "models/ldraw/officialLibrary/models/30023-1-Lighthouse.ldr_Packed.mpd.bin",
+      "output": "models__ldraw__officialLibrary__models__30023-1-Lighthouse.ldr_Packed.mpd.bin",
+      "mime": "application/octet-stream",
+      "diagnostic": "generated:ldrawScene",
+      "generated": "example/widgets/three-loader-ldraw/models__ldraw__officialLibrary__models__30023-1-Lighthouse.ldr_Packed.mpd.bin",
+      "sha256": "0097fb4881bede6035200667657c9953b61024697ea3796de14cf0334d093f1d"
+    },
+    {
       "url": "models/ldraw/officialLibrary/models/30051-1-X-wingFighter-Mini.mpd_Packed.mpd",
       "output": "models__ldraw__officialLibrary__models__30051-1-X-wingFighter-Mini.mpd_Packed.mpd",
       "mime": "application/octet-stream",
       "diagnostic": "auto:models/ldraw/officialLibrary/models/30051-1-X-wingFighter-Mini.mpd_Packed.mpd",
       "sha256": "9e75a1fc07be20c911010bc1f5ac54bd780290ce425959885daf59672ddae31e",
       "discovered": true
+    },
+    {
+      "url": "models/ldraw/officialLibrary/models/30051-1-X-wingFighter-Mini.mpd_Packed.mpd.bin",
+      "output": "models__ldraw__officialLibrary__models__30051-1-X-wingFighter-Mini.mpd_Packed.mpd.bin",
+      "mime": "application/octet-stream",
+      "diagnostic": "generated:ldrawScene",
+      "generated": "example/widgets/three-loader-ldraw/models__ldraw__officialLibrary__models__30051-1-X-wingFighter-Mini.mpd_Packed.mpd.bin",
+      "sha256": "3b0b8389df941505cbb32f350603aded640012b2dfb815b01280a4519a9ab7f7"
     },
     {
       "url": "models/ldraw/officialLibrary/models/30054-1-AT-ST-Mini.mpd_Packed.mpd",
@@ -85,12 +118,28 @@
       "discovered": true
     },
     {
+      "url": "models/ldraw/officialLibrary/models/30054-1-AT-ST-Mini.mpd_Packed.mpd.bin",
+      "output": "models__ldraw__officialLibrary__models__30054-1-AT-ST-Mini.mpd_Packed.mpd.bin",
+      "mime": "application/octet-stream",
+      "diagnostic": "generated:ldrawScene",
+      "generated": "example/widgets/three-loader-ldraw/models__ldraw__officialLibrary__models__30054-1-AT-ST-Mini.mpd_Packed.mpd.bin",
+      "sha256": "4ed1221170bd97d8958cb737fd37529caf7494cbbcecbe236b789c8f9aff8661"
+    },
+    {
       "url": "models/ldraw/officialLibrary/models/4489-1-AT-AT-Mini.mpd_Packed.mpd",
       "output": "models__ldraw__officialLibrary__models__4489-1-AT-AT-Mini.mpd_Packed.mpd",
       "mime": "application/octet-stream",
       "diagnostic": "auto:models/ldraw/officialLibrary/models/4489-1-AT-AT-Mini.mpd_Packed.mpd",
       "sha256": "0b5c7abff02dc42d81fbd8658276d900e5f98ed3f15f5eb4373d64fd0536e84d",
       "discovered": true
+    },
+    {
+      "url": "models/ldraw/officialLibrary/models/4489-1-AT-AT-Mini.mpd_Packed.mpd.bin",
+      "output": "models__ldraw__officialLibrary__models__4489-1-AT-AT-Mini.mpd_Packed.mpd.bin",
+      "mime": "application/octet-stream",
+      "diagnostic": "generated:ldrawScene",
+      "generated": "example/widgets/three-loader-ldraw/models__ldraw__officialLibrary__models__4489-1-AT-AT-Mini.mpd_Packed.mpd.bin",
+      "sha256": "6624e7f70ee7f757733e516770ef4b9543dbc64ff1e0ab80725f02bae3163828"
     },
     {
       "url": "models/ldraw/officialLibrary/models/4494-1-Imperial Shuttle-Mini.mpd_Packed.mpd",
@@ -101,12 +150,28 @@
       "discovered": true
     },
     {
+      "url": "models/ldraw/officialLibrary/models/4494-1-Imperial Shuttle-Mini.mpd_Packed.mpd.bin",
+      "output": "models__ldraw__officialLibrary__models__4494-1-Imperial Shuttle-Mini.mpd_Packed.mpd.bin",
+      "mime": "application/octet-stream",
+      "diagnostic": "generated:ldrawScene",
+      "generated": "example/widgets/three-loader-ldraw/models__ldraw__officialLibrary__models__4494-1-Imperial Shuttle-Mini.mpd_Packed.mpd.bin",
+      "sha256": "621ecb74da566b9e12bb747946d1a686c6a8a0583d462b78552ea37996d4b031"
+    },
+    {
       "url": "models/ldraw/officialLibrary/models/4838-1-MiniVehicles.mpd_Packed.mpd",
       "output": "models__ldraw__officialLibrary__models__4838-1-MiniVehicles.mpd_Packed.mpd",
       "mime": "application/octet-stream",
       "diagnostic": "auto:models/ldraw/officialLibrary/models/4838-1-MiniVehicles.mpd_Packed.mpd",
       "sha256": "1b23de39dbbc518d4989cdb74693f7b5df058c642dedcb5c649d0ef6530e57e7",
       "discovered": true
+    },
+    {
+      "url": "models/ldraw/officialLibrary/models/4838-1-MiniVehicles.mpd_Packed.mpd.bin",
+      "output": "models__ldraw__officialLibrary__models__4838-1-MiniVehicles.mpd_Packed.mpd.bin",
+      "mime": "application/octet-stream",
+      "diagnostic": "generated:ldrawScene",
+      "generated": "example/widgets/three-loader-ldraw/models__ldraw__officialLibrary__models__4838-1-MiniVehicles.mpd_Packed.mpd.bin",
+      "sha256": "8db897c182748802aa50da845d38b0e4a2c9675d9164bbae9a91e6cdd678983b"
     },
     {
       "url": "models/ldraw/officialLibrary/models/4915-1-MiniConstruction.mpd_Packed.mpd",
@@ -117,12 +182,28 @@
       "discovered": true
     },
     {
+      "url": "models/ldraw/officialLibrary/models/4915-1-MiniConstruction.mpd_Packed.mpd.bin",
+      "output": "models__ldraw__officialLibrary__models__4915-1-MiniConstruction.mpd_Packed.mpd.bin",
+      "mime": "application/octet-stream",
+      "diagnostic": "generated:ldrawScene",
+      "generated": "example/widgets/three-loader-ldraw/models__ldraw__officialLibrary__models__4915-1-MiniConstruction.mpd_Packed.mpd.bin",
+      "sha256": "5626d4b0b44f985166559b1f80492a26f0eb46d2be48e515777e981eeb05ffb5"
+    },
+    {
       "url": "models/ldraw/officialLibrary/models/4918-1-MiniFlyers.mpd_Packed.mpd",
       "output": "models__ldraw__officialLibrary__models__4918-1-MiniFlyers.mpd_Packed.mpd",
       "mime": "application/octet-stream",
       "diagnostic": "auto:models/ldraw/officialLibrary/models/4918-1-MiniFlyers.mpd_Packed.mpd",
       "sha256": "53e807e5489b7fe38e65fee63a67251ad5d1870a091315f8aab212f7f3a156a4",
       "discovered": true
+    },
+    {
+      "url": "models/ldraw/officialLibrary/models/4918-1-MiniFlyers.mpd_Packed.mpd.bin",
+      "output": "models__ldraw__officialLibrary__models__4918-1-MiniFlyers.mpd_Packed.mpd.bin",
+      "mime": "application/octet-stream",
+      "diagnostic": "generated:ldrawScene",
+      "generated": "example/widgets/three-loader-ldraw/models__ldraw__officialLibrary__models__4918-1-MiniFlyers.mpd_Packed.mpd.bin",
+      "sha256": "9d6f927ce2cc805f3b264080ec2eeadf57a350e9f644ed6bbfe8d671eac5397e"
     },
     {
       "url": "models/ldraw/officialLibrary/models/5935-1-IslandHopper.mpd_Packed.mpd",
@@ -133,12 +214,28 @@
       "discovered": true
     },
     {
+      "url": "models/ldraw/officialLibrary/models/5935-1-IslandHopper.mpd_Packed.mpd.bin",
+      "output": "models__ldraw__officialLibrary__models__5935-1-IslandHopper.mpd_Packed.mpd.bin",
+      "mime": "application/octet-stream",
+      "diagnostic": "generated:ldrawScene",
+      "generated": "example/widgets/three-loader-ldraw/models__ldraw__officialLibrary__models__5935-1-IslandHopper.mpd_Packed.mpd.bin",
+      "sha256": "400fde00812998ec46f5a75bf9a1c2853333b7b310a1f9616ba4bafb8bc08368"
+    },
+    {
       "url": "models/ldraw/officialLibrary/models/6156-1-WindowBrick.mpd_Packed.mpd",
       "output": "models__ldraw__officialLibrary__models__6156-1-WindowBrick.mpd_Packed.mpd",
       "mime": "application/octet-stream",
       "diagnostic": "auto:models/ldraw/officialLibrary/models/6156-1-WindowBrick.mpd_Packed.mpd",
       "sha256": "8ff70477d7382a21c38f088fe4706c35da3d6a36b212a9bf960b1613599f678e",
       "discovered": true
+    },
+    {
+      "url": "models/ldraw/officialLibrary/models/6156-1-WindowBrick.mpd_Packed.mpd.bin",
+      "output": "models__ldraw__officialLibrary__models__6156-1-WindowBrick.mpd_Packed.mpd.bin",
+      "mime": "application/octet-stream",
+      "diagnostic": "generated:ldrawScene",
+      "generated": "example/widgets/three-loader-ldraw/models__ldraw__officialLibrary__models__6156-1-WindowBrick.mpd_Packed.mpd.bin",
+      "sha256": "fad3f39321ac80977cde6391fa2ef8835085bc42f609995555c00deed253d1b1"
     },
     {
       "url": "models/ldraw/officialLibrary/models/6965-1-TIEIntercep_4h4MXk5.mpd_Packed.mpd",
@@ -149,12 +246,28 @@
       "discovered": true
     },
     {
+      "url": "models/ldraw/officialLibrary/models/6965-1-TIEIntercep_4h4MXk5.mpd_Packed.mpd.bin",
+      "output": "models__ldraw__officialLibrary__models__6965-1-TIEIntercep_4h4MXk5.mpd_Packed.mpd.bin",
+      "mime": "application/octet-stream",
+      "diagnostic": "generated:ldrawScene",
+      "generated": "example/widgets/three-loader-ldraw/models__ldraw__officialLibrary__models__6965-1-TIEIntercep_4h4MXk5.mpd_Packed.mpd.bin",
+      "sha256": "5830b2ba2b59c3bb8c2fd1467a19002fab8fddcd1427cf67304a7db2ac40c7e8"
+    },
+    {
       "url": "models/ldraw/officialLibrary/models/6966-1-JediStarfighter-Mini.mpd_Packed.mpd",
       "output": "models__ldraw__officialLibrary__models__6966-1-JediStarfighter-Mini.mpd_Packed.mpd",
       "mime": "application/octet-stream",
       "diagnostic": "auto:models/ldraw/officialLibrary/models/6966-1-JediStarfighter-Mini.mpd_Packed.mpd",
       "sha256": "5b8689ebc39a4e867cefa46447137619e2936511bd11e5e50f19aa3176e38c0e",
       "discovered": true
+    },
+    {
+      "url": "models/ldraw/officialLibrary/models/6966-1-JediStarfighter-Mini.mpd_Packed.mpd.bin",
+      "output": "models__ldraw__officialLibrary__models__6966-1-JediStarfighter-Mini.mpd_Packed.mpd.bin",
+      "mime": "application/octet-stream",
+      "diagnostic": "generated:ldrawScene",
+      "generated": "example/widgets/three-loader-ldraw/models__ldraw__officialLibrary__models__6966-1-JediStarfighter-Mini.mpd_Packed.mpd.bin",
+      "sha256": "b55c99bb2053856157b8eb3fbeddc93305c29712bf241e6284d39afe3dce5f7d"
     },
     {
       "url": "models/ldraw/officialLibrary/models/7140-1-X-wingFighter.mpd_Packed.mpd",
@@ -165,6 +278,14 @@
       "discovered": true
     },
     {
+      "url": "models/ldraw/officialLibrary/models/7140-1-X-wingFighter.mpd_Packed.mpd.bin",
+      "output": "models__ldraw__officialLibrary__models__7140-1-X-wingFighter.mpd_Packed.mpd.bin",
+      "mime": "application/octet-stream",
+      "diagnostic": "generated:ldrawScene",
+      "generated": "example/widgets/three-loader-ldraw/models__ldraw__officialLibrary__models__7140-1-X-wingFighter.mpd_Packed.mpd.bin",
+      "sha256": "057f87a246c79b0742772042a81f0255b3b07958dc9498298bf7978781aff761"
+    },
+    {
       "url": "models/ldraw/officialLibrary/models/889-1-RadarTruck.mpd_Packed.mpd",
       "output": "models__ldraw__officialLibrary__models__889-1-RadarTruck.mpd_Packed.mpd",
       "mime": "application/octet-stream",
@@ -173,14 +294,239 @@
       "discovered": true
     },
     {
+      "url": "models/ldraw/officialLibrary/models/889-1-RadarTruck.mpd_Packed.mpd.bin",
+      "output": "models__ldraw__officialLibrary__models__889-1-RadarTruck.mpd_Packed.mpd.bin",
+      "mime": "application/octet-stream",
+      "diagnostic": "generated:ldrawScene",
+      "generated": "example/widgets/three-loader-ldraw/models__ldraw__officialLibrary__models__889-1-RadarTruck.mpd_Packed.mpd.bin",
+      "sha256": "f1d50da5decd79368ac161a861234ef88a45e90e25ab22c530de2b8cdcac3201"
+    },
+    {
       "url": "models/ldraw/officialLibrary/models/car.ldr_Packed.mpd",
       "output": "models__ldraw__officialLibrary__models__car.ldr_Packed.mpd",
       "mime": "application/octet-stream",
       "diagnostic": "auto:models/ldraw/officialLibrary/models/car.ldr_Packed.mpd",
       "sha256": "423ed229fa89af186d04929ca2b51eee42060dc23d2b65f17538121a8c4bf6cd",
       "discovered": true
+    },
+    {
+      "url": "models/ldraw/officialLibrary/models/car.ldr_Packed.mpd.bin",
+      "output": "models__ldraw__officialLibrary__models__car.ldr_Packed.mpd.bin",
+      "mime": "application/octet-stream",
+      "diagnostic": "generated:ldrawScene",
+      "generated": "example/widgets/three-loader-ldraw/models__ldraw__officialLibrary__models__car.ldr_Packed.mpd.bin",
+      "sha256": "a6b1b7a14be6d29276dd4e82a588a91f8d703c46020d205c654ce50884525353"
     }
   ],
+  "assetPolicy": {
+    "inlineMaxBytes": 0,
+    "externalAssets": [
+      {
+        "url": "models/ldraw/officialLibrary/models/10174-1-ImperialAT-ST-UCS.mpd_Packed.mpd",
+        "file": "models__ldraw__officialLibrary__models__10174-1-ImperialAT-ST-UCS.mpd_Packed.mpd",
+        "bytes": 1463110,
+        "sha256": "d80461a7a886a654581434bec0b0b1bc56ab68df70acbfe0bbcf38a85cdb0bf3"
+      },
+      {
+        "url": "models/ldraw/officialLibrary/models/10174-1-ImperialAT-ST-UCS.mpd_Packed.mpd.bin",
+        "file": "models__ldraw__officialLibrary__models__10174-1-ImperialAT-ST-UCS.mpd_Packed.mpd.bin",
+        "bytes": 14591656,
+        "sha256": "06b7c738cdde896a817773cd0cedf645612c8289918c7d057daf1b9e09ac4696"
+      },
+      {
+        "url": "models/ldraw/officialLibrary/models/1621-1-LunarMPVVehicle.mpd_Packed.mpd",
+        "file": "models__ldraw__officialLibrary__models__1621-1-LunarMPVVehicle.mpd_Packed.mpd",
+        "bytes": 558845,
+        "sha256": "7588ea4cdf8461721d05858ba839912768c197a29b9fe546ec63edf149ebf33e"
+      },
+      {
+        "url": "models/ldraw/officialLibrary/models/1621-1-LunarMPVVehicle.mpd_Packed.mpd.bin",
+        "file": "models__ldraw__officialLibrary__models__1621-1-LunarMPVVehicle.mpd_Packed.mpd.bin",
+        "bytes": 1873941,
+        "sha256": "d8b31f9c7b05496c39b5247a7461c913fc17a89fb506b988ff8c94150b85d8e7"
+      },
+      {
+        "url": "models/ldraw/officialLibrary/models/30023-1-Lighthouse.ldr_Packed.mpd",
+        "file": "models__ldraw__officialLibrary__models__30023-1-Lighthouse.ldr_Packed.mpd",
+        "bytes": 199467,
+        "sha256": "800633a7bdbe54f6e4161ab594a7351b99c53c1c2b5af797b6fa59517e4d36a7"
+      },
+      {
+        "url": "models/ldraw/officialLibrary/models/30023-1-Lighthouse.ldr_Packed.mpd.bin",
+        "file": "models__ldraw__officialLibrary__models__30023-1-Lighthouse.ldr_Packed.mpd.bin",
+        "bytes": 636849,
+        "sha256": "0097fb4881bede6035200667657c9953b61024697ea3796de14cf0334d093f1d"
+      },
+      {
+        "url": "models/ldraw/officialLibrary/models/30051-1-X-wingFighter-Mini.mpd_Packed.mpd",
+        "file": "models__ldraw__officialLibrary__models__30051-1-X-wingFighter-Mini.mpd_Packed.mpd",
+        "bytes": 185754,
+        "sha256": "9e75a1fc07be20c911010bc1f5ac54bd780290ce425959885daf59672ddae31e"
+      },
+      {
+        "url": "models/ldraw/officialLibrary/models/30051-1-X-wingFighter-Mini.mpd_Packed.mpd.bin",
+        "file": "models__ldraw__officialLibrary__models__30051-1-X-wingFighter-Mini.mpd_Packed.mpd.bin",
+        "bytes": 493796,
+        "sha256": "3b0b8389df941505cbb32f350603aded640012b2dfb815b01280a4519a9ab7f7"
+      },
+      {
+        "url": "models/ldraw/officialLibrary/models/30054-1-AT-ST-Mini.mpd_Packed.mpd",
+        "file": "models__ldraw__officialLibrary__models__30054-1-AT-ST-Mini.mpd_Packed.mpd",
+        "bytes": 280295,
+        "sha256": "9212387b7844bc6fb253ebea21dca214c0c7277a3f7d2526571b8379592e5261"
+      },
+      {
+        "url": "models/ldraw/officialLibrary/models/30054-1-AT-ST-Mini.mpd_Packed.mpd.bin",
+        "file": "models__ldraw__officialLibrary__models__30054-1-AT-ST-Mini.mpd_Packed.mpd.bin",
+        "bytes": 958904,
+        "sha256": "4ed1221170bd97d8958cb737fd37529caf7494cbbcecbe236b789c8f9aff8661"
+      },
+      {
+        "url": "models/ldraw/officialLibrary/models/4489-1-AT-AT-Mini.mpd_Packed.mpd",
+        "file": "models__ldraw__officialLibrary__models__4489-1-AT-AT-Mini.mpd_Packed.mpd",
+        "bytes": 317254,
+        "sha256": "0b5c7abff02dc42d81fbd8658276d900e5f98ed3f15f5eb4373d64fd0536e84d"
+      },
+      {
+        "url": "models/ldraw/officialLibrary/models/4489-1-AT-AT-Mini.mpd_Packed.mpd.bin",
+        "file": "models__ldraw__officialLibrary__models__4489-1-AT-AT-Mini.mpd_Packed.mpd.bin",
+        "bytes": 1334504,
+        "sha256": "6624e7f70ee7f757733e516770ef4b9543dbc64ff1e0ab80725f02bae3163828"
+      },
+      {
+        "url": "models/ldraw/officialLibrary/models/4494-1-Imperial Shuttle-Mini.mpd_Packed.mpd",
+        "file": "models__ldraw__officialLibrary__models__4494-1-Imperial__Shuttle-Mini.mpd_Packed.mpd",
+        "bytes": 223414,
+        "sha256": "48e020008454faa424d8757ebd2873585dd07f93aaeefd32c07c6b79064906c1"
+      },
+      {
+        "url": "models/ldraw/officialLibrary/models/4494-1-Imperial Shuttle-Mini.mpd_Packed.mpd.bin",
+        "file": "models__ldraw__officialLibrary__models__4494-1-Imperial Shuttle-Mini.mpd_Packed.mpd.bin",
+        "bytes": 1133505,
+        "sha256": "621ecb74da566b9e12bb747946d1a686c6a8a0583d462b78552ea37996d4b031"
+      },
+      {
+        "url": "models/ldraw/officialLibrary/models/4838-1-MiniVehicles.mpd_Packed.mpd",
+        "file": "models__ldraw__officialLibrary__models__4838-1-MiniVehicles.mpd_Packed.mpd",
+        "bytes": 210923,
+        "sha256": "1b23de39dbbc518d4989cdb74693f7b5df058c642dedcb5c649d0ef6530e57e7"
+      },
+      {
+        "url": "models/ldraw/officialLibrary/models/4838-1-MiniVehicles.mpd_Packed.mpd.bin",
+        "file": "models__ldraw__officialLibrary__models__4838-1-MiniVehicles.mpd_Packed.mpd.bin",
+        "bytes": 668773,
+        "sha256": "8db897c182748802aa50da845d38b0e4a2c9675d9164bbae9a91e6cdd678983b"
+      },
+      {
+        "url": "models/ldraw/officialLibrary/models/4915-1-MiniConstruction.mpd_Packed.mpd",
+        "file": "models__ldraw__officialLibrary__models__4915-1-MiniConstruction.mpd_Packed.mpd",
+        "bytes": 283809,
+        "sha256": "430def1a6adcf2bc611bd2be5588c28c6f7b645e1f90b61d30fb3cad1fbd7e9e"
+      },
+      {
+        "url": "models/ldraw/officialLibrary/models/4915-1-MiniConstruction.mpd_Packed.mpd.bin",
+        "file": "models__ldraw__officialLibrary__models__4915-1-MiniConstruction.mpd_Packed.mpd.bin",
+        "bytes": 882189,
+        "sha256": "5626d4b0b44f985166559b1f80492a26f0eb46d2be48e515777e981eeb05ffb5"
+      },
+      {
+        "url": "models/ldraw/officialLibrary/models/4918-1-MiniFlyers.mpd_Packed.mpd",
+        "file": "models__ldraw__officialLibrary__models__4918-1-MiniFlyers.mpd_Packed.mpd",
+        "bytes": 228566,
+        "sha256": "53e807e5489b7fe38e65fee63a67251ad5d1870a091315f8aab212f7f3a156a4"
+      },
+      {
+        "url": "models/ldraw/officialLibrary/models/4918-1-MiniFlyers.mpd_Packed.mpd.bin",
+        "file": "models__ldraw__officialLibrary__models__4918-1-MiniFlyers.mpd_Packed.mpd.bin",
+        "bytes": 812191,
+        "sha256": "9d6f927ce2cc805f3b264080ec2eeadf57a350e9f644ed6bbfe8d671eac5397e"
+      },
+      {
+        "url": "models/ldraw/officialLibrary/models/5935-1-IslandHopper.mpd_Packed.mpd",
+        "file": "models__ldraw__officialLibrary__models__5935-1-IslandHopper.mpd_Packed.mpd",
+        "bytes": 827566,
+        "sha256": "2a751e9554b9b56b4366bbc643d60bdeb1dcc80aed75be7d7b1d3b543548c750"
+      },
+      {
+        "url": "models/ldraw/officialLibrary/models/5935-1-IslandHopper.mpd_Packed.mpd.bin",
+        "file": "models__ldraw__officialLibrary__models__5935-1-IslandHopper.mpd_Packed.mpd.bin",
+        "bytes": 3986932,
+        "sha256": "400fde00812998ec46f5a75bf9a1c2853333b7b310a1f9616ba4bafb8bc08368"
+      },
+      {
+        "url": "models/ldraw/officialLibrary/models/6156-1-WindowBrick.mpd_Packed.mpd",
+        "file": "models__ldraw__officialLibrary__models__6156-1-WindowBrick.mpd_Packed.mpd",
+        "bytes": 49651,
+        "sha256": "8ff70477d7382a21c38f088fe4706c35da3d6a36b212a9bf960b1613599f678e"
+      },
+      {
+        "url": "models/ldraw/officialLibrary/models/6156-1-WindowBrick.mpd_Packed.mpd.bin",
+        "file": "models__ldraw__officialLibrary__models__6156-1-WindowBrick.mpd_Packed.mpd.bin",
+        "bytes": 30288,
+        "sha256": "fad3f39321ac80977cde6391fa2ef8835085bc42f609995555c00deed253d1b1"
+      },
+      {
+        "url": "models/ldraw/officialLibrary/models/6965-1-TIEIntercep_4h4MXk5.mpd_Packed.mpd",
+        "file": "models__ldraw__officialLibrary__models__6965-1-TIEIntercep_4h4MXk5.mpd_Packed.mpd",
+        "bytes": 126255,
+        "sha256": "8c53169234899902912a941ab9eb2a878cdb93f9877d2206527b0d23216632c3"
+      },
+      {
+        "url": "models/ldraw/officialLibrary/models/6965-1-TIEIntercep_4h4MXk5.mpd_Packed.mpd.bin",
+        "file": "models__ldraw__officialLibrary__models__6965-1-TIEIntercep_4h4MXk5.mpd_Packed.mpd.bin",
+        "bytes": 311978,
+        "sha256": "5830b2ba2b59c3bb8c2fd1467a19002fab8fddcd1427cf67304a7db2ac40c7e8"
+      },
+      {
+        "url": "models/ldraw/officialLibrary/models/6966-1-JediStarfighter-Mini.mpd_Packed.mpd",
+        "file": "models__ldraw__officialLibrary__models__6966-1-JediStarfighter-Mini.mpd_Packed.mpd",
+        "bytes": 181268,
+        "sha256": "5b8689ebc39a4e867cefa46447137619e2936511bd11e5e50f19aa3176e38c0e"
+      },
+      {
+        "url": "models/ldraw/officialLibrary/models/6966-1-JediStarfighter-Mini.mpd_Packed.mpd.bin",
+        "file": "models__ldraw__officialLibrary__models__6966-1-JediStarfighter-Mini.mpd_Packed.mpd.bin",
+        "bytes": 670243,
+        "sha256": "b55c99bb2053856157b8eb3fbeddc93305c29712bf241e6284d39afe3dce5f7d"
+      },
+      {
+        "url": "models/ldraw/officialLibrary/models/7140-1-X-wingFighter.mpd_Packed.mpd",
+        "file": "models__ldraw__officialLibrary__models__7140-1-X-wingFighter.mpd_Packed.mpd",
+        "bytes": 1423317,
+        "sha256": "0b971f105e06ddc69aae9e75cf3d77869583d1a6fd5abc4ba55dee9ce564bc7a"
+      },
+      {
+        "url": "models/ldraw/officialLibrary/models/7140-1-X-wingFighter.mpd_Packed.mpd.bin",
+        "file": "models__ldraw__officialLibrary__models__7140-1-X-wingFighter.mpd_Packed.mpd.bin",
+        "bytes": 8506061,
+        "sha256": "057f87a246c79b0742772042a81f0255b3b07958dc9498298bf7978781aff761"
+      },
+      {
+        "url": "models/ldraw/officialLibrary/models/889-1-RadarTruck.mpd_Packed.mpd",
+        "file": "models__ldraw__officialLibrary__models__889-1-RadarTruck.mpd_Packed.mpd",
+        "bytes": 406194,
+        "sha256": "33d72bc112a892b37cc88f99062ffd77e51b97923c99571e2dfe9fd0c7dbf4b9"
+      },
+      {
+        "url": "models/ldraw/officialLibrary/models/889-1-RadarTruck.mpd_Packed.mpd.bin",
+        "file": "models__ldraw__officialLibrary__models__889-1-RadarTruck.mpd_Packed.mpd.bin",
+        "bytes": 1124411,
+        "sha256": "f1d50da5decd79368ac161a861234ef88a45e90e25ab22c530de2b8cdcac3201"
+      },
+      {
+        "url": "models/ldraw/officialLibrary/models/car.ldr_Packed.mpd",
+        "file": "models__ldraw__officialLibrary__models__car.ldr_Packed.mpd",
+        "bytes": 249772,
+        "sha256": "423ed229fa89af186d04929ca2b51eee42060dc23d2b65f17538121a8c4bf6cd"
+      },
+      {
+        "url": "models/ldraw/officialLibrary/models/car.ldr_Packed.mpd.bin",
+        "file": "models__ldraw__officialLibrary__models__car.ldr_Packed.mpd.bin",
+        "bytes": 830723,
+        "sha256": "a6b1b7a14be6d29276dd4e82a588a91f8d703c46020d205c654ce50884525353"
+      }
+    ]
+  },
   "facade": {
     "global": "globalThis.THREE",
     "exports": [
@@ -647,8 +993,8 @@
   },
   "inputs": {
     "assets/three/jsr_three_native.js": {
-      "bytes": 886541,
-      "sha256": "0a24a3d38e96fe453a7c0a042473bc59b9df8d2c9e577461f0f90710049bef55"
+      "bytes": 891641,
+      "sha256": "069763ef65451ac400ae9fd50119a7824eb0af93a0737f93f877805e6e4095f4"
     },
     "assets/three/jsr_three_web.js": {
       "bytes": 859738,
@@ -670,89 +1016,145 @@
       "bytes": 29526,
       "sha256": "5e31e7fc4d3a1268550b948463eabe06c7a6c03c158ccb99c78616d2c9682518"
     },
-    "source/examples/jsm/loaders/LDrawLoader.js": {
-      "bytes": 61141,
-      "sha256": "dbc5877629f24f8a740152cc25b4d2acb1adae698278d4b380338626186451d5"
-    },
     "source/examples/jsm/materials/LDrawConditionalLineMaterial.js": {
       "bytes": 4472,
       "sha256": "efc0b194f69d2cb9e364f203754181e28c6dd645604a0b3d282c56c0f0c7fe40"
-    },
-    "source/examples/jsm/utils/BufferGeometryUtils.js": {
-      "bytes": 37712,
-      "sha256": "9fb63427ce6641fa14fd0baff9cc4d1b5f9c3d85fd084bf2e90e803c44ec1797"
-    },
-    "source/examples/jsm/utils/LDrawUtils.js": {
-      "bytes": 6055,
-      "sha256": "aaf8a11994c2e3a2e435d5e95842a5bb5501747ee4bcb59aa62fe4d2cea55dde"
     },
     "source/examples/models/ldraw/officialLibrary/models/10174-1-ImperialAT-ST-UCS.mpd_Packed.mpd": {
       "bytes": 1463110,
       "sha256": "d80461a7a886a654581434bec0b0b1bc56ab68df70acbfe0bbcf38a85cdb0bf3"
     },
+    "source/examples/models/ldraw/officialLibrary/models/10174-1-ImperialAT-ST-UCS.mpd_Packed.mpd.bin": {
+      "bytes": 14591656,
+      "sha256": "06b7c738cdde896a817773cd0cedf645612c8289918c7d057daf1b9e09ac4696"
+    },
     "source/examples/models/ldraw/officialLibrary/models/1621-1-LunarMPVVehicle.mpd_Packed.mpd": {
       "bytes": 558845,
       "sha256": "7588ea4cdf8461721d05858ba839912768c197a29b9fe546ec63edf149ebf33e"
+    },
+    "source/examples/models/ldraw/officialLibrary/models/1621-1-LunarMPVVehicle.mpd_Packed.mpd.bin": {
+      "bytes": 1873941,
+      "sha256": "d8b31f9c7b05496c39b5247a7461c913fc17a89fb506b988ff8c94150b85d8e7"
     },
     "source/examples/models/ldraw/officialLibrary/models/30023-1-Lighthouse.ldr_Packed.mpd": {
       "bytes": 199467,
       "sha256": "800633a7bdbe54f6e4161ab594a7351b99c53c1c2b5af797b6fa59517e4d36a7"
     },
+    "source/examples/models/ldraw/officialLibrary/models/30023-1-Lighthouse.ldr_Packed.mpd.bin": {
+      "bytes": 636849,
+      "sha256": "0097fb4881bede6035200667657c9953b61024697ea3796de14cf0334d093f1d"
+    },
     "source/examples/models/ldraw/officialLibrary/models/30051-1-X-wingFighter-Mini.mpd_Packed.mpd": {
       "bytes": 185754,
       "sha256": "9e75a1fc07be20c911010bc1f5ac54bd780290ce425959885daf59672ddae31e"
+    },
+    "source/examples/models/ldraw/officialLibrary/models/30051-1-X-wingFighter-Mini.mpd_Packed.mpd.bin": {
+      "bytes": 493796,
+      "sha256": "3b0b8389df941505cbb32f350603aded640012b2dfb815b01280a4519a9ab7f7"
     },
     "source/examples/models/ldraw/officialLibrary/models/30054-1-AT-ST-Mini.mpd_Packed.mpd": {
       "bytes": 280295,
       "sha256": "9212387b7844bc6fb253ebea21dca214c0c7277a3f7d2526571b8379592e5261"
     },
+    "source/examples/models/ldraw/officialLibrary/models/30054-1-AT-ST-Mini.mpd_Packed.mpd.bin": {
+      "bytes": 958904,
+      "sha256": "4ed1221170bd97d8958cb737fd37529caf7494cbbcecbe236b789c8f9aff8661"
+    },
     "source/examples/models/ldraw/officialLibrary/models/4489-1-AT-AT-Mini.mpd_Packed.mpd": {
       "bytes": 317254,
       "sha256": "0b5c7abff02dc42d81fbd8658276d900e5f98ed3f15f5eb4373d64fd0536e84d"
+    },
+    "source/examples/models/ldraw/officialLibrary/models/4489-1-AT-AT-Mini.mpd_Packed.mpd.bin": {
+      "bytes": 1334504,
+      "sha256": "6624e7f70ee7f757733e516770ef4b9543dbc64ff1e0ab80725f02bae3163828"
     },
     "source/examples/models/ldraw/officialLibrary/models/4494-1-Imperial Shuttle-Mini.mpd_Packed.mpd": {
       "bytes": 223414,
       "sha256": "48e020008454faa424d8757ebd2873585dd07f93aaeefd32c07c6b79064906c1"
     },
+    "source/examples/models/ldraw/officialLibrary/models/4494-1-Imperial Shuttle-Mini.mpd_Packed.mpd.bin": {
+      "bytes": 1133505,
+      "sha256": "621ecb74da566b9e12bb747946d1a686c6a8a0583d462b78552ea37996d4b031"
+    },
     "source/examples/models/ldraw/officialLibrary/models/4838-1-MiniVehicles.mpd_Packed.mpd": {
       "bytes": 210923,
       "sha256": "1b23de39dbbc518d4989cdb74693f7b5df058c642dedcb5c649d0ef6530e57e7"
+    },
+    "source/examples/models/ldraw/officialLibrary/models/4838-1-MiniVehicles.mpd_Packed.mpd.bin": {
+      "bytes": 668773,
+      "sha256": "8db897c182748802aa50da845d38b0e4a2c9675d9164bbae9a91e6cdd678983b"
     },
     "source/examples/models/ldraw/officialLibrary/models/4915-1-MiniConstruction.mpd_Packed.mpd": {
       "bytes": 283809,
       "sha256": "430def1a6adcf2bc611bd2be5588c28c6f7b645e1f90b61d30fb3cad1fbd7e9e"
     },
+    "source/examples/models/ldraw/officialLibrary/models/4915-1-MiniConstruction.mpd_Packed.mpd.bin": {
+      "bytes": 882189,
+      "sha256": "5626d4b0b44f985166559b1f80492a26f0eb46d2be48e515777e981eeb05ffb5"
+    },
     "source/examples/models/ldraw/officialLibrary/models/4918-1-MiniFlyers.mpd_Packed.mpd": {
       "bytes": 228566,
       "sha256": "53e807e5489b7fe38e65fee63a67251ad5d1870a091315f8aab212f7f3a156a4"
+    },
+    "source/examples/models/ldraw/officialLibrary/models/4918-1-MiniFlyers.mpd_Packed.mpd.bin": {
+      "bytes": 812191,
+      "sha256": "9d6f927ce2cc805f3b264080ec2eeadf57a350e9f644ed6bbfe8d671eac5397e"
     },
     "source/examples/models/ldraw/officialLibrary/models/5935-1-IslandHopper.mpd_Packed.mpd": {
       "bytes": 827566,
       "sha256": "2a751e9554b9b56b4366bbc643d60bdeb1dcc80aed75be7d7b1d3b543548c750"
     },
+    "source/examples/models/ldraw/officialLibrary/models/5935-1-IslandHopper.mpd_Packed.mpd.bin": {
+      "bytes": 3986932,
+      "sha256": "400fde00812998ec46f5a75bf9a1c2853333b7b310a1f9616ba4bafb8bc08368"
+    },
     "source/examples/models/ldraw/officialLibrary/models/6156-1-WindowBrick.mpd_Packed.mpd": {
       "bytes": 49651,
       "sha256": "8ff70477d7382a21c38f088fe4706c35da3d6a36b212a9bf960b1613599f678e"
+    },
+    "source/examples/models/ldraw/officialLibrary/models/6156-1-WindowBrick.mpd_Packed.mpd.bin": {
+      "bytes": 30288,
+      "sha256": "fad3f39321ac80977cde6391fa2ef8835085bc42f609995555c00deed253d1b1"
     },
     "source/examples/models/ldraw/officialLibrary/models/6965-1-TIEIntercep_4h4MXk5.mpd_Packed.mpd": {
       "bytes": 126255,
       "sha256": "8c53169234899902912a941ab9eb2a878cdb93f9877d2206527b0d23216632c3"
     },
+    "source/examples/models/ldraw/officialLibrary/models/6965-1-TIEIntercep_4h4MXk5.mpd_Packed.mpd.bin": {
+      "bytes": 311978,
+      "sha256": "5830b2ba2b59c3bb8c2fd1467a19002fab8fddcd1427cf67304a7db2ac40c7e8"
+    },
     "source/examples/models/ldraw/officialLibrary/models/6966-1-JediStarfighter-Mini.mpd_Packed.mpd": {
       "bytes": 181268,
       "sha256": "5b8689ebc39a4e867cefa46447137619e2936511bd11e5e50f19aa3176e38c0e"
+    },
+    "source/examples/models/ldraw/officialLibrary/models/6966-1-JediStarfighter-Mini.mpd_Packed.mpd.bin": {
+      "bytes": 670243,
+      "sha256": "b55c99bb2053856157b8eb3fbeddc93305c29712bf241e6284d39afe3dce5f7d"
     },
     "source/examples/models/ldraw/officialLibrary/models/7140-1-X-wingFighter.mpd_Packed.mpd": {
       "bytes": 1423317,
       "sha256": "0b971f105e06ddc69aae9e75cf3d77869583d1a6fd5abc4ba55dee9ce564bc7a"
     },
+    "source/examples/models/ldraw/officialLibrary/models/7140-1-X-wingFighter.mpd_Packed.mpd.bin": {
+      "bytes": 8506061,
+      "sha256": "057f87a246c79b0742772042a81f0255b3b07958dc9498298bf7978781aff761"
+    },
     "source/examples/models/ldraw/officialLibrary/models/889-1-RadarTruck.mpd_Packed.mpd": {
       "bytes": 406194,
       "sha256": "33d72bc112a892b37cc88f99062ffd77e51b97923c99571e2dfe9fd0c7dbf4b9"
     },
+    "source/examples/models/ldraw/officialLibrary/models/889-1-RadarTruck.mpd_Packed.mpd.bin": {
+      "bytes": 1124411,
+      "sha256": "f1d50da5decd79368ac161a861234ef88a45e90e25ab22c530de2b8cdcac3201"
+    },
     "source/examples/models/ldraw/officialLibrary/models/car.ldr_Packed.mpd": {
       "bytes": 249772,
       "sha256": "423ed229fa89af186d04929ca2b51eee42060dc23d2b65f17538121a8c4bf6cd"
+    },
+    "source/examples/models/ldraw/officialLibrary/models/car.ldr_Packed.mpd.bin": {
+      "bytes": 830723,
+      "sha256": "a6b1b7a14be6d29276dd4e82a588a91f8d703c46020d205c654ce50884525353"
     },
     "source/examples/webgl_loader_ldraw.html": {
       "bytes": 10190,
@@ -763,16 +1165,20 @@
       "sha256": "29492424209a17a723b3b0c8e9c83995697a4c466840d1b33ba6f6ff2b7542a4"
     },
     "tool/three/src/native_entry.js": {
-      "bytes": 31684,
-      "sha256": "e0bfb2ca963ff60db7ebd850290f71ac3b247f3cdd4b8ec890f92d83739fe7fd"
+      "bytes": 32919,
+      "sha256": "09f0317fc237150fef60338aed2d0a54a6318c280bfd39fb1f75e2af88ef0580"
     },
     "tool/three_example/asset_decode.mjs": {
-      "bytes": 51634,
-      "sha256": "273d0f8261829418eb08a93177990de1fb76cda9211852d578439a39ceb61af1"
+      "bytes": 55156,
+      "sha256": "e8ade24b03a7df661cc15a09858a358c98693065c45d1fb9e362b9e3fd9728a1"
     },
     "tool/three_example/asset_discovery.mjs": {
       "bytes": 12424,
       "sha256": "89a14e272cb1ddac5b555b4361af938764127ee069ac367a18262b8299643eca"
+    },
+    "tool/three_example/degrades/ldraw_prebuilt_loader.mjs": {
+      "bytes": 9028,
+      "sha256": "45c3dcc3b8decd3ec922571665754e9ced155bb00d92ffeb67a4b6482b63881a"
     },
     "tool/three_example/example_adapter.js": {
       "bytes": 51217,
@@ -787,8 +1193,8 @@
       "sha256": "ceb4c2b0bd47cbe6ed04169fd6042fa40fe3085eab13c2061be29414fdfa0f74"
     },
     "tool/three_example/prepare.mjs": {
-      "bytes": 360337,
-      "sha256": "46ba5ac3c31cded946f6985d249eb944b750be55ae9c69319eeaad04fa4353c3"
+      "bytes": 378748,
+      "sha256": "0119b23cb3cdd970126e0297783e147dc0a6a2aa33970134e9c42319932cde02"
     },
     "tool/three_example/stats_adapter.js": {
       "bytes": 2107,
@@ -808,33 +1214,65 @@
       "bytes": 1081,
       "sha256": "8b378ebe60e2fe500158cb0ac71cb5e8b7d92953c2abcc63a0eb90499653b5bc"
     },
+    "assets.json": {
+      "bytes": 16329,
+      "sha256": "ec01b0706cf5c35de391ca5f705b8160dcdc669e30924c1d4e07f6b5a0d83529"
+    },
     "manifest.json": {
-      "bytes": 332,
-      "sha256": "8746b386d9cae4e883562a3a9f52f89e84fdcb3609f128a5dff280458c25939c"
+      "bytes": 371,
+      "sha256": "40d987bc74fa63afe6f284f514a55d29a7868586598cb9a8e74fbf098dc7d6d8"
     },
     "models__ldraw__officialLibrary__models__10174-1-ImperialAT-ST-UCS.mpd_Packed.mpd": {
       "bytes": 1463110,
       "sha256": "d80461a7a886a654581434bec0b0b1bc56ab68df70acbfe0bbcf38a85cdb0bf3"
     },
+    "models__ldraw__officialLibrary__models__10174-1-ImperialAT-ST-UCS.mpd_Packed.mpd.bin": {
+      "bytes": 14591656,
+      "sha256": "06b7c738cdde896a817773cd0cedf645612c8289918c7d057daf1b9e09ac4696"
+    },
     "models__ldraw__officialLibrary__models__1621-1-LunarMPVVehicle.mpd_Packed.mpd": {
       "bytes": 558845,
       "sha256": "7588ea4cdf8461721d05858ba839912768c197a29b9fe546ec63edf149ebf33e"
+    },
+    "models__ldraw__officialLibrary__models__1621-1-LunarMPVVehicle.mpd_Packed.mpd.bin": {
+      "bytes": 1873941,
+      "sha256": "d8b31f9c7b05496c39b5247a7461c913fc17a89fb506b988ff8c94150b85d8e7"
     },
     "models__ldraw__officialLibrary__models__30023-1-Lighthouse.ldr_Packed.mpd": {
       "bytes": 199467,
       "sha256": "800633a7bdbe54f6e4161ab594a7351b99c53c1c2b5af797b6fa59517e4d36a7"
     },
+    "models__ldraw__officialLibrary__models__30023-1-Lighthouse.ldr_Packed.mpd.bin": {
+      "bytes": 636849,
+      "sha256": "0097fb4881bede6035200667657c9953b61024697ea3796de14cf0334d093f1d"
+    },
     "models__ldraw__officialLibrary__models__30051-1-X-wingFighter-Mini.mpd_Packed.mpd": {
       "bytes": 185754,
       "sha256": "9e75a1fc07be20c911010bc1f5ac54bd780290ce425959885daf59672ddae31e"
+    },
+    "models__ldraw__officialLibrary__models__30051-1-X-wingFighter-Mini.mpd_Packed.mpd.bin": {
+      "bytes": 493796,
+      "sha256": "3b0b8389df941505cbb32f350603aded640012b2dfb815b01280a4519a9ab7f7"
     },
     "models__ldraw__officialLibrary__models__30054-1-AT-ST-Mini.mpd_Packed.mpd": {
       "bytes": 280295,
       "sha256": "9212387b7844bc6fb253ebea21dca214c0c7277a3f7d2526571b8379592e5261"
     },
+    "models__ldraw__officialLibrary__models__30054-1-AT-ST-Mini.mpd_Packed.mpd.bin": {
+      "bytes": 958904,
+      "sha256": "4ed1221170bd97d8958cb737fd37529caf7494cbbcecbe236b789c8f9aff8661"
+    },
     "models__ldraw__officialLibrary__models__4489-1-AT-AT-Mini.mpd_Packed.mpd": {
       "bytes": 317254,
       "sha256": "0b5c7abff02dc42d81fbd8658276d900e5f98ed3f15f5eb4373d64fd0536e84d"
+    },
+    "models__ldraw__officialLibrary__models__4489-1-AT-AT-Mini.mpd_Packed.mpd.bin": {
+      "bytes": 1334504,
+      "sha256": "6624e7f70ee7f757733e516770ef4b9543dbc64ff1e0ab80725f02bae3163828"
+    },
+    "models__ldraw__officialLibrary__models__4494-1-Imperial Shuttle-Mini.mpd_Packed.mpd.bin": {
+      "bytes": 1133505,
+      "sha256": "621ecb74da566b9e12bb747946d1a686c6a8a0583d462b78552ea37996d4b031"
     },
     "models__ldraw__officialLibrary__models__4494-1-Imperial__Shuttle-Mini.mpd_Packed.mpd": {
       "bytes": 223414,
@@ -844,41 +1282,81 @@
       "bytes": 210923,
       "sha256": "1b23de39dbbc518d4989cdb74693f7b5df058c642dedcb5c649d0ef6530e57e7"
     },
+    "models__ldraw__officialLibrary__models__4838-1-MiniVehicles.mpd_Packed.mpd.bin": {
+      "bytes": 668773,
+      "sha256": "8db897c182748802aa50da845d38b0e4a2c9675d9164bbae9a91e6cdd678983b"
+    },
     "models__ldraw__officialLibrary__models__4915-1-MiniConstruction.mpd_Packed.mpd": {
       "bytes": 283809,
       "sha256": "430def1a6adcf2bc611bd2be5588c28c6f7b645e1f90b61d30fb3cad1fbd7e9e"
+    },
+    "models__ldraw__officialLibrary__models__4915-1-MiniConstruction.mpd_Packed.mpd.bin": {
+      "bytes": 882189,
+      "sha256": "5626d4b0b44f985166559b1f80492a26f0eb46d2be48e515777e981eeb05ffb5"
     },
     "models__ldraw__officialLibrary__models__4918-1-MiniFlyers.mpd_Packed.mpd": {
       "bytes": 228566,
       "sha256": "53e807e5489b7fe38e65fee63a67251ad5d1870a091315f8aab212f7f3a156a4"
     },
+    "models__ldraw__officialLibrary__models__4918-1-MiniFlyers.mpd_Packed.mpd.bin": {
+      "bytes": 812191,
+      "sha256": "9d6f927ce2cc805f3b264080ec2eeadf57a350e9f644ed6bbfe8d671eac5397e"
+    },
     "models__ldraw__officialLibrary__models__5935-1-IslandHopper.mpd_Packed.mpd": {
       "bytes": 827566,
       "sha256": "2a751e9554b9b56b4366bbc643d60bdeb1dcc80aed75be7d7b1d3b543548c750"
+    },
+    "models__ldraw__officialLibrary__models__5935-1-IslandHopper.mpd_Packed.mpd.bin": {
+      "bytes": 3986932,
+      "sha256": "400fde00812998ec46f5a75bf9a1c2853333b7b310a1f9616ba4bafb8bc08368"
     },
     "models__ldraw__officialLibrary__models__6156-1-WindowBrick.mpd_Packed.mpd": {
       "bytes": 49651,
       "sha256": "8ff70477d7382a21c38f088fe4706c35da3d6a36b212a9bf960b1613599f678e"
     },
+    "models__ldraw__officialLibrary__models__6156-1-WindowBrick.mpd_Packed.mpd.bin": {
+      "bytes": 30288,
+      "sha256": "fad3f39321ac80977cde6391fa2ef8835085bc42f609995555c00deed253d1b1"
+    },
     "models__ldraw__officialLibrary__models__6965-1-TIEIntercep_4h4MXk5.mpd_Packed.mpd": {
       "bytes": 126255,
       "sha256": "8c53169234899902912a941ab9eb2a878cdb93f9877d2206527b0d23216632c3"
+    },
+    "models__ldraw__officialLibrary__models__6965-1-TIEIntercep_4h4MXk5.mpd_Packed.mpd.bin": {
+      "bytes": 311978,
+      "sha256": "5830b2ba2b59c3bb8c2fd1467a19002fab8fddcd1427cf67304a7db2ac40c7e8"
     },
     "models__ldraw__officialLibrary__models__6966-1-JediStarfighter-Mini.mpd_Packed.mpd": {
       "bytes": 181268,
       "sha256": "5b8689ebc39a4e867cefa46447137619e2936511bd11e5e50f19aa3176e38c0e"
     },
+    "models__ldraw__officialLibrary__models__6966-1-JediStarfighter-Mini.mpd_Packed.mpd.bin": {
+      "bytes": 670243,
+      "sha256": "b55c99bb2053856157b8eb3fbeddc93305c29712bf241e6284d39afe3dce5f7d"
+    },
     "models__ldraw__officialLibrary__models__7140-1-X-wingFighter.mpd_Packed.mpd": {
       "bytes": 1423317,
       "sha256": "0b971f105e06ddc69aae9e75cf3d77869583d1a6fd5abc4ba55dee9ce564bc7a"
+    },
+    "models__ldraw__officialLibrary__models__7140-1-X-wingFighter.mpd_Packed.mpd.bin": {
+      "bytes": 8506061,
+      "sha256": "057f87a246c79b0742772042a81f0255b3b07958dc9498298bf7978781aff761"
     },
     "models__ldraw__officialLibrary__models__889-1-RadarTruck.mpd_Packed.mpd": {
       "bytes": 406194,
       "sha256": "33d72bc112a892b37cc88f99062ffd77e51b97923c99571e2dfe9fd0c7dbf4b9"
     },
+    "models__ldraw__officialLibrary__models__889-1-RadarTruck.mpd_Packed.mpd.bin": {
+      "bytes": 1124411,
+      "sha256": "f1d50da5decd79368ac161a861234ef88a45e90e25ab22c530de2b8cdcac3201"
+    },
     "models__ldraw__officialLibrary__models__car.ldr_Packed.mpd": {
       "bytes": 249772,
       "sha256": "423ed229fa89af186d04929ca2b51eee42060dc23d2b65f17538121a8c4bf6cd"
+    },
+    "models__ldraw__officialLibrary__models__car.ldr_Packed.mpd.bin": {
+      "bytes": 830723,
+      "sha256": "a6b1b7a14be6d29276dd4e82a588a91f8d703c46020d205c654ce50884525353"
     },
     "official_module.js": {
       "bytes": 8753,
@@ -889,8 +1367,8 @@
       "sha256": "ca8c1279fecd8707e599961882a65e4243aa22abcbecb511c3189fdfda679837"
     },
     "widget.js": {
-      "bytes": 9778986,
-      "sha256": "fe4647fe0f17d1d02f40804bb8142362b9c14af343da14b9823f36cc361f2933"
+      "bytes": 146313,
+      "sha256": "7ce35525937f78715ef20a5071ecd11f3e8f090c6d7692fa426c226cb2ea9d31"
     }
   }
 }

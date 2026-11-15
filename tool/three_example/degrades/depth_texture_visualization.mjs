@@ -13,9 +13,11 @@
 // BasicDepthPacking; RGBA/RGB depth packings are rejected loudly upstream of
 // this lane). The post quad then samples real depth structure in both its
 // tDiffuse view and its tDepth inset — same attachment, so the alias is
-// harmless here. The main (null-target) passes — the post composite and any
-// onscreen scene — are untouched, and an existing scene.overrideMaterial is
-// respected rather than replaced.
+// harmless here. The post composite uses native SubtractiveBlending over a
+// white clear to restore the official `1.0 - depth` black-far/white-near
+// polarity after the bounded ShaderMaterial-to-Basic lowering. The RT clear is
+// white so empty space represents far depth. Other null-target passes and an
+// existing scene.overrideMaterial are respected rather than replaced.
 //
 // Documented no-ops: the official GUI's format / type / samples toggles still
 // rebuild the render target (that path works), but the DepthTexture
@@ -36,19 +38,47 @@ export function installDepthTextureVisualization() {
   if (typeof prototype.render !== 'function' || prototype.render.__jsrDepthViz) return;
   const nativeRender = prototype.render;
   const depthMaterial = new THREE.MeshDepthMaterial();
+  const white = new THREE.Color(0xffffff);
   const render = function render(scene, camera) {
     if (!scene || scene.overrideMaterial != null || typeof this.getRenderTarget !== 'function') {
       return nativeRender.call(this, scene, camera);
     }
     const target = this.getRenderTarget();
-    if (target === null || target === undefined) return nativeRender.call(this, scene, camera);
+    if (target === null || target === undefined) {
+      // native_renderer deliberately drops arbitrary post-process GLSL and
+      // previously substituted an ordinary textured MeshBasicMaterial. The
+      // depth values were therefore displayed directly (dark near / white
+      // far), not through the official readDepth() `1.0 - depth` inversion.
+      // Native SubtractiveBlending implements that missing inversion with
+      // dst=white: result = white * (1 - src). The post clear is white and
+      // the RT clear is white (far depth), so the far field becomes black.
+      let postMaterial = null;
+      scene.traverse(object => {
+        const material = object.material;
+        if (material?.uniforms?.tDiffuse && material.uniforms.tDepth &&
+            material.uniforms.cameraNear && material.uniforms.cameraFar) postMaterial = material;
+      });
+      if (postMaterial) {
+        scene.background = white;
+        if (postMaterial.blending !== THREE.SubtractiveBlending) {
+          postMaterial.blending = THREE.SubtractiveBlending;
+          postMaterial.premultipliedAlpha = true;
+          postMaterial.needsUpdate = true;
+        }
+      }
+      return nativeRender.call(this, scene, camera);
+    }
+    const previousBackground = scene.background;
+    scene.background = white;
     scene.overrideMaterial = depthMaterial;
     try {
       return nativeRender.call(this, scene, camera);
     } finally {
       scene.overrideMaterial = null;
+      scene.background = previousBackground;
     }
   };
   render.__jsrDepthViz = true;
   prototype.render = render;
+  console.warn('three: webgl_depth_texture uses native linear view-depth color plus white/far subtractive post inversion; real depth-texture sampling and depth format/type/MSAA effects remain outside R1.');
 }

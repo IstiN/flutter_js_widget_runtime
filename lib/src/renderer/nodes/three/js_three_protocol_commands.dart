@@ -297,6 +297,7 @@ final class JsThreeGeometryUpsert extends JsThreeCommand {
     required this.colorStride,
     required this.indices,
     required this.wireIndices,
+    this.retainUnchanged = false,
   }) : super._(1);
 
   final int geometryId;
@@ -312,12 +313,47 @@ final class JsThreeGeometryUpsert extends JsThreeCommand {
   final int colorStride;
   final Uint32List indices;
 
+  /// R1 v10: omitted fields retain the preceding version in the state store.
+  /// Decoder output stays transport-shaped until [resolveRetained] merges it.
+  final bool retainUnchanged;
+
   /// Optional unique-edge indices for Mesh.material.wireframe on triangles.
   /// Null is the legacy/no-wire payload; an empty list is an explicit empty draw.
   final Uint32List? wireIndices;
 
   bool get hasWireIndices => wireIndices != null;
   int get wireIndexCount => wireIndices?.length ?? 0;
+
+  JsThreeGeometryUpsert resolveRetained(JsThreeGeometryUpsert? previous) {
+    if (!retainUnchanged) return this;
+    if (previous == null ||
+        previous.geometryId != geometryId ||
+        previous.vertexCount != vertexCount ||
+        previous.primitive != primitive) {
+      throw const JsThreeProtocolException(
+        'retained geometry update lacks a compatible preceding version',
+      );
+    }
+    final keepNormal = attributeMask & 2 == 0;
+    final keepUv = attributeMask & 4 == 0;
+    final keepColor = attributeMask & 8 == 0;
+    final keepIndices = indexCount == 0;
+    return JsThreeGeometryUpsert._(
+      geometryId: geometryId,
+      version: version,
+      attributeMask: attributeMask | previous.attributeMask,
+      vertexCount: vertexCount,
+      indexCount: keepIndices ? previous.indexCount : indexCount,
+      primitive: primitive,
+      positions: positions,
+      normals: keepNormal ? previous.normals : normals,
+      uvs: keepUv ? previous.uvs : uvs,
+      colors: keepColor ? previous.colors : colors,
+      colorStride: keepColor ? previous.colorStride : colorStride,
+      indices: keepIndices ? previous.indices : indices,
+      wireIndices: wireIndices ?? previous.wireIndices,
+    );
+  }
 }
 
 final class JsThreeTextureUpsert extends JsThreeCommand {
@@ -493,6 +529,8 @@ class JsThreeMaterialUpsert extends JsThreeCommand {
   final Float32List duboisRightMatrix;
 
   /// Matcap texture (R1 v5), sampled by view-space normal UV; zero unset.
+  /// Lambert/Standard/Phong reuse this otherwise-unused slot for emissiveMap,
+  /// sampled with the base UV transform; those kinds never have a matcap.
   final int matcapTextureId;
 
   /// Toon gradient map (R1 v5), one luminance stop per texel; zero unset.

@@ -3,6 +3,7 @@ import 'dart:typed_data';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:js_widget_runtime/src/renderer/nodes/three/js_three_protocol.dart';
+import 'package:js_widget_runtime/src/renderer/nodes/three/js_three_state.dart';
 
 import 'support/three_protocol_bytes.dart';
 import 'support/three_protocol_cases.dart';
@@ -35,12 +36,20 @@ void main() {
         threeR1([
           (
             11,
-            threeDrawBatch(instanceCount: 1000001, flags: 1, matrices: const []),
+            threeDrawBatch(
+              instanceCount: 1000001,
+              flags: 1,
+              matrices: const [],
+            ),
           ),
         ]),
       ),
     );
-    threeBad(() => threeProtocolDecoder.decodeR1(threeR1([(11, threeDrawBatch(partCount: 2))])));
+    threeBad(
+      () => threeProtocolDecoder.decodeR1(
+        threeR1([(11, threeDrawBatch(partCount: 2))]),
+      ),
+    );
     threeBad(
       () => threeProtocolDecoder.decodeR1(
         threeR1([(11, threeDrawBatch(flags: 1, matrices: const []))]),
@@ -60,11 +69,21 @@ void main() {
         ]),
       ),
     );
-    threeBad(() => threeProtocolDecoder.decodeR1(threeR1([(11, threeDrawBatch(flags: 4))])));
-    threeBad(() => threeProtocolDecoder.decodeR1(threeR1([(11, threeDrawBatch(flags: 2))])));
     threeBad(
       () => threeProtocolDecoder.decodeR1(
-        threeR1([(11, threeDrawBatch(instanceCount: 2, flags: 3, colors: const []))]),
+        threeR1([(11, threeDrawBatch(flags: 4))]),
+      ),
+    );
+    threeBad(
+      () => threeProtocolDecoder.decodeR1(
+        threeR1([(11, threeDrawBatch(flags: 2))]),
+      ),
+    );
+    threeBad(
+      () => threeProtocolDecoder.decodeR1(
+        threeR1([
+          (11, threeDrawBatch(instanceCount: 2, flags: 3, colors: const [])),
+        ]),
       ),
     );
     threeBad(
@@ -81,7 +100,9 @@ void main() {
         ]),
       ),
     );
-    threeBad(() => threeProtocolDecoder.decodeR1(threeR1([(12, threeU32Body(0))])));
+    threeBad(
+      () => threeProtocolDecoder.decodeR1(threeR1([(12, threeU32Body(0))])),
+    );
   });
 
   test(
@@ -112,7 +133,11 @@ void main() {
         final truncated = Uint8List.sublistView(valid, 0, length);
         threeBad(() => threeProtocolDecoder.decodeEnvelope(truncated));
       }
-      threeBad(() => threeProtocolDecoder.decodeEnvelope(Uint8List.fromList([...valid, 0])));
+      threeBad(
+        () => threeProtocolDecoder.decodeEnvelope(
+          Uint8List.fromList([...valid, 0]),
+        ),
+      );
       threeBad(
         () => JsThreeProtocolDecoder(
           maxEnvelopeBytes: valid.length - 1,
@@ -138,9 +163,15 @@ void main() {
       JsThreeProtocolDecoder.validateSequence(1, lastSequence: 0);
       JsThreeProtocolDecoder.validateSequence(8, lastSequence: 7);
       threeBad(() => JsThreeProtocolDecoder.validateSequence(0));
-      threeBad(() => JsThreeProtocolDecoder.validateSequence(2, lastSequence: 0));
-      threeBad(() => JsThreeProtocolDecoder.validateSequence(7, lastSequence: 7));
-      threeBad(() => JsThreeProtocolDecoder.validateSequence(6, lastSequence: 7));
+      threeBad(
+        () => JsThreeProtocolDecoder.validateSequence(2, lastSequence: 0),
+      );
+      threeBad(
+        () => JsThreeProtocolDecoder.validateSequence(7, lastSequence: 7),
+      );
+      threeBad(
+        () => JsThreeProtocolDecoder.validateSequence(6, lastSequence: 7),
+      );
     },
   );
 
@@ -152,13 +183,31 @@ void main() {
         final truncated = Uint8List.sublistView(valid, 0, length);
         threeBad(() => threeProtocolDecoder.decodeR1(truncated));
       }
-      threeBad(() => threeProtocolDecoder.decodeR1(Uint8List.fromList([...valid, 0])));
-      threeBad(() => threeProtocolDecoder.decodeR1(threeR1(const [], version: 0)));
-      threeBad(() => threeProtocolDecoder.decodeR1(threeR1(const [], version: 10)));
-      threeBad(() => threeProtocolDecoder.decodeR1(threeR1(const [], flags: 1)));
-      threeBad(() => threeProtocolDecoder.decodeR1(threeR1(const [], commandCount: 100001)));
-      threeBad(() => threeProtocolDecoder.decodeR1(threeR1([(13, Uint8List(0))])));
-      threeBad(() => threeProtocolDecoder.decodeR1(threeR1([(1, threeGeometry())], commandCount: 0)));
+      threeBad(
+        () => threeProtocolDecoder.decodeR1(Uint8List.fromList([...valid, 0])),
+      );
+      threeBad(
+        () => threeProtocolDecoder.decodeR1(threeR1(const [], version: 0)),
+      );
+      threeBad(
+        () => threeProtocolDecoder.decodeR1(threeR1(const [], version: 11)),
+      );
+      threeBad(
+        () => threeProtocolDecoder.decodeR1(threeR1(const [], flags: 1)),
+      );
+      threeBad(
+        () => threeProtocolDecoder.decodeR1(
+          threeR1(const [], commandCount: 100001),
+        ),
+      );
+      threeBad(
+        () => threeProtocolDecoder.decodeR1(threeR1([(13, Uint8List(0))])),
+      );
+      threeBad(
+        () => threeProtocolDecoder.decodeR1(
+          threeR1([(1, threeGeometry())], commandCount: 0),
+        ),
+      );
 
       final commandCases = <Uint8List>[
         threeR1([(10, Uint8List(0))]),
@@ -180,7 +229,9 @@ void main() {
     for (final (opcode, body) in threeAllCommands()) {
       for (var length = 0; length < body.length; length++) {
         final short = Uint8List.sublistView(body, 0, length);
-        threeBad(() => threeProtocolDecoder.decodeR1(threeR1([(opcode, short)])));
+        threeBad(
+          () => threeProtocolDecoder.decodeR1(threeR1([(opcode, short)])),
+        );
       }
       final long = Uint8List.fromList([...body, 0]);
       threeBad(() => threeProtocolDecoder.decodeR1(threeR1([(opcode, long)])));
@@ -220,7 +271,9 @@ void main() {
       );
       threeBad(
         () => threeProtocolDecoder.decodeR1(
-          threeR1([(1, threeGeometry(mask: 1, vertexCount: 4, indices: const []))]),
+          threeR1([
+            (1, threeGeometry(mask: 1, vertexCount: 4, indices: const [])),
+          ]),
         ),
       );
       threeBad(
@@ -266,7 +319,9 @@ void main() {
         );
         final excessive = threeTexture(encoding: encoding);
         setU32(excessive, 24, 64 * 1024 * 1024 + 1);
-        threeBad(() => threeProtocolDecoder.decodeR1(threeR1([(2, excessive)])));
+        threeBad(
+          () => threeProtocolDecoder.decodeR1(threeR1([(2, excessive)])),
+        );
       }
       final overflow = threeTexture();
       setU32(overflow, 8, 0x3fffffff);
@@ -291,7 +346,10 @@ void main() {
   test('decodes the bounded v6 Dubois anaglyph material', () {
     final decoded = threeProtocolDecoder.decodeR1(
       threeR1([
-        (3, threeMaterialV6(kind: JsThreeMaterialKind.anaglyph, anaglyph: true)),
+        (
+          3,
+          threeMaterialV6(kind: JsThreeMaterialKind.anaglyph, anaglyph: true),
+        ),
       ], version: 6),
     );
     final material = decoded.commands.whereType<JsThreeMaterialUpsert>().single;
@@ -353,29 +411,53 @@ void main() {
   });
 
   test('rejects malformed target and frame-target extensions', () {
-    threeBad(() => threeProtocolDecoder.decodeR1(threeR1([(14, threeRenderTarget())], version: 5)));
+    threeBad(
+      () => threeProtocolDecoder.decodeR1(
+        threeR1([(14, threeRenderTarget())], version: 5),
+      ),
+    );
     for (final body in [
       threeRenderTarget(width: 0),
       threeRenderTarget(flags: 16),
       threeRenderTarget(flags: 0x80000000),
     ]) {
-      threeBad(() => threeProtocolDecoder.decodeR1(threeR1([(14, body)], version: 6)));
+      threeBad(
+        () => threeProtocolDecoder.decodeR1(threeR1([(14, body)], version: 6)),
+      );
     }
     final reservedTarget = threeRenderTarget();
     setU32(reservedTarget, 24, 1);
-    threeBad(() => threeProtocolDecoder.decodeR1(threeR1([(14, reservedTarget)], version: 6)));
+    threeBad(
+      () => threeProtocolDecoder.decodeR1(
+        threeR1([(14, reservedTarget)], version: 6),
+      ),
+    );
     final badMagic = threeFrameV6Target();
     setU32(badMagic, 184, 0);
-    threeBad(() => threeProtocolDecoder.decodeR1(threeR1([(8, badMagic)], version: 6)));
+    threeBad(
+      () => threeProtocolDecoder.decodeR1(threeR1([(8, badMagic)], version: 6)),
+    );
     final badRect = threeFrameV6Target();
     setF32(badRect, 204, -1);
-    threeBad(() => threeProtocolDecoder.decodeR1(threeR1([(8, badRect)], version: 6)));
+    threeBad(
+      () => threeProtocolDecoder.decodeR1(threeR1([(8, badRect)], version: 6)),
+    );
     final badFlags = threeFrameV6Target(flags: 7);
-    threeBad(() => threeProtocolDecoder.decodeR1(threeR1([(8, badFlags)], version: 6)));
+    threeBad(
+      () => threeProtocolDecoder.decodeR1(threeR1([(8, badFlags)], version: 6)),
+    );
     final reservedFrame = threeFrameV6Target();
     setU32(reservedFrame, 240, 1);
-    threeBad(() => threeProtocolDecoder.decodeR1(threeR1([(8, reservedFrame)], version: 6)));
-    threeBad(() => threeProtocolDecoder.decodeR1(threeR1([(8, threeFrameV6Target())], version: 5)));
+    threeBad(
+      () => threeProtocolDecoder.decodeR1(
+        threeR1([(8, reservedFrame)], version: 6),
+      ),
+    );
+    threeBad(
+      () => threeProtocolDecoder.decodeR1(
+        threeR1([(8, threeFrameV6Target())], version: 5),
+      ),
+    );
   });
 
   test(
@@ -384,7 +466,12 @@ void main() {
       final cases = <(int, Uint8List, int, int)>[
         (3, threeMaterial(), 0, 0),
         (3, threeMaterial(), 4, 0),
-        (3, threeMaterial(), 8, 15), // 15 is invalid; 14 is the native postprocessing kind
+        (
+          3,
+          threeMaterial(),
+          8,
+          15,
+        ), // 15 is invalid; 14 is the native postprocessing kind
         (
           3,
           threeMaterial(),
@@ -409,9 +496,13 @@ void main() {
       for (final (opcode, original, offset, value) in cases) {
         final body = Uint8List.fromList(original);
         setU32(body, offset, value);
-        threeBad(() => threeProtocolDecoder.decodeR1(threeR1([(opcode, body)])));
+        threeBad(
+          () => threeProtocolDecoder.decodeR1(threeR1([(opcode, body)])),
+        );
       }
-      threeBad(() => threeProtocolDecoder.decodeR1(threeR1([(5, threeU32Body(0))])));
+      threeBad(
+        () => threeProtocolDecoder.decodeR1(threeR1([(5, threeU32Body(0))])),
+      );
       for (final offset in [36, 40, 44, 48]) {
         for (final value in [-0.01, 1.01]) {
           final body = threeMaterial();
@@ -440,9 +531,17 @@ void main() {
         () => threeGeometry(mask: 1, indices: const []),
         [for (var offset = 32; offset < 64; offset += 4) offset],
       ),
-      (3, threeMaterial, [for (var offset = 24; offset < 56; offset += 4) offset]),
+      (
+        3,
+        threeMaterial,
+        [for (var offset = 24; offset < 56; offset += 4) offset],
+      ),
       (4, threeNode, [for (var offset = 24; offset < 88; offset += 4) offset]),
-      (6, threeCamera, [for (var offset = 8; offset < 200; offset += 4) offset]),
+      (
+        6,
+        threeCamera,
+        [for (var offset = 8; offset < 200; offset += 4) offset],
+      ),
       (7, threeLight, [for (var offset = 8; offset < 48; offset += 4) offset]),
       (
         8,
@@ -468,7 +567,9 @@ void main() {
         ]) {
           final body = build();
           setF32(body, offset, value);
-          threeBad(() => threeProtocolDecoder.decodeR1(threeR1([(opcode, body)])));
+          threeBad(
+            () => threeProtocolDecoder.decodeR1(threeR1([(opcode, body)])),
+          );
         }
       }
     }
@@ -495,31 +596,31 @@ void main() {
     }
   });
 
-  test('dynamic point positions tolerate non-finite vertices only for points', () {
-    final body = threeGeometry(
-      mask: 1,
-      vertexCount: 2,
-      primitive: 2,
-      indices: const [],
-    );
-    setF32(body, 32, double.nan);
-    setF32(body, 36, double.infinity);
-    setF32(body, 40, double.negativeInfinity);
-    final geometry = threeProtocolDecoder
-        .decodeR1(threeR1([(1, body)]))
-        .commands
-        .single as JsThreeGeometryUpsert;
-    expect(geometry.primitive, JsThreePrimitive.points);
-    expect(geometry.positions[0].isNaN, isTrue);
-    expect(geometry.positions[1], double.infinity);
-    expect(geometry.positions[2], double.negativeInfinity);
+  test(
+    'dynamic point positions tolerate non-finite vertices only for points',
+    () {
+      final body = threeGeometry(
+        mask: 1,
+        vertexCount: 2,
+        primitive: 2,
+        indices: const [],
+      );
+      setF32(body, 32, double.nan);
+      setF32(body, 36, double.infinity);
+      setF32(body, 40, double.negativeInfinity);
+      final geometry =
+          threeProtocolDecoder.decodeR1(threeR1([(1, body)])).commands.single
+              as JsThreeGeometryUpsert;
+      expect(geometry.primitive, JsThreePrimitive.points);
+      expect(geometry.positions[0].isNaN, isTrue);
+      expect(geometry.positions[1], double.infinity);
+      expect(geometry.positions[2], double.negativeInfinity);
 
-    final triangles = threeGeometry(mask: 1, indices: const []);
-    setF32(triangles, 32, double.nan);
-    threeBad(
-      () => threeProtocolDecoder.decodeR1(threeR1([(1, triangles)])),
-    );
-  });
+      final triangles = threeGeometry(mask: 1, indices: const []);
+      setF32(triangles, 32, double.nan);
+      threeBad(() => threeProtocolDecoder.decodeR1(threeR1([(1, triangles)])));
+    },
+  );
 
   group('R1 v3', () {
     Uint8List spotLight({
@@ -583,7 +684,9 @@ void main() {
     }
 
     test('spot light decodes cone parameters and validates ranges', () {
-      final stream = threeProtocolDecoder.decodeR1(threeR1([(7, spotLight())], version: 3));
+      final stream = threeProtocolDecoder.decodeR1(
+        threeR1([(7, spotLight())], version: 3),
+      );
       final light = stream.commands.single as JsThreeLightUpsert;
       expect(light.type, JsThreeLightType.spot);
       expect(light.intensity, 60);
@@ -593,17 +696,25 @@ void main() {
       expect(light.spotDecay, 0);
       expect(light.groundColorR, 0);
 
-      threeBad(() => threeProtocolDecoder.decodeR1(threeR1([(7, spotLight())], version: 2)));
       threeBad(
-        () => threeProtocolDecoder.decodeR1(threeR1([(7, spotLight(angle: 0))], version: 3)),
+        () => threeProtocolDecoder.decodeR1(
+          threeR1([(7, spotLight())], version: 2),
+        ),
       );
       threeBad(
-        () =>
-            threeProtocolDecoder.decodeR1(threeR1([(7, spotLight(angle: 3.1416))], version: 3)),
+        () => threeProtocolDecoder.decodeR1(
+          threeR1([(7, spotLight(angle: 0))], version: 3),
+        ),
       );
       threeBad(
-        () =>
-            threeProtocolDecoder.decodeR1(threeR1([(7, spotLight(penumbra: 8.5))], version: 3)),
+        () => threeProtocolDecoder.decodeR1(
+          threeR1([(7, spotLight(angle: 3.1416))], version: 3),
+        ),
+      );
+      threeBad(
+        () => threeProtocolDecoder.decodeR1(
+          threeR1([(7, spotLight(penumbra: 8.5))], version: 3),
+        ),
       );
       // Upstream tweens penumbra above 1 (webgl_lights_spotlights); the
       // accepted band is [0, 8].
@@ -613,8 +724,9 @@ void main() {
       final overOneLight = overOne.whereType<JsThreeLightUpsert>().single;
       expect(overOneLight.spotPenumbra, 1.5);
       threeBad(
-        () =>
-            threeProtocolDecoder.decodeR1(threeR1([(7, spotLight(distance: -1))], version: 3)),
+        () => threeProtocolDecoder.decodeR1(
+          threeR1([(7, spotLight(distance: -1))], version: 3),
+        ),
       );
     });
 
@@ -630,7 +742,10 @@ void main() {
       expect(material.shininess, 100);
 
       final badFlags = Uint8List.fromList(clippedMaterial(clipFlags: 4));
-      threeBad(() => threeProtocolDecoder.decodeR1(threeR1([(3, badFlags)], version: 3)));
+      threeBad(
+        () =>
+            threeProtocolDecoder.decodeR1(threeR1([(3, badFlags)], version: 3)),
+      );
     });
 
     test('clipping command decodes normalized planes and bounds counts', () {
@@ -643,14 +758,24 @@ void main() {
       expect(command.planes[1], closeTo(-1, 0.0001));
       expect(command.planes[7], closeTo(-0.2, 0.0001));
 
-      threeBad(() => threeProtocolDecoder.decodeR1(threeR1([(13, clipping())], version: 2)));
       threeBad(
-        () => threeProtocolDecoder.decodeR1(threeR1([(13, clipping(count: 17))], version: 3)),
+        () => threeProtocolDecoder.decodeR1(
+          threeR1([(13, clipping())], version: 2),
+        ),
+      );
+      threeBad(
+        () => threeProtocolDecoder.decodeR1(
+          threeR1([(13, clipping(count: 17))], version: 3),
+        ),
       );
       final zeroNormal = clipping();
       setF32(zeroNormal, 12, 0);
       setF32(zeroNormal, 16, 0);
-      threeBad(() => threeProtocolDecoder.decodeR1(threeR1([(13, zeroNormal)], version: 3)));
+      threeBad(
+        () => threeProtocolDecoder.decodeR1(
+          threeR1([(13, zeroNormal)], version: 3),
+        ),
+      );
     });
 
     test('frame names its shadow light owner and rejects mismatches', () {
@@ -676,7 +801,11 @@ void main() {
           threeR1([
             (
               8,
-              threeFrame(shadowWidth: 1024, shadowHeight: 1024, shadowLightType: 3),
+              threeFrame(
+                shadowWidth: 1024,
+                shadowHeight: 1024,
+                shadowLightType: 3,
+              ),
             ),
           ], version: 3),
         ),
@@ -708,18 +837,24 @@ void main() {
       setU32(out, dubois, op == 15 ? 7 : 0);
       setU32(out, dubois + 4, op == 15 ? 8 : 0);
       setU32(out, dubois + 8, op == 15 ? 9 : 0);
-      setU32(out, dubois + 80, op == 15 ? 6 : 0);
+      setU32(out, dubois + 80, op == 15 || op == 17 ? 6 : 0);
       void param(int index, double value) {
         if (index < 18) {
           final matrixIndex = index < 9 ? index : index - 9;
           final matrixBase = dubois + 80 + 16 + (index < 9 ? 0 : 48);
-          setF32(out, matrixBase + (matrixIndex ~/ 3) * 16 +
-              (matrixIndex % 3) * 4, value);
+          setF32(
+            out,
+            matrixBase + (matrixIndex ~/ 3) * 16 + (matrixIndex % 3) * 4,
+            value,
+          );
         } else {
           setF32(out, dubois + 16 + (index - 18) * 4, value);
         }
       }
+
       param(0, op.toDouble());
+      param(1, op == 17 ? 32 : 0);
+      param(2, op == 17 ? 0.5 : 0);
       param(6, pairCount.toDouble());
       for (var index = 18; index < 34; index++) {
         param(index, index + 0.25);
@@ -731,7 +866,9 @@ void main() {
       final decoded = threeProtocolDecoder.decodeR1(
         threeR1([(3, threeMaterialV8(stencil: true))], version: 8),
       );
-      final material = decoded.commands.whereType<JsThreeMaterialUpsert>().single;
+      final material = decoded.commands
+          .whereType<JsThreeMaterialUpsert>()
+          .single;
       expect(material.flags & 0x800, 0x800);
       expect(material.hasStencil, isTrue);
       expect(material.colorWrite, isTrue);
@@ -749,7 +886,9 @@ void main() {
       final decoded = threeProtocolDecoder.decodeR1(
         threeR1([(3, threeMaterialV8(colorWriteOff: true))], version: 8),
       );
-      final material = decoded.commands.whereType<JsThreeMaterialUpsert>().single;
+      final material = decoded.commands
+          .whereType<JsThreeMaterialUpsert>()
+          .single;
       expect(material.colorWrite, isFalse);
       expect(material.hasStencil, isFalse);
       expect(material.stencilWrite, isFalse);
@@ -762,50 +901,60 @@ void main() {
       expect(material.stencilZPassOp, JsThreeStencilOp.keep);
     });
 
-    test('stenciless v8 materials decode like v7 (byte-identical defaults)', () {
-      final v7 = threeProtocolDecoder
-          .decodeR1(threeR1([(3, threeMaterialV6())], version: 7))
-          .commands
-          .whereType<JsThreeMaterialUpsert>()
-          .single;
-      final v8 = threeProtocolDecoder
-          .decodeR1(threeR1([(3, threeMaterialV8())], version: 8))
-          .commands
-          .whereType<JsThreeMaterialUpsert>()
-          .single;
-      expect(v8.flags, v7.flags);
-      expect(v8.colorWrite, isTrue);
-      expect(v8.hasStencil, isFalse);
-      expect(v8.stencilWrite, v7.stencilWrite);
-      expect(v8.stencilFunc, v7.stencilFunc);
-      expect(v8.stencilRef, v7.stencilRef);
-      expect(v8.stencilFuncMask, v7.stencilFuncMask);
-      expect(v8.stencilWriteMask, v7.stencilWriteMask);
-      expect(v8.stencilFailOp, v7.stencilFailOp);
-      expect(v8.stencilZFailOp, v7.stencilZFailOp);
-      expect(v8.stencilZPassOp, v7.stencilZPassOp);
-      // bits 10/11 stay invalid below v8.
-      threeBad(
-        () => threeProtocolDecoder.decodeR1(
-          threeR1([(3, threeMaterialV8(colorWriteOff: true))], version: 7),
-        ),
-      );
-      threeBad(
-        () => threeProtocolDecoder.decodeR1(
-          threeR1([(3, threeMaterialV8(stencil: true))], version: 7),
-        ),
-      );
-    });
+    test(
+      'stenciless v8 materials decode like v7 (byte-identical defaults)',
+      () {
+        final v7 = threeProtocolDecoder
+            .decodeR1(threeR1([(3, threeMaterialV6())], version: 7))
+            .commands
+            .whereType<JsThreeMaterialUpsert>()
+            .single;
+        final v8 = threeProtocolDecoder
+            .decodeR1(threeR1([(3, threeMaterialV8())], version: 8))
+            .commands
+            .whereType<JsThreeMaterialUpsert>()
+            .single;
+        expect(v8.flags, v7.flags);
+        expect(v8.colorWrite, isTrue);
+        expect(v8.hasStencil, isFalse);
+        expect(v8.stencilWrite, v7.stencilWrite);
+        expect(v8.stencilFunc, v7.stencilFunc);
+        expect(v8.stencilRef, v7.stencilRef);
+        expect(v8.stencilFuncMask, v7.stencilFuncMask);
+        expect(v8.stencilWriteMask, v7.stencilWriteMask);
+        expect(v8.stencilFailOp, v7.stencilFailOp);
+        expect(v8.stencilZFailOp, v7.stencilZFailOp);
+        expect(v8.stencilZPassOp, v7.stencilZPassOp);
+        // bits 10/11 stay invalid below v8.
+        threeBad(
+          () => threeProtocolDecoder.decodeR1(
+            threeR1([(3, threeMaterialV8(colorWriteOff: true))], version: 7),
+          ),
+        );
+        threeBad(
+          () => threeProtocolDecoder.decodeR1(
+            threeR1([(3, threeMaterialV8(stencil: true))], version: 7),
+          ),
+        );
+      },
+    );
 
     test('validates the stencil tail: presence, enums, and 8-bit ranges', () {
       // Flag bit 11 without the 32-byte tail.
       final flaggedNoTail = threeMaterialV8();
       setU32(flaggedNoTail, 16, 31 | 0x800);
-      threeBad(() => threeProtocolDecoder.decodeR1(threeR1([(3, flaggedNoTail)], version: 8)));
+      threeBad(
+        () => threeProtocolDecoder.decodeR1(
+          threeR1([(3, flaggedNoTail)], version: 8),
+        ),
+      );
       // Tail without flag bit 11 (emissive range check rejects the bytes).
       final tailless = threeMaterialV8(stencil: true);
       setU32(tailless, 16, 31);
-      threeBad(() => threeProtocolDecoder.decodeR1(threeR1([(3, tailless)], version: 8)));
+      threeBad(
+        () =>
+            threeProtocolDecoder.decodeR1(threeR1([(3, tailless)], version: 8)),
+      );
       for (final (offset, value) in [
         (4, 0x0208), // unknown stencil func
         (4, 0x0000), // 0 is GL_NEVER-adjacent junk, not in the GL table
@@ -820,7 +969,9 @@ void main() {
         final body = threeMaterialV8(stencil: true);
         final tail = body.length - 32;
         setU32(body, tail + offset, value);
-        threeBad(() => threeProtocolDecoder.decodeR1(threeR1([(3, body)], version: 8)));
+        threeBad(
+          () => threeProtocolDecoder.decodeR1(threeR1([(3, body)], version: 8)),
+        );
       }
     });
 
@@ -866,32 +1017,41 @@ void main() {
       );
     });
 
-    test('frame-target flag bit 0x10 decodes the frame-start stencil clear', () {
-      final cleared = threeProtocolDecoder
-          .decodeR1(threeR1([(8, threeFrameV6Target(flags: 0x1f))], version: 8))
-          .commands
-          .whereType<JsThreeSubmitFrame>()
-          .single;
-      expect(cleared.frameStartClearStencil, isTrue);
-      final persisting = threeProtocolDecoder
-          .decodeR1(threeR1([(8, threeFrameV6Target(flags: 0x0f))], version: 8))
-          .commands
-          .whereType<JsThreeSubmitFrame>()
-          .single;
-      expect(persisting.frameStartClearStencil, isFalse);
-      // v7 keeps the legacy always-clear default and rejects the new bit.
-      final legacy = threeProtocolDecoder
-          .decodeR1(threeR1([(8, threeFrameV6Target(flags: 0x0f))], version: 7))
-          .commands
-          .whereType<JsThreeSubmitFrame>()
-          .single;
-      expect(legacy.frameStartClearStencil, isTrue);
-      threeBad(
-        () => threeProtocolDecoder.decodeR1(
-          threeR1([(8, threeFrameV6Target(flags: 0x1f))], version: 7),
-        ),
-      );
-    });
+    test(
+      'frame-target flag bit 0x10 decodes the frame-start stencil clear',
+      () {
+        final cleared = threeProtocolDecoder
+            .decodeR1(
+              threeR1([(8, threeFrameV6Target(flags: 0x1f))], version: 8),
+            )
+            .commands
+            .whereType<JsThreeSubmitFrame>()
+            .single;
+        expect(cleared.frameStartClearStencil, isTrue);
+        final persisting = threeProtocolDecoder
+            .decodeR1(
+              threeR1([(8, threeFrameV6Target(flags: 0x0f))], version: 8),
+            )
+            .commands
+            .whereType<JsThreeSubmitFrame>()
+            .single;
+        expect(persisting.frameStartClearStencil, isFalse);
+        // v7 keeps the legacy always-clear default and rejects the new bit.
+        final legacy = threeProtocolDecoder
+            .decodeR1(
+              threeR1([(8, threeFrameV6Target(flags: 0x0f))], version: 7),
+            )
+            .commands
+            .whereType<JsThreeSubmitFrame>()
+            .single;
+        expect(legacy.frameStartClearStencil, isTrue);
+        threeBad(
+          () => threeProtocolDecoder.decodeR1(
+            threeR1([(8, threeFrameV6Target(flags: 0x1f))], version: 7),
+          ),
+        );
+      },
+    );
 
     test('R1 v9 decodes bounded bloom texture and scalar tails', () {
       final composite = threeProtocolDecoder
@@ -921,42 +1081,130 @@ void main() {
       expect(blur.postParams[10], closeTo(28.25, 1e-6));
     });
 
+    test('R1 v9 decodes the bounded LUT atlas operation', () {
+      final lut = threeProtocolDecoder
+          .decodeR1(threeR1([(3, _postMaterialV9(op: 17))], version: 9))
+          .commands
+          .whereType<JsThreeMaterialUpsert>()
+          .single;
+      expect(lut.duboisLeftMatrix[0], 17);
+      expect(lut.duboisLeftMatrix[1], 32);
+      expect(lut.duboisLeftMatrix[2], 0.5);
+      expect(lut.mapRightTextureId, 6);
+      expect(lut.postTexture3Id, 0);
+    });
+
     test('R1 v9 post tail rejects malformed operations and payloads', () {
       final reserved = _postMaterialV9();
       setU32(reserved, reserved.length - 112 - 80 + 12, 1);
-      threeBad(() => threeProtocolDecoder.decodeR1(threeR1([(3, reserved)], version: 9)));
+      threeBad(
+        () =>
+            threeProtocolDecoder.decodeR1(threeR1([(3, reserved)], version: 9)),
+      );
 
       final nonFinite = _postMaterialV9();
       setF32(nonFinite, nonFinite.length - 112 - 80 + 16, double.nan);
-      threeBad(() => threeProtocolDecoder.decodeR1(threeR1([(3, nonFinite)], version: 9)));
+      threeBad(
+        () => threeProtocolDecoder.decodeR1(
+          threeR1([(3, nonFinite)], version: 9),
+        ),
+      );
 
       final missingMip = _postMaterialV9();
       setU32(missingMip, missingMip.length - 112 - 80 + 8, 0);
-      threeBad(() => threeProtocolDecoder.decodeR1(threeR1([(3, missingMip)], version: 9)));
+      threeBad(
+        () => threeProtocolDecoder.decodeR1(
+          threeR1([(3, missingMip)], version: 9),
+        ),
+      );
 
       final unexpectedMip = _postMaterialV9(op: 13);
       setU32(unexpectedMip, unexpectedMip.length - 112 - 80, 7);
-      threeBad(() => threeProtocolDecoder.decodeR1(threeR1([(3, unexpectedMip)], version: 9)));
+      threeBad(
+        () => threeProtocolDecoder.decodeR1(
+          threeR1([(3, unexpectedMip)], version: 9),
+        ),
+      );
 
       for (final pairs in [0, 1.5, 12]) {
         threeBad(
           () => threeProtocolDecoder.decodeR1(
-            threeR1([(3, _postMaterialV9(op: 14, pairCount: pairs))], version: 9),
+            threeR1([
+              (3, _postMaterialV9(op: 14, pairCount: pairs)),
+            ], version: 9),
           ),
         );
       }
       threeBad(
         () => threeProtocolDecoder.decodeR1(
-          threeR1([(3, _postMaterialV9(op: 17))], version: 9),
+          threeR1([(3, _postMaterialV9(op: 18))], version: 9),
         ),
       );
     });
 
-    test('latestR1Version is 9', () {
-      expect(JsThreeProtocolDecoder.latestR1Version, 9);
+    test('R1 v10 retained updates preserve immutable geometry fields', () {
+      final full = threeGeometry(wireIndices: const [0, 1]);
+      final update = threeGeometry(version: 2, mask: 1, indices: const []);
+      setU32(update, 24, 1);
+      setF32(update, 32, 99);
+      final payload = threeR1([(1, full), (1, update)], version: 10);
+      final decoded = threeProtocolDecoder.decodeR1(payload);
+      final transport = decoded.commands[1] as JsThreeGeometryUpsert;
+      expect(transport.retainUnchanged, isTrue);
+      expect(transport.normals, isNull);
+      expect(transport.uvs, isNull);
+      expect(transport.colors, isNull);
+      expect(transport.indices, isEmpty);
+
+      final store = JsThreeStateStore();
+      store.apply(threeT1(payload));
+      final geometry = store.surface('engine', 'surface')!.geometries[1]!;
+      expect(geometry.version, 2);
+      expect(geometry.attributeMask, 15);
+      expect(geometry.positions[0], 99);
+      expect(geometry.normals, isNotNull);
+      expect(geometry.uvs, isNotNull);
+      expect(geometry.colors, isNotNull);
+      expect(geometry.indices, [0, 1, 2]);
+      expect(geometry.wireIndices, [0, 1]);
+      expect(geometry.retainUnchanged, isFalse);
+
+      final stale = threeGeometry(
+        version: 2,
+        mask: 1,
+        vertexCount: 4,
+        indices: const [],
+      );
+      setU32(stale, 24, 1);
+      final staleResult = store.apply(
+        threeT1(threeR1([(1, stale)], version: 10), sequence: 2),
+      );
+      expect(staleResult.unchangedUploadCount, 1);
+      expect(staleResult.geometryUploads, isEmpty);
+      expect(store.surface('engine', 'surface')!.geometries[1]!.vertexCount, 3);
+
+      threeBad(
+        () => threeProtocolDecoder.decodeR1(threeR1([(1, update)], version: 9)),
+      );
+      final unknownFlag = Uint8List.fromList(update);
+      setU32(unknownFlag, 24, 2);
+      threeBad(
+        () => threeProtocolDecoder.decodeR1(
+          threeR1([(1, unknownFlag)], version: 10),
+        ),
+      );
+      threeBad(
+        () => JsThreeStateStore().apply(
+          threeT1(threeR1([(1, update)], version: 10)),
+        ),
+      );
+    });
+
+    test('latestR1Version is 10', () {
+      expect(JsThreeProtocolDecoder.latestR1Version, 10);
       expect(
-        threeProtocolDecoder.decodeR1(threeR1(const [], version: 9)).version,
-        9,
+        threeProtocolDecoder.decodeR1(threeR1(const [], version: 10)).version,
+        10,
       );
     });
   });

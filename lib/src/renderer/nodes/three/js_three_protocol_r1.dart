@@ -124,6 +124,7 @@ final class _GeometryHeader {
     this.vertexCount,
     this.indexCount,
     this.primitive,
+    this.retainUnchanged,
   );
 
   final int id;
@@ -132,6 +133,7 @@ final class _GeometryHeader {
   final int vertexCount;
   final int indexCount;
   final JsThreePrimitive primitive;
+  final bool retainUnchanged;
 }
 
 final class _Reader {

@@ -509,8 +509,8 @@
   },
   "inputs": {
     "assets/three/jsr_three_native.js": {
-      "bytes": 886541,
-      "sha256": "0a24a3d38e96fe453a7c0a042473bc59b9df8d2c9e577461f0f90710049bef55"
+      "bytes": 891641,
+      "sha256": "069763ef65451ac400ae9fd50119a7824eb0af93a0737f93f877805e6e4095f4"
     },
     "assets/three/jsr_three_web.js": {
       "bytes": 859738,
@@ -528,29 +528,9 @@
       "bytes": 29526,
       "sha256": "5e31e7fc4d3a1268550b948463eabe06c7a6c03c158ccb99c78616d2c9682518"
     },
-    "source/examples/jsm/objects/Sky.js": {
-      "bytes": 11526,
-      "sha256": "34121b60a3bd9adc004a5a637f6135e9d2b72757eeb9e476ae1988fe2db6a9fb"
-    },
-    "source/examples/jsm/objects/Water.js": {
-      "bytes": 12894,
-      "sha256": "3386670ba86003a32f5efe449041bd108d4cf1e0661849caa814741a2aaf395b"
-    },
-    "source/examples/jsm/postprocessing/Pass.js": {
-      "bytes": 4218,
-      "sha256": "444b409c235ead986893c472e720da1b779a56985c7d10b279c7944b52bd61c5"
-    },
-    "source/examples/jsm/postprocessing/UnrealBloomPass.js": {
-      "bytes": 15397,
-      "sha256": "ba8f2fcadfa6588384c9473498f974d81d120f02f0e63a0e59c265202a006b5a"
-    },
-    "source/examples/jsm/shaders/CopyShader.js": {
-      "bytes": 729,
-      "sha256": "a33057d5ac91c43304c186ac0e8816e62bb2ed471d3a00ff3018dfd5c0389718"
-    },
-    "source/examples/jsm/shaders/LuminosityHighPassShader.js": {
-      "bytes": 1291,
-      "sha256": "5044f780b6e6cf863947f64c36fe1587132f7fbe395ada863cd1e5f0388dcf1e"
+    "source/examples/textures/waternormals.jpg": {
+      "bytes": 248813,
+      "sha256": "add9912b158a4fe9c12421745babe68c44c8af75631ac4837236cb2a03bc373f"
     },
     "source/examples/webgl_shaders_ocean.html": {
       "bytes": 6924,
@@ -561,16 +541,20 @@
       "sha256": "29492424209a17a723b3b0c8e9c83995697a4c466840d1b33ba6f6ff2b7542a4"
     },
     "tool/three/src/native_entry.js": {
-      "bytes": 31684,
-      "sha256": "e0bfb2ca963ff60db7ebd850290f71ac3b247f3cdd4b8ec890f92d83739fe7fd"
+      "bytes": 32919,
+      "sha256": "09f0317fc237150fef60338aed2d0a54a6318c280bfd39fb1f75e2af88ef0580"
     },
     "tool/three_example/asset_decode.mjs": {
-      "bytes": 51634,
-      "sha256": "273d0f8261829418eb08a93177990de1fb76cda9211852d578439a39ceb61af1"
+      "bytes": 55156,
+      "sha256": "e8ade24b03a7df661cc15a09858a358c98693065c45d1fb9e362b9e3fd9728a1"
     },
     "tool/three_example/asset_discovery.mjs": {
       "bytes": 12424,
       "sha256": "89a14e272cb1ddac5b555b4361af938764127ee069ac367a18262b8299643eca"
+    },
+    "tool/three_example/degrades/sky_water_native.mjs": {
+      "bytes": 19372,
+      "sha256": "b5ceba4b60ad78a408fe6982695cb618f5f2d3c7167baf43797f1e290156fb95"
     },
     "tool/three_example/example_adapter.js": {
       "bytes": 51217,
@@ -585,8 +569,8 @@
       "sha256": "ceb4c2b0bd47cbe6ed04169fd6042fa40fe3085eab13c2061be29414fdfa0f74"
     },
     "tool/three_example/prepare.mjs": {
-      "bytes": 360337,
-      "sha256": "46ba5ac3c31cded946f6985d249eb944b750be55ae9c69319eeaad04fa4353c3"
+      "bytes": 378748,
+      "sha256": "0119b23cb3cdd970126e0297783e147dc0a6a2aa33970134e9c42319932cde02"
     },
     "tool/three_example/stats_adapter.js": {
       "bytes": 2107,
@@ -608,7 +592,7 @@
     },
     "manifest.json": {
       "bytes": 338,
-      "sha256": "a92b934eb57f70a5e07e333cffbee0ccff71927b43cfe5757cb3b411b95772bf"
+      "sha256": "a47cbfb3b7ba873bdb6e25cace3bb2cbf9a11c0c964a238dcabfff37e888b4f6"
     },
     "official_module.js": {
       "bytes": 5963,
@@ -618,9 +602,13 @@
       "bytes": 6924,
       "sha256": "87b6965af1d05c32eebe21d1dba3e55c6b5981703c7c87992b359416fdc1ff5e"
     },
+    "textures/waternormals.jpg": {
+      "bytes": 248813,
+      "sha256": "add9912b158a4fe9c12421745babe68c44c8af75631ac4837236cb2a03bc373f"
+    },
     "widget.js": {
-      "bytes": 149931,
-      "sha256": "d523c51c71c5fe14321b2d367b7464598b3caff8ab81e7bd7aaa4609a5d97ac1"
+      "bytes": 463946,
+      "sha256": "a78bf5f3919e54bfd637b6714bbbb8c4cae3a181ac91ce12b28910c932fa172f"
     }
   }
 }

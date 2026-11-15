@@ -678,7 +678,13 @@ extension _JsThreeSurfaceStateOperations on JsThreeSurfaceState {
   bool _applyUploadCommand(JsThreeCommand command, _ApplyBatch batch) {
     switch (command) {
       case final JsThreeGeometryUpsert value:
-        _recordUpload(_upsertGeometry(value), value, batch);
+        final previous = _geometries[value.geometryId];
+        if (previous != null && value.version <= previous.version) {
+          _recordUpload(false, value, batch);
+        } else {
+          final resolved = value.resolveRetained(previous);
+          _recordUpload(_upsertGeometry(resolved), resolved, batch);
+        }
       case final JsThreeTextureUpsert value:
         _recordUpload(_upsertTexture(value), value, batch);
       case final JsThreeMaterialUpsert value:

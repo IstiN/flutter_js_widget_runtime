@@ -39,8 +39,10 @@ function floatView(bytes, byteOffset, elementCount) {
   if (start % 4 === 0 && start + elementCount * 4 <= bytes.buffer.byteLength) {
     return new Float32Array(bytes.buffer, start, elementCount);
   }
-  // Unaligned host buffers fall back to one aligned copy.
-  return new Float32Array(bytes.slice(byteOffset, byteOffset + elementCount * 4));
+  // A typed-array constructor COPIES numeric byte elements; reinterpret the
+  // fresh aligned copy's buffer instead (the USDZ blob starts at offset 139).
+  const copy = bytes.slice(byteOffset, byteOffset + elementCount * 4);
+  return new Float32Array(copy.buffer, copy.byteOffset, elementCount);
 }
 
 function uint32View(bytes, byteOffset, elementCount) {
@@ -48,7 +50,8 @@ function uint32View(bytes, byteOffset, elementCount) {
   if (start % 4 === 0 && start + elementCount * 4 <= bytes.buffer.byteLength) {
     return new Uint32Array(bytes.buffer, start, elementCount);
   }
-  return new Uint32Array(bytes.slice(byteOffset, byteOffset + elementCount * 4));
+  const copy = bytes.slice(byteOffset, byteOffset + elementCount * 4);
+  return new Uint32Array(copy.buffer, copy.byteOffset, elementCount);
 }
 
 function rebuild(buffer, url) {

@@ -5,6 +5,9 @@ import { createRequire } from 'node:module';
 import { pathToFileURL } from 'node:url';
 import { deflateSync } from 'node:zlib';
 import { JsrDOMParser } from './vendor/xml_dom.js';
+// texture2ddecoder-wasm 1.2.6 (MIT), pinned under vendor/pvrtc. Its C++
+// PVRTC decoder is used only by prepare, never shipped to the JS runtime.
+import { decode_pvrtc } from './vendor/pvrtc/index.mjs';
 
 const require = createRequire(import.meta.url);
 const moduleCache = new Map();
@@ -606,6 +609,74 @@ export async function decodeDdsAsset(source, bytes, url, allowUnsupported = true
     const message = `${url}: prepare-time DDS decode unavailable: ${error.message}`;
     console.warn(`three: ${message}`);
     return encodePreparedKtx2({ error: message });
+  }
+}
+
+async function decodePvr(bytes, url) {
+  const buf = Buffer.from(bytes.buffer, bytes.byteOffset, bytes.byteLength);
+  if (buf.length < 52) throw new Error('truncated PVR header');
+  let dataOffset, width, height, mipCount, faceCount, bpp;
+  if (buf.readUInt32LE(0) === 0x03525650) {
+    const pixelFormat = Number(buf.readBigUInt64LE(8));
+    if (pixelFormat < 0 || pixelFormat > 3) throw new Error(`PVR v3 pixel format ${pixelFormat} is not PVRTC1`);
+    bpp = pixelFormat < 2 ? 2 : 4;
+    height = buf.readUInt32LE(24);
+    width = buf.readUInt32LE(28);
+    faceCount = buf.readUInt32LE(40);
+    mipCount = buf.readUInt32LE(44);
+    dataOffset = 52 + buf.readUInt32LE(48);
+  } else if (buf.readUInt32LE(44) === 0x21525650) {
+    const format = buf.readUInt32LE(16) & 0xff;
+    if (format !== 24 && format !== 25) throw new Error(`PVR v2 pixel format ${format} is not PVRTC1`);
+    bpp = format === 24 ? 2 : 4;
+    dataOffset = buf.readUInt32LE(0);
+    height = buf.readUInt32LE(4);
+    width = buf.readUInt32LE(8);
+    mipCount = buf.readUInt32LE(12) + 1;
+    faceCount = buf.readUInt32LE(48);
+  } else {
+    throw new Error('unknown PVR v2/v3 magic');
+  }
+  if (!width || !height || width > 4096 || height > 4096 || width * height * faceCount > MAX_TEXTURE_PIXELS) {
+    throw new Error('PVR dimensions exceed the prepare pixel quota');
+  }
+  if ((width & (width - 1)) || (height & (height - 1))) throw new Error('PVRTC dimensions must be powers of two');
+  if (faceCount !== 1 && faceCount !== 6) throw new Error(`PVR face count ${faceCount} is unsupported`);
+  if (mipCount < 1 || mipCount > 16) throw new Error(`PVR mip count ${mipCount} is invalid`);
+  // PVRTC1 words are always 64 bits: 8x4 texels at 2bpp or 4x4 at 4bpp.
+  const blockWidth = bpp === 2 ? 8 : 4;
+  const baseBytes = Math.max(2, width / blockWidth) * Math.max(2, height / 4) * 8;
+  if (!Number.isInteger(baseBytes) || dataOffset < 52 || dataOffset + baseBytes * faceCount > buf.length) {
+    throw new Error('truncated PVR base images');
+  }
+  const faces = [];
+  for (let face = 0; face < faceCount; face++) {
+    const start = dataOffset + face * baseBytes;
+    // Official PVRLoader stores mip levels outermost, faces innermost. The
+    // base faces are therefore contiguous even for mipmapped cubemaps.
+    const bgra = await decode_pvrtc(buf.subarray(start, start + baseBytes), width, height, bpp === 2);
+    if (!bgra || bgra.length !== width * height * 4) throw new Error(`PVRTC face ${face} decoded to an invalid size`);
+    const rgba = Buffer.alloc(bgra.length);
+    for (let y = 0; y < height; y++) {
+      for (let x = 0; x < width; x++) {
+        const source = (y * width + x) * 4;
+        const target = ((height - 1 - y) * width + x) * 4;
+        rgba[target] = bgra[source + 2];
+        rgba[target + 1] = bgra[source + 1];
+        rgba[target + 2] = bgra[source];
+        rgba[target + 3] = bgra[source + 3];
+      }
+    }
+    faces.push(rgba);
+  }
+  return { width, height, depth: 1, cube: faceCount === 6, rgba: Buffer.concat(faces), colorSpace: 'srgb', sourceMipCount: mipCount };
+}
+
+export async function decodePvrAsset(source, bytes, url) {
+  try {
+    return encodePreparedKtx2(await decodePvr(bytes, url));
+  } catch (error) {
+    throw new Error(`${url}: prepare-time PVRTC decode failed: ${error.message}`);
   }
 }
 
