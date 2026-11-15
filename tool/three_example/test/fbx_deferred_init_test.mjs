@@ -1,0 +1,40 @@
+import assert from 'node:assert/strict';
+import { readFile } from 'node:fs/promises';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
+import { transform } from '../../three/node_modules/esbuild/lib/main.js';
+import { applyFbxDeferredInitPatch } from '../degrades/fbx_deferred_init.mjs';
+
+const HERE = path.dirname(fileURLToPath(import.meta.url));
+const ROOT = path.resolve(HERE, '../../..');
+const original = await readFile(path.join(ROOT,
+  'example/widgets/three-loader-fbx/official_module.js'));
+const output = applyFbxDeferredInitPatch(original).toString('utf8');
+await transform(output, { loader: 'js', format: 'esm', target: 'es2020' });
+assert.ok(output.includes('Promise.resolve().then( function () {'));
+assert.throws(() => applyFbxDeferredInitPatch(Buffer.from('drifted')),
+  /load anchor drifted/);
+
+const start = output.indexOf('\t\t\t\tloader = new FBXLoader( manager );');
+const close = '\t\t\t\t} );';
+const closeAt = output.indexOf(close, start);
+const end = closeAt < 0 ? -1 : closeAt + close.length;
+assert.ok(start >= 0 && end > start);
+const pending = [];
+let loads = 0;
+let foldersReady = false;
+const run = new Function('FBXLoader', 'manager', 'loadAsset', 'params',
+  'Promise', 'loader', output.slice(start, end));
+run(class {}, {}, () => {
+  assert.ok(foldersReady, 'the load callback must run after GUI initialization');
+  loads++;
+}, { asset: 'Samba Dancing' }, {
+  resolve: () => ({ then: callback => pending.push(callback) })
+}, null);
+assert.equal(loads, 0, 'pinned bytes must not call back during init');
+assert.equal(pending.length, 1);
+foldersReady = true;
+pending.shift()();
+assert.equal(loads, 1);
+
+console.log('FBX deferred initial load: anchor, syntax and fast-resolve ordering PASS');

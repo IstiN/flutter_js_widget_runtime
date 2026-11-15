@@ -2,7 +2,7 @@
   "id": "three-loader-fbx",
   "name": "FBX loader — three.js r186",
   "description": "Unmodified official webgl_loader_fbx module on the JSR THREE R1/WebGL2 runtime.",
-  "version": "0.1.3",
+  "version": "0.1.4",
   "icon": "🧊",
   "allowedCommands": [],
   "network": false,

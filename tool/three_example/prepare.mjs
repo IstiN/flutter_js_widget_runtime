@@ -20,6 +20,7 @@ import { applyShadowmapBoundedCountPatch } from './degrades/shadowmap_bounded_co
 import { applyCustomPoints30HzPatch, applyInterleaved30HzPatch, applyMemoryGeometryPatch, applyMemoryMaterialCadencePatch, applyGpgpuBirds30HzPatch } from './degrades/bounded_30hz_updates.mjs';
 import { applyCustomAttributeAnimationFastPath } from './degrades/custom_attribute_animation_fast_path.mjs';
 import { applyCustomLineWalkFastPath } from './degrades/custom_line_walk_fast_path.mjs';
+import { applyFbxDeferredInitPatch } from './degrades/fbx_deferred_init.mjs';
 import { applyLayerUpdateRawArrayPatch, applyPartialUpdateRawCheckerPatch, applyKtx2UprightPatch } from './degrades/raw_texture_fallbacks.mjs';
 import { applyPointsDynamicLoaderPatch } from './degrades/points_dynamic_loader_patch.mjs';
 import { applyWidgetTextDecodeJoinPatch } from './degrades/widget_text_decode_join.mjs';
@@ -3733,7 +3734,8 @@ webgl_geometry_shapes: {
     id: 'three-loader-fbx',
     directory: 'three-loader-fbx',
     name: 'FBX loader — three.js r186',
-    version: '0.1.3',
+    version: '0.1.4',
+    fbxDeferredInit: true,
     description: 'Unmodified official webgl_loader_fbx module on the JSR THREE R1/WebGL2 runtime.',
     icon: '🧊',
     expected: {
@@ -7794,6 +7796,9 @@ async function main() {
   }
   if (definition.customLineWalkFastPath) {
     officialBuildBytes = applyCustomLineWalkFastPath(officialBuildBytes);
+  }
+  if (definition.fbxDeferredInit) {
+    officialBuildBytes = applyFbxDeferredInitPatch(officialBuildBytes);
   }
   if (definition.customPoints30Hz) {
     officialBuildBytes = applyCustomPoints30HzPatch(officialBuildBytes);
