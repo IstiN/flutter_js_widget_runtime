@@ -19,8 +19,8 @@
     "global": "THREE",
     "target": "es2020",
     "minify": true,
-    "command": "node tool/three/build.mjs --source /tmp/jsr-three-r186-perf",
-    "verifyCommand": "node tool/three/build.mjs --source /tmp/jsr-three-r186-perf --verify",
+    "command": "node tool/three/build.mjs --source /tmp/jsr-three-r186",
+    "verifyCommand": "node tool/three/build.mjs --source /tmp/jsr-three-r186 --verify",
     "sourceEnvironment": "THREE_SRC may replace --source /tmp/jsr-three-r186",
     "inputSha256": {
       "sourceTree": "46f76c91c965a0ac416a8e89f104af288ad177d2ad344204851f0febc502c995",
