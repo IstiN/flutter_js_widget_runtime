@@ -11,39 +11,51 @@ const original = await readFile(path.join(ROOT,
   'example/widgets/three-loader-fbx/official_module.js'));
 const output = applyFbxDeferredInitPatch(original).toString('utf8');
 await transform(output, { loader: 'js', format: 'esm', target: 'es2020' });
-assert.ok(output.includes('setTimeout( function loadInitialAssetWhenReady() {'));
+assert.ok(output.includes('const handleLoadedGroup = ( group ) => {'));
+assert.ok(output.includes('function deliverGroup()'));
+assert.ok(output.includes('if ( ! guiAnimationsFolder || ! guiMorphsFolder )'));
 assert.throws(() => applyFbxDeferredInitPatch(Buffer.from('drifted')),
   /load anchor drifted/);
 
-const start = output.indexOf('\t\t\t\tloader = new FBXLoader( manager );');
-const close = '\t\t\t\t}, 0 );';
+// Exercise the actual generated loader delivery statement. The asset arrives
+// before GUI initialization, an early timer drain must rearm, and the exact
+// group is delivered once after both folders exist.
+const start = output.indexOf(
+  '\t\t\t\tloader.load( \'models/fbx/\' + asset + \'.fbx\', function ( group ) {');
+const close = '\t\t\t\t} );';
 const closeAt = output.indexOf(close, start);
 const end = closeAt < 0 ? -1 : closeAt + close.length;
 assert.ok(start >= 0 && end > start);
 const pending = [];
-let loads = 0;
+const group = { name: 'loaded-before-gui' };
+let deliver;
+let delivered = 0;
 let foldersReady = false;
-assert.ok(output.includes('if ( ! guiAnimationsFolder || ! guiMorphsFolder )'));
-const run = new Function('FBXLoader', 'manager', 'loadAsset', 'params',
-  'setTimeout', 'loader',
+const run = new Function('loader', 'asset', 'handleLoadedGroup', 'setTimeout',
   'let guiAnimationsFolder = false, guiMorphsFolder = false;\n' +
     output.slice(start, end) +
     '\nreturn function (ready) { guiAnimationsFolder = ready; guiMorphsFolder = ready; };');
-const setFoldersReady = run(class {}, {}, () => {
-  assert.ok(foldersReady, 'the load callback must run after GUI initialization');
-  loads++;
-}, { asset: 'Samba Dancing' }, (callback, delay) => {
+const setFoldersReady = run({
+  load(_url, callback) { deliver = callback; },
+}, 'Samba Dancing', value => {
+  assert.ok(foldersReady, 'the loaded group must wait for GUI initialization');
+  assert.equal(value, group);
+  delivered++;
+}, (callback, delay) => {
   assert.equal(delay, 0);
   pending.push(callback);
-}, null);
-assert.equal(loads, 0, 'pinned bytes must not call back during init');
+});
+assert.equal(typeof deliver, 'function');
+deliver(group);
+assert.equal(delivered, 0);
 assert.equal(pending.length, 1);
 pending.shift()();
-assert.equal(loads, 0, 'an early timer drain must rearm, not load');
+assert.equal(delivered, 0, 'an early timer drain must rearm, not deliver');
 assert.equal(pending.length, 1);
 foldersReady = true;
 setFoldersReady(true);
 pending.shift()();
-assert.equal(loads, 1);
+assert.equal(delivered, 1);
+assert.equal(pending.length, 0);
 
-console.log('FBX deferred initial load: anchor, syntax and fast-resolve ordering PASS');
+console.log('FBX deferred loaded-group delivery: anchor, syntax and readiness PASS');

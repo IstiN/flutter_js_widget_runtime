@@ -3736,7 +3736,7 @@ webgl_geometry_shapes: {
     id: 'three-loader-fbx',
     directory: 'three-loader-fbx',
     name: 'FBX loader — three.js r186',
-    version: '0.1.4',
+    version: '0.1.5',
     fbxDeferredInit: true,
     description: 'Unmodified official webgl_loader_fbx module on the JSR THREE R1/WebGL2 runtime.',
     icon: '🧊',

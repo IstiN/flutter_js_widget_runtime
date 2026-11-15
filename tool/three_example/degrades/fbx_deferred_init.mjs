@@ -1,32 +1,22 @@
-// Keep the official FBX module byte-exact, but do not assume its initial
-// asset load is network-delayed. Native pinned assets may resolve in the same
-// evaluation turn; the load callback reads GUI folders that init() creates
-// later. Do not rely on Promise/macrotask ordering across native host calls:
-// some QuickJS drains are reentrant. Rearm a zero-delay task until both GUI
-// folders observably exist, then start the official load path.
-const LOAD_ANCHOR = `\t\t\t\tloader = new FBXLoader( manager );
-\t\t\t\tloadAsset( params.asset );`;
-
-const LOAD_REPLACEMENT = `\t\t\t\tloader = new FBXLoader( manager );
-\t\t\t\tsetTimeout( function loadInitialAssetWhenReady() {
-
-\t\t\t\t\tif ( ! guiAnimationsFolder || ! guiMorphsFolder ) {
-
-\t\t\t\t\t\tsetTimeout( loadInitialAssetWhenReady, 0 );
-\t\t\t\t\t\treturn;
-
-\t\t\t\t\t}
-
-\t\t\t\t\tloadAsset( params.asset );
-
-\t\t\t\t}, 0 );`;
+// Keep the official FBX module byte-exact, but do not assume its asset load
+// is network-delayed. Native pinned assets may call back before init() creates
+// the Morphs/Animations GUI folders. Promise jobs and timers may also drain
+// reentrantly during native host calls, so defer DELIVERY of the loaded group
+// until both folders observably exist instead of relying on task ordering.
+const CALLBACK_ANCHOR = `\t\t\t\tloader.load( 'models/fbx/' + asset + '.fbx', function ( group ) {`;
+const CALLBACK_REPLACEMENT = `\t\t\t\tconst handleLoadedGroup = ( group ) => {`;
+const COMPLETE_ANCHOR = `\t\t\t\t\tscene.add( object );\n\n\t\t\t\t} );`;
+const COMPLETE_REPLACEMENT = `\t\t\t\t\tscene.add( object );\n\n\t\t\t\t};\n\n\t\t\t\tloader.load( 'models/fbx/' + asset + '.fbx', function ( group ) {\n\n\t\t\t\t\tfunction deliverGroup() {\n\n\t\t\t\t\t\tif ( ! guiAnimationsFolder || ! guiMorphsFolder ) {\n\n\t\t\t\t\t\t\tsetTimeout( deliverGroup, 0 );\n\t\t\t\t\t\t\treturn;\n\n\t\t\t\t\t\t}\n\n\t\t\t\t\t\thandleLoadedGroup( group );\n\n\t\t\t\t\t}\n\n\t\t\t\t\tdeliverGroup();\n\n\t\t\t\t} );`;
 
 export function applyFbxDeferredInitPatch(bytes) {
   let source = Buffer.from(bytes).toString('utf8');
-  const first = source.indexOf(LOAD_ANCHOR);
-  if (first < 0 || first !== source.lastIndexOf(LOAD_ANCHOR)) {
+  const callbackAt = source.indexOf(CALLBACK_ANCHOR);
+  const completeAt = source.indexOf(COMPLETE_ANCHOR);
+  if (callbackAt < 0 || callbackAt !== source.lastIndexOf(CALLBACK_ANCHOR) ||
+      completeAt < 0 || completeAt !== source.lastIndexOf(COMPLETE_ANCHOR)) {
     throw new Error('fbx deferred init: load anchor drifted');
   }
-  source = source.replace(LOAD_ANCHOR, LOAD_REPLACEMENT);
+  source = source.replace(CALLBACK_ANCHOR, CALLBACK_REPLACEMENT);
+  source = source.replace(COMPLETE_ANCHOR, COMPLETE_REPLACEMENT);
   return Buffer.from(source, 'utf8');
 }
