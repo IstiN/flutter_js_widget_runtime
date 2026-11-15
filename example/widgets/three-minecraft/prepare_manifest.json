@@ -569,8 +569,8 @@
       "sha256": "ea96c0a05d085289b62839060923353157e0d3f8da1abb27c089e4053e561a6b"
     },
     "tool/three_example/prepare.mjs": {
-      "bytes": 381250,
-      "sha256": "e8f6cedecb3910ced119f6d408c52999eebee3d91bb58392c95ca4daa9ecf369"
+      "bytes": 383437,
+      "sha256": "b08317b523c29db9a9a5771c46a0507ecd80ba07b0b54b01edb51ed163894c8b"
     },
     "tool/three_example/stats_adapter.js": {
       "bytes": 2107,
