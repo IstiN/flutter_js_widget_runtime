@@ -41,18 +41,56 @@ Future<ThreeQuickjsExampleHarness> _boot(
   return harness;
 }
 
+const _customNativeProbe = r'''
+globalThis.__jsrCustomDisplacementCalls = 0;
+globalThis.__jsrCustomTessellationCalls = 0;
+globalThis.__jsrCustomPointSizeCalls = 0;
+jsr.onKey(function() {
+  jsr.exportState({
+    displacementCalls: globalThis.__jsrCustomDisplacementCalls,
+    tessellationCalls: globalThis.__jsrCustomTessellationCalls,
+    pointSizeCalls: globalThis.__jsrCustomPointSizeCalls
+  });
+});
+if (typeof globalThis.__jsrCustomAttributeBytes === 'function') {
+  var nativeCustomAttributes = globalThis.__jsrCustomAttributeBytes;
+  globalThis.__jsrCustomAttributeBytes = function(name, data) {
+    if (name === 'three.displacement') globalThis.__jsrCustomDisplacementCalls++;
+    if (name === 'three.tessellation') globalThis.__jsrCustomTessellationCalls++;
+    if (name === 'three.pointSizes') globalThis.__jsrCustomPointSizeCalls++;
+    return nativeCustomAttributes(name, data);
+  };
+}
+''';
+
+void _expectNativeCalls(
+  ThreeQuickjsExampleHarness harness, {
+  bool displacement = false,
+  bool tessellation = false,
+  bool pointSizes = false,
+}) {
+  harness.backend.dispatchHostEvent('key', {'key': 'a', 'down': true});
+  final state = harness.engine.exportedState!;
+  if (displacement) expect(state['displacementCalls'], greaterThan(0));
+  if (tessellation) expect(state['tessellationCalls'], greaterThan(0));
+  if (pointSizes) expect(state['pointSizeCalls'], greaterThan(0));
+}
+
 void main() {
   testWidgets(
     'custom-attributes points keep one geometry upload while sizes animate',
     (tester) async {
-      final harness = await _boot(tester, 'three-custom-attributes-points');
+      final harness = await _boot(
+        tester,
+        'three-custom-attributes-points',
+        sourcePrelude: _customNativeProbe,
+      );
       final state = harness.state!;
       final uploadsBefore = state.geometryUploadCount;
       final submittedBefore = state.submittedFrameCount;
       // The R1-prepared example rewrites the per-point size attribute every
-      // second display frame; sizes are represented by their mean, so no
-      // geometry data changes. Updates ride the material lane only while
-      // rotation and presentation remain full-rate.
+      // second display frame; bounded size buckets keep the position/color
+      // geometry stable while rotation and presentation remain full-rate.
       await harness.pumpFrames(tester, 10);
       final state2 = harness.state!;
       expect(
@@ -80,6 +118,7 @@ void main() {
         greaterThan(0),
         reason: 'the animated mean point size must ride the material lane',
       );
+      _expectNativeCalls(harness, pointSizes: true);
       await harness.dispose(tester);
     },
     timeout: _timeout,
@@ -88,7 +127,11 @@ void main() {
   testWidgets(
     'custom-attributes points3 keep one geometry upload while sizes animate',
     (tester) async {
-      final harness = await _boot(tester, 'three-custom-attributes-points3');
+      final harness = await _boot(
+        tester,
+        'three-custom-attributes-points3',
+        sourcePrelude: _customNativeProbe,
+      );
       final state = harness.state!;
       final uploadsBefore = state.geometryUploadCount;
       await harness.pumpFrames(tester, 10);
@@ -97,6 +140,39 @@ void main() {
         state2.geometryUploadCount,
         uploadsBefore,
         reason: 'points3 size-only mutation must not re-upload geometry',
+      );
+      _expectNativeCalls(harness, pointSizes: true);
+      await harness.dispose(tester);
+    },
+    timeout: _timeout,
+  );
+
+  testWidgets(
+    'custom-attributes tessellation uses native dynamic positions only',
+    (tester) async {
+      final harness = await _boot(
+        tester,
+        'three-custom-attributes',
+        sourcePrelude: _customNativeProbe,
+      );
+      final entry = harness.state!.geometries.entries.reduce(
+        (a, b) => a.value.positions.length >= b.value.positions.length ? a : b,
+      );
+      final colors = entry.value.colors;
+      final geometryCount = harness.state!.geometries.length;
+      await harness.pumpFrame(tester);
+      final after = harness.state!.geometries[entry.key]!;
+      expect(
+        harness.state!.geometries,
+        hasLength(geometryCount),
+        reason:
+            'animated amplitude must refresh one cached draw, not allocate '
+            'a fresh native geometry every frame',
+      );
+      _expectNativeCalls(harness, displacement: true, tessellation: true);
+      expect(
+        _bytesEqual(after.colors ?? Float32List(0), colors ?? Float32List(0)),
+        isTrue,
       );
       await harness.dispose(tester);
     },

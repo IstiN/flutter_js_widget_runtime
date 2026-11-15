@@ -11,7 +11,7 @@ const original = await readFile(path.join(ROOT,
   'example/widgets/three-loader-fbx/official_module.js'));
 const output = applyFbxDeferredInitPatch(original).toString('utf8');
 await transform(output, { loader: 'js', format: 'esm', target: 'es2020' });
-assert.ok(output.includes('setTimeout( function () {'));
+assert.ok(output.includes('setTimeout( function loadInitialAssetWhenReady() {'));
 assert.throws(() => applyFbxDeferredInitPatch(Buffer.from('drifted')),
   /load anchor drifted/);
 
@@ -23,9 +23,13 @@ assert.ok(start >= 0 && end > start);
 const pending = [];
 let loads = 0;
 let foldersReady = false;
+assert.ok(output.includes('if ( ! guiAnimationsFolder || ! guiMorphsFolder )'));
 const run = new Function('FBXLoader', 'manager', 'loadAsset', 'params',
-  'setTimeout', 'loader', output.slice(start, end));
-run(class {}, {}, () => {
+  'setTimeout', 'loader',
+  'let guiAnimationsFolder = false, guiMorphsFolder = false;\n' +
+    output.slice(start, end) +
+    '\nreturn function (ready) { guiAnimationsFolder = ready; guiMorphsFolder = ready; };');
+const setFoldersReady = run(class {}, {}, () => {
   assert.ok(foldersReady, 'the load callback must run after GUI initialization');
   loads++;
 }, { asset: 'Samba Dancing' }, (callback, delay) => {
@@ -34,7 +38,11 @@ run(class {}, {}, () => {
 }, null);
 assert.equal(loads, 0, 'pinned bytes must not call back during init');
 assert.equal(pending.length, 1);
+pending.shift()();
+assert.equal(loads, 0, 'an early timer drain must rearm, not load');
+assert.equal(pending.length, 1);
 foldersReady = true;
+setFoldersReady(true);
 pending.shift()();
 assert.equal(loads, 1);
 

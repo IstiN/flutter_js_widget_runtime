@@ -556,8 +556,10 @@ function boundedShaderSignature(material) {
     // `time` advances every RAF. Including it in this cache key allocates a
     // fresh native material per frame (webgl_rtt grew from 5 to 25 during a
     // short harness run); its bounded procedural lane keeps the established
-    // cached texture instead of leaking per-tick material ids.
-    name !== 'time' && Number.isFinite(uniform?.value) ? [`${name}:${uniform.value}`] : []);
+    // cached texture instead of leaking per-tick material ids. The custom
+    // displacement lane likewise refreshes amplitude on its cached draw.
+    name !== 'time' && name !== 'amplitude' && Number.isFinite(uniform?.value)
+      ? [`${name}:${uniform.value}`] : []);
   return [material.version, shaderTokens(material), ...textureIds, ...matrices, ...boundTextures, ...scalars].join('|');
 }
 
@@ -811,7 +813,6 @@ function displacedShaderGeometry(source, amplitude) {
   geometry.setDrawRange(source.drawRange.start, source.drawRange.count);
   geometry._r1Displaced = { position, normal, displacement };
   refreshDisplacedShaderGeometry(geometry, amplitude);
-  geometry.computeBoundingSphere();
   return geometry;
 }
 
@@ -819,13 +820,74 @@ function refreshDisplacedShaderGeometry(geometry, amplitude) {
   const source = geometry._r1Displaced;
   if (!source) return;
   const output = geometry.attributes.position;
-  for (let i = 0; i < output.count; i++) {
-    const amount = source.displacement.getComponent(i, 0) * amplitude;
-    output.setXYZ(i,
-      source.position.getComponent(i, 0) + source.normal.getComponent(i, 0) * amount,
-      source.position.getComponent(i, 1) + source.normal.getComponent(i, 1) * amount,
-      source.position.getComponent(i, 2) + source.normal.getComponent(i, 2) * amount);
+  const count = output.count;
+  const stride = count * 3;
+  const sourcePositions = source.position.array;
+  const sourceNormals = source.normal.array;
+  const sourceDisplacement = source.displacement.array;
+  const nativeCustom = globalThis.__jsrCustomAttributeBytes;
+  const sourceKey = [attributeVersionKey(source.position),
+    attributeVersionKey(source.normal), token(sourceDisplacement)].join('|');
+  if (geometry._r1DisplacedSourceKey !== sourceKey) {
+    let maxPosition = 0;
+    let maxNormal = 0;
+    for (let i = 0; i < stride; i += 3) {
+      maxPosition = Math.max(maxPosition, Math.sqrt(
+        sourcePositions[i] * sourcePositions[i] +
+        sourcePositions[i + 1] * sourcePositions[i + 1] +
+        sourcePositions[i + 2] * sourcePositions[i + 2]));
+      maxNormal = Math.max(maxNormal, Math.sqrt(
+        sourceNormals[i] * sourceNormals[i] +
+        sourceNormals[i + 1] * sourceNormals[i + 1] +
+        sourceNormals[i + 2] * sourceNormals[i + 2]));
+    }
+    geometry._r1DisplacedBaseRadius = maxPosition;
+    geometry._r1DisplacedNormalBound = maxNormal;
+    geometry._r1DisplacedPacket = null;
+    if (typeof nativeCustom === 'function' &&
+        sourcePositions instanceof Float32Array && sourceNormals instanceof Float32Array &&
+        sourceDisplacement instanceof Float32Array && sourcePositions.length >= stride &&
+        sourceNormals.length >= stride && sourceDisplacement.length >= count) {
+      const packet = new Float32Array(4 + count * 10);
+      packet.set(sourcePositions.subarray(0, stride), 4);
+      packet.set(sourceNormals.subarray(0, stride), 4 + stride);
+      geometry._r1DisplacedPacket = packet;
+      geometry._r1DisplacedPacketBytes = new Uint8Array(packet.buffer);
+    }
+    geometry._r1DisplacedSourceKey = sourceKey;
   }
+  const packet = geometry._r1DisplacedPacket;
+  let nativePositions = false;
+  let sweep = 0;
+  if (packet && typeof nativeCustom === 'function') {
+    packet[0] = count;
+    packet[1] = amplitude;
+    packet[2] = 0;
+    packet[3] = geometry._r1DisplacedNormalBound;
+    packet.set(sourceDisplacement.subarray(0, count), 4 + stride * 2);
+    nativeCustom('three.tessellation', geometry._r1DisplacedPacketBytes);
+    if (packet[2] === 1) {
+      output.array.set(packet.subarray(4 + stride * 2 + count, 4 + stride * 3 + count));
+      sweep = packet[3];
+      nativePositions = true;
+    }
+  }
+  if (!nativePositions) {
+    let maxDisplacement = 0;
+    for (let i = 0, i3 = 0; i < count; i++, i3 += 3) {
+      const scalar = sourceDisplacement[i];
+      const absolute = Math.abs(scalar);
+      if (absolute > maxDisplacement) maxDisplacement = absolute;
+      const amount = scalar * amplitude;
+      output.array[i3] = sourcePositions[i3] + sourceNormals[i3] * amount;
+      output.array[i3 + 1] = sourcePositions[i3 + 1] + sourceNormals[i3 + 1] * amount;
+      output.array[i3 + 2] = sourcePositions[i3 + 2] + sourceNormals[i3 + 2] * amount;
+    }
+    sweep = geometry._r1DisplacedNormalBound * maxDisplacement;
+  }
+  if (!geometry.boundingSphere) geometry.boundingSphere = new Sphere();
+  geometry.boundingSphere.center.set(0, 0, 0);
+  geometry.boundingSphere.radius = geometry._r1DisplacedBaseRadius + sweep * Math.abs(amplitude);
   output._r1DynamicContent = true;
   output.needsUpdate = true;
 }
@@ -1925,7 +1987,13 @@ function adaptedShaderDraw(object, viewMatrix = null, pixelRatio = 1) {
       geometry._r1Amplitude = uniforms.amplitude;
       adaptationWarn(source, '_r1CustomAttributesWarned',
         'R1 evaluates custom displacement on the CPU and keeps the grayscale detail as its base map.');
-      return { material: basicShaderMaterial(source, { map: uniforms.colorTexture.value, color: uniforms.color?.value || 0xffffff }), geometry };
+      return {
+        material: basicShaderMaterial(source, {
+          map: uniforms.colorTexture.value, color: uniforms.color?.value || 0xffffff
+        }),
+        geometry,
+        refresh: () => refreshDisplacedShaderGeometry(geometry, Number(uniforms.amplitude.value))
+      };
     }
   }
   if (fragment.includes('vec4color=vec4(vColor)') && attrs.position && attrs.color) {
@@ -4901,13 +4969,15 @@ export class JsrWebGLRenderer {
       }
       const previous = entries.get(signature);
       if (previous !== undefined && previous.source === source) {
+        if (previous.refresh) previous.refresh();
         return { geometry: previous.geometry, material: previous.material };
       }
       const adapted = adaptedShaderDraw(object, this._frameViewMatrix || null, this._pixelRatio);
       if (!adapted) return null;
       entries.set(signature, {
         source, sourceMaterial: material, signature,
-        material: adapted.material, geometry: adapted.geometry
+        material: adapted.material, geometry: adapted.geometry,
+        refresh: adapted.refresh
       });
       if (entries.size > 8) {
         const oldest = entries.keys().next().value;
@@ -4919,9 +4989,10 @@ export class JsrWebGLRenderer {
     const sizeAttribute = kind === 'points' ? (attrs.size || attrs.scale || null) : null;
     const pointColorAttribute = kind === 'points' ? (attrs.customColor || attrs.ca || null) : null;
     let meanSize = 1;
-    if (sizeAttribute) {
-      // A plain typed array is read by direct indexing; one QuickJS method
-      // call per point (getComponent) dominated the 100k-point examples.
+    const computeMeanSize = () => {
+      if (!sizeAttribute) return;
+      // Only the non-grouped fallback needs this full 100k-value sweep.
+      // Grouped draws compute their bounded means directly below.
       const sizeArray = sizeAttribute.isInterleavedBufferAttribute ? null : sizeAttribute.array;
       let total = 0;
       if (sizeArray instanceof Float32Array && sizeArray.length >= sizeAttribute.count) {
@@ -4939,7 +5010,7 @@ export class JsrWebGLRenderer {
       }
       meanSize = sizeAttribute.count ? total / sizeAttribute.count : 1;
       if (!(meanSize > 0)) meanSize = 0.001;
-    }
+    };
     const uniformColor = uniforms.color && uniforms.color.value;
     const probeSignature = kind === 'lightProbe'
       ? uniforms.sh.value.map(value => `${value.x}:${value.y}:${value.z}`).join(',') + `:${uniforms.intensity.value}`
@@ -4951,7 +5022,7 @@ export class JsrWebGLRenderer {
       adaptedAttributeVersion(kind === 'tessellation' ? attrs.customColor : attrs.color), adaptedAttributeVersion(pointColorAttribute),
       adaptedAttributeVersion(attrs.vertColor), adaptedAttributeVersion(attrs.visible),
       adaptedAttributeVersion(attrs.displacement), adaptedAttributeVersion(sizeAttribute),
-      adaptedAttributeVersion(source.index), source.drawRange.start, source.drawRange.count,
+      amplitude, material.version, material.opacity, material.transparent,
       amplitude, meanSize, material.version, material.opacity, material.transparent,
       uniformColor && uniformColor.isColor ? `${uniformColor.r}:${uniformColor.g}:${uniformColor.b}` : '-',
       uniforms.pointTexture && uniforms.pointTexture.value ? resourceId(uniforms.pointTexture.value) : 0,
@@ -5236,7 +5307,10 @@ export class JsrWebGLRenderer {
           return Number.isFinite(scaled) && scaled > 0 ? scaled : 0.001;
         })
       } : null;
-      meanSize *= pointSizeFactor;
+      if (!grouped) {
+        computeMeanSize();
+        meanSize *= pointSizeFactor;
+      }
       if (grouped) {
         geometry = grouped.geometry;
       } else if (pointColorAttribute) {
@@ -5339,26 +5413,26 @@ export class JsrWebGLRenderer {
         // amplitude, so recompute/upload it only when a source attribute
         // really changes instead of on every animation tick.
         requireFinite(amplitude, 'amplitude uniform');
+        // Displacement is dynamic in the official example; it must not
+        // invalidate the static directional colors or base bounding sphere.
         const sourceKey = [
           adaptedAttributeVersion(attrs.position), adaptedAttributeVersion(attrs.normal),
-          adaptedAttributeVersion(attrs.displacement), adaptedAttributeVersion(attrs.customColor)
+          adaptedAttributeVersion(attrs.customColor)
         ].join('|');
         let meta = geometry._r1TessellationMeta;
         if (!meta || meta.key !== sourceKey) {
-          let sweep = 0;
-          for (let i = 0, i3 = 0; i < count; i++, i3 += 3) {
+          let maxNormal = 0;
+          for (let i3 = 0; i3 < count * 3; i3 += 3) {
             const px = sourcePositions[i3], py = sourcePositions[i3 + 1], pz = sourcePositions[i3 + 2];
             const nx = sourceNormals[i3], ny = sourceNormals[i3 + 1], nz = sourceNormals[i3 + 2];
-            const displacement = sourceDisplacement[i];
             requireFinite(px, 'position attribute');
             requireFinite(py, 'position attribute');
             requireFinite(pz, 'position attribute');
             requireFinite(nx, 'normal attribute');
             requireFinite(ny, 'normal attribute');
             requireFinite(nz, 'normal attribute');
-            requireFinite(displacement, 'displacement attribute');
-            const length = Math.hypot(nx * displacement, ny * displacement, nz * displacement);
-            if (length > sweep) sweep = length;
+            const length = Math.sqrt(nx * nx + ny * ny + nz * nz);
+            if (length > maxNormal) maxNormal = length;
             const shade = 0.4 + Math.max(0, (nx + ny + nz) / Math.sqrt(3));
             colorArray[i3] = sourceColors[i3] * shade;
             colorArray[i3 + 1] = sourceColors[i3 + 1] * shade;
@@ -5369,25 +5443,61 @@ export class JsrWebGLRenderer {
             key: sourceKey,
             center: source.boundingSphere.center.clone(),
             radius: source.boundingSphere.radius,
-            sweep
+            maxNormal
           };
           geometry._r1TessellationMeta = meta;
           colors.needsUpdate = true;
         }
-        for (let i = 0, i3 = 0; i < count; i++, i3 += 3) {
-          // Keep normal * (displacement * amplitude), not a precomputed
-          // normal*displacement product: association changes f32 edge cases.
-          const displacement = sourceDisplacement[i] * amplitude;
-          positionArray[i3] = sourcePositions[i3] + sourceNormals[i3] * displacement;
-          positionArray[i3 + 1] = sourcePositions[i3 + 1] + sourceNormals[i3 + 1] * displacement;
-          positionArray[i3 + 2] = sourcePositions[i3 + 2] + sourceNormals[i3 + 2] * displacement;
+        const stride = count * 3;
+        let sweep = 0;
+        let nativePositions = false;
+        const nativeCustom = globalThis.__jsrCustomAttributeBytes;
+        if (typeof nativeCustom === 'function') {
+          const packetKey = [attributeVersionKey(attrs.position),
+            attributeVersionKey(attrs.normal), token(sourceDisplacement)].join('|');
+          let packet = geometry._r1TessellationPacket;
+          if (!packet || geometry._r1TessellationPacketKey !== packetKey) {
+            packet = new Float32Array(4 + count * 10);
+            packet.set(sourcePositions.subarray(0, stride), 4);
+            packet.set(sourceNormals.subarray(0, stride), 4 + stride);
+            geometry._r1TessellationPacket = packet;
+            geometry._r1TessellationPacketBytes = new Uint8Array(packet.buffer);
+            geometry._r1TessellationPacketKey = packetKey;
+          }
+          packet[0] = count;
+          packet[1] = amplitude;
+          packet[2] = 0;
+          packet[3] = meta.maxNormal;
+          packet.set(sourceDisplacement.subarray(0, count), 4 + stride * 2);
+          nativeCustom('three.tessellation', geometry._r1TessellationPacketBytes);
+          if (packet[2] === 1) {
+            positionArray.set(packet.subarray(4 + stride * 2 + count, 4 + stride * 3 + count));
+            sweep = packet[3];
+            nativePositions = true;
+          }
+        }
+        if (!nativePositions) {
+          let maxDisplacement = 0;
+          for (let i = 0, i3 = 0; i < count; i++, i3 += 3) {
+            // Keep normal * (displacement * amplitude), not a precomputed
+            // normal*displacement product: association changes f32 edge cases.
+            const scalar = sourceDisplacement[i];
+            requireFinite(scalar, 'displacement attribute');
+            const absolute = Math.abs(scalar);
+            if (absolute > maxDisplacement) maxDisplacement = absolute;
+            const displacement = scalar * amplitude;
+            positionArray[i3] = sourcePositions[i3] + sourceNormals[i3] * displacement;
+            positionArray[i3 + 1] = sourcePositions[i3 + 1] + sourceNormals[i3 + 1] * displacement;
+            positionArray[i3 + 2] = sourcePositions[i3 + 2] + sourceNormals[i3 + 2] * displacement;
+          }
+          sweep = meta.maxNormal * maxDisplacement;
         }
         // A conservative sphere encloses the complete displacement sweep;
         // clipped off-screen triangles are irrelevant, and no visible vertex
         // can be culled by a too-small animated bound.
         if (!geometry.boundingSphere) geometry.boundingSphere = new Sphere();
         geometry.boundingSphere.center.copy(meta.center);
-        geometry.boundingSphere.radius = meta.radius + meta.sweep * Math.abs(amplitude);
+        geometry.boundingSphere.radius = meta.radius + sweep * Math.abs(amplitude);
       } else {
         for (let i = 0; i < count; i++) {
           const nx = attrs.normal.getComponent(i, 0);
@@ -5661,7 +5771,10 @@ export class JsrWebGLRenderer {
         matrixSource: null,
         colorSource: null,
         members: proxies.map(() => []),
-        poseKeys: proxies.map(() => '')
+        poseKeys: proxies.map(() => ''),
+        nativePacketKey: '',
+        nativePackets: proxies.map(() => null),
+        nativePacketBytes: proxies.map(() => null)
       };
       this._instancedMorphProxies.set(object, record);
       adaptationWarn(object, '_r1InstancedMorphWarned',
@@ -5697,6 +5810,16 @@ export class JsrWebGLRenderer {
       record.instanceColorVersion !== (colorSource ? object.instanceColor.version : -1) ||
       record.matrixSource !== object.instanceMatrix ||
       record.colorSource !== (object.instanceColor || null);
+    const nativeMorph = globalThis.__jsrMorphBytes;
+    if (typeof nativeMorph === 'function') {
+      const nativePacketKey = [attributeVersionKey(geometry.attributes.position),
+        ...morphPositions.map(attribute => attributeVersionKey(attribute))].join('|');
+      if (record.nativePacketKey !== nativePacketKey) {
+        record.nativePackets.fill(null);
+        record.nativePacketBytes.fill(null);
+        record.nativePacketKey = nativePacketKey;
+      }
+    }
     for (let bucket = 0; bucket < record.buckets; bucket++) {
       const proxy = record.proxies[bucket];
       const members = record.members[bucket];
@@ -5747,15 +5870,49 @@ export class JsrWebGLRenderer {
       }
       const poseKey = poseParts.join('|');
       if (record.poseKeys[bucket] === poseKey) continue;
-      const baseWeight = relative ? 1 : 1 - weightSum;
-      if (baseWeight === 1) out.set(base);
-      else for (let v = 0; v < vertexCount; v++) out[v] = base[v] * baseWeight;
-      for (let j = 0; j < record.morphCount; j++) {
-        const weight = morphData[weightOffset + j];
-        if (weight === 0) continue;
-        const target = morphPositions[j].array;
-        if (!target || target.length < vertexCount) continue;
-        for (let v = 0; v < vertexCount; v++) out[v] += target[v] * weight;
+      let nativePose = false;
+      if (typeof nativeMorph === 'function') {
+        const positionOffset = 8 + record.morphCount;
+        const packetLength = positionOffset + vertexCount * (record.morphCount + 1);
+        let packet = record.nativePackets[bucket];
+        if (!packet && packetLength <= 16777216) {
+          packet = new Float32Array(packetLength);
+          for (let j = 0; j < record.morphCount; j++) {
+            const target = morphPositions[j].array;
+            if (!target || target.length < vertexCount) { packet = null; break; }
+            packet.set(target.subarray(0, vertexCount),
+              positionOffset + vertexCount + j * vertexCount);
+          }
+          record.nativePackets[bucket] = packet;
+          record.nativePacketBytes[bucket] = packet ? new Uint8Array(packet.buffer) : null;
+        }
+        if (packet && packet.length === packetLength) {
+          packet[0] = vertexCount / 3;
+          packet[1] = record.morphCount;
+          packet[2] = record.morphCount;
+          packet[3] = 0;
+          packet[4] = relative ? 1 : 0;
+          packet[5] = 0;
+          packet.set(morphData.subarray(weightOffset, weightOffset + record.morphCount), 8);
+          packet.set(base, positionOffset);
+          nativeMorph('three.morph', record.nativePacketBytes[bucket]);
+          if (packet[5] === 1) {
+            out.set(packet.subarray(positionOffset, positionOffset + vertexCount));
+            nativePose = true;
+          }
+        }
+      }
+      if (!nativePose) {
+        const baseWeight = relative ? 1 : 1 - weightSum;
+        if (baseWeight === 1) out.set(base);
+        else for (let v = 0; v < vertexCount; v++) out[v] = base[v] * baseWeight;
+        for (let j = 0; j < record.morphCount; j++) {
+          const weight = morphData[weightOffset + j];
+          if (weight === 0) continue;
+          const target = morphPositions[j].array;
+          if (!target || target.length < vertexCount) continue;
+          for (let v = 0; v < vertexCount; v++) out[v] += target[v] * weight;
+        }
       }
       // The pose key proves this is a CPU-authored content revision, so the
       // geometry signature need not hash the whole array again merely to

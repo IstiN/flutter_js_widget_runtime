@@ -6,6 +6,7 @@ import 'package:flutter/foundation.dart';
 import 'package:js_widget_runtime/src/defaults/vm_default_handlers.dart';
 import 'package:js_widget_runtime/src/model/js_runtime_config.dart';
 import 'package:js_widget_runtime/src/renderer/nodes/three/three_line_walk_native.dart';
+import 'package:js_widget_runtime/src/renderer/nodes/three/three_custom_attributes_native.dart';
 import 'package:js_widget_runtime/src/renderer/nodes/three/three_morph_native.dart';
 import 'package:js_widget_runtime/src/renderer/nodes/three/three_skinning_native.dart';
 import 'package:js_widget_runtime/src/runtime/js_widget_bootstrap.dart';
@@ -320,6 +321,7 @@ class QuickjsWidgetEngineBackend
         if (name == 'three.lineWalk') lineWalk.apply(data);
         if (name == 'three.linePositions') applyThreeLinePositionsPacket(data);
       });
+      registerThreeCustomAttributesNative(rt.registerHostBytesFn);
     }
   }
 

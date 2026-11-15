@@ -5,6 +5,7 @@ import 'dart:isolate';
 import 'package:flutter/foundation.dart';
 import 'package:js_widget_runtime/src/defaults/vm_default_handlers.dart';
 import 'package:js_widget_runtime/src/model/js_runtime_config.dart';
+import 'package:js_widget_runtime/src/renderer/nodes/three/three_custom_attributes_native.dart';
 import 'package:js_widget_runtime/src/renderer/nodes/three/three_line_walk_native.dart';
 import 'package:js_widget_runtime/src/renderer/nodes/three/three_morph_native.dart';
 import 'package:js_widget_runtime/src/renderer/nodes/three/three_skinning_native.dart';
@@ -706,6 +707,7 @@ final class _QuickJsWorker {
       if (name == 'three.lineWalk') lineWalk.apply(data);
       if (name == 'three.linePositions') applyThreeLinePositionsPacket(data);
     });
+    registerThreeCustomAttributesNative(runtime.registerHostBytesFn);
     runtime.registerHostBytesFn('__jsrSendBytes', (name, data) {
       _mainPort.send({
         'type': 'binary',

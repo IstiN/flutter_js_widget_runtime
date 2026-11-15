@@ -8,6 +8,7 @@ import { applyCustomAttributeAnimationFastPath } from '../degrades/custom_attrib
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.resolve(HERE, '../../..');
 const cases = [
+  ['webgl_custom_attributes', 'three-custom-attributes'],
   ['webgl_custom_attributes_points', 'three-custom-attributes-points'],
   ['webgl_buffergeometry_custom_attributes_particles', 'three-buffergeometry-custom-attributes-particles'],
   ['webgl_custom_attributes_points3', 'three-custom-attributes-points3'],
@@ -52,7 +53,10 @@ function verifySineSizes(example, count, expectedSize, vertices1 = count) {
   const endAnchor = example === 'webgl_buffergeometry_custom_attributes_particles'
     ? '\n\t\t\t\tgeometry.attributes.size.needsUpdate'
     : '\n\t\t\t\tattributes.size.needsUpdate';
-  const body = block(source, '\t\t\t\tconst sizeTimeSin', endAnchor);
+  const nativeGuard = example !== 'webgl_buffergeometry_custom_attributes_particles';
+  const body = block(source,
+    nativeGuard ? '\t\t\t\tif ( ! nativeSizes ) {' : '\t\t\t\tconst sizeTimeSin',
+    endAnchor);
   const attributes = { size: { array: new Float32Array(count) } };
   if (example === 'webgl_custom_attributes_points3') {
     attributes.size.array.fill(40, vertices1);
@@ -61,12 +65,12 @@ function verifySineSizes(example, count, expectedSize, vertices1 = count) {
   const { sin, cos } = phaseTables(count);
   const run = example === 'webgl_buffergeometry_custom_attributes_particles'
     ? new Function('sizes', 'sizeSinPhases', 'sizeCosPhases', 'time', 'particles', body)
-    : new Function('attributes', 'sizeSinPhases', 'sizeCosPhases', 'time', 'vertices1', body);
+    : new Function('attributes', 'sizeSinPhases', 'sizeCosPhases', 'time', 'vertices1', 'nativeSizes', body);
   for (const time of [0, 0.317, 2.71, 19.3, 120.25]) {
     if (example === 'webgl_buffergeometry_custom_attributes_particles') {
       run(sizes, sin, cos, time, count);
     } else {
-      run(attributes, sin, cos, time, vertices1);
+      run(attributes, sin, cos, time, vertices1, false);
     }
     const actual = example === 'webgl_buffergeometry_custom_attributes_particles' ? sizes : attributes.size.array;
     for (let i = 0; i < count; i++) {
@@ -75,6 +79,12 @@ function verifySineSizes(example, count, expectedSize, vertices1 = count) {
     }
   }
 }
+
+const displacement = outputs.get('webgl_custom_attributes');
+assert.match(displacement, /three\.displacement/);
+assert.match(displacement, /displacementPacket\.subarray/);
+assert.match(displacement, /Math\.random\(\)/);
+assert.match(displacement, /if \( ! nativeDisplacement \)/);
 
 verifySineSizes('webgl_custom_attributes_points', 1000,
   (i, time) => 14 + 13 * Math.sin(0.1 * i + time));

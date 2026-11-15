@@ -286,6 +286,19 @@ identity lives in `ThreeUpstreamBundle`, `tool/three/source-pin.json` and
   `Math.random()` and vertex loops. This is an internal prepare-time
   optimization, not a public `jsr` API, and must never reduce vertices or
   update cadence.
+- The custom-attribute mesh/points examples use the private synchronous
+  `__jsrCustomAttributeBytes` lane (`three.displacement`, `three.tessellation`,
+  `three.pointSizes`) on direct/isolated QuickJS. The prepared displacement
+  and noise arrays are subviews of one packet; point-size phase tables and
+  tessellation source/normal/target storage are cached. Static directional
+  colors and bounds must not be invalidated by a displacement-only version
+  bump. Instanced-morph bucket poses reuse `__jsrMorphBytes('three.morph')`.
+  All lanes are status-gated and retain the official JS math as fallback.
+- The prepared FBX initial asset load rearms `setTimeout(..., 0)` until the
+  official Morphs/Animations GUI folders observably exist. QuickJS may drain
+  Promise jobs or timers reentrantly during native host calls on fast pinned
+  assets, so timer ordering alone is not an initialization barrier. Keep the
+  anchored readiness-and-rearm regression.
 - `webgl_marchingcubes` is a documented prepare-time degrade: its field still
   animates every frame, but bundled resolution and the GUI range are capped
   at 20. The pinned official bytes remain unchanged in `official_module.js`.

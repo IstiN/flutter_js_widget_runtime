@@ -109,7 +109,27 @@ function createHost() {
   }
 
   for (const relative of [true, false]) {
-    const { THREE: T2, packets: packets2 } = createHost();
+    const { THREE: T2, context, packets: packets2 } = createHost();
+    let nativeMorphCalls = 0;
+    context.__jsrMorphBytes = (name, data) => {
+      assert.equal(name, 'three.morph');
+      const values = new Float32Array(data.buffer, data.byteOffset, data.byteLength / 4);
+      const vertexCount = values[0], influenceCount = values[1];
+      const positionOffset = 8 + influenceCount;
+      const stride = vertexCount * 3;
+      const targetOffset = positionOffset + stride;
+      let baseWeight = 1;
+      if (!values[4]) for (let j = 0; j < influenceCount; j++) baseWeight -= values[8 + j];
+      for (let v = 0; v < stride; v++) {
+        let value = values[positionOffset + v] * baseWeight;
+        for (let j = 0; j < influenceCount; j++) {
+          value += values[8 + j] * values[targetOffset + j * stride + v];
+        }
+        values[positionOffset + v] = value;
+      }
+      values[5] = 1;
+      nativeMorphCalls++;
+    };
     const { geometry, base, delta } = horseScene(relative);
     const scene = new T2.Scene();
     const camera = new T2.PerspectiveCamera(50, 1, 0.1, 100);
@@ -140,6 +160,7 @@ function createHost() {
     assert.ok(proxies.length, 'no instanced-morph proxies created');
     const active = proxies.filter(p => p.count > 0);
     assert.equal(active.length, 1, 'all instances share one phase bucket');
+    assert.ok(nativeMorphCalls > 0, 'native morph lane was not used');
     const out = active[0].geometry.attributes.position.array;
     const target = geometry.morphAttributes.position[0].array;
     const expected = new Float32Array(base.length);
@@ -160,16 +181,21 @@ function createHost() {
       `base position collapsed (out[1]=${out[1]}, expected ${expected[1]})`);
     const positionAttribute = active[0].geometry.attributes.position;
     const initialVersion = positionAttribute.version;
+    const initialNativeCalls = nativeMorphCalls;
     renderer.render(scene, camera);
     await new Promise(resolve => setTimeout(resolve, 20));
     assert.equal(positionAttribute.version, initialVersion,
       'an unchanged representative pose must not re-blend or re-version its bucket');
+    assert.equal(nativeMorphCalls, initialNativeCalls,
+      'an unchanged representative pose must not enter the native morph lane');
     for (let i = 0; i < 4; i++) array[i * 2 + 1] = 0.75;
     mesh.morphTexture.needsUpdate = true;
     renderer.render(scene, camera);
     await new Promise(resolve => setTimeout(resolve, 20));
     assert.ok(positionAttribute.version > initialVersion,
       'a real representative weight edit must invalidate the bucket pose');
+    assert.ok(nativeMorphCalls > initialNativeCalls,
+      'a real representative weight edit must use the native morph lane');
     assert.ok(packets2().length, 'no packets');
   }
   console.log('PIN OK instanced-morph relative blend');
