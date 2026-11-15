@@ -11,12 +11,12 @@ const original = await readFile(path.join(ROOT,
   'example/widgets/three-loader-fbx/official_module.js'));
 const output = applyFbxDeferredInitPatch(original).toString('utf8');
 await transform(output, { loader: 'js', format: 'esm', target: 'es2020' });
-assert.ok(output.includes('Promise.resolve().then( function () {'));
+assert.ok(output.includes('setTimeout( function () {'));
 assert.throws(() => applyFbxDeferredInitPatch(Buffer.from('drifted')),
   /load anchor drifted/);
 
 const start = output.indexOf('\t\t\t\tloader = new FBXLoader( manager );');
-const close = '\t\t\t\t} );';
+const close = '\t\t\t\t}, 0 );';
 const closeAt = output.indexOf(close, start);
 const end = closeAt < 0 ? -1 : closeAt + close.length;
 assert.ok(start >= 0 && end > start);
@@ -24,12 +24,13 @@ const pending = [];
 let loads = 0;
 let foldersReady = false;
 const run = new Function('FBXLoader', 'manager', 'loadAsset', 'params',
-  'Promise', 'loader', output.slice(start, end));
+  'setTimeout', 'loader', output.slice(start, end));
 run(class {}, {}, () => {
   assert.ok(foldersReady, 'the load callback must run after GUI initialization');
   loads++;
-}, { asset: 'Samba Dancing' }, {
-  resolve: () => ({ then: callback => pending.push(callback) })
+}, { asset: 'Samba Dancing' }, (callback, delay) => {
+  assert.equal(delay, 0);
+  pending.push(callback);
 }, null);
 assert.equal(loads, 0, 'pinned bytes must not call back during init');
 assert.equal(pending.length, 1);
