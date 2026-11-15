@@ -1,5 +1,6 @@
 import { createHash } from 'node:crypto';
 import { execFileSync } from 'node:child_process';
+import { readFileSync } from 'node:fs';
 import { readFile, readdir, stat, mkdir, writeFile, realpath, rm } from 'node:fs/promises';
 import path from 'node:path';
 import { createRequire } from 'node:module';
@@ -3738,6 +3739,7 @@ webgl_geometry_shapes: {
     name: 'FBX loader — three.js r186',
     version: '0.1.5',
     fbxDeferredInit: true,
+    canonicalFbxIds: true,
     description: 'Unmodified official webgl_loader_fbx module on the JSR THREE R1/WebGL2 runtime.',
     icon: '🧊',
     expected: {
@@ -3792,6 +3794,7 @@ webgl_geometry_shapes: {
     id: 'three-loader-fbx-nurbs',
     directory: 'three-loader-fbx-nurbs',
     name: 'FBX loader - Nurbs — three.js r186',
+    canonicalFbxIds: true,
     description: 'Unmodified official webgl_loader_fbx_nurbs module on the JSR THREE R1/WebGL2 runtime.',
     icon: '🧊',
     expected: {
@@ -6455,13 +6458,48 @@ function addonPath(jsmRoot, specifier) {
   return resolved;
 }
 
-function localOnlyPlugin({ source, facadeSource = null, officialBytes = null, final = false, compatSource = null, addonShims = null, importOverrides = null }) {
+function localOnlyPlugin({ source, facadeSource = null, officialBytes = null, final = false, compatSource = null, addonShims = null, importOverrides = null, canonicalFbxIds = false }) {
   const jsmRoot = path.join(source, 'examples/jsm');
   const allowedRoots = final ? [HERE, jsmRoot] : [path.join(CORE, 'src'), source];
   const shimNames = addonShims ? Object.keys(addonShims) : [];
   return {
     name: final ? 'jsr-three-example-local-only' : 'jsr-three-export-discovery',
     setup(build) {
+      if (final && canonicalFbxIds) {
+        build.onLoad({ filter: /FBXLoader\.js$/ }, args => {
+          if (args.path !== path.join(jsmRoot, 'loaders/FBXLoader.js')) return null;
+          const sourceText = readFileSync(args.path, 'utf8');
+          const anchor = '\t// console.log( fbxTree );';
+          if (sourceText.split(anchor).length !== 2) {
+            throw new Error('FBX ID canonicalization anchor drifted in the pinned FBXLoader');
+          }
+          // QuickJS on Linux can retain binary-parser IDs in a different
+          // numeric representation from parseInt-derived lookups: Map iteration
+          // prints the same decimal key, but has() misses it. Canonicalize every
+          // object and connection ID once, before any of the loader's Maps are
+          // built. ASCII FBX already uses parseInt, so this is idempotent there.
+          const canonicalize = `\t// Canonical numeric IDs keep QuickJS Map lookups consistent.\n` +
+            `\tfor ( const objectType in fbxTree.Objects ) {\n\n` +
+            `\t\tconst nodes = fbxTree.Objects[ objectType ];\n` +
+            `\t\tif ( ! nodes || typeof nodes !== 'object' ) continue;\n` +
+            `\t\tfor ( const nodeID in nodes ) {\n\n` +
+            `\t\t\tconst node = nodes[ nodeID ];\n` +
+            `\t\t\tif ( node && typeof node.id === 'number' ) node.id = parseInt( node.id );\n\n` +
+            `\t\t}\n\n` +
+            `\t}\n\n` +
+            `\tif ( fbxTree.Connections && fbxTree.Connections.connections ) {\n\n` +
+            `\t\tfbxTree.Connections.connections.forEach( function ( connection ) {\n\n` +
+            `\t\t\tconnection[ 0 ] = parseInt( connection[ 0 ] );\n` +
+            `\t\t\tconnection[ 1 ] = parseInt( connection[ 1 ] );\n\n` +
+            `\t\t} );\n\n` +
+            `\t}\n\n`;
+          return {
+            contents: sourceText.replace(anchor, canonicalize + anchor),
+            loader: 'js',
+            resolveDir: path.dirname(args.path)
+          };
+        });
+      }
       build.onResolve({ filter: /^\.\/example_compat\.js$/ }, () => (
         compatSource !== null
           ? { path: 'example_compat.js', namespace: 'jsr-example-compat' }
@@ -8003,7 +8041,8 @@ async function main() {
       final: true,
       compatSource: definition.compat || null,
       addonShims,
-      importOverrides: definition.importOverrides || null
+      importOverrides: definition.importOverrides || null,
+      canonicalFbxIds: definition.canonicalFbxIds === true
     })],
     define: {
       __JSR_THREE_EXAMPLE_ID__: JSON.stringify(options.example),
