@@ -509,8 +509,8 @@
   },
   "inputs": {
     "assets/three/jsr_three_native.js": {
-      "bytes": 897869,
-      "sha256": "6e9dac888061c51df68d6b3ad741f0c6c18d816f672fae82727805bffbc67ed1"
+      "bytes": 898447,
+      "sha256": "b05fbb13408e7140f161b6e152ad6b015d11d826393648bc578f5e9727bd6ef2"
     },
     "assets/three/jsr_three_web.js": {
       "bytes": 859738,
