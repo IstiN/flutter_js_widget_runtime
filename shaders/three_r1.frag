@@ -534,6 +534,10 @@ vec3 r1BloomContribution(int mip, vec3 texel) {
 }
 
 vec4 r1PostColor(vec2 uv) {
+  // Only texture sampling inherits the map's Impeller RT V conversion.
+  // Procedural screen-space patterns retain the original FullScreenQuad UV.
+  vec2 screenUv = uv;
+  uv = transformedMapUv(uv);
   int op = int(r1PostParam(0) + 0.5);
   vec4 base = texture(mapTexture, uv);
   if (op == 1) {
@@ -561,7 +565,7 @@ vec4 r1PostColor(vec2 uv) {
   }
   if (op == 3) {
     if (r1PostParam(10) > 0.5) return base;
-    vec2 point = uv * vec2(max(r1PostParam(1), 1.0), max(r1PostParam(2), 1.0));
+    vec2 point = screenUv * vec2(max(r1PostParam(1), 1.0), max(r1PostParam(2), 1.0));
     float radius = max(r1PostParam(3), 0.001);
     int shape = int(r1PostParam(7) + 0.5);
     vec3 source = r1PostParam(9) > 0.5 ? vec3(r1PostLuma(base.rgb)) : base.rgb;
@@ -572,7 +576,7 @@ vec4 r1PostColor(vec2 uv) {
     return vec4(mix(base.rgb, dots, clamp(r1PostParam(8), 0.0, 1.0)), base.a);
   }
   if (op == 4) {
-    vec2 noiseUv = fract(uv + r1PostParam(1));
+    vec2 noiseUv = fract(screenUv + r1PostParam(1));
     float noise = fract(sin(dot(noiseUv, vec2(12.9898, 78.233))) * 43758.5453);
     vec3 noisy = base.rgb + base.rgb * clamp(0.1 + noise, 0.0, 1.0);
     vec3 result = mix(base.rgb, noisy, clamp(r1PostParam(2), 0.0, 1.0));
@@ -581,7 +585,7 @@ vec4 r1PostColor(vec2 uv) {
   }
   if (op == 5) {
     float s = sin(r1PostParam(3)), c = cos(r1PostParam(3));
-    vec2 tex = uv * vec2(r1PostParam(5), r1PostParam(6)) - vec2(r1PostParam(1), r1PostParam(2));
+    vec2 tex = screenUv * vec2(r1PostParam(5), r1PostParam(6)) - vec2(r1PostParam(1), r1PostParam(2));
     vec2 point = vec2(c * tex.x - s * tex.y, s * tex.x + c * tex.y) * r1PostParam(4);
     float pattern = sin(point.x) * sin(point.y) * 4.0;
     float average = (base.r + base.g + base.b) / 3.0;
@@ -603,7 +607,7 @@ vec4 r1PostColor(vec2 uv) {
     return vec4(mix(base.rgb, sepia, clamp(r1PostParam(1), 0.0, 1.0)), base.a);
   }
   if (op == 8) {
-    vec2 point = (uv - vec2(0.5)) * vec2(r1PostParam(1));
+    vec2 point = (screenUv - vec2(0.5)) * vec2(r1PostParam(1));
     return vec4(mix(base.rgb, vec3(1.0 - r1PostParam(2)), dot(point, point)), base.a);
   }
   if (op == 9) {
@@ -698,7 +702,7 @@ vec4 r1PostColor(vec2 uv) {
     float depth = znear + depth01 * (zfar - znear);
     float fDepth = max(r1PostParam(3), znear);
     if (r1PostParam(10) > 0.5) {
-      vec2 focusUv = vec2(r1PostParam(11), r1PostParam(12));
+      vec2 focusUv = transformedMapUv(vec2(r1PostParam(11), r1PostParam(12)));
       fDepth = znear + texture(mapRightTexture, focusUv).r * (zfar - znear);
     }
     float f = max(r1PostParam(4), 1.0);
@@ -712,7 +716,7 @@ vec4 r1PostColor(vec2 uv) {
     vec2 texel = vec2(1.0 / max(r1PostParam(1), 1.0),
                       1.0 / max(r1PostParam(2), 1.0));
     float radius = blur * max(r1PostParam(6), 0.0);
-    float noise = fract(sin(dot(uv, vec2(12.9898, 78.233))) * 43758.5453);
+    float noise = fract(sin(dot(screenUv, vec2(12.9898, 78.233))) * 43758.5453);
     float angle = noise * 6.2831853;
     vec3 sum = base.rgb;
     float weight = 1.0;
@@ -752,16 +756,16 @@ void main() {
   applyClipping();
   int kind = int(material_info.roughnessMetalnessAlphaTestKind.w + 0.5);
   if (kind == 14) {
-    // R1's FullScreenQuad UVs already match both offscreen sampling and the
-    // final Impeller surface. A final-only V flip reverses OutputPass and is
-    // inherently pass-parity dependent; intermediate and screen passes must
-    // sample the same orientation (covered by native composer goldens).
+    // r1PostColor applies the map's Impeller RT V conversion at EVERY pass,
+    // never only the final one: OutputPass-only must have the same upright
+    // orientation as chains with two or more post passes.
     vec4 post = r1PostColor(textureUv);
     int postOp = int(r1PostParam(0) + 0.5);
-    if (postOp == 17) {
-      // The official chain places LUTPass AFTER OutputPass. Both its input
-      // and its creative-LUT result are display-referred sRGB; applying ACES
-      // or linearToSrgb again here destroys the graded midtones.
+    if (postOp == 17 || postOp == 18) {
+      // LUTPass and FXAA are display-referred post-OutputPass operations.
+      // Their input and result are already sRGB; applying exposure, ACES or
+      // linearToSrgb again destroys midtones. If OutputPass follows FXAA,
+      // this intermediate value correctly remains untransformed until it.
       outColor = post;
       return;
     }

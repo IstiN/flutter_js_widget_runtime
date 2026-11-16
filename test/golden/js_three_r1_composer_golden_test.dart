@@ -162,6 +162,133 @@ void main() {
     await _finish(tester, run, golden.png, 'three-r1-composer-fxaa-output');
   });
 
+  testWidgets('OutputPass alone preserves orientation and display midtones', (
+    tester,
+  ) async {
+    final run = await _bootComposer(tester, 'three-r1-composer-output-only');
+    await _evalComposer(
+      run,
+      '$_twoToneScene\n'
+      r'''
+      panel(0.5, 0x804020);
+      panel(-0.5, 0x204080);
+      composer.addPass(new OutputPass());
+      tick();
+    ''',
+    );
+    final golden = await _present(tester, run);
+    final pixels = await decodeThreeGpuGolden(tester, golden.png);
+    final top = _rgba(pixels, 128, 64);
+    final bottom = _rgba(pixels, 128, 192);
+    for (var channel = 0; channel < 3; channel++) {
+      _expectChannel(top[channel], [128, 64, 32][channel], 'top[$channel]');
+      _expectChannel(
+        bottom[channel],
+        [32, 64, 128][channel],
+        'bottom[$channel]',
+      );
+    }
+    await _finish(tester, run, golden.png, 'three-r1-composer-output-midtones');
+  });
+
+  testWidgets('OutputPass then FXAA preserves display-referred midtones', (
+    tester,
+  ) async {
+    final run = await _bootComposer(tester, 'three-r1-composer-output-fxaa');
+    await _evalComposer(
+      run,
+      '$_twoToneScene\n'
+      r'''
+      panel(0.5, 0x804020);
+      panel(-0.5, 0x204080);
+      composer.addPass(new OutputPass());
+      const fxaa = new ShaderPass(FXAAShader);
+      fxaa.uniforms.resolution.value.set(1 / 256, 1 / 256);
+      composer.addPass(fxaa);
+      tick();
+    ''',
+    );
+    final golden = await _present(tester, run);
+    final pixels = await decodeThreeGpuGolden(tester, golden.png);
+    final top = _rgba(pixels, 128, 64);
+    final bottom = _rgba(pixels, 128, 192);
+    for (var channel = 0; channel < 3; channel++) {
+      _expectChannel(top[channel], [128, 64, 32][channel], 'top[$channel]');
+      _expectChannel(
+        bottom[channel],
+        [32, 64, 128][channel],
+        'bottom[$channel]',
+      );
+    }
+    await _finish(
+      tester,
+      run,
+      golden.png,
+      'three-r1-composer-output-fxaa-midtones',
+    );
+  });
+
+  testWidgets('OutputPass then FXAA preserves one ACES output transform', (
+    tester,
+  ) async {
+    final run = await _bootComposer(
+      tester,
+      'three-r1-composer-output-fxaa-aces',
+    );
+    await _evalComposer(
+      run,
+      '$_twoToneScene\n'
+      r'''
+      renderer.toneMapping = THREE.ACESFilmicToneMapping;
+      panel(0.5, 0x804020);
+      panel(-0.5, 0x204080);
+      composer.addPass(new OutputPass());
+      const fxaa = new ShaderPass(FXAAShader);
+      fxaa.uniforms.resolution.value.set(1 / 256, 1 / 256);
+      fxaa.enabled = false;
+      composer.addPass(fxaa);
+      jsr.onEvent(function(actionId) {
+        if (actionId !== 'acesFxaa') return;
+        fxaa.enabled = true;
+        frames = 0;
+        tick();
+      });
+      tick();
+    ''',
+    );
+    final output = await _present(tester, run);
+    final outputPixels = await decodeThreeGpuGolden(tester, output.png);
+    final outputTop = _rgba(outputPixels, 128, 64);
+    final outputBottom = _rgba(outputPixels, 128, 192);
+    expect(outputTop[0], greaterThan(outputTop[2]), reason: '$outputTop');
+    expect(
+      outputBottom[2],
+      greaterThan(outputBottom[0]),
+      reason: '$outputBottom',
+    );
+    final presented = output.surface.diagnostics['presentedFrames'] ?? 0;
+
+    await run.engine.callEvent('acesFxaa', const <String, dynamic>{});
+    final fxaaPng = await captureThreeGpuGolden(
+      tester,
+      output.surface,
+      (diagnostics) => (diagnostics['presentedFrames'] ?? 0) >= presented + 4,
+    );
+    expect(fxaaPng, isNotNull, reason: '${output.surface.diagnostics}');
+    final fxaaPixels = await decodeThreeGpuGolden(tester, fxaaPng!);
+    final fxaaTop = _rgba(fxaaPixels, 128, 64);
+    final fxaaBottom = _rgba(fxaaPixels, 128, 192);
+    for (var channel = 0; channel < 3; channel++) {
+      _expectChannel(fxaaTop[channel], outputTop[channel], 'fxaaTop[$channel]');
+      _expectChannel(
+        fxaaBottom[channel],
+        outputBottom[channel],
+        'fxaaBottom[$channel]',
+      );
+    }
+    await _finish(tester, run, fxaaPng, 'three-r1-composer-output-fxaa-aces');
+  });
+
   testWidgets('FXAA consumes reciprocal resolution and smooths a diagonal', (
     tester,
   ) async {
@@ -195,7 +322,10 @@ void main() {
       composer.addPass(fxaa);
       let frames = 0;
       function tick() {
-        composer.render();
+        // Disabled FXAA means a genuine direct render, not OutputPass-only.
+        // This keeps orientation and color fixed in the AA-only comparison.
+        if (fxaa.enabled) composer.render();
+        else renderer.render(scene, camera);
         if (++frames < 8) requestAnimationFrame(tick);
       }
       globalThis.setFxaaProbe = function(enabled) {

@@ -55,9 +55,11 @@ void main() {
     );
     expect(source, isNot(contains('if (op == 14) {\n    // FXAA')));
     expect(source, contains('vec4 post = r1PostColor(textureUv);'));
-    expect(source, isNot(contains('postUv.y = 1.0 - postUv.y')));
+    expect(source, contains('vec2 screenUv = uv;'));
+    expect(source, contains('uv = transformedMapUv(uv);'));
+    expect(source, isNot(contains('r1PostColor(postUv)')));
     expect(source, contains('if (op == 10) return base;'));
-    expect(source, contains('if (postOp == 17)'));
+    expect(source, contains('if (postOp == 17 || postOp == 18)'));
     expect(source, contains('outColor = post;'));
     expect(
       source,

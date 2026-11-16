@@ -498,8 +498,13 @@ No mouse driving needed anywhere:
 - Native FXAA op18 adapts `FXAAShader.resolution` from reciprocal target size
   to pixel dimensions exactly once; do not DPR-scale those physical dimensions
   again. `fxaa_post_test.js` must use the real `{x: 1/width, y: 1/height}`
-  uniform, and the composer diagonal golden must show blended edge coverage,
-  not merely preserve two-tone orientation.
+  uniform, and the composer diagonal golden must show blended edge coverage
+  against a genuine direct-render baseline, not OutputPass-only.
+- Kind-14 post samples compensate Impeller RT V orientation at EVERY pass;
+  final-only flips create pass-parity bugs. FXAA op18 and LUT op17 are
+  display-referred and bypass the exposure/tone/sRGB tail (OutputPass owns
+  that transform). Keep OutputPass-only and OutputPass→FXAA midtone goldens:
+  two-tone/two-pass tests hide both orientation and double-transfer defects.
 - Host capture readiness is TWO gates: the host must await its own requested
   event/asset generation, and the surface must reach that generation's tree
   and presented target with scheduled/rendering/pending work drained.
