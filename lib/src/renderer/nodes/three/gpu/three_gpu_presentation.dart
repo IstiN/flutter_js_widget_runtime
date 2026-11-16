@@ -752,12 +752,38 @@ gpu.RenderPass _createThreeRenderPass(
   );
 }
 
+_TextureBinding _preserveThreeTargetForLoad(
+  FlutterGpuThreeBackend backend,
+  _GpuRenderTarget target,
+) {
+  final previous = target.color;
+  final next =
+      target.spareColor ??
+      backend._context.createTexture(
+        gpu.StorageMode.devicePrivate,
+        target.source.width,
+        target.source.height,
+        format: gpu.PixelFormat.r8g8b8a8UNormInt,
+        enableRenderTargetUsage: true,
+        enableShaderReadUsage: true,
+      );
+  target.spareColor = previous;
+  target.color = next;
+  return _TextureBinding(
+    previous,
+    null,
+    1,
+    _threeRenderTargetSampler(target.source),
+  );
+}
+
 gpu.RenderPass _createThreeTargetPass(
   ThreeDrawPlan plan,
   _GpuRenderTarget target,
   gpu.CommandBuffer command,
   double pixelRatio, {
   bool clearColor = true,
+  bool preservedColor = false,
 }) {
   final frame = plan.frame!;
   final depth = target.depth;
@@ -765,7 +791,9 @@ gpu.RenderPass _createThreeTargetPass(
     gpu.RenderTarget.singleColor(
       gpu.ColorAttachment(
         texture: target.color,
-        loadAction: _threeLoadAction(frame.clearColor, clearColor),
+        loadAction: preservedColor
+            ? gpu.LoadAction.clear
+            : _threeLoadAction(frame.clearColor, clearColor),
         clearValue: _threeClearValue(plan),
       ),
       depthStencilAttachment: depth == null

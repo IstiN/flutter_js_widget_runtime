@@ -1,6 +1,6 @@
 // Regression test: the R1 bounded postprocessing lane recognises the
 // official three.js FXAShader (tDiffuse + resolution + rgbNW/rgbNE corner
-// tokens) and maps it to the native kind-14 op 14 instead of dropping it to
+// tokens) and maps it to the native kind-14 op 18 instead of dropping it to
 // a plain textured blit. Sobel keeps op 2 (shared uniform contract).
 import assert from 'node:assert/strict';
 import path from 'node:path';
@@ -48,9 +48,16 @@ const fxaa = adapt(
   { uniforms: { tDiffuse: { value: fakeTexture }, resolution: { value: { x: 800, y: 600 } } } },
   'vec3 rgbNW = texture2D(tDiffuse, uv).rgb; vec3 rgbNE = texture2D(tDiffuse, uv).rgb;'
 );
-assert.ok(fxaa && fxaa.op === 14, `FXAA must map to op 14, got ${fxaa && fxaa.op}`);
+assert.ok(fxaa && fxaa.op === 18, `FXAA must map to op 18, got ${fxaa && fxaa.op}`);
 assert.equal(fxaa.left[1], 800);
 assert.equal(fxaa.left[2], 600);
+
+const fxaaR186 = adapt(
+  { uniforms: { tDiffuse: { value: fakeTexture }, resolution: { value: { x: 800, y: 600 } } } },
+  'LuminanceData SampleLuminanceNeighborhood() {} float DeterminePixelBlendFactor() {} EdgeData DetermineEdge() {}'
+);
+assert.ok(fxaaR186 && fxaaR186.op === 18,
+  `r186 LuminanceData/EdgeData FXAA must map to op 18, got ${fxaaR186 && fxaaR186.op}`);
 
 const sobel = adapt(
   { uniforms: { tDiffuse: { value: fakeTexture }, resolution: { value: { x: 800, y: 600 } } } },
@@ -64,4 +71,4 @@ const unknown = adapt(
 );
 assert.equal(unknown, null, 'Unknown shaders keep the capability-error path');
 
-console.log('fxaa_post_test: PASS (FXAA op 14, Sobel op 2, unknown null)');
+console.log('fxaa_post_test: PASS (FXAA op 18, Sobel op 2, unknown null)');

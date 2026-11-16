@@ -1080,6 +1080,14 @@ void main() {
       expect(blur.duboisLeftMatrix[8], 11);
       expect(blur.postTexture3Id, 0);
       expect(blur.postParams[10], closeTo(28.25, 1e-6));
+
+      final fxaa = threeProtocolDecoder
+          .decodeR1(threeR1([(3, _postMaterialV9(op: 18))], version: 9))
+          .commands
+          .whereType<JsThreeMaterialUpsert>()
+          .single;
+      expect(fxaa.duboisLeftMatrix[0], 18);
+      expect(fxaa.postTexture3Id, 0);
     });
 
     test('R1 v9 decodes the bounded LUT atlas operation', () {
@@ -1138,7 +1146,7 @@ void main() {
       }
       threeBad(
         () => threeProtocolDecoder.decodeR1(
-          threeR1([(3, _postMaterialV9(op: 18))], version: 9),
+          threeR1([(3, _postMaterialV9(op: 19))], version: 9),
         ),
       );
     });

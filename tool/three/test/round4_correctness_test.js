@@ -537,7 +537,8 @@ function createHost() {
       if (value === 'texture') resolved = texture;
       else if (value === 'resolution') resolved = new T.Vector2(64, 32);
       else if (value === 'color') resolved = new T.Color(1, 0.8, 0.7);
-      else if (value === 'tints') resolved = Array.from({ length: 5 }, () => new T.Color(1, 0.8, 0.7));
+      // UnrealBloomPass r186 stores vec3 tints as Vector3, not Color.
+      else if (value === 'tints') resolved = Array.from({ length: 5 }, () => new T.Vector3(1, 0.8, 0.7));
       uniforms[name] = { value: resolved };
     }
     const material = new T.ShaderMaterial({

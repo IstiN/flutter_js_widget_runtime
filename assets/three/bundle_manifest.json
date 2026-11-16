@@ -31,7 +31,7 @@
       "tool/three/src/native_loaders.js": "3bbacffef19edf3c313d8ea01aee86b88a158a072efde62bca6e4a84152ae86c",
       "tool/three/src/native_pmrem.js": "cc08dc0036fd14f8cd04a160c969ca4d77736ab6904542cd3d2ae39630efc0a0",
       "tool/three/src/native_raycast_bvh.js": "9aada0445e0fb5d1cba38ea8e801588d8b496cce8531f57ab9c60e61d7049384",
-      "tool/three/src/native_renderer.js": "289336223f93fd350828e4ccdbebb3c48287a1f3ee8c660eeb2d146e2f1ec0b6",
+      "tool/three/src/native_renderer.js": "eff2f662cbde604413707ae85662476e2db46db06de198217718d824a5b40461",
       "tool/three/src/native_three_shim.js": "3f29d9215d19ec495af2e3aab9ac785429a471e4867fe3fbd4784f38515ea096",
       "tool/three/src/r1.js": "ccac07cd409c192f135a5e22ac99f60761807df8891b76236f164a44d19fd291",
       "tool/three/src/runtime.js": "94c1481d3b98378c1a9470a3481e4ac29f48881a43de53c3e259d2cb6117fc6f",
@@ -47,8 +47,8 @@
   },
   "outputs": {
     "jsr_three_native.js": {
-      "bytes": 897869,
-      "sha256": "6e9dac888061c51df68d6b3ad741f0c6c18d816f672fae82727805bffbc67ed1"
+      "bytes": 898447,
+      "sha256": "b05fbb13408e7140f161b6e152ad6b015d11d826393648bc578f5e9727bd6ef2"
     },
     "jsr_three_web.js": {
       "bytes": 859738,

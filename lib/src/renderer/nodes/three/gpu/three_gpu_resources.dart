@@ -136,9 +136,10 @@ final class _TextureBinding {
 }
 
 final class _GpuRenderTarget {
-  const _GpuRenderTarget(this.source, this.color, this.depth);
+  _GpuRenderTarget(this.source, this.color, this.depth);
   final JsThreeRenderTargetUpsert source;
-  final gpu.Texture color;
+  gpu.Texture color;
+  gpu.Texture? spareColor;
   final gpu.Texture? depth;
 }
 

@@ -1115,6 +1115,53 @@ test('shadow receivers stay out of color batches and retain receiveShadow on ord
   assert.equal(restoredPackets.at(-1) && only(restoredPackets.at(-1), 11).length, 0);
 });
 
+test('physical transmission lowers to live bounded alpha and transmission zero restores opaque flags', async () => {
+  const host = createHost();
+  const T = host.THREE;
+  const { renderer: value, scene, camera } = renderer(host);
+  camera.position.z = 3; // visible fast node: material scalars revalidate even without needsUpdate
+  const material = new T.MeshPhysicalMaterial({
+    color: 0x2244ff, transmission: 1, opacity: 1, depthWrite: true
+  });
+  const mesh = new T.Mesh(triangleGeometry(T), material);
+  mesh.receiveShadow = true; // ordinary node: the assert targets material packets, not color batching
+  scene.add(mesh);
+  const materialPacket = index => {
+    const packet = host.packets()[index];
+    const commands = only(packet, 3).filter(command => u32(command.body, 0) === id(material));
+    assert.equal(commands.length, 1, 'changed transmission must invalidate the material snapshot');
+    return commands[0].body;
+  };
+
+  value.render(scene, camera); await drain();
+  const initial = materialPacket(0);
+  near(f32(initial, 36), 0.25);
+  assert.equal(u32(initial, 16) & 4, 4, 'transmission enters the transparent bucket');
+  assert.equal(u32(initial, 16) & 16, 0, 'transmission never writes depth');
+  assert.equal((u32(initial, 16) >> 7) & 0xf, 1, 'bounded alpha uses NormalBlending');
+  assert.equal(only(host.packets()[0], 11).length, 0, 'transmission stays out of opaque color batches');
+
+  // No needsUpdate: the snapshot itself must observe the scalar mutation.
+  material.transmission = 0;
+  material.opacity = 0.4;
+  material.transparent = false;
+  material.depthWrite = true;
+  value.render(scene, camera); await drain();
+  const opaque = materialPacket(1);
+  assert.ok(u32(opaque, 4) > u32(initial, 4));
+  near(f32(opaque, 36), 0.4);
+  assert.equal(u32(opaque, 16) & 4, 0, 'transmission zero preserves opaque Standard behavior');
+  assert.equal(u32(opaque, 16) & 16, 16);
+
+  material.transmission = 1;
+  material.opacity = 0.08;
+  value.render(scene, camera); await drain();
+  const explicit = materialPacket(2);
+  near(f32(explicit, 36), 0.08);
+  assert.equal(u32(explicit, 16) & 4, 4);
+  assert.equal(u32(explicit, 16) & 16, 0);
+});
+
 let passed = 0;
 for (const { name, fn } of tests) {
   try {

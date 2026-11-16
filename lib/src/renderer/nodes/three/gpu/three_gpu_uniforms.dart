@@ -34,6 +34,7 @@ void _bindThreeDrawUniforms(
   gpu.BufferView frameUniform,
   gpu.BufferView lightsUniform,
 ) {
+  final additiveBase = backend._additiveTargetBase;
   pass.bindUniform(
     slots.vertex,
     _emplaceThreeUniform(
@@ -51,7 +52,12 @@ void _bindThreeDrawUniforms(
   pass.bindUniform(slots.lights, lightsUniform);
   pass.bindUniform(
     slots.material,
-    _emplaceThreeUniform(backend, _threeMaterialUniform(draw, plan)),
+    _emplaceThreeUniform(
+      backend,
+      additiveBase == null
+          ? _threeMaterialUniform(draw, plan)
+          : _threeExplicitAdditiveMaterialUniform(draw, plan),
+    ),
   );
   pass.bindUniform(
     slots.clipping,
@@ -59,7 +65,8 @@ void _bindThreeDrawUniforms(
   );
   final binding = backend._textureBinding(draw.material.mapTextureId);
   pass.bindTexture(slots.map, binding.texture, sampler: binding.sampler());
-  final rightBinding = backend._textureBinding(draw.material.mapRightTextureId);
+  final rightBinding =
+      additiveBase ?? backend._textureBinding(draw.material.mapRightTextureId);
   pass.bindTexture(
     slots.mapRight,
     rightBinding.texture,
@@ -535,6 +542,24 @@ ByteData _threeMaterialUniform(ThreeDrawItem draw, [ThreeDrawPlan? plan]) {
   }
   return data;
 }
+
+ByteData _threeExplicitAdditiveMaterialUniform(
+  ThreeDrawItem draw,
+  ThreeDrawPlan? plan,
+) {
+  final data = _threeMaterialUniform(draw, plan);
+  // Backend-only post op 20: map is the additive source, mapRight is the
+  // preserved destination. This is never emitted by the JS wire protocol.
+  data.setFloat32(28, 14, Endian.little);
+  data.setFloat32(240, 20, Endian.little);
+  return data;
+}
+
+@visibleForTesting
+ByteData debugThreeExplicitAdditiveMaterialUniform(
+  ThreeDrawItem draw, [
+  ThreeDrawPlan? plan,
+]) => _threeExplicitAdditiveMaterialUniform(draw, plan);
 
 bool _threeZeroAlphaDiscard(JsThreeMaterialUpsert material) =>
     material.alphaTest > 0 ||

@@ -48,6 +48,14 @@ void main() {
 
   test('3dlut shader preserves linear/output/display pass roles', () {
     final source = File('shaders/three_r1.frag').readAsStringSync();
+    expect(source, contains('if (op == 18) {\n    // FXAA'));
+    expect(
+      source,
+      contains('if (op == 14) {\n    // Official paired Gaussian taps'),
+    );
+    expect(source, isNot(contains('if (op == 14) {\n    // FXAA')));
+    expect(source, contains('vec4 post = r1PostColor(textureUv);'));
+    expect(source, isNot(contains('postUv.y = 1.0 - postUv.y')));
     expect(source, contains('if (op == 10) return base;'));
     expect(source, contains('if (postOp == 17)'));
     expect(source, contains('outColor = post;'));
@@ -63,7 +71,9 @@ void main() {
     );
     expect(
       source,
-      contains('emissive *= texture(matcapTexture, transformedMapUv(textureUv)).rgb;'),
+      contains(
+        'emissive *= texture(matcapTexture, transformedMapUv(textureUv)).rgb;',
+      ),
     );
     expect(
       source,
@@ -81,16 +91,17 @@ void main() {
     );
     await harness.pumpUntil(
       tester,
-      (state, plan) => state.materials.values.any(
-        (material) =>
-            material.kind == JsThreeMaterialKind.postProcessing &&
-            material.duboisLeftMatrix.isNotEmpty &&
-            material.duboisLeftMatrix[0] == 17 &&
-            material.mapRightTextureId != 0,
-      ) &&
-      state.materials.values.any(
-        (material) => material.kind == JsThreeMaterialKind.meshStandard,
-      ),
+      (state, plan) =>
+          state.materials.values.any(
+            (material) =>
+                material.kind == JsThreeMaterialKind.postProcessing &&
+                material.duboisLeftMatrix.isNotEmpty &&
+                material.duboisLeftMatrix[0] == 17 &&
+                material.mapRightTextureId != 0,
+          ) &&
+          state.materials.values.any(
+            (material) => material.kind == JsThreeMaterialKind.meshStandard,
+          ),
       attempts: 240,
     );
     final state = harness.state!;

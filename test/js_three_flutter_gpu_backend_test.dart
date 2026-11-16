@@ -24,6 +24,7 @@ JsThreeSubmitFrame _frameWithRectangles({
   List<double> viewport = const [0, 0, 320, 360],
   List<double>? scissor,
   bool scissorTest = true,
+  bool clearColor = true,
 }) {
   final body = Uint8List(244);
   setU32(body, 0, 1);
@@ -43,7 +44,7 @@ JsThreeSubmitFrame _frameWithRectangles({
     setF32(body, 204 + index * 4, viewport[index]);
     setF32(body, 220 + index * 4, scissors[index]);
   }
-  setU32(body, 236, 11 | (scissorTest ? 4 : 0));
+  setU32(body, 236, (clearColor ? 1 : 0) | 10 | (scissorTest ? 4 : 0));
   return _decode(8, body, version: 6) as JsThreeSubmitFrame;
 }
 
@@ -346,6 +347,78 @@ void main() {
       expect(material.getFloat32(component * 4, Endian.little), 1);
     }
     expect(() => debugThreeAutoInstanceData(first), throwsArgumentError);
+  });
+
+  test('explicit additive load rewrites only the backend material uniform', () {
+    final draw = _draw(
+      color: const [0.2, 0.4, 0.6],
+      opacity: 0.75,
+      transparent: true,
+      blending: 2,
+    );
+    final normal = debugThreeMaterialUniform(draw);
+    final additive = debugThreeExplicitAdditiveMaterialUniform(draw);
+    expect(normal.getFloat32(28, Endian.little), isNot(14));
+    expect(additive.getFloat32(28, Endian.little), 14);
+    expect(additive.getFloat32(240, Endian.little), 20);
+    expect(additive.getFloat32(0, Endian.little), closeTo(0.2, 1e-6));
+    expect(additive.getFloat32(4, Endian.little), closeTo(0.4, 1e-6));
+    expect(additive.getFloat32(8, Endian.little), closeTo(0.6, 1e-6));
+    expect(additive.getFloat32(12, Endian.little), 0.75);
+  });
+
+  test('explicit additive load accepts only one preserved additive quad', () {
+    final additive = _draw(transparent: true, blending: 2);
+    final preserving = _frameWithRectangles(
+      offscreen: true,
+      scissorTest: false,
+      clearColor: false,
+    );
+    bool needs(
+      Iterable<ThreeDrawItem> draws, [
+      JsThreeSubmitFrame? frame,
+      bool clearColor = true,
+    ]) => debugThreeNeedsExplicitAdditiveLoad(
+      draws,
+      frame ?? preserving,
+      clearColor,
+    );
+
+    expect(needs([additive]), isTrue);
+    expect(needs(const []), isFalse);
+    expect(needs([additive, additive]), isFalse);
+    expect(needs([_draw(transparent: true, blending: 1)]), isFalse);
+    expect(
+      needs([
+        _draw(
+          kind: JsThreeMaterialKind.meshStandard,
+          transparent: true,
+          blending: 2,
+        ),
+      ]),
+      isFalse,
+    );
+    expect(
+      needs([additive], _frameWithRectangles(offscreen: true)),
+      isFalse,
+      reason: 'scissored passes retain their ordinary load/scissor path',
+    );
+    expect(
+      needs([
+        additive,
+      ], _frameWithRectangles(offscreen: true, scissorTest: false)),
+      isFalse,
+      reason: 'a real clear does not need a preserved destination',
+    );
+    expect(
+      needs(
+        [additive],
+        _frameWithRectangles(offscreen: true, scissorTest: false),
+        false,
+      ),
+      isTrue,
+      reason: 'a previously cleared target still composes its additive draw',
+    );
   });
 
   test('indexed batch metadata becomes a byte subrange', () {

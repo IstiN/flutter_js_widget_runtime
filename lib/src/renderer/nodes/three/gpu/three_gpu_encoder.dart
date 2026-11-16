@@ -496,7 +496,12 @@ final class _ThreeFrameEncoder {
       ..setCullMode(_threeCull(draw))
       ..setDepthCompareOperation(_threeDepthCompare[draw.material.depthTest]!)
       ..setDepthWriteEnable(draw.material.depthWrite)
-      ..setColorBlendEnable(_threeBlendEnable(draw.material))
+      // Explicit load composites in shader op20; hardware blending must not
+      // add the source a second time. Both operands are pure bool values.
+      ..setColorBlendEnable(
+        _threeBlendEnable(draw.material) &
+            (backend._additiveTargetBase == null),
+      )
       ..setColorBlendEquation(_threeBlendEquation(draw.material))
       ..bindVertexBuffer(instances, slot: 1);
     _bindThreeVertices(pass, geometry, draw);

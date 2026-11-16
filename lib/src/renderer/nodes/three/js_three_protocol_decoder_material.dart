@@ -249,8 +249,8 @@ extension on JsThreeProtocolDecoder {
   ) {
     final wireOp = dubois.left[0];
     final op = wireOp.round();
-    if (wireOp != op || op < 1 || op > 17) {
-      body.fail('postprocessing operation must be an integer in 1..17');
+    if (wireOp != op || op < 1 || op > 18) {
+      body.fail('postprocessing operation must be an integer in 1..18');
     }
     if (op == 17 &&
         (mapId == 0 ||

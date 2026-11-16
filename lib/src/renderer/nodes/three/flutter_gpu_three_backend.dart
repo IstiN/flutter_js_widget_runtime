@@ -90,15 +90,34 @@ List<ThreeDrawPlan> debugPlanThreeFrames(
   lineMode,
 );
 
-bool _dropThreeClear(
-  JsThreeSubmitFrame frame,
-  Set<int> clearedTargets,
-) =>
+bool _dropThreeClear(JsThreeSubmitFrame frame, Set<int> clearedTargets) =>
     frame.scissorTest && clearedTargets.contains(frame.renderTargetId);
 
 @visibleForTesting
 bool debugThreeDropClear(JsThreeSubmitFrame frame, Set<int> clearedTargets) =>
     _dropThreeClear(frame, clearedTargets);
+
+bool _needsExplicitAdditiveLoad(
+  Iterable<ThreeDrawItem> mainDraws,
+  JsThreeSubmitFrame frame,
+  bool clearColor,
+) {
+  if (frame.scissorTest || (frame.clearColor && clearColor)) return false;
+  if (mainDraws.length != 1) return false;
+  final material = mainDraws.single.material;
+  // UnrealBloom's CopyShader blend is the canonical single additive quad:
+  // preserve its readBuffer explicitly so composer correctness does not
+  // depend on offscreen load-action retention across submissions.
+  return material.kind == JsThreeMaterialKind.meshBasic &&
+      material.blending == 2;
+}
+
+@visibleForTesting
+bool debugThreeNeedsExplicitAdditiveLoad(
+  Iterable<ThreeDrawItem> mainDraws,
+  JsThreeSubmitFrame frame,
+  bool clearColor,
+) => _needsExplicitAdditiveLoad(mainDraws, frame, clearColor);
 
 void _warnStaleThreeTarget(
   FlutterGpuThreeBackend backend,
@@ -217,6 +236,7 @@ final class FlutterGpuThreeBackend {
   var _renderedShadowDrawCount = 0;
   var _pendingPresentations = 0;
   var _pendingTargetSubmits = 0;
+  _TextureBinding? _additiveTargetBase;
 
   var _renderedFrameCount = 0;
   var _renderedDrawCount = 0;
@@ -239,6 +259,7 @@ final class FlutterGpuThreeBackend {
   var _reusedResourceGenerationCount = 0;
   var _resizeCount = 0;
   var _failedPresentationCount = 0;
+  var _explicitAdditiveLoadCount = 0;
   var _lastSequence = 0;
 
   static Future<FlutterGpuThreeBackend> create({
@@ -318,6 +339,9 @@ final class FlutterGpuThreeBackend {
     'reusedResourceGenerations': _reusedResourceGenerationCount,
     'resizes': _resizeCount,
     'pendingPresentations': _pendingPresentations,
+    'pendingTargetSubmits': _pendingTargetSubmits,
+    'presentationWaiters': _presentationWaiters.length,
+    'explicitAdditiveLoads': _explicitAdditiveLoadCount,
     'failedPresentations': _failedPresentationCount,
     'surfaceBackingTextures': _imageSurface?.debugBackingTextureCount ?? 0,
     'lastSequence': _lastSequence,
@@ -381,13 +405,7 @@ final class FlutterGpuThreeBackend {
     JsThreeSubmitFrame? frame,
     List<JsThreeFramePlanView>? frames,
   ) {
-    final plans = _planThreeFrameList(
-      state,
-      frame,
-      frames,
-      _planner,
-      lineMode,
-    );
+    final plans = _planThreeFrameList(state, frame, frames, _planner, lineMode);
     for (final current in plans) {
       for (final warning in current.diagnostics.warnings) {
         _note(warning);
@@ -651,6 +669,19 @@ final class FlutterGpuThreeBackend {
       material.mapTextureId == textureId ||
       material.mapRightTextureId == textureId;
 
+  _TextureBinding? _prepareExplicitAdditiveLoad(
+    ThreeDrawPlan plan,
+    JsThreeSubmitFrame frame,
+    bool clearColor,
+    _GpuRenderTarget target,
+  ) {
+    if (!_needsExplicitAdditiveLoad(plan.mainDraws, frame, clearColor)) {
+      return null;
+    }
+    _explicitAdditiveLoadCount++;
+    return _preserveThreeTargetForLoad(this, target);
+  }
+
   void _checkTargetFeedback(ThreeDrawPlan plan, int textureId) {
     for (final draw in plan.draws) {
       if (_materialSamplesTarget(draw.material, textureId)) {
@@ -682,16 +713,28 @@ final class FlutterGpuThreeBackend {
     _prepareThreeAutoInstanceCache(this, plan);
     _recordShadow(encoder, frame, contentRevision);
     final command = _context.createCommandBuffer();
-    final pass = _createThreeTargetPass(
+    final loadBase = _prepareExplicitAdditiveLoad(
       plan,
+      frame,
+      clearColor,
       target,
-      command,
-      pointSizeScale,
-      clearColor: clearColor,
     );
-    final draws = encoder.record(pass);
-    _submitThreeFrame(this, command, targetPass: true);
-    return draws;
+    _additiveTargetBase = loadBase;
+    try {
+      final pass = _createThreeTargetPass(
+        plan,
+        target,
+        command,
+        pointSizeScale,
+        clearColor: clearColor,
+        preservedColor: loadBase != null,
+      );
+      final draws = encoder.record(pass);
+      _submitThreeFrame(this, command, targetPass: true);
+      return draws;
+    } finally {
+      _additiveTargetBase = null;
+    }
   }
 
   int _recordTargetPasses(

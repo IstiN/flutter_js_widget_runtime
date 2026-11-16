@@ -1785,11 +1785,15 @@ export function postShaderAdaptation(source, fragment) {
     set(11, focus[0]); set(12, focus[1]);
   } else if (has('tOld') && has('tNew') && has('damp')) {
     op = 1; map = u.tNew.value || null; right = u.tOld.value || null; set(1, value('damp', 0.96));
-  } else if (has('tDiffuse') && has('resolution') && fragment.includes('rgbNW') && fragment.includes('rgbNE')) {
-    // three.js FXAShader: same tDiffuse/resolution contract as Sobel but the
-    // distinctive rgbNW/rgbNE corner samples. Evaluated natively (op 14;
-    // op 13 is UnrealBloom).
-    const size = vector('resolution', 1, 1); op = 14; set(1, size[0]); set(2, size[1]);
+  } else if (has('tDiffuse') && has('resolution') &&
+      ((fragment.includes('rgbNW') && fragment.includes('rgbNE')) ||
+       (fragment.includes('SampleLuminanceNeighborhood') &&
+        fragment.includes('DeterminePixelBlendFactor') && fragment.includes('DetermineEdge')))) {
+    // three.js FXAShader: both the classic rgbNW/rgbNE implementation and
+    // r186's LuminanceData/EdgeData implementation share this uniform
+    // contract. The bounded native kernel is the classic 5-9 tap FXAA
+    // approximation, not UnrealBloom's Gaussian (op 14) or composite (15).
+    const size = vector('resolution', 1, 1); op = 18; set(1, size[0]); set(2, size[1]);
   } else if (has('tDiffuse') && has('resolution') && fragment.includes('valueGx') && fragment.includes('valueGy')) {
     const size = vector('resolution', 1, 1); op = 2; set(1, size[0]); set(2, size[1]);
   } else if (has('tDiffuse') && has('radius') && has('rotateR') && has('rotateG') && has('rotateB') && has('shape')) {
@@ -1843,7 +1847,12 @@ export function postShaderAdaptation(source, fragment) {
       set(1, value('bloomStrength', 1)); set(2, value('bloomRadius'));
       for (let i = 0; i < 5; i++) {
         set(3 + i, factors[i]);
-        set(8 + i * 3, tints[i]?.r); set(9 + i * 3, tints[i]?.g); set(10 + i * 3, tints[i]?.b);
+        // Official UnrealBloomPass uses Vector3 vec3 uniforms (x/y/z);
+        // accept Color too for custom composites built on the same contract.
+        const tint = tints[i];
+        set(8 + i * 3, tint?.r ?? tint?.x);
+        set(9 + i * 3, tint?.g ?? tint?.y);
+        set(10 + i * 3, tint?.b ?? tint?.z);
       }
     }
   } else if (has('tDiffuse') && !has('h') && !has('v') &&
@@ -1869,7 +1878,7 @@ function adaptedShaderDraw(object, viewMatrix = null, pixelRatio = 1) {
     // Sobel/Halftone uniforms are authored in CSS pixels by the official
     // examples, while the native render targets use drawing-buffer pixels.
     // Scale their resolution parameters or edges/dots become DPR-dependent.
-    if ((post.op === 2 || post.op === 3 || post.op === 14) && pixelRatio !== 1) {
+    if ((post.op === 2 || post.op === 3 || post.op === 14 || post.op === 18) && pixelRatio !== 1) {
       post.left[1] *= pixelRatio;
       post.left[2] *= pixelRatio;
     }
@@ -2110,9 +2119,10 @@ function validateMaterial(material) {
   if (material.isShaderMaterial || material.isRawShaderMaterial) unsupported('ShaderMaterial', 'arbitrary shaders require 1B');
   if (material.isMeshPhysicalMaterial && !material._r1PhysicalWarned) {
     // Physical is Standard plus clearcoat/transmission/sheen/iridescence:
-    // R1 keeps the Standard PBR base and drops the physical-only lobes.
+    // R1 keeps the Standard PBR base, drops the other physical-only lobes,
+    // and lowers transmission to bounded alpha transparency (no refraction).
     material._r1PhysicalWarned = true;
-    console.warn('three: R1 shades MeshPhysicalMaterial as MeshStandardMaterial (physical-only lobes dropped).');
+    console.warn('three: R1 shades MeshPhysicalMaterial as MeshStandardMaterial (physical-only lobes dropped; transmission uses bounded alpha, not refraction).');
   }
   if (material.wireframe && !(material.isMeshBasicMaterial || material.isMeshLambertMaterial || material.isMeshPhongMaterial || material.isMeshNormalMaterial || (material.isMeshStandardMaterial) || material.isMeshToonMaterial || material.isMeshMatcapMaterial)) unsupported('wireframe', 'R1 wireframe requires a mesh material');
   if (material.isMeshDepthMaterial && (material.map || material.alphaMap)) {
@@ -3612,7 +3622,19 @@ export class JsrWebGLRenderer {
       : envScalar;
     if (!Number.isFinite(envMapIntensity) || envMapIntensity < -1) throw new Error('three.invalid: material envMapIntensity must be finite (nonnegative intensity, or negative refraction ratio in [-1, 0))');
     const color = material.color || new Color(0xffffff);
-    const opacity = material.opacity === undefined ? 1 : material.opacity;
+    const sourceOpacity = material.opacity === undefined ? 1 : material.opacity;
+    const transmission = material.isMeshPhysicalMaterial
+      ? (material.transmission === undefined ? 0 : material.transmission) : 0;
+    // R1 has no screen-space refraction buffer. Lower transmissive physical
+    // glass to bounded NormalBlending alpha instead of silently drawing it as
+    // opaque Standard. Preserve an explicit smaller opacity (Ferrari uses
+    // 0.25/0.08); upstream-default opacity 1 resolves to 0.25 at transmission
+    // 1. Transmissive surfaces never write depth, so the backing and the
+    // transparent bucket's far-to-near order remain visible.
+    const opacity = transmission > 0 ? Math.min(sourceOpacity, 1 - 0.75 * transmission) : sourceOpacity;
+    const transparent = transmission > 0 || material.transparent;
+    const depthWrite = transmission > 0 ? false : material.depthWrite;
+    const blending = transmission > 0 && !(material.blending > 0) ? NormalBlending : (material.blending || 0);
     const roughness = material.roughness === undefined ? 0 : material.roughness;
     const metalness = material.metalness === undefined ? 0 : material.metalness;
     const alphaTest = material.alphaTest || 0;
@@ -3622,7 +3644,7 @@ export class JsrWebGLRenderer {
     const emissive = supportsEmissive(material) ? material.emissive : null;
     const emissiveIntensity = emissive ? material.emissiveIntensity : 1;
     requireFinite(color.r, 'material color'); requireFinite(color.g, 'material color'); requireFinite(color.b, 'material color');
-    if (!Number.isFinite(opacity) || opacity < 0 || opacity > 1 || !Number.isFinite(roughness) || roughness < 0 || roughness > 1 || !Number.isFinite(metalness) || metalness < 0 || metalness > 1 || !Number.isFinite(alphaTest) || alphaTest < 0 || alphaTest > 1 || !Number.isFinite(pointSize) || pointSize <= 0) throw new Error('three.invalid: material scalar range');
+    if (!Number.isFinite(sourceOpacity) || sourceOpacity < 0 || sourceOpacity > 1 || !Number.isFinite(transmission) || transmission < 0 || transmission > 1 || !Number.isFinite(roughness) || roughness < 0 || roughness > 1 || !Number.isFinite(metalness) || metalness < 0 || metalness > 1 || !Number.isFinite(alphaTest) || alphaTest < 0 || alphaTest > 1 || !Number.isFinite(pointSize) || pointSize <= 0) throw new Error('three.invalid: material scalar range');
     if (specular) {
       requireFinite(specular.r, 'material specular'); requireFinite(specular.g, 'material specular'); requireFinite(specular.b, 'material specular');
       if (!Number.isFinite(shininess) || shininess < 0) throw new Error('three.invalid: material shininess must be finite and nonnegative');
@@ -3632,7 +3654,7 @@ export class JsrWebGLRenderer {
       if (!Number.isFinite(emissiveIntensity) || emissiveIntensity < 0) throw new Error('three.invalid: material emissiveIntensity must be finite and nonnegative');
     }
     const side = sideValue(material.side);
-    const flags = (material.vertexColors ? 1 : 0) | (material.flatShading ? 2 : 0) | (material.transparent ? 4 : 0) | (material.depthTest ? 8 : 0) | (material.depthWrite ? 16 : 0) | (material.wireframe ? 32 : 0) | (material.sizeAttenuation === false ? 64 : 0) | ((material.blending || 0) << 7) | (material.colorWrite === false ? MATERIAL_FLAG_COLOR_WRITE_OFF : 0) | (stencil ? MATERIAL_FLAG_STENCIL : 0);
+    const flags = (material.vertexColors ? 1 : 0) | (material.flatShading ? 2 : 0) | (transparent ? 4 : 0) | (material.depthTest ? 8 : 0) | (depthWrite ? 16 : 0) | (material.wireframe ? 32 : 0) | (material.sizeAttenuation === false ? 64 : 0) | (blending << 7) | (material.colorWrite === false ? MATERIAL_FLAG_COLOR_WRITE_OFF : 0) | (stencil ? MATERIAL_FLAG_STENCIL : 0);
     const clip = this._resolveClipping(material, commands);
     const signature = [kind, mapId, shaderMap ? this._state.textures.get(resourceId(shaderMap))?.version || 0 : 0,
       flags, side, color.r, color.g, color.b, opacity, roughness, metalness, alphaTest, pointSize,
@@ -3695,6 +3717,8 @@ export class JsrWebGLRenderer {
       colorG: material.color ? material.color.g : 1,
       colorB: material.color ? material.color.b : 1,
       opacity: material.opacity === undefined ? 1 : material.opacity,
+      transmission: material.isMeshPhysicalMaterial
+        ? (material.transmission === undefined ? 0 : material.transmission) : 0,
       roughness: material.roughness === undefined ? 0 : material.roughness,
       metalness: material.metalness === undefined ? 0 : material.metalness,
       alphaTest: material.alphaTest || 0,
@@ -3745,6 +3769,9 @@ export class JsrWebGLRenderer {
     const color = material.color;
     if (!color || color.r !== snap.colorR || color.g !== snap.colorG || color.b !== snap.colorB) return false;
     if ((material.opacity === undefined ? 1 : material.opacity) !== snap.opacity) return false;
+    const transmission = material.isMeshPhysicalMaterial
+      ? (material.transmission === undefined ? 0 : material.transmission) : 0;
+    if (transmission !== snap.transmission) return false;
     if ((material.roughness === undefined ? 0 : material.roughness) !== snap.roughness) return false;
     if ((material.metalness === undefined ? 0 : material.metalness) !== snap.metalness) return false;
     if ((material.alphaTest || 0) !== snap.alphaTest) return false;
@@ -6334,7 +6361,8 @@ export class JsrWebGLRenderer {
       return false;
     }
     const blending = material.blending || 0;
-    if (material.transparent === true || (blending !== 0 && blending !== 1) ||
+    if (material.transparent === true || material.transmission > 0 ||
+        (blending !== 0 && blending !== 1) ||
         material.wireframe === true || material.vertexColors === true ||
         material.depthTest === false || material.depthWrite === false ||
         material.colorWrite === false) {
@@ -6563,7 +6591,7 @@ export class JsrWebGLRenderer {
           member.version = material.version;
         }
         const blending = material.blending || 0;
-        if (material.transparent === true ||
+        if (material.transparent === true || material.transmission > 0 ||
             (blending !== 0 && blending !== 1) || material.wireframe === true ||
             material.visible === false || object.geometry !== group.geometry ||
             object.renderOrder !== member.renderOrder) {

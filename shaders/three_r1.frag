@@ -541,6 +541,12 @@ vec4 r1PostColor(vec2 uv) {
     previous *= r1PostParam(1) * max(sign(previous - vec4(0.1)), vec4(0.0));
     return max(base, previous);
   }
+  if (op == 20) {
+    // Backend-only explicit AdditiveBlending (SrcAlpha, One) into a spare
+    // target. mapRight is the preserved destination, never the active one.
+    vec4 previous = texture(mapRightTexture, uv);
+    return previous + vec4(base.rgb * base.a, base.a);
+  }
   if (op == 2) {
     vec2 texel = vec2(1.0 / max(r1PostParam(1), 1.0), 1.0 / max(r1PostParam(2), 1.0));
     float gx = 0.0, gy = 0.0;
@@ -607,7 +613,7 @@ vec4 r1PostColor(vec2 uv) {
   // input linear here: encoding in this helper as well encoded twice onscreen
   // and tone-mapped an already display-referred value between composer passes.
   if (op == 10) return base;
-  if (op == 14) {
+  if (op == 18) {
     // FXAA (three.js FXAShader algorithm, native kind-14 lane): local luma
     // edge detection + directional blend, 5-9 taps only on edge pixels.
     vec2 texel = vec2(1.0 / max(r1PostParam(1), 1.0), 1.0 / max(r1PostParam(2), 1.0));
@@ -746,6 +752,10 @@ void main() {
   applyClipping();
   int kind = int(material_info.roughnessMetalnessAlphaTestKind.w + 0.5);
   if (kind == 14) {
+    // R1's FullScreenQuad UVs already match both offscreen sampling and the
+    // final Impeller surface. A final-only V flip reverses OutputPass and is
+    // inherently pass-parity dependent; intermediate and screen passes must
+    // sample the same orientation (covered by native composer goldens).
     vec4 post = r1PostColor(textureUv);
     int postOp = int(r1PostParam(0) + 0.5);
     if (postOp == 17) {
