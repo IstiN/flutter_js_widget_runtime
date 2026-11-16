@@ -66,6 +66,15 @@ abstract class JsThreeSurface extends ChangeNotifier {
   void resize(Size size, double devicePixelRatio);
 
   /// Captures the currently presented frame as PNG bytes, if available.
+  ///
+  /// This is a snapshot, not a frame-request fence: it does not wait for a
+  /// host-initiated `JsWidgetEngine.callEvent`, asset loads, a subsequent
+  /// JS render, or pending GPU presentation. A host capturing a specific
+  /// frame must first await its own event and asset work, then wait for the
+  /// corresponding tree and presented-frame target with scheduled,
+  /// rendering and pending work drained. A tree and its presented target can
+  /// become visible before the event Future completes, so presentation
+  /// counters alone are not a readiness contract for the requested frame.
   Future<Uint8List?> capture();
 
   /// Opt-in counters only; never include asset payloads or credentials.

@@ -1739,7 +1739,7 @@ function lutAtlas(volume) {
 // be ambiguous, a distinctive source token), then evaluated by kind 14 in
 // three_r1.frag. Unknown shaders still take the capability error instead of
 // silently pretending that arbitrary GLSL ran.
-export function postShaderAdaptation(source, fragment) {
+export function postShaderAdaptation(source, fragment, pixelRatio = 1) {
   const u = source.uniforms || {};
   const has = name => u[name] !== undefined;
   const value = (name, fallback = 0) => {
@@ -1791,9 +1791,13 @@ export function postShaderAdaptation(source, fragment) {
         fragment.includes('DeterminePixelBlendFactor') && fragment.includes('DetermineEdge')))) {
     // three.js FXAShader: both the classic rgbNW/rgbNE implementation and
     // r186's LuminanceData/EdgeData implementation share this uniform
-    // contract. The bounded native kernel is the classic 5-9 tap FXAA
-    // approximation, not UnrealBloom's Gaussian (op 14) or composite (15).
-    const size = vector('resolution', 1, 1); op = 18; set(1, size[0]); set(2, size[1]);
+    // contract. resolution is RECIPROCAL drawing-buffer size; the native
+    // kernel consumes dimensions and computes the reciprocal in GLSL.
+    // The bounded native kernel is the classic 5-9 tap FXAA approximation,
+    // not UnrealBloom's Gaussian (op 14) or composite (15).
+    const size = vector('resolution', 1, 1); op = 18;
+    set(1, size[0] > 0 ? 1 / size[0] : 1);
+    set(2, size[1] > 0 ? 1 / size[1] : 1);
   } else if (has('tDiffuse') && has('resolution') && fragment.includes('valueGx') && fragment.includes('valueGy')) {
     const size = vector('resolution', 1, 1); op = 2; set(1, size[0]); set(2, size[1]);
   } else if (has('tDiffuse') && has('radius') && has('rotateR') && has('rotateG') && has('rotateB') && has('shape')) {
@@ -1864,6 +1868,13 @@ export function postShaderAdaptation(source, fragment) {
     op = 12; set(1, value('v'));
   }
   if (!op) return null;
+  // Sobel/Halftone/Gaussian keep their existing CSS-to-drawing-buffer
+  // resolution scaling. FXAA is excluded: its reciprocal uniform was already
+  // converted from actual target dimensions and must not be DPR-scaled twice.
+  if ((op === 2 || op === 3 || op === 14) && pixelRatio !== 1) {
+    p[1] *= pixelRatio;
+    p[2] *= pixelRatio;
+  }
   p[0] = op;
   return { op, map, right, textures, left: p.slice(0, 9), rightMatrix: p.slice(9, 18), params: p.slice(18) };
 }
@@ -1873,15 +1884,8 @@ function adaptedShaderDraw(object, viewMatrix = null, pixelRatio = 1) {
   const uniforms = source.uniforms || {};
   const vertex = sourceTokens(source.vertexShader);
   const fragment = sourceTokens(source.fragmentShader);
-  const post = postShaderAdaptation(source, fragment);
+  const post = postShaderAdaptation(source, fragment, pixelRatio);
   if (post) {
-    // Sobel/Halftone uniforms are authored in CSS pixels by the official
-    // examples, while the native render targets use drawing-buffer pixels.
-    // Scale their resolution parameters or edges/dots become DPR-dependent.
-    if ((post.op === 2 || post.op === 3 || post.op === 14 || post.op === 18) && pixelRatio !== 1) {
-      post.left[1] *= pixelRatio;
-      post.left[2] *= pixelRatio;
-    }
     const material = copyShaderFlags(source, new MeshBasicMaterial({ map: post.map, toneMapped: false }));
     material._r1NativeKind = 'post';
     material._r1Anaglyph = { right: post.right, left: post.left, rightMatrix: post.rightMatrix,

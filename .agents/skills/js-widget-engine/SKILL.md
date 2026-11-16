@@ -495,6 +495,17 @@ No mouse driving needed anywhere:
   views (usdz: minutes of 100% CPU → 753ms first frame). The override key
   must match the module's actual import (`USDLoader.js`, not the deprecated
   `USDZLoader.js`).
+- Native FXAA op18 adapts `FXAAShader.resolution` from reciprocal target size
+  to pixel dimensions exactly once; do not DPR-scale those physical dimensions
+  again. `fxaa_post_test.js` must use the real `{x: 1/width, y: 1/height}`
+  uniform, and the composer diagonal golden must show blended edge coverage,
+  not merely preserve two-tone orientation.
+- Host capture readiness is TWO gates: the host must await its own requested
+  event/asset generation, and the surface must reach that generation's tree
+  and presented target with scheduled/rendering/pending work drained.
+  `JsThreeSurface.capture()` only snapshots the current image. Never treat
+  presented counters alone as proof that a host-initiated `callEvent`
+  finished: `jsr.render` can publish and present the new tree first.
 - Backend tolerance (flutter_gpu_three_backend.dart): offscreen-only batches
   (GPGPU/cube-camera/mipmap ticks) execute and keep the previous surface
   image; a render-target resize racing its referencing frame skips one

@@ -70,6 +70,23 @@ Future<void> _finish(
 
 double _postOp(JsThreeMaterialUpsert material) => material.duboisLeftMatrix[0];
 
+int _intermediateRedPixels(ByteData pixels) {
+  var count = 0;
+  for (var y = 0; y < 256; y++) {
+    for (var x = 0; x < 256; x++) {
+      final pixel = _rgba(pixels, x, y);
+      if (pixel[3] > 240 &&
+          pixel[0] >= 24 &&
+          pixel[0] <= 232 &&
+          pixel[1] < 16 &&
+          pixel[2] < 16) {
+        count++;
+      }
+    }
+  }
+  return count;
+}
+
 const _twoToneScene = r'''
   const canvas = jsr.three.createCanvas('main');
   const renderer = new THREE.WebGLRenderer({canvas: canvas});
@@ -143,6 +160,82 @@ void main() {
     expect(bottom[2], greaterThan(230), reason: 'top=$top bottom=$bottom');
     expect(bottom[0], lessThan(25), reason: 'top=$top bottom=$bottom');
     await _finish(tester, run, golden.png, 'three-r1-composer-fxaa-output');
+  });
+
+  testWidgets('FXAA consumes reciprocal resolution and smooths a diagonal', (
+    tester,
+  ) async {
+    final run = await _bootComposer(tester, 'three-r1-composer-fxaa-diagonal');
+    await _evalComposer(run, r'''
+      const canvas = jsr.three.createCanvas('main');
+      const renderer = new THREE.WebGLRenderer({canvas: canvas});
+      renderer.setSize(256, 256);
+      renderer.setPixelRatio(1);
+      renderer.setClearColor(0x000000, 1);
+      const scene = new THREE.Scene();
+      const camera = new THREE.OrthographicCamera(-1, 1, 1, -1, 0.1, 10);
+      camera.position.z = 2;
+      const geometry = new THREE.BufferGeometry();
+      geometry.setAttribute('position', new THREE.Float32BufferAttribute([
+        -1, -1, 0, 1, -1, 0, -1, 1, 0
+      ], 3));
+      scene.add(new THREE.Mesh(
+        geometry,
+        new THREE.MeshBasicMaterial({color: 0xff0000, toneMapped: false})
+      ));
+      const target = new THREE.WebGLRenderTarget(256, 256, {
+        type: THREE.UnsignedByteType
+      });
+      const composer = new EffectComposer(renderer, target);
+      composer.addPass(new RenderPass(scene, camera));
+      composer.addPass(new OutputPass());
+      const fxaa = new ShaderPass(FXAAShader);
+      fxaa.uniforms.resolution.value.set(1 / 256, 1 / 256);
+      fxaa.enabled = false;
+      composer.addPass(fxaa);
+      let frames = 0;
+      function tick() {
+        composer.render();
+        if (++frames < 8) requestAnimationFrame(tick);
+      }
+      globalThis.setFxaaProbe = function(enabled) {
+        fxaa.enabled = enabled;
+        frames = 0;
+        tick();
+      };
+      jsr.onEvent(function(actionId) {
+        if (actionId === 'fxaa') setFxaaProbe(true);
+      });
+      tick();
+    ''');
+    final direct = await _present(tester, run);
+    final directPixels = await decodeThreeGpuGolden(tester, direct.png);
+    final directIntermediate = _intermediateRedPixels(directPixels);
+    final presented = direct.surface.diagnostics['presentedFrames'] ?? 0;
+
+    await run.engine.callEvent('fxaa', const <String, dynamic>{});
+    final fxaaPng = await captureThreeGpuGolden(
+      tester,
+      direct.surface,
+      (diagnostics) => (diagnostics['presentedFrames'] ?? 0) >= presented + 4,
+    );
+    expect(fxaaPng, isNotNull, reason: '${direct.surface.diagnostics}');
+    final fxaaPixels = await decodeThreeGpuGolden(tester, fxaaPng!);
+    final fxaaIntermediate = _intermediateRedPixels(fxaaPixels);
+    expect(
+      fxaaIntermediate,
+      greaterThan(directIntermediate + 8),
+      reason:
+          'FXAA must create blended coverage on the diagonal: '
+          'direct=$directIntermediate fxaa=$fxaaIntermediate',
+    );
+    final post = direct.surface.state!.materials.values
+        .where((m) => m.kind == JsThreeMaterialKind.postProcessing)
+        .toList();
+    final fxaaMaterial = post.singleWhere((m) => _postOp(m) == 18);
+    expect(fxaaMaterial.duboisLeftMatrix[1], 256);
+    expect(fxaaMaterial.duboisLeftMatrix[2], 256);
+    await _finish(tester, run, fxaaPng, 'three-r1-composer-fxaa-diagonal');
   });
 
   testWidgets('UnrealBloom composites over a transparent base', (tester) async {

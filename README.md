@@ -196,7 +196,12 @@ jsr.render({type: 'three', canvasId: 'main', width: 640, height: 360});
   accepts legacy R1-v1), and Flutter GPU shaders behind `JsThreeHost`.
   `WebGLRenderer` is an explicit R1 alias;
   `getContext()`, raw WebGL, ShaderMaterial and WebGPU report
-  `three.unsupported`. No WebView is involved.
+  `three.unsupported`. No WebView is involved. The native default framebuffer
+  is non-MSAA even when `antialias: true` is requested. For FXAA, use pinned
+  addons with an `UnsignedByteType` `EffectComposer` target and
+  `ShaderPass(FXAAShader)` after `OutputPass`; its `resolution` uniform is
+  reciprocal drawing-buffer size. The internal native post op 18 is selected
+  by shader recognition, not exposed as a direct `jsr.three` call.
 - **Web (1B):** the real upstream `WebGLRenderer` acquires WebGL2 on a
   Worker-owned OffscreenCanvas. Transferable ImageBitmap frames (bounded to
   two pending) are presented through HtmlElementView canvases; canvas/GL
@@ -228,6 +233,14 @@ jsr.render({type: 'three', canvasId: 'main', width: 640, height: 360});
   resize/DPR, pointer/key/cancel, capture and disposal are host-managed.
   Prepared local assets use `jsr.three.registerAsset`; host asset failures
   are named `three.assetFailure`.
+- **Frame-specific host capture:** `JsThreeSurface.capture()` snapshots the
+  currently presented image; it does not fence a host-requested JS event or
+  asset load. Await the host's `callEvent` and asset work, then require the
+  matching tree plus its presented-frame target and drained
+  scheduled/rendering/pending work. A newer tree and target may appear
+  before that event Future completes, so presented counters alone can
+  capture an earlier/empty generation. The runtime cannot infer a host's
+  private requested/driven generation.
 - The pin is r186, peeled commit
   `9b4a2ac29c63ccb43fd51c5661f2f873ac2c39b8` (tag object
   `48dd7be01263658aad497fd72e09d1e4c6213461`). Build manifests and the MIT

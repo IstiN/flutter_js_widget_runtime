@@ -1,7 +1,9 @@
 // Regression test: the R1 bounded postprocessing lane recognises the
 // official three.js FXAShader (tDiffuse + resolution + rgbNW/rgbNE corner
 // tokens) and maps it to the native kind-14 op 18 instead of dropping it to
-// a plain textured blit. Sobel keeps op 2 (shared uniform contract).
+// a plain textured blit. FXAA's reciprocal resolution becomes native pixel
+// dimensions exactly once (including DPR>1); Sobel keeps op 2 and its
+// existing DPR-scaled dimension contract.
 import assert from 'node:assert/strict';
 import path from 'node:path';
 import vm from 'node:vm';
@@ -44,26 +46,38 @@ const adapt = context.THREE.postShaderAdaptation;
 assert.equal(typeof adapt, 'function', 'postShaderAdaptation export');
 
 const fakeTexture = { isTexture: true };
-const fxaa = adapt(
-  { uniforms: { tDiffuse: { value: fakeTexture }, resolution: { value: { x: 800, y: 600 } } } },
-  'vec3 rgbNW = texture2D(tDiffuse, uv).rgb; vec3 rgbNE = texture2D(tDiffuse, uv).rgb;'
-);
+const classicFragment =
+  'vec3 rgbNW = texture2D(tDiffuse, uv).rgb; vec3 rgbNE = texture2D(tDiffuse, uv).rgb;';
+const r186Fragment =
+  'LuminanceData SampleLuminanceNeighborhood() {} float DeterminePixelBlendFactor() {} EdgeData DetermineEdge() {}';
+const fxaaUniforms = () => ({
+  tDiffuse: { value: fakeTexture },
+  // Real FXAShader stores reciprocal drawing-buffer dimensions, not size.
+  resolution: { value: { x: 1 / 800, y: 1 / 600 } }
+});
+const fxaa = adapt({ uniforms: fxaaUniforms() }, classicFragment);
 assert.ok(fxaa && fxaa.op === 18, `FXAA must map to op 18, got ${fxaa && fxaa.op}`);
 assert.equal(fxaa.left[1], 800);
 assert.equal(fxaa.left[2], 600);
 
-const fxaaR186 = adapt(
-  { uniforms: { tDiffuse: { value: fakeTexture }, resolution: { value: { x: 800, y: 600 } } } },
-  'LuminanceData SampleLuminanceNeighborhood() {} float DeterminePixelBlendFactor() {} EdgeData DetermineEdge() {}'
-);
+const fxaaDpr = adapt({ uniforms: fxaaUniforms() }, classicFragment, 2);
+assert.equal(fxaaDpr.left[1], 800, 'physical FXAA width must not be DPR-scaled twice');
+assert.equal(fxaaDpr.left[2], 600, 'physical FXAA height must not be DPR-scaled twice');
+
+const fxaaR186 = adapt({ uniforms: fxaaUniforms() }, r186Fragment);
 assert.ok(fxaaR186 && fxaaR186.op === 18,
   `r186 LuminanceData/EdgeData FXAA must map to op 18, got ${fxaaR186 && fxaaR186.op}`);
+assert.equal(fxaaR186.left[1], 800);
+assert.equal(fxaaR186.left[2], 600);
 
 const sobel = adapt(
   { uniforms: { tDiffuse: { value: fakeTexture }, resolution: { value: { x: 800, y: 600 } } } },
-  'float valueGx = 0.0; float valueGy = 0.0;'
+  'float valueGx = 0.0; float valueGy = 0.0;',
+  2
 );
 assert.ok(sobel && sobel.op === 2, `Sobel must keep op 2, got ${sobel && sobel.op}`);
+assert.equal(sobel.left[1], 1600, 'Sobel retains its existing DPR-scaled dimension contract');
+assert.equal(sobel.left[2], 1200);
 
 const unknown = adapt(
   { uniforms: { tDiffuse: { value: fakeTexture } } },
