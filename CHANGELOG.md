@@ -1,3 +1,7 @@
+## 0.4.204
+
+- Automated patch bump.
+
 ## 0.4.203
 
 - Automated patch bump.
