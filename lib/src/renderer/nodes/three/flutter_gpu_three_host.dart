@@ -528,12 +528,24 @@ Widget? _threeSurfaceErrorWidget(FlutterGpuThreeSurface surface) {
 Widget _threeSurfaceContent(FlutterGpuThreeSurface surface) {
   final image = surface._backend?.currentImage;
   if (image == null) return const ColoredBox(color: Color(0xFF000000));
-  return RawImage(
-    image: image,
-    fit: BoxFit.fill,
-    filterQuality: FilterQuality.none,
-  );
+  return threeSurfacePreview(image);
 }
+
+/// The on-screen presentation of one presented THREE frame.
+///
+/// The composition (e.g. native 8K) is usually downscaled hard by the
+/// viewport, and nearest-neighbour sampling made fine geometry pixelated.
+/// Bilinear (low) undersamples large minification and cubic (high) is
+/// wasted on every-frame presentation, so mip-mapped medium filtering
+/// gives clean downscales at presentation cost. Export capture is
+/// unaffected — capture() encodes the retained GPU image directly and
+/// never routes through this widget.
+@visibleForTesting
+Widget threeSurfacePreview(ui.Image image) => RawImage(
+  image: image,
+  fit: BoxFit.fill,
+  filterQuality: FilterQuality.medium,
+);
 
 bool _canScheduleThreeSurface(FlutterGpuThreeSurface surface) =>
     _threeSurfaceIdle(surface) && _threeSurfaceAttached(surface);

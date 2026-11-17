@@ -1,3 +1,30 @@
+## 0.4.206
+
+- Present the Flutter GPU THREE surface preview with mip-mapped medium
+  filtering instead of nearest-neighbour (`FilterQuality.none`), so Studio
+  previews of compositions far larger than the viewport (native 8K) stay
+  smooth. On-screen presentation only — `capture()` still encodes the
+  retained GPU image directly and export bytes are unchanged.
+- Fix transient `three.invalid: drawing buffer exceeds 16384 pixels`
+  host-event errors during the first 8K payload: the host resize event now
+  syncs the JS canvas at a pixel ratio clamped to the 16384 per-side cap
+  (mirroring the Dart surface backing clamp) instead of throwing out of the
+  event, and canvas/renderer `setSize`/`setPixelRatio` validate before
+  mutating so a rejected size never tears prior state. Explicit app
+  oversized sizing stays loud. Runtime viewport metadata and canvases
+  created after an oversized viewport also inherit a density clamped to
+  the cap, closing the boot device-ratio vs 8K-payload race in both
+  orders; legal densities pass through unchanged.
+
+## 0.4.205
+
+- Raise the native R1 render-target aggregate budget from 16M to 48M pixels
+  (per-side cap stays 8192, mirrored in the Dart R1 decoder) so yoclip can
+  track native 8K (7680x4320) targets and 3x-supersampled 1080p FXAA
+  (5760x3240) without `renderTargetSize` capability failures; the
+  pathological-size guard remains and the canvas/drawing-buffer side cap
+  stays 16384.
+
 ## 0.4.204
 
 - Automated patch bump.

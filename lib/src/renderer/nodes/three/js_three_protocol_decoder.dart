@@ -31,8 +31,12 @@ final class JsThreeProtocolDecoder {
   static const int maxDrawBatchPartCount = 65536;
   static const int maxDrawBatchInstanceCount = 1000000;
   static const int maxClippingPlaneCount = 16;
+  // R1 render-target budget mirrors MAX_RENDER_TARGET_PIXELS in
+  // tool/three/src/native_renderer.js: the 8192 per-side cap admits native
+  // 8K (7680x4320) and 3x-supersampled 1080p FXAA (5760x3240) targets, and
+  // the 48M-pixel aggregate keeps extreme aspect ratios bounded.
   static const int maxRenderTargetSize = 8192;
-  static const int maxRenderTargetPixels = 16 * 1024 * 1024;
+  static const int maxRenderTargetPixels = 48 * 1024 * 1024;
   static const int maxRenderTargetCount = 16;
 
   final int maxEnvelopeBytes;

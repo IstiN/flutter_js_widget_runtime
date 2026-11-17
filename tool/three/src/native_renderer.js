@@ -34,7 +34,11 @@ const MAX_BATCHED_INSTANCES = 20000;
 // re-derive hits the batched raycast already produced, so proxies opt out.
 const jsrBatchedMeshProxyRaycast = function () {};
 const MAX_RENDER_TARGETS = 16;
-const MAX_RENDER_TARGET_PIXELS = 16 * 1024 * 1024;
+// Aggregate per-target pixel budget. Native 8K (7680x4320 = 33,177,600) and
+// 3x-supersampled 1080p FXAA (5760x3240 = 18,662,400) must pass with
+// headroom while extreme aspect ratios inside the per-side cap stay bounded
+// (the 8192x8192 square is 67,108,864 pixels and still rejected).
+const MAX_RENDER_TARGET_PIXELS = 48 * 1024 * 1024;
 // Frame-target flag bit for the R1 v8 stencil lane: the frame-start stencil
 // clear (value 0), mirroring upstream clear(color, depth, stencil) /
 // autoClearStencil. Emitted only when the frame actually touches stencil
@@ -2752,15 +2756,20 @@ export class JsrWebGLRenderer {
 
   setPixelRatio(value) {
     if (!Number.isFinite(value) || value <= 0 || value > 16) throw new Error('three.invalid: pixel ratio must be within (0,16]');
+    // Validate through the canvas first: an overflowing ratio must not
+    // commit renderer state the canvas rejected.
+    this.domElement._setSize(this._width, this._height, value, false);
     this._pixelRatio = value;
-    this.setSize(this._width, this._height, false);
+    this._viewport = { x: 0, y: 0, z: this._width, w: this._height };
   }
 
   setSize(width, height, updateStyle = true) {
     if (!Number.isFinite(width) || !Number.isFinite(height) || width < 0 || height < 0 || width > 16384 || height > 16384) throw new Error('three.invalid: renderer size must be within 0..16384');
+    // Apply through the canvas first: a rejected size (drawing buffer over
+    // the 16384 cap) must leave the renderer at its prior dimensions.
+    this.domElement._setSize(width, height, this._pixelRatio, updateStyle);
     this._width = width;
     this._height = height;
-    this.domElement._setSize(width, height, this._pixelRatio, updateStyle);
     this._viewport = { x: 0, y: 0, z: width, w: height };
   }
 
@@ -3228,6 +3237,10 @@ export class JsrWebGLRenderer {
         'R1 uses one non-multisampled color/depth pass; stencil, multisample resolve and depth-texture precision are approximated.');
     }
     const pixels = target.width * target.height;
+    // Per-side cap 8192 keeps every dimension within the bounded 2D surface
+    // (native 8K 7680 and 3x 1080p 5760 both fit); MAX_RENDER_TARGET_PIXELS
+    // remains the explicit pathological-size guard for extreme aspect
+    // ratios inside that cap.
     if (!Number.isFinite(target.width) || !Number.isFinite(target.height) || target.width < 1 || target.height < 1 ||
       target.width > 8192 || target.height > 8192 || pixels > MAX_RENDER_TARGET_PIXELS) {
       unsupported('renderTargetSize', `R1 target ${target.width}x${target.height} exceeds the bounded 2D budget`);

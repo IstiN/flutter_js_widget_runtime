@@ -561,6 +561,11 @@ export class JsrThreeCanvas {
     this._pixelRatio = options.pixelRatio || runtime.pixelRatio;
     this._cssWidth = options.width || 300;
     this._cssHeight = options.height || 150;
+    // The inherited runtime density may still be the boot device ratio when
+    // an oversized surface races creation (a 7680x4320 canvas inheriting a
+    // dpr-3 viewport). Keep the initial buffer inside the same 16384 cap
+    // the setters enforce instead of materialising an oversized buffer.
+    this._pixelRatio = Math.min(this._pixelRatio, 16384 / Math.max(this._cssWidth, this._cssHeight, 1));
     this._width = Math.max(0, Math.floor(this._cssWidth * this._pixelRatio));
     this._height = Math.max(0, Math.floor(this._cssHeight * this._pixelRatio));
     this._captured = new Set();
@@ -636,12 +641,18 @@ export class JsrThreeCanvas {
   _setSize(width, height, ratio, updateStyle) {
     if (!Number.isFinite(width) || !Number.isFinite(height) || width < 0 || height < 0 || width > 16384 || height > 16384) throw new Error('three.invalid: canvas size must be within 0..16384');
     if (!Number.isFinite(ratio) || ratio <= 0 || ratio > 16) throw new Error('three.invalid: pixel ratio must be within (0,16]');
+    const bufferWidth = Math.floor(width * ratio);
+    const bufferHeight = Math.floor(height * ratio);
+    // Validate before mutating: a rejected size (for example a host resize
+    // arriving while the boot device ratio still overflows the cap) must
+    // leave the previous css/ratio/buffer state intact instead of tearing
+    // it half-applied.
+    if (bufferWidth > 16384 || bufferHeight > 16384) throw new Error('three.invalid: drawing buffer exceeds 16384 pixels');
     this._cssWidth = width;
     this._cssHeight = height;
     this._pixelRatio = ratio;
-    this._width = Math.floor(width * ratio);
-    this._height = Math.floor(height * ratio);
-    if (this._width > 16384 || this._height > 16384) throw new Error('three.invalid: drawing buffer exceeds 16384 pixels');
+    this._width = bufferWidth;
+    this._height = bufferHeight;
     if (this._backing) {
       this._backing.width = this._width;
       this._backing.height = this._height;
@@ -895,14 +906,25 @@ export class ThreeCompatibilityRuntime {
     }
     if (type === 'resize') {
       if (Number.isFinite(event.width) && Number.isFinite(event.height)) {
-        const ratio = event.pixelRatio || event.dpr;
-        if (canvas.renderer) {
-          if (ratio !== undefined) canvas.renderer.setPixelRatio(ratio);
-          canvas.renderer.setSize(event.width, event.height, false);
-        } else {
-          if (ratio !== undefined) canvas.setPixelRatio(ratio);
-          canvas.setSize(event.width, event.height, false);
+        // The Dart surface backing store is already clamped to 16384 per
+        // side (flutter_gpu_three_host request sizing), so a host resize
+        // must always sync even when the boot device ratio would push the
+        // JS drawing buffer past that cap — an 8K payload arriving before
+        // the widget lowers its ratio previously threw 'drawing buffer
+        // exceeds 16384 pixels' out of the host event and left the canvas
+        // at stale dimensions until a later attempt. Sync at the clamped
+        // density instead; explicit app setSize/setPixelRatio calls keep
+        // throwing loudly.
+        const limit = 16384 / Math.max(event.width, event.height);
+        const current = canvas.renderer ? canvas.renderer._pixelRatio : canvas._pixelRatio;
+        const requested = event.pixelRatio || event.dpr;
+        const ratio = Math.min(requested === undefined ? current : requested, limit);
+        if (ratio !== current) {
+          if (canvas.renderer) canvas.renderer.setPixelRatio(ratio);
+          else canvas.setPixelRatio(ratio);
         }
+        if (canvas.renderer) canvas.renderer.setSize(event.width, event.height, false);
+        else canvas.setSize(event.width, event.height, false);
         // Change-driven widgets (OrbitControls 'change', no animation loop)
         // submit their only frames before the host surface attaches, where
         // the bounded lane drops them. Re-present the last canvas scene so
@@ -926,7 +948,14 @@ export class ThreeCompatibilityRuntime {
   _setViewport(width, height, pixelRatio) {
     if (Number.isFinite(width)) this.width = width;
     if (Number.isFinite(height)) this.height = height;
-    if (Number.isFinite(pixelRatio)) this.pixelRatio = pixelRatio;
+    if (Number.isFinite(pixelRatio)) {
+      // Mirror the Dart surface backing clamp: the runtime metadata (and
+      // every canvas that later inherits it) must never carry a density
+      // that overflows the 16384 drawing-buffer cap at the current
+      // viewport size — a boot device ratio meeting an 8K payload in
+      // either order. Legal densities pass through unchanged.
+      this.pixelRatio = Math.min(pixelRatio, 16384 / Math.max(this.width || 1, this.height || 1));
+    }
     this.document.dispatchEvent({ type: 'resize', width: this.width, height: this.height, pixelRatio: this.pixelRatio });
   }
 

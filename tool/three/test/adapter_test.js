@@ -967,6 +967,57 @@ test('RenderTarget.setSize re-tracks through disposal so the resized upsert surv
   assert.deepEqual(frameTarget(host.packets()[2]), { id: targetId(), width: 2482, height: 1734 });
 });
 
+test('R1 accepts native 8K and 3x supersampled 1080p render targets inside the raised pixel budget', () => {
+  const host = createHost();
+  const T = host.THREE;
+  const { renderer, scene, camera } = rendererScene(host);
+  const upsertDims = packet => only(packet, 14).map(command => [u32(command.body, 8), u32(command.body, 12)]);
+  // Native 8K canvas-sized target: 7680x4320 = 33,177,600 pixels.
+  const target8k = new T.WebGLRenderTarget(7680, 4320);
+  renderer.setRenderTarget(target8k);
+  renderer.render(scene, camera);
+  const packet8k = host.packets().at(-1);
+  assert.deepEqual(upsertDims(packet8k), [[7680, 4320]]);
+  // 3x supersampled 1080p FXAA target: 5760x3240 = 18,662,400 pixels.
+  const targetFxaa = new T.WebGLRenderTarget(5760, 3240);
+  renderer.setRenderTarget(targetFxaa);
+  renderer.render(scene, camera);
+  const packetFxaa = host.packets().at(-1);
+  assert.deepEqual(upsertDims(packetFxaa), [[5760, 3240]]);
+  // The frame trailer carries each active target's dims end to end.
+  const frameDims = packet => {
+    const frame = only(packet, 8)[0].body;
+    const magic = frame.length - 60;
+    return [frame.readUInt32LE(magic + 12), frame.readUInt32LE(magic + 16)];
+  };
+  assert.deepEqual(frameDims(packet8k), [7680, 4320]);
+  assert.deepEqual(frameDims(packetFxaa), [5760, 3240]);
+});
+
+test('R1 render-target budget still rejects pathological sizes below the per-side cap', () => {
+  const host = createHost();
+  const T = host.THREE;
+  const { renderer, scene, camera } = rendererScene(host);
+  // 8192x8192 clears the per-side cap but exceeds the 48M-pixel aggregate.
+  const target = new T.WebGLRenderTarget(8192, 8192);
+  assert.throws(() => {
+    renderer.setRenderTarget(target);
+    renderer.render(scene, camera);
+  }, error => error && error.code === 'three.unsupported' &&
+    error.message.includes('renderTargetSize') && error.message.includes('bounded 2D budget'));
+});
+
+test('canvas sizing passes native 8K and keeps the 16384 per-side drawing-buffer cap', () => {
+  const host = createHost();
+  const canvas = host.jsr.three.createCanvas('size8k');
+  canvas.setSize(7680, 4320);
+  assert.equal(canvas._width, 7680);
+  assert.equal(canvas._height, 4320);
+  assert.throws(() => canvas.setSize(16385, 100), /canvas size must be within 0..16384/);
+  // A pixel ratio that would push the drawing buffer past 16384 stays loud.
+  assert.throws(() => canvas.setPixelRatio(3), /drawing buffer exceeds 16384 pixels/);
+});
+
 test('surface disposal rejects in-flight texture loads before bytes enter a new generation', async () => {
   const host = createHost();
   const T = host.THREE;
@@ -1079,6 +1130,73 @@ test('host resize keeps renderer and canvas pixel ratios synchronized', () => {
   assert.equal(canvas.clientWidth, 320);
   assert.equal(canvas.clientHeight, 180);
   renderer.dispose();
+});
+
+test('host resize into an 8K surface clamps the boot device ratio instead of throwing', () => {
+  const host = createHost();
+  const { canvas, renderer } = rendererScene(host);
+  // Boot state: the widget synced the device ratio while the surface was
+  // still 1920x1080, then the first capture payload resizes the host
+  // surface to 7680x4320 and the resize host event carries that same ratio.
+  renderer.setPixelRatio(3);
+  renderer.setSize(1920, 1080, false);
+  assert.deepEqual([canvas.width, canvas.height], [5760, 3240]);
+  assert.doesNotThrow(() => {
+    host.jsr.three._hostEvent('input:main', {
+      type: 'resize', width: 7680, height: 4320, pixelRatio: 3,
+    });
+  }, 'the host resize event must sync instead of throwing out of the event');
+  // The Dart backing store is clamped to 16384 per side, so the JS canvas
+  // syncs at the clamped density: css dims land exactly, buffer stays
+  // inside the cap on both sides.
+  assert.equal(canvas.clientWidth, 7680);
+  assert.equal(canvas.clientHeight, 4320);
+  assert.ok(canvas.width <= 16384 && canvas.height <= 16384, `${canvas.width}x${canvas.height} exceeds the drawing-buffer cap`);
+  assert.equal(canvas.width, Math.floor(7680 * renderer.getPixelRatio()));
+  assert.equal(canvas.height, Math.floor(4320 * renderer.getPixelRatio()));
+  // The widget's own recovery path then lands the exact 8K buffer.
+  renderer.setPixelRatio(1);
+  renderer.setSize(7680, 4320, false);
+  assert.deepEqual([canvas.width, canvas.height], [7680, 4320]);
+  assert.equal(renderer.getPixelRatio(), 1);
+  renderer.dispose();
+});
+
+test('oversized renderer sizing throws atomically without tearing prior state', () => {
+  const host = createHost();
+  const { canvas, renderer } = rendererScene(host);
+  renderer.setPixelRatio(3);
+  renderer.setSize(1920, 1080, false);
+  assert.throws(() => renderer.setSize(7680, 4320, false), /drawing buffer exceeds 16384 pixels/);
+  // Renderer and canvas keep the pre-failure state, not a half-applied mix.
+  assert.equal(renderer.getPixelRatio(), 3);
+  const size = renderer.getSize(new host.THREE.Vector2());
+  assert.deepEqual([size.width, size.height], [1920, 1080]);
+  assert.deepEqual([canvas.clientWidth, canvas.clientHeight], [1920, 1080]);
+  assert.deepEqual([canvas.width, canvas.height], [5760, 3240]);
+  // Recovery still lands the exact 8K buffer, and explicit oversize stays
+  // loud afterwards without mutating the recovered state.
+  renderer.setPixelRatio(1);
+  renderer.setSize(7680, 4320, false);
+  assert.throws(() => renderer.setPixelRatio(3), /drawing buffer exceeds 16384 pixels/);
+  assert.equal(renderer.getPixelRatio(), 1);
+  assert.deepEqual([canvas.width, canvas.height], [7680, 4320]);
+  renderer.dispose();
+});
+
+test('viewport metadata and later canvases inherit a density clamped to the 16384 cap', () => {
+  const host = createHost();
+  // An oversized viewport landing while the boot device ratio is still
+  // active must not leave runtime metadata (or canvases created afterwards)
+  // carrying an overflowing density.
+  host.jsr.three._hostEvent('viewport', { width: 7680, height: 4320, pixelRatio: 3 });
+  assert.equal(host.jsr.three._runtime.pixelRatio, 16384 / 7680);
+  const canvas = host.jsr.three.createCanvas('late');
+  assert.ok(canvas.width <= 16384 && canvas.height <= 16384, `${canvas.width}x${canvas.height} exceeds the drawing-buffer cap`);
+  assert.equal(canvas._pixelRatio, 16384 / 7680);
+  // Legal densities pass through the metadata unchanged.
+  host.jsr.three._hostEvent('viewport', { width: 1920, height: 1080, pixelRatio: 3 });
+  assert.equal(host.jsr.three._runtime.pixelRatio, 3);
 });
 
 test('ArrayCamera renders every subcamera into one scissored envelope', () => {

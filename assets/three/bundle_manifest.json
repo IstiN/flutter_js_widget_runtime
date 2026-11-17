@@ -31,10 +31,10 @@
       "tool/three/src/native_loaders.js": "3bbacffef19edf3c313d8ea01aee86b88a158a072efde62bca6e4a84152ae86c",
       "tool/three/src/native_pmrem.js": "cc08dc0036fd14f8cd04a160c969ca4d77736ab6904542cd3d2ae39630efc0a0",
       "tool/three/src/native_raycast_bvh.js": "9aada0445e0fb5d1cba38ea8e801588d8b496cce8531f57ab9c60e61d7049384",
-      "tool/three/src/native_renderer.js": "f4cea0cab3a67991f4d4a5c149ac1f58a9ad3d421d4a460164c6770281545918",
+      "tool/three/src/native_renderer.js": "603604004a23f47155bf260fa4edcc830ec177a5b0b27123dcd474b1fa324d66",
       "tool/three/src/native_three_shim.js": "3f29d9215d19ec495af2e3aab9ac785429a471e4867fe3fbd4784f38515ea096",
       "tool/three/src/r1.js": "ccac07cd409c192f135a5e22ac99f60761807df8891b76236f164a44d19fd291",
-      "tool/three/src/runtime.js": "94c1481d3b98378c1a9470a3481e4ac29f48881a43de53c3e259d2cb6117fc6f",
+      "tool/three/src/runtime.js": "d150cc676f045cec8570c36d94119eab99da658709a7a39bd1cf3da279cba8b7",
       "tool/three/src/web_entry.js": "538a1625cffb9539d70055b173c98320799457a9c5e7b5a4c0577c22841cd3ad",
       "tool/three/src/web_renderer.js": "2b808b22123fce8e49b9ed8d76f75872199efb527b477e202f295ed6a244819c",
       "tool/three/src/webgl2_facade.js": "8b735379bd3cb317389101e66987fa743573885cf7ed83f60be437138dfbd575",
@@ -47,12 +47,12 @@
   },
   "outputs": {
     "jsr_three_native.js": {
-      "bytes": 898445,
-      "sha256": "bc148ad8424ef2a3d467235159e5e750baeb2de55c321530769d1fd7d6fd8508"
+      "bytes": 898758,
+      "sha256": "9b620d8665578d9a662e8b47709e3978182bd9e22e3875a71e57878060a99216"
     },
     "jsr_three_web.js": {
-      "bytes": 859738,
-      "sha256": "e6a23316897f4bcda895d843888e53fe8640f210c95aadd486da342f84cf0ac6"
+      "bytes": 859983,
+      "sha256": "26fcc7fc9fd11b04931e69a4710835564af55d4de38398a22d89f8a5d248d71b"
     }
   }
 }

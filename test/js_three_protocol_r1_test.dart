@@ -411,6 +411,38 @@ void main() {
     expect(frame.clearColor && frame.clearDepth, isTrue);
   });
 
+  test('accepts native 8K and 3x supersampled 1080p render target budgets', () {
+    for (final (width, height) in [(7680, 4320), (5760, 3240)]) {
+      final decoded = threeProtocolDecoder.decodeR1(
+        threeR1([
+          (14, threeRenderTarget(width: width, height: height)),
+        ], version: 6),
+      );
+      final target = decoded.commands
+          .whereType<JsThreeRenderTargetUpsert>()
+          .single;
+      expect((target.width, target.height), (width, height));
+    }
+    final decoded = threeProtocolDecoder.decodeR1(
+      threeR1([
+        (14, threeRenderTarget(width: 7680, height: 4320)),
+        (8, threeFrameV6Target(width: 7680, height: 4320)),
+      ], version: 6),
+    );
+    final frame = decoded.commands.whereType<JsThreeSubmitFrame>().single;
+    expect(frame.renderTargetId, 2);
+    expect((frame.targetWidth, frame.targetHeight), (7680, 4320));
+    // Pathological guard: 8192x8192 clears the per-side cap but exceeds
+    // the 48M-pixel aggregate budget.
+    threeBad(
+      () => threeProtocolDecoder.decodeR1(
+        threeR1([
+          (14, threeRenderTarget(width: 8192, height: 8192)),
+        ], version: 6),
+      ),
+    );
+  });
+
   test('rejects malformed target and frame-target extensions', () {
     threeBad(
       () => threeProtocolDecoder.decodeR1(

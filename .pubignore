@@ -1,0 +1,44 @@
+# This file intentionally replaces the repository-wide .gitignore for package
+# publication. Keep only runtime lib/assets, tests and public documentation.
+# Everything below is development tooling, generated output or local fixtures.
+.dart_tool/
+.flutter-plugins
+.flutter-plugins-dependencies
+.pub-cache/
+.pub/
+build/
+coverage/
+report/
+profile-reports/
+.crap_profile_temp/
+
+# IDE / OS
+.idea/
+.vscode/
+*.iml
+*.swp
+*.swo
+*~
+.DS_Store
+
+# Platform build output
+android/.gradle/
+local.properties
+ios/Pods/
+ios/.symlinks/
+ios/Flutter/Flutter.framework
+ios/Flutter/Flutter.podspec
+web/.dart_tool/
+
+# Heavy dev dependencies and fixtures (node_modules contains an absolute symlink
+# into a local THREE checkout; never traverse it during packaging)
+node_modules/
+native/
+third_party/
+example/
+tool/
+memory/
+.fah/
+
+# Native ANGLE build artifacts
+angle/
