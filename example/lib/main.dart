@@ -53,6 +53,7 @@ class _DemoHomeState extends State<DemoHome> {
     'm3-showcase',
     'pomodoro',
     'audio-player',
+    'audio-synth-demo',
     'video-player',
     'webview-showcase',
     'adaptive-dashboard',
@@ -135,6 +136,17 @@ JsRuntimeConfig buildDemoConfig([String? widgetId]) {
     onRender: (_) {},
     onSetTitle: (_) {},
     onStorageUpdate: (_) {},
+    onAudioSynthesis: (audio) {
+      // Demo synthesis is offline: the PCM is ready for a host exporter. The
+      // example host does not play it; it reports the delivered metadata.
+      final seconds = audio.frames / audio.sampleRate;
+      // ignore: avoid_print
+      print(
+        'audio.synth ${audio.name}: ${audio.frames} frames, '
+        '${audio.channels}ch @ ${audio.sampleRate}Hz '
+        '(${seconds.toStringAsFixed(2)}s)',
+      );
+    },
     js3dHost: createJs3dHost(),
     mediaHost: const ExampleMediaHost(),
     webViewHost: const ExampleWebViewHost(),

@@ -1,3 +1,13 @@
+## 0.4.208
+
+- Extend offline `jsr.audio.synth` with per-event biquad filters
+  (`lowpass`/`highpass`/`bandpass`, optional cutoff `frequencyEnd` sweep and
+  `q`), colored noise (`noiseColor: 'white'|'pink'|'brown'`), per-event
+  `vibrato` (cents) / `tremolo` (0..1), bounded track-level
+  `delay`/`reverb` effects, waveshaper `drive`/`driveMix`, and carrier-ratio
+  `fm:{ratio,index}`. Inferred track duration now includes the longest
+  effect tail; explicit `duration` still pins total output length.
+
 ## 0.4.207
 
 - Add offline audio synthesis: `jsr.audio.synth({name?, sampleRate?,

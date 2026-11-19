@@ -43,6 +43,7 @@ flutter:
     - widgets/m3-showcase/
     - widgets/pomodoro/
     - widgets/audio-player/
+    - widgets/audio-synth-demo/
     - widgets/video-player/
     - widgets/webview-showcase/
     - widgets/adaptive-dashboard/

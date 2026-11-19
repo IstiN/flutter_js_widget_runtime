@@ -40,9 +40,9 @@ Real JavaScript, rendered by this package and captured by [golden tests](test/go
 | ![pomodoro](doc/widgets/pomodoro.png) | ![audio player](doc/widgets/audio-player.png) |
 | ![video player](doc/widgets/video-player.png) | ![webview](doc/widgets/webview-showcase.png) |
 | ![adaptive dashboard](doc/widgets/adaptive-dashboard.png) | ![3D model viewer](doc/widgets/3d-viewer.png) |
-| ![THREE Minecraft](doc/widgets/three-minecraft.png) | |
+| ![THREE Minecraft](doc/widgets/three-minecraft.png) | ![audio synth demo](doc/widgets/audio-synth-demo.png) |
 
-yolo-hello (animated gradient + bounce) · calculator (full keyboard logic in JS) · weather (wttr.in fetch) · stocks (live quotes) · crypto (price tickers) · map (OpenStreetMap landmarks) · animation-showcase (menu + per-scene captures from the interactive golden: fade / morph / bounce / cards / drag / pulse / colors) · 3d-showcase (procedural primitives, flutter_cube — shape variants under doc/widgets/3d-showcase-*.png) · 3d-game-dodge (dodge-the-blocks game) · 3d-glb-showcase (GLB model with PBR) · fitness-trainer (skeletal-coach workout, flame_3d) · m3-showcase (Material 3 nodes: drawer, appBar, banner, searchBar, segmentedButton, radio, navigationRail, carousel, bottomAppBar, tabBar, fab, popupMenu, navigationBar + overlays: bottomSheet, dialog, snackBar, datePicker, timePicker — extra state frames under doc/widgets/m3-*.png) · charts-showcase (fl_chart via the `flChart` node: line, bar, pie, radar, scatter) · pomodoro (25/5 focus/break cycles, donut ring via `flChart` pie, completed counter persisted in `jsr.storage`) · audio-player (playlist transport via the zero-size `audio_player` node + host `JsMediaHost`) · video-player (`video` node, cinematic hero card + SVG source/BoxFit switcher) · 3d-viewer (GLB viewer with control-room UI, SVG control bar) · webview-showcase (`webView` node, host `JsWebViewHost`, page-to-widget message bridge) · adaptive-dashboard (adaptive node + `gridView.maxCrossAxisExtent` + `jsr.breakpoint`/`jsr.adaptive`/`jsr.onViewport`) · three-minecraft (official upstream r186 module on the opt-in THREE host; dedicated `three_example.dart` runner)
+yolo-hello (animated gradient + bounce) · calculator (full keyboard logic in JS) · weather (wttr.in fetch) · stocks (live quotes) · crypto (price tickers) · map (OpenStreetMap landmarks) · animation-showcase (menu + per-scene captures from the interactive golden: fade / morph / bounce / cards / drag / pulse / colors) · 3d-showcase (procedural primitives, flutter_cube — shape variants under doc/widgets/3d-showcase-*.png) · 3d-game-dodge (dodge-the-blocks game) · 3d-glb-showcase (GLB model with PBR) · fitness-trainer (skeletal-coach workout, flame_3d) · m3-showcase (Material 3 nodes: drawer, appBar, banner, searchBar, segmentedButton, radio, navigationRail, carousel, bottomAppBar, tabBar, fab, popupMenu, navigationBar + overlays: bottomSheet, dialog, snackBar, datePicker, timePicker — extra state frames under doc/widgets/m3-*.png) · charts-showcase (fl_chart via the `flChart` node: line, bar, pie, radar, scatter) · pomodoro (25/5 focus/break cycles, donut ring via `flChart` pie, completed counter persisted in `jsr.storage`) · audio-player (playlist transport via the zero-size `audio_player` node + host `JsMediaHost`) · video-player (`video` node, cinematic hero card + SVG source/BoxFit switcher) · 3d-viewer (GLB viewer with control-room UI, SVG control bar) · webview-showcase (`webView` node, host `JsWebViewHost`, page-to-widget message bridge) · adaptive-dashboard (adaptive node + `gridView.maxCrossAxisExtent` + `jsr.breakpoint`/`jsr.adaptive`/`jsr.onViewport`) · audio-synth-demo (offline `jsr.audio.synth`: filter sweep, pink noise, vibrato/tremolo, drive/FM, delay/reverb) · three-minecraft (official upstream r186 module on the opt-in THREE host; dedicated `three_example.dart` runner)
 
 ## Web preview runner
 
@@ -116,8 +116,9 @@ See the `example/` folder for a runnable menu of sample JS apps.
 ## Offline audio synthesis
 
 Widgets can synthesize PCM with a small Web-Audio-style API (oscillators,
-ADSR envelopes, note names). All times are seconds; `render()` delivers
-interleaved Float32 PCM to the host and resolves with track metadata:
+ADSR envelopes, note names, filters, LFOs and track effects). All times are
+seconds; `render()` delivers interleaved Float32 PCM to the host and resolves
+with track metadata:
 
 ```javascript
 const track = jsr.audio.synth({
@@ -125,6 +126,11 @@ const track = jsr.audio.synth({
   sampleRate: 48000,
   channels: 2,
   duration: 2, // optional explicit total length
+  // Optional track effects; inferred duration grows by the effect tail.
+  effects: [
+    { type: 'delay', time: 0.2, feedback: 0.35, mix: 0.35 },
+    { type: 'reverb', decay: 1.2, mix: 0.25 },
+  ],
 });
 track.note('A4', {
   start: 0,
@@ -135,6 +141,23 @@ track.note('A4', {
   decay: 0.05,
   sustain: 0.6,
   release: 0.1,
+  frequencyEnd: 880, // geometric pitch sweep over duration
+  filter: {
+    type: 'lowpass', // or highpass / bandpass
+    frequency: 400,
+    frequencyEnd: 4000, // cutoff sweep
+    q: 1.5,
+  },
+  vibrato: { rate: 5, depth: 20 }, // depth is cents
+  tremolo: { rate: 4, depth: 0.5 }, // depth 0..1, centered
+  drive: 4, // soft-clip waveshaper, 0 is dry
+  driveMix: 0.8,
+  fm: { ratio: 3, index: 4 }, // modulator is carrier frequency * ratio
+});
+track.osc({
+  type: 'noise',
+  noiseColor: 'pink', // white (default), pink, or brown
+  duration: 1,
 });
 const info = await track.render();
 ```

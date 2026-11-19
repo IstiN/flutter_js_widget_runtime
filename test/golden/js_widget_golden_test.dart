@@ -57,6 +57,7 @@ const _widgetFiles = {
   'm3-showcase': 'example/widgets/m3-showcase/widget.js',
   'pomodoro': 'example/widgets/pomodoro/widget.js',
   'audio-player': 'example/widgets/audio-player/widget.js',
+  'audio-synth-demo': 'example/widgets/audio-synth-demo/widget.js',
   'video-player': 'example/widgets/video-player/widget.js',
   'webview-showcase': 'example/widgets/webview-showcase/widget.js',
   'adaptive-dashboard': 'example/widgets/adaptive-dashboard/widget.js',
@@ -223,6 +224,8 @@ Future<_RunningWidget> _runWidget(String widgetJs, String widgetId) async {
       onRender: renders.add,
       onSetTitle: (_) {},
       onStorageUpdate: (_) {},
+      // The idle demo frame does not synthesize, but the host surface is valid.
+      onAudioSynthesis: (_) {},
       onResolveReady: (fn) => resolve = fn,
       fetchHandler: (id, url, method, headers) async {
         final payload = _fixtureFor(widgetId, url);

@@ -1,0 +1,23 @@
+{
+  "id": "audio-synth-demo",
+  "name": "Audio Synth Demo",
+  "description": "Offline audio.synth showcase: filter sweep, colored noise, vibrato/tremolo, waveshaper drive, carrier-ratio FM, delay and reverb in one 8-second scene.",
+  "version": "1.0.0",
+  "icon": "♪",
+  "allowedCommands": [],
+  "network": false,
+  "cli": {
+    "summary": "Render the full offline audio-synthesis demo scene",
+    "events": [
+      { "id": "render_scene", "description": "Render the 8s synthesis scene and hand PCM to the host" }
+    ],
+    "read": {
+      "state": "jsr app:state audio-synth-demo",
+      "snapshot": "jsr app:snapshot audio-synth-demo"
+    },
+    "examples": [
+      "jsr app:run audio-synth-demo",
+      "jsr app:execute audio-synth-demo render_scene"
+    ]
+  }
+}

@@ -70,11 +70,22 @@ Core methods:
   resolve path, works on VM engines and the web worker). Host shims
   (`jsr.fa.*`, `jsr.yoloit.*`) build on it instead of hardcoding channels;
   when no handler is configured the promise rejects.
-- `jsr.audio.synth({name?, sampleRate?, channels?, duration?})` — offline
-  audio synthesis (Web-Audio-style units in seconds): chain `.osc({type,
+- `jsr.audio.synth({name?, sampleRate?, channels?, duration?, effects?})` —
+  offline audio synthesis (Web-Audio-style units in seconds): chain `.osc({type,
   frequency, start, duration, gain, attack, decay, sustain, release,
-  detune?, pan?, frequencyEnd?})` / `.note('A4', {...})`, then
-  `await track.render()`. PCM crosses as interleaved Float32 through the
+  detune?, pan?, frequencyEnd?, noiseColor?, filter?, vibrato?, tremolo?,
+  drive?, driveMix?, fm?})` /
+  `.note('A4', {...})`, then `await track.render()`. Filters are
+  `{type:'lowpass'|'highpass'|'bandpass', frequency, frequencyEnd?, q?}`;
+  noise supports `noiseColor:'white'|'pink'|'brown'`; per-event LFOs are
+  `vibrato:{rate,depth}` (cents) and `tremolo:{rate,depth}` (0..1).
+  Waveshaping is per-event `drive` (0..20, 0 dry) with optional `driveMix`
+  (0..1). FM uses one carrier-relative form only:
+  `fm:{ratio, index}` — the modulator is `frequency * ratio`; absolute
+  `modFrequency` is rejected.
+  Track effects are `effects:[{type:'delay',time,feedback,mix},
+  {type:'reverb',decay,mix}]`; inferred duration includes the effect tail.
+  PCM crosses as interleaved Float32 through the
   `audio.synth` binary lane to `JsRuntimeConfig.onAudioSynthesis`
   (`JsAudioSynthesis.samples/name/sampleRate/channels`); `render()`
   resolves after the host callback with `{name, sampleRate, channels,

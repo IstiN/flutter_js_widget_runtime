@@ -98,6 +98,14 @@ through. When adding a heavy per-chunk/per-frame payload, prefer a
 packed binary capability over a JSON `hostCall`: see
 `JsVoxelChunk.parseBinaryEnvelope` and `example/widgets/fa-craft`.
 
+Audio synthesis DSP lives entirely in the bootstrap JS: per-event biquad
+filters with cutoff sweeps, white/pink/brown noise, vibrato/tremolo,
+carrier-ratio FM (`fm:{ratio,index}` — no absolute modulator frequency),
+bounded waveshaper drive, and bounded track delay/reverb. Explicit
+`duration` still pins output length; an inferred length includes the
+longest effect tail (delay `time*4`, reverb `decay`). Keep new DSP offline
+and bounded — do not add realtime assumptions or unbounded feedback.
+
 Voxel painter ordering starts with exact far-to-near average view depth and
 emission order for exact ties; never quantize depths into buckets. It then
 builds a stable topological order from shared-edge and arbitrary real

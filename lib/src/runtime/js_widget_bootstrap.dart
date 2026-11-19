@@ -571,6 +571,211 @@ function __jsrAudioNoteFrequency(note){
   return 440 * Math.pow(2, (midi - 69) / 12);
 }
 
+function __jsrAudioFilter(spec){
+  if (spec === undefined || spec === null) return null;
+  if (typeof spec !== 'object') {
+    throw new Error('audio.synth: filter must be an object');
+  }
+  var type = String(spec.type || 'lowpass').toLowerCase();
+  if (['lowpass', 'highpass', 'bandpass'].indexOf(type) < 0) {
+    throw new Error('audio.synth: unsupported filter type "' + type + '"');
+  }
+  return {
+    type: type,
+    frequency: __jsrAudioNumber(spec, 'frequency', 1000, 1, 20000, 'filter.frequency'),
+    frequencyEnd: spec.frequencyEnd === undefined || spec.frequencyEnd === null
+      ? null
+      : __jsrAudioNumber(
+          spec, 'frequencyEnd', 0, 1, 20000, 'filter.frequencyEnd'),
+    q: __jsrAudioNumber(spec, 'q', 0.707, 0.01, 24, 'filter.q'),
+  };
+}
+
+function __jsrAudioLfo(spec, label, defaultRate, defaultDepth, maxDepth){
+  if (spec === undefined || spec === null) return null;
+  if (typeof spec !== 'object') {
+    throw new Error('audio.synth: ' + label + ' must be an object');
+  }
+  return {
+    rate: __jsrAudioNumber(spec, 'rate', defaultRate, 0.01, 100, label + '.rate'),
+    depth: __jsrAudioNumber(
+      spec, 'depth', defaultDepth, 0, maxDepth, label + '.depth'),
+  };
+}
+
+function __jsrAudioFm(spec){
+  if (spec === undefined || spec === null) return null;
+  if (typeof spec !== 'object') {
+    throw new Error('audio.synth: fm must be an object');
+  }
+  if (spec.modFrequency !== undefined && spec.modFrequency !== null) {
+    throw new Error(
+      'audio.synth: fm.modFrequency is not supported; use fm.ratio of the carrier');
+  }
+  return {
+    ratio: __jsrAudioNumber(spec, 'ratio', 1, 0.01, 100, 'fm.ratio'),
+    index: __jsrAudioNumber(spec, 'index', 2, 0, 48, 'fm.index'),
+  };
+}
+
+function __jsrAudioEffects(spec){
+  if (spec === undefined || spec === null) return [];
+  var list = spec instanceof Array ? spec : [spec];
+  if (list.length > 8) {
+    throw new Error('audio.synth: track effect limit is 8');
+  }
+  var out = [];
+  for (var i = 0; i < list.length; i++) {
+    var raw = list[i];
+    if (!raw || typeof raw !== 'object') {
+      throw new Error('audio.synth: effect must be an object');
+    }
+    var type = String(raw.type || '').toLowerCase();
+    if (type === 'delay') {
+      out.push({
+        type: type,
+        time: __jsrAudioNumber(raw, 'time', 0.25, 0.001, 5, 'delay.time'),
+        feedback: __jsrAudioNumber(raw, 'feedback', 0.35, 0, 0.95, 'delay.feedback'),
+        mix: __jsrAudioNumber(raw, 'mix', 0.35, 0, 1, 'delay.mix'),
+      });
+    } else if (type === 'reverb') {
+      out.push({
+        type: type,
+        decay: __jsrAudioNumber(raw, 'decay', 1.2, 0.05, 10, 'reverb.decay'),
+        mix: __jsrAudioNumber(raw, 'mix', 0.3, 0, 1, 'reverb.mix'),
+      });
+    } else {
+      throw new Error('audio.synth: unsupported effect type "' + type + '"');
+    }
+  }
+  return out;
+}
+
+function __jsrAudioEffectTailSeconds(effects){
+  var tail = 0;
+  for (var i = 0; i < effects.length; i++) {
+    var ef = effects[i];
+    var seconds = ef.type === 'delay' ? ef.time * 4 : ef.decay;
+    if (seconds > tail) tail = seconds;
+  }
+  return tail;
+}
+
+function __jsrAudioApplyDelay(pcm, sampleRate, channels, ef){
+  var delaySamples = Math.max(1, Math.round(ef.time * sampleRate));
+  var buffers = [];
+  var positions = [];
+  for (var c = 0; c < channels; c++) {
+    buffers.push(new Float32Array(delaySamples));
+    positions.push(0);
+  }
+  for (var i = 0; i < pcm.length; i += channels) {
+    for (var ch = 0; ch < channels; ch++) {
+      var at = i + ch;
+      var pos = positions[ch];
+      var wet = buffers[ch][pos];
+      buffers[ch][pos] = pcm[at] + wet * ef.feedback;
+      positions[ch] = (pos + 1) % delaySamples;
+      pcm[at] = pcm[at] * (1 - ef.mix) + wet * ef.mix;
+    }
+  }
+}
+
+function __jsrAudioApplyReverb(pcm, sampleRate, channels, ef){
+  // Small parallel comb bank plus a one-pole diffuser: cheap enough for a
+  // widget-sized offline render, and bounded by the mix/feedback ranges.
+  var combSeconds = [0.023, 0.0297, 0.0371, 0.0411];
+  var combs = combSeconds.length;
+  var buffers = [];
+  var positions = [];
+  var gains = [];
+  for (var ch = 0; ch < channels; ch++) {
+    for (var c = 0; c < combs; c++) {
+      var samples = Math.max(2, Math.round(combSeconds[c] * sampleRate));
+      // Tiny per-channel offsets keep stereo decorrelated without a second IR.
+      if (ch > 0) samples += ch * 7 + c;
+      buffers.push(new Float32Array(samples));
+      positions.push(0);
+      gains.push(Math.min(0.9, Math.pow(0.001, combSeconds[c] / ef.decay)));
+    }
+  }
+  var diffusers = [];
+  var diffuserPositions = [];
+  for (var channel = 0; channel < channels; channel++) {
+    diffusers.push(new Float32Array(Math.max(2, Math.round(0.005 * sampleRate))));
+    diffuserPositions.push(0);
+  }
+  for (var frame = 0; frame < pcm.length; frame += channels) {
+    for (var channelAt = 0; channelAt < channels; channelAt++) {
+      var at = frame + channelAt;
+      var input = pcm[at];
+      var wet = 0;
+      for (var combAt = 0; combAt < combs; combAt++) {
+        // Buffers are channel-major; the four combs follow their channel.
+        var index = channelAt * combs + combAt;
+        var buffer = buffers[index];
+        var pos = positions[index];
+        var delayed = buffer[pos];
+        buffer[pos] = input + delayed * gains[index];
+        positions[index] = (pos + 1) % buffer.length;
+        wet += delayed;
+      }
+      wet /= combs;
+      var diffuser = diffusers[channelAt];
+      var diffuserPos = diffuserPositions[channelAt];
+      var diffused = diffuser[diffuserPos];
+      diffuser[diffuserPos] = wet * 0.5 + diffused * 0.5;
+      diffuserPositions[channelAt] =
+        (diffuserPos + 1) % diffuser.length;
+      pcm[at] = input * (1 - ef.mix) + diffused * ef.mix;
+    }
+  }
+}
+
+function __jsrAudioApplyTrackEffects(pcm, sampleRate, channels, effects){
+  for (var i = 0; i < effects.length; i++) {
+    var ef = effects[i];
+    if (ef.type === 'delay') {
+      __jsrAudioApplyDelay(pcm, sampleRate, channels, ef);
+    } else if (ef.type === 'reverb') {
+      __jsrAudioApplyReverb(pcm, sampleRate, channels, ef);
+    }
+  }
+}
+
+function __jsrAudioBiquad(out, type, cutoff, q, sampleRate){
+  var nyquist = sampleRate * 0.499;
+  if (cutoff > nyquist) cutoff = nyquist;
+  if (cutoff < 1) cutoff = 1;
+  var w0 = Math.PI * 2 * cutoff / sampleRate;
+  var cosine = Math.cos(w0);
+  var alpha = Math.sin(w0) / (2 * q);
+  var a0 = 1 + alpha;
+  var b0;
+  var b1;
+  var b2;
+  if (type === 'lowpass') {
+    var oneMinusCosine = 1 - cosine;
+    b0 = oneMinusCosine / 2;
+    b1 = oneMinusCosine;
+    b2 = oneMinusCosine / 2;
+  } else if (type === 'highpass') {
+    var onePlusCosine = 1 + cosine;
+    b0 = onePlusCosine / 2;
+    b1 = -onePlusCosine;
+    b2 = onePlusCosine / 2;
+  } else {
+    b0 = alpha;
+    b1 = 0;
+    b2 = -alpha;
+  }
+  out.b0 = b0 / a0;
+  out.b1 = b1 / a0;
+  out.b2 = b2 / a0;
+  out.a1 = -2 * cosine / a0;
+  out.a2 = (1 - alpha) / a0;
+}
+
 function __JsAudioSynth(opts){
   opts = opts || {};
   this.sampleRate = Math.round(__jsrAudioNumber(
@@ -582,6 +787,7 @@ function __JsAudioSynth(opts){
     : __jsrAudioNumber(
         opts, 'duration', 0, 0.001, __jsrAudioMaxDuration, 'duration');
   this.name = __jsrAudioName(opts.name);
+  this.effects = __jsrAudioEffects(opts.effects);
   this.events = [];
 }
 
@@ -604,6 +810,16 @@ __JsAudioSynth.prototype.osc = function(opts){
   var frequencyEnd = opts.frequencyEnd === undefined || opts.frequencyEnd === null
     ? 0
     : __jsrAudioNumber(opts, 'frequencyEnd', 0, 1, 20000, 'frequencyEnd');
+  var noiseColor = null;
+  if (type === 'noise') {
+    noiseColor = String(opts.noiseColor || 'white').toLowerCase();
+    if (['white', 'pink', 'brown'].indexOf(noiseColor) < 0) {
+      throw new Error(
+        'audio.synth: unsupported noiseColor "' + noiseColor + '"');
+    }
+  } else if (opts.noiseColor !== undefined && opts.noiseColor !== null) {
+    throw new Error('audio.synth: noiseColor is only valid for type "noise"');
+  }
   this.events.push({
     type: type,
     frequency: frequency,
@@ -619,6 +835,13 @@ __JsAudioSynth.prototype.osc = function(opts){
     sustain: __jsrAudioNumber(opts, 'sustain', 0.7, 0, 1, 'sustain'),
     release: __jsrAudioNumber(opts, 'release', 0.05, 0, 10, 'release'),
     pan: __jsrAudioNumber(opts, 'pan', 0, -1, 1, 'pan'),
+    noiseColor: noiseColor,
+    filter: __jsrAudioFilter(opts.filter),
+    vibrato: __jsrAudioLfo(opts.vibrato, 'vibrato', 5, 20, 480),
+    tremolo: __jsrAudioLfo(opts.tremolo, 'tremolo', 5, 0.5, 1),
+    drive: __jsrAudioNumber(opts, 'drive', 0, 0, 20, 'drive'),
+    driveMix: __jsrAudioNumber(opts, 'driveMix', 1, 0, 1, 'driveMix'),
+    fm: __jsrAudioFm(opts.fm),
   });
   return this;
 };
@@ -648,6 +871,7 @@ __JsAudioSynth.prototype.render = function(){
         var end = events[e].start + events[e].duration + events[e].release;
         if (end > totalSeconds) totalSeconds = end;
       }
+      totalSeconds += __jsrAudioEffectTailSeconds(self.effects);
       if (totalSeconds <= 0 || totalSeconds > __jsrAudioMaxDuration) {
         reject(new Error('audio.synth: rendered duration must be 0..' +
           __jsrAudioMaxDuration + ' seconds'));
@@ -682,12 +906,39 @@ __JsAudioSynth.prototype.render = function(){
       var frequency = ev.frequency * detuneMul;
       var frequencyEnd = ev.frequencyEnd * detuneMul;
       var phase = 0;
-      var step = frequency / sampleRate;
-      var stepMul = 1;
-      if (frequencyEnd > 0 && ev.type !== 'noise') {
-        var steps = Math.max(1, Math.round(ev.duration * sampleRate));
-        stepMul = Math.pow(frequencyEnd / frequency, 1 / steps);
+      var filter = ev.filter;
+      var filterState = filter
+        ? { x1: 0, x2: 0, y1: 0, y2: 0 }
+        : null;
+      var filterCoeff = filter ? {} : null;
+      var filterFrequency = filter ? filter.frequency : 0;
+      var filterEnd = filter && filter.frequencyEnd !== null
+        ? filter.frequencyEnd
+        : 0;
+      if (filter) {
+        __jsrAudioBiquad(
+          filterCoeff, filter.type, filterFrequency, filter.q, sampleRate);
       }
+      var vibrato = ev.vibrato;
+      var vibratoDepth = vibrato ? vibrato.depth : 0;
+      var vibratoPhase = 0;
+      var vibratoStep = vibrato ? vibrato.rate / sampleRate : 0;
+      var tremolo = ev.tremolo;
+      var tremoloDepth = tremolo ? tremolo.depth : 0;
+      var tremoloPhase = 0;
+      var tremoloStep = tremolo ? tremolo.rate / sampleRate : 0;
+      var fm = ev.fm;
+      var fmRatio = fm ? fm.ratio : 1;
+      var fmIndex = fm ? fm.index : 0;
+      var fmPhase = 0;
+      var pinkB0 = 0;
+      var pinkB1 = 0;
+      var pinkB2 = 0;
+      var pinkB3 = 0;
+      var pinkB4 = 0;
+      var pinkB5 = 0;
+      var pinkB6 = 0;
+      var brown = 0;
       var panAngle = (Math.max(-1, Math.min(1, ev.pan)) + 1) * Math.PI / 4;
       var leftGain = channels === 1 ? 1 : Math.cos(panAngle);
       var rightGain = channels === 1 ? 0 : Math.sin(panAngle);
@@ -702,19 +953,89 @@ __JsAudioSynth.prototype.render = function(){
           env = release > 0 ? sustain * (1 - (x - hold) / release) : 0;
         }
         if (env <= 0) continue;
+        var sweepT = hold > 0 ? Math.min(1, x / hold) : 1;
+        var frequencyNow = frequencyEnd > 0 && ev.type !== 'noise'
+          ? frequency * Math.pow(frequencyEnd / frequency, sweepT)
+          : frequency;
+        if (vibratoDepth > 0 && ev.type !== 'noise') {
+          frequencyNow *= Math.pow(2,
+            vibratoDepth * Math.sin(vibratoPhase * pi2) / 1200);
+          vibratoPhase += vibratoStep;
+          if (vibratoPhase >= 1) {
+            vibratoPhase -= Math.floor(vibratoPhase);
+          }
+        }
+        var oscPhase = phase;
+        if (fmIndex > 0 && ev.type !== 'noise') {
+          oscPhase += fmIndex * Math.sin(fmPhase * pi2);
+          fmPhase += frequencyNow * fmRatio / sampleRate;
+          if (fmPhase >= 1) fmPhase -= Math.floor(fmPhase);
+        }
         var v;
         if (ev.type === 'noise') {
-          v = Math.random() * 2 - 1;
+          var white = Math.random() * 2 - 1;
+          if (ev.noiseColor === 'pink') {
+            pinkB0 = 0.99886 * pinkB0 + white * 0.0990460;
+            pinkB1 = 0.2935 * pinkB1 - white * 0.2965164;
+            pinkB2 = -1.0527 * pinkB2 - white * 0.0522123;
+            pinkB3 = 0.0734 * pinkB3 - white * 0.016875;
+            pinkB4 = 0.2974 * pinkB4 + white * 0.0919425;
+            pinkB5 = 0.2927 * pinkB5 - white * 0.0034354;
+            pinkB6 = white * 0.5362;
+            v = (pinkB0 + pinkB1 + pinkB2 + pinkB3 + pinkB4 +
+                pinkB5 + pinkB6 + pinkB6) * 0.11;
+          } else if (ev.noiseColor === 'brown') {
+            brown = (brown + 0.02 * white) / 1.02;
+            if (brown > 1) brown = 1;
+            else if (brown < -1) brown = -1;
+            v = brown * 0.8;
+          } else {
+            v = white;
+          }
         } else if (ev.type === 'square') {
-          v = phase < 0.5 ? 1 : -1;
+          v = oscPhase < 0.5 ? 1 : -1;
         } else if (ev.type === 'sawtooth') {
-          v = phase * 2 - 1;
+          v = oscPhase * 2 - 1;
         } else if (ev.type === 'triangle') {
-          v = 1 - 4 * Math.abs(phase - 0.5);
+          v = 1 - 4 * Math.abs(oscPhase - 0.5);
         } else {
-          v = Math.sin(phase * pi2);
+          v = Math.sin(oscPhase * pi2);
+        }
+        if (filter) {
+          var cutoff = filterEnd > 0
+            ? filterFrequency * Math.pow(filterEnd / filterFrequency, sweepT)
+            : filterFrequency;
+          __jsrAudioBiquad(
+            filterCoeff, filter.type, cutoff, filter.q, sampleRate);
+          var input = v;
+          var output = filterCoeff.b0 * input +
+            filterCoeff.b1 * filterState.x1 +
+            filterCoeff.b2 * filterState.x2 -
+            filterCoeff.a1 * filterState.y1 -
+            filterCoeff.a2 * filterState.y2;
+          filterState.x2 = filterState.x1;
+          filterState.x1 = input;
+          filterState.y2 = filterState.y1;
+          filterState.y1 = output;
+          v = output;
+        }
+        if (ev.drive > 0) {
+          // Bounded soft clip, normalized so unity drive leaves full scale.
+          var amount = 1 + ev.drive;
+          var driven = v * amount;
+          var shaped = driven / (1 + Math.abs(driven));
+          shaped *= (1 + amount) / amount;
+          v = shaped * ev.driveMix + v * (1 - ev.driveMix);
         }
         var g = ev.gain * env;
+        if (tremoloDepth > 0) {
+          var trem = Math.sin(tremoloPhase * pi2);
+          g *= 1 - tremoloDepth * (1 - trem) / 2;
+          tremoloPhase += tremoloStep;
+          if (tremoloPhase >= 1) {
+            tremoloPhase -= Math.floor(tremoloPhase);
+          }
+        }
         var base = i * channels;
         if (channels === 1) {
           pcm[base] += v * g;
@@ -723,12 +1044,12 @@ __JsAudioSynth.prototype.render = function(){
           pcm[base + 1] += v * g * rightGain;
         }
         if (ev.type !== 'noise') {
-          phase += step;
-          step *= stepMul;
+          phase += frequencyNow / sampleRate;
           if (phase >= 1) phase -= Math.floor(phase);
         }
       }
     }
+    __jsrAudioApplyTrackEffects(pcm, sampleRate, channels, self.effects);
     for (var s = 0; s < pcm.length; s++) {
       if (pcm[s] > 1) pcm[s] = 1;
       else if (pcm[s] < -1) pcm[s] = -1;
