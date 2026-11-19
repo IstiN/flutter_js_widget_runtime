@@ -58,6 +58,7 @@ class QuickjsWidgetEngineBackend
       openUrlHandler: (id, url) async {},
       onHostCall: config.onHostCall,
       onHostCallBinary: config.onHostCallBinary,
+      onAudioSynthesis: config.onAudioSynthesis,
       captureHandler: config.captureHandler,
       intervalTickHandler: (id) {},
       rafTickHandler: (id, elapsedMs) {},

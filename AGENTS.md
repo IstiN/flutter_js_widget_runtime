@@ -70,6 +70,16 @@ Core methods:
   resolve path, works on VM engines and the web worker). Host shims
   (`jsr.fa.*`, `jsr.yoloit.*`) build on it instead of hardcoding channels;
   when no handler is configured the promise rejects.
+- `jsr.audio.synth({name?, sampleRate?, channels?, duration?})` — offline
+  audio synthesis (Web-Audio-style units in seconds): chain `.osc({type,
+  frequency, start, duration, gain, attack, decay, sustain, release,
+  detune?, pan?, frequencyEnd?})` / `.note('A4', {...})`, then
+  `await track.render()`. PCM crosses as interleaved Float32 through the
+  `audio.synth` binary lane to `JsRuntimeConfig.onAudioSynthesis`
+  (`JsAudioSynthesis.samples/name/sampleRate/channels`); `render()`
+  resolves after the host callback with `{name, sampleRate, channels,
+  frames, durationMs}`. Explicit `duration` pins total track length;
+  otherwise it is inferred from the last event tail.
 - `jsr.hostCallBinary(name, data)` + `jsr.b64encode(typedArray)` — the
   fire-and-forget BINARY lane for per-frame bulk data (transforms,
   particles, audio levels): no JSON body parse, no promise round trip;

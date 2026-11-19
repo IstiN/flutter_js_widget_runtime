@@ -2,7 +2,6 @@ import 'dart:typed_data';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:js_widget_runtime/js_widget_runtime.dart';
-import 'package:js_widget_runtime/src/runtime/js_widget_bridge.dart';
 import 'package:js_widget_runtime/src/runtime/js_widget_engine_quickjs.dart';
 import 'package:quickjs_runtime/quickjs_runtime.dart';
 
@@ -19,6 +18,7 @@ Future<QuickjsWidgetEngineBackend> bootQuickjsWidget(
   void Function(Map<String, dynamic>)? onRender,
   void Function(String name, Map<String, dynamic> args)? onHostCall,
   void Function(String name, Uint8List data)? onHostCallBinary,
+  void Function(JsAudioSynthesis synthesis)? onAudioSynthesis,
 }) async {
   final backend = QuickjsWidgetEngineBackend(
     config: JsRuntimeConfig(
@@ -34,6 +34,7 @@ Future<QuickjsWidgetEngineBackend> bootQuickjsWidget(
               return Future<Object?>.value();
             },
       onHostCallBinary: onHostCallBinary,
+      onAudioSynthesis: onAudioSynthesis,
     ),
   );
   addTearDown(backend.dispose);
@@ -56,6 +57,7 @@ Future<Map<String, dynamic>?> exportedStateOf(
 /// `dispatch` tests that must not require a JS runtime.
 JsWidgetBridge buildBinaryTestBridge({
   void Function(String name, Uint8List data)? onHostCallBinary,
+  void Function(JsAudioSynthesis synthesis)? onAudioSynthesis,
 }) {
   return JsWidgetBridge(
     widgetId: 'bridge-only',
@@ -71,6 +73,7 @@ JsWidgetBridge buildBinaryTestBridge({
     loadAssetHandler: (_, __) async {},
     execHandler: (_, __) async {},
     onHostCallBinary: onHostCallBinary,
+    onAudioSynthesis: onAudioSynthesis,
     intervalTickHandler: (_) {},
     rafTickHandler: (_, __) {},
     initialStorage: const {},

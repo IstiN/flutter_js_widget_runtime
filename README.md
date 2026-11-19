@@ -113,6 +113,46 @@ class DemoPage extends StatelessWidget {
 
 See the `example/` folder for a runnable menu of sample JS apps.
 
+## Offline audio synthesis
+
+Widgets can synthesize PCM with a small Web-Audio-style API (oscillators,
+ADSR envelopes, note names). All times are seconds; `render()` delivers
+interleaved Float32 PCM to the host and resolves with track metadata:
+
+```javascript
+const track = jsr.audio.synth({
+  name: 'stinger',
+  sampleRate: 48000,
+  channels: 2,
+  duration: 2, // optional explicit total length
+});
+track.note('A4', {
+  start: 0,
+  duration: 0.5,
+  gain: 0.8,
+  type: 'sine',
+  attack: 0.01,
+  decay: 0.05,
+  sustain: 0.6,
+  release: 0.1,
+});
+const info = await track.render();
+```
+
+```dart
+JsRuntimeConfig(
+  onAudioSynthesis: (audio) {
+    // audio.samples (interleaved Float32), sampleRate, channels, name.
+    // Encode/export/mix the PCM as the host requires.
+  },
+  // ... other handlers
+);
+```
+
+Unsupported hosts reject `render()` with a clear error so widgets can
+degrade. Synthesis is offline rendering, distinct from the host-provided
+`audio`/`audio_player` playback nodes.
+
 ## 3D scenes and GLB models
 
 `js_widget_runtime` does not bundle a 3D engine. Instead it exposes a `Js3dHost`

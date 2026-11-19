@@ -60,6 +60,20 @@ Follow these steps in order:
 3. Add a widget test in `test/json_widget_renderer_test.dart`.
 4. Document the new type in `.agents/skills/js-widget-authoring/SKILL.md`.
 
+## Core-Capability Audio Synthesis (`audio.synth`)
+
+`jsr.audio.synth(...).render()` does NOT use a new JSON channel. It renders
+offline PCM in JS, wraps it in a `'JSRA'` binary envelope (magic + version +
+u32 JSON-header length + NUL-padded header + raw little-endian Float32 body),
+and sends it through `jsr.hostCallBinary('audio.synth', bytes)`. The bridge
+intercepts that name in `dispatchBinary` (before the host's
+`onHostCallBinary`), parses it with `JsAudioSynthesis.parseEnvelope`, invokes
+`JsRuntimeConfig.onAudioSynthesis`, and only then resolves the JS `render()`
+promise. The parser MUST copy the PCM: QuickJS's native bytes lane delivers
+call-scoped memory that is invalid after the callback. Unsupported hosts
+reject `render()` explicitly; malformed envelopes drop silently like the rest
+of the binary lane.
+
 ## Core-Capability hostCall Names (`voxel.*`)
 
 Most `jsr.hostCall` names route to the host's `onHostCall`. The `voxel.*`

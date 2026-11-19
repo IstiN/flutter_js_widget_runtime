@@ -1,3 +1,13 @@
+## 0.4.207
+
+- Add offline audio synthesis: `jsr.audio.synth({name?, sampleRate?,
+  channels?, duration?})` chains Web-Audio-style `.osc(...)` and
+  `.note('A4', ...)` events (sine/square/sawtooth/triangle/noise, ADSR,
+  detune, pan, frequencyEnd) and `await track.render()` delivers interleaved
+  Float32 PCM plus metadata to the new `JsRuntimeConfig.onAudioSynthesis`
+  (`JsAudioSynthesis`) through the `audio.synth` binary lane. The promise
+  resolves after the host callback; unsupported hosts reject clearly.
+
 ## 0.4.206
 
 - Present the Flutter GPU THREE surface preview with mip-mapped medium

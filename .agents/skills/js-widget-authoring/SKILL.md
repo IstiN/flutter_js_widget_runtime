@@ -209,6 +209,18 @@ The `cli` block is how coding agents discover your widget — fill it in:
   it — prefer those when your host defines them. Exception: `voxel.*`
   names are a CORE capability (intercepted before the host handler; always
   available) — see the voxel node below.
+- `jsr.audio.synth(opts?)` → track — offline synthesized audio (host export,
+  not realtime playback). All times are SECONDS (Web Audio-style):
+  `jsr.audio.synth({name?, sampleRate?, channels?, duration?})`, then chain
+  `.osc({type: 'sine'|'square'|'sawtooth'|'triangle'|'noise', frequency?,
+  start?, duration?, gain?, attack?, decay?, sustain?, release?, detune?,
+  pan?, frequencyEnd?})` and/or `.note('A4', {...})`. `await track.render()`
+  resolves `{name, sampleRate, channels, frames, durationMs}` after the host
+  receives the interleaved Float32 PCM via `onAudioSynthesis` (`JsAudioSynthesis`).
+  `name` is host-usable for export filenames (sanitized); without it JS returns
+  a generated `synth-N` name. `duration` on `synth()` pins the total track
+  length; omit it to infer the length from the last event tail. Rejects when
+  the host did not wire `JsRuntimeConfig.onAudioSynthesis`.
 - `jsr.hostCallBinary(name, b64)` — fire-and-forget binary lane to
   `JsRuntimeConfig.onHostCallBinary` (receives raw bytes). NO promise, NO
   JSON parse: the cheapest JS→Dart path (~3× faster than `hostCall`).

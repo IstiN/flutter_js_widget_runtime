@@ -1,5 +1,6 @@
 import 'package:flutter/foundation.dart';
 
+import 'package:js_widget_runtime/src/model/js_audio_synthesis.dart';
 import 'package:js_widget_runtime/src/renderer/media/js_media_host.dart';
 import 'package:js_widget_runtime/src/renderer/nodes/js_3d_host.dart';
 import 'package:js_widget_runtime/src/renderer/nodes/three/js_three_host.dart';
@@ -54,6 +55,7 @@ class JsRuntimeConfig {
     this.openUrlHandler,
     this.onHostCall,
     this.onHostCallBinary,
+    this.onAudioSynthesis,
     this.captureHandler,
     this.intervalTickHandler,
     this.rafTickHandler,
@@ -163,6 +165,13 @@ class JsRuntimeConfig {
   /// with [onHostCall] for request/response-shaped host capabilities.
   final void Function(String name, Uint8List data)? onHostCallBinary;
 
+  /// Receives PCM from `jsr.audio.synth(...).render()` as a typed
+  /// [JsAudioSynthesis] envelope. This is offline synthesis, not media
+  /// playback: JS renders oscillators/envelopes/notes into Float32 PCM and
+  /// the host may encode, mix, or export it. When null, `render()` rejects
+  /// with a clear unsupported-host error.
+  final void Function(JsAudioSynthesis synthesis)? onAudioSynthesis;
+
   /// Self-screenshot capability behind `jsr.capture()`. The handler
   /// rasterizes the widget's CURRENT rendered tree and resolves with a
   /// host-specific result (the jsr_widget CLI resolves `{path, width,
@@ -242,6 +251,7 @@ class JsRuntimeConfig {
     Future<Object?> Function(String name, Map<String, dynamic> args)?
     onHostCall,
     void Function(String name, Uint8List data)? onHostCallBinary,
+    void Function(JsAudioSynthesis synthesis)? onAudioSynthesis,
     Future<Map<String, dynamic>> Function(Map<String, dynamic> opts)?
     captureHandler,
     void Function(String id)? intervalTickHandler,
@@ -276,6 +286,7 @@ class JsRuntimeConfig {
     openUrlHandler: openUrlHandler ?? this.openUrlHandler,
     onHostCall: onHostCall ?? this.onHostCall,
     onHostCallBinary: onHostCallBinary ?? this.onHostCallBinary,
+    onAudioSynthesis: onAudioSynthesis ?? this.onAudioSynthesis,
     captureHandler: captureHandler ?? this.captureHandler,
     intervalTickHandler: intervalTickHandler ?? this.intervalTickHandler,
     rafTickHandler: rafTickHandler ?? this.rafTickHandler,

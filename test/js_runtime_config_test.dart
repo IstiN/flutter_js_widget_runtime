@@ -29,6 +29,13 @@ void main() {
       expect(config.copyWith().mediaHost, same(host));
     });
 
+    test('onAudioSynthesis survives copyWith', () {
+      void handler(JsAudioSynthesis audio) {}
+      final config = makeConfig().copyWith(onAudioSynthesis: handler);
+      expect(config.onAudioSynthesis, same(handler));
+      expect(config.copyWith().onAudioSynthesis, same(handler));
+    });
+
     test('copyWith overrides values', () {
       final config = makeConfig().copyWith(
         widgetId: 'w1',

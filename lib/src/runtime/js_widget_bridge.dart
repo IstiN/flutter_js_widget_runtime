@@ -5,6 +5,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/scheduler.dart';
 import 'package:flutter/widgets.dart';
 
+import 'package:js_widget_runtime/src/model/js_audio_synthesis.dart';
 import 'package:js_widget_runtime/src/renderer/nodes/js_3d_host.dart';
 import 'package:js_widget_runtime/src/renderer/nodes/js_voxel_node.dart';
 import 'package:js_widget_runtime/src/renderer/nodes/three/js_three_host.dart';
@@ -74,6 +75,7 @@ class JsWidgetBridge {
     this.openUrlHandler,
     this.onHostCall,
     this.onHostCallBinary,
+    this.onAudioSynthesis,
     this.captureHandler,
     required this.intervalTickHandler,
     required this.rafTickHandler,
@@ -113,6 +115,10 @@ class JsWidgetBridge {
   /// Binary side channel behind `jsr.hostCallBinary` — see
   /// [JsRuntimeConfig.onHostCallBinary].
   final void Function(String name, Uint8List data)? onHostCallBinary;
+
+  /// PCM receiver behind `jsr.audio.synth(...).render()` — see
+  /// [JsRuntimeConfig.onAudioSynthesis].
+  final void Function(JsAudioSynthesis synthesis)? onAudioSynthesis;
 
   /// Self-screenshot capability behind `jsr.capture()` — see
   /// [JsRuntimeConfig.captureHandler]. Mutable: the jsr_widget CLI harness
@@ -413,6 +419,10 @@ class JsWidgetBridge {
   /// entirely. The [data] view may be call-scoped on some engines:
   /// handlers must not retain it without copying.
   void dispatchBinary(String name, Uint8List data) {
+    if (name == 'audio.synth') {
+      _handleAudioSynthesis(data);
+      return;
+    }
     if (name == 'three.r1') {
       _submitThree(data);
       return;
@@ -441,11 +451,49 @@ class JsWidgetBridge {
     } catch (_) {
       return; // Malformed payload: drop silently, the lane is lossy-tolerant.
     }
+    if (name == 'audio.synth') {
+      _handleAudioSynthesis(data);
+      return;
+    }
     if (name == 'three.r1') {
       _submitThree(data);
       return;
     }
     onHostCallBinary?.call(name, data);
+  }
+
+  void _handleAudioSynthesis(Uint8List data) {
+    final parsed = JsAudioSynthesis.parseEnvelope(data);
+    if (parsed == null) return; // Lossy lane: malformed payloads drop.
+    final (synthesis, requestId) = parsed;
+    if (onAudioSynthesis == null) {
+      scheduleMicrotask(() {
+        resolveCallback(requestId, {
+          '__error': 'audio synthesis is not supported by this host',
+        });
+      });
+      return;
+    }
+    try {
+      onAudioSynthesis!(synthesis);
+      final result = {
+        'name': synthesis.name,
+        'sampleRate': synthesis.sampleRate,
+        'channels': synthesis.channels,
+        'frames': synthesis.frames,
+        'durationMs':
+            (synthesis.durationSeconds * Duration.millisecondsPerSecond)
+                .round(),
+      };
+      // The native QuickJS lane invokes this from inside a JS FFI callback;
+      // resolving re-enters the runtime, so defer until the current JS
+      // stack unwinds. Web/isolate paths are already asynchronous.
+      scheduleMicrotask(() => resolveCallback(requestId, result));
+    } catch (e) {
+      scheduleMicrotask(() {
+        resolveCallback(requestId, {'__error': e.toString()});
+      });
+    }
   }
 
   void _submitThree(Uint8List data) {

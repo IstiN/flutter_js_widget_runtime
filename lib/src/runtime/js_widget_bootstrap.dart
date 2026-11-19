@@ -190,6 +190,15 @@ var jsr = {
     return jsr.ease.linear;
   },
 
+  // Offline audio synthesis: oscillators, ADSR envelopes, and note names
+  // render into Float32 PCM that crosses to the host's onAudioSynthesis
+  // callback through the binary lane. This is not realtime WebAudio graph
+  // playback; hosts may encode/export/mix the returned PCM as they like.
+  audio: {
+    synth: function(opts){ return new __JsAudioSynth(opts); },
+    noteToFrequency: function(note){ return __jsrAudioNoteFrequency(note); },
+  },
+
   render: function(tree){ try{ tree.__iid = __IID; }catch(e){} __send('__jsr_render', JSON.stringify(tree)); },
 
   setTitle: function(t){ __send('__jsr_set_title', String(t)); },
@@ -518,6 +527,248 @@ var jsr = {
     }
   }
 };
+
+// Offline synthesis state is per-track, so several named exports can be
+// rendered from the same widget without cross-track event leakage.
+var __jsrAudioTrackCounter = 0;
+var __jsrAudioMaxSamples = 16777216; // 16 Mi Float32 = 64 MiB PCM ceiling
+var __jsrAudioMaxDuration = 120; // seconds — widget audio, not a DAW session
+
+function __jsrAudioNumber(opts, key, def, min, max, label){
+  var v = opts ? opts[key] : undefined;
+  if (v === undefined || v === null) return def;
+  v = Number(v);
+  if (!isFinite(v) || v < min || v > max) {
+    throw new Error('audio.synth: ' + label + ' must be a number from ' +
+      min + ' to ' + max);
+  }
+  return v;
+}
+
+function __jsrAudioName(name){
+  var raw = (name === undefined || name === null) ? '' : String(name);
+  var safe = raw.toLowerCase()
+    .replace(/[^a-z0-9._-]+/g, '_')
+    .replace(/^_+|_+$/g, '')
+    .substring(0, 80);
+  return safe || ('synth-' + (++__jsrAudioTrackCounter));
+}
+
+function __jsrAudioNoteFrequency(note){
+  if (typeof note === 'number') {
+    if (isFinite(note) && note > 0 && note <= 20000) return note;
+    throw new Error('audio.synth: note frequency must be 1..20000 Hz');
+  }
+  var m = /^\s*([A-Ga-g])\s*([#bB]?)\s*(-?\d{1,2})\s*$/.exec(String(note));
+  if (!m) throw new Error('audio.synth: unsupported note name "' + note + '"');
+  var semis = {c:0, d:2, e:4, f:5, g:7, a:9, b:11};
+  var midi = (parseInt(m[3], 10) + 1) * 12 + semis[m[1].toLowerCase()];
+  if (m[2] === '#' || m[2] === '\u266f') midi++;
+  if (m[2] === 'b' || m[2] === 'B' || m[2] === '\u266d') midi--;
+  if (midi < 0 || midi > 127) {
+    throw new Error('audio.synth: note is outside MIDI range 0..127');
+  }
+  return 440 * Math.pow(2, (midi - 69) / 12);
+}
+
+function __JsAudioSynth(opts){
+  opts = opts || {};
+  this.sampleRate = Math.round(__jsrAudioNumber(
+    opts, 'sampleRate', 44100, 8000, 192000, 'sampleRate'));
+  this.channels = Math.round(__jsrAudioNumber(
+    opts, 'channels', 2, 1, 2, 'channels'));
+  this.duration = opts.duration === undefined || opts.duration === null
+    ? null
+    : __jsrAudioNumber(
+        opts, 'duration', 0, 0.001, __jsrAudioMaxDuration, 'duration');
+  this.name = __jsrAudioName(opts.name);
+  this.events = [];
+}
+
+__JsAudioSynth.prototype.osc = function(opts){
+  if (this.events.length >= 4096) {
+    throw new Error('audio.synth: event limit is 4096 per track');
+  }
+  opts = opts || {};
+  var type = String(opts.type || opts.wave || 'sine').toLowerCase();
+  if (type === 'white') type = 'noise';
+  if (['sine', 'square', 'sawtooth', 'triangle', 'noise'].indexOf(type) < 0) {
+    throw new Error('audio.synth: unsupported oscillator type "' + type + '"');
+  }
+  var frequency = type === 'noise'
+    ? 0
+    : __jsrAudioNumber(opts, 'frequency', 0, 1, 20000, 'frequency');
+  if (type !== 'noise' && frequency <= 0) {
+    throw new Error('audio.synth: frequency is required for ' + type);
+  }
+  var frequencyEnd = opts.frequencyEnd === undefined || opts.frequencyEnd === null
+    ? 0
+    : __jsrAudioNumber(opts, 'frequencyEnd', 0, 1, 20000, 'frequencyEnd');
+  this.events.push({
+    type: type,
+    frequency: frequency,
+    frequencyEnd: frequencyEnd,
+    detune: __jsrAudioNumber(opts, 'detune', 0, -4800, 4800, 'detune'),
+    start: __jsrAudioNumber(
+      opts, 'start', 0, 0, __jsrAudioMaxDuration, 'start'),
+    duration: __jsrAudioNumber(
+      opts, 'duration', 0.25, 0.001, __jsrAudioMaxDuration, 'duration'),
+    gain: __jsrAudioNumber(opts, 'gain', 0.8, 0, 1, 'gain'),
+    attack: __jsrAudioNumber(opts, 'attack', 0.005, 0, 10, 'attack'),
+    decay: __jsrAudioNumber(opts, 'decay', 0.02, 0, 10, 'decay'),
+    sustain: __jsrAudioNumber(opts, 'sustain', 0.7, 0, 1, 'sustain'),
+    release: __jsrAudioNumber(opts, 'release', 0.05, 0, 10, 'release'),
+    pan: __jsrAudioNumber(opts, 'pan', 0, -1, 1, 'pan'),
+  });
+  return this;
+};
+
+__JsAudioSynth.prototype.note = function(note, opts){
+  opts = opts || {};
+  var copy = {};
+  for (var k in opts) copy[k] = opts[k];
+  if (copy.frequency === undefined) copy.frequency = __jsrAudioNoteFrequency(note);
+  return this.osc(copy);
+};
+
+__JsAudioSynth.prototype.render = function(){
+  var self = this;
+  return new Promise(function(resolve, reject){
+    var sampleRate = self.sampleRate;
+    var channels = self.channels;
+    var totalSeconds = self.duration;
+    var events = self.events;
+    if (events.length === 0) {
+      reject(new Error('audio.synth: track has no osc/note events'));
+      return;
+    }
+    if (totalSeconds === null) {
+      totalSeconds = 0;
+      for (var e = 0; e < events.length; e++) {
+        var end = events[e].start + events[e].duration + events[e].release;
+        if (end > totalSeconds) totalSeconds = end;
+      }
+      if (totalSeconds <= 0 || totalSeconds > __jsrAudioMaxDuration) {
+        reject(new Error('audio.synth: rendered duration must be 0..' +
+          __jsrAudioMaxDuration + ' seconds'));
+        return;
+      }
+    }
+    var frames = Math.ceil(totalSeconds * sampleRate);
+    var totalSamples = frames * channels;
+    if (totalSamples > __jsrAudioMaxSamples) {
+      reject(new Error('audio.synth: rendered PCM exceeds the 64 MiB limit'));
+      return;
+    }
+
+    var pcm = new Float32Array(totalSamples);
+    var pi2 = Math.PI * 2;
+    for (var n = 0; n < events.length; n++) {
+      var ev = events[n];
+      var start = Math.floor(ev.start * sampleRate);
+      if (start >= frames) continue;
+      var end = Math.min(
+        frames,
+        Math.ceil((ev.start + ev.duration + ev.release) * sampleRate));
+      if (end <= start) continue;
+
+      var attack = ev.attack * sampleRate;
+      var decay = ev.decay * sampleRate;
+      var hold = ev.duration * sampleRate;
+      var release = ev.release * sampleRate;
+      var attackDecay = attack + decay;
+      var sustain = ev.sustain;
+      var detuneMul = Math.pow(2, ev.detune / 1200);
+      var frequency = ev.frequency * detuneMul;
+      var frequencyEnd = ev.frequencyEnd * detuneMul;
+      var phase = 0;
+      var step = frequency / sampleRate;
+      var stepMul = 1;
+      if (frequencyEnd > 0 && ev.type !== 'noise') {
+        var steps = Math.max(1, Math.round(ev.duration * sampleRate));
+        stepMul = Math.pow(frequencyEnd / frequency, 1 / steps);
+      }
+      var panAngle = (Math.max(-1, Math.min(1, ev.pan)) + 1) * Math.PI / 4;
+      var leftGain = channels === 1 ? 1 : Math.cos(panAngle);
+      var rightGain = channels === 1 ? 0 : Math.sin(panAngle);
+
+      for (var i = start; i < end; i++) {
+        var x = i - start;
+        var env;
+        if (x < attack) env = attack > 0 ? x / attack : 1;
+        else if (x < attackDecay) env = 1 - (1 - sustain) * ((x - attack) / decay);
+        else env = sustain;
+        if (x > hold) {
+          env = release > 0 ? sustain * (1 - (x - hold) / release) : 0;
+        }
+        if (env <= 0) continue;
+        var v;
+        if (ev.type === 'noise') {
+          v = Math.random() * 2 - 1;
+        } else if (ev.type === 'square') {
+          v = phase < 0.5 ? 1 : -1;
+        } else if (ev.type === 'sawtooth') {
+          v = phase * 2 - 1;
+        } else if (ev.type === 'triangle') {
+          v = 1 - 4 * Math.abs(phase - 0.5);
+        } else {
+          v = Math.sin(phase * pi2);
+        }
+        var g = ev.gain * env;
+        var base = i * channels;
+        if (channels === 1) {
+          pcm[base] += v * g;
+        } else {
+          pcm[base] += v * g * leftGain;
+          pcm[base + 1] += v * g * rightGain;
+        }
+        if (ev.type !== 'noise') {
+          phase += step;
+          step *= stepMul;
+          if (phase >= 1) phase -= Math.floor(phase);
+        }
+      }
+    }
+    for (var s = 0; s < pcm.length; s++) {
+      if (pcm[s] > 1) pcm[s] = 1;
+      else if (pcm[s] < -1) pcm[s] = -1;
+    }
+
+    var id = __nid();
+    __cbs[id] = function(r){
+      if (r && r.__error) reject(new Error(r.__error));
+      else resolve(r);
+    };
+    try {
+      jsr.hostCallBinary('audio.synth', __jsrAudioEnvelope(
+        id, self.name, sampleRate, channels, frames, pcm));
+    } catch (err) {
+      delete __cbs[id];
+      reject(err);
+    }
+  });
+};
+
+// Binary 'JSRA' envelope: 4-byte magic, u32 version, u32 raw JSON header
+// length, NUL-padded JSON header, then raw little-endian Float32 PCM. The
+// header stays tiny even for minutes of audio; on QuickJS the whole typed
+// array crosses by pointer/length with no base64 expansion.
+function __jsrAudioEnvelope(id, name, sampleRate, channels, frames, pcm){
+  var header = '{"id":"' + id + '","name":"' + name +
+    '","sampleRate":' + sampleRate + ',"channels":' + channels +
+    ',"frames":' + frames + '}';
+  var rawLen = header.length;
+  var pad = (4 - rawLen % 4) % 4;
+  var body = new Uint8Array(pcm.buffer, pcm.byteOffset || 0, pcm.byteLength);
+  var out = new Uint8Array(12 + rawLen + pad + body.length);
+  var dv = new DataView(out.buffer);
+  dv.setUint32(0, 0x4152524a, true); // 'JSRA'
+  dv.setUint32(4, 1, true);
+  dv.setUint32(8, rawLen, true);
+  for (var h = 0; h < rawLen; h++) out[12 + h] = header.charCodeAt(h);
+  for (var b = 0; b < body.length; b++) out[12 + rawLen + pad + b] = body[b];
+  return out;
+}
 
 // Canonical easing-name aliases: the same curves under the long names the
 // Motion-Canvas port standardized on. Old short names stay forever.
