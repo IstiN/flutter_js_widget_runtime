@@ -1,3 +1,7 @@
+## 0.4.209
+
+- Automated patch bump.
+
 ## 0.4.208
 
 - Extend offline `jsr.audio.synth` with per-event biquad filters
