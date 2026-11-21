@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+  <defs><linearGradient id="barsUp" x1="14" y1="16" x2="48" y2="52" gradientUnits="userSpaceOnUse"><stop stop-color="#9BE0B4"/><stop offset="1" stop-color="#2E7A4E"/></linearGradient></defs>
+  <path d="M10 54h44" stroke="#7E9C8C" stroke-opacity=".6" stroke-width="2" stroke-linecap="round"/>
+  <g fill="url(#barsUp)" stroke="#D8F2E2" stroke-opacity=".45"><rect x="13" y="36" width="8" height="15" rx="2.5"/><rect x="27" y="27" width="8" height="24" rx="2.5"/><rect x="41" y="16" width="8" height="35" rx="2.5"/></g>
+  <path d="m12 26 12-9 10 6 16-13" fill="none" stroke="#C9EFD7" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M43 10h7v7" fill="none" stroke="#C9EFD7" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>

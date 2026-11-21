@@ -2,8 +2,8 @@
   "id": "stocks",
   "name": "Stock Prices",
   "description": "Real-time stock quotes",
-  "version": "1.0.3",
-  "icon": "📈",
+  "version": "1.0.4",
+  "icon": "icon.svg",
   "allowedCommands": [],
   "network": true,
   "cli": {
