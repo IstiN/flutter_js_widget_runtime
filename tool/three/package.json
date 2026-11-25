@@ -6,7 +6,7 @@
   "type": "module",
   "scripts": {
     "build": "node build.mjs",
-    "test": "node test/adapter_test.js && node test/batch_test.js && node --test test/pmrem_test.mjs && node test/api_matrix_test.mjs && node test/ut_gl_1_test.js"
+    "test": "node test/adapter_test.js && node test/batch_test.js && node --test test/pmrem_test.mjs && node test/api_matrix_test.mjs && node test/ut_gl_1_test.js && node test/it_life_facade_test.js && node test/e2e_cap_truth_test.js"
   },
   "devDependencies": {
     "esbuild": "0.25.5"

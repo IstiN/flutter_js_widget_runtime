@@ -126,6 +126,25 @@ int fnv1a(List<int> bytes) {
   return h;
 }
 
+/// Reads the `a1b_gl_result` scratch of the current surface (the data lane
+/// the facade's data-returning calls consume as `__jsr1b_result` base64).
+Uint8List readGlScratch(ffi.DynamicLibrary lib) {
+  final result = lib
+      .lookupFunction<
+        ffi.Int32 Function(ffi.Pointer<ffi.Uint8>, ffi.Int32),
+        int Function(ffi.Pointer<ffi.Uint8>, int)
+      >('a1b_gl_result');
+  final len = result(ffi.Pointer.fromAddress(0), 0);
+  if (len <= 0) return Uint8List(0);
+  final buf = calloc<ffi.Uint8>(len);
+  try {
+    final n = result(buf, len);
+    return Uint8List.fromList(buf.asTypedList(n).toList());
+  } finally {
+    calloc.free(buf);
+  }
+}
+
 String hex32(int v) => '0x${v.toRadixString(16).padLeft(8, '0')}';
 
 /// One full pipeline: QuickJS with the real (batching) facade over real ANGLE.
@@ -169,23 +188,9 @@ class _Session {
     return r;
   }
 
-  Uint8List readScratch() {
-    final lib = shim.lib;
-    final result = lib
-        .lookupFunction<
-          ffi.Int32 Function(ffi.Pointer<ffi.Uint8>, ffi.Int32),
-          int Function(ffi.Pointer<ffi.Uint8>, int)
-        >('a1b_gl_result');
-    final len = result(ffi.Pointer.fromAddress(0), 0);
-    if (len <= 0) return Uint8List(0);
-    final buf = calloc<ffi.Uint8>(len);
-    try {
-      final n = result(buf, len);
-      return Uint8List.fromList(buf.asTypedList(n).toList());
-    } finally {
-      calloc.free(buf);
-    }
-  }
+  /// Reads the `a1b_gl_result` scratch of the current surface (shared with
+  /// the engine-level real wire host in test/support/three_1b_real_wire.dart).
+  Uint8List readScratch() => readGlScratch(shim.lib);
 
   void close() => rt.close();
 }

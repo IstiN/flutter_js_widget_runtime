@@ -1,0 +1,108 @@
+import 'dart:convert';
+import 'dart:ffi' as ffi;
+import 'dart:typed_data';
+
+import 'package:ffi/ffi.dart';
+
+import 'fake_three_host.dart';
+import 'package:js_widget_runtime/src/renderer/nodes/three/js_three_host.dart'
+    show JsThree1BWire;
+
+import '../../tool/three/bench_1b.dart' show Shim, readGlScratch;
+
+/// Builds one single G1 command (LE `u32 opcode` + LE args; ints as i32,
+/// doubles as f32) for raw-wire tests.
+Uint8List g1Command(int opcode, [List<Object> args = const <Object>[]]) {
+  final b = BytesBuilder();
+  final head = ByteData(4)..setUint32(0, opcode, Endian.little);
+  b.add(head.buffer.asUint8List());
+  for (final arg in args) {
+    final v = ByteData(4);
+    if (arg is int) {
+      v.setInt32(0, arg, Endian.little);
+    } else if (arg is double) {
+      v.setFloat32(0, arg, Endian.little);
+    } else {
+      throw ArgumentError.value(arg, 'arg', 'G1 args are int or double');
+    }
+    b.add(v.buffer.asUint8List());
+  }
+  return b.toBytes();
+}
+
+/// The C sentinel returned when no current surface backs the dispatch
+/// (angle_1b_dispatch.c) and the malformed-frame error code.
+const int g1NoCurrentSurface = -0x7fffffff;
+const int g1EMalformed = -0x7ffffffe;
+
+/// Copies [bytes] into a native buffer and runs `a1b_gl_dispatch`
+/// (the empty stream exercises the `len < 4` guard with a 1-byte buffer).
+int dispatchBytes(Shim shim, List<int> bytes) {
+  final buf = calloc<ffi.Uint8>(bytes.length < 1 ? 1 : bytes.length);
+  try {
+    if (bytes.isNotEmpty) buf.asTypedList(bytes.length).setAll(0, bytes);
+    return shim.dispatch(buf, bytes.length);
+  } finally {
+    calloc.free(buf);
+  }
+}
+
+/// A [JsThree1BWire] whose dispatch lane replays every G1 batch through the
+/// REAL C decoder (`a1b_gl_dispatch`) on a live ANGLE surface and whose
+/// scratch lane reads the real `a1b_gl_result`. Engine-level E2E tests
+/// (real bundle + facade + ANGLE through the full JsWidgetEngine stack)
+/// ride this wire; without the pinned dylib the tests skip.
+///
+/// The display (`a1b_init`) is idempotent, so several hosts may coexist in
+/// one process; each owns its surface and must be [dispose]d.
+class Real1BWireHost extends Fake1BWireHost {
+  Real1BWireHost({this.width = 64, this.height = 64}) {
+    shim = Shim();
+    final rc = shim.init();
+    if (rc != 0) {
+      throw StateError('a1b_init failed: $rc');
+    }
+    final idOut = calloc<ffi.Uint32>();
+    try {
+      surface = shim.createSurface(width, height, idOut);
+      if (surface <= 0) {
+        throw StateError('a1b_create_surface failed: $surface');
+      }
+      if (shim.makeCurrent(surface) != 0) {
+        throw StateError('a1b_make_current failed for surface $surface');
+      }
+    } finally {
+      calloc.free(idOut);
+    }
+  }
+
+  late final Shim shim;
+  late final int surface;
+  final int width;
+  final int height;
+  int _parkedRc = 0;
+
+  @override
+  int dispatch1B(String engineId, Uint8List command) {
+    // Record like the fake wire, then replay through the real decoder.
+    dispatches1B.add(Uint8List.fromList(command));
+    final buf = calloc<ffi.Uint8>(command.length);
+    try {
+      buf.asTypedList(command.length).setAll(0, command);
+      _parkedRc = shim.dispatch(buf, command.length);
+    } finally {
+      calloc.free(buf);
+    }
+    return _parkedRc;
+  }
+
+  @override
+  String result1BAsBase64(String engineId) =>
+      base64Encode(readGlScratch(shim.lib));
+
+  /// Destroys this host's surface. The display stays (idempotent init lets
+  /// later hosts re-use it); a full `a1b_shutdown` belongs to tearDownAll.
+  void dispose() {
+    shim.destroySurface(surface);
+  }
+}

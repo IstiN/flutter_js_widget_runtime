@@ -28,6 +28,11 @@ Future<(Fake1BWireHost, JsThreeBackendSelection?, Map<String, dynamic>?)>
   String? probeReason,
   Fake1BWireHost? host,
   bool realFacade = false,
+
+  /// Filled with the engine's console log after run() — the observable the
+  /// F2c silent-failure fix mirrors composite errors into (`[E] Widget
+  /// error: …`).
+  List<Map<String, dynamic>>? consoleLogs,
 }) async {
   debugDefaultTargetPlatformOverride = TargetPlatform.macOS;
   final w = host ??
@@ -52,6 +57,7 @@ Future<(Fake1BWireHost, JsThreeBackendSelection?, Map<String, dynamic>?)>
   );
   try {
     await engine.run(widget);
+    consoleLogs?.addAll(engine.flushLogs());
     return (w, reported, engine.exportedState);
   } finally {
     debugDefaultTargetPlatformOverride = null;
