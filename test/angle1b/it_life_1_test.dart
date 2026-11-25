@@ -4,8 +4,6 @@ import 'dart:io';
 import 'package:ffi/ffi.dart';
 import 'package:flutter_test/flutter_test.dart';
 
-import 'package:js_widget_runtime/src/model/js_three_backend.dart';
-
 import '../support/three_1b_engine.dart';
 import '../support/three_1b_real_wire.dart';
 import '../../tool/three/bench_1b.dart' show Shim;
@@ -20,20 +18,14 @@ void main() {
   // ignore: omit_local_variable_types
   final String? missing = Shim.resolveProblem();
 
-  const lifecycleWidget = r'''
+  final lifecycleWidget = '''
 var results = { cycles: 0, errors: [], lastCalls: 0 };
 try {
   for (var i = 0; i < 100; i++) {
     var canvas = jsr.three.createCanvas('c' + i);
     var renderer = new THREE.WebGLRenderer({ canvas: canvas, antialias: false });
     renderer.setSize(32, 32, false);
-    var scene = new THREE.Scene();
-    var camera = new THREE.PerspectiveCamera(50, 1, 0.1, 100);
-    camera.position.z = 3;
-    scene.add(new THREE.Mesh(
-      new THREE.BoxGeometry(1, 1, 1),
-      new THREE.MeshBasicMaterial({ color: 0x00ff00 })));
-    renderer.render(scene, camera);
+${onebRenderCubeJs('0x00ff00')}
     results.lastCalls = renderer.info.render.calls;
     renderer.dispose();
     results.cycles++;
@@ -44,23 +36,10 @@ try {
 jsr.exportState(results);
 ''';
 
-  List<String> widgetErrors(List<Map<String, dynamic>> logs) => logs
-      .map((l) => '${l['msg']}')
-      .where((m) => m.startsWith('[E]') && m.contains('Widget error'))
-      .toList();
-
   test('IT-LIFE-1: 100 renderer create/render/dispose cycles complete on '
       'one engine and one surface', () async {
-    final wire = Real1BWireHost()
-      ..facadeBootstrapOverride = real1bFacadeBootstrap();
-    final logs = <Map<String, dynamic>>[];
-    final (w, reported, state) = await run1bWidgetEngine(
-      lifecycleWidget,
-      threeSource: realBundle,
-      realFacade: true,
-      host: wire,
-      consoleLogs: logs,
-    );
+    final (wire, reported, state, logs) =
+        await run1bRealEngine(lifecycleWidget, realBundle);
     addTearDown(wire.dispose);
     expect(reported?.isAngle1b, isTrue);
     expect(state?['cycles'], 100,
@@ -69,18 +48,14 @@ jsr.exportState(results);
     expect(state?['lastCalls'], 1,
         reason: 'the 100th cycle still submits its draw call (no stale '
             'context, no resource exhaustion)');
-    expect(widgetErrors(logs), isEmpty);
-    expect(w.dispatches1B.length, greaterThan(100));
+    expect(widgetErrorLogs(logs), isEmpty);
+    expect(wire.dispatches1B.length, greaterThan(100));
   }, skip: missing, timeout: const Timeout(Duration(minutes: 5)));
 
   test('E2E-CONTEXT-1: context loss and restore through WEBGL_lose_context, '
       'then a clean draw', () async {
-    final wire = Real1BWireHost()
-      ..facadeBootstrapOverride = real1bFacadeBootstrap();
-    final (_, reported, state) = await run1bWidgetEngine(
-      r'''
-var results = {};
-try {
+    final (wire, reported, state, _) = await run1bRealEngine(
+      onebProbeWidget('''
   var canvas = jsr.three.createCanvas('ctx');
   var renderer = new THREE.WebGLRenderer({ canvas: canvas, antialias: false });
   renderer.setSize(32, 32, false);
@@ -91,23 +66,11 @@ try {
   results.lost = gl.isContextLost();
   ext.restoreContext();
   results.restored = !gl.isContextLost();
-  var scene = new THREE.Scene();
-  var camera = new THREE.PerspectiveCamera(50, 1, 0.1, 100);
-  camera.position.z = 3;
-  scene.add(new THREE.Mesh(
-    new THREE.BoxGeometry(1, 1, 1),
-    new THREE.MeshBasicMaterial({ color: 0x0000ff })));
-  renderer.render(scene, camera);
+${onebRenderCubeJs('0x0000ff')}
   results.rendered = true;
   results.glError = gl.getError();
-} catch (e) {
-  results.error = String((e && e.message) || e);
-}
-jsr.exportState(results);
-''',
-      threeSource: realBundle,
-      realFacade: true,
-      host: wire,
+'''),
+      realBundle,
     );
     addTearDown(wire.dispose);
     expect(reported?.isAngle1b, isTrue);
@@ -124,17 +87,10 @@ jsr.exportState(results);
       'clean and the dead surface cannot reach the live one', () async {
     // Engine 1 renders, its helper tears the engine down immediately after
     // run() returns (unawaited bridge dispatches may still be in flight).
-    final wire1 = Real1BWireHost()
-      ..facadeBootstrapOverride = real1bFacadeBootstrap();
     final renderWidget =
         'jsr.three.createCanvas("d");'
         'jsr.exportState({ engine: 1, rendered: true });';
-    final (_, _, state1) = await run1bWidgetEngine(
-      renderWidget,
-      threeSource: realBundle,
-      realFacade: true,
-      host: wire1,
-    );
+    final (wire1, _, state1, _) = await run1bRealEngine(renderWidget, realBundle);
     expect(state1?['rendered'], isTrue);
     wire1.dispose();
 
@@ -166,13 +122,9 @@ jsr.exportState(results);
 
     // Engine 2 on a fresh surface runs the same widget without inheriting
     // anything from engine 1.
-    final wire2 = Real1BWireHost()
-      ..facadeBootstrapOverride = real1bFacadeBootstrap();
-    final (_, reported2, state2) = await run1bWidgetEngine(
+    final (wire2, reported2, state2, _) = await run1bRealEngine(
       renderWidget.replaceFirst('engine: 1', 'engine: 2'),
-      threeSource: realBundle,
-      realFacade: true,
-      host: wire2,
+      realBundle,
     );
     addTearDown(wire2.dispose);
     expect(reported2?.isAngle1b, isTrue);

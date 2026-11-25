@@ -34,29 +34,7 @@ void main() {
 })();
 ''';
 
-  const String widgetSource = '''
-var results = {};
-try {
-  var sm = new THREE.ShaderMaterial();
-  results.shaderMaterial = sm.isShaderMaterial === true ? 'constructed' : 'wrong-identity';
-} catch (e) {
-  results.shaderMaterial = String(e.message);
-}
-try {
-  var rsm = new THREE.RawShaderMaterial();
-  results.rawShaderMaterial = rsm.isRawShaderMaterial === true ? 'constructed' : 'wrong-identity';
-} catch (e) {
-  results.rawShaderMaterial = String(e.message);
-}
-try {
-  var mesh = new THREE.MeshBasicMaterial();
-  mesh.onBeforeCompile = function () {};
-  results.onBeforeCompile = 'set';
-} catch (e) {
-  results.onBeforeCompile = String(e.message);
-}
-jsr.exportState(results);
-''';
+  final String widgetSource = onebProbeWidget(onebShaderPolicyProbeJs);
 
   Fake1BWireHost wire({String? probeReason}) =>
       Fake1BWireHost()..probeReason = probeReason;

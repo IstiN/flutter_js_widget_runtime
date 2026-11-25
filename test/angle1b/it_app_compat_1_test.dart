@@ -2,10 +2,7 @@ import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
 
-import 'package:js_widget_runtime/src/model/js_three_backend.dart';
-
 import '../support/three_1b_engine.dart';
-import '../support/three_1b_real_wire.dart';
 import '../support/three_quickjs_example_harness.dart';
 import '../../tool/three/bench_1b.dart' show Shim;
 
@@ -27,9 +24,8 @@ void main() {
   /// The application source, byte-identical across the 1A and 1B legs: the
   /// canonical `jsr.three.createCanvas` canvas, one lit-geometry-free scene
   /// and one render.
-  const appWidget = r'''
-var results = { firstLine: true };
-try {
+  final appWidget = onebProbeWidget(
+    r'''
   var canvas = jsr.three.createCanvas('main');
   var scene = new THREE.Scene();
   var camera = new THREE.PerspectiveCamera(50, 1, 0.1, 100);
@@ -45,16 +41,9 @@ try {
   results.rendered = true;
   results.children = scene.children.length;
   results.calls = renderer.info.render.calls;
-} catch (e) {
-  results.error = String((e && e.message) || e);
-}
-jsr.exportState(results);
-''';
-
-  List<String> widgetErrors(List<Map<String, dynamic>> logs) => logs
-      .map((l) => '${l['msg']}')
-      .where((m) => m.startsWith('[E]') && m.contains('Widget error'))
-      .toList();
+''',
+    init: 'var results = { firstLine: true };',
+  );
 
   test('F2c regression: a composite failure is never effect-free — the '
       'named error lands in the __jsr_log lane', () async {
@@ -66,8 +55,8 @@ jsr.exportState(results);
       consoleLogs: logs,
     );
     expect(state, isNull, reason: 'the widget never exported');
-    expect(widgetErrors(logs), hasLength(1));
-    expect(widgetErrors(logs).single, contains('composite-boom-probe'));
+    expect(widgetErrorLogs(logs), hasLength(1));
+    expect(widgetErrorLogs(logs).single, contains('composite-boom-probe'));
   });
 
   testWidgets('IT-APP-COMPAT-1 (r1 leg): the same application source boots '
@@ -92,26 +81,19 @@ jsr.exportState(results);
 
   test('IT-APP-COMPAT-1 (1B leg): the real bundle boots through the engine '
       'and the application renders over ANGLE', () async {
-    final wire = Real1BWireHost()..facadeBootstrapOverride = real1bFacadeBootstrap();
-    final logs = <Map<String, dynamic>>[];
-    final (w, reported, state) = await run1bWidgetEngine(
-      appWidget,
-      threeSource: realBundle,
-      realFacade: true,
-      host: wire,
-      consoleLogs: logs,
-    );
+    final (wire, reported, state, logs) =
+        await run1bRealEngine(appWidget, realBundle);
     addTearDown(wire.dispose);
     expect(reported?.isAngle1b, isTrue);
-    expect(w.bootstrapEnsured, isTrue);
+    expect(wire.bootstrapEnsured, isTrue);
     expect(state?['firstLine'], isTrue,
         reason: 'the widget must execute at all (F2c silent-failure fix)');
     expect(state?['rendered'], isTrue,
         reason: 'Scene + Mesh + WebGLRenderer render over the real wire');
     expect(state?['error'], isNull);
-    expect(widgetErrors(logs), isEmpty,
+    expect(widgetErrorLogs(logs), isEmpty,
         reason: 'no composite error may reach the __jsr_log lane');
-    expect(w.dispatches1B, isNotEmpty);
+    expect(wire.dispatches1B, isNotEmpty);
   }, skip: missing);
 
   test('IT-SHADER-2: built-in materials over the real bundle construct, '
@@ -144,41 +126,17 @@ jsr.exportState(results);
 
     // (b) blocked: the policy message, before any renderer allocation, with
     // the REAL bundle behind the policy.
-    final logs = <Map<String, dynamic>>[];
-    final (_, reportedB, stateB) = await run1bWidgetEngine(
-      r'''
-var results = {};
-try {
-  var sm = new THREE.ShaderMaterial();
-  results.shaderMaterial = sm.isShaderMaterial === true ? 'constructed' : 'wrong-identity';
-} catch (e) {
-  results.shaderMaterial = String(e.message);
-}
-try {
-  var rsm = new THREE.RawShaderMaterial();
-  results.rawShaderMaterial = rsm.isRawShaderMaterial === true ? 'constructed' : 'wrong-identity';
-} catch (e) {
-  results.rawShaderMaterial = String(e.message);
-}
-try {
-  var m = new THREE.MeshBasicMaterial();
-  m.onBeforeCompile = function () {};
-  results.onBeforeCompile = 'set';
-} catch (e) {
-  results.onBeforeCompile = String(e.message);
-}
+    final (_, reportedB, stateB, logsB) = await run1bRealEngine(
+      onebProbeWidget('''
+$onebShaderPolicyProbeJs
 try {
   var scene = new THREE.Scene();
   results.scene = scene.children.length;
 } catch (e) {
   results.sceneError = String(e.message);
 }
-jsr.exportState(results);
-''',
-      threeSource: realBundle,
-      realFacade: true,
-      allowCustomShaders: false,
-      consoleLogs: logs,
+'''),
+      realBundle,
     );
     expect(reportedB?.isAngle1b, isTrue);
     const policy =
@@ -188,17 +146,14 @@ jsr.exportState(results);
     expect(stateB?['onBeforeCompile'], policy);
     expect(stateB?['scene'], 0,
         reason: 'non-shader THREE API stays intact behind the policy');
-    expect(widgetErrors(logs), isEmpty);
+    expect(widgetErrorLogs(logsB), isEmpty);
   });
 
   test('E2E-SHADER-1: an invalid shader takes the original error path '
       'without a host crash', () async {
-    final wire = Real1BWireHost()..facadeBootstrapOverride = real1bFacadeBootstrap();
-    final logs = <Map<String, dynamic>>[];
-    final (w, reported, state) = await run1bWidgetEngine(
-      r'''
-var results = {};
-try {
+    final (wire, reported, state, logs) =
+        await run1bRealEngine(
+      onebProbeWidget(r'''
   var canvas = jsr.three.createCanvas('e2e');
   var renderer = new THREE.WebGLRenderer({ canvas: canvas, antialias: false });
   var gl = renderer.getContext();
@@ -211,15 +166,8 @@ try {
   results.hasLog = log.length > 0;
   results.logHead = log.substring(0, 60);
   renderer.dispose();
-} catch (e) {
-  results.error = String((e && e.message) || e);
-}
-jsr.exportState(results);
-''',
-      threeSource: realBundle,
-      realFacade: true,
-      host: wire,
-      consoleLogs: logs,
+'''),
+      realBundle,
     );
     addTearDown(wire.dispose);
     expect(reported?.isAngle1b, isTrue);
@@ -227,6 +175,6 @@ jsr.exportState(results);
     expect(state?['hasLog'], isTrue,
         reason: 'the original GLSL error path surfaces the info log');
     expect(state?['error'], isNull);
-    expect(widgetErrors(logs), isEmpty);
+    expect(widgetErrorLogs(logs), isEmpty);
   }, skip: missing);
 }

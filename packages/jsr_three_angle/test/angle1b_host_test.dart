@@ -68,6 +68,55 @@ void main() {
     skip: probeReason,
   );
 
+  test(
+    'IT-LIFE-2: 50 surface resize/recycle cycles stay live and render fresh',
+    () async {
+      final surface = backend.attach('eng-life2', 's1', <String, dynamic>{
+        'width': 64,
+        'height': 48,
+      });
+      addTearDown(() => backend.disposeEngine('eng-life2'));
+      for (var i = 0; i < 50; i++) {
+        final w = 32 + (i % 4) * 32;
+        final h = 32 + (i % 3) * 16;
+        surface.resize(ui.Size(w.toDouble(), h.toDouble()), 1.0);
+        expect(surface.diagnostics['width'], w, reason: 'cycle $i');
+        expect(surface.diagnostics['height'], h, reason: 'cycle $i');
+        expect(surface.isDisposed, isFalse, reason: 'cycle $i');
+        // The recycled context still executes: getError == NO_ERROR.
+        expect(backend.dispatch1B('eng-life2', _g1(1)), 0, reason: 'cycle $i');
+      }
+      // The C ABI has no resize: every cycle destroyed and re-allocated the
+      // native surface. A fresh render on the final surface proves no stale
+      // frame and no cross-surface reuse: green clear on 96x64 readback.
+      surface.resize(const ui.Size(96, 64), 1.0);
+      backend.dispatch1B(
+        'eng-life2',
+        _g1(189, <Object>[0.0, 1.0, 0.0, 1.0]), // clearColor
+      );
+      backend.dispatch1B('eng-life2', _g1(192, [0x4000])); // clear(COLOR)
+      backend.dispatch1B('eng-life2', _g1(3)); // finish
+      expect(backend.dispatch1B('eng-life2', _g1(1)), 0); // getError
+      final png = await surface.capture();
+      expect(png, isNotNull);
+      final codec = await ui.instantiateImageCodec(png!);
+      final frame = await codec.getNextFrame();
+      expect(frame.image.width, 96,
+          reason: 'the recreated surface has the new size');
+      expect(frame.image.height, 64);
+      final rgba = (await frame.image.toByteData(
+        format: ui.ImageByteFormat.rawRgba,
+      ))!.buffer.asUint8List();
+      codec.dispose();
+      expect(rgba.length, 96 * 64 * 4);
+      // Top-left pixel is the clear color: opaque green — content rendered
+      // AFTER the last recreation, not a stale frame of the 64x48 surface.
+      expect(rgba[0], lessThanOrEqualTo(5)); // R
+      expect(rgba[1], greaterThanOrEqualTo(250)); // G
+    },
+    skip: probeReason,
+  );
+
   test('IT-SYNC: G1 dispatch allocates and frees GL objects', () async {
     final surface = backend.attach('eng-a', 's1', <String, dynamic>{
       'width': 32,

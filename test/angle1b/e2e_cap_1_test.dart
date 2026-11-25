@@ -2,10 +2,8 @@ import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
 
-import 'package:js_widget_runtime/src/model/js_three_backend.dart';
 
 import '../support/three_1b_engine.dart';
-import '../support/three_1b_real_wire.dart';
 import '../../tool/three/bench_1b.dart' show Shim;
 
 // REG-CAP-1 (issue #7, F2c capability truth): the exposed capability set is
@@ -18,9 +16,7 @@ void main() {
 
   test('REG-CAP-1: the engine-exposed capability set matches the real GL',
       () async {
-    final wire = Real1BWireHost()
-      ..facadeBootstrapOverride = real1bFacadeBootstrap();
-    final (_, reported, state) = await run1bWidgetEngine(
+    final (_, reported, state, _) = await run1bRealEngine(
       r'''
 var results = {};
 try {
@@ -52,12 +48,7 @@ try {
   results.error = String((e && e.message) || e);
 }
 jsr.exportState(results);
-''',
-      threeSource: realBundle,
-      realFacade: true,
-      host: wire,
-    );
-    addTearDown(wire.dispose);
+''', realBundle);
     expect(reported?.isAngle1b, isTrue);
     expect(state?['error'], isNull);
     final supported = (state?['supported'] as List?)?.cast<String>();

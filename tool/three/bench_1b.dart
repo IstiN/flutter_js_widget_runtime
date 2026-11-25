@@ -13,6 +13,9 @@
 //     the call, so the stopwatch covers encode + transport + native submit.
 //
 // Prints (machine-checkable lines):
+//   BENCH_WINDOW <i> frames=... draws=... flushes/frame=... p50=... p95=...
+//     p99=... (one line per measurement window; the summary below is the
+//     MEDIAN over the windows)
 //   BENCH_FLUSHES_PER_FRAME <n>
 //   BENCH_P50_MS <x>   BENCH_P95_MS <x>   BENCH_P99_MS <x>
 //   RAWGL_MATCH <true|false>  RAWGL_FACADE_HASH 0x...  RAWGL_DIRECT_HASH 0x...
@@ -341,11 +344,40 @@ double _percentile(List<double> sortedMs, double q) {
   return sortedMs[idx];
 }
 
+/// Cross-window estimator: the MEDIAN of each percentile over the measured
+/// windows, the MAX flush count (a noisy window must not hide a flush), and
+/// the window shape of the first window. With an even window count the upper
+/// middle value wins (deterministic; the default is 3 windows).
+BenchReport _medianWindow(List<BenchReport> windows) {
+  double median(double Function(BenchReport) pick) {
+    final values = windows.map(pick).toList()..sort();
+    return values[values.length ~/ 2];
+  }
+
+  return BenchReport(
+    windows.first.frames,
+    windows.first.drawsPerFrame,
+    windows.map((r) => r.flushesPerFrame).reduce((a, b) => a > b ? a : b),
+    median((r) => r.p50Ms),
+    median((r) => r.p95Ms),
+    median((r) => r.p99Ms),
+  );
+}
+
 /// Boots the stack once, runs [frames] frames of [draws] void draw calls and
 /// returns the percentiles + the (max) flush count per frame.
+///
+/// Steady-state estimator: one warm-up window (100 frames) settles JIT and
+/// heap, then [windows] measurement windows run; the reported percentiles
+/// are the MEDIAN across the windows. Shared macos runners burst with OS
+/// noise — F2b measured 5.6 ms p95 with 10 warm-up frames, F2c 4.079 ms even
+/// with 100 — and a best-of-windows pick would bias the number downward, so
+/// the median carries the honest steady-state figure. Every window is
+/// printed (`BENCH_WINDOW <i> ...`).
 Future<BenchReport> run1bBench({
   int frames = kFrames,
   int draws = kDrawsPerFrame,
+  int windows = 3,
   Shim? shim,
   int? surface,
 }) async {
@@ -373,37 +405,41 @@ Future<BenchReport> run1bBench({
     final ok = session.evalJs(setupJs, 'setup.js');
     if (ok != 'true') throw StateError('bench setup failed: $ok');
     session.evalJs('__benchFrame(1);'); // warm-up frame + flush plumbing
-    // Steady-state warm-up: the first frames on a cold runner (JIT, heap
-    // growth) must not contaminate the percentiles. `dart run` is
-    // JIT-compiled, and shared macos runners start colder than local
-    // machines — F2b measured 5.6 ms p95 with 10 warm-up frames, F2c
-    // 4.6 ms; 100 warm-up frames (~0.2 s) let the JIT and the heap settle
-    // before the measured window.
+    // One warm-up window: the first frames on a cold runner (JIT, heap
+    // growth) must not land in any measured window.
     for (var f = 0; f < 100; f++) {
       session.evalJs('__benchFrame($draws);');
     }
-    final samples = <double>[];
-    var maxFlushes = 0;
-    for (var f = 0; f < frames; f++) {
-      session.dispatchCount = 0;
-      watch
-        ..reset()
-        ..start();
-      session.evalJs('__benchFrame($draws);', 'frame.js');
-      watch.stop();
-      final ms = watch.elapsedMicroseconds / 1000.0;
-      samples.add(ms);
-      if (session.dispatchCount > maxFlushes) maxFlushes = session.dispatchCount;
+    final windowReports = <BenchReport>[];
+    for (var w = 0; w < windows; w++) {
+      final samples = <double>[];
+      var maxFlushes = 0;
+      for (var f = 0; f < frames; f++) {
+        session.dispatchCount = 0;
+        watch
+          ..reset()
+          ..start();
+        session.evalJs('__benchFrame($draws);', 'frame.js');
+        watch.stop();
+        samples.add(watch.elapsedMicroseconds / 1000.0);
+        if (session.dispatchCount > maxFlushes) {
+          maxFlushes = session.dispatchCount;
+        }
+      }
+      samples.sort();
+      final report = BenchReport(
+        frames,
+        draws,
+        maxFlushes,
+        _percentile(samples, 0.50),
+        _percentile(samples, 0.95),
+        _percentile(samples, 0.99),
+      );
+      // ignore: avoid_print
+      print('BENCH_WINDOW $w $report');
+      windowReports.add(report);
     }
-    samples.sort();
-    return BenchReport(
-      frames,
-      draws,
-      maxFlushes,
-      _percentile(samples, 0.50),
-      _percentile(samples, 0.95),
-      _percentile(samples, 0.99),
-    );
+    return _medianWindow(windowReports);
   } finally {
     session.close();
     if (surface == null) ownShim.destroySurface(ownSurface);
