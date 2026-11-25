@@ -304,8 +304,9 @@ class JsonWidgetRenderer with JsonWidgetDecoration {
 
   /// Stamps the built node with its `jsr:<nodeId>` key and records the
   /// applied node. [ParentDataWidget]s (Expanded/Flexible/Spacer/Positioned)
-  /// must sit directly inside their Flex/Stack parent, so they keep the
-  /// record but carry no wrapper key.
+  /// must sit directly inside their Flex/Stack parent, so the key goes on
+  /// the widget INSIDE them (issue #14): their subtree keeps the parent
+  /// data path AND the dump finds the stamped element with its own nodeId.
   Widget _stampNode(Object? identity, Widget built, String? nodeIdOverride) {
     final id = nodeIdOverride ?? _nodeIds[identity];
     if (id == null) return built;
@@ -315,7 +316,12 @@ class JsonWidgetRenderer with JsonWidgetDecoration {
       ..remove('children')
       ..remove('items');
     _appliedRecords[id] = record;
-    if (built is ParentDataWidget) return built;
+    if (built is ParentDataWidget) {
+      return KeyedSubtree(
+        key: ValueKey<String>('jsr:$id'),
+        child: built.child,
+      );
+    }
     return KeyedSubtree(key: ValueKey<String>('jsr:$id'), child: built);
   }
 
