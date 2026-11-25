@@ -374,8 +374,12 @@ Future<BenchReport> run1bBench({
     if (ok != 'true') throw StateError('bench setup failed: $ok');
     session.evalJs('__benchFrame(1);'); // warm-up frame + flush plumbing
     // Steady-state warm-up: the first frames on a cold runner (JIT, heap
-    // growth) must not contaminate the percentiles.
-    for (var f = 0; f < 10; f++) {
+    // growth) must not contaminate the percentiles. `dart run` is
+    // JIT-compiled, and shared macos runners start colder than local
+    // machines — F2b measured 5.6 ms p95 with 10 warm-up frames, F2c
+    // 4.6 ms; 100 warm-up frames (~0.2 s) let the JIT and the heap settle
+    // before the measured window.
+    for (var f = 0; f < 100; f++) {
       session.evalJs('__benchFrame($draws);');
     }
     final samples = <double>[];
