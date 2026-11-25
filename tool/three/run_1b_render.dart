@@ -18,7 +18,7 @@ const kPackerPath = 'tool/three/gen/g1_packer.js';
 const kCorePath = 'example/web/three.core.js';
 const kModulePath = 'example/web/jsr_three_web.js';
 const kFacadePath = 'tool/three/src/webgl2_facade.js';
-const kShimPath = 'native/angle/libangle_1b.dylib';
+const kShimPath = 'packages/jsr_three_angle/native/angle/libangle_1b.dylib';
 const kW = 320, kH = 240;
 // Opcodes whose int64 rc may legitimately be -1 (GL not-found, g1_tables.h);
 // any OTHER negative rc = named C stub.
@@ -321,7 +321,7 @@ RenderResult runOnce(Shim shim, int surface, Map<int, String> opNames) {
 
 void main() {
   String hex32(int v) => '0x${v.toRadixString(16).padLeft(8, '0')}';
-  if (!File(kShimPath).existsSync()) { stderr.writeln('libangle_1b.dylib not found; run `bash native/angle/build.sh`'); exit(2); }
+  if (!File(kShimPath).existsSync()) { stderr.writeln('libangle_1b.dylib not found; run `bash packages/jsr_three_angle/native/angle/build.sh`'); exit(2); }
   final opNames = loadOpcodeTable();
   final shim = Shim();
   if (shim.init() != 0) throw StateError('a1b_init failed');

@@ -72,10 +72,15 @@ static int a1b_load_dylibs(void) {
   }
   const char *candidates[8];
   int n = 0;
+  // JSR_ANGLE_DIR overrides (CI/test staging), then the shim's own
+  // directory (dladdr) — CI copies libangle_1b.dylib next to the pinned
+  // ANGLE dylibs in out/<platform> — then the package-relative defaults.
+  const char *env_dir = getenv("JSR_ANGLE_DIR");
+  if (env_dir && env_dir[0]) candidates[n++] = env_dir;
   if (dir[0]) candidates[n++] = dir; // same dir as libangle_1b.dylib
-  candidates[n++] = "native/angle"; // repo-root CWD
-  candidates[n++] = "../native/angle"; // example/ CWD
-  candidates[n++] = "/Users/Uladzimir_Klyshevich/git/flutter_js_widget_runtime/native/angle";
+  candidates[n++] = "packages/jsr_three_angle/native/angle/out/macos-arm64";
+  candidates[n++] = "packages/jsr_three_angle/native/angle";
+  candidates[n++] = "native/angle"; // repo-root CWD (legacy spike layout)
 
   for (int i = 0; i < n; i++) {
     char gles[1300], egl[1300];

@@ -1,6 +1,6 @@
 // angle1b_smoke — headless FFI verification of the ANGLE 1B shim.
 //
-// No Flutter involved: dlopen native/angle/libangle_1b.dylib directly, create
+// No Flutter involved: dlopen packages/jsr_three_angle/native/angle/libangle_1b.dylib directly, create
 // a 320x240 IOSurface-backed surface, render the deterministic demo triangle
 // (M2: the renderer emits G1 command buffers through a1b_gl_dispatch — the
 // single code path), read pixels back, hash with FNV-1a 32-bit (same
@@ -171,13 +171,13 @@ int fnv1a(List<int> bytes) {
 
 DynamicLibrary _openShim() {
   const candidates = [
-    'native/angle/libangle_1b.dylib',
-    '../native/angle/libangle_1b.dylib',
+    'packages/jsr_three_angle/native/angle/libangle_1b.dylib',
+    '../packages/jsr_three_angle/native/angle/libangle_1b.dylib',
   ];
   for (final path in candidates) {
     if (File(path).existsSync()) return DynamicLibrary.open(path);
   }
-  stderr.writeln('libangle_1b.dylib not found; run `bash native/angle/build.sh`');
+  stderr.writeln('libangle_1b.dylib not found; run `bash packages/jsr_three_angle/native/angle/build.sh`');
   exit(2);
 }
 

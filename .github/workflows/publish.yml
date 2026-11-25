@@ -115,16 +115,20 @@ jobs:
 
       # example/ holds 325 prepared widget dirs (~1 GB raw; the prepared
       # widgets embed the THREE bundles) and would push the archive far past
-      # pub.dev's 100 MB cap. Stage a publish dir from the tracked tree
-      # (git archive = same file set `dart publish` selects, minus
-      # .gitignored build output) with example/ removed.
+      # pub.dev's 100 MB cap. packages/ is the optional jsr_three_angle
+      # distribution (ADR-0002): applications that select 1B add it as its
+      # own dependency; it must not ship inside js_widget_runtime. Stage a
+      # publish dir from the tracked tree (git archive = same file set
+      # `dart publish` selects, minus .gitignored build output) with
+      # example/ and packages/ removed.
       - name: Stage package without example/
         run: |
           set -euo pipefail
           STAGING="${RUNNER_TEMP}/jsr-publish-package"
           rm -rf "$STAGING" && mkdir -p "$STAGING"
-          git archive HEAD -- ':!example' | tar -x -C "$STAGING"
+          git archive HEAD -- ':!example' ':!packages' | tar -x -C "$STAGING"
           test ! -e "$STAGING/example"
+          test ! -e "$STAGING/packages"
           # Symlinks into example/ now dangle (e.g. test/assets/three_minecraft_widget.js)
           # and `dart pub publish` refuses to resolve them; drop any that no longer point
           # at a file inside the staging tree.

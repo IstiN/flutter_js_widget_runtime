@@ -32,7 +32,7 @@ const kPackerPath = 'tool/three/gen/g1_packer.js';
 const kCorePath = 'example/web/three.core.js';
 const kModulePath = 'example/web/jsr_three_web.js';
 const kFacadePath = 'tool/three/src/webgl2_facade.js';
-const kShimPath = 'native/angle/libangle_1b.dylib';
+const kShimPath = 'packages/jsr_three_angle/native/angle/libangle_1b.dylib';
 const kCorpusDomPath = 'tool/three/corpus/corpus_dom.js';
 const kCorpusXmlDomPath = 'tool/three/corpus/corpus_xmldom.js';
 // Shared corpus asset fallback: examples/assets the widget prepare did not
@@ -566,7 +566,7 @@ void main(List<String> args) {
   final scenePath = argValue(args, 'scene');
   final widgetDir = argValue(args, 'widget-dir');
   final outDir = argValue(args, 'out');
-  if (!File(kShimPath).existsSync()) { stderr.writeln('libangle_1b.dylib not found; run `bash native/angle/build.sh`'); exit(2); }
+  if (!File(kShimPath).existsSync()) { stderr.writeln('libangle_1b.dylib not found; run `bash packages/jsr_three_angle/native/angle/build.sh`'); exit(2); }
   Directory(outDir).createSync(recursive: true);
 
   // Asset registry: prepare_manifest assetDiscovery (url -> flattened output)

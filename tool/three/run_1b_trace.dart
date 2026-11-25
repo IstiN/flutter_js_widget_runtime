@@ -204,7 +204,7 @@ class ScratchLane {
 
   factory ScratchLane.open() {
     try {
-      final lib = DynamicLibrary.open('$kRoot/native/angle/libangle_1b.dylib');
+      final lib = DynamicLibrary.open('$kRoot/packages/jsr_three_angle/native/angle/libangle_1b.dylib');
       final sym = lib.lookup<NativeFunction<A1bGlResultNative>>(
         'a1b_gl_result',
       );

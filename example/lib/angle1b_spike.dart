@@ -1,6 +1,6 @@
 /// ANGLE 1B spike (M1): native ANGLE -> IOSurface -> FlutterTexture.
 ///
-/// The C shim (native/angle/libangle_1b.dylib) renders a deterministic GLES3
+/// The C shim (packages/jsr_three_angle/native/angle/libangle_1b.dylib) renders a deterministic GLES3
 /// triangle into an IOSurface via ANGLE's Metal backend; the macOS plugin
 /// (Angle1bTexturePlugin) wraps that IOSurface in a CVPixelBuffer and serves
 /// it as a Flutter texture. Dart drives the frame loop over a Timer and
@@ -17,7 +17,7 @@ import 'package:flutter/services.dart';
 
 const _channel = MethodChannel('angle_1b');
 
-// C ABI (see native/angle/angle_1b.h).
+// C ABI (see packages/jsr_three_angle/native/angle/angle_1b.h).
 typedef _InitFn = int Function();
 typedef _InfoFn = Pointer<Utf8> Function(int);
 typedef _CreateFn = int Function(int, int, Pointer<Uint32>);
@@ -75,16 +75,16 @@ DynamicLibrary _openShim() {
   final candidates = <String>[];
   var dir = File(Platform.resolvedExecutable).parent;
   for (var i = 0; i < 14; i++) {
-    candidates.add('${dir.path}/native/angle/libangle_1b.dylib');
+    candidates.add('${dir.path}/packages/jsr_three_angle/native/angle/libangle_1b.dylib');
     dir = dir.parent;
   }
   candidates
-    ..add('${Directory.current.path}/native/angle/libangle_1b.dylib')
-    ..add('${Directory.current.path}/../native/angle/libangle_1b.dylib');
+    ..add('${Directory.current.path}/packages/jsr_three_angle/native/angle/libangle_1b.dylib')
+    ..add('${Directory.current.path}/../packages/jsr_three_angle/native/angle/libangle_1b.dylib');
   for (final path in candidates) {
     if (File(path).existsSync()) return DynamicLibrary.open(path);
   }
-  throw StateError('libangle_1b.dylib not found; run bash native/angle/build.sh');
+  throw StateError('libangle_1b.dylib not found; run bash packages/jsr_three_angle/native/angle/build.sh');
 }
 
 class Angle1bSpikeApp extends StatefulWidget {

@@ -176,7 +176,12 @@ abstract interface class JsThree1BWire {
   /// policy glue and the host bootstrap: the G1 packer, the WebGL2 facade
   /// (bound to `globalThis.__jsrAngle1bFacade`) and the canvas/document
   /// shim that routes `getContext('webgl2')` to the facade.
+  /// Call [ensureFacadeBootstrap] first (the engine wrapper awaits it).
   String get facadeBootstrapJs;
+
+  /// Loads the facade bootstrap sources (package assets) once. The engine
+  /// wrapper awaits this before reading [facadeBootstrapJs].
+  Future<void> ensureFacadeBootstrap();
 
   /// One synchronous G1 GL command from the facade of [engineId]:
   /// `a1b_make_current(surface(engineId))` then `a1b_gl_dispatch`.

@@ -19,8 +19,8 @@ from pathlib import Path
 
 REPO = Path(__file__).resolve().parent.parent.parent
 JSON_PATH = REPO / "tool/three/webgl2_g1_methods.json"
-GL_H_PATH = REPO / "native/angle/angle_1b_gl.h"
-OUT_TABLES = REPO / "native/angle/gen/g1_tables.h"
+GL_H_PATH = REPO / "packages/jsr_three_angle/native/angle/angle_1b_gl.h"
+OUT_TABLES = REPO / "packages/jsr_three_angle/native/angle/gen/g1_tables.h"
 OUT_PACKER = REPO / "tool/three/gen/g1_packer.js"
 
 ARG_CHARS = set("uifsb")

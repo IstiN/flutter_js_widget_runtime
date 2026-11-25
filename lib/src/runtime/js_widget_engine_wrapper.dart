@@ -93,6 +93,7 @@ class JsWidgetEngine {
       );
       if (angle1b) {
         final wire = _config.threeHost! as JsThree1BWire;
+        await wire.ensureFacadeBootstrap();
         buffer
           ..write('\n${wire.facadeBootstrapJs}\n')
           ..write(

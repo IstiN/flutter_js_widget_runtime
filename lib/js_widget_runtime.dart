@@ -54,8 +54,10 @@ export 'src/renderer/nodes/three/web_three_host_stub.dart'
     show createWebThreeHost;
 export 'src/renderer/nodes/three/js_three_host.dart'
     show
+        JsThree1BWire,
         JsThreeAsset,
         JsThreeAssetLoader,
+        JsThreeCanvas2DResult,
         JsThreeHost,
         JsThreeSurface,
         JsThreeUnsupportedException;
