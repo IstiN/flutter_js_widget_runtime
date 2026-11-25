@@ -1101,6 +1101,10 @@ class JsonWidgetRenderer with JsonWidgetDecoration {
     record.forEach((key, value) {
       if (_isEventKey(key) && value is String) events[key] = value;
     });
+    UiViewTreeNormalizer.aliasDumpEventKeys(
+      '${record['type'] ?? ''}',
+      events,
+    );
     return events;
   }
 

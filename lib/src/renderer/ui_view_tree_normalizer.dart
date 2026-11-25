@@ -142,6 +142,22 @@ class UiViewTreeNormalizer {
     }
   }
 
+  /// Canonical event keys for the AUI dump (plan 1.3): the same
+  /// field-alias families that fold `onChanged` into `onChange` for props
+  /// fold it for the `events` map, so a dump never carries a key the
+  /// contract's normalizer would have renamed.
+  static void aliasDumpEventKeys(String type, Map<String, dynamic> events) {
+    if (!_inputTypes.contains(type) &&
+        !_valueTypes.contains(type) &&
+        type != 'dropdown' &&
+        type != 'select') {
+      return;
+    }
+    if (events['onChanged'] != null && events['onChange'] == null) {
+      events['onChange'] = events.remove('onChanged');
+    }
+  }
+
   static void _aliasDropdown(Map<String, dynamic> out) {
     out['type'] = 'dropdown';
     _aliasOnChanged(out);
