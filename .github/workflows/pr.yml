@@ -179,9 +179,26 @@ jobs:
           set -euo pipefail
           scripts/fetch-conformance.sh
           test -f .conformance/js_widget_runtime/docs/conformance/PROTOCOL.md
+          test -f .conformance/js_widget_runtime/harness/harness.mjs
 
       - name: Run conformance kit
-        run: dart run tool/conformance/run_conformance.dart --fixtures test/conformance/fixtures --out build/conformance
+        run: dart run tool/conformance/run_conformance.dart --fixtures .conformance/js_widget_runtime/docs/conformance/fixtures --out build/conformance
+
+      # The pinned harness compare exits 0 even with zero result files
+      # (kit-side defect, fixed in wave D), so the count is checked here.
+      - name: Verify result count
+        run: |
+          set -euo pipefail
+          expected=$(find .conformance/js_widget_runtime/docs/conformance/fixtures -mindepth 1 -maxdepth 1 -type d -exec test -f {}/expected.json ';' -print | wc -l)
+          actual=$(find build/conformance -name '*.result.json' | wc -l)
+          echo "conformance: $actual result files for $expected fixtures"
+          if [ "$actual" -lt "$expected" ]; then
+            echo "::error::missing conformance results ($actual/$expected)"
+            exit 1
+          fi
+
+      - name: Compare against the contract
+        run: node .conformance/js_widget_runtime/harness/harness.mjs compare --fixtures .conformance/js_widget_runtime/docs/conformance/fixtures --results build/conformance --out-report conformance-report.md --out-badge badges/conformance.json
 
       - name: Upload conformance results
         uses: actions/upload-artifact@v4
@@ -193,7 +210,9 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: conformance-report
-          path: build/conformance/conformance-summary.json
+          path: |
+            conformance-report.md
+            badges/conformance.json
 
   quality-macos:
     # Issue #7 (F2): the pinned ANGLE 1B build on macOS + the real-ANGLE

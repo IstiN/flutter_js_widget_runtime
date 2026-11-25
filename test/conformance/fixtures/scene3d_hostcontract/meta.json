@@ -1,7 +1,0 @@
-{
-  "categories": ["L1"],
-  "capabilities": ["scene3d"],
-  "ignore": [],
-  "nodes": ["text"],
-  "mock": {}
-}

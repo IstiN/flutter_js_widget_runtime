@@ -1,7 +1,0 @@
-{
-  "actions": [{ "tap": "+1" }, { "tap": "+1" }, { "tap": "-1" }],
-  "expect": {
-    "renders": 4,
-    "finalDumpDelta": { "text[1].data": "1" }
-  }
-}

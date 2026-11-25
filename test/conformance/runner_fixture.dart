@@ -56,30 +56,6 @@ class RecordingBackend implements JsWidgetEngineBackend {
 
 /// Shared helpers of the seed end-to-end tests (issue #9 / F1).
 
-/// Runs one seed fixture through the runner and returns its `result.json`.
-Future<Map<String, dynamic>> runSeedFixture(
-  WidgetTester tester,
-  String id,
-) async {
-  final out = Directory.systemTemp.createTempSync('jsr-conf-');
-  addTearDown(() => out.deleteSync(recursive: true));
-  final dir = 'test/conformance/fixtures/$id';
-  final spec = ConformanceSpec(
-    fixturesDir: 'test/conformance/fixtures',
-    outDir: out.path,
-    fixtures: [ConformanceFixtureSpec(id: id, dir: dir)],
-  );
-  final outcome = await runConformanceFixture(
-    tester,
-    spec,
-    spec.fixtures.single,
-  );
-  expect(outcome.status, 'DONE', reason: '$id: ${outcome.skippedReason}');
-  expect(outcome.error, isNull, reason: '$id: ${outcome.error}');
-  return jsonDecode(File('${out.path}/$id.result.json').readAsStringSync())
-      as Map<String, dynamic>;
-}
-
 /// Builds a throwaway fixture directory on the fly and runs it through the
 /// runner. Used by the issue regression tests (no kit fixture needed).
 Future<Map<String, dynamic>> runInlineFixture(

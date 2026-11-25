@@ -35,8 +35,14 @@ bash "$QUICKJS_SRC/tool/build_quickjs.sh"
 mkdir -p native/quickjs
 cp "$QUICKJS_SRC/native/quickjs/libquickjs_bridge.so" native/quickjs/
 
+bash scripts/fetch-conformance.sh
 dart run tool/conformance/run_conformance.dart \
-  --fixtures test/conformance/fixtures --out build/conformance
+  --fixtures .conformance/js_widget_runtime/docs/conformance/fixtures \
+  --out build/conformance
+node .conformance/js_widget_runtime/harness/harness.mjs compare \
+  --fixtures .conformance/js_widget_runtime/docs/conformance/fixtures \
+  --results build/conformance \
+  --out-report conformance-report.md --out-badge badges/conformance.json
 ```
 
 Every fixture gets `build/conformance/<id>.result.json`
@@ -63,10 +69,24 @@ Runner details worth knowing:
 - `swipe` uses `tester.dragFrom` between the given coordinates and advances
   the test clock by the given duration. Coordinates are logical pixels of
   the test surface.
-- A fixture whose `capabilities` the runner does not serve yet (F1 serves
-  `network`, `storage`, `secrets`, `assets`) is `SKIP` with
-  `skippedReason` — the reference serves every capability in principle,
-  later segments wire the rest.
+- A fixture whose `capabilities` the runner does not serve yet is `SKIP`
+  with `skippedReason` — the reference serves every capability in
+  principle, later segments wire the rest (served today: `network`,
+  `storage`, `secrets`, `assets`, `three`).
+- Fake-async notes: flutter_test replaces `HttpClient` with a 400 stub
+  and pumps never consume wall time. The runner constructs its client
+  with the override lifted (synchronous window) and drains the fixture
+  in 20 ms real-time slices — one `runAsync` visit delivers one I/O
+  round trip, so a file read needs two and a fetch several.
+- `wait` is real time (PROTOCOL 1.4); `scroll` is a pointer scroll
+  signal at the surface center (A2, issue #18), `submit` is the
+  keyboard done action on the named text node (A1, issue #17), and
+  `swipe` stays the touch drag.
+- Maps run on an in-memory transparent tile provider (issue #19) — no
+  OSM network, deterministic taps.
+- A rendering exception after the result is written lands in the
+  fixture's `error` (issue #16): the verdict names it and exits
+  non-zero instead of crashing the flutter test run.
 
 ## Run in CI
 
@@ -77,14 +97,13 @@ the runner over `test/conformance/fixtures`, then uploads the
 `conformance-flutter` (result.json files) and `conformance-report`
 (summary) artifacts.
 
-## Fixture sets
+## Fixture set
 
-- `test/conformance/fixtures/` — the F1 local set: the three seeds
-  (`hello`, `counter`, `scroll_list`, `widget.js` byte-for-byte from the
-  pinned contract repository) plus `scene3d_hostcontract` (SKIP proof).
-  **This set is temporary**: a later segment switches the CI job to the
-  fixtures of the contract repository (`IstiN/js_widget_runtime`,
-  `docs/conformance/fixtures/`) and deletes it.
+The fixtures live in the contract repository
+(`IstiN/js_widget_runtime`, `docs/conformance/fixtures/`) and are
+fetched by `scripts/fetch-conformance.sh` per `conformance.lock`. The
+former local seed set (`hello`, `counter`, `scroll_list`,
+`scene3d_hostcontract`) was deleted — the kit holds the seeds.
 
 ## Reference behavior found by the kit
 
