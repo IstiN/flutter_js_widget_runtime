@@ -133,3 +133,37 @@ class FakeThreeHost implements JsThreeHost {
     }
   }
 }
+
+/// JsThree1BWire fake over [FakeThreeHost] (selection/policy tests):
+/// counts probes, records the facade ensure, serves a trivial bootstrap.
+class Fake1BWireHost extends FakeThreeHost implements JsThree1BWire {
+  Fake1BWireHost({this.probeReason, this.androidApiLevel});
+
+  String? probeReason;
+
+  @override
+  final int? androidApiLevel;
+
+  int probeCalls = 0;
+  bool bootstrapEnsured = false;
+
+  @override
+  String? probeNative() {
+    probeCalls++;
+    return probeReason;
+  }
+
+  @override
+  String get facadeBootstrapJs => '/* facade bootstrap stub */';
+
+  @override
+  Future<void> ensureFacadeBootstrap() async {
+    bootstrapEnsured = true;
+  }
+
+  @override
+  int dispatch1B(String engineId, Uint8List command) => 0;
+
+  @override
+  String result1BAsBase64(String engineId) => '';
+}
