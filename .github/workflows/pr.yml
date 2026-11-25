@@ -224,7 +224,15 @@ jobs:
           cp "$QUICKJS_SRC/native/quickjs/libquickjs_bridge.so" native/quickjs/
 
       - name: Metal toolchain
-        run: xcodebuild -downloadComponent MetalToolchain
+        run: |
+          # macos-15 images ship Xcode 16 with the Metal toolchain embedded;
+          # the download only runs when the compiler is actually missing
+          # (same gate as tool/build_angle.sh).
+          if xcrun -f metal >/dev/null 2>&1; then
+            echo "Metal toolchain already present"
+          else
+            xcodebuild -downloadComponent metalToolchain
+          fi
 
       - name: Restore pinned ANGLE build
         id: angle-cache
