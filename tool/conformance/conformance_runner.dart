@@ -4,6 +4,7 @@ import 'dart:typed_data';
 import 'dart:ui';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter/gestures.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -249,6 +250,22 @@ Future<ConformanceRunOutcome> runConformanceFixture(
   );
   final engine = JsWidgetEngine(config: config);
   final backend = backendRef!;
+  // flutter_map's network tile provider bootstraps a disk cache through
+  // path_provider — a plugin channel flutter_test does not implement. The
+  // runner serves the cache directory in memory (issue #9: the reference
+  // serves every capability; the fixture must not die on a plugin).
+  final pathChannel = const MethodChannel('plugins.flutter.io/path_provider');
+  tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
+    pathChannel,
+    (call) async => '/tmp/jsr-conformance-cache',
+  );
+  addTearDown(
+    () => tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
+      pathChannel,
+      null,
+    ),
+  );
+
   // Issue #16: rendering exceptions must fail the FIXTURE (the result
   // carries the error; the CLI verdict exits non-zero) instead of
   // crashing the whole flutter test run. The net spans the entire run —
@@ -257,10 +274,8 @@ Future<ConformanceRunOutcome> runConformanceFixture(
   Object? failure;
   Map<String, dynamic>? dump;
   Map<String, dynamic>? finalDump;
-  final previousOnError = FlutterError.onError;
   FlutterError.onError = (details) {
     failure ??= details.exception;
-    previousOnError?.call(details);
   };
   try {
     await engine.init();
@@ -312,7 +327,7 @@ Future<ConformanceRunOutcome> runConformanceFixture(
       failure ??= e;
     }
   }
-  FlutterError.onError = previousOnError;
+  FlutterError.onError = null;
 
   final result = _resultJson(
     fixture.id,
