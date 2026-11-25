@@ -1812,14 +1812,14 @@
       "stub": "webgl.makeXRCompatible",
       "doc": "No XR in M2; decoder returns -1."
     },
-    {
-      "name": "getSupportedExtensions",
-      "opcode": 224,
-      "cat": "misc",
-      "args": "",
-      "ret": "scratch",
-      "stub": "webgl.getSupportedExtensions",
-      "doc": "Handled facade-side (static list); decoder returns -1."
-    }
+ {
+  "name": "getSupportedExtensions",
+  "opcode": 224,
+  "cat": "misc",
+  "args": "",
+  "ret": "scratch",
+  "c": "{ g1_get_supported_extensions((char *)sc, (int)sc_cap); sc_len = (int)strlen((const char *)sc); }",
+  "doc": "Scratch = newline-separated GL_-stripped tokens of the REAL GL_EXTENSIONS string (facade completeness, F2b). The facade splits it for getSupportedExtensions()."
+ }
   ]
 }

@@ -220,24 +220,29 @@ static int64_t g1_get_parameter(uint32_t pname) {
 static char g1_exts[16384];
 static int g1_exts_len = -1;
 
+// Loads (once) the space-separated GL_EXTENSIONS token cache shared by
+// g1_get_extension and g1_get_supported_extensions.
+static void g1_exts_load(void) {
+  if (g1_exts_len >= 0) return;
+  int n = 0;
+  g_GetIntegerv(0x821D /*GL_NUM_EXTENSIONS*/, &n);
+  char *d = g1_exts;
+  size_t left = sizeof(g1_exts);
+  for (int i = 0; i < n && left > 2; i++) {
+    const unsigned char *s = g_GetStringi(0x1F03 /*GL_EXTENSIONS*/, (unsigned)i);
+    if (!s) continue;
+    int k = snprintf(d, left, "%s ", s);
+    if (k <= 0 || (size_t)k >= left) break;
+    d += k;
+    left -= (size_t)k;
+  }
+  *d = 0;
+  g1_exts_len = (int)(d - g1_exts);
+}
+
 static int64_t g1_get_extension(const char *name, uint32_t len) {
   (void)len;
-  if (g1_exts_len < 0) {
-    int n = 0;
-    g_GetIntegerv(0x821D /*GL_NUM_EXTENSIONS*/, &n);
-    char *d = g1_exts;
-    size_t left = sizeof(g1_exts);
-    for (int i = 0; i < n && left > 2; i++) {
-      const unsigned char *s = g_GetStringi(0x1F03 /*GL_EXTENSIONS*/, (unsigned)i);
-      if (!s) continue;
-      int k = snprintf(d, left, "%s ", s);
-      if (k <= 0 || (size_t)k >= left) break;
-      d += k;
-      left -= (size_t)k;
-    }
-    *d = 0;
-    g1_exts_len = (int)(d - g1_exts);
-  }
+  g1_exts_load();
   // Token match over the space-separated list. ES3 GetStringi on ANGLE
   // returns GL_-prefixed (desktop-style) names, so accept both spellings:
   // "EXT_x" and "GL_EXT_x".
@@ -253,6 +258,33 @@ static int64_t g1_get_extension(const char *name, uint32_t len) {
     tok = end ? end + 1 : tok + tl;
   }
   return 0;
+}
+
+// getSupportedExtensions (F2b facade completeness): newline-separated
+// GL_-stripped tokens of the REAL GL_EXTENSIONS string. Reads the same cache
+// as g1_get_extension, so the two answers can never disagree.
+static void g1_get_supported_extensions(char *dst, int cap) {
+  g1_exts_load();
+  int written = 0;
+  const char *tok = g1_exts;
+  while (*tok && written < cap - 2) {
+    const char *end = strchr(tok, ' ');
+    size_t tl = end ? (size_t)(end - tok) : strlen(tok);
+    const char *name = tok;
+    size_t nl = tl;
+    if (tl > 3 && memcmp(tok, "GL_", 3) == 0) {
+      name = tok + 3;
+      nl = tl - 3;
+    }
+    if (nl > 0 && written + (int)nl + 2 <= cap) {
+      memcpy(dst + written, name, nl);
+      written += (int)nl;
+      dst[written++] = '\n';
+    }
+    tok = end ? end + 1 : tok + tl;
+  }
+  if (written > 0 && dst[written - 1] == '\n') written--;
+  dst[written] = 0;
 }
 
 static void g1_get_buffer_subdata(uint32_t target, int32_t offset, uint32_t size) {
@@ -377,12 +409,38 @@ static void g1_read_pixels(int32_t x, int32_t y, int32_t w, int32_t h,
 int64_t a1b_gl_dispatch(const uint8_t *buf, int len) {
   if (!buf || len < 4) return G1_E_MALFORMED;
   if (!g_display || !g_current_valid) return (int64_t)-0x7fffffff;
-  g1_cur c = {buf + 4, buf + len, 0};
   uint32_t opcode;
   memcpy(&opcode, buf, 4);
   g1_scratch_len = 0;
-  int64_t r = g1_dispatch_op(opcode, c);
-  g1_stats_calls++;
+  int64_t r;
+  if (opcode == 0) {
+    // BATCH (F2b facade batching): [u32 0][u32 count][count G1 commands].
+    // Commands run in order; the rc and the scratch of the LAST command
+    // answer the whole batch. Protocol errors (malformed/unknown opcode)
+    // stop the batch and surface; GL-level rcs (-1 locations, getError
+    // codes) are data and never abort it.
+    if (len < 8) return G1_E_MALFORMED;
+    uint32_t count;
+    memcpy(&count, buf + 4, 4);
+    g1_cur c = {buf + 8, buf + len, 0};
+    r = 0;
+    for (uint32_t i = 0; i < count; i++) {
+      if (c.end - c.p < 4) { r = G1_E_MALFORMED; break; }
+      memcpy(&opcode, c.p, 4);
+      c.p += 4;
+      r = g1_dispatch_op(opcode, &c);
+      if (c.err || r == G1_E_MALFORMED) { r = G1_E_MALFORMED; break; }
+      // -1 is data (GL not-found locations) or a named stub; every other
+      // negative rc is an unknown opcode (-(opcode), opcodes are >= 1) and
+      // stops the batch.
+      if (r < -1) break;
+      g1_stats_calls++;
+    }
+  } else {
+    g1_cur c = {buf + 4, buf + len, 0};
+    r = g1_dispatch_op(opcode, &c);
+    if (!c.err) g1_stats_calls++;
+  }
   g1_stats_bytes += len;
   return r;
 }

@@ -290,6 +290,11 @@ RenderResult runOnce(Shim shim, int surface, Map<int, String> opNames) {
       (wrapThreeCore(File(kCorePath).readAsStringSync()), 'three.core.js'),
       (wrapThreeModule(File(kModulePath).readAsStringSync()), 'jsr_three_web.js'),
       (File(kPackerPath).readAsStringSync(), 'g1_packer.js'), (File(kFacadePath).readAsStringSync(), 'webgl2_facade.js'),
+      // F2b batching is transport-only (identical decoded commands). The M2/M3
+      // harnesses assert the LOCKED per-command dispatch behavior, so they
+      // clear the facade's batch sink and keep one __jsr1b_gl call per
+      // command; the batched transport is proven by tool/three/bench_1b.dart.
+      ('if (typeof G1 !== "undefined" && G1.setSink) G1.setSink(null);', 'clear-batch-sink.js'),
       (sceneScript(), 'scene.js'),
     ];
     String? resultJson;

@@ -78,8 +78,11 @@ final class Angle1bBootstrap {
     return '''
 $packerSource
 $facadeSource
-if (typeof globalThis !== 'undefined' && typeof api !== 'undefined') {
-  globalThis.__jsrAngle1bFacade = api;
+// The facade IIFE publishes the api object as the global AngleWebGL2Facade
+// (`api` itself stays closure-scoped); the shim glue resolves the context
+// factory through __jsrAngle1bFacade, so alias it here.
+if (typeof globalThis !== 'undefined' && typeof globalThis.AngleWebGL2Facade !== 'undefined') {
+  globalThis.__jsrAngle1bFacade = globalThis.AngleWebGL2Facade;
 }
 ${shimGlueJs}
 ''';
@@ -88,14 +91,33 @@ ${shimGlueJs}
   /// The canvas/document shim and the `__jsr1b_gl` bridge. The G1 packer
   /// calls `__jsr1b_gl(bytes)` synchronously and expects the int64 dispatch
   /// result; the wire crosses as the zero-copy `__jsr1b_dispatch` byte lane
-  /// plus the parked-result readback `__jsr1b_rc()` (registered by the
-  /// QuickJS backend for selected engines).
+  /// (name, bytes — the runtime bytes-lane calling convention) plus the
+  /// parked-result readback `__jsr1b_rc()` (registered by the QuickJS backend
+  /// for selected engines).
   static const String shimGlueJs = '''
 (function () {
   'use strict';
   var root = typeof globalThis !== 'undefined' ? globalThis : this;
+  // The real WebGL2 bundle probes browser globals at boot (the harnesses
+  // provide the same minimal set); fill only what is genuinely missing so
+  // the production web worker path keeps its own globals.
+  if (typeof root.self === 'undefined') root.self = root;
+  if (typeof root.window === 'undefined') root.window = root;
+  if (typeof root.navigator === 'undefined') {
+    root.navigator = { userAgent: 'JSR-1B QuickJS', maxTouchPoints: 0 };
+  }
+  if (typeof root.devicePixelRatio === 'undefined') root.devicePixelRatio = 1;
+  if (typeof root.innerWidth === 'undefined') root.innerWidth = 300;
+  if (typeof root.innerHeight === 'undefined') root.innerHeight = 150;
+  if (typeof root.addEventListener === 'undefined') root.addEventListener = function () {};
+  if (typeof root.removeEventListener === 'undefined') root.removeEventListener = function () {};
+  if (typeof root.matchMedia === 'undefined') {
+    root.matchMedia = function () {
+      return { matches: false, addEventListener: function () {}, removeEventListener: function () {} };
+    };
+  }
   root.__jsr1b_gl = function (bytes) {
-    root.__jsr1b_dispatch(bytes);
+    root.__jsr1b_dispatch('1b', bytes);
     return root.__jsr1b_rc();
   };
   function shimCanvas() {

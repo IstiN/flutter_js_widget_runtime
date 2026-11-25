@@ -304,3 +304,8 @@ jobs:
 
       - name: 1B selection and policy tests
         run: flutter test test/angle1b --no-pub
+
+      - name: 1B batch bench (PERF-1 PERF-2)
+        env:
+          JSR_ANGLE_1B_LIB: ${{ github.workspace }}/packages/jsr_three_angle/native/angle/out/macos-arm64/libangle_1b.dylib
+        run: dart run tool/three/bench_1b.dart

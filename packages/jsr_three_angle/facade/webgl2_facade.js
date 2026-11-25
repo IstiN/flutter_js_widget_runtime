@@ -127,6 +127,67 @@ var METHODS = (
 'uniformMatrix2x3fv uniformMatrix2x4fv uniformMatrix3fv uniformMatrix3x2fv uniformMatrix3x4fv uniformMatrix4fv uniformMatrix4x2fv uniformMatrix4x3fv useProgram validateProgram vertexAttrib1f vertexAttrib1fv vertexAttrib2f vertexAttrib2fv vertexAttrib3f vertexAttrib3fv vertexAttrib4f vertexAttrib4fv vertexAttribDivisor vertexAttribI4i vertexAttribI4iv vertexAttribI4ui vertexAttribI4uiv vertexAttribIPointer vertexAttribPointer viewport waitSync')
 .split(' ');
 
+// --- command batching (F2b, PERF-1 / PERF-2 / IT-TRANSPORT-1) --------------
+// One batch state per RUNTIME (the module evaluates once per engine): the
+// packer's sink queues every void command here instead of dispatching it, and
+// the queue leaves as ONE batched G1 dispatch
+//   [u32 0][u32 count][command][command]...   (opcode 0 is unused — the real
+// opcodes are 1-based).
+// Flush triggers (the exact set the contract fixes):
+//   1. a data-returning call (G1_SYNC, generated from the JSON ret column) —
+//      the batched command is the LAST one, so its rc/scratch answers the
+//      whole batch;
+//   2. gl.finish() / gl.flush();
+//   3. the end of the JS task (microtask) — the frame boundary of the engine
+//      execution model: one renderer.render() per tick, so an ordinary frame
+//      without readback flushes at most once.
+var BATCH = {
+  buf: new Uint8Array(8 + 8192),
+  len: 8, // the 8-byte batch header is patched at flush time
+  count: 0,
+  scheduled: false,
+  lost: false, // real context state (WEBGL_lose_context / no-current-surface)
+  flushes: 0,
+  dispatches: 0
+};
+var NO_CURRENT_SURFACE = -0x7fffffff; // a1b_gl_dispatch sentinel (context gone)
+function batchFlush() {
+  if (BATCH.count === 0) return 0;
+  new DataView(BATCH.buf.buffer).setUint32(4, BATCH.count, true);
+  var rc = root.__jsr1b_gl(BATCH.buf.subarray(0, BATCH.len)) | 0;
+  BATCH.len = 8;
+  BATCH.count = 0;
+  BATCH.scheduled = false;
+  BATCH.flushes++;
+  BATCH.dispatches++;
+  if (rc === NO_CURRENT_SURFACE) BATCH.lost = true;
+  return rc;
+}
+function batchSchedule() {
+  if (BATCH.scheduled) return;
+  BATCH.scheduled = true;
+  Promise.resolve().then(function () { batchFlush(); });
+}
+if (typeof G1 !== 'undefined' && typeof G1.setSink === 'function') {
+  G1.setSink(function (bytes, op) {
+    if (BATCH.len + bytes.length > BATCH.buf.length) {
+      var cap = BATCH.buf.length * 2;
+      while (cap < BATCH.len + bytes.length) cap *= 2;
+      var nb = new Uint8Array(cap);
+      nb.set(BATCH.buf.subarray(0, BATCH.len));
+      BATCH.buf = nb;
+    }
+    BATCH.buf.set(bytes, BATCH.len);
+    BATCH.len += bytes.length;
+    BATCH.count++;
+    // finish/flush are void in the wire but flush the queue immediately
+    // (contract trigger 2); every other void command waits for its triggers.
+    if (G1_SYNC[op] || op === G1C.FINISH || op === G1C.FLUSH) return batchFlush();
+    batchSchedule();
+    return 0;
+  });
+}
+
 function decodeUtf8(bytes) {
   // Minimal UTF-8 decode (scratch payloads are ASCII in practice).
   var s = '';
@@ -442,8 +503,20 @@ function createFacade(canvas, attrs) {
     'WEBGL_debug_renderer_info': { UNMASKED_VENDOR_WEBGL: C.UNMASKED_VENDOR_WEBGL, UNMASKED_RENDERER_WEBGL: C.UNMASKED_RENDERER_WEBGL },
     'OES_element_index_uint': {} // WebGL2 has it natively; three still probes
   };
+  // WEBGL_lose_context: the facade-side emulation of the loss/restore
+  // lifecycle (the exact mechanism tests and the IT-LIFE row drive in Chrome
+  // too). Granted unconditionally: it is a WebGL-level extension, never in
+  // the GL string, and the facade owns the state it toggles.
+  EXTENSIONS['WEBGL_lose_context'] = {
+    loseContext: function () { BATCH.lost = true; },
+    restoreContext: function () { BATCH.lost = false; }
+  };
+  // Facade-granted extensions bypass the C availability bit (WEBGL_lose_context
+  // is a WebGL-level extension: never in the GL string, always offered).
+  var FACADE_GRANTED = { WEBGL_lose_context: 1 };
   gl.getExtension = function (name) {
     if (Object.prototype.hasOwnProperty.call(EXTENSIONS, name)) {
+      if (FACADE_GRANTED[name]) return EXTENSIONS[name];
       if (typeof g1.getExtension === 'function') {
         var rc = call('getExtension', [name]) | 0;
         return rc !== 0 ? EXTENSIONS[name] : null; // honest: C-side availability bit
@@ -452,7 +525,18 @@ function createFacade(canvas, attrs) {
     }
     return null; // never fake success
   };
-  gl.getSupportedExtensions = function () { return Object.keys(EXTENSIONS); };
+  // Real extension string (F2b): the C decoder splits the GL_EXTENSIONS
+  // string into GL_-stripped tokens in the scratch; the facade splits on the
+  // newlines and appends the facade-granted WEBGL_lose_context (real browsers
+  // list it too). Absence is honest both ways: names ANGLE does not advertise
+  // are absent from this list, and getExtension returns null for them (the
+  // availability bit of opcode 32 matches the same string).
+  gl.getSupportedExtensions = function () {
+    call('getSupportedExtensions', []);
+    var list = decodeUtf8(fetchScratch()).split('\n').filter(function (s) { return s; });
+    list.push('WEBGL_lose_context');
+    return list;
+  };
 
   // Non-GL-command IDL members.
   gl.getContextAttributes = function () {
@@ -460,7 +544,10 @@ function createFacade(canvas, attrs) {
     return { alpha: a.alpha, antialias: a.antialias, depth: a.depth, desynchronized: a.desynchronized, failIfMajorPerformanceCaveat: a.failIfMajorPerformanceCaveat,
       powerPreference: a.powerPreference, premultipliedAlpha: a.premultipliedAlpha, preserveDrawingBuffer: a.preserveDrawingBuffer, stencil: a.stencil, xrCompatible: a.xrCompatible };
   };
-  gl.isContextLost = function () { return false; };
+  // Real context state (F2b): the WEBGL_lose_context extension and the
+  // no-current-surface dispatch sentinel both flip BATCH.lost; the flag is
+  // runtime-wide because the 1B wire owns one ANGLE context per engine.
+  gl.isContextLost = function () { return BATCH.lost; };
   gl.makeXRCompatible = function () { return Promise.resolve(); };
 
   // drawingBuffer size mirrors the canvas (spec: matches canvas bitmap size).
@@ -478,7 +565,16 @@ function createFacade(canvas, attrs) {
     }
   }
 
-  gl.__stats = stats; // trace/diagnostics hook (not part of the IDL)
+  // Live snapshot: batching counters (flushes/dispatchCalls) update as the
+  // runtime renders, the per-facade used/missing maps as the facade runs.
+  Object.defineProperty(gl, '__stats', {
+    get: function () {
+      return {
+        used: stats.used, missing: stats.missing, stubThrows: stats.stubThrows,
+        flushes: BATCH.flushes, dispatchCalls: BATCH.dispatches
+      };
+    }
+  });
   return gl;
 }
 

@@ -285,6 +285,12 @@ Trace runOnce(Map<int, String> opNames, ScratchLane scratch) {
     );
     evalOrThrow(File(kPackerPath).readAsStringSync(), 'g1_packer.js');
     evalOrThrow(File(kFacadePath).readAsStringSync(), 'webgl2_facade.js');
+    // F2b batching is transport-only; this harness asserts per-command wire
+    // bytes, so it clears the facade's batch sink (see run_1b_render.dart).
+    evalOrThrow(
+      'if (typeof G1 !== "undefined" && G1.setSink) G1.setSink(null);',
+      'clear-batch-sink.js',
+    );
     final resultJson = evalOrThrow(sceneScript(), 'scene.js');
     final result = jsonDecode(resultJson ?? '{}') as Map<String, dynamic>;
     if (result['ok'] != true) {

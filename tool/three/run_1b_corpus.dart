@@ -644,6 +644,10 @@ void main(List<String> args) {
         (wrapThreeModule(File(kModulePath).readAsStringSync()), 'jsr_three_web.js'),
         (File(kPackerPath).readAsStringSync(), 'g1_packer.js'),
         (File(kFacadePath).readAsStringSync(), 'webgl2_facade.js'),
+        // F2b batching is transport-only; this harness asserts the LOCKED
+        // per-command dispatch behavior (stub rcs per command), so it clears
+        // the facade's batch sink (see run_1b_render.dart).
+        ('if (typeof G1 !== "undefined" && G1.setSink) G1.setSink(null);', 'clear-batch-sink.js'),
         (File(scenePath).readAsStringSync(), 'scene.js'),
       ];
       // runOnce closure needs widgetDir for the host fns.

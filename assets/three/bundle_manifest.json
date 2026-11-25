@@ -37,9 +37,9 @@
       "tool/three/src/runtime.js": "d150cc676f045cec8570c36d94119eab99da658709a7a39bd1cf3da279cba8b7",
       "tool/three/src/web_entry.js": "538a1625cffb9539d70055b173c98320799457a9c5e7b5a4c0577c22841cd3ad",
       "tool/three/src/web_renderer.js": "2b808b22123fce8e49b9ed8d76f75872199efb527b477e202f295ed6a244819c",
-      "tool/three/src/webgl2_facade.js": "8b735379bd3cb317389101e66987fa743573885cf7ed83f60be437138dfbd575",
+      "tool/three/src/webgl2_facade.js": "899fd9f9b194d662afc4ab8ba48c589fc9602117408f29dcdd35282990d1bfbd",
       "tool/three/build.mjs": "9ca9ce55031d57effaf1d8184e72269ed8c9ac3923c792a86051e1406337af08",
-      "tool/three/package.json": "dbe78b6523a2b0667a22b85236fd325d92254711be822ef57a3f6fadf49ff4fb",
+      "tool/three/package.json": "01463f81d80c202ba22dd120e0b02c83206e663c86f8470e1a5503dcc23293bc",
       "tool/three/package-lock.json": "f0507fde83eefa84d2a088e6ecc3b2cd1e65f49c9df7bd6d0783d0f1b352cff3",
       "tool/three/source-pin.json": "29492424209a17a723b3b0c8e9c83995697a4c466840d1b33ba6f6ff2b7542a4",
       "upstreamLicense": "8b378ebe60e2fe500158cb0ac71cb5e8b7d92953c2abcc63a0eb90499653b5bc"

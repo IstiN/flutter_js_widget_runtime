@@ -20,7 +20,7 @@ from pathlib import Path
 REPO = Path(__file__).resolve().parent.parent.parent
 JSON_PATH = REPO / "tool/three/webgl2_g1_methods.json"
 GL_H_PATH = REPO / "packages/jsr_three_angle/native/angle/angle_1b_gl.h"
-OUT_TABLES = REPO / "packages/jsr_three_angle/packages/jsr_three_angle/native/angle/gen/g1_tables.h"
+OUT_TABLES = REPO / "packages/jsr_three_angle/native/angle/gen/g1_tables.h"
 OUT_PACKER = REPO / "tool/three/gen/g1_packer.js"
 
 ARG_CHARS = set("uifsb")
@@ -99,7 +99,9 @@ def emit_tables_h(methods):
     out.append("")
     out.append("// Generated opcode switch. Included once from angle_1b_dispatch.c after")
     out.append("// the wire readers, scratch, sync table and glue helpers are defined.")
-    out.append("static int64_t g1_dispatch_op(uint32_t opcode, g1_cur c) {")
+    out.append("// The cursor is a POINTER: the F2b batch loop in a1b_gl_dispatch advances")
+    out.append("// it across the commands of one batched dispatch.")
+    out.append("static int64_t g1_dispatch_op(uint32_t opcode, g1_cur *c) {")
     out.append("  switch (opcode) {")
     for m in methods:
         if "stub" in m:
@@ -113,18 +115,18 @@ def emit_tables_h(methods):
         out.append("    int64_t rv = 0;")
         for idx, ch in enumerate(m["args"]):
             if ch == "u":
-                out.append(f"    const uint32_t a{idx} = g1_rd_u32(&c);")
+                out.append(f"    const uint32_t a{idx} = g1_rd_u32(c);")
             elif ch == "i":
-                out.append(f"    const int32_t a{idx} = (int32_t)g1_rd_u32(&c);")
+                out.append(f"    const int32_t a{idx} = (int32_t)g1_rd_u32(c);")
             elif ch == "f":
-                out.append(f"    const float a{idx} = g1_rd_f32(&c);")
+                out.append(f"    const float a{idx} = g1_rd_f32(c);")
             elif ch == "s":
-                out.append(f"    const uint32_t a{idx}_len = g1_rd_u32(&c);")
-                out.append(f"    const char *const a{idx} = g1_rd_str(&c, a{idx}_len);")
+                out.append(f"    const uint32_t a{idx}_len = g1_rd_u32(c);")
+                out.append(f"    const char *const a{idx} = g1_rd_str(c, a{idx}_len);")
             elif ch == "b":
-                out.append(f"    const uint32_t a{idx}_len = g1_rd_u32(&c);")
-                out.append(f"    const void *const a{idx} = g1_rd_blob(&c, a{idx}_len);")
-        out.append("    if (c.err) return G1_E_MALFORMED;")
+                out.append(f"    const uint32_t a{idx}_len = g1_rd_u32(c);")
+                out.append(f"    const void *const a{idx} = g1_rd_blob(c, a{idx}_len);")
+        out.append("    if (c->err) return G1_E_MALFORMED;")
         for line in m["c"].splitlines():
             out.append("    " + line.rstrip())
         out.append("    (void)sc;")
@@ -214,16 +216,25 @@ var G1 = (function () {
     for (i = 0; i < a.byteLength; i++) _b[_l + i] = a[i];
     _l += a.byteLength;
   }
+  var _sink = null;
   function call(op) {
     var bytes = _b.subarray(0, _l);
-    var rc = root.__jsr1b_gl(bytes); // sync host call; the view is valid for the call only
+    // F2b batching: the WebGL2 facade installs a sink that queues void
+    // commands and flushes them as one batched dispatch; with no sink the
+    // locked M2 behavior applies (one __jsr1b_gl call per command).
+    var rc = _sink ? _sink(bytes, op) : root.__jsr1b_gl(bytes); // sync host call; the view is valid for the call only
     _l = 0;
     return rc;
   }
-  return { u32: u32, i32: i32, f32: f32, str: str, blob: blob, call: call };
+  return { u32: u32, i32: i32, f32: f32, str: str, blob: blob, call: call, setSink: function (fn) { _sink = fn; } };
 })();
-
-var g1 = {
+"""
+PACKER_SYNC = """
+// G1_SYNC (F2b): opcodes whose result is consumed by the caller (JSON
+// ret != 'void'). A sink flushes the queue immediately when one of these is
+// packed, so its rc/scratch answers the whole batch (the batched command is
+// the LAST one).
+var G1_SYNC = {
 """
 
 
@@ -232,6 +243,11 @@ def emit_packer_js(methods):
     consts = [f"  {snake(m['name'])}: {m['opcode']}" for m in methods]
     out.append(",\n".join(consts))
     out.append(PACKER_CORE)
+    out.append(PACKER_SYNC)
+    sync = [f"  {m['opcode']}: 1" for m in methods if m["ret"] != "void" and "stub" not in m]
+    out.append(",\n".join(sync))
+    out.append("};\n")
+    out.append("var g1 = {\n")
     writers = {"u": "G1.u32", "i": "G1.i32", "f": "G1.f32", "s": "G1.str", "b": "G1.blob"}
     for m in methods:
         name = m["name"]

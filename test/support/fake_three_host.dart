@@ -141,11 +141,19 @@ class Fake1BWireHost extends FakeThreeHost implements JsThree1BWire {
 
   String? probeReason;
 
+  /// When set, served as [facadeBootstrapJs] instead of the stub — tests that
+  /// run the REAL generated facade (batching transport, shader e2e) inject the
+  /// composed bootstrap here.
+  String? facadeBootstrapOverride;
+
   @override
   final int? androidApiLevel;
 
   int probeCalls = 0;
   bool bootstrapEnsured = false;
+
+  /// Every dispatch of the synchronous G1 lane (payload = the batch bytes).
+  final List<Uint8List> dispatches1B = <Uint8List>[];
 
   @override
   String? probeNative() {
@@ -154,7 +162,8 @@ class Fake1BWireHost extends FakeThreeHost implements JsThree1BWire {
   }
 
   @override
-  String get facadeBootstrapJs => '/* facade bootstrap stub */';
+  String get facadeBootstrapJs =>
+      facadeBootstrapOverride ?? '/* facade bootstrap stub */';
 
   @override
   Future<void> ensureFacadeBootstrap() async {
@@ -162,7 +171,10 @@ class Fake1BWireHost extends FakeThreeHost implements JsThree1BWire {
   }
 
   @override
-  int dispatch1B(String engineId, Uint8List command) => 0;
+  int dispatch1B(String engineId, Uint8List command) {
+    dispatches1B.add(Uint8List.fromList(command));
+    return 0;
+  }
 
   @override
   String result1BAsBase64(String engineId) => '';
