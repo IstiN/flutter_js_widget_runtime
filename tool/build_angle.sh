@@ -59,7 +59,9 @@ if [[ ! -x "$DEPOT_TOOLS/gclient" ]]; then
   git clone --depth 1 https://chromium.googlesource.com/chromium/tools/depot_tools.git "$DEPOT_TOOLS"
 fi
 export PATH="$DEPOT_TOOLS:$PATH"
-export DEPOT_TOOLS_UPDATE=0
+# No DEPOT_TOOLS_UPDATE=0 here: a fresh depot_tools clone must bootstrap
+# (cipd + python3_bin_reldir.txt) or gclient dies with "python3_bin_reldir.txt
+# not found" — exactly what CI's first ANGLE run hit.
 "$DEPOT_TOOLS/update_depot_tools" || true
 
 # 2. ANGLE checkout, ALWAYS at the pinned revision (pin discipline:
