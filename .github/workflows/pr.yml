@@ -144,3 +144,53 @@ jobs:
 
       - name: Similarity gate
         run: crap4dart check --only similarity --config crap4dart.yaml
+
+  conformance:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          flutter-version: 3.47.1
+
+      - name: Install dependencies
+        run: flutter pub get
+
+      - name: Build QuickJS bridge
+        run: |
+          set -euo pipefail
+          QUICKJS_SRC=$(find "$HOME/.pub-cache/hosted/pub.dev" -maxdepth 1 -type d -name 'quickjs_runtime-*' | sort -V | tail -1)
+          test -n "$QUICKJS_SRC"
+          bash "$QUICKJS_SRC/tool/build_quickjs.sh"
+          mkdir -p native/quickjs
+          cp "$QUICKJS_SRC/native/quickjs/libquickjs_bridge.so" native/quickjs/
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Fetch conformance pins
+        run: |
+          set -euo pipefail
+          scripts/fetch-conformance.sh
+          test -f .conformance/js_widget_runtime/docs/conformance/PROTOCOL.md
+
+      - name: Run conformance kit
+        run: dart run tool/conformance/run_conformance.dart --fixtures test/conformance/fixtures --out build/conformance
+
+      - name: Upload conformance results
+        uses: actions/upload-artifact@v4
+        with:
+          name: conformance-flutter
+          path: build/conformance/*.result.json
+
+      - name: Upload conformance report
+        uses: actions/upload-artifact@v4
+        with:
+          name: conformance-report
+          path: build/conformance/conformance-summary.json

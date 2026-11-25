@@ -1,0 +1,9 @@
+{
+  "actions": [{ "tap": "Tap me" }],
+  "expect": {
+    "renders": 2,
+    "channels": ["render", "set_title"],
+    "title": "Tapped: 1",
+    "finalDumpDelta": { "text[1].data": "Taps: 1" }
+  }
+}

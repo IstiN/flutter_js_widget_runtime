@@ -43,6 +43,7 @@ class JsRuntimeConfig {
     required this.onRender,
     required this.onSetTitle,
     required this.onStorageUpdate,
+    this.onMessageTrace,
     this.onLog,
     this.isPermissionAllowed,
     this.resolveCallback,
@@ -102,6 +103,11 @@ class JsRuntimeConfig {
 
   /// Called when JS updates storage.
   final void Function(Map<String, dynamic> storage) onStorageUpdate;
+
+  /// Optional observation hook: every `__jsr_*` channel name dispatched by
+  /// the engine bridge, in arrival order (payload excluded). Conformance
+  /// runners record the trace with it.
+  final void Function(String channel)? onMessageTrace;
 
   /// Optional log sink for `console.log/warn/error`.
   final void Function(String message)? onLog;
@@ -230,6 +236,7 @@ class JsRuntimeConfig {
     void Function(Map<String, dynamic> tree)? onRender,
     void Function(String title)? onSetTitle,
     void Function(Map<String, dynamic> storage)? onStorageUpdate,
+    void Function(String channel)? onMessageTrace,
     void Function(String message)? onLog,
     JsPermissionChecker? isPermissionAllowed,
     void Function(String id, dynamic value)? resolveCallback,
@@ -274,6 +281,7 @@ class JsRuntimeConfig {
     onRender: onRender ?? this.onRender,
     onSetTitle: onSetTitle ?? this.onSetTitle,
     onStorageUpdate: onStorageUpdate ?? this.onStorageUpdate,
+    onMessageTrace: onMessageTrace ?? this.onMessageTrace,
     onLog: onLog ?? this.onLog,
     isPermissionAllowed: isPermissionAllowed ?? this.isPermissionAllowed,
     resolveCallback: resolveCallback ?? this.resolveCallback,

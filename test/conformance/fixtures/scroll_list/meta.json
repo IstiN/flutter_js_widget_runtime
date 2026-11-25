@@ -1,0 +1,7 @@
+{
+  "categories": ["L0"],
+  "capabilities": [],
+  "ignore": [],
+  "nodes": ["scroll", "column", "container", "text"],
+  "mock": {}
+}

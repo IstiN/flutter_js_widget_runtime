@@ -1,0 +1,7 @@
+{
+  "categories": ["L0", "L1"],
+  "capabilities": [],
+  "ignore": [],
+  "nodes": ["center", "column", "text", "sizedBox", "textButton"],
+  "mock": {}
+}

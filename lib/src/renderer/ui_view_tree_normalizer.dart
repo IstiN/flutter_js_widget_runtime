@@ -152,6 +152,10 @@ class UiViewTreeNormalizer {
     return _typeAliases[key] ?? _typeAliases[key.toLowerCase()] ?? key;
   }
 
+  /// Resolves one node type alias (public surface for dump/inspection tools
+  /// that report the canonical type of a payload node).
+  static String resolveType(String raw) => _aliasType(raw);
+
   static const Map<String, String> _typeAliases = <String, String>{
     'Text': 'text',
     'text': 'text',

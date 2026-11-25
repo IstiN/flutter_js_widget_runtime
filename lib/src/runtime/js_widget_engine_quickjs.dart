@@ -43,6 +43,7 @@ class QuickjsWidgetEngineBackend
     _bridge = JsWidgetBridge(
       widgetId: config.widgetId,
       onRender: config.onRender,
+      onMessageTrace: config.onMessageTrace,
       onSetTitle: config.onSetTitle,
       onStorageUpdate: config.onStorageUpdate,
       onLog: (msg) => _handleLog(msg),

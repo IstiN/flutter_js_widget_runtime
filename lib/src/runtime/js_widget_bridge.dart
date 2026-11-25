@@ -60,6 +60,7 @@ class JsWidgetBridge {
   JsWidgetBridge({
     required this.widgetId,
     required this.onRender,
+    this.onMessageTrace,
     required this.onSetTitle,
     required this.onStorageUpdate,
     required this.onLog,
@@ -100,6 +101,11 @@ class JsWidgetBridge {
 
   final String widgetId;
   final void Function(Map<String, dynamic> tree) onRender;
+
+  /// Optional observation hook: every dispatched channel name, in arrival
+  /// order (payload excluded). The conformance runner records the trace;
+  /// null (default) costs nothing.
+  final void Function(String channel)? onMessageTrace;
   final void Function(String title) onSetTitle;
   final void Function(Map<String, dynamic> storage) onStorageUpdate;
   final void Function(String log) onLog;
@@ -179,6 +185,7 @@ class JsWidgetBridge {
   /// Dispatches a message coming from the JS runtime.
   Future<void> dispatch(String channel, dynamic payload) async {
     if (isDisposed()) return;
+    onMessageTrace?.call(channel);
     _trackTraffic(channel);
     // The shared bootstrap tags every sendMessage payload with the engine
     // `iid` for the JSC cross-engine router. By the time a message reaches
