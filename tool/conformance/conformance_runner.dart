@@ -8,6 +8,7 @@ import 'package:js_widget_runtime/js_widget_runtime.dart';
 import 'package:js_widget_runtime/src/defaults/vm_default_handlers.dart';
 import 'package:js_widget_runtime/src/renderer/json_widget_renderer.dart';
 import 'package:js_widget_runtime/src/runtime/js_widget_engine_backend.dart';
+import 'package:js_widget_runtime/src/runtime/three_upstream_bundle.dart';
 import 'package:js_widget_runtime/src/runtime/js_widget_engine_quickjs.dart';
 
 /// Conformance runner core (issue #9, plan section 4.4 F1): drives one
@@ -27,14 +28,16 @@ const String kJsrConformanceResultMarker = '__JSR_CONFORMANCE_RESULT__';
 const String kJsrConformanceSpecEnv = 'JSR_CONFORMANCE_SPEC';
 
 /// Capabilities the runner serves today. The Flutter reference can serve
-/// every capability; these are the ones F1 wires (in-memory storage and
-/// secrets, mock-origin network, fixture-directory assets). Fixtures
+/// every capability; these are the ones wired so far (in-memory storage
+/// and secrets, mock-origin network, fixture-directory assets, and the
+/// upstream THREE bundle for math-level `three` fixtures). Fixtures
 /// declaring anything else SKIP until later segments wire them.
 const Set<String> kServedCapabilities = {
   'network',
   'storage',
   'secrets',
   'assets',
+  'three',
 };
 
 /// One fixture selected for this run (CLI-parsed).
@@ -173,64 +176,80 @@ Future<ConformanceRunOutcome> runConformanceFixture(
   void resolveNow(String id, dynamic value) =>
       backendRef?.quickjsBridge.resolveCallback(id, value);
 
-  final backend = QuickjsWidgetEngineBackend(
-    config: JsRuntimeConfig(
-      widgetId: 'conformance-${fixture.id}',
-      instanceId: 'conformance-${fixture.id}',
-      appDir: fixture.dir,
-      hostBootstrapJs: fixture.mockOrigin == null
-          ? null
-          : 'var __JSR_MOCK_ORIGIN__ = ${jsonEncode(fixture.mockOrigin)};',
-      onMessageTrace: trace.add,
-      onRender: (rendered) {
-        // The bridge hands over the decoded tree; re-encoded canonically
-        // for the `renders` wire (the harness normalizes either way).
-        renders.add(jsonEncode(rendered));
-        uiUpdate?.call(rendered);
-      },
-      onSetTitle: (t) => title = t,
-      onLog: console.add,
-      onStorageUpdate: (_) {},
-      secretsGetHandler: (id, key) async => resolveNow(id, secrets[key]),
-      secretsSetHandler: (id, key, value) async {
-        secrets[key] = '$value';
-        resolveNow(id, true);
-      },
-      fetchHandler: (id, url, method, headers) async {
-        // flutter_test installs a global HttpClient override that answers
-        // every request with a 400/empty body; the conformance runner must
-        // reach the fixture's mock server, so the client is constructed
-        // with the override lifted for a synchronous window (issue #13 —
-        // the response still completes through the runner's real-time
-        // slices, one event-loop visit per I/O round trip).
-        final saved = HttpOverrides.current;
-        HttpOverrides.global = null;
-        final client = HttpClient();
-        HttpOverrides.global = saved;
-        try {
-          await defaultVmFetchHandler(
-            id,
-            url,
-            method,
-            headers,
-            resolveNow,
-            client: client,
-          );
-        } finally {
-          client.close();
-        }
-      },
-      loadAssetHandler: (id, path) =>
-          defaultVmLoadAssetHandler(id, path, fixture.dir, resolveNow),
-    ),
+  // Capability `three`: the production wrapper loads the upstream r186
+  // bundle before the widget (math-level fixtures need no canvas host).
+  // The asset read cannot complete inside the fake-async zone, so it is
+  // preloaded through one runAsync visit and handed to the wrapper as
+  // threeSource.
+  String? threeSource;
+  if (capabilities.contains('three')) {
+    threeSource = await tester.runAsync(
+      () => ThreeUpstreamBundle.load(web: false),
+    );
+  }
+  final config = JsRuntimeConfig(
+    widgetId: 'conformance-${fixture.id}',
+    instanceId: 'conformance-${fixture.id}',
+    appDir: fixture.dir,
+    hostBootstrapJs: fixture.mockOrigin == null
+        ? null
+        : 'var __JSR_MOCK_ORIGIN__ = ${jsonEncode(fixture.mockOrigin)};',
+    onMessageTrace: trace.add,
+    onRender: (rendered) {
+      // The bridge hands over the decoded tree; re-encoded canonically
+      // for the `renders` wire (the harness normalizes either way).
+      renders.add(jsonEncode(rendered));
+      uiUpdate?.call(rendered);
+    },
+    onSetTitle: (t) => title = t,
+    onLog: console.add,
+    onStorageUpdate: (_) {},
+    secretsGetHandler: (id, key) async => resolveNow(id, secrets[key]),
+    secretsSetHandler: (id, key, value) async {
+      secrets[key] = '$value';
+      resolveNow(id, true);
+    },
+    fetchHandler: (id, url, method, headers) async {
+      // flutter_test installs a global HttpClient override that answers
+      // every request with a 400/empty body; the conformance runner must
+      // reach the fixture's mock server, so the client is constructed
+      // with the override lifted for a synchronous window (issue #13 —
+      // the response still completes through the runner's real-time
+      // slices, one event-loop visit per I/O round trip).
+      final saved = HttpOverrides.current;
+      HttpOverrides.global = null;
+      final client = HttpClient();
+      HttpOverrides.global = saved;
+      try {
+        await defaultVmFetchHandler(
+          id,
+          url,
+          method,
+          headers,
+          resolveNow,
+          client: client,
+        );
+      } finally {
+        client.close();
+      }
+    },
+    loadAssetHandler: (id, path) =>
+        defaultVmLoadAssetHandler(id, path, fixture.dir, resolveNow),
+    backendFactory: (cfg) {
+      final b = QuickjsWidgetEngineBackend(config: cfg);
+      backendRef = b;
+      return b;
+    },
+    threeEnabled: capabilities.contains('three'),
+    threeSource: threeSource,
   );
-  backendRef = backend;
-
+  final engine = JsWidgetEngine(config: config);
+  final backend = backendRef!;
   Object? failure;
   Map<String, dynamic>? dump;
   Map<String, dynamic>? finalDump;
   try {
-    await backend.init();
+    await engine.init();
     final rendererRef = <JsonWidgetRenderer?>[null];
     final contextRef = <BuildContext?>[null];
     await tester.pumpWidget(
@@ -246,7 +265,7 @@ Future<ConformanceRunOutcome> runConformanceFixture(
         ),
       ),
     );
-    await backend.run(widgetJs);
+    await engine.run(widgetJs);
     await _pumpUntil(tester, () => renders.isNotEmpty);
 
     final renderer = rendererRef[0];
@@ -268,7 +287,7 @@ Future<ConformanceRunOutcome> runConformanceFixture(
   } catch (e) {
     failure = e;
   } finally {
-    await backend.dispose();
+    await engine.dispose();
     await tester.pump(const Duration(milliseconds: 10));
   }
 
