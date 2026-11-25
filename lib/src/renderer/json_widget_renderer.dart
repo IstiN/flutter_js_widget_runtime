@@ -265,6 +265,7 @@ class JsonWidgetRenderer with JsonWidgetDecoration {
   Widget build(Map<String, dynamic>? tree, [BuildContext? ctx]) {
     if (tree == null) return const SizedBox.shrink();
     _nodeIds.clear();
+    _parentDataInstances.clear();
     _nodeIdCounter = 0;
     _indexNodeIds(tree);
     return _build(tree);
@@ -282,6 +283,10 @@ class JsonWidgetRenderer with JsonWidgetDecoration {
   /// build; entries of retired payloads are unreachable and simply age out.
   final Map<String, Map<String, dynamic>> _appliedRecords = {};
   int _nodeIdCounter = 0;
+
+  /// Built ParentDataWidget instance → nodeId (issue #14): these nodes
+  /// stay unkeyed in the tree; the dump joins them through identity.
+  final Map<Widget, String> _parentDataInstances = Map.identity();
 
   /// `n<i>` = depth-first pre-order index in the raw render payload:
   /// node first, then `child`, then `children`/`items` in order. Keyed by
@@ -317,10 +322,13 @@ class JsonWidgetRenderer with JsonWidgetDecoration {
       ..remove('items');
     _appliedRecords[id] = record;
     if (built is ParentDataWidget) {
-      return KeyedSubtree(
-        key: ValueKey<String>('jsr:$id'),
-        child: built.child,
-      );
+      // Issue #14, take two: a ParentDataWidget MUST stay unwrapped (its
+      // Flex/Stack parent-data path is load-bearing — wrapping its child
+      // drops the flex behavior and collapses scenes). The dump joins it
+      // through the built instance's identity instead of a key: no tree
+      // change, node still dumped with its own nodeId.
+      _parentDataInstances[built] = id;
+      return built;
     }
     return KeyedSubtree(key: ValueKey<String>('jsr:$id'), child: built);
   }
@@ -1051,9 +1059,11 @@ class JsonWidgetRenderer with JsonWidgetDecoration {
     return found;
   }
 
-  Map<String, dynamic> _dumpNode(Element element) {
-    final key = (element.widget as KeyedSubtree).key! as ValueKey<String>;
-    final id = key.value.substring(4);
+  Map<String, dynamic> _dumpNode(Element element, {String? forcedId}) {
+    final id =
+        forcedId ??
+        ((element.widget as KeyedSubtree).key! as ValueKey<String>).value
+            .substring(4);
     final record = _appliedRecords[id] ?? const <String, dynamic>{};
     return <String, dynamic>{
       'type': UiViewTreeNormalizer.resolveType('${record['type'] ?? ''}'),
@@ -1066,7 +1076,10 @@ class JsonWidgetRenderer with JsonWidgetDecoration {
 
   /// The node's own props: style merged in (node keys win), reserved and
   /// event keys removed, values normalized — then live text overrides.
-  Map<String, dynamic> _dumpProps(Element element, Map<String, dynamic> record) {
+  Map<String, dynamic> _dumpProps(
+    Element element,
+    Map<String, dynamic> record,
+  ) {
     final props = <String, dynamic>{};
     final style = record['style'];
     if (style is Map) {
@@ -1081,7 +1094,8 @@ class JsonWidgetRenderer with JsonWidgetDecoration {
     return props;
   }
 
-  static bool _isReservedDumpKey(String key) => key == 'type' ||
+  static bool _isReservedDumpKey(String key) =>
+      key == 'type' ||
       key == 'style' ||
       key == 'child' ||
       key == 'children' ||
@@ -1101,10 +1115,7 @@ class JsonWidgetRenderer with JsonWidgetDecoration {
     record.forEach((key, value) {
       if (_isEventKey(key) && value is String) events[key] = value;
     });
-    UiViewTreeNormalizer.aliasDumpEventKeys(
-      '${record['type'] ?? ''}',
-      events,
-    );
+    UiViewTreeNormalizer.aliasDumpEventKeys('${record['type'] ?? ''}', events);
     return events;
   }
 
@@ -1114,8 +1125,11 @@ class JsonWidgetRenderer with JsonWidgetDecoration {
     final children = <Map<String, dynamic>>[];
     void walk(Element node) {
       node.visitChildElements((child) {
+        final id = _parentDataInstances[child.widget];
         if (_isStamped(child.widget)) {
           children.add(_dumpNode(child));
+        } else if (id != null) {
+          children.add(_dumpNode(child, forcedId: id));
         } else {
           walk(child);
         }

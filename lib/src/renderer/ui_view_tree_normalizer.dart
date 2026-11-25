@@ -45,9 +45,8 @@ class UiViewTreeNormalizer {
     }
   }
 
-  static List<dynamic> _normalizeChildren(List children) => children
-      .map((child) => _normalizeChild(child))
-      .toList();
+  static List<dynamic> _normalizeChildren(List children) =>
+      children.map((child) => _normalizeChild(child)).toList();
 
   static dynamic _normalizeChild(dynamic child) {
     if (child is Map) {
@@ -73,8 +72,16 @@ class UiViewTreeNormalizer {
     if (type == 'dropdown' || type == 'select') _aliasDropdown(out);
   }
 
-  static const Set<String> _boxTypes = {'container', 'card', 'animatedContainer'};
-  static const Set<String> _buttonTypes = {'button', 'textButton', 'outlinedButton'};
+  static const Set<String> _boxTypes = {
+    'container',
+    'card',
+    'animatedContainer',
+  };
+  static const Set<String> _buttonTypes = {
+    'button',
+    'textButton',
+    'outlinedButton',
+  };
   static const Set<String> _inputTypes = {'textField', 'input', 'textArea'};
   static const Set<String> _imageTypes = {'image', 'networkImage', 'img'};
   static const Set<String> _valueTypes = {'switch', 'checkbox', 'slider'};
@@ -83,7 +90,9 @@ class UiViewTreeNormalizer {
     if (out['content'] != null && out['data'] == null) {
       out['data'] = out.remove('content');
     }
-    if (out['label'] != null && out['data'] == null && out['type'] == textNodeType) {
+    if (out['label'] != null &&
+        out['data'] == null &&
+        out['type'] == textNodeType) {
       out['data'] = out['label'];
     }
   }
@@ -94,7 +103,8 @@ class UiViewTreeNormalizer {
         'color': out.remove('backgroundColor'),
       };
     }
-    if (out['color'] != null && out['decoration'] == null &&
+    if (out['color'] != null &&
+        out['decoration'] == null &&
         type == 'container') {
       out['decoration'] = <String, dynamic>{'color': out.remove('color')};
     }
