@@ -76,6 +76,9 @@ void main() {
     addTearDown(() => backend.disposeEngine('eng-a'));
     final name = backend.dispatch1B('eng-a', _g1(33)); // createBuffer
     expect(name, greaterThan(0));
+    // glGenBuffers only reserves the name: the object exists for isBuffer
+    // after the first bind (GL_ARRAY_BUFFER = 0x8892, opcode 36).
+    backend.dispatch1B('eng-a', _g1(36, [0x8892, name])); // bindBuffer
     expect(backend.dispatch1B('eng-a', _g1(35, [name])), 1); // isBuffer
     backend.dispatch1B('eng-a', _g1(34, [name])); // deleteBuffer
     expect(backend.dispatch1B('eng-a', _g1(35, [name])), 0); // isBuffer

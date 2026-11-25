@@ -236,7 +236,7 @@ jobs:
 
       - name: Restore pinned ANGLE build
         id: angle-cache
-        uses: actions/cache@v4
+        uses: actions/cache/restore@v4
         with:
           path: packages/jsr_three_angle/native/angle/out/macos-arm64
           key: angle-macos-arm64-${{ hashFiles('tool/three/pins/angle_pin.json') }}
@@ -244,6 +244,18 @@ jobs:
       - name: Build pinned ANGLE (macos-arm64)
         if: steps.angle-cache.outputs.cache-hit != 'true'
         run: bash tool/build_angle.sh --platform macos-arm64 --out packages/jsr_three_angle/native/angle/out/macos-arm64
+
+      # Save immediately after the build (not in a job-end post step):
+      # a failing test step must not throw the ~50-minute ANGLE build away.
+      # continue-on-error guards the race with a parallel run saving the
+      # same key.
+      - name: Save pinned ANGLE build
+        if: steps.angle-cache.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v4
+        continue-on-error: true
+        with:
+          path: packages/jsr_three_angle/native/angle/out/macos-arm64
+          key: angle-macos-arm64-${{ hashFiles('tool/three/pins/angle_pin.json') }}
 
       - name: Build the 1B shim and stage it with the ANGLE dylibs
         run: |
@@ -253,15 +265,8 @@ jobs:
           cp packages/jsr_three_angle/native/angle/libangle_1b.dylib "$OUT/"
           (cd "$OUT" && shasum -a 256 libEGL.dylib libGLESv2.dylib libangle_1b.dylib > SHA256SUMS)
 
-      - name: jsr_three_angle host tests (real ANGLE)
-        env:
-          JSR_ANGLE_1B_LIB: ${{ github.workspace }}/packages/jsr_three_angle/native/angle/out/macos-arm64/libangle_1b.dylib
-          JSR_REQUIRE_ANGLE: '1'
-        run: flutter test packages/jsr_three_angle/test --no-pub
-
-      - name: 1B selection and policy tests
-        run: flutter test test/angle1b --no-pub
-
+      # The dylibs are the deliverable of BUILD-ANGLE-1: upload them before
+      # the tests so a test failure still leaves the artifact for download.
       - name: Upload ANGLE macos-arm64 artifact
         uses: actions/upload-artifact@v4
         with:
@@ -271,3 +276,12 @@ jobs:
             packages/jsr_three_angle/native/angle/out/macos-arm64/libGLESv2.dylib
             packages/jsr_three_angle/native/angle/out/macos-arm64/libangle_1b.dylib
             packages/jsr_three_angle/native/angle/out/macos-arm64/SHA256SUMS
+
+      - name: jsr_three_angle host tests (real ANGLE)
+        env:
+          JSR_ANGLE_1B_LIB: ${{ github.workspace }}/packages/jsr_three_angle/native/angle/out/macos-arm64/libangle_1b.dylib
+          JSR_REQUIRE_ANGLE: '1'
+        run: flutter test packages/jsr_three_angle/test --no-pub
+
+      - name: 1B selection and policy tests
+        run: flutter test test/angle1b --no-pub
