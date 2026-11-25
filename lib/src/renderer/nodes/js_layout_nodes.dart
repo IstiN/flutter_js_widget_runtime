@@ -244,8 +244,19 @@ extension on JsonWidgetRenderer {
     margin: _edgeInsetsOrNull(m['margin']),
     alignment: m['alignment'] != null ? _alignment(m['alignment']) : null,
     decoration: _containerDecoration(m),
-    child: _child(m),
+    child: _child(m) ?? _childrenColumn(m),
   );
+
+  /// A `container` may author `children` instead of `child`: they render as
+  /// a column inside the box (same decoration/padding path). Found by the
+  /// conformance kit — the scroll_list seed's items used to render empty.
+  Widget? _childrenColumn(Map<String, dynamic> m) {
+    if (m['child'] != null) return null;
+    if (m['children'] is! List) return null;
+    final children = _children(m);
+    if (children.isEmpty) return null;
+    return Column(children: children);
+  }
 
   Widget _container(Map<String, dynamic> m) {
     Widget child = _buildBox(Container.new, m);

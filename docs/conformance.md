@@ -88,9 +88,10 @@ the runner over `test/conformance/fixtures`, then uploads the
 
 ## Reference behavior found by the kit
 
-`container` builds only its `child` — a `container` node authored with
-`children:` renders no content in the Flutter reference (`js_layout_nodes.dart`,
-`_containerProps.child = _child(m)`). The `scroll_list` seed authors its
-items with `children:`, so on Flutter the 30 item containers dump without
-children. Recorded as observed reference behavior; the contract repository
-owns the fixture-triage decision (plan section 5, W2 rules).
+`container` originally built only its `child` — a `container` node authored
+with `children:` rendered no content in the Flutter reference
+(`js_layout_nodes.dart`, `_containerProps.child = _child(m)`); the
+`scroll_list` seed's 30 item containers dumped without children. **Fixed in
+F2a** (this pull request): a `container` with `children` renders them as a
+column inside the box decoration (`_childrenColumn`); regression test
+`test/conformance/container_children_test.dart`.

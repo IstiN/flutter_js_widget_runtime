@@ -4,7 +4,7 @@ import 'package:quickjs_runtime/quickjs_runtime.dart';
 import 'runner_fixture.dart';
 
 /// `scroll_list` seed end to end through the conformance runner
-/// (issue #9 / F1).
+/// (issue #9 / F1; container-children dump since the F2a renderer fix).
 void main() {
   if (!QuickjsFfi.isAvailable) {
     return; // CI builds the bridge first (see pr.yml job conformance).
@@ -31,9 +31,15 @@ void main() {
     final container = (column['children'] as List)[0] as Map<String, dynamic>;
     expect(container['nodeId'], 'n2');
     expect((container['props'] as Map)['color'], '#293548');
-    // Reference behavior (recorded, not patched here): `container` builds
-    // only its `child`, so the seed's per-item texts stay inside the
-    // payload but do not mount — the containers dump without children.
-    expect((container['children'] as List), isEmpty);
+    // Since the F2a container-children fix the two texts of every item
+    // mount and dump inside their container.
+    expect((container['children'] as List), hasLength(2));
+    expect(
+      collectNodes(dump, 'text').length,
+      60,
+      reason: '30 containers × 2 texts, all counted in the dump',
+    );
+    final firstText = (container['children'] as List)[0] as Map<String, dynamic>;
+    expect((firstText['props'] as Map)['data'], 'Item #1');
   });
 }
