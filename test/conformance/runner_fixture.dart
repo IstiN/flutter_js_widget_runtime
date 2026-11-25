@@ -8,7 +8,10 @@ import '../../tool/conformance/conformance_runner.dart';
 /// Shared helpers of the seed end-to-end tests (issue #9 / F1).
 
 /// Runs one seed fixture through the runner and returns its `result.json`.
-Future<Map<String, dynamic>> runSeedFixture(WidgetTester tester, String id) async {
+Future<Map<String, dynamic>> runSeedFixture(
+  WidgetTester tester,
+  String id,
+) async {
   final out = Directory.systemTemp.createTempSync('jsr-conf-');
   addTearDown(() => out.deleteSync(recursive: true));
   final dir = 'test/conformance/fixtures/$id';
@@ -17,15 +20,71 @@ Future<Map<String, dynamic>> runSeedFixture(WidgetTester tester, String id) asyn
     outDir: out.path,
     fixtures: [ConformanceFixtureSpec(id: id, dir: dir)],
   );
-  final outcome = await runConformanceFixture(tester, spec, spec.fixtures.single);
+  final outcome = await runConformanceFixture(
+    tester,
+    spec,
+    spec.fixtures.single,
+  );
   expect(outcome.status, 'DONE', reason: '$id: ${outcome.skippedReason}');
   expect(outcome.error, isNull, reason: '$id: ${outcome.error}');
   return jsonDecode(File('${out.path}/$id.result.json').readAsStringSync())
       as Map<String, dynamic>;
 }
 
+/// Builds a throwaway fixture directory on the fly and runs it through the
+/// runner. Used by the issue regression tests (no kit fixture needed).
+Future<Map<String, dynamic>> runInlineFixture(
+  WidgetTester tester, {
+  required String id,
+  required String widgetJs,
+  Map<String, dynamic> meta = const <String, dynamic>{},
+  Map<String, dynamic> expected = const <String, dynamic>{},
+  Map<String, String> files = const <String, String>{},
+}) async {
+  final root = Directory.systemTemp.createTempSync('jsr-inline-');
+  addTearDown(() => root.deleteSync(recursive: true));
+  final dir = Directory('${root.path}/$id')..createSync();
+  File('${dir.path}/widget.js').writeAsStringSync(widgetJs);
+  File('${dir.path}/meta.json').writeAsStringSync(
+    jsonEncode(<String, dynamic>{
+      'categories': <String>['L1'],
+      'capabilities': <String>[],
+      'ignore': <String>[],
+      'nodes': <String>[],
+      'mock': <String, dynamic>{},
+      ...meta,
+    }),
+  );
+  File('${dir.path}/expected.json').writeAsStringSync(
+    jsonEncode(<String, dynamic>{
+      'actions': <dynamic>[],
+      'expect': <String, dynamic>{},
+      ...expected,
+    }),
+  );
+  for (final entry in files.entries) {
+    File('${dir.path}/${entry.key}').writeAsStringSync(entry.value);
+  }
+  final spec = ConformanceSpec(
+    fixturesDir: root.path,
+    outDir: root.path,
+    fixtures: [ConformanceFixtureSpec(id: id, dir: dir.path)],
+  );
+  final outcome = await runConformanceFixture(
+    tester,
+    spec,
+    spec.fixtures.single,
+  );
+  expect(outcome.status, 'DONE', reason: '$id: ${outcome.skippedReason}');
+  return jsonDecode(File('${dir.path}/../$id.result.json').readAsStringSync())
+      as Map<String, dynamic>;
+}
+
 /// Depth-first collection of every node with [type].
-List<Map<String, dynamic>> collectNodes(Map<String, dynamic> node, String type) {
+List<Map<String, dynamic>> collectNodes(
+  Map<String, dynamic> node,
+  String type,
+) {
   final found = <Map<String, dynamic>>[];
   void visit(Map<String, dynamic> current) {
     if (current['type'] == type) found.add(current);

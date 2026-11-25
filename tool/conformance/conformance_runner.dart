@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:js_widget_runtime/js_widget_runtime.dart';
+import 'package:js_widget_runtime/src/defaults/vm_default_handlers.dart';
 import 'package:js_widget_runtime/src/renderer/json_widget_renderer.dart';
 import 'package:js_widget_runtime/src/runtime/js_widget_engine_backend.dart';
 import 'package:js_widget_runtime/src/runtime/js_widget_engine_quickjs.dart';
@@ -29,7 +30,12 @@ const String kJsrConformanceSpecEnv = 'JSR_CONFORMANCE_SPEC';
 /// every capability; these are the ones F1 wires (in-memory storage and
 /// secrets, mock-origin network, fixture-directory assets). Fixtures
 /// declaring anything else SKIP until later segments wire them.
-const Set<String> kServedCapabilities = {'network', 'storage', 'secrets', 'assets'};
+const Set<String> kServedCapabilities = {
+  'network',
+  'storage',
+  'secrets',
+  'assets',
+};
 
 /// One fixture selected for this run (CLI-parsed).
 class ConformanceFixtureSpec {
@@ -49,7 +55,11 @@ class ConformanceFixtureSpec {
 
 /// The machine-readable spec passed through the environment.
 class ConformanceSpec {
-  const ConformanceSpec({required this.fixturesDir, required this.outDir, required this.fixtures});
+  const ConformanceSpec({
+    required this.fixturesDir,
+    required this.outDir,
+    required this.fixtures,
+  });
 
   final String fixturesDir;
   final String outDir;
@@ -115,24 +125,32 @@ Future<ConformanceRunOutcome> runConformanceFixture(
   ConformanceSpec spec,
   ConformanceFixtureSpec fixture,
 ) async {
-  final meta = jsonDecode(
-    File('${fixture.dir}/meta.json').readAsStringSync(),
-  ) as Map<String, dynamic>;
-  final expected = jsonDecode(
-    File('${fixture.dir}/expected.json').readAsStringSync(),
-  ) as Map<String, dynamic>;
+  final meta =
+      jsonDecode(File('${fixture.dir}/meta.json').readAsStringSync())
+          as Map<String, dynamic>;
+  final expected =
+      jsonDecode(File('${fixture.dir}/expected.json').readAsStringSync())
+          as Map<String, dynamic>;
   final widgetJs = File('${fixture.dir}/widget.js').readAsStringSync();
 
-  final capabilities = (meta['capabilities'] as List? ?? const []).cast<String>();
-  final unserved = capabilities.where((c) => !kServedCapabilities.contains(c)).toList();
+  final capabilities = (meta['capabilities'] as List? ?? const [])
+      .cast<String>();
+  final unserved = capabilities
+      .where((c) => !kServedCapabilities.contains(c))
+      .toList();
   if (unserved.isNotEmpty) {
-    final reason = 'capability not served by the flutter runner yet: ${unserved.join(', ')}';
+    final reason =
+        'capability not served by the flutter runner yet: ${unserved.join(', ')}';
     final outcome = ConformanceRunOutcome(
       fixture: fixture.id,
       status: 'SKIP',
       skippedReason: reason,
     );
-    _writeResult(spec, fixture.id, _resultJson(fixture.id, status: 'SKIP', skippedReason: reason));
+    _writeResult(
+      spec,
+      fixture.id,
+      _resultJson(fixture.id, status: 'SKIP', skippedReason: reason),
+    );
     return outcome;
   }
 
@@ -141,6 +159,19 @@ Future<ConformanceRunOutcome> runConformanceFixture(
   final console = <String>[];
   String? title;
   void Function(Map<String, dynamic>)? uiUpdate;
+
+  // Issue #13: in-memory secrets. Without these handlers the backend's
+  // config-null stubs swallow the round trip and the JS promise never
+  // resolves; the resolver is captured lazily because the bridge installs
+  // its real resolver during run(). fetch and loadAsset keep the default
+  // handlers (real HttpClient / fixture-directory file reads). Real I/O
+  // cannot complete inside the fake-async test zone by itself — the
+  // runner's real-time slices (_pumpUntil/_waitReal, one serialized
+  // runAsync at a time) give the event loop the wall time to deliver.
+  final secrets = <String, String>{};
+  QuickjsWidgetEngineBackend? backendRef;
+  void resolveNow(String id, dynamic value) =>
+      backendRef?.quickjsBridge.resolveCallback(id, value);
 
   final backend = QuickjsWidgetEngineBackend(
     config: JsRuntimeConfig(
@@ -160,8 +191,40 @@ Future<ConformanceRunOutcome> runConformanceFixture(
       onSetTitle: (t) => title = t,
       onLog: console.add,
       onStorageUpdate: (_) {},
+      secretsGetHandler: (id, key) async => resolveNow(id, secrets[key]),
+      secretsSetHandler: (id, key, value) async {
+        secrets[key] = '$value';
+        resolveNow(id, true);
+      },
+      fetchHandler: (id, url, method, headers) async {
+        // flutter_test installs a global HttpClient override that answers
+        // every request with a 400/empty body; the conformance runner must
+        // reach the fixture's mock server, so the client is constructed
+        // with the override lifted for a synchronous window (issue #13 —
+        // the response still completes through the runner's real-time
+        // slices, one event-loop visit per I/O round trip).
+        final saved = HttpOverrides.current;
+        HttpOverrides.global = null;
+        final client = HttpClient();
+        HttpOverrides.global = saved;
+        try {
+          await defaultVmFetchHandler(
+            id,
+            url,
+            method,
+            headers,
+            resolveNow,
+            client: client,
+          );
+        } finally {
+          client.close();
+        }
+      },
+      loadAssetHandler: (id, path) =>
+          defaultVmLoadAssetHandler(id, path, fixture.dir, resolveNow),
     ),
   );
+  backendRef = backend;
 
   Object? failure;
   Map<String, dynamic>? dump;
@@ -200,7 +263,7 @@ Future<ConformanceRunOutcome> runConformanceFixture(
         action.cast<String, dynamic>(),
       );
     }
-    await tester.pump(const Duration(milliseconds: 50));
+    await _waitReal(tester, 100);
     finalDump = renderer.dumpViewTree(contextRef[0]!);
   } catch (e) {
     failure = e;
@@ -256,21 +319,50 @@ Map<String, dynamic> _resultJson(
   'skippedReason': skippedReason,
 };
 
-void _writeResult(ConformanceSpec spec, String id, Map<String, dynamic> result) {
+void _writeResult(
+  ConformanceSpec spec,
+  String id,
+  Map<String, dynamic> result,
+) {
   Directory(spec.outDir).createSync(recursive: true);
-  File('${spec.outDir}/$id.result.json').writeAsStringSync(
-    const JsonEncoder.withIndent('  ').convert(result),
-  );
+  File(
+    '${spec.outDir}/$id.result.json',
+  ).writeAsStringSync(const JsonEncoder.withIndent('  ').convert(result));
 }
 
 /// `__jsr_render` → `render` (PROTOCOL section 1.4 trace verb).
 String _traceVerb(String channel) => channel.replaceFirst('__jsr_', '');
 
-/// Pumps until [ready] (checked after every pump) or ~2.5 s of pumps.
+/// Pumps until [ready] (checked after every pump) or ~2.5 s of real time.
+/// The real-time slices matter (issue #13): fake-async pumps never consume
+/// wall time, so real I/O (HttpClient, file reads) would never complete.
 Future<void> _pumpUntil(WidgetTester tester, bool Function() ready) async {
-  for (var i = 0; i < 100; i++) {
-    await tester.pump(const Duration(milliseconds: 25));
-    if (ready()) return;
+  final deadline = DateTime.now().add(const Duration(milliseconds: 2500));
+  while (!ready()) {
+    if (DateTime.now().isAfter(deadline)) return;
+    await tester.runAsync(
+      () => Future<void>.delayed(const Duration(milliseconds: 16)),
+    );
+    await tester.pump(const Duration(milliseconds: 16));
+  }
+}
+
+/// Waits [ms] of real time and pumps the frames in between — the `wait`
+/// action of PROTOCOL section 1.4 ("real time on every platform") and the
+/// drain that lets late async re-renders land before a dump.
+/// The wall time is sliced because each `runAsync` visit hands the real
+/// event loop exactly one I/O round trip (issue #13: a file read is two —
+/// `exists` + `readAsString`; an HTTP fetch is several). One long slice
+/// delivers only the first round and the promise still hangs.
+Future<void> _waitReal(WidgetTester tester, int ms) async {
+  var left = ms;
+  while (left > 0) {
+    final slice = left > 20 ? 20 : left;
+    await tester.runAsync(
+      () => Future<void>.delayed(Duration(milliseconds: slice)),
+    );
+    await tester.pump(Duration(milliseconds: slice));
+    left -= slice;
   }
 }
 
@@ -303,7 +395,8 @@ class _ConformanceHostState extends State<_ConformanceHost> {
   void initState() {
     super.initState();
     _renderer = JsonWidgetRenderer(
-      onEvent: (actionId, payload) => widget.backend.callEvent(actionId, payload),
+      onEvent: (actionId, payload) =>
+          widget.backend.callEvent(actionId, payload),
       onGestureEvent: (actionId, payload) =>
           widget.backend.dispatchHostEvent('gesture:$actionId', payload),
     );
@@ -369,9 +462,17 @@ Future<void> applyConformanceAction(
   }
   final swipe = action['swipe'];
   if (swipe is List && swipe.length >= 4) {
-    final start = Offset((swipe[0] as num).toDouble(), (swipe[1] as num).toDouble());
-    final end = Offset((swipe[2] as num).toDouble(), (swipe[3] as num).toDouble());
-    final duration = Duration(milliseconds: swipe.length > 4 ? (swipe[4] as num).toInt() : 150);
+    final start = Offset(
+      (swipe[0] as num).toDouble(),
+      (swipe[1] as num).toDouble(),
+    );
+    final end = Offset(
+      (swipe[2] as num).toDouble(),
+      (swipe[3] as num).toDouble(),
+    );
+    final duration = Duration(
+      milliseconds: swipe.length > 4 ? (swipe[4] as num).toInt() : 150,
+    );
     // `tester.drag` with the given duration (plan 1.4): the coordinate drag
     // advances the test clock by [duration] so timers see the elapsed time.
     // (timedDragFrom's synthesized event records do not reach the
@@ -383,7 +484,9 @@ Future<void> applyConformanceAction(
   }
   final wait = action['wait'];
   if (wait is num) {
-    await tester.pump(Duration(milliseconds: wait.toInt()));
+    // Real time on every platform (PROTOCOL 1.4); the real event-loop
+    // slices also let fetch/file handlers complete.
+    await _waitReal(tester, wait.toInt());
     return;
   }
   if (action['back'] == true) {

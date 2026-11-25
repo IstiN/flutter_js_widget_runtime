@@ -62,7 +62,7 @@ Future<void> main(List<String> arguments) async {
 
   final packageRoot = _packageRoot();
   final harnessDir = harness.isEmpty
-      ? '$packageRoot/.conformance/js_widget_runtime'
+      ? '$packageRoot/.conformance/js_widget_runtime/harness'
       : (harness.startsWith('/') ? harness : '$packageRoot/$harness');
 
   // ── Select fixtures ──────────────────────────────────────────────────
@@ -123,7 +123,12 @@ Future<void> main(List<String> arguments) async {
 
   final result = await Process.run(
     _resolveFlutter(),
-    ['test', 'tool/conformance/run_conformance_test.dart', '--reporter', 'compact'],
+    [
+      'test',
+      'tool/conformance/run_conformance_test.dart',
+      '--reporter',
+      'compact',
+    ],
     workingDirectory: packageRoot,
     environment: env,
     stdoutEncoding: utf8,
@@ -134,8 +139,9 @@ Future<void> main(List<String> arguments) async {
   final outPath = '$outDir/conformance-summary.json';
   Directory(outDir).createSync(recursive: true);
   File(outPath).writeAsStringSync(
-    const JsonEncoder.withIndent('  ')
-        .convert(summary ?? <String, dynamic>{'results': const <dynamic>[]}),
+    const JsonEncoder.withIndent(
+      '  ',
+    ).convert(summary ?? <String, dynamic>{'results': const <dynamic>[]}),
   );
 
   // ── Verdict: every result.json present, DONE/SKIP, no error ─────────
@@ -175,8 +181,9 @@ Future<void> main(List<String> arguments) async {
 bool _declaresMock(String fixtureDir) {
   final metaPath = '$fixtureDir/meta.json';
   if (!File(metaPath).existsSync()) return false;
-  final mock = (jsonDecode(File(metaPath).readAsStringSync())
-      as Map<String, dynamic>)['mock'];
+  final mock =
+      (jsonDecode(File(metaPath).readAsStringSync())
+          as Map<String, dynamic>)['mock'];
   return mock is Map && mock.isNotEmpty;
 }
 
@@ -189,18 +196,22 @@ Future<({Process process, String origin})?> _startMockServer(
     stderr.writeln('harness script not found: ${script.path}');
     return null;
   }
-  final process = await Process.start('node', [script.path, 'mock', fixtureDir]);
+  final process = await Process.start('node', [
+    script.path,
+    'mock',
+    fixtureDir,
+  ]);
   final completer = Completer<String?>();
   late final StreamSubscription<String> subscription;
   subscription = process.stdout
       .transform(const Utf8Decoder())
       .transform(const LineSplitter())
       .listen((line) {
-    final match = RegExp(r'http://127\.0\.0\.1:\d+').firstMatch(line);
-    if (match != null && !completer.isCompleted) {
-      completer.complete(match.group(0));
-    }
-  });
+        final match = RegExp(r'http://127\.0\.0\.1:\d+').firstMatch(line);
+        if (match != null && !completer.isCompleted) {
+          completer.complete(match.group(0));
+        }
+      });
   final timer = Timer(const Duration(seconds: 10), () {
     if (!completer.isCompleted) completer.complete(null);
   });
@@ -215,7 +226,9 @@ Map<String, dynamic>? _extractSummary(String output) {
   for (final line in output.split('\n').reversed) {
     final idx = line.indexOf(kJsrConformanceResultMarker);
     if (idx < 0) continue;
-    final json = line.substring(idx + kJsrConformanceResultMarker.length).trim();
+    final json = line
+        .substring(idx + kJsrConformanceResultMarker.length)
+        .trim();
     try {
       final decoded = jsonDecode(json);
       if (decoded is Map<String, dynamic>) return decoded;
@@ -227,8 +240,8 @@ Map<String, dynamic>? _extractSummary(String output) {
 }
 
 RegExp _globToRegExp(String glob) => RegExp(
-      '^${glob.replaceAllMapped(RegExp(r'[*?]'), (m) => m[0] == '*' ? '.*' : '.')}\$',
-    );
+  '^${glob.replaceAllMapped(RegExp(r'[*?]'), (m) => m[0] == '*' ? '.*' : '.')}\$',
+);
 
 String _resolveFlutter() {
   final envPath = Platform.environment['FLUTTER_ROOT'];
@@ -244,9 +257,9 @@ String _packageRoot() {
   while (true) {
     final pubspec = File('$dir/pubspec.yaml');
     if (pubspec.existsSync() &&
-        pubspec
-            .readAsStringSync()
-            .contains(RegExp(r'^name:\s*js_widget_runtime\s*$', multiLine: true))) {
+        pubspec.readAsStringSync().contains(
+          RegExp(r'^name:\s*js_widget_runtime\s*$', multiLine: true),
+        )) {
       return dir;
     }
     final parent = Directory(dir).parent.path;
