@@ -2,8 +2,57 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
+import 'package:js_widget_runtime/js_widget_runtime.dart';
 
 import '../../tool/conformance/conformance_runner.dart';
+
+/// Minimal backend stub for action-verb tests (unused verbs are no-ops).
+class RecordingBackend implements JsWidgetEngineBackend {
+  final hostEvents = <String>[];
+
+  @override
+  void dispatchHostEvent(String target, Map<String, dynamic> payload) {
+    hostEvents.add(target);
+  }
+
+  @override
+  Future<void> callEvent(
+    String actionId, [
+    Map<String, dynamic>? payload,
+  ]) async {}
+
+  @override
+  void setEngineInstanceId(String instanceId) {}
+
+  @override
+  bool get hasSyncBinaryLane => false;
+
+  @override
+  void prepareThreeBackend(JsThreeBackendSelection selection) {}
+
+  @override
+  List<Map<String, dynamic>> peekLogs() => const [];
+
+  @override
+  JsVoxelWorld get voxelWorld => JsVoxelWorld();
+
+  @override
+  Future<void> init() async {}
+  @override
+  Future<void> run(
+    String widgetJs, {
+    String? hostBootstrapJs,
+    Map<String, dynamic> initialTheme = const {},
+  }) async {}
+  @override
+  void updateTheme(Map<String, dynamic> colors) {}
+  @override
+  Future<void> dispose() async {}
+  @override
+  List<Map<String, dynamic>> flushLogs() => const [];
+  @override
+  Map<String, dynamic>? get exportedState => null;
+}
 
 /// Shared helpers of the seed end-to-end tests (issue #9 / F1).
 

@@ -1,7 +1,11 @@
 import 'dart:convert';
 import 'dart:io';
+import 'dart:typed_data';
+import 'dart:ui';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/gestures.dart';
+import 'package:flutter_map/flutter_map.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:js_widget_runtime/js_widget_runtime.dart';
@@ -287,8 +291,23 @@ Future<ConformanceRunOutcome> runConformanceFixture(
   } catch (e) {
     failure = e;
   } finally {
-    await engine.dispose();
-    await tester.pump(const Duration(milliseconds: 10));
+    // Issue #16: unmount the widget tree while the engine is still alive,
+    // then dispose. Disposing first left node states pumping frames into a
+    // dead engine after the result was written, crashing the test run.
+    final previousOnError = FlutterError.onError;
+    FlutterError.onError = (details) {
+      failure ??= details.exception;
+      previousOnError?.call(details);
+    };
+    try {
+      await tester.pumpWidget(const SizedBox.expand());
+      await engine.dispose();
+      await _waitReal(tester, 20);
+    } catch (e) {
+      failure ??= e;
+    } finally {
+      FlutterError.onError = previousOnError;
+    }
   }
 
   final result = _resultJson(
@@ -457,6 +476,21 @@ Future<void> applyConformanceAction(
     await tester.pump(const Duration(milliseconds: 50));
     return;
   }
+  // Amendment A1 (issue #17): keyboard done on the named text node —
+  // enterText alone never fires onSubmit/onSubmitted.
+  final submit = action['submit'];
+  if (submit is String) {
+    final finder = find
+        .descendant(
+          of: find.byKey(ValueKey<String>('jsr:$submit')),
+          matching: find.byType(EditableText),
+        )
+        .first;
+    await tester.tap(finder);
+    await tester.testTextInput.receiveAction(TextInputAction.done);
+    await tester.pump(const Duration(milliseconds: 50));
+    return;
+  }
   final input = action['input'];
   if (input is Map) {
     final node = input['node'];
@@ -473,10 +507,30 @@ Future<void> applyConformanceAction(
   }
   final scroll = action['scroll'];
   if (scroll is List && scroll.length >= 2) {
-    await tester.drag(
-      find.byType(Scrollable).first,
-      Offset((scroll[0] as num).toDouble(), (scroll[1] as num).toDouble()),
+    // Amendment A2 (issue #18): a pointer scroll signal at the center of
+    // the surface — a touch drag never produces one, so
+    // gestureDetector.onScroll stayed dead. The event must carry the
+    // test view's viewId, hence TestPointer instead of a raw event.
+    final view = tester.view;
+    final center = Offset(
+      view.physicalSize.width / view.devicePixelRatio / 2,
+      view.physicalSize.height / view.devicePixelRatio / 2,
     );
+    // The event must carry the test view's viewId: the framework's
+    // scrollables drop signals for other views (a plain Listener ignores it).
+    await tester.sendEventToBinding(
+      PointerScrollEvent(
+        viewId: view.viewId,
+        position: center,
+        scrollDelta: Offset(
+          (scroll[0] as num).toDouble(),
+          (scroll[1] as num).toDouble(),
+        ),
+      ),
+    );
+    // The signal handlers defer via scheduleMicrotask; flush + repump.
+    await tester.pump(const Duration(milliseconds: 50));
+    await tester.runAsync(() => Future<void>.delayed(Duration.zero));
     await tester.pump(const Duration(milliseconds: 50));
     return;
   }
