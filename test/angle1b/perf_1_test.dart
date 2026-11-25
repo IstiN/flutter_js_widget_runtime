@@ -10,7 +10,9 @@ import '../../tool/three/bench_1b.dart';
 void main() {
   final missing = Shim.resolveProblem();
   test('PERF-1: flush count per 500-draw frame is at most one', () async {
-    final report = await run1bBench();
+    // Flush count is structural (batching), not statistical: 20 frames
+    // prove it; the timing budget is PERF-2's dedicated-process bench.
+    final report = await run1bBench(frames: 20);
     // ignore: avoid_print
     print('PERF-1 bench: $report');
     expect(report.flushesPerFrame, lessThanOrEqualTo(1));

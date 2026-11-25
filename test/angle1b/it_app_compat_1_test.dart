@@ -147,7 +147,7 @@ try {
     expect(stateB?['scene'], 0,
         reason: 'non-shader THREE API stays intact behind the policy');
     expect(widgetErrorLogs(logsB), isEmpty);
-  });
+  }, skip: missing);
 
   test('E2E-SHADER-1: an invalid shader takes the original error path '
       'without a host crash', () async {

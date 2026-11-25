@@ -1,17 +1,36 @@
+import 'dart:convert';
+import 'dart:io';
+
 import 'package:flutter_test/flutter_test.dart';
 
 import '../../tool/three/bench_1b.dart';
 
 // PERF-2 (issue #7, F2 batching row): p95 of a 500-draw-call frame
 // (encode + transport + native submit) is within the 4 ms budget on the
-// macOS host that runs the bench (also asserted by the bench tool itself —
-// `dart run tool/three/bench_1b.dart` exits nonzero on violation).
+// macOS host that runs the bench. The measurement of record is the
+// standalone bench tool (`dart run tool/three/bench_1b.dart`, also its own
+// quality-macos CI step): a DEDICATED process. The in-suite measurement
+// inside the flutter-test harness is not that host measurement — shared
+// runners put ALL of its windows above the budget (measured 4.079 ms
+// single-window, then 5.0-6.8 ms in all six median-estimator windows)
+// while the dedicated process stays around 1.8-2.0 ms on the same runner.
 void main() {
   final missing = Shim.resolveProblem();
-  test('PERF-2: p95 of a 500-draw frame stays within the 4 ms budget', () async {
-    final report = await run1bBench();
+  test('PERF-2: p95 of a 500-draw frame stays within the 4 ms budget',
+      () async {
+    final r = await Process.run('dart', const ['run', 'tool/three/bench_1b.dart'],
+        stdoutEncoding: utf8, stderrEncoding: utf8);
     // ignore: avoid_print
-    print('PERF-2 bench: $report');
-    expect(report.p95Ms, lessThanOrEqualTo(kP95BudgetMs));
-  }, skip: missing);
+    print(r.stdout);
+    // The tool itself exits 1 unless RAWGL_MATCH, flushes <= 1 and
+    // median p95 <= kP95BudgetMs all hold.
+    expect(r.exitCode, 0, reason: 'the bench tool enforces the budgets');
+    final p95 = RegExp('BENCH_P95_MS ([0-9.]+)').firstMatch(r.stdout);
+    expect(p95, isNotNull);
+    expect(double.parse(p95!.group(1)!), lessThanOrEqualTo(kP95BudgetMs));
+    final flushes =
+        RegExp('BENCH_FLUSHES_PER_FRAME (\\d+)').firstMatch(r.stdout);
+    expect(flushes, isNotNull);
+    expect(int.parse(flushes!.group(1)!), lessThanOrEqualTo(1));
+  }, skip: missing, timeout: const Timeout(Duration(minutes: 6)));
 }
