@@ -338,13 +338,14 @@ String _traceVerb(String channel) => channel.replaceFirst('__jsr_', '');
 /// wall time, so real I/O (HttpClient, file reads) would never complete.
 Future<void> _pumpUntil(WidgetTester tester, bool Function() ready) async {
   final deadline = DateTime.now().add(const Duration(milliseconds: 2500));
-  while (!ready()) {
-    if (DateTime.now().isAfter(deadline)) return;
+  do {
+    // The slice order matters: pump BEFORE the ready check so the frame
+    // that mounts the arrived render payload is always applied.
     await tester.runAsync(
       () => Future<void>.delayed(const Duration(milliseconds: 16)),
     );
     await tester.pump(const Duration(milliseconds: 16));
-  }
+  } while (!ready() && DateTime.now().isBefore(deadline));
 }
 
 /// Waits [ms] of real time and pumps the frames in between — the `wait`
