@@ -13,6 +13,7 @@ import 'package:jsr_three_angle/jsr_three_angle.dart';
 // Without the libraries on the host the suite SKIPS with the probe reason;
 // with JSR_REQUIRE_ANGLE=1 (CI job quality-macos) a failed probe FAILS.
 void main() {
+  TestWidgetsFlutterBinding.ensureInitialized();
   final requireAngle = Platform.environment['JSR_REQUIRE_ANGLE'] == '1';
   final backend = createAngleThreeHost();
   final probeReason = backend.probeNative();
@@ -28,8 +29,11 @@ void main() {
     expect(probe.available, isTrue, reason: probe.reason);
     // ignore: avoid_print
     print(probe);
-    expect(probe.eglVendor, contains('ANGLE'));
-    expect(probe.renderer, isNotEmpty);
+    // eglVendor reports "Google Inc. (Apple)"; the ANGLE identity lives in
+    // the renderer string ("ANGLE (Apple, ANGLE Metal Renderer: ...)").
+    expect(probe.renderer, contains('ANGLE'));
+    expect(probe.eglVendor, isNotEmpty);
+    expect(probe.eglVersion, isNotEmpty);
     expect(backend.angleInfo['eglVersion'], isNotEmpty);
   }, skip: probeReason);
 
