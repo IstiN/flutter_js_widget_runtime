@@ -266,17 +266,9 @@ Future<ConformanceRunOutcome> runConformanceFixture(
     ),
   );
 
-  // Issue #16: rendering exceptions must fail the FIXTURE (the result
-  // carries the error; the CLI verdict exits non-zero) instead of
-  // crashing the whole flutter test run. The net spans the entire run —
-  // run-phase exceptions fire through FlutterError.onError during pumps,
-  // not through the Dart call stack.
   Object? failure;
   Map<String, dynamic>? dump;
   Map<String, dynamic>? finalDump;
-  FlutterError.onError = (details) {
-    failure ??= details.exception;
-  };
   try {
     await engine.init();
     final rendererRef = <JsonWidgetRenderer?>[null];
@@ -316,18 +308,28 @@ Future<ConformanceRunOutcome> runConformanceFixture(
   } catch (e) {
     failure = e;
   } finally {
-    // Unmount the widget tree while the engine is still alive, then
-    // dispose. Disposing first left node states pumping frames into a
+    // Issue #16: unmount the widget tree while the engine is still alive,
+    // then dispose. Disposing first left node states pumping frames into a
     // dead engine after the result was written, crashing the test run.
+    // The net covers THIS phase only: a run-phase framework exception
+    // must escape to flutter_test — continuing to pump on a poisoned
+    // render tree wedges the process (verified: the third poisoned fixture
+    // hung the full-kit run), while the CLI verdict still names the exit
+    // and the result files are already on disk.
+    final previousOnError = FlutterError.onError;
+    FlutterError.onError = (details) {
+      failure ??= details.exception;
+    };
     try {
       await tester.pumpWidget(const SizedBox.expand());
       await engine.dispose();
       await _waitReal(tester, 20);
     } catch (e) {
       failure ??= e;
+    } finally {
+      FlutterError.onError = previousOnError;
     }
   }
-  FlutterError.onError = null;
 
   final result = _resultJson(
     fixture.id,
