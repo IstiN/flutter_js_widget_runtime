@@ -1,4 +1,7 @@
+import 'dart:typed_data';
+
 import 'package:flutter/foundation.dart';
+import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:js_widget_runtime/js_widget_runtime.dart';
@@ -23,11 +26,13 @@ void main() {
   function RawShaderMaterial() {}
   RawShaderMaterial.prototype = Object.create(Material.prototype);
   RawShaderMaterial.prototype.isRawShaderMaterial = true;
+  function MeshBasicMaterial() {}
+  MeshBasicMaterial.prototype = Object.create(Material.prototype);
   root.THREE = {
     Material: Material,
     ShaderMaterial: ShaderMaterial,
     RawShaderMaterial: RawShaderMaterial,
-    MeshBasicMaterial: function () {}
+    MeshBasicMaterial: MeshBasicMaterial
   };
 })();
 ''';
