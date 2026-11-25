@@ -53,6 +53,12 @@ class FakeThreeHost implements JsThreeHost {
   final assets = <String, JsThreeAsset>{};
   int attachCount = 0;
   int assetLoadCount = 0;
+  final batches1B = <String, Uint8List>{};
+
+  @override
+  void submit1B(String boundEngineId, Uint8List batch) {
+    batches1B[boundEngineId] = batch;
+  }
 
   static String key(String engineId, String surfaceId) =>
       '$engineId/$surfaceId';

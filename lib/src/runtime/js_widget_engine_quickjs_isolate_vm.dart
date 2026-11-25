@@ -5,6 +5,7 @@ import 'dart:isolate';
 import 'package:flutter/foundation.dart';
 import 'package:js_widget_runtime/src/defaults/vm_default_handlers.dart';
 import 'package:js_widget_runtime/src/model/js_runtime_config.dart';
+import 'package:js_widget_runtime/src/model/js_three_backend.dart';
 import 'package:js_widget_runtime/src/renderer/nodes/three/three_custom_attributes_native.dart';
 import 'package:js_widget_runtime/src/renderer/nodes/three/three_line_walk_native.dart';
 import 'package:js_widget_runtime/src/renderer/nodes/three/three_morph_native.dart';
@@ -144,6 +145,17 @@ class QuickjsIsolateWidgetEngineBackend
     } else {
       ffi.clearDrainStop();
     }
+  }
+
+  /// 1B probe (a): the QuickJS runtime lives in an isolate, so its binary
+  /// lane crosses an isolate boundary asynchronously — 1B is never selected
+  /// on this backend (ADR-0003; only the in-process FFI backend qualifies).
+  @override
+  bool get hasSyncBinaryLane => false;
+
+  @override
+  void prepareThreeBackend(JsThreeBackendSelection selection) {
+    // The ladder already selected r1 on this backend; nothing to prepare.
   }
 
   @override

@@ -466,6 +466,12 @@ class JsWidgetBridge {
       _submitThree(data);
       return;
     }
+    if (name == 'three.1b') {
+      // ADR-0003 decision 4: the batched G1 lane of the ANGLE 1B host,
+      // routed beside three.r1. Non-1B hosts drop it by default.
+      threeHost?.submit1B(threeEngineId, data);
+      return;
+    }
     onHostCallBinary?.call(name, data);
   }
 

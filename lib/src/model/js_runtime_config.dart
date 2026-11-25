@@ -1,6 +1,7 @@
 import 'package:flutter/foundation.dart';
 
 import 'package:js_widget_runtime/src/model/js_audio_synthesis.dart';
+import 'package:js_widget_runtime/src/model/js_three_backend.dart';
 import 'package:js_widget_runtime/src/renderer/media/js_media_host.dart';
 import 'package:js_widget_runtime/src/renderer/nodes/js_3d_host.dart';
 import 'package:js_widget_runtime/src/renderer/nodes/three/js_three_host.dart';
@@ -65,6 +66,9 @@ class JsRuntimeConfig {
     this.js3dHost,
     this.threeEnabled = false,
     this.threeSource,
+    this.threeBackend = JsThreeBackend.r1,
+    this.allowCustomShaders = false,
+    this.onThreeBackendSelected,
     this.threeHost,
     this.mediaHost,
     this.webViewHost,
@@ -213,6 +217,24 @@ class JsRuntimeConfig {
   /// `assets/three/jsr_three_web.js` from the package bundle.
   final String? threeSource;
 
+  /// THREE render backend selection (issue #7 / ADR-0003): `r1` (default,
+  /// the bounded flutter_gpu renderer), `angle1b` (pinned upstream
+  /// WebGLRenderer over ANGLE), or `auto` (angle1b when every probe of the
+  /// selection ladder passes, else r1). Selecting angle1b never downloads,
+  /// loads or initializes ANGLE unless the optional `jsr_three_angle`
+  /// package is on the class path and its host is passed as [threeHost].
+  final JsThreeBackend threeBackend;
+
+  /// Host policy for custom shaders (ADR-0003 decision 3). When false
+  /// (default), `THREE.ShaderMaterial`, `THREE.RawShaderMaterial` and
+  /// `onBeforeCompile` throw `three.unsupported: custom shaders are
+  /// disabled by host policy` before the renderer is allocated.
+  final bool allowCustomShaders;
+
+  /// Selection outcome callback: always fired when a THREE runtime starts,
+  /// with the requested and selected backend and the fallback reason.
+  final void Function(JsThreeBackendSelection selection)? onThreeBackendSelected;
+
   /// Independent upstream-THREE host used by `three` nodes and JSR3D-T1.
   /// This is deliberately not part of the existing [js3dHost] hierarchy.
   final JsThreeHost? threeHost;
@@ -268,6 +290,9 @@ class JsRuntimeConfig {
     Js3dHost? js3dHost,
     bool? threeEnabled,
     String? threeSource,
+    JsThreeBackend? threeBackend,
+    bool? allowCustomShaders,
+    void Function(JsThreeBackendSelection selection)? onThreeBackendSelected,
     JsThreeHost? threeHost,
     JsMediaHost? mediaHost,
     JsWebViewHost? webViewHost,
@@ -303,6 +328,10 @@ class JsRuntimeConfig {
     js3dHost: js3dHost ?? this.js3dHost,
     threeEnabled: threeEnabled ?? this.threeEnabled,
     threeSource: threeSource ?? this.threeSource,
+    threeBackend: threeBackend ?? this.threeBackend,
+    allowCustomShaders: allowCustomShaders ?? this.allowCustomShaders,
+    onThreeBackendSelected:
+        onThreeBackendSelected ?? this.onThreeBackendSelected,
     threeHost: threeHost ?? this.threeHost,
     mediaHost: mediaHost ?? this.mediaHost,
     webViewHost: webViewHost ?? this.webViewHost,

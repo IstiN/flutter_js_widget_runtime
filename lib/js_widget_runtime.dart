@@ -6,6 +6,7 @@ export 'src/loader/widget_file_reader.dart'
     show WidgetFileReader, MemoryWidgetFileReader;
 export 'src/model/js_audio_synthesis.dart' show JsAudioSynthesis;
 export 'src/model/js_runtime_config.dart';
+export 'src/model/js_three_backend.dart';
 export 'src/model/widget_manifest.dart' show WidgetManifest;
 export 'src/renderer/json_widget_renderer.dart'
     show JsonWidgetRenderer, JsonWidgetBuildHooks, kAlignContentMinMainAxis;

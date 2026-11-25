@@ -4,7 +4,6 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:js_widget_runtime/js_widget_runtime.dart';
 import 'package:js_widget_runtime/src/renderer/json_widget_renderer.dart';
 import 'package:js_widget_runtime/src/runtime/js_widget_engine_backend.dart';
-
 import '../../tool/conformance/conformance_runner.dart';
 
 /// Action verbs of PROTOCOL section 1.4 through the real renderer and the
@@ -26,6 +25,12 @@ class _RecordingBackend implements JsWidgetEngineBackend {
 
   @override
   void setEngineInstanceId(String instanceId) {}
+
+  @override
+  bool get hasSyncBinaryLane => false;
+
+  @override
+  void prepareThreeBackend(JsThreeBackendSelection selection) {}
 
   @override
   List<Map<String, dynamic>> peekLogs() => const [];

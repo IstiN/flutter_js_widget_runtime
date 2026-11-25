@@ -6,6 +6,7 @@ import 'package:flutter_js/flutter_js.dart';
 
 import 'package:js_widget_runtime/src/defaults/vm_default_handlers.dart';
 import 'package:js_widget_runtime/src/model/js_runtime_config.dart';
+import 'package:js_widget_runtime/src/model/js_three_backend.dart';
 import 'package:js_widget_runtime/src/runtime/js_widget_bootstrap.dart';
 import 'package:js_widget_runtime/src/runtime/js_widget_bridge.dart';
 import 'package:js_widget_runtime/src/renderer/nodes/js_voxel_node.dart';
@@ -15,6 +16,7 @@ import 'package:js_widget_runtime/src/runtime/js_widget_engine_backend.dart';
 class FlutterJsWidgetEngineBackend implements JsWidgetEngineBackend {
   FlutterJsWidgetEngineBackend({required JsRuntimeConfig config})
     : _config = config {
+
     _bridge = JsWidgetBridge(
       widgetId: config.widgetId,
       onRender: config.onRender,
@@ -47,6 +49,16 @@ class FlutterJsWidgetEngineBackend implements JsWidgetEngineBackend {
 
   JsRuntimeConfig _config;
   late final JsWidgetBridge _bridge;
+
+  /// 1B probe (a): the flutter_js channel returns asynchronously — 1B is
+  /// never selected on this backend (ADR-0003).
+  @override
+  bool get hasSyncBinaryLane => false;
+
+  @override
+  void prepareThreeBackend(JsThreeBackendSelection selection) {
+    // The ladder already selected r1 on this backend; nothing to prepare.
+  }
 
   @override
   void setEngineInstanceId(String instanceId) {
