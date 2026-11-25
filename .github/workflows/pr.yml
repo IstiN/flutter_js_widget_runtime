@@ -309,3 +309,47 @@ jobs:
         env:
           JSR_ANGLE_1B_LIB: ${{ github.workspace }}/packages/jsr_three_angle/native/angle/out/macos-arm64/libangle_1b.dylib
         run: dart run tool/three/bench_1b.dart
+
+      - name: M3 render gate (compare_1b_render.sh)
+        run: bash tool/three/compare_1b_render.sh
+
+      - name: Starter corpus (E2E-EXAMPLES REG-VISUAL-1 E2E-WEB)
+        run: bash tool/three/corpus_1b.sh
+
+  angle-size:
+    # Issue #7 AC10 size report for every platform built so far. F2d covers
+    # macos-arm64 (stripped size, architectures, SHA256 from the
+    # quality-macos artifact); the Android/iOS reports and the installed /
+    # compressed budget gates land with the F3 platform hosts.
+    needs: quality-macos
+    runs-on: macos-15
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Download ANGLE macos-arm64 artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: angle-macos-arm64
+          path: angle-artifact
+
+      - name: Size report (macos-arm64)
+        run: |
+          set -euo pipefail
+          cd angle-artifact
+          echo "== ANGLE macos-arm64 size report =="
+          total_raw=0; total_stripped=0
+          for f in libEGL.dylib libGLESv2.dylib libangle_1b.dylib; do
+            test -f "$f"
+            cp "$f" /tmp/jsr-strip.dylib
+            before=$(stat -f %z "$f"); total_raw=$((total_raw+before))
+            strip -x /tmp/jsr-strip.dylib
+            after=$(stat -f %z /tmp/jsr-strip.dylib); total_stripped=$((total_stripped+after))
+            archs=$(lipo -info "$f" | sed -e 's/Architectures in the fat file: //' -e 's/Architectures in this file: //')
+            sha=$(shasum -a 256 "$f" | cut -d' ' -f1)
+            printf '%-18s raw=%8d stripped=%8d arch=%-10s sha256=%s\n' "$f" "$before" "$after" "$archs" "$sha"
+          done
+          echo "TOTAL(macos-arm64) raw=$total_raw stripped=$total_stripped"
+          # artifact integrity: the hashes recorded by the build job
+          shasum -a 256 -c SHA256SUMS
+          echo "== ANGLE macos-arm64 size report: OK =="

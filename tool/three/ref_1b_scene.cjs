@@ -27,6 +27,9 @@ const kRoot = path.resolve(__dirname, '..', '..');
 const kCorePath = path.join(kRoot, 'example/web/three.core.js');
 const kModulePath = path.join(kRoot, 'example/web/jsr_three_web.js');
 const kOutRgba = '/tmp/angle1b_web.rgba';
+// Browser: system Google Chrome by default (CI macos-15 image); override with
+// JSR_WEBGL_REF_CHANNEL=chromium for hosts without a Chrome install.
+const kChannel = process.env.JSR_WEBGL_REF_CHANNEL || 'chrome';
 
 // ---------------------------------------------------------------------------
 // ESM transform (same logic as the M2b/M3 harness): the two three r186
@@ -140,7 +143,7 @@ async function main() {
   const core = fs.readFileSync(kCorePath, 'utf8');
   const module = fs.readFileSync(kModulePath, 'utf8');
 
-  const browser = await chromium.launch({ channel: 'chrome', headless: true });
+  const browser = await chromium.launch({ channel: kChannel, headless: true });
   try {
     const page = await browser.newPage({ viewport: { width: 400, height: 300 } });
     await page.setContent('<!doctype html><html><head></head><body></body></html>');

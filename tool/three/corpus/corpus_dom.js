@@ -86,7 +86,15 @@
         if (args[ai] && args[ai].stack) { stk = String(args[ai].stack); break; }
       }
       if (!stk) { try { stk = String(new Error('corpus-trace').stack || ''); } catch (eStk) {} }
-      __errors.push('console.error: ' + msg + (stk ? '\n' + stk : ''));
+      // Cap: a scene in a per-frame failure loop (e.g. a rejected texture
+      // retry) must not grow this array into multi-GB JSON — the harnesses
+      // stringify it. First 200 entries + a marker keep the verdict loud.
+      if (__errors.length >= 200) {
+        if (__errors.length === 200) __errors.push('[corpus: error log truncated at 200 entries]');
+        msg += (stk ? '\n' + stk : '');
+      } else {
+        __errors.push('console.error: ' + msg + (stk ? '\n' + stk : ''));
+      }
       msg += (stk ? '\n' + stk : '');
     }
     if (g.__consoleBridge) { try { g.__consoleBridge(level, msg); } catch (e) {} }
@@ -358,13 +366,24 @@
     };
     __urlCtor.revokeObjectURL = function (u) { delete __blobRegistry[u]; };
     def('URL', __urlCtor);
-  } else if (!g.URL.createObjectURL) {
+  } else {
+    // Web: Chrome already has createObjectURL, but it rejects our Blob STUB.
+    // Shadow it: stub Blobs go through the registry (the canvas/img stubs
+    // and GLTFLoader resolve blob: URLs against it); native Blobs (window
+    // .__nativeBlob, captured by the driver) pass through to the native
+    // store untouched.
+    var __nativeCOU = g.URL.createObjectURL.bind(g.URL);
+    var __nativeROU = g.URL.revokeObjectURL.bind(g.URL);
     g.URL.createObjectURL = function (blob) {
+      if (g.__nativeBlob && blob instanceof g.__nativeBlob) return __nativeCOU(blob);
       var u = 'blob:corpus-' + (++__blobSeq);
       __blobRegistry[u] = blob;
       return u;
     };
-    g.URL.revokeObjectURL = function (u) { delete __blobRegistry[u]; };
+    g.URL.revokeObjectURL = function (u) {
+      if (__blobRegistry[u]) { delete __blobRegistry[u]; return; }
+      __nativeROU(u);
+    };
   }
 
   g.Blob = function (parts, opts) {
@@ -569,15 +588,28 @@
         get: function () { return currentSrc; },
         set: function (url) {
           currentSrc = String(url);
-          var path = g.__resolveAssetPath(currentSrc);
-          Promise.resolve(g.__assetReadRaw(path)).then(function (raw) {
-            if (raw == null) {
-              real.dispatchEvent(new g.Event('error'));
-              return;
-            }
-            var bytes = typeof raw === 'string' ? g.__b64toBytes(raw) : raw;
+          // GLTFLoader materializes embedded textures as blob: URLs over our
+          // Blob stub — serve those bytes too (the 1B stub branch does; the
+          // web branch must not flood __corpusErrors with per-frame
+          // "Couldn't load texture" retries).
+          var reg = __blobRegistry[url];
+          var bytesPromise = reg ? Promise.resolve(reg.__bytes)
+            : Promise.resolve(g.__assetReadRaw(g.__resolveAssetPath(currentSrc))).then(function (raw) {
+                if (raw == null) throw new Error('asset not found: ' + url);
+                return typeof raw === 'string' ? g.__b64toBytes(raw) : raw;
+              });
+          // Track the FULL load (asset read + native decode + the img
+          // load/error event) so the corpus settle gate waits for it exactly
+          // like the 1B side; otherwise the scene's onLoad renders land
+          // mid-tick here and animated scenes diverge in frame phase.
+          g.__corpusTrackAsync(bytesPromise.then(function (bytes) {
             srcDesc.set.call(real, 'data:' + __sniffMimeBytes(bytes) + ';base64,' + g.__bytesToB64(bytes));
-          }, function () { real.dispatchEvent(new g.Event('error')); });
+            return new Promise(function (resolve) {
+              var done = function () { resolve(null); };
+              real.addEventListener('load', done, { once: true });
+              real.addEventListener('error', done, { once: true });
+            });
+          }, function () { real.dispatchEvent(new g.Event('error')); }));
         }
       });
       return real;

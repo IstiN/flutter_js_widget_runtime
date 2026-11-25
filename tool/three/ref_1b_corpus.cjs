@@ -14,7 +14,7 @@
 const fs = require('fs');
 const { execFileSync } = require('child_process');
 const path = require('path');
-const { chromium } = require('/tmp/node_modules/playwright');
+const { chromium } = require(process.env.JSR_PLAYWRIGHT_PATH || '/tmp/node_modules/playwright');
 
 const args = process.argv.slice(2);
 const opt = (name, dflt) => { const i = args.indexOf('--' + name); return i >= 0 ? args[i + 1] : dflt; };
@@ -32,6 +32,9 @@ const kCorpusDom = path.resolve(__dirname, 'corpus/corpus_dom.js');
 const kCorpusXmlDom = path.resolve(__dirname, 'corpus/corpus_xmldom.js');
 const kCorePath = path.resolve(__dirname, '../../example/web/three.core.js');
 const kModulePath = path.resolve(__dirname, '../../example/web/jsr_three_web.js');
+// Browser: system Google Chrome by default (CI macos-15 image); override with
+// JSR_WEBGL_REF_CHANNEL=chromium for hosts without a Chrome install.
+const kChannel = process.env.JSR_WEBGL_REF_CHANNEL || 'chrome';
 
 // ESM transform (same logic as run_1b_render.dart / ref_1b_scene.cjs).
 function braceList(line, open, close) {
@@ -279,6 +282,14 @@ const READBACK = `
 (function () {
   var result = globalThis.__result || { ok: false, error: 'scene did not run' };
   var info = { ok: !!result.ok, error: result.error || null, revision: result.revision, jsErrors: globalThis.__corpusErrors || [] };
+  // E2E-WEB page-level proof (every corpus scene, canvas or not): the leg
+  // runs in a bare Chrome page — no ANGLE 1B lane and no Dart GL proxy are
+  // even loadable here (the page never loads a Dart runtime).
+  info.direct = {
+    no1bLane: typeof globalThis.__jsr1b_gl === 'undefined',
+    barePage: typeof globalThis.dartPrint === 'undefined' && typeof globalThis.__jsrDispatchBinary === 'undefined',
+    nativeContext: null,
+  };
   if (result.ok) {
     var canvas = window.__sceneCanvas;
     if (!canvas) {
@@ -300,6 +311,9 @@ const READBACK = `
     info.glError = gl.getError(); // readPixels-specific error; recorded as a note only
     info.drawCalls = window.__drawCalls || 0;
     info.pixelsB64 = window.__bytesToB64(px);
+    // Per-context proof: the handed-out context is the REAL WebGL2 context,
+    // not the 1B facade (which would be a plain JS object).
+    info.direct.nativeContext = String((gl.constructor && gl.constructor.name) || '') === 'WebGL2RenderingContext';
   }
   window.__readback = info;
 })();
@@ -313,7 +327,7 @@ async function main() {
   const moduleWrapped = wrapThreeModule(fs.readFileSync(kModulePath, 'utf8'));
   fs.mkdirSync(kOut, { recursive: true });
 
-  const browser = await chromium.launch({ channel: 'chrome', headless: true });
+  const browser = await chromium.launch({ channel: kChannel, headless: true });
   try {
     const page = await browser.newPage({ viewport: { width: 400, height: 300 } });
     await page.exposeFunction('__corpusAssetRead', (p) => {
@@ -399,7 +413,7 @@ console.error('PROGRESS readback-done');
     fs.writeFileSync(path.join(kOut, 'web.rgba'), pixels);
     const hash = fnv1a(pixels);
     console.log('CORPUS_WEB_RUN id=' + kId + ' hash=' + hex32(hash) + ' (' + hash + ') file=' + path.join(kOut, 'web.rgba'));
-    console.log('CORPUS_WEB_STATUS ' + JSON.stringify({ id: kId, ok: true, ticked: tick.ticked, w: info.w, h: info.h, jsErrors: info.jsErrors, revision: info.revision }));
+    console.log('CORPUS_WEB_STATUS ' + JSON.stringify({ id: kId, ok: true, ticked: tick.ticked, w: info.w, h: info.h, jsErrors: info.jsErrors, revision: info.revision, direct: info.direct }));
   } finally {
 console.error('PROGRESS pre-close');
     await browser.close();

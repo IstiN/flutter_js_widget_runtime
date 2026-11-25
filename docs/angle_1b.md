@@ -258,7 +258,103 @@ Corpus harness + decoder fixes from the M4 final-report blocker list
    swapped the prebuilt ANGLE dylibs for the local tree build
    (9c6a64c, ad-hoc re-signed in place — the repo-path copy must be
    re-signed or syspolicyd SIGKILLs it on load).
-4a/4b see the M4 report table: instancing/lines pixel divergences remain
-   under investigation (facade `getParameter(ALIASED_LINE_WIDTH_RANGE)`
-   returning an empty vector is the prime 4b suspect; instancing divisor
-   decode the 4a suspect).
+
+## Corpus acceptance — F2d (2026-11-26)
+
+The F2d acceptance run supersedes the M4-preview investigation notes above:
+`three-buffergeometry-instancing` now compares **bit-identically** (the M2/M3
+decoder fixes landed after the old note), and the starter corpus below is the
+gated acceptance set.
+
+### Starter corpus (issue #7 AC5 named scenes + fixtures)
+
+Driver: `tool/three/corpus_1b.sh` (default ids = the ten AC5 named scenes +
+`fixture-rawgl` + `fixture-readback`). Acceptance tiers are pinned in
+`tool/three/corpus/accepted_tiers.json`; the corpus script exits non-zero when
+a gated id measures outside its accepted tier or the E2E-WEB direct probe
+fails. Measured 2026-11-26, Apple M4 Pro, 1B = ANGLE Metal `9c6a64c9` vs web
+= Chrome 133 (Chromium 133.0.6943.16) real WebGL2, both 320x240:
+
+| id | upstream scene | measured | accepted | note |
+|---|---|---|---|---|
+| three-loader-gltf | webgl_loader_gltf (DamagedHelmet + UltraHDR env) | PASS_IDENTICAL | exact | Khronos sample assets served through the flattened-name asset cache |
+| three-animation-keyframes | webgl_animation_keyframes | PASS_TOLERANCE | tolerance | 99.9896 %, 8/76800 px, maxDelta 4 — texture decode LSB |
+| three-animation-skinning-morph | webgl_animation_skinning_morph | PASS_TOLERANCE | tolerance | 0 differing px, maxDelta 1 |
+| three-buffergeometry-instancing | webgl_buffergeometry_instancing | PASS_IDENTICAL | exact | the old M4 4a suspect is fixed |
+| three-shadowmap | webgl_shadowmap | FAIL(diff) | documented-limit | animated-caster frame-phase offset (below) |
+| three-shader | webgl_shader | PASS_IDENTICAL | exact | |
+| three-shader-lava | webgl_shader_lava | PASS_TOLERANCE | tolerance | 99.2148 %, noise-texture decode LSB |
+| three-multiple-rendertargets | webgl_multiple_rendertargets | PASS_TOLERANCE | tolerance | 99.9961 %, MRT resolve LSB |
+| three-depth-texture | webgl_depth_texture | PASS_IDENTICAL | exact | |
+| three-postprocessing-unreal-bloom | webgl_postprocessing_unreal_bloom | PASS_IDENTICAL | exact | the AC1/P0 named post scene is bit-identical |
+| fixture-rawgl | AC2 raw-GL fixture (gl_VertexID triangle, no three.js) | PASS_IDENTICAL | exact | raw program/shader/draw state through the facade |
+| fixture-readback | AC6 readback fixture (in-scene readPixels drawn back) | PASS_IDENTICAL | exact | the scratch-lane readback returns byte-identical data |
+
+Summary: 7 exact / 4 tolerance / 1 documented limit, `E2E_WEB_DIRECT
+direct_fail=0` on every web leg.
+
+**three-shadowmap documented limit.** The five animated GLTF casters settle
+their load callbacks at different interleavings against the pinned frame loop
+on the two legs, so the captured frame shows them at deterministic but
+phase-shifted positions (hash pair stable across runs and across harness
+fixes; both sides render the scene correctly — see
+`/tmp/a1b_corpus/three-shadowmap/1b.png` vs `web.png` in any run). The static
+shadow scene `three-shadowmap-pointlight` compares at 99.94 %, which pins the
+difference to the animated-caster phase, not to shadow-map semantics.
+
+### Harness fixes landed with this acceptance (corpus lane only)
+
+No `lib/` behavior change; all fixes are `tool/three/corpus` harness glue:
+
+1. **Web `blob:` textures (root cause of the tab crashes).** GLTFLoader
+   materializes embedded textures via `URL.createObjectURL` over the corpus
+   Blob stub; Chrome's real `createObjectURL` rejects stub Blobs, every
+   texture load rejected, the per-frame retry flooded `__corpusErrors`
+   (10k+ entries with stacks) and the status `JSON.stringify` blew the V8
+   heap — `Target crashed` on `three-animation-multiple`,
+   `three-animation-skinning-blending`, `three-loader-gltf`. Fix: stub Blobs
+   route through the corpus registry (native Blobs pass through untouched)
+   and the web img stub serves `blob:` bytes as data: URLs, exactly like the
+   1B branch.
+2. **Web Image loads tracked in the settle gate.** The web img stub now
+   tracks asset read + native decode + the load/error event via
+   `__corpusTrackAsync`, so scenes render their first pinned frame with the
+   same settled state as the 1B side.
+3. **Error-log cap.** `__corpusErrors` truncates at 200 entries with a
+   marker, keeping the failure loud without multi-GB JSON.
+4. **Browser channel override** (`JSR_WEBGL_REF_CHANNEL`, default
+   `chrome` for CI; `chromium` where no Chrome install exists) and
+   `JSR_PLAYWRIGHT_PATH` for the Playwright module location.
+5. **Khronos sample-asset seeding.** `three-loader-gltf` fetches
+   `model-index.json` + `DamagedHelmet.glb` from the glTF-Sample-Assets repo
+   (outside the pinned three.js tree); the corpus seeds both files into the
+   flattened-name cache so both legs serve byte-identical content.
+6. **E2E-WEB direct probe.** Every web leg reports
+   `direct: { nativeContext, no1bLane, barePage }`; the corpus script fails a
+   scene whose web leg was not a real WebGL2 context on a bare page (no
+   ANGLE lane, no Dart GL proxy) — AC15 evidence per scene.
+
+### Per-GPU tolerance table
+
+The 1B and web legs of every corpus run execute on the SAME machine and GPU
+family (both through ANGLE Metal on Apple silicon; Chrome's WebGL is itself
+ANGLE Metal on macOS), so the tier comparison is same-GPU by construction:
+
+| GPU / backend pair | exact rule | tolerance rule | observed on the starter corpus |
+|---|---|---|---|
+| Apple silicon (M-series) — ANGLE Metal `9c6a64c9` (1B) vs ANGLE Metal via Chrome 133 (web) | identical FNV-1a over the 320x240 RGBA readback; required for the pure-geometry, shader, depth-texture and post scenes | >= 99.0 % of px within d<=2 per RGB channel (alpha excluded); covers image-decoder LSB (package:image on Dart vs Chrome native decode) and MRT/resolve rounding | 7/12 exact, 4/12 tolerance (worst 99.2148 %), 1 phase-offset limit |
+| Other Apple generations (CI macos-15 M1) | same rule; the pair is same-GPU per run, so exact tiers are expected to transfer | same; decode-LSB scenes may shift px counts but stay in band | verified on CI run of the head (see PR) |
+| x86_64 + ANGLE Vulkan/GLES (not in this corpus) | not measured | documented here as out of scope for F2d | — |
+
+A measured FAIL that is not the shadowmap phase offset is a gate failure, on
+any GPU.
+
+### E2E-WEB direct-web proof (AC15)
+
+Every corpus web leg runs the SAME scene bundle in a bare Playwright-driven
+Chrome page: `canvas.getContext('webgl2')` returns the browser's real
+`WebGL2RenderingContext` (probe-verified per scene), the page has no
+`__jsr1b_gl` lane and never loads a Dart runtime (probe: `barePage`), and
+there is no ANGLE dylib in the process. The production web host
+(`flutter test --platform chrome test/web_three_host_web_test.dart`, quality
+job) covers the mount path; `REG-WEB-DIRECT-1` stays closed.
