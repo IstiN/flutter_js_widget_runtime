@@ -164,7 +164,10 @@ class QuickjsWidgetEngineBackend
         );
       }
 
-      final hostBootstrap = hostBootstrapJs ?? '';
+      // The run() parameter wins; otherwise the host-provided config value
+      // applies (issue #12: a config-only __JSR_MOCK_ORIGIN__ must reach the
+      // widget even when run() is called without the parameter).
+      final hostBootstrap = hostBootstrapJs ?? _config.hostBootstrapJs ?? '';
       final code =
           '''
 (function() {
@@ -360,10 +363,7 @@ class QuickjsWidgetEngineBackend
         parkedRc = host.dispatch1B(engineId, data);
       });
     }
-    rt.registerHostFunction(
-      '__jsr1b_rc',
-      (_) => parkedRc.toString(),
-    );
+    rt.registerHostFunction('__jsr1b_rc', (_) => parkedRc.toString());
     rt.registerHostFunction(
       '__jsr1b_result',
       (_) => jsonEncode(host.result1BAsBase64(engineId)),
