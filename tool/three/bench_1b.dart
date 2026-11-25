@@ -368,6 +368,11 @@ Future<BenchReport> run1bBench({
     final ok = session.evalJs(setupJs, 'setup.js');
     if (ok != 'true') throw StateError('bench setup failed: $ok');
     session.evalJs('__benchFrame(1);'); // warm-up frame + flush plumbing
+    // Steady-state warm-up: the first frames on a cold runner (JIT, heap
+    // growth) must not contaminate the percentiles.
+    for (var f = 0; f < 10; f++) {
+      session.evalJs('__benchFrame($draws);');
+    }
     final samples = <double>[];
     var maxFlushes = 0;
     for (var f = 0; f < frames; f++) {

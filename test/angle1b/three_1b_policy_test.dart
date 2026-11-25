@@ -1,12 +1,9 @@
-import 'package:flutter/foundation.dart';
-import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
 
-import 'package:js_widget_runtime/js_widget_runtime.dart';
 import 'package:js_widget_runtime/src/model/js_three_backend.dart';
-import 'package:js_widget_runtime/src/runtime/js_widget_engine_quickjs.dart';
 
 import '../support/fake_three_host.dart';
+import '../support/three_1b_engine.dart';
 
 /// Host shader policy and wrapper wiring (issue #7 / ADR-0003 decisions 2,
 /// 3, 4): the policy JS, the selection report and the REG-1A-1 guarantee
@@ -69,32 +66,13 @@ jsr.exportState(results);
     required JsThreeBackend backend,
     required bool allowCustomShaders,
     Fake1BWireHost? host,
-  }) async {
-    debugDefaultTargetPlatformOverride = TargetPlatform.macOS;
-    final w = host ?? wire();
-    JsThreeBackendSelection? reported;
-    final engine = JsWidgetEngine(
-      config: JsRuntimeConfig(
-        onRender: (_) {},
-        onSetTitle: (_) {},
-        onStorageUpdate: (_) {},
-        backendFactory: (cfg) => QuickjsWidgetEngineBackend(config: cfg),
-        threeEnabled: true,
-        threeSource: stubThreeSource,
-        threeBackend: backend,
-        threeHost: w,
-        allowCustomShaders: allowCustomShaders,
-        onThreeBackendSelected: (s) => reported = s,
-      ),
-    );
-    try {
-      await engine.run(widgetSource);
-      return (w, reported, engine.exportedState);
-    } finally {
-      debugDefaultTargetPlatformOverride = null;
-      await engine.dispose();
-    }
-  }
+  }) => run1bWidgetEngine(
+    widgetSource,
+    backend: backend,
+    threeSource: stubThreeSource,
+    allowCustomShaders: allowCustomShaders,
+    host: host,
+  );
 
   test('IT-SHADER policy: blocked constructors and onBeforeCompile throw with '
       'the policy message before the renderer is allocated', () async {
