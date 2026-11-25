@@ -116,6 +116,32 @@ ${shimGlueJs}
       return { matches: false, addEventListener: function () {}, removeEventListener: function () {} };
     };
   }
+  // QuickJS and bare JSC ship no atob; the facade's scratch lane
+  // (base64ToBytes) decodes every data-returning result through it. The
+  // bench prelude defines the same minimal decoder; hosts with a real atob
+  // keep theirs.
+  if (typeof root.atob === 'undefined') {
+    var B64 = '';
+    for (var ci = 65; ci <= 90; ci++) B64 += String.fromCharCode(ci);
+    for (var ci = 97; ci <= 122; ci++) B64 += String.fromCharCode(ci);
+    for (var ci = 48; ci <= 57; ci++) B64 += String.fromCharCode(ci);
+    B64 += '+/';
+    root.atob = function (input) {
+      var str = String(input).replace(/=+\$/, '');
+      var out = '';
+      for (var i = 0; i < str.length; i += 4) {
+        var c0 = B64.indexOf(str[i]);
+        var c1 = B64.indexOf(str[i + 1]);
+        var c2 = i + 2 < str.length ? B64.indexOf(str[i + 2]) : 0;
+        var c3 = i + 3 < str.length ? B64.indexOf(str[i + 3]) : 0;
+        var n = (c0 << 18) | (c1 << 12) | (c2 << 6) | c3;
+        out += String.fromCharCode((n >> 16) & 255);
+        if (i + 2 < str.length) out += String.fromCharCode((n >> 8) & 255);
+        if (i + 3 < str.length) out += String.fromCharCode(n & 255);
+      }
+      return out;
+    };
+  }
   root.__jsr1b_gl = function (bytes) {
     root.__jsr1b_dispatch('1b', bytes);
     return root.__jsr1b_rc();
@@ -177,6 +203,15 @@ ${shimGlueJs}
       activeElement: null
     };
     root.document = doc;
+  }
+  // Engine hosts (QuickJS/bare JSC — no OffscreenCanvas) cannot run the
+  // ImageBitmap present lane; on native 1B the ANGLE IOSurface IS the
+  // presentation target, so JS-side present is a frame-already-presented
+  // no-op. Browser workers keep their own transferToImageBitmap path.
+  if (typeof root.OffscreenCanvas === 'undefined' &&
+      typeof root.jsr !== 'undefined' && root.jsr.three &&
+      typeof root.jsr.three.setPresentHook === 'function') {
+    root.jsr.three.setPresentHook(function () { return true; });
   }
 })();
 ''';

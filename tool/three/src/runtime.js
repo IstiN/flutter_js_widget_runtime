@@ -1206,7 +1206,12 @@ export class ThreeCompatibilityRuntime {
     state.released = true;
     state.dirty = false;
     state.pending.clear();
-    if (notify) this._postStructured(this._frameMessage(canvas, 'jsr.three.release'));
+    // A host with an installed presentHook owns presentation directly (the
+    // engine-1B ANGLE surface): the Worker frame-release protocol does not
+    // exist there, and postMessage would throw on bare engines.
+    if (notify && !this.presentHook) {
+      this._postStructured(this._frameMessage(canvas, 'jsr.three.release'));
+    }
   }
 
   present(canvas, payload) {

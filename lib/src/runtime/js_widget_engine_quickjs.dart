@@ -175,7 +175,14 @@ class QuickjsWidgetEngineBackend
     $hostBootstrap
     $widgetJs
   } catch(e) {
-    jsr.showError('Widget error: ' + (e.message || String(e)));
+    var m = 'Widget error: ' + (e.message || String(e));
+    // A composite failure must never be effect-free: the named error also
+    // crosses the __jsr_log lane so hosts and tests without a visible
+    // surface (flutter test, headless runners) observe it. The F2c silent
+    // failure (policy TypeError before the widget) hid behind a
+    // showError-only catch.
+    if (typeof console !== 'undefined' && console.error) console.error(m);
+    jsr.showError(m);
   }
 })();
 ''';

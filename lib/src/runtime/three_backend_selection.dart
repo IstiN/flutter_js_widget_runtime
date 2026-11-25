@@ -83,17 +83,39 @@ String three1bPolicyJs({required bool allowCustomShaders}) => '''
   if (typeof THREE === 'undefined') return;
   if (${allowCustomShaders ? 'true' : 'false'}) return;
   var msg = 'three.unsupported: custom shaders are disabled by host policy';
+  // The generated bundle publishes THREE members as getter-only
+  // non-configurable properties (esbuild __export), so a strict-mode
+  // `THREE[name] = blocked` throws TypeError ("no setter for property") and
+  // killed the whole engine composite before the widget ran. The blocked
+  // constructors are installed on a prototype-chain shadow instead and the
+  // global binding is re-pointed at it: every other export still reads
+  // through to the real getters, the two blocked names shadow them.
+  var exposed = Object.create(THREE);
   ['ShaderMaterial', 'RawShaderMaterial'].forEach(function (name) {
     var original = THREE[name];
     if (typeof original !== 'function') return;
     var blocked = function JsrBlockedMaterial() { throw new Error(msg); };
     if (original.prototype) blocked.prototype = Object.create(original.prototype);
-    THREE[name] = blocked;
+    Object.defineProperty(exposed, name, {
+      value: blocked, writable: true, enumerable: true, configurable: true
+    });
   });
+  // Rebind the identifier itself: inside the engine composite the bundle's
+  // `var THREE` is a function-scoped local of the eval wrapper, so the
+  // widget's bare `THREE` resolves through the closure chain — assign that
+  // binding (the global alias is kept in sync for hosts that read it).
+  THREE = exposed;
+  root.THREE = exposed;
   if (THREE.Material && THREE.Material.prototype) {
     Object.defineProperty(THREE.Material.prototype, 'onBeforeCompile', {
       set: function () { throw new Error(msg); },
-      get: function () { return undefined; },
+      // The getter keeps a stable no-op: three's program cache key calls
+      // onBeforeCompile.toString(), so `undefined` would crash every
+      // program compile; the no-op string is a constant cache key and the
+      // shader stays unmodified.
+      get: function () {
+        return function () {};
+      },
       configurable: true
     });
   }
