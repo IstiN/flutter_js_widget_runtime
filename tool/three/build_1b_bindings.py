@@ -2,7 +2,7 @@
 """build_1b_bindings.py — G1 bindings generator (M2a).
 
 Reads tool/three/webgl2_g1_methods.json (source of truth) and emits:
-  native/angle/gen/g1_tables.h  — opcode enum + dispatch switch (the switch
+  packages/jsr_three_angle/native/angle/gen/g1_tables.h  — opcode enum + dispatch switch (the switch
                                   body is guarded by A1B_DISPATCH_IMPL and is
                                   included once from angle_1b_dispatch.c).
   tool/three/gen/g1_packer.js   — G1 byte writer, g1.<method> packers and
@@ -20,7 +20,7 @@ from pathlib import Path
 REPO = Path(__file__).resolve().parent.parent.parent
 JSON_PATH = REPO / "tool/three/webgl2_g1_methods.json"
 GL_H_PATH = REPO / "packages/jsr_three_angle/native/angle/angle_1b_gl.h"
-OUT_TABLES = REPO / "packages/jsr_three_angle/native/angle/gen/g1_tables.h"
+OUT_TABLES = REPO / "packages/jsr_three_angle/packages/jsr_three_angle/native/angle/gen/g1_tables.h"
 OUT_PACKER = REPO / "tool/three/gen/g1_packer.js"
 
 ARG_CHARS = set("uifsb")

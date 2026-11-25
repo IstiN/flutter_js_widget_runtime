@@ -194,3 +194,72 @@ jobs:
         with:
           name: conformance-report
           path: build/conformance/conformance-summary.json
+
+  quality-macos:
+    # Issue #7 (F2): the pinned ANGLE 1B build on macOS + the real-ANGLE
+    # host tests. The ANGLE dylibs are cached on the pin hash; the first
+    # build is long, later runs restore the cache.
+    runs-on: macos-15
+    timeout-minutes: 150
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          flutter-version: 3.47.1
+
+      - name: Install dependencies
+        run: flutter pub get
+
+      - name: Build QuickJS bridge
+        run: |
+          set -euo pipefail
+          QUICKJS_SRC=$(find "$HOME/.pub-cache/hosted/pub.dev" -maxdepth 1 -type d -name 'quickjs_runtime-*' | sort -V | tail -1)
+          test -n "$QUICKJS_SRC"
+          bash "$QUICKJS_SRC/tool/build_quickjs.sh"
+          mkdir -p native/quickjs
+          cp "$QUICKJS_SRC/native/quickjs/libquickjs_bridge.so" native/quickjs/
+
+      - name: Metal toolchain
+        run: xcodebuild -downloadComponent MetalToolchain
+
+      - name: Restore pinned ANGLE build
+        id: angle-cache
+        uses: actions/cache@v4
+        with:
+          path: packages/jsr_three_angle/native/angle/out/macos-arm64
+          key: angle-macos-arm64-${{ hashFiles('tool/three/pins/angle_pin.json') }}
+
+      - name: Build pinned ANGLE (macos-arm64)
+        if: steps.angle-cache.outputs.cache-hit != 'true'
+        run: bash tool/build_angle.sh --platform macos-arm64 --out packages/jsr_three_angle/native/angle/out/macos-arm64
+
+      - name: Build the 1B shim and stage it with the ANGLE dylibs
+        run: |
+          set -euo pipefail
+          OUT=packages/jsr_three_angle/native/angle/out/macos-arm64
+          bash packages/jsr_three_angle/native/angle/build.sh
+          cp packages/jsr_three_angle/native/angle/libangle_1b.dylib "$OUT/"
+          (cd "$OUT" && shasum -a 256 libEGL.dylib libGLESv2.dylib libangle_1b.dylib > SHA256SUMS)
+
+      - name: jsr_three_angle host tests (real ANGLE)
+        env:
+          JSR_ANGLE_1B_LIB: ${{ github.workspace }}/packages/jsr_three_angle/native/angle/out/macos-arm64/libangle_1b.dylib
+          JSR_REQUIRE_ANGLE: '1'
+        run: flutter test packages/jsr_three_angle/test --no-pub
+
+      - name: 1B selection and policy tests
+        run: flutter test test/angle1b --no-pub
+
+      - name: Upload ANGLE macos-arm64 artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: angle-macos-arm64
+          path: |
+            packages/jsr_three_angle/native/angle/out/macos-arm64/libEGL.dylib
+            packages/jsr_three_angle/native/angle/out/macos-arm64/libGLESv2.dylib
+            packages/jsr_three_angle/native/angle/out/macos-arm64/libangle_1b.dylib
+            packages/jsr_three_angle/native/angle/out/macos-arm64/SHA256SUMS

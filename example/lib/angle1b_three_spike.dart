@@ -26,14 +26,40 @@ void a1bDiag(String msg) => stderr.writeln('[a1b-three] $msg');
 final class ThreeShim {
   ThreeShim(DynamicLibrary lib)
     : init = lib.lookupFunction<Int32 Function(), int Function()>('a1b_init'),
-      createSurface = lib.lookupFunction<Int64 Function(Int32, Int32, Pointer<Uint32>), int Function(int, int, Pointer<Uint32>)>('a1b_create_surface'),
-      makeCurrent = lib.lookupFunction<Int32 Function(Int64), int Function(int)>('a1b_make_current'),
-      swapBuffers = lib.lookupFunction<Int32 Function(Int64), int Function(int)>('a1b_swap_buffers'),
-      setFinishFlag = lib.lookupFunction<Void Function(Int32), void Function(int)>('a1b_set_finish_flag'),
-      dispatch = lib.lookupFunction<Int64 Function(Pointer<Uint8>, Int32), int Function(Pointer<Uint8>, int)>('a1b_gl_dispatch'),
-      result = lib.lookupFunction<Int32 Function(Pointer<Uint8>, Int32), int Function(Pointer<Uint8>, int)>('a1b_gl_result'),
-      destroySurface = lib.lookupFunction<Void Function(Int64), void Function(int)>('a1b_destroy_surface'),
-      shutdown = lib.lookupFunction<Void Function(), void Function()>('a1b_shutdown');
+      createSurface = lib
+          .lookupFunction<
+            Int64 Function(Int32, Int32, Pointer<Uint32>),
+            int Function(int, int, Pointer<Uint32>)
+          >('a1b_create_surface'),
+      makeCurrent = lib
+          .lookupFunction<Int32 Function(Int64), int Function(int)>(
+            'a1b_make_current',
+          ),
+      swapBuffers = lib
+          .lookupFunction<Int32 Function(Int64), int Function(int)>(
+            'a1b_swap_buffers',
+          ),
+      setFinishFlag = lib
+          .lookupFunction<Void Function(Int32), void Function(int)>(
+            'a1b_set_finish_flag',
+          ),
+      dispatch = lib
+          .lookupFunction<
+            Int64 Function(Pointer<Uint8>, Int32),
+            int Function(Pointer<Uint8>, int)
+          >('a1b_gl_dispatch'),
+      result = lib
+          .lookupFunction<
+            Int32 Function(Pointer<Uint8>, Int32),
+            int Function(Pointer<Uint8>, int)
+          >('a1b_gl_result'),
+      destroySurface = lib
+          .lookupFunction<Void Function(Int64), void Function(int)>(
+            'a1b_destroy_surface',
+          ),
+      shutdown = lib.lookupFunction<Void Function(), void Function()>(
+        'a1b_shutdown',
+      );
 
   final int Function() init;
   final int Function(int, int, Pointer<Uint32>) createSurface;
@@ -50,12 +76,18 @@ DynamicLibrary _openShim() {
   final candidates = <String>[];
   var dir = File(Platform.resolvedExecutable).parent;
   for (var i = 0; i < 16; i++) {
-    candidates.add('${dir.path}/native/angle/libangle_1b.dylib');
+    candidates.add(
+      '${dir.path}/packages/jsr_three_angle/native/angle/libangle_1b.dylib',
+    );
     dir = dir.parent;
   }
   candidates
-    ..add('${Directory.current.path}/native/angle/libangle_1b.dylib')
-    ..add('${Directory.current.path}/../native/angle/libangle_1b.dylib');
+    ..add(
+      '${Directory.current.path}/packages/jsr_three_angle/native/angle/libangle_1b.dylib',
+    )
+    ..add(
+      '${Directory.current.path}/../packages/jsr_three_angle/native/angle/libangle_1b.dylib',
+    );
   for (final path in candidates) {
     if (File(path).existsSync()) return DynamicLibrary.open(path);
   }
@@ -67,7 +99,8 @@ DynamicLibrary _openShim() {
 String _findRepoRoot() {
   var dir = File(Platform.resolvedExecutable).parent;
   for (var i = 0; i < 16; i++) {
-    if (File('${dir.path}/tool/three/gen/g1_packer.js').existsSync()) return dir.path;
+    if (File('${dir.path}/tool/three/gen/g1_packer.js').existsSync())
+      return dir.path;
     dir = dir.parent;
   }
   for (final base in [Directory.current.path, '${Directory.current.path}/..']) {
@@ -79,28 +112,56 @@ String _findRepoRoot() {
 // ---- ESM transform (verbatim logic from tool/three/run_1b_render.dart) -----
 List<String> _braceList(String line, String open, String close) {
   final a = line.indexOf(open) + open.length, b = line.lastIndexOf(close);
-  if (a <= 0 || b < a) throw StateError('ESM list parse failed: ${line.substring(0, 60)}');
-  return line.substring(a, b).split(',').map((s) => s.trim()).where((s) => s.isNotEmpty).toList();
+  if (a <= 0 || b < a)
+    throw StateError('ESM list parse failed: ${line.substring(0, 60)}');
+  return line
+      .substring(a, b)
+      .split(',')
+      .map((s) => s.trim())
+      .where((s) => s.isNotEmpty)
+      .toList();
 }
 
-String _dropImportExports(String src) => src.split('\n').where((l) => !l.trimLeft().startsWith('import ') && !l.trimLeft().startsWith('export {')).join('\n');
+String _dropImportExports(String src) => src
+    .split('\n')
+    .where(
+      (l) =>
+          !l.trimLeft().startsWith('import ') &&
+          !l.trimLeft().startsWith('export {'),
+    )
+    .join('\n');
 
 String wrapThreeCore(String core) {
-  final exportLine = core.split('\n').firstWhere((l) => l.trimLeft().startsWith('export {'), orElse: () => throw StateError('three.core.js: no export line'));
+  final exportLine = core
+      .split('\n')
+      .firstWhere(
+        (l) => l.trimLeft().startsWith('export {'),
+        orElse: () => throw StateError('three.core.js: no export line'),
+      );
   final exports = _braceList(exportLine, 'export {', '};');
   return '(function () {\n${_dropImportExports(core)}\nglobalThis.__threeCore = { ${exports.join(', ')} };\n})();';
 }
 
 String wrapThreeModule(String module) {
   final lines = module.split('\n');
-  final importLine = lines.firstWhere((l) => l.trimLeft().startsWith('import {'), orElse: () => throw StateError('jsr_three_web.js: no import line'));
+  final importLine = lines.firstWhere(
+    (l) => l.trimLeft().startsWith('import {'),
+    orElse: () => throw StateError('jsr_three_web.js: no import line'),
+  );
   final importNames = _braceList(importLine, 'import {', '} from');
-  final exportLines = lines.where((l) => l.trimLeft().startsWith('export {')).toList();
+  final exportLines = lines
+      .where((l) => l.trimLeft().startsWith('export {'))
+      .toList();
   final reExportLines = exportLines.where((l) => l.contains('} from')).toList();
-  if (reExportLines.length != 1 || exportLines.length != 2) throw StateError('jsr_three_web.js: expected 1 re-export + 1 export, got ${exportLines.length}');
+  if (reExportLines.length != 1 || exportLines.length != 2)
+    throw StateError(
+      'jsr_three_web.js: expected 1 re-export + 1 export, got ${exportLines.length}',
+    );
   final reExportNames = _braceList(reExportLines.first, 'export {', '} from');
   final exportNames = _braceList(exportLines.last, 'export {', '};');
-  final coreBridge = reExportNames.map((n) => '$n: __threeCore["$n"]').join(', ');
+  final coreBridge = reExportNames
+      .map((n) => '$n: __threeCore["$n"]')
+      .join(', ');
   return '(function () {\nconst { ${importNames.join(', ')} } = globalThis.__threeCore;\n${_dropImportExports(module)}\n'
       'globalThis.THREE = Object.assign({ $coreBridge }, { ${exportNames.join(', ')} });\n})();';
 }
@@ -263,7 +324,6 @@ globalThis.__setup = (function () {
 })();
 ''';
 
-
 void main() => runApp(const ThreeSpikeApp());
 
 class ThreeSpikeApp extends StatefulWidget {
@@ -309,10 +369,15 @@ class _ThreeSpikeAppState extends State<ThreeSpikeApp> {
       if (_surface <= 0) throw StateError('a1b_create_surface failed');
       final surfaceIoId = iosurfaceId.value;
       calloc.free(iosurfaceId);
-      final texture = await _channel.invokeMethod<Map<dynamic, dynamic>>('createSurface', [surfaceIoId, _kW, _kH]);
-      if (texture == null) throw StateError('plugin createSurface returned null');
+      final texture = await _channel.invokeMethod<Map<dynamic, dynamic>>(
+        'createSurface',
+        [surfaceIoId, _kW, _kH],
+      );
+      if (texture == null)
+        throw StateError('plugin createSurface returned null');
       _textureId = (texture['textureId'] as num?)?.toInt() ?? -1;
-      if (_gl.makeCurrent(_surface) != 0) throw StateError('a1b_make_current failed');
+      if (_gl.makeCurrent(_surface) != 0)
+        throw StateError('a1b_make_current failed');
 
       final repo = _findRepoRoot();
       a1bDiag('repo root: $repo');
@@ -320,8 +385,14 @@ class _ThreeSpikeAppState extends State<ThreeSpikeApp> {
       _status = 'running — three.js r186 through the 1B stack';
 
       _clock.start();
-      _pump = Timer.periodic(const Duration(milliseconds: 1), (_) => _pumpFrame());
-      _fpsTimer = Timer.periodic(const Duration(milliseconds: 500), (_) => _reportFps());
+      _pump = Timer.periodic(
+        const Duration(milliseconds: 1),
+        (_) => _pumpFrame(),
+      );
+      _fpsTimer = Timer.periodic(
+        const Duration(milliseconds: 500),
+        (_) => _reportFps(),
+      );
       setState(() {});
     } catch (e) {
       a1bDiag('boot error: $e');
@@ -341,7 +412,9 @@ class _ThreeSpikeAppState extends State<ThreeSpikeApp> {
     try {
       final actual = _gl.result(buf, n);
       if (actual <= 0) return Uint8List(0);
-      return Uint8List.fromList(buf.asTypedList(actual > n ? n : actual).toList());
+      return Uint8List.fromList(
+        buf.asTypedList(actual > n ? n : actual).toList(),
+      );
     } finally {
       calloc.free(buf);
     }
@@ -360,7 +433,8 @@ class _ThreeSpikeAppState extends State<ThreeSpikeApp> {
       } finally {
         calloc.free(buf);
       }
-      if (lastRc == -2147483647) throw StateError('dispatch: no current surface');
+      if (lastRc == -2147483647)
+        throw StateError('dispatch: no current surface');
     });
     if (!bytesOk) throw StateError('quickjs bridge lacks bytes lane');
     rt.registerHostFunction('__jsr1b_gl_rc', (_) => '$lastRc');
@@ -369,21 +443,41 @@ class _ThreeSpikeAppState extends State<ThreeSpikeApp> {
       stderr.writeln('[js.${a[0]}] ${a[1]}');
       return null;
     });
-    rt.registerHostFunction('__jsr1b_result_host', (_) => jsonEncode(base64Encode(_readScratch())));
+    rt.registerHostFunction(
+      '__jsr1b_result_host',
+      (_) => jsonEncode(base64Encode(_readScratch())),
+    );
 
     String? evalOrThrow(String code, String filename) {
       final r = rt.eval(code, filename: filename, errMsg: err);
-      if (err.isNotEmpty && err.first != null) throw StateError('eval $filename failed: ${err.first}');
+      if (err.isNotEmpty && err.first != null)
+        throw StateError('eval $filename failed: ${err.first}');
       err.clear();
       return r;
     }
 
     final sources = <(String, String)>[
       (bootstrapShim(), 'bootstrap.js'),
-      (wrapThreeCore(File('$repo/example/web/three.core.js').readAsStringSync()), 'three.core.js'),
-      (wrapThreeModule(File('$repo/example/web/jsr_three_web.js').readAsStringSync()), 'jsr_three_web.js'),
-      (File('$repo/tool/three/gen/g1_packer.js').readAsStringSync(), 'g1_packer.js'),
-      (File('$repo/tool/three/src/webgl2_facade.js').readAsStringSync(), 'webgl2_facade.js'),
+      (
+        wrapThreeCore(
+          File('$repo/example/web/three.core.js').readAsStringSync(),
+        ),
+        'three.core.js',
+      ),
+      (
+        wrapThreeModule(
+          File('$repo/example/web/jsr_three_web.js').readAsStringSync(),
+        ),
+        'jsr_three_web.js',
+      ),
+      (
+        File('$repo/tool/three/gen/g1_packer.js').readAsStringSync(),
+        'g1_packer.js',
+      ),
+      (
+        File('$repo/tool/three/src/webgl2_facade.js').readAsStringSync(),
+        'webgl2_facade.js',
+      ),
       (sceneScript(), 'scene.js'),
     ];
     String? resultJson;
@@ -391,9 +485,11 @@ class _ThreeSpikeAppState extends State<ThreeSpikeApp> {
       resultJson = evalOrThrow(code, name);
     }
     var decoded = jsonDecode(resultJson ?? '{}');
-    if (decoded is String) decoded = jsonDecode(decoded); // eval wraps string results
+    if (decoded is String)
+      decoded = jsonDecode(decoded); // eval wraps string results
     final result = decoded as Map<String, dynamic>;
-    if (result['ok'] != true) throw StateError('scene setup failed: ${result['error']}');
+    if (result['ok'] != true)
+      throw StateError('scene setup failed: ${result['error']}');
     a1bDiag('scene ok, three revision=${result['revision']}');
     return rt;
   }
@@ -402,12 +498,18 @@ class _ThreeSpikeAppState extends State<ThreeSpikeApp> {
   void _pumpFrame() {
     final rt = _rt;
     if (rt == null || _surface <= 0 || _error != null) return;
-    if (_pumpLogCount < 3) a1bDiag('pump #${_pumpLogCount++} at ${_clock.elapsedMilliseconds}ms');
+    if (_pumpLogCount < 3)
+      a1bDiag('pump #${_pumpLogCount++} at ${_clock.elapsedMilliseconds}ms');
     final err = <String?>[];
     final sw = Stopwatch()..start();
     try {
-      rt.eval('__tick(${_clock.elapsedMicroseconds ~/ 1000})', filename: 'tick', errMsg: err);
-      if (err.isNotEmpty && err.first != null) throw StateError('tick: ${err.first}');
+      rt.eval(
+        '__tick(${_clock.elapsedMicroseconds ~/ 1000})',
+        filename: 'tick',
+        errMsg: err,
+      );
+      if (err.isNotEmpty && err.first != null)
+        throw StateError('tick: ${err.first}');
       if (_gl.swapBuffers(_surface) != 0) throw StateError('swap failed');
       unawaited(_channel.invokeMethod<void>('frameAvailable', [_textureId]));
       _totalFrames++;
@@ -427,14 +529,22 @@ class _ThreeSpikeAppState extends State<ThreeSpikeApp> {
     final framesInWindow = _totalFrames - _windowStartFrames;
     final callsInWindow = _wireCallsTotal - _windowStartCalls;
     final fps = framesInWindow * 2.0; // 500 ms window
-    _wireCallsPerFrame = framesInWindow > 0 ? callsInWindow ~/ framesInWindow : 0;
+    _wireCallsPerFrame = framesInWindow > 0
+        ? callsInWindow ~/ framesInWindow
+        : 0;
     _windowStartFrames = _totalFrames;
     _windowStartCalls = _wireCallsTotal;
-    a1bDiag('fps=${fps.toStringAsFixed(0)} jsMs=${_jsMs.toStringAsFixed(2)} wire=$_wireCallsPerFrame/f cubes=$_cubes rtFx=$_rtFx finish=$_finishFlag');
+    a1bDiag(
+      'fps=${fps.toStringAsFixed(0)} jsMs=${_jsMs.toStringAsFixed(2)} wire=$_wireCallsPerFrame/f cubes=$_cubes rtFx=$_rtFx finish=$_finishFlag',
+    );
     setState(() => _fps = fps);
     // mode auto-cycle: 0 base -> 1 rtFx -> 2 +64 cubes -> 3 finish off -> hold
     final sec = _clock.elapsedMilliseconds ~/ 1000;
-    final want = sec < 8 ? 0 : sec < 16 ? 1 : 2;
+    final want = sec < 8
+        ? 0
+        : sec < 16
+        ? 1
+        : 2;
     if (want != _mode) {
       _mode = want;
       if (want >= 1 && !_rtFx) _setRtFx(true);
@@ -462,7 +572,8 @@ class _ThreeSpikeAppState extends State<ThreeSpikeApp> {
     _pump?.cancel();
     _fpsTimer?.cancel();
     _rt?.close();
-    if (_textureId >= 0) unawaited(_channel.invokeMethod<void>('destroySurface', [_textureId]));
+    if (_textureId >= 0)
+      unawaited(_channel.invokeMethod<void>('destroySurface', [_textureId]));
     if (_surface > 0) _gl.destroySurface(_surface);
     _gl.shutdown();
     super.dispose();
@@ -480,7 +591,9 @@ class _ThreeSpikeAppState extends State<ThreeSpikeApp> {
             mainAxisSize: MainAxisSize.min,
             children: [
               Container(
-                decoration: BoxDecoration(border: Border.all(color: Colors.white24)),
+                decoration: BoxDecoration(
+                  border: Border.all(color: Colors.white24),
+                ),
                 width: 960,
                 height: 720,
                 child: _textureId >= 0
@@ -490,10 +603,16 @@ class _ThreeSpikeAppState extends State<ThreeSpikeApp> {
               const SizedBox(height: 12),
               Text(
                 '${_fps.toStringAsFixed(0)} FPS   ·   js+wire ${_jsMs.toStringAsFixed(2)} ms/frame   ·   wire ~${_wireCallsPerFrame ~/ 1}/frame',
-                style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                style: const TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.bold,
+                ),
               ),
               const SizedBox(height: 4),
-              Text(_error ?? _status, style: const TextStyle(fontSize: 12, color: Colors.white70)),
+              Text(
+                _error ?? _status,
+                style: const TextStyle(fontSize: 12, color: Colors.white70),
+              ),
               const SizedBox(height: 10),
               Wrap(
                 spacing: 8,

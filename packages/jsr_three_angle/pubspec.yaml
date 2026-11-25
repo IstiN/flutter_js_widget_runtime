@@ -20,6 +20,10 @@ dependencies:
   js_widget_runtime:
     path: ../../
 
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+
 flutter:
   assets:
     - facade/g1_packer.js
