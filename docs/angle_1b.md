@@ -394,3 +394,50 @@ Chrome page: `canvas.getContext('webgl2')` returns the browser's real
 there is no ANGLE dylib in the process. The production web host
 (`flutter test --platform chrome test/web_three_host_web_test.dart`, quality
 job) covers the mount path; `REG-WEB-DIRECT-1` stays closed.
+
+### PERF-2 gate — estimator and budget (F2d tail, 2026-11-26)
+
+The plan fixes the assertion: flush count <= 1 and p95 <= 4 ms on the macOS
+host that runs the bench (`kP95BudgetMs` stays 4.0). Two interim estimators
+introduced during F2d under CI runner noise — a bounded retry across
+processes (`b152930c`) and the smallest single-window p95 across attempts
+(`492b35de`, `BENCH_P95_MIN_WINDOW_MS`) — were best-of-N picks: a real
+regression passes when one quiet attempt stays under the budget. Both are
+removed.
+
+The gate is: **`flushes <= 1` and the MEDIAN window thread-CPU p95 <= 4 ms**
+(`BENCH_P95_CPU_MS`, choice (a) of the F2d tail assignment). Thread CPU time
+comes from `clock_gettime_nsec_np(CLOCK_THREAD_CPUTIME_ID)` (constant 16 per
+the Darwin SDK header `usr/include/_time.h`; a boot sanity probe — reads
+strictly increase, busy-loop CPU delta stays within its wall delta — fails
+loudly if a runner SDK differs). It keeps every real cost of the frame path
+(JS eval, facade encode, FFI, batched native ANGLE submit, GC on the thread)
+and is blind to scheduler preemption, which is exactly the one-sided wall
+noise shared CI runners add: runs 45726677685 and 45727928695 measured whole
+300-frame windows straddling the budget with an unchanged work profile
+(p50 1.79 ms sustained vs 1.45 ms on the same commit). No best-of-N anywhere;
+a measurement is never repeated because a number came out above budget.
+
+Wall-clock percentiles stay printed (`BENCH_P50_MS`/`BENCH_P95_MS`/
+`BENCH_P99_MS`) for information; the structure of the measurement is
+unchanged (one warm-up window of 100 frames, three 300-frame measurement
+windows, median estimator, one `BENCH_WINDOW` line per window, dedicated
+bench process as the measurement of record).
+
+Measured window classes (per-window wall/cpu p50/p95/p99 from the
+diagnostic run 45729567699 and local runs, all with flushes/frame = 1):
+
+| Host class | wall p50 / p95 / p99 | cpu p50 / p95 / p99 | median window cpu p95 |
+|---|---|---|---|
+| CI macos-15, Apple Paravirtual device pool (run 45729567699, bench step) | 1.325-1.364 / 1.398-1.520 / 1.476-1.656 | 1.326-1.365 / 1.397-1.513 / 1.476-1.572 | 1.493 |
+| CI macos-15, same pool, PERF-2 subprocess (run 45729567699) | 1.329-1.337 / 1.417-1.521 / 1.551-1.983 | 1.330-1.337 / 1.402-1.515 / 1.535-1.579 | 1.493 |
+| CI macos-15, in-suite PERF-1 20-frame windows (run 45729567699) | 1.331-1.342 / 1.394-1.434 / 1.406-1.443 | 1.332-1.336 / 1.379-1.429 / 1.392-1.488 | 1.386 |
+| Local Apple M4 Pro (commit 689d186a) | 0.843-0.852 / 0.871-0.918 / 0.911-0.974 | 0.844-0.853 / 0.871-0.918 / 0.911-0.975 | 0.876 |
+
+On every class seen, thread-CPU p95 == wall p95 within 0.02 ms per window
+and the median window CPU p95 stays at or under ~1.5 ms — 2.6x under the
+4 ms budget. The noisy episodes that broke the wall gate (same paravirtual
+pool) inflated p50 to at most 1.79 ms sustained; preemption spikes land in
+wall only, so they do not reach the gated figure. A host class whose true
+median CPU p95 exceeds 4 ms cannot pass the gate — that is the budget doing
+its job, not noise.
