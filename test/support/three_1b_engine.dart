@@ -39,6 +39,12 @@ run1bWidgetEngine(
   /// Optional cinematic capture barrier host (issue #8 F4a IT-HELPER-*):
   /// wired straight into the engine config.
   JsCinematicCaptureHost? cinematicCaptureHost,
+
+  /// When set, poll [JsWidgetEngine.exportedState] up to this long after
+  /// run() — the battery widgets resolve their export through REAL timer
+  /// awaits (host delays), which complete after run()'s single pending-job
+  /// drain. Zero (default) keeps the one-shot behavior of the older tests.
+  Duration exportTimeout = Duration.zero,
 }) async {
   debugDefaultTargetPlatformOverride = TargetPlatform.macOS;
   final w =
@@ -66,8 +72,16 @@ run1bWidgetEngine(
   );
   try {
     await engine.run(widget);
+    Map<String, dynamic>? state = engine.exportedState;
+    if (exportTimeout > Duration.zero) {
+      final deadline = DateTime.now().add(exportTimeout);
+      while (state == null && DateTime.now().isBefore(deadline)) {
+        await Future<void>.delayed(const Duration(milliseconds: 50));
+        state = engine.exportedState;
+      }
+    }
     consoleLogs?.addAll(engine.flushLogs());
-    return (w, reported, engine.exportedState);
+    return (w, reported, state);
   } finally {
     debugDefaultTargetPlatformOverride = null;
     await engine.dispose();
@@ -94,6 +108,8 @@ run1bRealEngine(
   String threeSource, {
   int width = 64,
   int height = 64,
+  JsCinematicCaptureHost? cinematicCaptureHost,
+  Duration exportTimeout = Duration.zero,
 }) async {
   final wire = Real1BWireHost(width: width, height: height)
     ..facadeBootstrapOverride = real1bFacadeBootstrap();
@@ -104,6 +120,7 @@ run1bRealEngine(
     realFacade: true,
     host: wire,
     consoleLogs: logs,
+    cinematicCaptureHost: cinematicCaptureHost,
   );
   return (w as Real1BWireHost, sel, state, logs);
 }
