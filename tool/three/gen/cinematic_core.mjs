@@ -25,7 +25,7 @@ var { Uint8BufferAttribute, Uint8ClampedBufferAttribute, Uniform, UniformsGroup,
 var { WebGLCubeRenderTarget, WebGLRenderTarget, WebGLRenderer, WebGLUtils, WebGPUCoordinateSystem, WebGPURenderer, WebXRController, WireframeGeometry, WrapAroundEnding, ZeroCurvatureEnding, ZeroFactor, ZeroSlopeEnding, ZeroStencilOp, _resumeAudio, createBoundedCSGEvaluator, createCanvasElement, error, get, getCapabilities, getConsoleFunction, getNativeCSGDiagnostics, getNativeRaycastDiagnostics, log, setConsoleFunction } = T;
 var { warn, warnOnce } = T;
 
-// ../../../../../../../../private/tmp/jsr-three-r186/examples/jsm/shaders/CopyShader.js
+// three-source/examples/jsm/shaders/CopyShader.js
 var CopyShader = {
   name: "CopyShader",
   uniforms: {
@@ -65,7 +65,7 @@ var CopyShader = {
   )
 };
 
-// ../../../../../../../../private/tmp/jsr-three-r186/examples/jsm/postprocessing/Pass.js
+// three-source/examples/jsm/postprocessing/Pass.js
 var Pass = class {
   /**
    * Constructs a new pass.
@@ -156,7 +156,7 @@ var FullScreenQuad = class {
   }
 };
 
-// ../../../../../../../../private/tmp/jsr-three-r186/examples/jsm/postprocessing/ShaderPass.js
+// three-source/examples/jsm/postprocessing/ShaderPass.js
 var ShaderPass = class extends Pass {
   /**
    * Constructs a new shader pass.
@@ -221,7 +221,7 @@ var ShaderPass = class extends Pass {
   }
 };
 
-// ../../../../../../../../private/tmp/jsr-three-r186/examples/jsm/postprocessing/MaskPass.js
+// three-source/examples/jsm/postprocessing/MaskPass.js
 var MaskPass = class extends Pass {
   /**
    * Constructs a new mask pass.
@@ -309,7 +309,7 @@ var ClearMaskPass = class extends Pass {
   }
 };
 
-// ../../../../../../../../tmp/jsr-three-r186/examples/jsm/postprocessing/EffectComposer.js
+// three-source/examples/jsm/postprocessing/EffectComposer.js
 var EffectComposer = class {
   /**
    * Constructs a new effect composer.
@@ -494,7 +494,7 @@ var EffectComposer = class {
   }
 };
 
-// ../../../../../../../../tmp/jsr-three-r186/examples/jsm/postprocessing/RenderPass.js
+// three-source/examples/jsm/postprocessing/RenderPass.js
 var RenderPass = class extends Pass {
   /**
    * Constructs a new render pass.
@@ -567,7 +567,7 @@ var RenderPass = class extends Pass {
   }
 };
 
-// ../../../../../../../../tmp/jsr-three-r186/examples/jsm/postprocessing/ShaderPass.js
+// three-source/examples/jsm/postprocessing/ShaderPass.js
 var ShaderPass2 = class extends Pass {
   /**
    * Constructs a new shader pass.
@@ -632,7 +632,7 @@ var ShaderPass2 = class extends Pass {
   }
 };
 
-// ../../../../../../../../private/tmp/jsr-three-r186/examples/jsm/shaders/OutputShader.js
+// three-source/examples/jsm/shaders/OutputShader.js
 var OutputShader = {
   name: "OutputShader",
   uniforms: {
@@ -720,7 +720,7 @@ var OutputShader = {
   )
 };
 
-// ../../../../../../../../tmp/jsr-three-r186/examples/jsm/postprocessing/OutputPass.js
+// three-source/examples/jsm/postprocessing/OutputPass.js
 var OutputPass = class extends Pass {
   /**
    * Constructs a new output pass.
@@ -786,7 +786,7 @@ var OutputPass = class extends Pass {
   }
 };
 
-// ../../../../../../../../private/tmp/jsr-three-r186/examples/jsm/shaders/LuminosityHighPassShader.js
+// three-source/examples/jsm/shaders/LuminosityHighPassShader.js
 var LuminosityHighPassShader = {
   name: "LuminosityHighPassShader",
   uniforms: {
@@ -838,7 +838,7 @@ var LuminosityHighPassShader = {
   )
 };
 
-// ../../../../../../../../tmp/jsr-three-r186/examples/jsm/postprocessing/UnrealBloomPass.js
+// three-source/examples/jsm/postprocessing/UnrealBloomPass.js
 var UnrealBloomPass = class _UnrealBloomPass extends Pass {
   /**
    * Constructs a new Unreal Bloom pass.
@@ -1177,7 +1177,7 @@ var UnrealBloomPass = class _UnrealBloomPass extends Pass {
 UnrealBloomPass.BlurDirectionX = new Vector2(1, 0);
 UnrealBloomPass.BlurDirectionY = new Vector2(0, 1);
 
-// ../../../../../../../../private/tmp/jsr-three-r186/examples/jsm/shaders/BokehShader.js
+// three-source/examples/jsm/shaders/BokehShader.js
 var BokehShader = {
   name: "BokehShader",
   defines: {
@@ -1314,7 +1314,7 @@ var BokehShader = {
   )
 };
 
-// ../../../../../../../../tmp/jsr-three-r186/examples/jsm/postprocessing/BokehPass.js
+// three-source/examples/jsm/postprocessing/BokehPass.js
 var BokehPass = class extends Pass {
   /**
    * Constructs a new Bokeh pass.
@@ -1418,7 +1418,7 @@ var BokehPass = class extends Pass {
   }
 };
 
-// ../../../../../../../../tmp/jsr-three-r186/examples/jsm/postprocessing/LUTPass.js
+// three-source/examples/jsm/postprocessing/LUTPass.js
 var LUTShader = {
   name: "LUTShader",
   uniforms: {
@@ -1505,7 +1505,7 @@ var LUTPass = class extends ShaderPass {
   }
 };
 
-// ../../../../../../../../private/tmp/jsr-three-r186/examples/jsm/shaders/FilmShader.js
+// three-source/examples/jsm/shaders/FilmShader.js
 var FilmShader = {
   name: "FilmShader",
   uniforms: {
@@ -1563,7 +1563,7 @@ var FilmShader = {
   )
 };
 
-// ../../../../../../../../tmp/jsr-three-r186/examples/jsm/postprocessing/FilmPass.js
+// three-source/examples/jsm/postprocessing/FilmPass.js
 var FilmPass = class extends Pass {
   /**
    * Constructs a new film pass.
@@ -1618,7 +1618,7 @@ var FilmPass = class extends Pass {
   }
 };
 
-// ../../../../../../../../private/tmp/jsr-three-r186/examples/jsm/shaders/SMAAShader.js
+// three-source/examples/jsm/shaders/SMAAShader.js
 var SMAAEdgesShader = {
   name: "SMAAEdgesShader",
   defines: {
@@ -2063,7 +2063,7 @@ var SMAABlendShader = {
   )
 };
 
-// ../../../../../../../../tmp/jsr-three-r186/examples/jsm/postprocessing/SMAAPass.js
+// three-source/examples/jsm/postprocessing/SMAAPass.js
 var SMAAPass = class extends Pass {
   /**
    * Constructs a new SMAA pass.
@@ -2198,7 +2198,7 @@ var SMAAPass = class extends Pass {
   }
 };
 
-// ../../../../../../../../tmp/jsr-three-r186/examples/jsm/postprocessing/Pass.js
+// three-source/examples/jsm/postprocessing/Pass.js
 var Pass2 = class {
   /**
    * Constructs a new pass.
@@ -2289,7 +2289,7 @@ var FullScreenQuad2 = class {
   }
 };
 
-// ../../../../../../../../tmp/jsr-three-r186/examples/jsm/shaders/FXAAShader.js
+// three-source/examples/jsm/shaders/FXAAShader.js
 var FXAAShader = {
   name: "FXAAShader",
   uniforms: {
@@ -2567,7 +2567,7 @@ var FXAAShader = {
   )
 };
 
-// ../../../../../../../../tmp/jsr-three-r186/examples/jsm/shaders/VignetteShader.js
+// three-source/examples/jsm/shaders/VignetteShader.js
 var VignetteShader = {
   name: "VignetteShader",
   uniforms: {

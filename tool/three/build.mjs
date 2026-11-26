@@ -1,6 +1,7 @@
 import { build } from 'esbuild';
 import { createHash } from 'node:crypto';
 import { readFile, readdir, writeFile, mkdir, stat } from 'node:fs/promises';
+import { realpathSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { execFileSync } from 'node:child_process';
@@ -159,7 +160,15 @@ async function makeGoldenEsm() {
     define: { '__THREE_DEVTOOLS__': 'undefined' }
   });
   if (result.outputFiles.length !== 1) throw new Error('Unexpected esbuild outputs for cinematic_core.mjs');
-  return Buffer.from(result.outputFiles[0].contents);
+  // esbuild stamps every inlined module with a comment of its path relative
+  // to absWorkingDir. The pinned SOURCE tree lives outside the repository,
+  // so that prefix is host-dependent (worktree depth, the darwin /tmp ->
+  // /private/tmp symlink) and the golden bytes would never reproduce
+  // cross-host. Normalize it to one host-independent token.
+  const prefixes = new Set([SOURCE, realpathSync(SOURCE)].map(p => path.relative(ROOT, p)));
+  let text = result.outputFiles[0].text;
+  for (const prefix of prefixes) text = text.split(`${prefix}/`).join('three-source/');
+  return Buffer.from(text, 'utf8');
 }
 
 const tree = await verifySource();
