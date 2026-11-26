@@ -322,6 +322,46 @@ jobs:
       - name: 1B selection and policy tests
         run: flutter test test/angle1b --no-pub
 
+      # Diagnostic only (crash evidence, never a gate): flutter_tester has
+      # segfaulted at test-finalization on this runner class while every
+      # ANGLE teardown path was provably clean (see docs/angle_1b.md,
+      # quality-macos finalization crash). This step captures the macOS
+      # crash reports (.ips/.crash) and the unified-log lines of
+      # flutter_tester so the crashing module can be named. Runs always so
+      # a crash in the step above still uploads the evidence; when there
+      # are no reports it prints that fact and succeeds.
+      - name: Collect flutter_tester crash evidence (diagnostic)
+        if: always()
+        run: |
+          set -uo pipefail
+          CORES=$(sysctl -n hw.ncpu)
+          echo "cores: $CORES"
+          echo "flutter test concurrency in use: default (one isolate per core) = $CORES, unless --concurrency is set"
+          CRASH_DIR="$HOME/Library/Logs/DiagnosticReports"
+          OUT=/tmp/macos-crash-reports
+          mkdir -p "$OUT"
+          echo "--- crash reports in $CRASH_DIR ---"
+          if [ -d "$CRASH_DIR" ] && [ -n "$(ls -A "$CRASH_DIR" 2>/dev/null)" ]; then
+            ls -la "$CRASH_DIR"
+            find "$CRASH_DIR" \( -name '*.ips' -o -name '*.crash' \) -maxdepth 1 -print -exec cp {} "$OUT/" \;
+          else
+            echo "NO crash reports present in $CRASH_DIR"
+          fi
+          echo "--- unified log: flutter_tester (last 300 lines) ---"
+          log show --last 20m --style compact --predicate 'process == "flutter_tester" OR eventMessage CONTAINS "flutter_tester"' > "$OUT/flutter_tester-unifiedlog.txt" 2>&1 || true
+          tail -300 "$OUT/flutter_tester-unifiedlog.txt" > "$OUT/flutter_tester-unifiedlog-last300.txt" || true
+          wc -l "$OUT/flutter_tester-unifiedlog-last300.txt" || true
+          echo "--- collected files ---"
+          ls -la "$OUT"
+
+      - name: Upload flutter_tester crash evidence (diagnostic)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: macos-crash-reports
+          path: /tmp/macos-crash-reports
+          if-no-files-found: ignore
+
       - name: 1B batch bench (PERF-1 PERF-2)
         env:
           JSR_ANGLE_1B_LIB: ${{ github.workspace }}/packages/jsr_three_angle/native/angle/out/macos-arm64/libangle_1b.dylib
