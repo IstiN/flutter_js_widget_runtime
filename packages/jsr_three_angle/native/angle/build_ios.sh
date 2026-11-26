@@ -17,22 +17,13 @@ cd "$(dirname "$0")"
 OUT="${1:-out/ios-arm64}"
 SDK=$(xcrun -sdk iphoneos --show-sdk-path)
 [[ -d "$SDK" ]] || { echo "build_ios.sh: iphoneos SDK not found" >&2; exit 1; }
-# F3b iOS: the iPhoneOS framework bundle carries no public Headers dir, so
-# the framework-style #include <IOSurface/IOSurface.h> cannot resolve (run
-# 45749423534 attempt 2). Locate the header the SDK does ship and
-# force-include it; the shim skips its own include via A1B_NO_IOSURFACE_INCLUDE.
-IOSURFACE_H=$(find "$SDK/System/Library/Frameworks/IOSurface.framework" \
-  "$SDK/usr/include" -name IOSurface.h 2>/dev/null | head -1)
-[[ -n "$IOSURFACE_H" ]] || {
-  echo "build_ios.sh: no IOSurface.h found under $SDK (framework or usr/include)" >&2
-  exit 1
-}
-echo "build_ios.sh: IOSurface.h at $IOSURFACE_H"
+# The iPhoneOS SDK carries no public IOSurface header (verified Xcode 16.4 /
+# iPhoneOS18.5, CI run 45753628959); angle_1b_iosurface.h detects that with
+# __has_include and declares the ABI-stable subset itself.
 mkdir -p "$OUT"
 
 clang -isysroot "$SDK" -arch arm64 -mios-version-min=15.0 \
   -dynamiclib -O2 -Wall -Wextra \
-  -DA1B_NO_IOSURFACE_INCLUDE -include "$IOSURFACE_H" \
   -framework CoreFoundation -framework IOSurface -framework CoreVideo \
   -I. -Igen \
   -install_name @rpath/libangle_1b.dylib \

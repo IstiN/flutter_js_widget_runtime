@@ -472,12 +472,12 @@ No WebView, no platform view, no GL texture-name sharing.
 
 | Piece | Path | Role |
 |---|---|---|
-| Texture plugin | `example/ios/Runner/Angle1bTexturePlugin.swift` | Channel `angle_1b`: `createSurface [iosurfaceId, w, h] -> {textureId}`, `destroySurface [textureId]`, `frameAvailable [textureId]`, plus the iOS-only diagnostic `debugHierarchy` (REG-NOWEBVIEW-1 evidence). Registered in `AppDelegate.didInitializeImplicitFlutterEngine`, the way the macOS Runner registers it. |
+| Texture plugin | `example/ios/Runner/Angle1bTexturePlugin.swift` | Channel `angle_1b`: `createSurface [iosurfaceId, w, h] -> {textureId}`, `destroySurface [textureId]`, `frameAvailable [textureId]`, plus the iOS-only diagnostic `debugHierarchy` (REG-NOWEBVIEW-1 evidence). Registered in `AppDelegate.didInitializeImplicitFlutterEngine`, the way the macOS Runner registers it. The iPhoneOS SDK ships no public IOSurface header/clang module (CI run 45753628959), so the plugin declares `IOSurfaceLookup` and `CVPixelBufferCreateWithIOSurface` directly (`@_silgen_name`, ABI-stable public API since iOS 11); everything else is line-identical to macOS. |
 | Embed build phase | `example/ios/Runner.xcodeproj/project.pbxproj`, phase "Embed ANGLE 1B dylibs" | Device builds (`EFFECTIVE_PLATFORM_NAME == -iphoneos`) copy the three staged dylibs into the app's `Frameworks/` directory, re-id them to `@rpath/<name>.dylib` and ad-hoc sign them. Simulator builds skip the phase entirely: the simulator build of the example gets its own build output (`build/ios/iphonesimulator/`, separate directory, never shipped) and never embeds or loads the device-slice dylibs — the 1B probe reports their absence and the host falls back to r1 (ADR-0003), which the CI job records. |
 | ANGLE staging | `tool/build_angle.sh --platform ios-arm64` (iOS block) | GN's `ios_framework_bundle` emits `libEGL.framework/libEGL` for `target_os=ios`; the block stages the Mach-O binaries as flat dylibs with `@rpath` ids so ANGLE's libEGL resolves libGLESv2 through its own module directory (the macOS host layout). |
 | Shim build | `packages/jsr_three_angle/native/angle/build_ios.sh` | Builds `libangle_1b.dylib` for the arm64 device slice (`clang -isysroot $(xcrun -sdk iphoneos --show-sdk-path) -arch arm64 -mios-version-min=15.0`) and appends it to the staged `SHA256SUMS` (REG-SUPPLY-1). |
 | Dart load path | `packages/jsr_three_angle/lib/src/angle_three_backend.dart` (iOS block) | Candidate `@rpath/libangle_1b.dylib` first on iOS, resolved through the Runner's `@executable_path/Frameworks` runpath. |
-| Device suite | `test/angle1b/e2e_ios_scene_test.dart` (integration_test, 3 tests) | Non-empty reference images and readbacks through ANGLE (`a1b_render_triangle` routes every GL call through the G1 dispatch path; the readback asserts a rendered scene, not a blank frame), resize + DPR pixel-dimension checks through `surface.resize` + `capture()`, texture registration through the plugin, and REG-NOWEBVIEW-1 (view-hierarchy walk: no `WKWebView`, the surface presents as a `Texture`). |
+| Device suite | `test/angle1b/e2e_ios_scene_test.dart` (integration_test, 3 tests; `example/integration_test/e2e_ios.dart` is the device-run wrapper — `flutter test` attaches to a device only for files under `integration_test/`) | Non-empty reference images and readbacks through ANGLE (`a1b_render_triangle` routes every GL call through the G1 dispatch path; the readback asserts a rendered scene, not a blank frame), resize + DPR pixel-dimension checks through `surface.resize` + `capture()`, texture registration through the plugin, and REG-NOWEBVIEW-1 (view-hierarchy walk: no `WKWebView`, the surface presents as a `Texture`). |
 | CI job | `.github/workflows/pr.yml`, job `angle-ios` | ANGLE build cached on the pin hash (`angle-ios-arm64-<hash(angle_pin.json)>`); `xcodebuild build` of the example for the simulator; `flutter build ios --release --no-codesign` as the embed-phase proof; the SIZE-IOS-1 report; then ONE bounded, recorded simulator attempt of the device suite (15-minute boot bound, result or unavailability reason to the step summary and the `angle-ios-size-and-simulator-attempt` artifact). A recorded unavailability keeps the job green (plan §9). |
 
 ### Exact device commands
@@ -495,7 +495,9 @@ flutter build ios --simulator --debug
 UDID=$(xcrun simctl list devices available | grep -m1 'iPhone' \
   | sed -E 's/.*\(([A-F0-9-]{36})\).*/\1/')
 xcrun simctl boot "$UDID" && xcrun simctl bootstatus "$UDID" -b
-flutter test ../test/angle1b/e2e_ios_scene_test.dart -d "$UDID"
+# flutter test attaches to a device only for files under integration_test/;
+# example/integration_test/e2e_ios.dart wraps the canonical suite.
+flutter test integration_test/e2e_ios.dart -d "$UDID"
 
 # Physical device (USB, code signing identity required; outputs are NOT
 # claimed in this run — plan §9):

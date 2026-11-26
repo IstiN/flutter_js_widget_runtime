@@ -15,11 +15,8 @@
 #include <stdint.h>
 
 #include <CoreFoundation/CoreFoundation.h>
-// F3b iOS: see angle_1b.c — on iOS build_ios.sh force-includes the SDK's
-// IOSurface.h by explicit path (A1B_NO_IOSURFACE_INCLUDE).
-#if !defined(A1B_NO_IOSURFACE_INCLUDE)
-#include <IOSurface/IOSurface.h>
-#endif
+// F3b iOS: iOS-SDK-aware IOSurface include (see angle_1b_iosurface.h).
+#include "angle_1b_iosurface.h"
 
 typedef void *EGLDisplay; typedef void *EGLConfig; typedef void *EGLSurface;
 typedef void *EGLContext; typedef void *EGLClientBuffer;

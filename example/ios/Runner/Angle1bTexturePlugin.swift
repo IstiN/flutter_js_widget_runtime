@@ -11,8 +11,25 @@
 // prove the 1B path presents through a Flutter texture, never a web view.
 import Flutter
 import UIKit
-import IOSurface
 import CoreVideo
+
+// F3b iOS: the iPhoneOS SDK ships no public IOSurface header or clang
+// module (verified Xcode 16.4 / iPhoneOS18.5, CI run 45753628959), so the
+// macOS plugin's `import IOSurface` + IOSurfaceLookup cannot resolve here.
+// The C API is public, documented and ABI-stable on iOS since iOS 11;
+// declare the one lookup call directly. IOSurfaceRef arrives as a raw
+// pointer and is handed to CVPixelBufferCreateWithIOSurface, which retains
+// it; the lookup's +1 is released with CFRelease right after.
+@_silgen_name("IOSurfaceLookup")
+private func angle1bIOSurfaceLookup(_ cSid: UInt32) -> UnsafeMutableRawPointer?
+
+@_silgen_name("CVPixelBufferCreateWithIOSurface")
+private func angle1bCVPixelBufferCreateWithIOSurface(
+  _ allocator: CFAllocator?,
+  _ iosurface: UnsafeMutableRawPointer,
+  _ dictionary: CFDictionary?,
+  _ out: UnsafeMutablePointer<Unmanaged<CVPixelBuffer>?>
+) -> Int32
 
 public final class Angle1bTexturePlugin: NSObject {
   private let registry: FlutterTextureRegistry
@@ -62,19 +79,25 @@ public final class Angle1bTexturePlugin: NSObject {
       result(FlutterError(code: "BAD_ARGS", message: "expected [iosurfaceId, width, height]", details: nil))
       return
     }
-    guard let ioSurface = IOSurfaceLookup(IOSurfaceID(truncatingIfNeeded: iosurfaceId)) else {
+    // F3b iOS: lookup through the declared C entry point (see the comments
+    // at the top of this file); IOSurfaceID is a UInt32 and the lookup
+    // returns a +1-retained IOSurfaceRef.
+    guard let ioSurface = angle1bIOSurfaceLookup(
+      UInt32(truncatingIfNeeded: iosurfaceId)) else {
       result(FlutterError(code: "IOSURFACE_LOOKUP", message: "no IOSurface for id \(iosurfaceId)", details: nil))
       return
     }
     let pixelFormat = kCVPixelFormatType_32BGRA
     var unmanagedBuffer: Unmanaged<CVPixelBuffer>?
-    let status = CVPixelBufferCreateWithIOSurface(
+    let status = angle1bCVPixelBufferCreateWithIOSurface(
       kCFAllocatorDefault, ioSurface,
       [
         kCVPixelBufferPixelFormatTypeKey: pixelFormat,
         kCVPixelBufferMetalCompatibilityKey: true,
       ] as CFDictionary,
       &unmanagedBuffer)
+    // The pixel buffer retains the surface; drop the lookup's +1.
+    CFRelease(unsafeBitCast(ioSurface, to: CFTypeRef.self))
     guard status == kCVReturnSuccess, let buffer = unmanagedBuffer?.takeRetainedValue() else {
       result(FlutterError(code: "PIXELBUFFER", message: "CVPixelBufferCreateWithIOSurface failed: \(status)", details: nil))
       return
