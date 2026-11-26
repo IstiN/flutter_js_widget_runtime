@@ -454,9 +454,17 @@ jobs:
               otool = subprocess.run(['otool', '-l', path], capture_output=True, text=True).stdout
               segs = re.findall(
                   r'cmd LC_SEGMENT_64\s+cmdsize \d+\s+segname (\S+)'
-                  r'\s+vmaddr (0x[0-9a-f]+)\s+vmsize (0x[0-9a-f]+)', otool)
-              misaligned = [s for s, va, vs in segs
-                            if int(va, 16) % 16384 or int(vs, 16) % 16384]
+                  r'\s+vmaddr (0x[0-9a-f]+)\s+vmsize (0x[0-9a-f]+)'
+                  r'\s+fileoff (\d+)\s+filesize (\d+)', otool)
+              misaligned = []
+              for s, va, vs, fo, fs in segs:
+                  # 16 KiB rule for arm64: vmaddr and fileoff must be 16 KiB
+                  # multiples; vmsize must be page-rounded except the trailing
+                  # __LINKEDIT (its raw unpadded vmsize is the Mach-O norm —
+                  # Apple's own dylibs carry it).
+                  if (int(va, 16) % 16384 or int(fo) % 16384
+                          or (s != '__LINKEDIT' and int(vs, 16) % 16384)):
+                      misaligned.append(s)
               if misaligned:
                   failures.append(f'{name}: 16 KiB misaligned segments {misaligned}')
               probe = arch_clean.lower()

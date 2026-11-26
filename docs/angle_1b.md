@@ -511,10 +511,12 @@ silent skip.
 
 The `angle-ios` job prints the report: per-library raw/stripped/gzip sizes,
 architecture, 16 KiB alignment of every `LC_SEGMENT_64` (`vmaddr` and
-`vmsize` both multiples of 16384 — required on arm64), and the absence
-checks for simulator, debug (DWARF) and SwiftShader slices. The structural
-checks are hard gates. The budget check reports measured values verbatim:
-installed (stripped payload) <= 10 MiB and gzip <= 5 MiB per ABI.
+`fileoff` multiples of 16384 — required on arm64; `vmsize` must be
+page-rounded except the trailing `__LINKEDIT`, whose raw unpadded vmsize is
+the Mach-O norm Apple's own dylibs carry), and the absence checks for
+simulator, debug (DWARF) and SwiftShader slices. The structural checks are
+hard gates. The budget check reports measured values verbatim: installed
+(stripped payload) <= 10 MiB and gzip <= 5 MiB per ABI.
 
 Size review (issue #7 allows exceeding the budget with an explicit
 documented review before merge): the pinned ANGLE Metal build already
