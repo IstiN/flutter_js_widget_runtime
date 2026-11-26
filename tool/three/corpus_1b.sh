@@ -51,6 +51,15 @@ if [ ! -d /tmp/node_modules/playwright ]; then
   }
 fi
 
+# Scene bundling needs esbuild (tool/three devDependency; jobs that do not
+# run `npm ci --prefix tool/three` otherwise SKIP(bundle) every scene).
+if [ ! -d tool/three/node_modules/esbuild ]; then
+  echo '[corpus] tool/three deps missing; running npm ci --prefix tool/three'
+  npm ci --prefix tool/three --no-audit --no-fund >/dev/null 2>&1 || {
+    echo '[corpus] npm ci --prefix tool/three failed — addon scenes will SKIP(bundle)'
+  }
+fi
+
 if [ ! -f "$JSM/postprocessing/UnrealBloomPass.js" ]; then
   echo '[corpus] three@0.186.1 jsm addons not found; installing to /tmp/three_pkg'
   npm install three@0.186.1 --prefix /tmp/three_pkg --no-audit --no-fund >/dev/null 2>&1 || {
@@ -163,6 +172,8 @@ PYEOF
     BOK=$(printf '%s' "$BLINE" | python3 -c "import sys,json;d=json.loads(sys.stdin.read());print(d.get('ok'))" 2>/dev/null)
     if [ "$BOK" != "True" ]; then
       REASON=$(printf '%s' "$BLINE" | python3 -c "import sys,json;d=json.loads(sys.stdin.read());print(d.get('unresolvedImport') or str(d.get('error'))[:120])" 2>/dev/null)
+    # Non-JSON bundler output (e.g. a crashed esbuild import): keep the tail.
+    [ -z "$REASON" ] && REASON=$(printf '%s' "$BLINE" | tail -c 140 | tr '\n' ' ')
       TIER="SKIP(bundle)"
       NOTE="$REASON"
       gate_verdict "$ID" "$TIER"
