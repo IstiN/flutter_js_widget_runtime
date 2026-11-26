@@ -1067,9 +1067,11 @@ documented clamps only.
 - `SEC-CINEMATIC-3`: the oversized-target quota (4097x4097 >
   MAX_TARGET_PIXELS 4096x4096) is refused with the named error BEFORE any
   target is resized (the previous coherent size stays on
-  `composer.renderTarget1`); a declared history window of 601/Infinity/NaN
-  frames is refused named; 600 frames (the JSR history quota) reconstructs
-  exactly 600 frames — bounded, no hang.
+  `composer.renderTarget1`); a declared history window of
+  4097/Infinity/NaN frames is refused named; 4096 frames (the JSR history
+  quota, F4-merge value) reconstructs exactly 4096 frames — bounded, no
+  hang. (The branch measured this row at 600/601; the merged quota follows
+  the afterimage documented cap, see "Core changes".)
 - `E2E-FALLBACK-1/2` (edge E5): a renderer without GL2 evidence probes
   `supports() === false` for smaa/colorGrade/film/vignette/multisample
   while bloom/fxaa/dof stay true; `setPreset('production')` runs the
@@ -1083,7 +1085,7 @@ documented clamps only.
   epoch}`) plus the capture result carry neither value.
 - `FUZZ-TARGET-1..3` (`f4eg_fuzz_test.dart`): deterministic mulberry32
   fuzzing with printed seeds (0x5eed0001 history: 120 hostile windows +
-  clocks — named or clamped, reconstruct never exceeds 600 frames;
+  clocks — named or clamped, reconstruct never exceeds 4096 frames;
   0x5eed0002 LUT/assets: 10 hostile LUT kinds clamp to a complete 8^3
   identity table, 6 malformed .cube/.3dl/HDR/EXR/PNG-shaped byte blobs
   reject through the named error path of the real loadAsset ->
@@ -1101,9 +1103,13 @@ documented clamps only.
      `resolveSize` (named `cinematic.invalid` for non-finite/negative,
      floor/0->1/maxTextureSize clamps, checked MAX_TARGET_PIXELS budget
      of 4096x4096) — a rejected resize leaves the previous coherent size.
-   - `CinematicHistory.declare` rejects non-finite and >600-frame windows
+   - `CinematicHistory.declare` rejects non-finite and >4096-frame windows
      (named) — `reconstruct` is provably bounded (was: Infinity frames
-     hung reconstruct; huge windows built unbounded arrays).
+     hung reconstruct; huge windows built unbounded arrays). F4-merge
+     amendment: the quota is 4096, not this branch's 600 — the afterimage
+     documented cap (damp near 1, F4c1) declares 4096-frame windows for its
+     direct-seek == sequential determinism contract, so the quota follows
+     the widest built-in effect; the checked-quota behavior is unchanged.
    - `pipeline.dispose` additionally disposes
      `UnrealBloomPass.materialHighPassFilter` — upstream r186
      `UnrealBloomPass.dispose` misses it, leaking one GL program per
@@ -1122,6 +1128,8 @@ documented clamps only.
 - After touching `tool/three/src`: `node tool/three/build.mjs --source
   /tmp/jsr-three-r186 && node tool/three/build.mjs --verify`, then
   `node example/widgets/three-cinematic-showcase/build.mjs` and
-  `tool/three/showcase_1b.sh` (4/4 checkpoints hash-equal: draft-frame12
-  0xe34fc597, finish-direct/seek-frame20 0x3cc7f7db, export-frame9
-  0x88479d2f — unchanged from F4a).
+  `tool/three/showcase_1b.sh` (F4-merge measured, 4/4 checkpoints
+  hash-equal: draft-frame12 0xe34fc597, finish-direct/seek-frame20
+  0x9125a1e8, export-frame9 0xa3c2834c — the F4c1-recorded values
+  reproduce from the union bundle bytes; this branch alone had measured
+  0x3cc7f7db / 0x88479d2f on its pre-merge sources).

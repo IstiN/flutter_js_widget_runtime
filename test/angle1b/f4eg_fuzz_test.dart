@@ -23,7 +23,7 @@ try {
   var cin = jsr.three.cinematic;
   var rng = cin.cinematicRandom($seed);
   var frameSpace = [NaN, -3, -0.5, 0, 0.5, 1.9, 2, 7, Infinity, -Infinity, 1e9, 'x', null];
-  var windowSpace = [NaN, -3, 0, 0.5, 1.9, 2, 5, 600, 601, Infinity, 1e9];
+  var windowSpace = [NaN, -3, 0, 0.5, 1.9, 2, 5, 4096, 4097, Infinity, 1e9];
   for (var i = 0; i < 120; i++) {
     var history = new cin.CinematicHistory(i);
     var frames = windowSpace[Math.floor(rng() * windowSpace.length)];
@@ -31,7 +31,7 @@ try {
     var outcome = 'clamped';
     try {
       history.declare({ pass: pass, frames: frames });
-      if (!(history.depth() >= 1) || history.depth() > 600) {
+      if (!(history.depth() >= 1) || history.depth() > 4096) {
         results.unnamed.push('depth ' + history.depth() + ' from frames ' + frames);
       }
     } catch (e) {
@@ -43,7 +43,7 @@ try {
     var clock = { frame: frameSpace[Math.floor(rng() * frameSpace.length)] };
     var rec = history.reconstruct(clock);
     if (rec.frames.length > results.maxRec) results.maxRec = rec.frames.length;
-    if (rec.frames.length > 600) results.unnamed.push('reconstruct built ' + rec.frames.length + ' frames');
+    if (rec.frames.length > 4096) results.unnamed.push('reconstruct built ' + rec.frames.length + ' frames');
   }
 ${f4egExportTailJs(catchBodyJs: "  results.unnamed.push('fatal: ' + String((e && e.message) || e));")}
 ''';
@@ -61,7 +61,7 @@ ${f4egExportTailJs(catchBodyJs: "  results.unnamed.push('fatal: ' + String((e &&
     );
     expect(
       state?['maxRec'],
-      lessThanOrEqualTo(600),
+      lessThanOrEqualTo(4096),
       reason: 'reconstruct never exceeds the declared window bound',
     );
     expect(

@@ -28,6 +28,8 @@ void main() {
         'film': false,
         'vignette': false,
         'motion': false,
+        'afterimage': false,
+        'fringe': false,
       },
     },
     'production': {
@@ -44,6 +46,8 @@ void main() {
         'film': true,
         'vignette': true,
         'motion': true,
+        'afterimage': false,
+        'fringe': false,
       },
     },
     'deterministic-export': {
@@ -60,6 +64,8 @@ void main() {
         'film': true,
         'vignette': true,
         'motion': true,
+        'afterimage': false,
+        'fringe': false,
       },
       'note': 'fixed seed, epoch 0, no adaptive anything',
     },

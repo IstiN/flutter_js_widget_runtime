@@ -32,15 +32,15 @@ import { createPipeline, clockState, presets } from '../../src/cinematic.js';
 const EXPECTED_PRESETS = {
   draft: {
     fps: 24, shutter: 0.5, samples: 1, epoch: 0,
-    effects: { bloom: false, dof: false, fxaa: true, smaa: false, colorGrade: false, film: false, vignette: false, motion: false }
+    effects: { bloom: false, dof: false, fxaa: true, smaa: false, colorGrade: false, film: false, vignette: false, motion: false, afterimage: false, fringe: false }
   },
   production: {
     fps: 24, shutter: 0.5, samples: 8, epoch: 0,
-    effects: { bloom: true, dof: true, fxaa: true, smaa: true, colorGrade: 'teal-orange', film: true, vignette: true, motion: true }
+    effects: { bloom: true, dof: true, fxaa: true, smaa: true, colorGrade: 'teal-orange', film: true, vignette: true, motion: true, afterimage: false, fringe: false }
   },
   'deterministic-export': {
     fps: 24, shutter: 0.5, samples: 8, epoch: 0,
-    effects: { bloom: true, dof: true, fxaa: true, smaa: true, colorGrade: 'teal-orange', film: true, vignette: true, motion: true },
+    effects: { bloom: true, dof: true, fxaa: true, smaa: true, colorGrade: 'teal-orange', film: true, vignette: true, motion: true, afterimage: false, fringe: false },
     note: 'fixed seed, epoch 0, no adaptive anything'
   }
 };

@@ -247,9 +247,9 @@ try {
   results.targetStill = pipeline.composer.renderTarget1.width === before.w &&
       pipeline.composer.renderTarget1.height === before.h;
   var history = pipeline.history;
-  history.declare({ pass: 'ok', frames: 600 });
+  history.declare({ pass: 'ok', frames: 4096 });
   results.history.maxDepth = history.depth();
-  try { history.declare({ pass: 'huge', frames: 601 }); results.history.over = 'declared'; }
+  try { history.declare({ pass: 'huge', frames: 4097 }); results.history.over = 'declared'; }
   catch (e) { results.history.over = String((e && e.message) || e); }
   try { history.declare({ pass: 'inf', frames: Infinity }); results.history.inf = 'declared'; }
   catch (e) { results.history.inf = String((e && e.message) || e); }
@@ -271,13 +271,13 @@ ${f4egExportTailJs()}
       isTrue,
       reason: 'the refusal happened BEFORE any target resize (32x32 stays)',
     );
-    expect(state?['history']?['maxDepth'], 600);
+    expect(state?['history']?['maxDepth'], 4096);
     expect(state?['history']?['over'], startsWith('cinematic.invalid:'));
     expect(state?['history']?['inf'], startsWith('cinematic.invalid:'));
     expect(state?['history']?['nan'], startsWith('cinematic.invalid:'));
     expect(
       state?['history']?['recLen'],
-      600,
+      4096,
       reason:
           'reconstruct stays bounded at the declared window (no hang, '
           'no unbounded frame list)',
@@ -304,8 +304,34 @@ try {
     fxaa: caps.supports('fxaa'),
     dof: caps.supports('depthOfField')
   };
+  // F4-merge (UT-PIPELINE-VALIDATE invariant 6): on the web lane the probe
+  // facts above being absent refuses pipeline CREATION with the named
+  // error — never an effect-less composer.
+  try {
+    cin.createPipeline({
+      renderer: renderer,
+      scene: new THREE.Scene(),
+      camera: new THREE.PerspectiveCamera(),
+      effects: {}
+    });
+    results.webCreation = 'created';
+  } catch (e) { results.webCreation = String((e && e.name ? e.name : e)); }
+  // The reduced set the probe leaves is the NATIVE R1 lane (the lane the
+  // refusal names): it runs the supported remainder of the same preset and
+  // names every requested-but-absent effect.
+  var nativeCaps = cin.probeCapabilities(f4egMockRenderer());
+  results.nativeProbe = {
+    smaa: nativeCaps.supports('smaa'),
+    colorGrade: nativeCaps.supports('colorGrade'),
+    film: nativeCaps.supports('film'),
+    vignette: nativeCaps.supports('vignette'),
+    multisample: nativeCaps.supports('multisample'),
+    bloom: nativeCaps.supports('bloom'),
+    fxaa: nativeCaps.supports('fxaa'),
+    dof: nativeCaps.supports('depthOfField')
+  };
   var pipeline = cin.createPipeline({
-    renderer: renderer,
+    renderer: f4egMockRenderer(),
     scene: new THREE.Scene(),
     camera: new THREE.PerspectiveCamera(),
     effects: {}
@@ -330,18 +356,36 @@ ${f4egExportTailJs()}
     expect(probe['bloom'], isTrue);
     expect(probe['fxaa'], isTrue);
     expect(probe['dof'], isTrue);
+    expect(
+      state?['webCreation'],
+      'cinematic.unsupported',
+      reason: 'the web lane refuses creation named when the probe facts '
+          'are absent (F4-merge invariant 6, UT-PIPELINE-VALIDATE)',
+    );
+    final nativeProbe = state?['nativeProbe'] ?? {};
+    expect(nativeProbe['smaa'], isTrue);
+    expect(nativeProbe['colorGrade'], isTrue);
+    expect(nativeProbe['film'], isFalse);
+    expect(nativeProbe['vignette'], isFalse);
+    expect(nativeProbe['multisample'], isFalse);
+    expect(nativeProbe['bloom'], isTrue);
+    expect(nativeProbe['fxaa'], isTrue);
+    expect(nativeProbe['dof'], isTrue);
     final unsupported = (state?['unsupported'] as List? ?? [])
         .cast<String>()
         .toSet();
     expect(
       unsupported,
-      containsAll(<String>['smaa', 'colorGrade', 'film', 'vignette']),
-      reason: 'every GL2-gated effect the preset requested is NAMED absent',
+      containsAll(<String>['film', 'motion', 'vignette']),
+      reason: 'every GL2-gated effect the preset requested is NAMED absent '
+          'on the native lane',
     );
     expect(state?['passes'], <String>[
       'bloom',
+      'colorGrade',
       'dof',
       'fxaa',
+      'smaa',
     ], reason: 'the reduced effect set still runs its supported passes');
     expect(
       state?['assertCapturable'],
@@ -357,12 +401,16 @@ ${f4egExportTailJs()}
 var results = {};
 try {
   var cin = jsr.three.cinematic;
-  var renderer = f4egWebMockRenderer();
+  // F4-merge: the reduced set that RUNS AND CAPTURES is the supported
+  // remainder on the native R1 lane (the web lane refuses creation when
+  // the probe facts are absent — E2E-FALLBACK-1). Requesting exactly the
+  // supported trio keeps `unsupported` empty, so the capture barrier
+  // honestly proceeds: the host receives the final-pass frame.
+  var renderer = f4egMockRenderer();
   var pipeline = cin.createPipeline({
     renderer: renderer, scene: new THREE.Scene(), camera: new THREE.PerspectiveCamera(),
-    effects: {}
+    effects: { bloom: true, dof: true, fxaa: true }
   });
-  pipeline.setPreset('production');
   pipeline.renderFrame(cin.clockState(3, 24, 0.5, 1, 0));
   results.passes = Object.keys(pipeline.passes).sort();
 ${f4egCaptureExportJs(clockExpr: 'cin.clockState(3, 24, 0.5, 1, 0)', capturedExpr: '{ path: r.path || null, width: r.width || null }')}

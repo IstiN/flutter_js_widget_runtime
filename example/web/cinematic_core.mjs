@@ -3015,6 +3015,286 @@ var VignetteShader = {
   )
 };
 
+// three-source/examples/jsm/shaders/AfterimageShader.js
+var AfterimageShader = {
+  name: "AfterimageShader",
+  uniforms: {
+    "damp": { value: 0.96 },
+    "tOld": { value: null },
+    "tNew": { value: null }
+  },
+  vertexShader: (
+    /* glsl */
+    `
+
+		varying vec2 vUv;
+
+		void main() {
+
+			vUv = uv;
+			gl_Position = projectionMatrix * modelViewMatrix * vec4( position, 1.0 );
+
+		}`
+  ),
+  fragmentShader: (
+    /* glsl */
+    `
+
+		uniform float damp;
+
+		uniform sampler2D tOld;
+		uniform sampler2D tNew;
+
+		varying vec2 vUv;
+
+		vec4 when_gt( vec4 x, float y ) {
+
+			return max( sign( x - y ), 0.0 );
+
+		}
+
+		void main() {
+
+			vec4 texelOld = texture2D( tOld, vUv );
+			vec4 texelNew = texture2D( tNew, vUv );
+
+			texelOld *= damp * when_gt( texelOld, 0.1 );
+
+			gl_FragColor = max(texelNew, texelOld);
+
+		}`
+  )
+};
+
+// three-source/examples/jsm/postprocessing/AfterimagePass.js
+var AfterimagePass = class extends Pass {
+  /**
+   * Constructs a new after image pass.
+   *
+   * @param {number} [damp=0.96] - The damping intensity. A higher value means a stronger after image effect.
+   */
+  constructor(damp = 0.96) {
+    super();
+    this.uniforms = UniformsUtils.clone(AfterimageShader.uniforms);
+    this.damp = damp;
+    this.compFsMaterial = new ShaderMaterial({
+      uniforms: this.uniforms,
+      vertexShader: AfterimageShader.vertexShader,
+      fragmentShader: AfterimageShader.fragmentShader
+    });
+    this.copyFsMaterial = new ShaderMaterial({
+      uniforms: UniformsUtils.clone(CopyShader.uniforms),
+      vertexShader: CopyShader.vertexShader,
+      fragmentShader: CopyShader.fragmentShader,
+      blending: NoBlending,
+      depthTest: false,
+      depthWrite: false
+    });
+    this._textureComp = new WebGLRenderTarget(window.innerWidth, window.innerHeight, {
+      magFilter: NearestFilter,
+      type: HalfFloatType,
+      depthBuffer: false
+    });
+    this._textureOld = new WebGLRenderTarget(window.innerWidth, window.innerHeight, {
+      magFilter: NearestFilter,
+      type: HalfFloatType,
+      depthBuffer: false
+    });
+    this._compFsQuad = new FullScreenQuad(this.compFsMaterial);
+    this._copyFsQuad = new FullScreenQuad(this.copyFsMaterial);
+  }
+  /**
+   * The damping intensity, from 0.0 to 1.0. A higher value means a stronger after image effect.
+   *
+   * @type {number}
+   */
+  get damp() {
+    return this.uniforms["damp"].value;
+  }
+  set damp(value) {
+    this.uniforms["damp"].value = value;
+  }
+  /**
+   * Performs the after image pass.
+   *
+   * @param {WebGLRenderer} renderer - The renderer.
+   * @param {WebGLRenderTarget} writeBuffer - The write buffer. This buffer is intended as the rendering
+   * destination for the pass.
+   * @param {WebGLRenderTarget} readBuffer - The read buffer. The pass can access the result from the
+   * previous pass from this buffer.
+   * @param {number} deltaTime - The delta time in seconds.
+   * @param {boolean} maskActive - Whether masking is active or not.
+   */
+  render(renderer, writeBuffer, readBuffer) {
+    this.uniforms["tOld"].value = this._textureOld.texture;
+    this.uniforms["tNew"].value = readBuffer.texture;
+    renderer.setRenderTarget(this._textureComp);
+    this._compFsQuad.render(renderer);
+    this._copyFsQuad.material.uniforms.tDiffuse.value = this._textureComp.texture;
+    if (this.renderToScreen) {
+      renderer.setRenderTarget(null);
+      this._copyFsQuad.render(renderer);
+    } else {
+      renderer.setRenderTarget(writeBuffer);
+      if (this.clear) renderer.clear();
+      this._copyFsQuad.render(renderer);
+    }
+    const temp = this._textureOld;
+    this._textureOld = this._textureComp;
+    this._textureComp = temp;
+  }
+  /**
+   * Sets the size of the pass.
+   *
+   * @param {number} width - The width to set.
+   * @param {number} height - The height to set.
+   */
+  setSize(width, height) {
+    this._textureComp.setSize(width, height);
+    this._textureOld.setSize(width, height);
+  }
+  /**
+   * Frees the GPU-related resources allocated by this instance. Call this
+   * method whenever the pass is no longer used in your app.
+   */
+  dispose() {
+    this._textureComp.dispose();
+    this._textureOld.dispose();
+    this.compFsMaterial.dispose();
+    this.copyFsMaterial.dispose();
+    this._compFsQuad.dispose();
+    this._copyFsQuad.dispose();
+  }
+};
+
+// tool/three/src/cinematic_motion_blur.js
+var ACCUM_VERTEX = "varying vec2 vUv; void main() { vUv = uv; gl_Position = vec4(position.xy, 0.0, 1.0); }";
+var ZERO_COLOR = new Color(0);
+var CinematicMotionBlurPass = class extends Pass2 {
+  constructor(options) {
+    super();
+    options = options || {};
+    const samples = Math.floor(Number(options.samples === void 0 ? 8 : options.samples));
+    this.samples = samples >= 1 ? samples : 8;
+    this._index = -1;
+    this._count = 0;
+    this._weight = 1;
+    this._target = null;
+    this._targetWidth = 0;
+    this._targetHeight = 0;
+    this._accumMaterial = new ShaderMaterial({
+      uniforms: { tDiffuse: { value: null }, weight: { value: 1 } },
+      vertexShader: ACCUM_VERTEX,
+      fragmentShader: "uniform sampler2D tDiffuse; uniform float weight; varying vec2 vUv; void main() { gl_FragColor = vec4(texture2D(tDiffuse, vUv).rgb * weight, 1.0); }",
+      blending: AdditiveBlending,
+      depthTest: false,
+      depthWrite: false,
+      transparent: true
+    });
+    this._resolveMaterial = new ShaderMaterial({
+      uniforms: { tDiffuse: { value: null } },
+      vertexShader: ACCUM_VERTEX,
+      fragmentShader: "uniform sampler2D tDiffuse; varying vec2 vUv; void main() { gl_FragColor = texture2D(tDiffuse, vUv); }",
+      blending: NoBlending,
+      depthTest: false,
+      depthWrite: false
+    });
+    this._accumQuad = new FullScreenQuad2(this._accumMaterial);
+    this._resolveQuad = new FullScreenQuad2(this._resolveMaterial);
+  }
+  // armSubframe(index, count, weight) — the pipeline calls this before every
+  // composer.render() of a subframe. Subframes 0..count-2 accumulate
+  // (needsSwap false — the chain keeps flowing); the last subframe resolves
+  // the average into the chain (needsSwap true, swapped before OutputPass).
+  armSubframe(index, count, weight) {
+    this._index = index;
+    this._count = count;
+    this._weight = weight;
+    this.needsSwap = index === count - 1;
+  }
+  render(renderer, writeBuffer, readBuffer) {
+    if (this._count <= 0 || this._index < 0) return;
+    if (this._count === 1) {
+      this._resolveMaterial.uniforms.tDiffuse.value = readBuffer.texture;
+      renderer.setRenderTarget(this.renderToScreen ? null : writeBuffer);
+      this._resolveQuad.render(renderer);
+      return;
+    }
+    if (this._index === 0) {
+      this._ensureTarget();
+      renderer.setRenderTarget(this._target);
+      renderer.setClearColor(ZERO_COLOR, 0);
+      renderer.clear(true, false, false);
+    }
+    if (this._index < this._count - 1) {
+      this._accumMaterial.uniforms.tDiffuse.value = readBuffer.texture;
+      this._accumMaterial.uniforms.weight.value = this._weight;
+      const oldAutoClear = renderer.autoClear;
+      renderer.autoClear = false;
+      renderer.setRenderTarget(this._target);
+      this._accumQuad.render(renderer);
+      renderer.autoClear = oldAutoClear;
+    } else {
+      this._accumMaterial.uniforms.tDiffuse.value = readBuffer.texture;
+      this._accumMaterial.uniforms.weight.value = this._weight;
+      const oldAutoClear = renderer.autoClear;
+      renderer.autoClear = false;
+      renderer.setRenderTarget(this._target);
+      this._accumQuad.render(renderer);
+      renderer.autoClear = oldAutoClear;
+      this._resolveMaterial.uniforms.tDiffuse.value = this._target.texture;
+      renderer.setRenderTarget(this.renderToScreen ? null : writeBuffer);
+      this._resolveQuad.render(renderer);
+    }
+  }
+  _ensureTarget() {
+    if (this._target) return;
+    this._target = new WebGLRenderTarget(Math.max(1, this._targetWidth), Math.max(1, this._targetHeight), { type: HalfFloatType });
+  }
+  setSize(width, height) {
+    this._targetWidth = width;
+    this._targetHeight = height;
+    if (this._target) this._target.setSize(width, height);
+  }
+  dispose() {
+    if (this._target) this._target.dispose();
+    this._accumMaterial.dispose();
+    this._resolveMaterial.dispose();
+    this._accumQuad.dispose();
+    this._resolveQuad.dispose();
+  }
+};
+var CinematicBokehFringeShader = {
+  name: "CinematicBokehFringeShader",
+  uniforms: {
+    // tDiffuse is REQUIRED: r186 ShaderPass.render binds the chain input
+    // through uniforms.tDiffuse (guarded — a shader without the uniform
+    // silently samples a null texture and renders black).
+    tDiffuse: { value: null },
+    amount: { value: 0.7 },
+    blur: { value: 1 },
+    resolution: { value: new Vector2(1, 1) }
+  },
+  vertexShader: "varying vec2 vUv; void main() { vUv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }",
+  fragmentShader: [
+    "uniform sampler2D tDiffuse;",
+    "uniform float amount;",
+    "uniform float blur;",
+    "uniform vec2 resolution;",
+    "varying vec2 vUv;",
+    "void main() {",
+    "  vec2 texel = vec2(1.0 / resolution.x, 1.0 / resolution.y);",
+    "  float f = amount * blur;",
+    "  vec4 c;",
+    "  c.r = texture2D(tDiffuse, vUv + vec2(0.0, 1.0) * texel * f).r;",
+    "  c.g = texture2D(tDiffuse, vUv + vec2(-0.866, -0.5) * texel * f).g;",
+    "  c.b = texture2D(tDiffuse, vUv + vec2(0.866, -0.5) * texel * f).b;",
+    "  c.a = texture2D(tDiffuse, vUv).a;",
+    "  gl_FragColor = c;",
+    "}"
+  ].join("\n")
+};
+
 // tool/three/src/cinematic.js
 var CinematicPipelineError = class extends Error {
   constructor(code, message) {
@@ -3045,12 +3325,12 @@ function clockState(frame, fps, shutter, samples, epoch) {
   if (!Number.isFinite(n) || n < 1) throw new Error("cinematic.invalid: samples must be >= 1");
   const ep = (epoch === void 0 ? 0 : epoch) >>> 0;
   const frameTime = f / rate;
-  const window = sh / rate;
-  const start = frameTime - window / 2;
+  const window2 = sh / rate;
+  const start = frameTime - window2 / 2;
   const subframes = new Array(n);
   for (let i = 0; i < n; i++) {
     const jitter = cinematicRandom(f % 2097152 * n + i >>> 0)();
-    subframes[i] = { t: start + window * (i + jitter) / n, weight: 1 / n };
+    subframes[i] = { t: start + window2 * (i + jitter) / n, weight: 1 / n };
   }
   return { frame: f, fps: rate, shutter: sh, samples: n, subframes, epoch: ep };
 }
@@ -3097,6 +3377,12 @@ CinematicCapabilitySet.EFFECT_BITS = {
   vignette: "vignette",
   motion: "motionBlurAccum",
   multisample: "motionBlurAccum",
+  // F4c1: afterimage needs the same float render targets as the motion
+  // accumulation; fringe is a custom-GLSL ShaderPass, supported exactly where
+  // the vignette shader is (isGL2 on the web lane, outside the bounded R1
+  // profiles) — the vignette bit IS that probe.
+  afterimage: "motionBlurAccum",
+  fringe: "vignette",
   pmrem: "pmrem",
   cubeCamera: "cubeCamera"
 };
@@ -3166,7 +3452,7 @@ function clamp01(v) {
   return v < 0 ? 0 : v > 1 ? 1 : v;
 }
 var MAX_TARGET_PIXELS = 4096 * 4096;
-var HISTORY_MAX_FRAMES = 600;
+var HISTORY_MAX_FRAMES = 4096;
 function buildLutTexture(kind) {
   const N = 8;
   const data = new Uint8Array(N * N * N * 4);
@@ -3208,25 +3494,25 @@ var PRESETS = {
     shutter: 0.5,
     samples: 1,
     epoch: 0,
-    effects: { bloom: false, dof: false, fxaa: true, smaa: false, colorGrade: false, film: false, vignette: false, motion: false }
+    effects: { bloom: false, dof: false, fxaa: true, smaa: false, colorGrade: false, film: false, vignette: false, motion: false, fringe: false, afterimage: false }
   },
   production: {
     fps: 24,
     shutter: 0.5,
     samples: 8,
     epoch: 0,
-    effects: { bloom: true, dof: true, fxaa: true, smaa: true, colorGrade: "teal-orange", film: true, vignette: true, motion: true }
+    effects: { bloom: true, dof: true, fxaa: true, smaa: true, colorGrade: "teal-orange", film: true, vignette: true, motion: true, fringe: false, afterimage: false }
   },
   "deterministic-export": {
     fps: 24,
     shutter: 0.5,
     samples: 8,
     epoch: 0,
-    effects: { bloom: true, dof: true, fxaa: true, smaa: true, colorGrade: "teal-orange", film: true, vignette: true, motion: true },
+    effects: { bloom: true, dof: true, fxaa: true, smaa: true, colorGrade: "teal-orange", film: true, vignette: true, motion: true, fringe: false, afterimage: false },
     note: "fixed seed, epoch 0, no adaptive anything"
   }
 };
-var EFFECT_NAMES = ["bloom", "dof", "fxaa", "smaa", "colorGrade", "film", "vignette", "motion"];
+var EFFECT_NAMES = ["bloom", "dof", "fxaa", "smaa", "colorGrade", "film", "vignette", "motion", "fringe", "afterimage"];
 var ThreeCinematicProfile = class {
   constructor(name, options) {
     this.name = name;
@@ -3275,12 +3561,22 @@ function motionBlur(options = {}) {
     samples: options.samples
   });
 }
+function afterimage(options = {}) {
+  return spec("afterimage", { damp: options.damp });
+}
+function fringe(options = {}) {
+  return spec("fringe", { amount: options.amount, blur: options.blur });
+}
 function antialias(options = {}) {
   const mode = options.mode === void 0 ? "fxaa" : options.mode;
   if (mode !== "fxaa" && mode !== "smaa") {
     throw new CinematicPipelineError("cinematic.invalid", 'antialias mode must be "fxaa" or "smaa"');
   }
   return spec("antialias", { mode });
+}
+function afterimageWindowFrames(damp) {
+  const d = Math.min(Math.max(Number(damp) || 0.5, 1e-3), 0.999999);
+  return Math.min(4096, Math.ceil(Math.log(9094947017729282e-28) / Math.log(d)));
 }
 var CinematicHistory = class {
   constructor(epoch) {
@@ -3296,17 +3592,17 @@ var CinematicHistory = class {
   // Hostile frames hit the checked history quota with a NAMED error
   // (non-finite / < 1 / beyond HISTORY_MAX_FRAMES); fractional values floor
   // (documented clamp), so reconstruct() is always bounded (E9).
-  declare(window) {
-    if (!window || !(window.frames >= 1) || !Number.isFinite(window.frames)) {
+  declare(window2) {
+    if (!window2 || !(window2.frames >= 1) || !Number.isFinite(window2.frames)) {
       throw new CinematicPipelineError("cinematic.invalid", "cinematic.invalid: CinematicHistory.declare requires {pass, finite frames >= 1}");
     }
-    if (Math.floor(window.frames) > HISTORY_MAX_FRAMES) {
-      throw new CinematicPipelineError("cinematic.invalid", "cinematic.invalid: history window exceeds the JSR quota of " + HISTORY_MAX_FRAMES + " frames (got " + window.frames + ")");
+    if (Math.floor(window2.frames) > HISTORY_MAX_FRAMES) {
+      throw new CinematicPipelineError("cinematic.invalid", "cinematic.invalid: history window exceeds the JSR quota of " + HISTORY_MAX_FRAMES + " frames (got " + window2.frames + ")");
     }
-    const existing = this.windows.find((w) => w.pass === window.pass);
-    if (existing) existing.frames = Math.floor(window.frames);
-    else this.windows.push({ pass: String(window.pass), frames: Math.floor(window.frames) });
-    return Math.floor(window.frames);
+    const existing = this.windows.find((w) => w.pass === window2.pass);
+    if (existing) existing.frames = Math.floor(window2.frames);
+    else this.windows.push({ pass: String(window2.pass), frames: Math.floor(window2.frames) });
+    return Math.floor(window2.frames);
   }
   // The widest declared window (0 when none declared).
   depth() {
@@ -3335,6 +3631,15 @@ function createPipeline(options) {
   if (!renderer || !scene || !camera) throw new Error("cinematic.invalid: renderer, scene and camera are required");
   const caps = options.capabilities || probeCapabilities(renderer);
   const lane = caps.lane || "web";
+  if (lane !== "native" && (caps.halfFloatTargets !== true || caps.mrt !== true)) {
+    const missing = [];
+    if (caps.halfFloatTargets !== true) missing.push("float/half-float render targets (EXT_color_buffer_float)");
+    if (caps.mrt !== true) missing.push("multiple render targets (MRT)");
+    throw new CinematicPipelineError(
+      "cinematic.unsupported",
+      "cinematic.unsupported: the cinematic composer lane requires " + missing.join(" and ") + " \u2014 the capability probe reports them missing; select the reduced native lane instead (no effect-less render)"
+    );
+  }
   const unsupported = [];
   const passes = {};
   const lutTextures = [];
@@ -3353,6 +3658,9 @@ function createPipeline(options) {
     if (cfg.vignette && lane === "web" && !caps.vignette) unsupportedPush("vignette", "capability probe: vignette shader unavailable");
     if (cfg.bloom && !caps.bloom) unsupportedPush("bloom", "capability probe: UnrealBloomPass unavailable");
     if (cfg.dof && !caps.bokeh) unsupportedPush("dof", "capability probe: BokehPass unavailable");
+    if (cfg.motion && !caps.motionBlurAccum) unsupportedPush("motion", "lane: subframe accumulation needs float render targets");
+    if (cfg.fringe && lane !== "web") unsupportedPush("fringe", "native R1: fringe GLSL is outside the bounded native shader profiles (web-only v1)");
+    if (cfg.afterimage && (lane !== "web" || !caps.motionBlurAccum)) unsupportedPush("afterimage", "afterimage needs float render targets and custom GLSL (web lane only)");
     return cfg;
   }
   const state = {
@@ -3361,14 +3669,19 @@ function createPipeline(options) {
     samples: 1,
     epoch: 0,
     effects: resolveEffects(options.effects),
-    clearAlpha: options.alpha ? 0 : 1
+    clearAlpha: options.alpha ? 0 : 1,
+    // F4c1 temporal tracking: the last rendered frame/epoch (seek
+    // detection); resetHistory nulls both so the next renderFrame starts a
+    // fresh sequential run.
+    lastFrame: null,
+    lastEpoch: 0
   };
   const size = renderer.getSize ? renderer.getSize(new Vector2()) : new Vector2(480, 320);
   const composer = lane === "native" ? new EffectComposer(renderer, new WebGLRenderTarget(Math.max(1, size.x | 0), Math.max(1, size.y | 0), { type: UnsignedByteType })) : new EffectComposer(renderer);
   const renderPass = new RenderPass(scene, camera);
   composer.addPass(renderPass);
   const eff = state.effects;
-  const PASS_ORDER = ["bloom", "dof", "smaa", "fxaa", "colorGrade", "film", "vignette"];
+  const PASS_ORDER = ["bloom", "dof", "smaa", "fxaa", "colorGrade", "film", "vignette", "motion", "fringe", "afterimage"];
   const passName = (pass) => {
     for (const n of Object.keys(passes)) if (passes[n] === pass) return n;
     return null;
@@ -3380,7 +3693,10 @@ function createPipeline(options) {
     fxaa: { test: () => true, reason: "FXAA pass unavailable" },
     colorGrade: { test: () => caps.lut, reason: "capability probe: LUT color grading unavailable" },
     film: { test: () => lane === "web" && caps.film, reason: "native R1: FilmPass GLSL is outside the bounded native shader profiles (web-only v1)" },
-    vignette: { test: () => lane === "web" && caps.vignette, reason: "native R1: custom vignette GLSL is outside the bounded native shader profiles (web-only v1)" }
+    vignette: { test: () => lane === "web" && caps.vignette, reason: "native R1: custom vignette GLSL is outside the bounded native shader profiles (web-only v1)" },
+    motion: { test: () => caps.motionBlurAccum === true, reason: "lane: subframe accumulation needs float render targets (EXT_color_buffer_float)" },
+    fringe: { test: () => lane === "web", reason: "native R1: fringe GLSL is outside the bounded native shader profiles (web-only v1)" },
+    afterimage: { test: () => lane === "web" && caps.motionBlurAccum === true, reason: "afterimage needs float render targets and custom GLSL (web lane only)" }
   };
   const constructPass = (name) => {
     switch (name) {
@@ -3405,6 +3721,18 @@ function createPipeline(options) {
         pass.uniforms.darkness.value = 1.15;
         return pass;
       }
+      // F4c1 (ADR-0005): the JSR-owned shutter motion blur; the pipeline
+      // arms subframes from clockState() before every composer.render().
+      case "motion":
+        return new CinematicMotionBlurPass({ samples: state.samples });
+      case "fringe": {
+        const pass = new ShaderPass2(CinematicBokehFringeShader);
+        pass.uniforms.amount.value = 0.7;
+        pass.uniforms.resolution.value.set(size.x || 480, size.y || 320);
+        return pass;
+      }
+      case "afterimage":
+        return new AfterimagePass(0.96);
       default:
         return null;
     }
@@ -3443,10 +3771,14 @@ function createPipeline(options) {
     return last.needsSwap ? composer.readBuffer : composer.writeBuffer;
   }
   function updateFxaaResolution(width, height) {
+    const pr = renderer.getPixelRatio ? renderer.getPixelRatio() : 1;
     const fxaa = passes.fxaa;
     if (fxaa && fxaa.material && fxaa.material.uniforms && fxaa.material.uniforms.resolution) {
-      const pr = renderer.getPixelRatio ? renderer.getPixelRatio() : 1;
       fxaa.material.uniforms.resolution.value.set(1 / (width * pr), 1 / (height * pr));
+    }
+    const fringe2 = passes.fringe;
+    if (fringe2 && fringe2.uniforms && fringe2.uniforms.resolution) {
+      fringe2.uniforms.resolution.value.set(width * pr || 1, height * pr || 1);
     }
   }
   function resolveSize(width, height, what) {
@@ -3536,6 +3868,9 @@ function createPipeline(options) {
       composer.insertPass(pass, index);
       passes[name] = pass;
       if (name === "fxaa") updateFxaaResolution(size.x || 480, size.y || 320);
+      if (name === "afterimage") {
+        pipeline.history.declare({ pass: "afterimage", frames: afterimageWindowFrames(pass.uniforms.damp.value) });
+      }
       return true;
     },
     // applyEffectSpec(descriptor) — the live application used by the five
@@ -3572,6 +3907,28 @@ function createPipeline(options) {
       }
       if (effect === "motion") {
         pipeline.setQuality({ shutter: options2.shutter, samples: options2.samples });
+        return gate("motion");
+      }
+      if (effect === "fringe") {
+        pipeline.setEffect("fringe", true);
+        if (!gate("fringe")) return false;
+        const pass = pipeline.passes.fringe;
+        if (options2.amount !== void 0 && options2.amount !== null) pass.uniforms.amount.value = Number(options2.amount);
+        if (options2.blur !== void 0 && options2.blur !== null) pass.uniforms.blur.value = Number(options2.blur);
+        return true;
+      }
+      if (effect === "afterimage") {
+        pipeline.setEffect("afterimage", true);
+        if (!gate("afterimage")) return false;
+        const pass = pipeline.passes.afterimage;
+        if (options2.damp !== void 0 && options2.damp !== null) {
+          const damp = Number(options2.damp);
+          if (!(damp > 0) || damp >= 1) {
+            throw new CinematicPipelineError("cinematic.invalid", "afterimage damp must be in (0, 1)");
+          }
+          pass.damp = damp;
+        }
+        pipeline.history.declare({ pass: "afterimage", frames: afterimageWindowFrames(pass.uniforms.damp.value) });
         return true;
       }
       if (effect === "antialias") {
@@ -3587,18 +3944,73 @@ function createPipeline(options) {
     // renderFrame(clock) — explicit clock state only (see clockState). The
     // pipeline never touches a wall clock; the RAF loop converts elapsed
     // milliseconds to a frame index before calling this.
-    renderFrame(clock, updateScene) {
+    //
+    // options.present (default true): when false the final OutputPass result
+    // stays in the composer's read buffer (readRenderTargetPixels can hash it)
+    // and nothing is presented — the deterministic capture/hash path.
+    //
+    // Temporal reconstruction (F4c1): with the stock AfterimagePass enabled,
+    // any discontinuity (first frame after a reset, a skipped or repeated
+    // frame, an epoch change) replays the pass's DECLARED bounded history
+    // (CinematicHistory.reconstruct) before the requested frame renders, so a
+    // direct seek reproduces the sequential run bit-exactly (IT-HISTORY-*).
+    renderFrame(clock, updateScene, options2) {
       if (!clock || !Number.isFinite(clock.frame) || !Array.isArray(clock.subframes)) {
         throw new Error("cinematic.invalid: renderFrame requires a clockState clock");
       }
+      const update = updateScene || pipeline.updateScene;
+      const present = !(options2 && options2.present === false);
+      const afterimagePass = passes.afterimage;
+      if (afterimagePass && afterimagePass.enabled !== false) {
+        const expect = state.lastFrame === null ? null : state.lastFrame + 1;
+        if (expect === null || clock.frame !== expect || clock.epoch !== state.lastEpoch) {
+          const rec = pipeline.history.reconstruct({ frame: clock.frame });
+          const frames = rec.frames;
+          for (let i = 0; i < frames.length - 1; i++) {
+            pipeline._renderClock(clockState(frames[i], clock.fps, clock.shutter, clock.samples, clock.epoch), update, false);
+          }
+        }
+      }
+      pipeline._renderClock(clock, update, present);
+      state.lastFrame = clock.frame;
+      state.lastEpoch = clock.epoch;
+    },
+    // _renderClock(clock, update, present) — ONE frame render through the
+    // chain, no seek/history logic (the reconstruction replay loop calls it
+    // directly). Paths:
+    //   1. motion chain (F4c1): the motion pass is in the chain and the frame
+    //      is multi-subframe — the pass accumulates each chain result and
+    //      resolves on the last subframe; OutputPass tone-maps once.
+    //   2. legacy inline accumulation: multi-subframe WITHOUT the motion pass
+    //      (kept bit-identical to the pre-F4c1 behavior, including the
+    //      post-OutputPass average; the E2E-SHOWCASE-1 legacy==core gate pins
+    //      it). `present` suppresses the final manual OutputPass present.
+    //   3. single subframe.
+    _renderClock(clock, update, present) {
       const subframes = clock.subframes;
       if (subframes.length > 1 && caps.motionBlurAccum !== true) {
         unsupportedPush("multisample", "lane has no float accumulation targets; only subframe 0 of " + subframes.length + " is presented");
         unsupportedPush("motion", "cross-frame accumulation requires float render targets");
       }
-      const useAccum = subframes.length > 1 && caps.motionBlurAccum === true;
-      const update = updateScene || pipeline.updateScene;
+      const motionPass = passes.motion;
+      const useChainMotion = motionPass && motionPass.enabled !== false && subframes.length > 1 && caps.motionBlurAccum === true;
+      const useAccum = !useChainMotion && subframes.length > 1 && caps.motionBlurAccum === true;
       if (renderer.setClearAlpha) renderer.setClearAlpha(state.clearAlpha);
+      const afterimagePass = passes.afterimage;
+      if (useChainMotion) {
+        composer.renderToScreen = false;
+        for (let i = 0; i < subframes.length; i++) {
+          const sub2 = subframes[i];
+          const last = i === subframes.length - 1;
+          if (afterimagePass) afterimagePass.enabled = last;
+          motionPass.armSubframe(i, subframes.length, sub2.weight);
+          if (update) update(scene, Object.assign({}, clock, { t: sub2.t, subframe: i, subframeCount: subframes.length }));
+          composer.renderToScreen = last && present;
+          composer.render(0);
+        }
+        if (afterimagePass) afterimagePass.enabled = true;
+        return;
+      }
       if (useAccum) {
         const pr = renderer.getPixelRatio ? renderer.getPixelRatio() : 1;
         const sz = renderer.getSize(new Vector2());
@@ -3607,33 +4019,54 @@ function createPipeline(options) {
         renderer.setRenderTarget(accum.target);
         renderer.setClearColor(new Color(0), 0);
         renderer.clear(true, false, false);
+        const oldAutoClear = renderer.autoClear;
+        renderer.autoClear = false;
         for (let i = 0; i < subframes.length; i++) {
-          const sub = subframes[i];
-          if (update) update(scene, Object.assign({}, clock, { t: sub.t, subframe: i, subframeCount: subframes.length }));
+          const sub2 = subframes[i];
+          if (update) update(scene, Object.assign({}, clock, { t: sub2.t, subframe: i, subframeCount: subframes.length }));
           composer.render(0);
           accum.material.uniforms.tDiffuse.value = composerOutputTarget().texture;
-          accum.material.uniforms.weight.value = sub.weight;
+          accum.material.uniforms.weight.value = sub2.weight;
           renderer.setRenderTarget(accum.target);
           accum.quad.render(renderer);
         }
-        outputPass.renderToScreen = true;
-        outputPass.render(renderer, null, accum.target, 0, false);
+        renderer.autoClear = oldAutoClear;
+        if (present) {
+          outputPass.renderToScreen = true;
+          outputPass.render(renderer, null, accum.target, 0, false);
+        }
         renderer.setRenderTarget(null);
-      } else {
-        composer.renderToScreen = true;
-        const sub = subframes[0];
-        if (update) update(scene, Object.assign({}, clock, { t: sub.t, subframe: 0, subframeCount: subframes.length }));
-        composer.render(0);
+        return;
       }
+      composer.renderToScreen = present;
+      if (motionPass) motionPass.armSubframe(0, 1, 1);
+      const sub = subframes[0];
+      if (update) update(scene, Object.assign({}, clock, { t: sub.t, subframe: 0, subframeCount: subframes.length }));
+      composer.render(0);
     },
     // updateScene is injectable (defaults to the showcase updater injected by
     // the widget / reference page to avoid a hard scene-module dependency).
     updateScene: null,
     // resetHistory(epoch) — new deterministic epoch: reseeds the scene's
-    // static layout RNG and resets the CinematicHistory clock.
+    // static layout RNG, resets the CinematicHistory clock, clears the
+    // temporal pass state (the stock AfterimagePass has no upstream reset
+    // API, so both history targets are cleared back to their initial
+    // transparent black — the exact constructor state) and forgets the
+    // frame tracking so the next renderFrame starts a fresh sequential run.
     resetHistory(epoch) {
       state.epoch = pipeline.history.reset(epoch);
       if (scene.userData && typeof scene.userData.reseed === "function") scene.userData.reseed(state.epoch);
+      const afterimagePass = passes.afterimage;
+      if (afterimagePass) {
+        renderer.setClearColor(new Color(0), 0);
+        renderer.setRenderTarget(afterimagePass._textureOld);
+        renderer.clear(true, false, false);
+        renderer.setRenderTarget(afterimagePass._textureComp);
+        renderer.clear(true, false, false);
+        renderer.setRenderTarget(null);
+      }
+      state.lastFrame = null;
+      state.lastEpoch = state.epoch;
       return state.epoch;
     },
     // CinematicHistory — the named temporal-state component behind
@@ -3687,6 +4120,12 @@ function createPipeline(options) {
       const width = dom && dom.width ? dom.width : renderer.getSize(new Vector2()).x || 0;
       const height = dom && dom.height ? dom.height : renderer.getSize(new Vector2()).y || 0;
       if (clock !== void 0 && clock !== null) {
+        if (unsupported.length > 0) {
+          return Promise.reject(new CinematicPipelineError(
+            "cinematic.notCapturable",
+            "cinematic.notCapturable: requested effects unsupported on the " + lane + " lane: " + unsupported.map((u) => u.effect + " (" + u.reason + ")").join("; ")
+          ));
+        }
         const host = globalThis.jsr;
         if (!host || typeof host.capture !== "function") {
           return Promise.reject(new CinematicPipelineError(
@@ -3794,6 +4233,12 @@ function createPipeline(options) {
     motionBlur(options2) {
       return pipeline.applyEffectSpec(motionBlur(options2));
     },
+    afterimage(options2) {
+      return pipeline.applyEffectSpec(afterimage(options2));
+    },
+    fringe(options2) {
+      return pipeline.applyEffectSpec(fringe(options2));
+    },
     antialias(options2) {
       return pipeline.applyEffectSpec(antialias(options2));
     },
@@ -3857,6 +4302,9 @@ function createPipeline(options) {
     }
   };
   Object.defineProperty(pipeline, "isCinematicPipeline", { value: true, enumerable: false });
+  if (passes.afterimage) {
+    pipeline.history.declare({ pass: "afterimage", frames: afterimageWindowFrames(passes.afterimage.uniforms.damp.value) });
+  }
   return pipeline;
 }
 var createCinematicPipeline = createPipeline;
@@ -3869,6 +4317,8 @@ var cinematicSurface = Object.freeze({
   depthOfField,
   colorGrade,
   motionBlur,
+  afterimage,
+  fringe,
   antialias,
   // Named components (decision 3).
   CinematicCapabilitySet,
@@ -3876,6 +4326,8 @@ var cinematicSurface = Object.freeze({
   createFrameClock,
   CinematicHistory,
   ThreeCinematicProfile,
+  // F4c1: the JSR-owned shutter motion blur pass (decision 5, ADR-0005).
+  CinematicMotionBlurPass,
   // The stock r186 temporal pass of the pin (F4e lifecycle / history rows
   // compose it into a pipeline next to bloom + OutputPass).
   TAARenderPass,
@@ -3891,6 +4343,8 @@ export {
   DEFAULT_PRESETS,
   PRESET_NAMES,
   ThreeCinematicProfile,
+  afterimage,
+  afterimageWindowFrames,
   antialias,
   bloom,
   buildLutTexture,
@@ -3902,6 +4356,7 @@ export {
   createFrameClock,
   createPipeline,
   depthOfField,
+  fringe,
   motionBlur,
   mulberry32,
   presets,

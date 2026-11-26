@@ -4,6 +4,7 @@ import 'package:flutter_test/flutter_test.dart';
 
 import '../support/f4eg_cinematic.dart';
 import '../support/three_1b_engine.dart';
+import '../support/three_1b_real_wire.dart';
 import '../../tool/three/bench_1b.dart' show Shim;
 
 // E2E-CONTEXT-CINE-1 (issue #8, F4e context row, plan 4.4 row F4e; edge E6):
@@ -18,6 +19,10 @@ void main() {
   final realBundle = File('assets/three/jsr_three_web.js').readAsStringSync();
   // ignore: omit_local_variable_types
   final String? missing = Shim.resolveProblem();
+  // Deterministic end-of-file teardown (three_1b_real_wire.dart): drain any
+  // wire run1bRealEngine created that its test did not dispose — a live
+  // ANGLE display at process exit segfaults the CI Paravirtual GPU.
+  tearDownAll(disposeRegisteredReal1BWires);
 
   final widget =
       '''

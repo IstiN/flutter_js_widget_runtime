@@ -261,11 +261,14 @@ function clamp01(v) { return v < 0 ? 0 : (v > 1 ? 1 : v); }
 //
 // - MAX_TARGET_PIXELS: a pipeline target budget of 4096x4096 (the 4K perf
 //   matrix of F4f fits; anything beyond is refused before allocation).
-// - HISTORY_MAX_FRAMES: a declared history window is bounded at 600 frames
-//   (25 s at the 24 fps reference clock), so reconstruct() can never build
-//   an unbounded frame list.
+// - HISTORY_MAX_FRAMES: a declared history window is bounded, so
+//   reconstruct() can never build an unbounded frame list. F4-merge value:
+//   4096 — the afterimage documented cap (damp near 1, F4c1); clamping
+//   afterimage below its declared window would break its direct-seek ==
+//   sequential determinism contract, so the quota follows the widest
+//   built-in effect instead of the smaller pre-merge branch value.
 const MAX_TARGET_PIXELS = 4096 * 4096;
-const HISTORY_MAX_FRAMES = 600;
+const HISTORY_MAX_FRAMES = 4096;
 
 // buildLutTexture(kind) — deterministic procedural 8^3 RGBA LUT as a
 // Data3DTexture. `identity` maps every channel straight through; `teal-orange`

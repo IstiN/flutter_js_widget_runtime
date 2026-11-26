@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:flutter_test/flutter_test.dart';
 
 import '../support/three_1b_engine.dart';
+import '../support/three_1b_real_wire.dart';
 import '../../tool/three/bench_1b.dart' show Shim;
 
 // IT-LIFE-CINE-1 / REG-RESOURCE-BOUNDS (issue #8, F4e lifecycle, plan 4.4
@@ -19,6 +20,10 @@ void main() {
   final realBundle = File('assets/three/jsr_three_web.js').readAsStringSync();
   // ignore: omit_local_variable_types
   final String? missing = Shim.resolveProblem();
+  // Deterministic end-of-file teardown (three_1b_real_wire.dart): drain any
+  // wire run1bRealEngine created that its test did not dispose — a live
+  // ANGLE display at process exit segfaults the CI Paravirtual GPU.
+  tearDownAll(disposeRegisteredReal1BWires);
 
   const kinds = [
     'Texture',
