@@ -148,7 +148,7 @@ const outputs = {
 const manifestOutputs = {};
 if (!verify) await mkdir(OUT, { recursive: true });
 for (const [name, bytes] of Object.entries(outputs)) {
-  manifestOutputs[name] = { bytes: bytes.length, sha256: sha(bytes) };
+  manifestOutputs[name] = { bytes: bytes.length, sha256: sha(bytes), buffer: bytes };
   if (!verify) await writeFile(path.join(OUT, name), bytes);
 }
 if (!verify) {
@@ -181,7 +181,7 @@ const manifest = {
     // because it is a source-level artifact, not a host-delivered bundle.
     goldenEsm: Object.assign({ path: 'tool/three/gen/cinematic_core.mjs' }, goldenEsmRecord)
   },
-  outputs: manifestOutputs
+  outputs: Object.fromEntries(Object.entries(manifestOutputs).map(([name, record]) => [name, { bytes: record.bytes, sha256: record.sha256 }]))
 };
 const manifestBytes = Buffer.from(`${JSON.stringify(manifest, null, 2)}\n`);
 if (verify) {
@@ -191,10 +191,22 @@ if (verify) {
     const actual = await readFile(path.join(OUT, name));
     if (sha(actual) !== expected.sha256 || actual.length !== expected.bytes) {
       // Diagnose WHERE the committed artifact diverges from a clean rebuild:
-      // committed vs rebuilt bytes and hashes per output (collect ALL, one throw).
+      // sizes, hashes and the first divergence region (context from both).
+      let region = '';
+      const rebuilt = expected.buffer;
+      const n = Math.min(actual.length, rebuilt.length);
+      for (let i = 0; i < n; i++) {
+        if (actual[i] !== rebuilt[i]) {
+          region = `; first divergence at offset ${i}` +
+            `\n    committed: ...${JSON.stringify(actual.slice(Math.max(0, i - 60), i + 60).toString('latin1'))}...` +
+            `\n    rebuilt:   ...${JSON.stringify(rebuilt.slice(Math.max(0, i - 60), i + 60).toString('latin1'))}...`;
+          break;
+        }
+      }
+      if (!region) region = `; identical up to the shorter output (lengths ${actual.length} vs ${rebuilt.length})`;
       mismatches.push(
         `${name}: committed bytes=${actual.length} sha256=${sha(actual)}` +
-        ` | rebuilt bytes=${expected.bytes} sha256=${expected.sha256}`);
+        ` | rebuilt bytes=${expected.bytes} sha256=${expected.sha256}${region}`);
       continue;
     }
     if (!oldManifest.outputs[name] || oldManifest.outputs[name].sha256 !== expected.sha256) throw new Error(`${name} manifest hash is stale`);
