@@ -1441,18 +1441,27 @@ JSR_WEBGL_REF_CHANNEL=chromium bash tool/three/showcase_1b.sh     # 4/4 hash-equ
 bash tool/three/showcase_clean_checkout.sh                        # REG-MATRIX
 ```
 
-REG-MATRIX: `tool/three/showcase_checkpoints.json` is the committed
-reference (the four core checkpoint hashes measured at this head: draft
-`0xe34fc597`, finish-direct/seek `0x9125a1e8`, export `0xa3c2834c`).
+REG-MATRIX: the gate property is host-relative reproducibility — pixel
+checkpoint hashes are specific to the host GPU and browser channel. The
+committed `tool/three/showcase_checkpoints.json` is the archival measured
+record of the F4h host (draft `0xe34fc597`, finish-direct/seek
+`0x9125a1e8`, export `0xa3c2834c`); a different Apple GPU renders
+bit-different finish/export hashes from identical pipeline bytes (measured
+on the CI runner: draft equal, finish `0xed83b1ae`, export `0x16f3b3d7`,
+with legacy == core 4/4 in the same session), so a committed cross-host
+hash constant cannot be the gate input.
 `tool/three/showcase_clean_checkout.sh` exports HEAD into a fresh /tmp
 directory (`git archive HEAD | tar -x`), runs the pinned-source bundle
 build, the showcase build, byte-compares the rebuilt
-`example/web/cinematic_core.mjs` with the committed one, runs
-`showcase_1b.sh` in the export (legacy bundle materialized from the pinned
-base commit in the invoking checkout, handed over via
-`JSR_SHOWCASE_LEGACY_BUNDLE`) and compares every checkpoint hash with the
-committed reference; prints `SHOWCASE_CLEAN_SUMMARY checkpoints=4 match=<n>`
-and exits non-zero on any difference. CI: one new step appended at the end
+`example/web/cinematic_core.mjs` with the committed one, then runs
+`showcase_1b.sh` twice on the same host — the reference leg in the
+invoking checkout and the clean-export leg (legacy bundle materialized
+from the pinned base commit in the invoking checkout, handed over via
+`JSR_SHOWCASE_LEGACY_BUNDLE`) — and requires bit-exact checkpoint equality
+between the two legs; each leg additionally holds legacy == core
+(`showcase_1b.sh` exits 1 otherwise). Prints
+`SHOWCASE_CLEAN_SUMMARY checkpoints=4 match=<n>` and exits non-zero on any
+difference. CI: one new step appended at the end
 of the `quality-macos` job ("F4h clean-checkout showcase reproduction").
 
 DOC-1: the prerequisites and reduced-fallback table lives in
