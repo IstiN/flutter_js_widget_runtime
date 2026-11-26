@@ -261,6 +261,11 @@ final class AngleThreeBackend implements JsThreeHost, JsThree1BWire {
       if (_explicitLibraryPath != null) _explicitLibraryPath,
       if (Platform.environment['JSR_ANGLE_1B_LIB'] != null)
         Platform.environment['JSR_ANGLE_1B_LIB']!,
+      // F3b iOS (issue #7 AC3): the example embed step stages the shim into
+      // the app's Frameworks directory; @rpath resolves through the Runner's
+      // @executable_path/Frameworks runpath (flat dylib layout, macOS host
+      // parity).
+      if (Platform.isIOS) '@rpath/libangle_1b.dylib',
     ];
     final packageRoot = Directory(
       '${Directory.current.path}/packages/jsr_three_angle',

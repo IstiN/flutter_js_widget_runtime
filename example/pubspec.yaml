@@ -24,6 +24,11 @@ dev_dependencies:
   flutter_test:
     sdk: flutter
   flutter_lints: ^6.0.0
+  # F3b iOS (issue #7 AC3): the angle-ios CI job runs the e2e_ios device
+  # suite on the simulator from this app package (it hosts the angle_1b
+  # plugin); the canonical files live in ../test/angle1b/e2e_ios_*.
+  integration_test:
+    sdk: flutter
 
 flutter:
   uses-material-design: true

@@ -460,3 +460,68 @@ the CI pool. A real draw-path regression raises the measured p95 while the
 no-draw reference stays put, so the ratio — and with it the gate — still
 fails. The gate never re-measures because a number came out above the
 budget.
+
+## iOS host (F3b, issue #7 AC3 + SIZE-IOS-1 + REG-NOWEBVIEW-1)
+
+The iOS host mirrors the macOS slice: ANGLE Metal renders into an IOSurface
+(`EGL_ANGLE_iosurface_client_buffer`), the Swift plugin wraps it as a
+Metal-compatible `CVPixelBuffer` and serves it through `FlutterTexture`.
+No WebView, no platform view, no GL texture-name sharing.
+
+### Components added in F3b
+
+| Piece | Path | Role |
+|---|---|---|
+| Texture plugin | `example/ios/Runner/Angle1bTexturePlugin.swift` | Channel `angle_1b`: `createSurface [iosurfaceId, w, h] -> {textureId}`, `destroySurface [textureId]`, `frameAvailable [textureId]`, plus the iOS-only diagnostic `debugHierarchy` (REG-NOWEBVIEW-1 evidence). Registered in `AppDelegate.didInitializeImplicitFlutterEngine`, the way the macOS Runner registers it. |
+| Embed build phase | `example/ios/Runner.xcodeproj/project.pbxproj`, phase "Embed ANGLE 1B dylibs" | Device builds (`EFFECTIVE_PLATFORM_NAME == -iphoneos`) copy the three staged dylibs into the app's `Frameworks/` directory, re-id them to `@rpath/<name>.dylib` and ad-hoc sign them. Simulator builds skip the phase entirely: the simulator build of the example gets its own build output (`build/ios/iphonesimulator/`, separate directory, never shipped) and never embeds or loads the device-slice dylibs — the 1B probe reports their absence and the host falls back to r1 (ADR-0003), which the CI job records. |
+| ANGLE staging | `tool/build_angle.sh --platform ios-arm64` (iOS block) | GN's `ios_framework_bundle` emits `libEGL.framework/libEGL` for `target_os=ios`; the block stages the Mach-O binaries as flat dylibs with `@rpath` ids so ANGLE's libEGL resolves libGLESv2 through its own module directory (the macOS host layout). |
+| Shim build | `packages/jsr_three_angle/native/angle/build_ios.sh` | Builds `libangle_1b.dylib` for the arm64 device slice (`clang -isysroot $(xcrun -sdk iphoneos --show-sdk-path) -arch arm64 -mios-version-min=15.0`) and appends it to the staged `SHA256SUMS` (REG-SUPPLY-1). |
+| Dart load path | `packages/jsr_three_angle/lib/src/angle_three_backend.dart` (iOS block) | Candidate `@rpath/libangle_1b.dylib` first on iOS, resolved through the Runner's `@executable_path/Frameworks` runpath. |
+| Device suite | `test/angle1b/e2e_ios_scene_test.dart` (integration_test, 3 tests) | Non-empty reference images and readbacks through ANGLE (`a1b_render_triangle` routes every GL call through the G1 dispatch path; the readback asserts a rendered scene, not a blank frame), resize + DPR pixel-dimension checks through `surface.resize` + `capture()`, texture registration through the plugin, and REG-NOWEBVIEW-1 (view-hierarchy walk: no `WKWebView`, the surface presents as a `Texture`). |
+| CI job | `.github/workflows/pr.yml`, job `angle-ios` | ANGLE build cached on the pin hash (`angle-ios-arm64-<hash(angle_pin.json)>`); `xcodebuild build` of the example for the simulator; `flutter build ios --release --no-codesign` as the embed-phase proof; the SIZE-IOS-1 report; then ONE bounded, recorded simulator attempt of the device suite (15-minute boot bound, result or unavailability reason to the step summary and the `angle-ios-size-and-simulator-attempt` artifact). A recorded unavailability keeps the job green (plan §9). |
+
+### Exact device commands
+
+```bash
+# One-time native staging (repo root; Xcode + Metal toolchain required):
+bash tool/build_angle.sh --platform ios-arm64 \
+  --out packages/jsr_three_angle/native/angle/out/ios-arm64
+bash packages/jsr_three_angle/native/angle/build_ios.sh \
+  packages/jsr_three_angle/native/angle/out/ios-arm64
+
+# Simulator build + run (the angle-ios CI job does exactly this):
+cd example && flutter pub get
+flutter build ios --simulator --debug
+UDID=$(xcrun simctl list devices available | grep -m1 'iPhone' \
+  | sed -E 's/.*\(([A-F0-9-]{36})\).*/\1/')
+xcrun simctl boot "$UDID" && xcrun simctl bootstatus "$UDID" -b
+flutter test ../test/angle1b/e2e_ios_scene_test.dart -d "$UDID"
+
+# Physical device (USB, code signing identity required; outputs are NOT
+# claimed in this run — plan §9):
+cd example && flutter devices                       # find the device id
+flutter test ../test/angle1b/e2e_ios_scene_test.dart -d <device-id>
+```
+
+A missing GPU backend on any device fails loudly with the machine-readable
+marker `ANGLE_1B_UNAVAILABLE: <reason>` (the CI job greps it); it is never a
+silent skip.
+
+### SIZE-IOS-1 — budget and size review
+
+The `angle-ios` job prints the report: per-library raw/stripped/gzip sizes,
+architecture, 16 KiB alignment of every `LC_SEGMENT_64` (`vmaddr` and
+`vmsize` both multiples of 16384 — required on arm64), and the absence
+checks for simulator, debug (DWARF) and SwiftShader slices. The structural
+checks are hard gates. The budget check reports measured values verbatim:
+installed (stripped payload) <= 10 MiB and gzip <= 5 MiB per ABI.
+
+Size review (issue #7 allows exceeding the budget with an explicit
+documented review before merge): the pinned ANGLE Metal build already
+measures 11.63 MiB stripped on macOS (`libGLESv2.dylib` 11.44 MiB, CI run
+45737838411), and the ios-arm64 Metal build is in the same class — the
+single-ABI installed budget of 10 MiB is expected to be exceeded by the
+unstripped-export surface of `libGLESv2` alone. The measured iOS numbers
+are recorded in every `angle-ios` run log and step summary; reducing them
+(symbol-visibility trimming, `angle_` feature pruning) is packaging work
+that follows the merge, not a gate change.

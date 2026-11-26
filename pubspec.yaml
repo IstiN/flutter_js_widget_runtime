@@ -53,6 +53,12 @@ dev_dependencies:
   flutter_lints: ^6.0.0
   fake_async: ^1.3.1
   crap4dart: ^0.30.0
+  # F3b iOS (issue #7 AC3): the e2e_ios device suite (test/angle1b/
+  # e2e_ios_scene_test.dart) is an integration_test run on an iOS device or
+  # simulator; off-iOS hosts compile it and self-skip. Dev-only — the main
+  # library never imports it.
+  integration_test:
+    sdk: flutter
   # Dev-only: lets `flutter test packages/jsr_three_angle/test` compile the
   # opt-in 1B package tests from the repository root (CI job quality-macos).
   # The main library never imports it (ADR-0003 decision 1).

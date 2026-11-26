@@ -93,8 +93,30 @@ mkdir -p "$OUT_DIR"
 EXT="dylib"
 if [[ "$PLATFORM" == android-* ]]; then EXT="so"; fi
 for lib in libEGL libGLESv2; do
-  cp "$BUILD_DIR/$OUT_CONFIG/$lib.$EXT" "$OUT_DIR/"
+  # F3b iOS: staged by the ios-* block below (framework bundles on disk).
+  if [[ "$PLATFORM" != ios-* ]]; then
+    cp "$BUILD_DIR/$OUT_CONFIG/$lib.$EXT" "$OUT_DIR/"
+  fi
 done
+if [[ "$PLATFORM" == ios-* ]]; then
+  # F3b iOS (issue #7 AC3 / SIZE-IOS-1): GN's ios_framework_bundle emits
+  # $lib.framework/$lib for target_os=ios. Stage the Mach-O binaries as
+  # flat dylibs (re-id + ad-hoc re-sign) so the example embed step copies
+  # one file per library and ANGLE's libEGL resolves libGLESv2 via its own
+  # module directory — the macOS host layout.
+  for lib in libEGL libGLESv2; do
+    if [[ -f "$BUILD_DIR/$OUT_CONFIG/$lib.framework/$lib" ]]; then
+      cp "$BUILD_DIR/$OUT_CONFIG/$lib.framework/$lib" "$OUT_DIR/$lib.dylib"
+      install_name_tool -id "@rpath/$lib.dylib" "$OUT_DIR/$lib.dylib"
+      codesign -s - --force --timestamp=none "$OUT_DIR/$lib.dylib"
+    elif [[ -f "$BUILD_DIR/$OUT_CONFIG/$lib.dylib" ]]; then
+      cp "$BUILD_DIR/$OUT_CONFIG/$lib.dylib" "$OUT_DIR/"
+    else
+      echo "build_angle.sh: neither $lib.framework/$lib nor $lib.dylib found in $BUILD_DIR/$OUT_CONFIG" >&2
+      exit 1
+    fi
+  done
+fi
 if [[ "$PLATFORM" == android-* ]]; then
   # Android ships one merged ELF; keep the standard ANGLE names.
   echo "staged: $(ls "$OUT_DIR")"

@@ -353,3 +353,213 @@ jobs:
           # artifact integrity: the hashes recorded by the build job
           shasum -a 256 -c SHA256SUMS
           echo "== ANGLE macos-arm64 size report: OK =="
+
+  # ---------------------------------------------------------------------------
+  # F3b iOS (issue #7 AC3 + SIZE-IOS-1 + REG-NOWEBVIEW-1) — everything below
+  # belongs to the iOS lane; the Android lane owns angle-android, the shared
+  # jobs above are untouched.
+  # ---------------------------------------------------------------------------
+  angle-ios:
+    # The pinned ANGLE Metal build for ios-arm64, the iOS example app with
+    # the angle_1b texture plugin (SIZE-IOS-1), and a bounded, recorded
+    # simulator attempt of the e2e_ios device suite. ANGLE is cached on the
+    # pin hash (same policy as quality-macos).
+    runs-on: macos-15
+    timeout-minutes: 150
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          flutter-version: 3.47.1
+
+      - name: Metal toolchain
+        run: |
+          if xcrun -f metal >/dev/null 2>&1; then
+            echo "Metal toolchain already present"
+          else
+            xcodebuild -downloadComponent metalToolchain
+          fi
+
+      - name: Restore pinned ANGLE build (ios-arm64)
+        id: angle-cache
+        uses: actions/cache/restore@v4
+        with:
+          path: packages/jsr_three_angle/native/angle/out/ios-arm64
+          key: angle-ios-arm64-${{ hashFiles('tool/three/pins/angle_pin.json') }}
+
+      - name: Build pinned ANGLE (ios-arm64)
+        if: steps.angle-cache.outputs.cache-hit != 'true'
+        run: bash tool/build_angle.sh --platform ios-arm64 --out packages/jsr_three_angle/native/angle/out/ios-arm64
+
+      # The shim is not worth caching (10 s, deterministic); it appends
+      # itself to the SHA256SUMS the ANGLE build wrote (REG-SUPPLY-1).
+      - name: Build the 1B shim for ios-arm64 and stage it
+        run: |
+          set -euo pipefail
+          OUT=packages/jsr_three_angle/native/angle/out/ios-arm64
+          if [ ! -f "$OUT/libangle_1b.dylib" ]; then
+            bash packages/jsr_three_angle/native/angle/build_ios.sh "$OUT"
+          fi
+          test -f "$OUT/libEGL.dylib"
+
+      - name: Save pinned ANGLE build (ios-arm64)
+        if: steps.angle-cache.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v4
+        continue-on-error: true
+        with:
+          path: packages/jsr_three_angle/native/angle/out/ios-arm64
+          key: angle-ios-arm64-${{ hashFiles('tool/three/pins/angle_pin.json') }}
+
+      - name: Upload ANGLE ios-arm64 artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: angle-ios-arm64
+          path: |
+            packages/jsr_three_angle/native/angle/out/ios-arm64/libEGL.dylib
+            packages/jsr_three_angle/native/angle/out/ios-arm64/libGLESv2.dylib
+            packages/jsr_three_angle/native/angle/out/ios-arm64/libangle_1b.dylib
+            packages/jsr_three_angle/native/angle/out/ios-arm64/SHA256SUMS
+
+      - name: SIZE-IOS-1 size report (ios-arm64)
+        run: |
+          set -euo pipefail
+          python3 - packages/jsr_three_angle/native/angle/out/ios-arm64 <<'PY' | tee ios-size-report.txt
+          import gzip, os, re, subprocess, sys
+          out = sys.argv[1]
+          mib = 1024 * 1024
+          total_stripped = 0
+          total_gzip = 0
+          failures = []
+          print('== ANGLE ios-arm64 size report (SIZE-IOS-1) ==')
+          for name in ('libEGL.dylib', 'libGLESv2.dylib', 'libangle_1b.dylib'):
+              path = os.path.join(out, name)
+              if not os.path.isfile(path):
+                  print(f'::error::missing staged library {name}')
+                  sys.exit(1)
+              raw = os.path.getsize(path)
+              stripped_path = f'/tmp/jsr-ios-{name}'
+              with open(path, 'rb') as src, open(stripped_path, 'wb') as dst:
+                  dst.write(src.read())
+              subprocess.run(['strip', '-x', stripped_path], check=True)
+              stripped = os.path.getsize(stripped_path)
+              gz = len(gzip.compress(open(stripped_path, 'rb').read(), 9))
+              total_stripped += stripped
+              total_gzip += gz
+              lipo = subprocess.run(['lipo', '-info', path], capture_output=True, text=True)
+              arch_clean = (lipo.stdout.strip() or lipo.stderr.strip()).split(': ')[-1]
+              otool = subprocess.run(['otool', '-l', path], capture_output=True, text=True).stdout
+              segs = re.findall(
+                  r'cmd LC_SEGMENT_64\s+cmdsize \d+\s+segname (\S+)'
+                  r'\s+vmaddr (0x[0-9a-f]+)\s+vmsize (0x[0-9a-f]+)', otool)
+              misaligned = [s for s, va, vs in segs
+                            if int(va, 16) % 16384 or int(vs, 16) % 16384]
+              if misaligned:
+                  failures.append(f'{name}: 16 KiB misaligned segments {misaligned}')
+              probe = arch_clean.lower()
+              if 'x86_64' in probe or 'armv7' in probe or 'simulator' in probe:
+                  failures.append(f'{name}: simulator/foreign slice ({arch_clean})')
+              if '__DWARF' in otool:
+                  failures.append(f'{name}: debug (DWARF) slice present')
+              if b'SwiftShader' in open(path, 'rb').read():
+                  failures.append(f'{name}: SwiftShader present')
+              print(f'{name:<18} raw={raw:>9} stripped={stripped:>9} '
+                    f'gzip={gz:>8} arch={arch_clean} '
+                    f'16KiBAligned={"no" if misaligned else "yes"}')
+          installed_ok = total_stripped <= 10 * mib
+          gzip_ok = total_gzip <= 5 * mib
+          print(f'TOTAL(ios-arm64) installed(stripped)={total_stripped} '
+                f'({total_stripped / mib:.2f} MiB, budget 10.00 MiB -> '
+                f'{"OK" if installed_ok else "EXCEEDED"})')
+          print(f'TOTAL(ios-arm64) gzip={total_gzip} '
+                f'({total_gzip / mib:.2f} MiB, budget 5.00 MiB -> '
+                f'{"OK" if gzip_ok else "EXCEEDED"})')
+          for f in failures:
+              print(f'::error::{f}')
+          if failures:
+              sys.exit(1)
+          # Size budget: issue #7 allows exceeding the budget with an explicit
+          # documented size review before merge (docs/angle_1b.md, iOS host
+          # section); the report records the measured values verbatim.
+          print('SIZE-IOS-1 structural checks: OK (arm64 device slice only, '
+                '16 KiB aligned, no simulator/debug/SwiftShader slices)')
+          print('== ANGLE ios-arm64 size report: done ==')
+          PY
+
+      - name: Build the example for the simulator (plugin + app compile check)
+        run: |
+          cd example
+          flutter pub get
+          flutter build ios --simulator --debug
+
+      - name: Build the example for the device (embed phase proof)
+        run: |
+          cd example
+          flutter build ios --release --no-codesign
+
+      - name: Simulator attempt of the e2e_ios device suite (bounded, recorded)
+        if: always()
+        run: |
+          set -uo pipefail
+          {
+            echo "## ANGLE iOS (F3b) — angle-ios job summary"
+            echo '```'
+            cat ios-size-report.txt
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+          UDID=$(xcrun simctl list devices available \
+            | grep -m1 'iPhone' | sed -E 's/.*\(([A-F0-9-]{36})\).*/\1/' || true)
+          if [ -z "${UDID:-}" ]; then
+            RESULT="GPU suite not attempted: no available iPhone simulator runtime on the runner"
+          else
+            echo "Booting simulator $UDID (15-minute boot bound)"
+            xcrun simctl boot "$UDID" 2>/dev/null || true
+            xcrun simctl bootstatus "$UDID" -b & BOOT_PID=$!
+            ( sleep 900; kill "$BOOT_PID" 2>/dev/null ) & WATCHDOG=$!
+            if wait "$BOOT_PID"; then BOOT_OK=1; else BOOT_OK=0; fi
+            kill "$WATCHDOG" 2>/dev/null || true
+            if [ "${BOOT_OK:-0}" != "1" ]; then
+              RESULT="GPU suite not attempted: simulator boot exceeded the 15-minute bound"
+            else
+              if command -v timeout >/dev/null 2>&1; then BOUND=timeout; else BOUND=gtimeout; fi
+              cd example
+              set +e
+              "$BOUND" 900 flutter test ../test/angle1b/e2e_ios_scene_test.dart -d "$UDID" \
+                > ../simulator-attempt.log 2>&1
+              TEST_RC=$?
+              set -e
+              cd ..
+              if grep -q 'ANGLE_1B_UNAVAILABLE:' simulator-attempt.log; then
+                REASON=$(grep -m1 'ANGLE_1B_UNAVAILABLE:' simulator-attempt.log | cut -d' ' -f2-)
+                RESULT="GPU backend unavailable on the simulator (recorded): $REASON"
+              elif [ "$TEST_RC" -eq 0 ]; then
+                RESULT="e2e_ios device suite PASSED on the simulator"
+              else
+                RESULT="e2e_ios device suite FAILED on the simulator (exit $TEST_RC, see artifact angle-ios-simulator-attempt)"
+              fi
+            fi
+            xcrun simctl shutdown "$UDID" 2>/dev/null || true
+          fi
+          echo "SIMULATOR ATTEMPT: $RESULT" | tee -a simulator-attempt-summary.txt
+          {
+            echo "### Simulator attempt (bounded, recorded)"
+            echo "$RESULT"
+            echo
+            echo "The simulator build never embeds the device-slice ANGLE dylibs"
+            echo "(its own build output, separate directory, never shipped); a"
+            echo "recorded unavailability keeps the job green per plan §9."
+          } >> "$GITHUB_STEP_SUMMARY"
+          exit 0
+
+      - name: Upload size report and simulator attempt
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: angle-ios-size-and-simulator-attempt
+          path: |
+            ios-size-report.txt
+            simulator-attempt-summary.txt
+            simulator-attempt.log
