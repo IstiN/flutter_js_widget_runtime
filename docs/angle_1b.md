@@ -835,3 +835,88 @@ Showcase checkpoints re-recorded with that reason: `finish-direct/seek-frame20` 
 - `tool/three/cases_f4c1.sh` — `web` (Chrome reference leg, all 10 flags), `1b` (macOS ANGLE leg), `compare` (tier diff + `tiers.json`), `all`.
 - Checkpoint program: `tool/three/cases_f4c1/{scene_f4c1.js,widget_f4c1.js}` (one implementation shared by both lanes; the Dart tests assemble the same sources).
 - Dart: `test/angle1b/f4c1_{e2e_motion,it_history,e2e_dof}_test.dart` (12 tests); node: `tool/three/test/{f4c1_motion_blur,ut_helper_cinematic,ut_preset_cinematic}_test.js`.
+
+## F4c2 — the nine finishing passes on 1B (issue #8 AC5, 2026-11-26)
+
+Driver: `tool/three/cases_f4c2.sh` (slice corpus, same mechanics and tiers
+as `corpus_1b.sh`; acceptance pinned in
+`tool/three/cases_f4c2/accepted_tiers.json`, CI step "Finish-pass corpus
+(E2E-FINISH REG-VISUAL-FINISH F4c2)" in the `quality-macos` job). Suite
+proof: `test/angle1b/f4c2_finish_passes_test.dart`. Measured 2026-11-26,
+Apple M4 Pro, 1B = ANGLE Metal `9c6a64c9` vs web = Chromium 133 real
+WebGL2, both 320x240, `E2E_WEB_DIRECT direct_fail=0` on every leg:
+
+| pass | stock example at the pin | stock pass/shader file | proof id | measured | accepted |
+|---|---|---|---|---|---|
+| SMAA | `webgl_postprocessing_smaa.html` (`three-postprocessing-smaa`) | `jsm/postprocessing/SMAAPass.js` (+ `SMAAShader.js`) | stock: FAIL(diff) 98.6667 %, maxDelta 32 (below) | FAIL(diff) | documented-limit |
+| SMAA (isolation) | — | same | `cases-f4c2-lines` (wireframe only) | PASS_IDENTICAL `0xac9e1edc` | exact |
+| FXAA | `webgl_postprocessing_fxaa.html` (`three-postprocessing-fxaa`) | `jsm/postprocessing/FXAAPass.js` (+ `FXAAShader.js`) | stock | PASS_IDENTICAL `0x6ddd0a67` | exact |
+| MSAA | — (no stock example at the pin) | WebGL2 core (`renderbufferStorageMultisample` + `blitFramebuffer` via the composer `samples: 4` target and the `antialias: true` default framebuffer) | `cases-f4c2-msaa` | PASS_IDENTICAL `0xa5b405a6` | exact |
+| LUT | `webgl_postprocessing_3dlut.html` (`three-postprocessing-3dlut`) | `jsm/postprocessing/LUTPass.js` | stock: FAIL(1b) (below); `cases-f4c2-lut` (stock LUTPass + in-scene Data3DTexture 8x8x8) | PASS_IDENTICAL `0xf8405481` | exact (pass), documented-limit (example) |
+| Film | — (no stock example at the pin) | `jsm/postprocessing/FilmPass.js` (+ `FilmShader.js`) | `cases-f4c2-film` (fixed 1/24 s composer delta) | PASS_IDENTICAL `0xc8cffbc7` | exact |
+| Vignette | — (no stock example at the pin) | `jsm/shaders/VignetteShader.js` via `ShaderPass` | `cases-f4c2-vignette` (offset 0.95, darkness 1.2) | PASS_IDENTICAL `0x43c423d9` | exact |
+| Selective bloom | `webgl_postprocessing_unreal_bloom_selective.html` (`three-postprocessing-unreal-bloom-selective`) | `jsm/postprocessing/UnrealBloomPass.js` + layers.toggle chain | stock | PASS_IDENTICAL `0x28749596` | exact |
+| SSAO | `webgl_postprocessing_ssao.html` (`three-postprocessing-ssao`) | `jsm/postprocessing/SSAOPass.js` (+ `SSAOShader.js`) | stock | PASS_IDENTICAL `0x954ee760` | exact |
+| GTAO | `webgl_postprocessing_gtao.html` (`three-postprocessing-gtao`) | `jsm/postprocessing/GTAOPass.js` (+ `GTAOShader.js`) | stock (LittlestTokyo.glb) | PASS_IDENTICAL `0x2f9c49e6` | exact |
+
+Summary: 9 exact / 0 tolerance / 2 documented limits, every leg non-empty
+and read back through the C scratch lane, `F4C2_SUMMARY total=11 exact=9
+tolerance=0 documented_limit=2 fail=0 skip=0 gate_fail=0 direct_fail=0`.
+
+### Corpus harness fixes landed with this acceptance (F4c2 lane)
+
+Both fixes are `tool/three/corpus/corpus_dom.js` stub glue; no `lib/`
+behavior change:
+
+1. **`data:`-URL image loads.** r186 `SMAAPass` embeds its area/search
+   textures as base64 `data:` URLs; the img stubs resolved them through the
+   asset registry (`decode miss: null`) and never fired load. The web img
+   now passes `data:` URLs straight to the native element (tracked in the
+   settle gate), the 1B stub decodes the payload bytes directly.
+2. **`on<type>` property handlers in `dispatchEvent`.** `SMAAPass` assigns
+   `image.onload` AFTER setting `src` (the three.js #15162 pattern); the
+   stub only ran registered listeners, so `_areaTexture.needsUpdate` never
+   fired and the pass rendered as a passthrough on 1B while Chrome smoothed
+   correctly. `dispatchEvent` now also invokes the `on<type>` property
+   handler (native semantics).
+
+Consequence for the F2d full-sweep triage: `three-postprocessing-smaa` sat
+in the PASS set because BOTH legs rendered the passthrough output
+identically. With the stub fixes the pass actually runs and the stock
+example measures its real tier (below). Any sweep row whose scene assigns
+`onload`-style properties or `data:` texture URLs should be re-read in this
+light.
+
+### F4c2 documented limits
+
+**SMAA — texture-LSB at the edge threshold (stock example only).** The
+pass is bit-exact through the facade on pure geometry
+(`cases-f4c2-lines`), and the inputs to the pass are bit-exact in the stock
+example too: the pre-SMAA render compares identically (probe hash
+`0x710a8f34`) and the area/search texture uploads compare identically
+(probe `0x5dbe640b`). The brick texture leaves half-float scene-RT texel
+LSBs (texture filtering) below the 8-bit output quantization; the SMAA
+edge threshold (0.1) flips 136 edge texels and the pass amplifies them
+into blend differences of up to 32 per channel — 1024/76800 px (1.33 %),
+matching 98.6667 % against the 99 % tolerance band. The band class is the
+existing "texture-filtering LSB beyond the d<=2/99 % band" engine-depth
+class; the facade/host/policy layers are proven clean by the probes. The
+pass-level proof stays gated `exact` via `cases-f4c2-lines`; the stock
+example keeps the texture-region limit visible in the table above.
+
+**3dlut — prepare-pipeline LUT containers (unchanged F2d triage).** The
+example's LUT files are materialized as prebuilt `J3LT` binary containers
+(`luts__*.jsrlut`, diagnostic `prebuiltLutBin`) for the R1 widget runtime;
+the stock loaders reject the bytes (`THREE.LUTCubeLoader: Missing
+LUT_3D_SIZE information`). Asset-lane work belongs to the prepare
+pipeline; the LUTPass itself is gated `exact` via `cases-f4c2-lut`
+(stock `LUTPass.js` + in-scene `Data3DTexture`, the `sampler3D` path
+bit-identical).
+
+### Commands
+
+- Full sweep: `bash tool/three/cases_f4c2.sh` (CI `quality-macos`; locally
+  `JSR_WEBGL_REF_CHANNEL=chromium`).
+- Single id: `bash tool/three/cases_f4c2.sh <id>`; machine rows:
+  `/tmp/a1b_corpus/<id>/report_entry.json`.
+- Suite proof: `flutter test test/angle1b/f4c2_finish_passes_test.dart`.

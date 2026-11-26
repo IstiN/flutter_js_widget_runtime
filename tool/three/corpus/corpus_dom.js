@@ -521,7 +521,18 @@
       remove: function () {},
       addEventListener: function (t, fn) { (listeners[t] = listeners[t] || []).push(fn); },
       removeEventListener: function (t, fn) { var a = listeners[t]; if (a) { var i = a.indexOf(fn); if (i >= 0) a.splice(i, 1); } },
-      dispatchEvent: function (ev) { var a = listeners[ev.type] || []; for (var i = 0; i < a.length; i++) a[i].call(el, ev); return true; },
+      // Native event semantics: after addEventListener listeners, the
+      // on<type> property handler fires too. r186 SMAAPass assigns
+      // image.onload AFTER setting src (three.js #15162 note), so a stub
+      // that only runs registered listeners leaves its textures empty
+      // forever (SMAA renders as a passthrough on the 1B leg).
+      dispatchEvent: function (ev) {
+        var a = listeners[ev.type] || [];
+        for (var i = 0; i < a.length; i++) a[i].call(el, ev);
+        var fn = el['on' + ev.type];
+        if (typeof fn === 'function') fn.call(el, ev);
+        return true;
+      },
       // <canvas id=...> looked up via getElementById and generic divs used as
       // render targets (multiple-elements) both reach getContext through the
       // stub element, not makeCanvas.
@@ -592,6 +603,18 @@
           // Blob stub — serve those bytes too (the 1B stub branch does; the
           // web branch must not flood __corpusErrors with per-frame
           // "Couldn't load texture" retries).
+          if (String(url).slice(0, 5) === 'data:') {
+            // SMAAPass embeds its area/search textures as base64 data:
+            // URLs — the native element decodes them directly; track the
+            // native decode for the settle gate like any other texture.
+            g.__corpusTrackAsync(new Promise(function (resolve) {
+              var done = function () { resolve(null); };
+              real.addEventListener('load', done, { once: true });
+              real.addEventListener('error', done, { once: true });
+            }));
+            srcDesc.set.call(real, url);
+            return;
+          }
           var reg = __blobRegistry[url];
           var bytesPromise = reg ? Promise.resolve(reg.__bytes)
             : Promise.resolve(g.__assetReadRaw(g.__resolveAssetPath(currentSrc))).then(function (raw) {
@@ -634,6 +657,21 @@
             img.complete = true;
             img.dispatchEvent({ type: 'load', target: img });
           }, function () {
+            img.dispatchEvent({ type: 'error', target: img });
+          });
+          return;
+        }
+        if (String(url).slice(0, 5) === 'data:') {
+          // SMAAPass embeds its area/search textures as base64 data: URLs —
+          // decode the payload bytes directly (no asset lookup exists).
+          Promise.resolve().then(function () {
+            return g.__decodeImage(g.__b64toBytes(String(url).slice(String(url).indexOf(',') + 1)), null, false);
+          }).then(function (decoded) {
+            img.width = decoded.width; img.height = decoded.height;
+            img.data = decoded.data; img.naturalWidth = decoded.width; img.naturalHeight = decoded.height;
+            img.complete = true;
+            img.dispatchEvent({ type: 'load', target: img });
+          }).catch(function () {
             img.dispatchEvent({ type: 'error', target: img });
           });
           return;
