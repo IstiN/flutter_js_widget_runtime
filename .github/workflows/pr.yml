@@ -333,6 +333,9 @@ jobs:
       - name: Starter corpus (E2E-EXAMPLES REG-VISUAL-1 E2E-WEB)
         run: bash tool/three/corpus_1b.sh
 
+      - name: Finish-pass corpus (E2E-FINISH REG-VISUAL-FINISH F4c2)
+        run: bash tool/three/cases_f4c2.sh
+
   angle-size:
     # Issue #7 AC10 size report for every platform built so far. F2d covers
     # macos-arm64 (stripped size, architectures, SHA256 from the
