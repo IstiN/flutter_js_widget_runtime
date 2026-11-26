@@ -339,6 +339,9 @@ jobs:
       - name: F4d environment and premium battery (E2E-ENV E2E-TRANSMISSION REG-VISUAL-ENV E2E-AA REG-TEMPORAL)
         run: bash tool/three/cases_f4d.sh
 
+      - name: F4h clean-checkout showcase reproduction (REG-MATRIX)
+        run: bash tool/three/showcase_clean_checkout.sh
+
   angle-size:
     # Issue #7 AC10 consolidated size report for every platform built. Each
     # platform section comes from its platform job's artifact: the macOS

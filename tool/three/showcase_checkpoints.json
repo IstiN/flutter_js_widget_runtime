@@ -1,0 +1,9 @@
+{
+  "note": "REG-MATRIX committed reference (issue #8 AC13, F4h): the FNV-1a RGBA checkpoint hashes the CORE cinematic module (jsr.three.cinematic) must reproduce in a clean checkout. Measured 2026-11-26 at the F4h base head (776b8582, darwin-arm64, 320x180, fps 24, shutter 0.5, samples 1) with tool/three/showcase_1b.sh, legacy == core at every checkpoint. showcase_clean_checkout.sh compares its clean-checkout run against this file.",
+  "checkpoints": {
+    "draft-frame12": "0xe34fc597",
+    "finish-direct-frame20": "0x9125a1e8",
+    "finish-seek-frame20": "0x9125a1e8",
+    "export-frame9": "0xa3c2834c"
+  }
+}

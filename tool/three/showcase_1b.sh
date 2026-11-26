@@ -48,6 +48,20 @@ fi
 # CI checkouts are shallow/single-branch (actions/checkout default): the base
 # commit's tree is not present until fetched. GitHub serves any commit
 # reachable from a ref, so a --depth=1 fetch of the SHA is enough.
+#
+# REG-MATRIX (F4h): a clean `git archive` export has no git objects, so
+# showcase_clean_checkout.sh materializes the legacy bundle in the INVOKING
+# checkout and hands it over via JSR_SHOWCASE_LEGACY_BUNDLE — the staging
+# below is skipped and the checkpoint legs run unchanged.
+LEGACY_BUNDLE="${JSR_SHOWCASE_LEGACY_BUNDLE:-}"
+if [ -n "$LEGACY_BUNDLE" ]; then
+  if [ ! -f "$LEGACY_BUNDLE" ]; then
+    echo "[showcase] FAIL: JSR_SHOWCASE_LEGACY_BUNDLE does not exist: $LEGACY_BUNDLE"
+    exit 1
+  fi
+  echo "[showcase] using the pre-staged legacy bundle: $LEGACY_BUNDLE"
+  LEGACY="$LEGACY_BUNDLE"
+else
 echo "[showcase] staging legacy showcase sources from git ($BASE_COMMIT)"
 mkdir -p "$STAGE/legacy-src" "$STAGE/legacy"
 if ! git cat-file -e "$BASE_COMMIT:$SRC/pipeline.js" 2>/dev/null; then
@@ -74,9 +88,11 @@ echo '[showcase] bundling the legacy pipeline (esbuild, global-shim alias)'
   echo '[showcase] FAIL: legacy bundle failed'
   exit 1
 }
+LEGACY="$STAGE/legacy/cinematic_bundle.mjs"
+fi
 
 echo '== [1/2] hash-equal checkpoints: legacy (private copy, base commit) vs core (jsr.three.cinematic), same Chrome session =='
-OUT=$(node tool/three/ref_1b_showcase.cjs --legacy "$STAGE/legacy/cinematic_bundle.mjs" 2>&1) || {
+OUT=$(node tool/three/ref_1b_showcase.cjs --legacy "$LEGACY" 2>&1) || {
   echo "$OUT"
   echo '[showcase] FAIL: web leg exited nonzero'
   exit 1

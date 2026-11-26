@@ -123,3 +123,33 @@ hash-equal at named checkpoints in the same Chrome session.
 | `UT-HELPER-1..5`, `UT-PRESET-1..3` | `tool/three/test/ut_helper_cinematic_test.js`, `tool/three/test/ut_preset_cinematic_test.js` (`npm --prefix tool/three test`) |
 | `IT-HELPER-1..3` | `test/angle1b/it_helper_cinematic_test.dart` (real engine + bridge routing + named error) |
 | `E2E-SHOWCASE-1` | `test/angle1b/e2e_showcase_1_cinematic_test.dart` (native 1B leg) + `tool/three/showcase_1b.sh` (web leg, quality-macos) |
+
+## Prerequisites and reduced fallbacks (DOC-1, issue #8 AC13)
+
+Backend prerequisites for the 1B lane (the probes run in order, before the
+renderer is allocated; a failed probe selects r1 with the reason reported
+through `JsRuntimeConfig.onThreeBackendSelected`): a QuickJS backend with the
+sync byte lane, a loadable `libangle_1b`, a creatable ANGLE display for the
+platform, and (Android) API level >= 28 — see `docs/angle_1b.md` (backend
+selection) for the full contract.
+
+| Effect / feature | Capability it needs | Behavior when the capability is missing | Proven by |
+|---|---|---|---|
+| `bloom` | half-float render targets + MRT | `createPipeline` throws `cinematic.unsupported` naming the missing features, before the renderer is allocated | `UT-PIPELINE-2`, `E2E-TARGET-2` |
+| `dof` (BokehPass) | float ping-pong composer targets (probe `bokeh`) | named in `pipeline.unsupported`; the reduced preset renders without it | `E2E-FALLBACK-1/2` |
+| `motion` (`CinematicMotionBlurPass`), `afterimage`, `multisample` | float accumulation targets (probe `motionBlurAccum`) | named in `pipeline.unsupported` ("subframe accumulation needs float render targets"); the composer target falls back to non-multisampled | `E2E-FALLBACK-1`, `UT-PIPELINE-2` |
+| `smaa` | SMAA probe (lookup-texture decode) | named in `pipeline.unsupported` | `E2E-FALLBACK-1` |
+| `colorGrade` (LUT) | LUT probe (`lut` bit) | named in `pipeline.unsupported` | `E2E-FALLBACK-1` |
+| `film`, `vignette`, `fringe` | custom GLSL passes — web-only v1 on the bounded R1 lane | named unsupported natively ("outside the bounded native shader profiles"); probe-gated on web | `E2E-FALLBACK-1`, `UT-HELPER-4` |
+| `fxaa` | none (basic ShaderPass, no probe bit) | always available | `UT-HELPER-4` |
+| env (`pmrem`, `cubeCamera`) | the 1B upstream renderer (native 1B proven: HDR/EXR exact, cubemap renders) | probe bits false on a renderer without GL2; on the bounded R1 lane web-lane (documented) | `E2E-FALLBACK-1`, `tool/three/cases_f4d.sh` (`E2E-ENV`) |
+| capture barrier | host capability `JsRuntimeConfig.cinematicCaptureHost` set | `captureFrame(clock)` rejects with the named `cinematic.notCapturable` BEFORE any host is asked; no clock + no legacy path rejects `cinematic.captureUnavailable` | `UT-PIPELINE-3`, `IT-HELPER-3` |
+| custom shaders (`ShaderMaterial`, `RawShaderMaterial`, `onBeforeCompile`) | host policy `allowCustomShaders: true` (default `false`) | `three.unsupported: custom shaders are disabled by host policy`, before any recorded call | `SEC-CINEMATIC-1` |
+| Reduced preset fallback | — | `setPreset('production')` on a renderer without GL2 runs the reduced pass set (`bloom`, `dof`, `fxaa`) and names every missing effect in `pipeline.unsupported`; presets always report exactly the settings they selected | `E2E-FALLBACK-1/2`, `UT-PRESET-1..3` |
+
+A capability gap is always NAMED (error or `pipeline.unsupported` entry),
+never a silent effect-free capture; unsupported effects fail capture with
+`cinematic.notCapturable` before the host is asked. The measured 1B tiers of
+the promoted examples live in `tool/three/api_matrix.json` (`oneB` rows) and
+`docs/angle_1b.md`; the matrix promotion rule itself is
+`tool/three/test/engine_coverage_test.mjs`.
