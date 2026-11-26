@@ -27,6 +27,12 @@ extern CFStringRef kIOSurfaceBytesPerElement;
 extern CFStringRef kIOSurfaceBytesPerRow;
 extern CFStringRef kIOSurfaceAllocSize;
 
+// Lock options from <IOSurface/IOSurface.h> (enum { kIOSurfaceLockReadOnly
+// = 0x01, kIOSurfaceLockAvoidSync = 0x02 }; the value 0x01 is taken from
+// the macOS SDK's IOSurface.framework header — the iPhoneOS SDK ships no
+// public header, the C API is ABI-stable since iOS 11).
+enum { kIOSurfaceLockReadOnly = 0x01 };
+
 IOSurfaceRef IOSurfaceCreate(CFDictionaryRef properties);
 IOSurfaceRef IOSurfaceLookup(IOSurfaceID cSid);
 IOSurfaceID IOSurfaceGetID(IOSurfaceRef surface);

@@ -679,21 +679,22 @@ jobs:
         if: steps.angle-cache.outputs.cache-hit != 'true'
         run: bash tool/build_angle.sh --platform ios-arm64 --out packages/jsr_three_angle/native/angle/out/ios-arm64
 
-      # The shim is not worth caching (10 s, deterministic); it appends
+      # Built from source in EVERY run (the ANGLE cache must never carry
+      # this dylib: a cached shim from older sources skips the compile and
+      # hides a broken shim — CI lesson of run 45837887081). It appends
       # itself to the SHA256SUMS the ANGLE build wrote (REG-SUPPLY-1).
       - name: Build the 1B shim for ios-arm64 and stage it
         run: |
           set -euo pipefail
           OUT=packages/jsr_three_angle/native/angle/out/ios-arm64
-          if [ ! -f "$OUT/libangle_1b.dylib" ]; then
-            bash packages/jsr_three_angle/native/angle/build_ios.sh "$OUT"
-          fi
+          rm -f "$OUT/libangle_1b.dylib"
+          bash packages/jsr_three_angle/native/angle/build_ios.sh "$OUT"
           test -f "$OUT/libEGL.dylib"
 
       - name: Save pinned ANGLE build (ios-arm64)
         # The staged libEGL/libGLESv2 exist before the shim step; a shim
-        # failure must not throw the ANGLE build away (the next run's shim
-        # step rebuilds just the missing dylib).
+        # failure must not throw the ANGLE build away (every run rebuilds
+        # the shim from source, so a stale dylib never survives in cache).
         if: always()
         uses: actions/cache/save@v4
         continue-on-error: true
