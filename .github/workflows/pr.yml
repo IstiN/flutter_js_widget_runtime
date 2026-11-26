@@ -312,6 +312,7 @@ jobs:
             packages/jsr_three_angle/native/angle/out/macos-arm64/libGLESv2.dylib
             packages/jsr_three_angle/native/angle/out/macos-arm64/libangle_1b.dylib
             packages/jsr_three_angle/native/angle/out/macos-arm64/SHA256SUMS
+          overwrite: true
 
       - name: jsr_three_angle host tests (real ANGLE)
         env:
@@ -361,6 +362,9 @@ jobs:
           name: macos-crash-reports
           path: /tmp/macos-crash-reports
           if-no-files-found: ignore
+          # evidence gathering re-runs this job; without overwrite the
+          # upload fails because the name already exists on the run
+          overwrite: true
 
       - name: 1B batch bench (PERF-1 PERF-2)
         env:
