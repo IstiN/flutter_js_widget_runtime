@@ -1270,6 +1270,14 @@ export function installThreeRuntime(web) {
   if (activeRuntime && activeRuntime.web === !!web && previous._runtime === activeRuntime) return activeRuntime;
   activeRuntime = new ThreeCompatibilityRuntime(jsr, !!web, previous);
   if (!web) installNativeAudio(activeRuntime);
+  // F4c1 (root-cause fix the afterimage tests forced): stock postprocessing
+  // addons read the bare `window.innerWidth/innerHeight` at construction
+  // (AfterimagePass render-target sizing). The runtime document's defaultView
+  // carries the live engine values — expose it as `window` when the host has
+  // none. Never overwrite a real host window.
+  if (typeof ROOT.window === 'undefined' && activeRuntime.document && activeRuntime.document.defaultView) {
+    ROOT.window = activeRuntime.document.defaultView;
+  }
   jsr.three = activeRuntime.install(previous);
   // jsr.three.cinematic — the deterministic cinematic pipeline surface
   // (issue #8, ADR-0004 decision 2). Present exactly when the host loaded

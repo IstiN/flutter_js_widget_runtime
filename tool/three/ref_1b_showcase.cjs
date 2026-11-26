@@ -32,18 +32,34 @@ const kChannel = process.env.JSR_WEBGL_REF_CHANNEL || 'chrome';
 
 const W = 320, H = 180;
 
-// The named checkpoints (id -> clock + effect config). All share fps 24,
-// shutter 0.5; finish/export checkpoints run samples 8 through the
-// accumulation path, draft runs samples 1.
+// The named checkpoints (id -> clock + effect config). All share fps 24 and
+// shutter 0.5; since F4c1 they all run samples 1.
+//
+// F4c1 changes, two reasons:
+// 1. motion stays FALSE in every checkpoint: since F4c1 the motion effect
+//    selects the JSR-owned CinematicMotionBlurPass (ADR-0005), which the
+//    legacy base-commit copy has no equivalent of — a motion:true checkpoint
+//    would compare the core chain pass against the legacy inline accumulator
+//    and can never be hash-equal. The motion pass itself is covered by the
+//    F4c1 legs (tool/three/cases_f4c1.sh, E2E-MOTION-*) where both sides run
+//    the core module.
+// 2. samples 8 -> 1: the F4c1 root-cause fix suppresses renderer autoClear
+//    inside the subframe accumulators (both the chain pass and the legacy
+//    inline accumulator). Before the fix every accumulated frame came out
+//    darkened by the subframe count (the clear-before-every-draw
+//    last-write-wins bug) — the base-commit legacy copy still carries that
+//    bug, so samples>1 checkpoints cannot stay hash-equal across the two
+//    variants. The legacy==core gate pins the SHARED pass chain at samples 1;
+//    the fixed accumulation is proven 1B-vs-web in cases_f4c1 (E2E-MOTION-*).
 const CHECKPOINTS = [
   { id: 'draft-frame12', frame: 12, mode: 'direct', samples: 1,
     effects: { bloom: false, dof: false, fxaa: true, smaa: false, colorGrade: false, film: false, vignette: false, motion: false } },
-  { id: 'finish-direct-frame20', frame: 20, mode: 'direct', samples: 8,
-    effects: { bloom: true, dof: true, fxaa: true, smaa: false, colorGrade: 'teal-orange', film: true, vignette: false, motion: true } },
-  { id: 'finish-seek-frame20', frame: 20, mode: 'sequential', samples: 8,
-    effects: { bloom: true, dof: true, fxaa: true, smaa: false, colorGrade: 'teal-orange', film: true, vignette: false, motion: true } },
-  { id: 'export-frame9', frame: 9, mode: 'direct', samples: 8,
-    effects: { bloom: true, dof: true, fxaa: true, smaa: false, colorGrade: 'teal-orange', film: true, vignette: false, motion: true } },
+  { id: 'finish-direct-frame20', frame: 20, mode: 'direct', samples: 1,
+    effects: { bloom: true, dof: true, fxaa: true, smaa: false, colorGrade: 'teal-orange', film: true, vignette: false, motion: false } },
+  { id: 'finish-seek-frame20', frame: 20, mode: 'sequential', samples: 1,
+    effects: { bloom: true, dof: true, fxaa: true, smaa: false, colorGrade: 'teal-orange', film: true, vignette: false, motion: false } },
+  { id: 'export-frame9', frame: 9, mode: 'direct', samples: 1,
+    effects: { bloom: true, dof: true, fxaa: true, smaa: false, colorGrade: 'teal-orange', film: true, vignette: false, motion: false } },
 ];
 
 // ── ESM unwrapping: the pinned three build (jsr_three_web.js = upstream

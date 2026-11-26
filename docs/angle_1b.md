@@ -806,3 +806,32 @@ named in the message), and `captureFrame(clock)` rejects
 `cinematic.notCapturable` when the unsupported set is non-empty, before
 any host is asked (UT-PIPELINE-2/3; the named-gate tests E2E-TARGET-2/3/4
 prove the same contract on the engine path).
+
+## F4c1 — shutter motion blur, Afterimage history, Bokeh DOF (side branch `feat/9-f4c1-motion-dof-history`)
+
+Segment F4c1 of issue #8 (ADR-0004 decision 5 + the first part of the F4c row). Design record: `docs/adr/0005-cinematic-motion-blur.md`.
+
+### `CinematicMotionBlurPass` (JSR owned, accepted)
+
+`tool/three/src/cinematic_motion_blur.js` — subframe accumulation over the stratified shutter samples of `clockState`; selected by the existing `motionBlur({ samples, shutter })` helper. Determinism, quality and cost numbers live in the ADR; headline: the GPU accumulation is bit-exact against the linear JS reference (max delta 0.498 byte-scale = half-float LSB), direct seek == sequential on 1B and Web, `samples: 1` is a stateless pass-through.
+
+Two root-cause fixes landed in `tool/three/src/cinematic.js` (both forced by the exactness measurement):
+
+1. The accumulation clear color is forced black at clear time. three's background module resets the renderer clear color to the scene background on every `RenderPass`; the pre-loop set was stale, so the average was painted with the background color (inflation law `k(n) = 2 − 1/n`, ×1.875 at 8 samples). The fix applies to the legacy inline accumulator AND the new pass.
+2. The legacy inline accumulator's `autoClear = false` suppression around the weighted quad draws is restored (its loss made the accumulation last-write-wins).
+
+Showcase checkpoints re-recorded with that reason: `finish-direct/seek-frame20` → `0x9125a1e8`, `export-frame9` → `0xa3c2834c`; `draft-frame12` unchanged (`0xe34fc597`, samples 1, temporal-free).
+
+### Stock Afterimage + history reconstruction
+
+`AfterimagePass` runs unchanged on 1B. `CinematicHistory` (damp 0.5 → 40-frame window) reconstructs the temporal state after `resetHistory`: reset + direct seek to frame 24 == sequential 0..24, bit-exact, on 1B and Chrome (`ai_*` checkpoints). A mid-run reset restarts the trails; the post-reset direct seek equals the post-reset sequential run; a genuine clear is asserted (34 frames of stale accumulation would be visible otherwise).
+
+### Stock Bokeh DOF + fringe
+
+`BokehPass` (stock r186) on 1B: focus 7 vs 14, aperture 0 vs 0.03 and maxblur 0.001 vs 0.01 each change the image (pixel-counted). The Bokeh fringe is `BokehShader2`'s chromatic-aberration formula (R/B UV offset per concentric ring) exposed as the `fringe(amount, offset)` helper on the pipeline's DOF pass; amount 3 changes the image, amount 0 and disabling the pass are exact identities. Tiers (corpus driver, diff_1b.cjs): m_sh05 / ai_seq24 / dof_near / fr_on all PASS_IDENTICAL between macOS 1B (ANGLE) and Chrome WebGL2.
+
+### Harness
+
+- `tool/three/cases_f4c1.sh` — `web` (Chrome reference leg, all 10 flags), `1b` (macOS ANGLE leg), `compare` (tier diff + `tiers.json`), `all`.
+- Checkpoint program: `tool/three/cases_f4c1/{scene_f4c1.js,widget_f4c1.js}` (one implementation shared by both lanes; the Dart tests assemble the same sources).
+- Dart: `test/angle1b/f4c1_{e2e_motion,it_history,e2e_dof}_test.dart` (12 tests); node: `tool/three/test/{f4c1_motion_blur,ut_helper_cinematic,ut_preset_cinematic}_test.js`.

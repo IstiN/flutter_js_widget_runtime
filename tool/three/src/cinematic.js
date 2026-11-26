@@ -47,6 +47,11 @@ import { SMAAPass } from 'three/addons/postprocessing/SMAAPass.js';
 import { FullScreenQuad } from 'three/addons/postprocessing/Pass.js';
 import { FXAAShader } from 'three/addons/shaders/FXAAShader.js';
 import { VignetteShader } from 'three/addons/shaders/VignetteShader.js';
+import { AfterimagePass } from 'three/addons/postprocessing/AfterimagePass.js';
+// F4c1 (issue #8, ADR-0004 decision 5, ADR-0005): the JSR-owned shutter
+// motion blur pass + the BokehShader2 fringe helper live in their own module;
+// everything else on this file is wiring (chain order, gates, helpers).
+import { CinematicMotionBlurPass, CinematicBokehFringeShader } from './cinematic_motion_blur.js';
 
 // ── Deterministic RNG ──────────────────────────────────────────────────────
 
@@ -168,6 +173,12 @@ CinematicCapabilitySet.EFFECT_BITS = {
   vignette: 'vignette',
   motion: 'motionBlurAccum',
   multisample: 'motionBlurAccum',
+  // F4c1: afterimage needs the same float render targets as the motion
+  // accumulation; fringe is a custom-GLSL ShaderPass, supported exactly where
+  // the vignette shader is (isGL2 on the web lane, outside the bounded R1
+  // profiles) — the vignette bit IS that probe.
+  afterimage: 'motionBlurAccum',
+  fringe: 'vignette',
   pmrem: 'pmrem',
   cubeCamera: 'cubeCamera'
 };
@@ -289,20 +300,20 @@ export function buildLutTexture(kind) {
 const PRESETS = {
   draft: {
     fps: 24, shutter: 0.5, samples: 1, epoch: 0,
-    effects: { bloom: false, dof: false, fxaa: true, smaa: false, colorGrade: false, film: false, vignette: false, motion: false }
+    effects: { bloom: false, dof: false, fxaa: true, smaa: false, colorGrade: false, film: false, vignette: false, motion: false, fringe: false, afterimage: false }
   },
   production: {
     fps: 24, shutter: 0.5, samples: 8, epoch: 0,
-    effects: { bloom: true, dof: true, fxaa: true, smaa: true, colorGrade: 'teal-orange', film: true, vignette: true, motion: true }
+    effects: { bloom: true, dof: true, fxaa: true, smaa: true, colorGrade: 'teal-orange', film: true, vignette: true, motion: true, fringe: false, afterimage: false }
   },
   'deterministic-export': {
     fps: 24, shutter: 0.5, samples: 8, epoch: 0,
-    effects: { bloom: true, dof: true, fxaa: true, smaa: true, colorGrade: 'teal-orange', film: true, vignette: true, motion: true },
+    effects: { bloom: true, dof: true, fxaa: true, smaa: true, colorGrade: 'teal-orange', film: true, vignette: true, motion: true, fringe: false, afterimage: false },
     note: 'fixed seed, epoch 0, no adaptive anything'
   }
 };
 
-const EFFECT_NAMES = ['bloom', 'dof', 'fxaa', 'smaa', 'colorGrade', 'film', 'vignette', 'motion'];
+const EFFECT_NAMES = ['bloom', 'dof', 'fxaa', 'smaa', 'colorGrade', 'film', 'vignette', 'motion', 'fringe', 'afterimage'];
 
 // ThreeCinematicProfile — the named preset object (ADR-0004 decision 3).
 // Each instance reports the settings it selected through settings(); a deep
@@ -371,6 +382,15 @@ export function motionBlur(options = {}) {
   });
 }
 
+// F4c1: the temporal-trail and fringing helpers (ADR-0005).
+export function afterimage(options = {}) {
+  return spec('afterimage', { damp: options.damp });
+}
+
+export function fringe(options = {}) {
+  return spec('fringe', { amount: options.amount, blur: options.blur });
+}
+
 export function antialias(options = {}) {
   const mode = options.mode === undefined ? 'fxaa' : options.mode;
   if (mode !== 'fxaa' && mode !== 'smaa') {
@@ -384,6 +404,19 @@ export function antialias(options = {}) {
 // pipeline. The surface-level factories above only build the descriptors.
 
 // ── CinematicHistory (ADR-0004 decision 3) ─────────────────────────────────
+
+// afterimageWindowFrames(damp) — the declared bounded history window of the
+// stock AfterimagePass: the frame count after which the decayed tail
+// damp^W drops below half-float subnormal FOR THE WORST-CASE HDR VALUE (the
+// max half-float 65504), i.e. damp^W * 65504 < 2^-24. Beyond W frames the
+// tail is flushed to zero by the half-float target itself, so a direct seek
+// that replays exactly W frames reproduces the sequential state BIT-EXACTLY.
+// Capped at 4096 (a damp so close to 1 that the cap bites is a documented
+// limit, not an exactness claim — see docs/adr/0005-cinematic-motion-blur.md).
+export function afterimageWindowFrames(damp) {
+  const d = Math.min(Math.max(Number(damp) || 0.5, 0.001), 0.999999);
+  return Math.min(4096, Math.ceil(Math.log(9.094947017729282e-13) / Math.log(d)));
+}
 
 // CinematicHistory — the bounded, explicit temporal state behind
 // resetHistory. Temporal passes DECLARE their history window (frames);
@@ -491,6 +524,9 @@ export function createPipeline(options) {
     if (cfg.vignette && lane === 'web' && !caps.vignette) unsupportedPush('vignette', 'capability probe: vignette shader unavailable');
     if (cfg.bloom && !caps.bloom) unsupportedPush('bloom', 'capability probe: UnrealBloomPass unavailable');
     if (cfg.dof && !caps.bokeh) unsupportedPush('dof', 'capability probe: BokehPass unavailable');
+    if (cfg.motion && !caps.motionBlurAccum) unsupportedPush('motion', 'lane: subframe accumulation needs float render targets');
+    if (cfg.fringe && lane !== 'web') unsupportedPush('fringe', 'native R1: fringe GLSL is outside the bounded native shader profiles (web-only v1)');
+    if (cfg.afterimage && (lane !== 'web' || !caps.motionBlurAccum)) unsupportedPush('afterimage', 'afterimage needs float render targets and custom GLSL (web lane only)');
     return cfg;
   }
 
@@ -500,7 +536,12 @@ export function createPipeline(options) {
     samples: 1,
     epoch: 0,
     effects: resolveEffects(options.effects),
-    clearAlpha: options.alpha ? 0 : 1
+    clearAlpha: options.alpha ? 0 : 1,
+    // F4c1 temporal tracking: the last rendered frame/epoch (seek
+    // detection); resetHistory nulls both so the next renderFrame starts a
+    // fresh sequential run.
+    lastFrame: null,
+    lastEpoch: 0
   };
 
   // ── Composer assembly: RenderPass FIRST, OutputPass LAST (pinned by
@@ -520,8 +561,10 @@ export function createPipeline(options) {
   // Fixed chain order (RenderPass FIRST — added above; OutputPass LAST —
   // added below). PASS_ORDER drives both the assembly and lazy construction
   // (ensurePass), so a pass added after creation lands at the same place it
-  // would have occupied at assembly time.
-  const PASS_ORDER = ['bloom', 'dof', 'smaa', 'fxaa', 'colorGrade', 'film', 'vignette'];
+  // would have occupied at assembly time. F4c1: motion/fringe/afterimage sit
+  // after the finishing passes and BEFORE OutputPass so the shutter average
+  // and the temporal trails are applied in linear HDR and tone-mapped once.
+  const PASS_ORDER = ['bloom', 'dof', 'smaa', 'fxaa', 'colorGrade', 'film', 'vignette', 'motion', 'fringe', 'afterimage'];
   const passName = pass => {
     for (const n of Object.keys(passes)) if (passes[n] === pass) return n;
     return null;
@@ -533,7 +576,10 @@ export function createPipeline(options) {
     fxaa: { test: () => true, reason: 'FXAA pass unavailable' },
     colorGrade: { test: () => caps.lut, reason: 'capability probe: LUT color grading unavailable' },
     film: { test: () => lane === 'web' && caps.film, reason: 'native R1: FilmPass GLSL is outside the bounded native shader profiles (web-only v1)' },
-    vignette: { test: () => lane === 'web' && caps.vignette, reason: 'native R1: custom vignette GLSL is outside the bounded native shader profiles (web-only v1)' }
+    vignette: { test: () => lane === 'web' && caps.vignette, reason: 'native R1: custom vignette GLSL is outside the bounded native shader profiles (web-only v1)' },
+    motion: { test: () => caps.motionBlurAccum === true, reason: 'lane: subframe accumulation needs float render targets (EXT_color_buffer_float)' },
+    fringe: { test: () => lane === 'web', reason: 'native R1: fringe GLSL is outside the bounded native shader profiles (web-only v1)' },
+    afterimage: { test: () => lane === 'web' && caps.motionBlurAccum === true, reason: 'afterimage needs float render targets and custom GLSL (web lane only)' }
   };
   // constructPass(name) — the ONE construction site (assembly + ensurePass
   // share it; identical parameters keep the legacy behavior bit-identical).
@@ -558,6 +604,16 @@ export function createPipeline(options) {
         pass.uniforms.darkness.value = 1.15;
         return pass;
       }
+      // F4c1 (ADR-0005): the JSR-owned shutter motion blur; the pipeline
+      // arms subframes from clockState() before every composer.render().
+      case 'motion': return new CinematicMotionBlurPass({ samples: state.samples });
+      case 'fringe': {
+        const pass = new ShaderPass(CinematicBokehFringeShader);
+        pass.uniforms.amount.value = 0.7;
+        pass.uniforms.resolution.value.set(size.x || 480, size.y || 320);
+        return pass;
+      }
+      case 'afterimage': return new AfterimagePass(0.96);
       default: return null;
     }
   };
@@ -602,10 +658,14 @@ export function createPipeline(options) {
   }
 
   function updateFxaaResolution(width, height) {
+    const pr = renderer.getPixelRatio ? renderer.getPixelRatio() : 1;
     const fxaa = passes.fxaa;
     if (fxaa && fxaa.material && fxaa.material.uniforms && fxaa.material.uniforms.resolution) {
-      const pr = renderer.getPixelRatio ? renderer.getPixelRatio() : 1;
       fxaa.material.uniforms.resolution.value.set(1 / (width * pr), 1 / (height * pr));
+    }
+    const fringe = passes.fringe;
+    if (fringe && fringe.uniforms && fringe.uniforms.resolution) {
+      fringe.uniforms.resolution.value.set(width * pr || 1, height * pr || 1);
     }
   }
 
@@ -683,6 +743,13 @@ export function createPipeline(options) {
       composer.insertPass(pass, index);
       passes[name] = pass;
       if (name === 'fxaa') updateFxaaResolution(size.x || 480, size.y || 320);
+      if (name === 'afterimage') {
+        // Declare the bounded temporal window on the shared history
+        // (ADR-0004 decision 3): reconstruction replays at most this many
+        // frames, and the tail beyond it is provably flushed by the
+        // half-float targets (afterimageWindowFrames).
+        pipeline.history.declare({ pass: 'afterimage', frames: afterimageWindowFrames(pass.uniforms.damp.value) });
+      }
       return true;
     },
 
@@ -719,7 +786,32 @@ export function createPipeline(options) {
         return gate('colorGrade');
       }
       if (effect === 'motion') {
+        // F4c1 (ADR-0005): the motion helper selects the CinematicMotionBlurPass
+        // (gated — named-unsupported on lanes without float targets), on top
+        // of the clock settings it always applied.
         pipeline.setQuality({ shutter: options.shutter, samples: options.samples });
+        return gate('motion');
+      }
+      if (effect === 'fringe') {
+        pipeline.setEffect('fringe', true);
+        if (!gate('fringe')) return false;
+        const pass = pipeline.passes.fringe;
+        if (options.amount !== undefined && options.amount !== null) pass.uniforms.amount.value = Number(options.amount);
+        if (options.blur !== undefined && options.blur !== null) pass.uniforms.blur.value = Number(options.blur);
+        return true;
+      }
+      if (effect === 'afterimage') {
+        pipeline.setEffect('afterimage', true);
+        if (!gate('afterimage')) return false;
+        const pass = pipeline.passes.afterimage;
+        if (options.damp !== undefined && options.damp !== null) {
+          const damp = Number(options.damp);
+          if (!(damp > 0) || damp >= 1) {
+            throw new CinematicPipelineError('cinematic.invalid', 'afterimage damp must be in (0, 1)');
+          }
+          pass.damp = damp;
+        }
+        pipeline.history.declare({ pass: 'afterimage', frames: afterimageWindowFrames(pass.uniforms.damp.value) });
         return true;
       }
       if (effect === 'antialias') {
@@ -736,19 +828,85 @@ export function createPipeline(options) {
     // renderFrame(clock) — explicit clock state only (see clockState). The
     // pipeline never touches a wall clock; the RAF loop converts elapsed
     // milliseconds to a frame index before calling this.
-    renderFrame(clock, updateScene) {
+    //
+    // options.present (default true): when false the final OutputPass result
+    // stays in the composer's read buffer (readRenderTargetPixels can hash it)
+    // and nothing is presented — the deterministic capture/hash path.
+    //
+    // Temporal reconstruction (F4c1): with the stock AfterimagePass enabled,
+    // any discontinuity (first frame after a reset, a skipped or repeated
+    // frame, an epoch change) replays the pass's DECLARED bounded history
+    // (CinematicHistory.reconstruct) before the requested frame renders, so a
+    // direct seek reproduces the sequential run bit-exactly (IT-HISTORY-*).
+    renderFrame(clock, updateScene, options) {
       if (!clock || !Number.isFinite(clock.frame) || !Array.isArray(clock.subframes)) {
         throw new Error('cinematic.invalid: renderFrame requires a clockState clock');
       }
+      const update = updateScene || pipeline.updateScene;
+      const present = !(options && options.present === false);
+      const afterimagePass = passes.afterimage;
+      if (afterimagePass && afterimagePass.enabled !== false) {
+        const expect = state.lastFrame === null ? null : state.lastFrame + 1;
+        if (expect === null || clock.frame !== expect || clock.epoch !== state.lastEpoch) {
+          // Direct seek (or history was cleared): rebuild the declared
+          // bounded window. The clock restarts at frame 0 after resetHistory
+          // (deterministic export restarts the frame clock), so the replay
+          // starts at the window head clamped to 0 — exactly the frames the
+          // sequential run from the reset rendered. `present: false` —
+          // replay frames are never shown.
+          const rec = pipeline.history.reconstruct({ frame: clock.frame });
+          const frames = rec.frames;
+          for (let i = 0; i < frames.length - 1; i++) {
+            pipeline._renderClock(clockState(frames[i], clock.fps, clock.shutter, clock.samples, clock.epoch), update, false);
+          }
+        }
+      }
+      pipeline._renderClock(clock, update, present);
+      state.lastFrame = clock.frame;
+      state.lastEpoch = clock.epoch;
+    },
+
+    // _renderClock(clock, update, present) — ONE frame render through the
+    // chain, no seek/history logic (the reconstruction replay loop calls it
+    // directly). Paths:
+    //   1. motion chain (F4c1): the motion pass is in the chain and the frame
+    //      is multi-subframe — the pass accumulates each chain result and
+    //      resolves on the last subframe; OutputPass tone-maps once.
+    //   2. legacy inline accumulation: multi-subframe WITHOUT the motion pass
+    //      (kept bit-identical to the pre-F4c1 behavior, including the
+    //      post-OutputPass average; the E2E-SHOWCASE-1 legacy==core gate pins
+    //      it). `present` suppresses the final manual OutputPass present.
+    //   3. single subframe.
+    _renderClock(clock, update, present) {
       const subframes = clock.subframes;
       if (subframes.length > 1 && caps.motionBlurAccum !== true) {
         unsupportedPush('multisample', 'lane has no float accumulation targets; only subframe 0 of ' + subframes.length + ' is presented');
         unsupportedPush('motion', 'cross-frame accumulation requires float render targets');
       }
-      const useAccum = subframes.length > 1 && caps.motionBlurAccum === true;
-      const update = updateScene || pipeline.updateScene;
+      const motionPass = passes.motion;
+      const useChainMotion = motionPass && motionPass.enabled !== false && subframes.length > 1 && caps.motionBlurAccum === true;
+      const useAccum = !useChainMotion && subframes.length > 1 && caps.motionBlurAccum === true;
       // Apply the lane's clear alpha (alpha lanes export transparency).
       if (renderer.setClearAlpha) renderer.setClearAlpha(state.clearAlpha);
+      const afterimagePass = passes.afterimage;
+
+      if (useChainMotion) {
+        composer.renderToScreen = false;
+        for (let i = 0; i < subframes.length; i++) {
+          const sub = subframes[i];
+          const last = i === subframes.length - 1;
+          // The stock AfterimagePass is a per-frame temporal filter: with
+          // subframes it runs ONCE per frame, on the resolved frame (last
+          // subframe), never per subframe.
+          if (afterimagePass) afterimagePass.enabled = last;
+          motionPass.armSubframe(i, subframes.length, sub.weight);
+          if (update) update(scene, Object.assign({}, clock, { t: sub.t, subframe: i, subframeCount: subframes.length }));
+          composer.renderToScreen = last && present;
+          composer.render(0);
+        }
+        if (afterimagePass) afterimagePass.enabled = true;
+        return;
+      }
 
       if (useAccum) {
         const pr = renderer.getPixelRatio ? renderer.getPixelRatio() : 1;
@@ -756,8 +914,17 @@ export function createPipeline(options) {
         ensureAccum(Math.max(1, Math.floor(sz.x * pr)), Math.max(1, Math.floor(sz.y * pr)));
         composer.renderToScreen = false;
         renderer.setRenderTarget(accum.target);
+        // Forced black HERE (not before the loop): three's background module
+        // resets the renderer clear color to the scene background on every
+        // RenderPass, so a pre-loop clear color is stale by this point — a
+        // background-colored clear inflated every accumulated average.
         renderer.setClearColor(new Color(0x000000), 0);
         renderer.clear(true, false, false);
+        // autoClear suppression (same as the F4c1 motion pass): the
+        // FullScreenQuad draws go through renderer.render, whose autoClear
+        // would clear the accumulation before every weighted draw.
+        const oldAutoClear = renderer.autoClear;
+        renderer.autoClear = false;
         for (let i = 0; i < subframes.length; i++) {
           const sub = subframes[i];
           if (update) update(scene, Object.assign({}, clock, { t: sub.t, subframe: i, subframeCount: subframes.length }));
@@ -767,15 +934,20 @@ export function createPipeline(options) {
           renderer.setRenderTarget(accum.target);
           accum.quad.render(renderer);
         }
-        outputPass.renderToScreen = true;
-        outputPass.render(renderer, null, accum.target, 0, false);
+        renderer.autoClear = oldAutoClear;
+        if (present) {
+          outputPass.renderToScreen = true;
+          outputPass.render(renderer, null, accum.target, 0, false);
+        }
         renderer.setRenderTarget(null);
-      } else {
-        composer.renderToScreen = true;
-        const sub = subframes[0];
-        if (update) update(scene, Object.assign({}, clock, { t: sub.t, subframe: 0, subframeCount: subframes.length }));
-        composer.render(0);
+        return;
       }
+
+      composer.renderToScreen = present;
+      if (motionPass) motionPass.armSubframe(0, 1, 1);
+      const sub = subframes[0];
+      if (update) update(scene, Object.assign({}, clock, { t: sub.t, subframe: 0, subframeCount: subframes.length }));
+      composer.render(0);
     },
 
     // updateScene is injectable (defaults to the showcase updater injected by
@@ -783,10 +955,25 @@ export function createPipeline(options) {
     updateScene: null,
 
     // resetHistory(epoch) — new deterministic epoch: reseeds the scene's
-    // static layout RNG and resets the CinematicHistory clock.
+    // static layout RNG, resets the CinematicHistory clock, clears the
+    // temporal pass state (the stock AfterimagePass has no upstream reset
+    // API, so both history targets are cleared back to their initial
+    // transparent black — the exact constructor state) and forgets the
+    // frame tracking so the next renderFrame starts a fresh sequential run.
     resetHistory(epoch) {
       state.epoch = pipeline.history.reset(epoch);
       if (scene.userData && typeof scene.userData.reseed === 'function') scene.userData.reseed(state.epoch);
+      const afterimagePass = passes.afterimage;
+      if (afterimagePass) {
+        renderer.setClearColor(new Color(0x000000), 0);
+        renderer.setRenderTarget(afterimagePass._textureOld);
+        renderer.clear(true, false, false);
+        renderer.setRenderTarget(afterimagePass._textureComp);
+        renderer.clear(true, false, false);
+        renderer.setRenderTarget(null);
+      }
+      state.lastFrame = null;
+      state.lastEpoch = state.epoch;
       return state.epoch;
     },
 
@@ -950,6 +1137,8 @@ export function createPipeline(options) {
     depthOfField(options) { return pipeline.applyEffectSpec(depthOfField(options)); },
     colorGrade(options) { return pipeline.applyEffectSpec(colorGrade(options)); },
     motionBlur(options) { return pipeline.applyEffectSpec(motionBlur(options)); },
+    afterimage(options) { return pipeline.applyEffectSpec(afterimage(options)); },
+    fringe(options) { return pipeline.applyEffectSpec(fringe(options)); },
     antialias(options) { return pipeline.applyEffectSpec(antialias(options)); },
     // applyEffect(spec) — apply a descriptor produced by the surface-level
     // factory of the same name (pipeline.applyEffect(cine.bloom({...}))).
@@ -996,6 +1185,13 @@ export function createPipeline(options) {
   // exportState stay schema-clean.
   Object.defineProperty(pipeline, 'isCinematicPipeline', { value: true, enumerable: false });
 
+  // Assembly-time temporal declarations (F4c1): an afterimage pass built at
+  // assembly declares its bounded window here (ensurePass declares for the
+  // lazy path); declare() is idempotent.
+  if (passes.afterimage) {
+    pipeline.history.declare({ pass: 'afterimage', frames: afterimageWindowFrames(passes.afterimage.uniforms.damp.value) });
+  }
+
   return pipeline;
 }
 
@@ -1017,6 +1213,8 @@ export const cinematicSurface = Object.freeze({
   depthOfField: depthOfField,
   colorGrade: colorGrade,
   motionBlur: motionBlur,
+  afterimage: afterimage,
+  fringe: fringe,
   antialias: antialias,
   // Named components (decision 3).
   CinematicCapabilitySet: CinematicCapabilitySet,
@@ -1024,6 +1222,8 @@ export const cinematicSurface = Object.freeze({
   createFrameClock: createFrameClock,
   CinematicHistory: CinematicHistory,
   ThreeCinematicProfile: ThreeCinematicProfile,
+  // F4c1: the JSR-owned shutter motion blur pass (decision 5, ADR-0005).
+  CinematicMotionBlurPass: CinematicMotionBlurPass,
   // Support API the showcase scene factory consumes.
   cinematicRandom: cinematicRandom,
   buildLutTexture: buildLutTexture,
