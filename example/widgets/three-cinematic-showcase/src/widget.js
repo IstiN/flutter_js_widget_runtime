@@ -3,8 +3,12 @@
 // The RAF loop is the ONLY place that reads wall time, and it converts
 // elapsed milliseconds to a frame index before touching the pipeline:
 // pipeline.renderFrame(clockState(frame, ...)) — never a raw timestamp.
+//
+// F4a (issue #8, ADR-0004 decision 2): the pipeline implementation lives in
+// the CORE bundle — this widget reads `jsr.three.cinematic` and keeps no
+// private copy. The host must have loaded the three bundle
+// (JsRuntimeConfig.threeEnabled) before this widget runs.
 
-import { createCinematicPipeline, clockState, cinematicRandom } from './pipeline.js';
 import { createShowcaseScene, updateShowcaseScene } from './scene.js';
 
 (function main() {
@@ -36,7 +40,10 @@ import { createShowcaseScene, updateShowcaseScene } from './scene.js';
       samples: state.samples,
       effects: state.effects,
       preset: state.preset,
-      status: state.status
+      status: state.status,
+      // F4a: the pipeline implementation is the CORE copy
+      // (jsr.three.cinematic) — E2E-SHOWCASE-1 asserts this marker.
+      surface: 'core'
     });
   }
 
@@ -53,6 +60,11 @@ import { createShowcaseScene, updateShowcaseScene } from './scene.js';
   }
   if (!jsr.three || typeof jsr.three.createCanvas !== 'function') {
     fail('cinematic.runtimeUnavailable: jsr.three host runtime is not installed — enable the three lane for three-* widgets');
+    return;
+  }
+  var cin = jsr.three.cinematic;
+  if (!cin || typeof cin.createPipeline !== 'function') {
+    fail('cinematic.runtimeUnavailable: jsr.three.cinematic is not installed — the core three bundle (jsr_three_native.js / jsr_three_web.js) carries it since F4a; rebuild with node tool/three/build.mjs');
     return;
   }
 
@@ -75,10 +87,10 @@ import { createShowcaseScene, updateShowcaseScene } from './scene.js';
     renderer.setSize(state.canvasW, state.canvasH, false);
     renderer.setClearColor(new THREE.Color(0x0a0f16), 1);
 
-    var scene = createShowcaseScene({ width: state.canvasW, height: state.canvasH, seed: 1, random: cinematicRandom(1) });
+    var scene = createShowcaseScene({ width: state.canvasW, height: state.canvasH, seed: 1, seededRandom: cin.cinematicRandom });
     var camera = scene.userData.camera;
 
-    pipeline = createCinematicPipeline({
+    pipeline = cin.createPipeline({
       renderer: renderer,
       scene: scene,
       camera: camera,
@@ -99,7 +111,7 @@ import { createShowcaseScene, updateShowcaseScene } from './scene.js';
   }
 
   function renderPipelineFrame() {
-    var clock = clockState(state.frame, state.fps, state.shutter, state.samples, 0);
+    var clock = cin.clockState(state.frame, state.fps, state.shutter, state.samples, 0);
     pipeline.renderFrame(clock);
   }
 

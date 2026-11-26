@@ -96,9 +96,50 @@ async function makeBundle(name, native) {
   return Buffer.from(result.outputFiles[0].contents);
 }
 
+// gen/cinematic_core.mjs — UNMINIFIED ESM of the core cinematic module
+// (tool/three/src/cinematic.js, issue #8 F4a) for consumers that cannot
+// evaluate the IIFE bundles: the web reference page (after the page installs
+// `globalThis.THREE = await import('./jsr_three_web.js')`) and the R1
+// composer golden lane (an engine with the three bundle already evaluated).
+// 'three' resolves to the committed global shim (re-exports globalThis.THREE
+// — object identity with the host classes, never a second core copy); the
+// addons are inlined from the pinned tree.
+function goldenEsmResolver() {
+  const shim = path.join(ROOT, 'example/widgets/three-cinematic-showcase/src/three_global_shim.js');
+  return {
+    name: 'cinematic-core-golden-esm',
+    setup(build) {
+      build.onResolve({ filter: /^three$/ }, () => ({ path: shim }));
+      build.onResolve({ filter: /^three\/addons\/(.+)$/ }, args => ({ path: path.join(SOURCE, 'examples/jsm', args.path.slice('three/addons/'.length)) }));
+    }
+  };
+}
+
+async function makeGoldenEsm() {
+  const result = await build({
+    absWorkingDir: ROOT,
+    entryPoints: [path.join(HERE, 'src/cinematic.js')],
+    outfile: path.join(HERE, 'gen/cinematic_core.mjs'),
+    bundle: true,
+    write: false,
+    format: 'esm',
+    platform: 'neutral',
+    target: ['es2020'],
+    minify: false,
+    legalComments: 'inline',
+    sourcemap: false,
+    treeShaking: false,
+    plugins: [goldenEsmResolver()],
+    define: { '__THREE_DEVTOOLS__': 'undefined' }
+  });
+  if (result.outputFiles.length !== 1) throw new Error('Unexpected esbuild outputs for cinematic_core.mjs');
+  return Buffer.from(result.outputFiles[0].contents);
+}
+
 const tree = await verifySource();
 const native = await makeBundle('native', true);
 const web = await makeBundle('web', false);
+const goldenEsm = await makeGoldenEsm();
 const license = await readFile(path.join(SOURCE, 'LICENSE'));
 const outputs = {
   'jsr_three_native.js': native,
@@ -110,10 +151,15 @@ for (const [name, bytes] of Object.entries(outputs)) {
   manifestOutputs[name] = { bytes: bytes.length, sha256: sha(bytes) };
   if (!verify) await writeFile(path.join(OUT, name), bytes);
 }
+if (!verify) {
+  await mkdir(path.join(HERE, 'gen'), { recursive: true });
+  await writeFile(path.join(HERE, 'gen/cinematic_core.mjs'), goldenEsm);
+}
 const adapterInputs = {};
 for (const file of (await filesBelow(path.join(HERE, 'src'))).sort()) adapterInputs[`tool/three/src/${file}`] = sha(await readFile(path.join(HERE, 'src', file)));
 for (const file of ['build.mjs', 'package.json', 'package-lock.json', 'source-pin.json']) adapterInputs[`tool/three/${file}`] = sha(await readFile(path.join(HERE, file)));
 adapterInputs.upstreamLicense = sha(license);
+const goldenEsmRecord = { bytes: goldenEsm.length, sha256: sha(goldenEsm) };
 const manifest = {
   protocol: 'JSR3D-T1/R1-v2',
   upstream: {
@@ -128,7 +174,12 @@ const manifest = {
     command: `node tool/three/build.mjs --source ${SOURCE}`,
     verifyCommand: `node tool/three/build.mjs --source ${SOURCE} --verify`,
     sourceEnvironment: 'THREE_SRC may replace --source /tmp/jsr-three-r186',
-    inputSha256: Object.assign({ sourceTree: tree.hash }, adapterInputs)
+    inputSha256: Object.assign({ sourceTree: tree.hash }, adapterInputs),
+    // Unminified ESM of the core cinematic module (issue #8 F4a) for the web
+    // reference page and the R1 composer golden lane. A build output like the
+    // two IIFE bundles, but it lives under tool/three/gen/ (not assets/three)
+    // because it is a source-level artifact, not a host-delivered bundle.
+    goldenEsm: Object.assign({ path: 'tool/three/gen/cinematic_core.mjs' }, goldenEsmRecord)
   },
   outputs: manifestOutputs
 };
@@ -139,6 +190,13 @@ if (verify) {
     const actual = await readFile(path.join(OUT, name));
     if (sha(actual) !== expected.sha256 || actual.length !== expected.bytes) throw new Error(`${name} differs from a clean pinned rebuild`);
     if (!oldManifest.outputs[name] || oldManifest.outputs[name].sha256 !== expected.sha256) throw new Error(`${name} manifest hash is stale`);
+  }
+  const committedGolden = await readFile(path.join(HERE, 'gen/cinematic_core.mjs'));
+  if (sha(committedGolden) !== goldenEsmRecord.sha256 || committedGolden.length !== goldenEsmRecord.bytes) {
+    throw new Error('tool/three/gen/cinematic_core.mjs differs from a clean pinned rebuild');
+  }
+  if (!oldManifest.build || !oldManifest.build.goldenEsm || oldManifest.build.goldenEsm.sha256 !== goldenEsmRecord.sha256) {
+    throw new Error('goldenEsm manifest hash is stale');
   }
   if (sha(await readFile(path.join(OUT, 'THREE_LICENSE'))) !== sha(license)) throw new Error('THREE_LICENSE differs from upstream');
   if (JSON.stringify(oldManifest) !== JSON.stringify(manifest)) throw new Error('bundle_manifest.json differs from the clean pinned rebuild inputs/metadata');

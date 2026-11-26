@@ -63,6 +63,7 @@ class QuickjsWidgetEngineBackend
       onHostCallBinary: config.onHostCallBinary,
       onAudioSynthesis: config.onAudioSynthesis,
       captureHandler: config.captureHandler,
+      cinematicCaptureHost: config.cinematicCaptureHost,
       intervalTickHandler: (id) {},
       rafTickHandler: (id, elapsedMs) {},
       js3dHost: config.js3dHost,

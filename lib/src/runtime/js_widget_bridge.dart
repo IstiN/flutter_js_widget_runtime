@@ -9,6 +9,7 @@ import 'package:js_widget_runtime/src/model/js_audio_synthesis.dart';
 import 'package:js_widget_runtime/src/renderer/nodes/js_3d_host.dart';
 import 'package:js_widget_runtime/src/renderer/nodes/js_voxel_node.dart';
 import 'package:js_widget_runtime/src/renderer/nodes/three/js_three_host.dart';
+import 'package:js_widget_runtime/src/runtime/js_cinematic_capture_host.dart';
 
 /// Callback invoked to check whether a capability is allowed.
 /// Capabilities: 'fetch', 'storage', 'secrets', 'exec'.
@@ -56,6 +57,7 @@ typedef JsRafTickHandler = void Function(String id, int elapsedMs);
 /// fetch, exec, exportState and event completion. Platform-specific I/O
 /// (network, secure storage, file system, process execution) is injected via
 /// callbacks so the bridge stays testable on any platform.
+
 class JsWidgetBridge {
   JsWidgetBridge({
     required this.widgetId,
@@ -78,6 +80,7 @@ class JsWidgetBridge {
     this.onHostCallBinary,
     this.onAudioSynthesis,
     this.captureHandler,
+    this.cinematicCaptureHost,
     required this.intervalTickHandler,
     required this.rafTickHandler,
     this.js3dHost,
@@ -132,6 +135,12 @@ class JsWidgetBridge {
   /// binding can rasterize the tree).
   Future<Map<String, dynamic>> Function(Map<String, dynamic> opts)?
   captureHandler;
+
+  /// Cinematic capture barrier (issue #8, ADR-0004 decision 4) — see
+  /// [JsRuntimeConfig.cinematicCaptureHost]. Null = the
+  /// `barrier: 'final-pass'` capture requests resolve the named error
+  /// `cinematic.notCapturable` (never an effect-free capture).
+  JsCinematicCaptureHost? cinematicCaptureHost;
   JsResolveCallback resolveCallback;
   JsFetchHandler fetchHandler;
   JsSecretsReadHandler secretsGetHandler;
@@ -696,18 +705,43 @@ class JsWidgetBridge {
   Future<void> _handleCaptureAsync(dynamic args) async {
     final req = _parseArgs(args);
     final id = req['id'] as String;
+    final opts =
+        (req['opts'] as Map?)?.cast<String, dynamic>() ??
+        const <String, dynamic>{};
+
+    // Cinematic capture barrier (issue #8, ADR-0004 decision 4): the core
+    // `jsr.three.cinematic` captureFrame(clock) tags its request with
+    // `barrier: 'final-pass'`. Route it to [cinematicCaptureHost]; a host
+    // without the capability resolves the NAMED error `cinematic.notCapturable`
+    // — never an effect-free capture of the current tree.
+    if (opts['barrier'] == 'final-pass') {
+      final host = cinematicCaptureHost;
+      if (host == null) {
+        resolveCallback(id, {
+          '__error':
+              'cinematic.notCapturable: this host provides no cinematic capture barrier (JsRuntimeConfig.cinematicCaptureHost is unset)',
+        });
+        return;
+      }
+      final clock =
+          (opts['clock'] as Map?)?.cast<String, dynamic>() ??
+          const <String, dynamic>{};
+      final engineId = opts['engineId']?.toString() ?? '';
+      try {
+        resolveCallback(id, await host.capture(engineId, clock));
+      } catch (e) {
+        resolveCallback(id, {'__error': e.toString()});
+      }
+      return;
+    }
+
     final handler = captureHandler;
     if (handler == null) {
       resolveCallback(id, {'__error': 'capture is not supported by this host'});
       return;
     }
     try {
-      resolveCallback(
-        id,
-        await handler(
-          (req['opts'] as Map?)?.cast<String, dynamic>() ?? const {},
-        ),
-      );
+      resolveCallback(id, await handler(opts));
     } catch (e) {
       resolveCallback(id, {'__error': e.toString()});
     }

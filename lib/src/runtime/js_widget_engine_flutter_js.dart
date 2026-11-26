@@ -16,7 +16,6 @@ import 'package:js_widget_runtime/src/runtime/js_widget_engine_backend.dart';
 class FlutterJsWidgetEngineBackend implements JsWidgetEngineBackend {
   FlutterJsWidgetEngineBackend({required JsRuntimeConfig config})
     : _config = config {
-
     _bridge = JsWidgetBridge(
       widgetId: config.widgetId,
       onRender: config.onRender,
@@ -37,6 +36,7 @@ class FlutterJsWidgetEngineBackend implements JsWidgetEngineBackend {
       onHostCallBinary: config.onHostCallBinary,
       onAudioSynthesis: config.onAudioSynthesis,
       captureHandler: config.captureHandler,
+      cinematicCaptureHost: config.cinematicCaptureHost,
       intervalTickHandler: (id) {},
       rafTickHandler: (id, elapsedMs) {},
       js3dHost: config.js3dHost,

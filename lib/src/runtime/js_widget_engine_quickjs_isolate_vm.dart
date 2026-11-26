@@ -78,6 +78,7 @@ class QuickjsIsolateWidgetEngineBackend
       onHostCallBinary: config.onHostCallBinary,
       onAudioSynthesis: config.onAudioSynthesis,
       captureHandler: config.captureHandler,
+      cinematicCaptureHost: config.cinematicCaptureHost,
       intervalTickHandler: (id) => _post({'type': 'interval', 'id': id}),
       rafTickHandler: (id, elapsedMs) =>
           _post({'type': 'raf', 'id': id, 'elapsed': elapsedMs}),
