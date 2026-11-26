@@ -458,7 +458,10 @@ int a1b_read_surface_cpu(int64_t surface, uint8_t *dst_rgba, int *width, int *he
   size_t bpr = IOSurfaceGetBytesPerRow(s->io);
   const uint8_t *src = IOSurfaceGetBaseAddress(s->io);
   if (!src) return a1b_fail("no iosurface base");
-  IOReturn rc = IOSurfaceLock(s->io, kIOSurfaceLockReadOnly, NULL);
+  // kern_return_t, not IOReturn: the macOS SDK header declares IOReturn
+  // (a kern_return_t typedef via IOKit/IOReturn.h), the iOS fallback in
+  // angle_1b_iosurface.h declares only kern_return_t. One type for both.
+  kern_return_t rc = IOSurfaceLock(s->io, kIOSurfaceLockReadOnly, NULL);
   if (rc != 0) return a1b_fail("IOSurfaceLock failed");
   for (int y = 0; y < s->height; y++) {
     const uint8_t *row = src + (size_t)y * bpr;
