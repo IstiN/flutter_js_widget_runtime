@@ -460,3 +460,116 @@ the CI pool. A real draw-path regression raises the measured p95 while the
 no-draw reference stays put, so the ratio — and with it the gate — still
 fails. The gate never re-measures because a number came out above the
 budget.
+
+## F4b — stock bloom determinism on 1B and web (issue #8, 2026-11-26)
+
+Segment F4b runs the STOCK `webgl_postprocessing_unreal_bloom` unchanged
+through the cinematic core on both lanes: offscreen targets, depth,
+composer ping-pong, readback, resize and final presentation on native 1B;
+the same pipeline on the direct web lane. Frame and capture semantics are
+deterministic (sequential == direct seek), and a capability gap fails
+before capture with a named error.
+
+### Ids and results (all green, darwin-arm64, ANGLE dylib staged)
+
+| ids | test file | result |
+|---|---|---|
+| E2E-BLOOM-1, E2E-BLOOM-2, REG-VISUAL-BLOOM | `test/angle1b/f4b_e2e_bloom_test.dart` | 3/3 |
+| IT-TARGET-1, E2E-TARGET-1..4 | `test/angle1b/f4b_e2e_target_test.dart` | 5/5 |
+| IT-CLOCK-1 | `test/angle1b/f4b_it_clock_test.dart` | 1/1 |
+| E2E-SEEK-1..4, IT-CLOCK-2, REG-DETERMINISM | `test/angle1b/f4b_e2e_seek_test.dart` | 6/6 |
+| E2E-ALPHA-1/2, REG-ALPHA | `test/angle1b/f4b_e2e_alpha_test.dart` | 3/3 |
+| UT-PIPELINE-1..5 | `tool/three/test/f4b_ut_pipeline_test.js` (node chain) | green |
+
+REG-EXISTING / REG-GATES are segment rules, not ids: the full existing
+suite and every gate run in the CI jobs of the head.
+
+### Commands
+
+```bash
+# native 1B battery (all six seek/clock/determinism tests)
+flutter test test/angle1b/f4b_e2e_seek_test.dart
+# the other native f4b files
+flutter test test/angle1b/f4b_e2e_target_test.dart test/angle1b/f4b_it_clock_test.dart \
+             test/angle1b/f4b_e2e_alpha_test.dart test/angle1b/f4b_e2e_bloom_test.dart
+# web battery: 13 checks over the shared battery (cases_f4b/f4b_case_source.js)
+# in a bare Playwright-driven Chrome page (real WebGL2, no ANGLE lane, no Dart proxy)
+JSR_WEBGL_REF_CHANNEL=chromium bash tool/three/cases_f4b.sh   # -> F4B_SUMMARY checks=13 pass=13
+# node chain (adapter, batching, facade, pipeline, presets, verify gate)
+npm --prefix tool/three test
+# corpus acceptance of the named post scene
+bash tool/three/corpus_1b.sh   # id three-postprocessing-unreal-bloom
+```
+
+### Numbers and tiers
+
+Stock `webgl_postprocessing_unreal_bloom`, 320x240, Apple M4 Pro:
+
+- Corpus acceptance: **PASS_IDENTICAL, hash `8444f8b9`, 100.0000 % of px,
+  accepted tier exact** on the macOS native 1B leg; the web leg is exact
+  too (`status_web.json` `direct{barePage,no1bLane,nativeContext}` all
+  true — AC15 per scene).
+- The web battery (`cases_f4b.sh`, 13/13) and the native 1B battery are
+  **bit-identical on every hash**: sequential, direct, reversed, repeated,
+  frozen, host-delay and present9 legs produce the same hashes on both
+  lanes — the strongest REG-VISUAL evidence the F4 row carries.
+- Resize round trip (E2E-TARGET-1, and battery check `resizeRoundTrip`):
+  smaller canvas renders differently, resizing back reproduces the frame-7
+  hash exactly (surface `0xbf2c1a81`). The fix underneath: the facade
+  invalidates wrapper-cache entries on GL object deletion, so ANGLE's
+  reused FBO name wraps a fresh object (regression test in
+  `ut_gl_1_test.js`); IT-TARGET-1 additionally pins >= 3 FBOs, >= 2
+  ping-pong targets, a `DEPTH_COMPONENT24` renderbuffer and the final
+  null-FBO bind.
+
+### Determinism
+
+| check | result |
+|---|---|
+| sequential frames == direct seek to the same clock (E2E-SEEK-1) | yes — `direct12 === seq[last]` |
+| reversed and repeated seeks (E2E-SEEK-2) | yes — reversed lands on `seq[0]`, repeated seeks one single hash |
+| frozen clock (E2E-SEEK-3) | yes — identical frames, five times over |
+| host delay between frames changes no hash (IT-CLOCK-2) | yes — `hostDelayNeutral` |
+| divergence control (REG-DETERMINISM) | bites — a perturbed clock produces a different hash, so the equality gates are live |
+| capture after the final pass (E2E-SEEK-4) | yes — the barrier capture resolves once, `frame=9`, `engineId=<IID>`, surface hash == present9 `0xf123efe0` on both legs |
+
+### Alpha policy
+
+Premultiplied alpha flows through bloom and the OutputPass on both
+backgrounds (dark/light) of E2E-ALPHA. The contract is
+`cornerMeanAlpha < 0.1` (battery check `backgroundStaysTransparent`),
+NOT `zeroPixels == 0`: the premultiplied bloom halo reaches every pixel
+at half-float precision (measured `zeroPixels=0`,
+`cornerMeanAlpha=0.038`). Transparent composites differ between
+backgrounds (`compositesDifferWhereTransparent`); the GL-composited
+frame matches the in-JS expectation within d<=2 for >= 99 % of px —
+measured 100 % (`glCompositeMatchesExpectation`); an opaque scene stays
+opaque (`opaqueSceneStaysOpaque`).
+
+### Composer read path
+
+Two read paths exist and are NOT comparable with each other:
+
+1. **Composer render-target readback** — linear-ish half-float
+   (RGBA16F). `gl.readPixels` on the facade splits reads above 64 KB into
+   row strips (each fits `G1_SCRATCH_CAP`; rows stay row-tight so strips
+   concatenate byte-linearly) — regression test `UT-GL-READBACK-1` in
+   `tool/three/test/ut_gl_1_test.js`.
+2. **Presented surface** — present-encoded RGBA8, read by
+   `a1b_read_surface_cpu` (locks the presented IOSurface read-only,
+   BGRA->RGBA, no GL context, safe from any thread).
+
+E2E-SEEK-4 compares against `present9`, the in-JS RGBA8 read of the
+PRESENTED frame 9 — the one equality target shared by both legs
+(0xf123efe0); the composer readback is half-float and never enters that
+comparison.
+
+### Capability guard
+
+Unsupported capabilities fail BEFORE capture with named errors:
+`createPipeline` throws `cinematic.unsupported` at creation when the
+probe reports missing float render targets or MRT (the features are
+named in the message), and `captureFrame(clock)` rejects
+`cinematic.notCapturable` when the unsupported set is non-empty, before
+any host is asked (UT-PIPELINE-2/3; the named-gate tests E2E-TARGET-2/3/4
+prove the same contract on the engine path).
