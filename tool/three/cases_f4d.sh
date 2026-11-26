@@ -171,6 +171,11 @@ except Exception:
     print(0)
 PYEOF
 )
+  if [ "$ENV_TOTAL" -ne 9 ]; then
+    # A report row is missing: keep the corpus driver's own tail for CI
+    # diagnosis (WHY the example did not complete).
+    grep -E "CORPUS_1B_STATUS|CORPUS_WEB_STATUS|rror|EGL|crash|abort" "$OUT/env.stdout" | tail -12 || true
+  fi
   ENV_GATE=$(python3 - "$CORPUS_ROOT/report.json" <<'PYEOF'
 import json, sys
 # three-materials-cubemap-dynamic: documented-limit — web-corpus harness
@@ -191,7 +196,11 @@ ok = {e['id']: e.get('tier', '') for e in json.load(open(sys.argv[1]))}
 bad, passed = [], 0
 for id, tier in accepted.items():
     measured = ok.get(id)
-    if measured == 'PASS_IDENTICAL':
+    if measured is None:
+        # A missing report row means the corpus driver could not complete
+        # the example at all — a named gate failure, never silently skipped.
+        bad.append('%s: measured MISSING (corpus run did not produce a row), accepted %s' % (id, tier))
+    elif measured == 'PASS_IDENTICAL':
         passed += 1
     elif measured == 'PASS_TOLERANCE' and tier in ('tolerance', 'exact'):
         passed += 1
