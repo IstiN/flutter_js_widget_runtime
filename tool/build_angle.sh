@@ -110,13 +110,24 @@ PY
   done
 
   # 6. Build the shim against the DEPS-provisioned NDK and stage it.
-  NDK="$BUILD_DIR/third_party/android_ndk"
+  #    ANGLE's DEPS installs the NDK as a CIPD package under
+  #    third_party/android_toolchain/ndk (deps key in the pinned DEPS).
+  NDK="$BUILD_DIR/third_party/android_toolchain/ndk"
   case "$PLATFORM" in
-    android-arm64)  CC="$NDK/toolchains/llvm/prebuilt/linux-x86_64/bin/aarch64-linux-android24-clang" ;;
-    android-armv7)  CC="$NDK/toolchains/llvm/prebuilt/linux-x86_64/bin/armv7a-linux-androideabi24-clang" ;;
-    android-x86_64) CC="$NDK/toolchains/llvm/prebuilt/linux-x86_64/bin/x86_64-linux-android24-clang" ;;
+    android-arm64)  CC_REL="aarch64-linux-android24-clang" ;;
+    android-armv7)  CC_REL="armv7a-linux-androideabi24-clang" ;;
+    android-x86_64) CC_REL="x86_64-linux-android24-clang" ;;
     *) echo "unknown android platform id: $PLATFORM" >&2; exit 1 ;;
   esac
+  CC="$NDK/toolchains/llvm/prebuilt/linux-x86_64/bin/$CC_REL"
+  if [ ! -x "$CC" ]; then
+    # Fallback: an NDK from the environment (local runs without gclient).
+    CC="${ANDROID_NDK_HOME:-$ANDROID_HOME/ndk/27.2.12479018}/toolchains/llvm/prebuilt/linux-x86_64/bin/$CC_REL"
+  fi
+  if [ ! -x "$CC" ]; then
+    echo "android NDK wrapper clang not found (looked in $NDK and ANDROID_NDK_HOME)" >&2
+    exit 1
+  fi
   SRC="$REPO/packages/jsr_three_angle/native/angle"
   "$CC" -shared -fPIC -O2 -Wall -Wextra \
     -I"$SRC" -I"$SRC/gen" \
@@ -124,7 +135,11 @@ PY
     "$SRC/angle_1b_android.c" "$SRC/angle_1b_dispatch.c" "$SRC/angle_1b_demo.c" \
     -landroid -llog
 
-  (cd "$OUT_DIR" && shasum -a 256 libEGL_angle.so libGLESv2_angle.so libangle_1b.so > SHA256SUMS)
+  if command -v shasum >/dev/null 2>&1; then
+    (cd "$OUT_DIR" && shasum -a 256 libEGL_angle.so libGLESv2_angle.so libangle_1b.so > SHA256SUMS)
+  else
+    (cd "$OUT_DIR" && sha256sum libEGL_angle.so libGLESv2_angle.so libangle_1b.so > SHA256SUMS)
+  fi
   cat "$OUT_DIR/SHA256SUMS"
   echo "ANGLE build OK for $PLATFORM — staged in $OUT_DIR"
 }
