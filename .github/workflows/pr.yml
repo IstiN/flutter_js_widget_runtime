@@ -542,11 +542,17 @@ jobs:
               set +e
               # No coreutils on the runner (exit 127 in run 45748149398):
               # bound the suite with a watchdog kill, never a retry.
-              # flutter test attaches to a device only for files under
-              # integration_test/ (run 45753628959 ran the suite on the
-              # host tester and skipped everything); e2e_ios.dart is the
-              # wrapper around the canonical ../test/angle1b suite.
-              flutter test integration_test/e2e_ios.dart -d "$UDID" \
+              # flutter drive is the documented device integration flow
+              # (run 45764221986: `flutter test -d <simulator>` waited 15
+              # silent minutes on the app-side ext.flutter.integrationTest
+              # beacon and ended "0 tests passed" exit 1). drive streams the
+              # app's output, so the suite's ANGLE_1B_UNAVAILABLE marker and
+              # per-test lines land in the log; e2e_ios.dart is the wrapper
+              # around the canonical ../test/angle1b suite.
+              flutter drive \
+                --driver=test_driver/integration_test.dart \
+                --target=integration_test/e2e_ios.dart \
+                -d "$UDID" \
                 > ../simulator-attempt.log 2>&1 &
               TEST_PID=$!
               ( sleep 900; kill "$TEST_PID" 2>/dev/null ) & TEST_WATCHDOG=$!
@@ -557,7 +563,7 @@ jobs:
               if grep -q 'ANGLE_1B_UNAVAILABLE:' simulator-attempt.log; then
                 REASON=$(grep -m1 'ANGLE_1B_UNAVAILABLE:' simulator-attempt.log | cut -d' ' -f2-)
                 RESULT="GPU backend unavailable on the simulator (recorded): $REASON"
-              elif [ "$TEST_RC" -eq 0 ] && grep -q 'All tests passed!' simulator-attempt.log; then
+              elif [ "$TEST_RC" -eq 0 ] && grep -q 'All tests passed' simulator-attempt.log; then
                 RESULT="e2e_ios device suite PASSED on the simulator"
               else
                 RESULT="e2e_ios device suite FAILED on the simulator (exit $TEST_RC, see artifact angle-ios-size-and-simulator-attempt)"
