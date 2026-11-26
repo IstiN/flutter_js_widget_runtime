@@ -77,10 +77,11 @@ PY
   fi
 
   # 3. Android dependencies (the NDK ships from ANGLE's DEPS only when the
-  #    solution declares target_os; DevSetupAndroid.md steps). Top-level
-  #    `target_os` is appended when absent (fresh `fetch angle` writes no
-  #    such line) or extended when present.
-  GC="$(dirname "$BUILD_DIR")/.gclient"
+  #    solution declares target_os; DevSetupAndroid.md steps). `fetch`
+  #    writes .gclient INSIDE the solution directory (BUILD_DIR), so the
+  #    top-level `target_os` is appended there when absent or extended when
+  #    present.
+  GC="$BUILD_DIR/.gclient"
   python3 - "$GC" <<'PY'
 import sys
 p = sys.argv[1]
