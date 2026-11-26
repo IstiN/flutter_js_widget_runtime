@@ -1133,3 +1133,61 @@ documented clamps only.
   0x9125a1e8, export-frame9 0xa3c2834c — the F4c1-recorded values
   reproduce from the union bundle bytes; this branch alone had measured
   0x3cc7f7db / 0x88479d2f on its pre-merge sources).
+
+### quality-macos finalization crash — cause found and fixed (2026-11-26)
+
+The CI quality-macos job segfaulted at test finalization on four
+consecutive heads (`d02c669f`, `776b8582`, `f0ecae39`, `5c82a5c5`; runs
+45829608228, 45832686139, 45836204719, 45838834135) while every ANGLE
+teardown path was provably clean (live-wire registry drained to 0, display
+shut down, GPU drained with glFinish + eglWaitClient + synchronous
+readback, no dlclose). Never reproduced on a real M4 Pro GPU. Four teardown
+rounds did not remove it — the record stands, but the diagnosis was wrong:
+the crash was never at process exit.
+
+Diagnostic branch evidence (run 45860805060, artifact
+`macos-crash-reports`, `flutter_tester-2026-11-26-164427.ips`):
+
+- `EXC_BAD_ACCESS / SIGSEGV, KERN_INVALID_ADDRESS at 0x116500000`;
+  crashed thread 0 (`com.apple.main-thread`) — a LIVE dispatch, not exit.
+- Frames: `_platform_memmove` ← `rx::UploadTextureContents` ←
+  `rx::TextureMtl::setPerSliceSubImage/setSubImageImpl/setImageImpl` ←
+  `gl::Texture::setImage` ← `GL_TexImage2D` (all libGLESv2, ANGLE 2.1.29431,
+  "ANGLE Metal Renderer: Apple Paravirtual device") ← `g1_dispatch_op` +
+  `a1b_gl_dispatch` (our shim `libangle_1b.dylib`) ← Dart JIT callers.
+- Timeline: both crashing files (`f4eg_life`, `f4b_e2e_seek`) had printed
+  ALL tests passed 40 ms earlier; the fatal `texImage2D` was one of the
+  last queued frames flushing while `flutter test` finalized the file.
+
+Cause: a `texImage2D` (or `texSubImage*`) command whose dims/format/type
+implied more bytes than the blob actually present. `g1_rd_blob` bounds the
+pointer inside the request buffer, but nothing cross-checked the blob
+length against the dims — ANGLE `memmove`s the dims-implied byte count OUT
+of the pointer and reads past the end of the request buffer into an
+unmapped page. The undersized upload arises under the runner's load/timing
+(cranking rAF queues near finalize; never reproduced locally), which is why
+the crashing file varied per run while every teardown stayed clean.
+
+Fix (both layers that own the defect):
+
+1. Facade (`tool/three/src/webgl2_facade.js` ==
+   `packages/jsr_three_angle/facade/webgl2_facade.js`): the WebGL2
+   upload-size rule — `texImage2D/texSubImage2D/texImage3D/texSubImage3D`
+   with non-null data shorter than `width*height*depth*pixBytes` record
+   `INVALID_OPERATION` locally and dispatch nothing (same pattern as the
+   F4-merge readPixels validation). Exactness: the wire coerces truthy
+   pixelStorei params to 1, so ANGLE's unpack alignment is 1 and the tight
+   count is the byte count ANGLE reads.
+2. Shim dispatch (`webgl2_g1_methods.json` glue, regenerated
+   `gen/g1_tables.h`): the four tex-upload opcodes return `G1_E_MALFORMED`
+   when a non-null blob cannot hold the dims-implied bytes — the SEC-G1
+   trust-boundary contract (malformed byte streams never crash) now holds
+   for undersized uploads too.
+
+Regression tests: `tool/three/test/ut_gl_1_test.js` (14 tests; short 2D,
+sub, 3D, null-data and well-formed uploads) and
+`packages/jsr_three_angle/test/angle1b_host_test.dart` SEC-G1 (64x64 RGBA
+upload with a 4-byte blob → `G1_E_MALFORMED` on the real shim, context
+stays clean, well-formed upload still dispatches). Bundle manifest
+re-recorded for the facade input hash; bundle bytes unchanged (`--verify`
+green, builder host darwin-arm64).

@@ -296,6 +296,30 @@ function createFacade(canvas, attrs) {
   function u(v) { return (v == null) ? 0 : (v.__g1name !== undefined ? v.__g1name : v); } // unwrap wrappers / null->0
   function viewOrZero(v) { return (v == null) ? 0 : v; } // typed arrays pass through to G1.blob; null data -> 0
 
+  // texImage*/texSubImage* upload-size validation (WebGL2 spec §6.11-ish
+  // texture-upload rule: data shorter than width*height*components*size is
+  // INVALID_OPERATION). Real WebGL rejects the upload in the browser; on
+  // the 1B stream the shim hands the undersized blob pointer straight to
+  // ANGLE, which memmoves the DIMS-implied byte count out of it and reads
+  // past the end of the request buffer — the measured CI quality-macos
+  // SIGSEGV (flutter_tester-2026-11-26-164427.ips: EXC_BAD_ACCESS in
+  // rx::UploadTextureContents <- GL_TexImage2D <- g1_dispatch_op; run
+  // 45860805060). Blocked uploads record INVALID_OPERATION locally and
+  // dispatch nothing, exactly like the readPixels validation below.
+  // Exactness: the wire coerces every truthy pixelStorei param to 1
+  // (pixelStorei below), so ANGLE's unpack alignment is 1 and the tight
+  // width*height*depth*pixBytes count IS the byte count ANGLE reads.
+  function validateUpload(w, h, d, fmt, type, data) {
+    if (!data || !data.buffer) return true; // null data: nothing to read
+    if (!(w > 0) || !(h > 0) || !(d > 0)) return true; // ANGLE rejects bad dims itself
+    var need = w * h * d * readPixBytes(fmt, type);
+    if (data.byteLength < need) {
+      recordLocalError(C.INVALID_OPERATION);
+      return false;
+    }
+    return true;
+  }
+
   var gl = {};
   gl.canvas = canvas;
   gl.drawingBufferColorSpace = 'srgb';
@@ -398,30 +422,38 @@ function createFacade(canvas, attrs) {
   }
   gl.texImage2D = function (a0, a1, a2, a3, a4, a5, a6, a7, a8) {
     if (arguments.length === 6 && hasDomData(a5)) {
+      if (!validateUpload(a5.width, a5.height, 1, a3, a4, a5.data)) return 0;
       return domUpload(function () {
         return call('texImage2D', [a0, a1, a2, a5.width, a5.height, 0, a3, a4, flipDomRows(a5)]);
       });
     }
+    if (!validateUpload(a3, a4, 1, a6, a7, viewOrZero(a8))) return 0;
     return call('texImage2D', [a0, a1, a2, a3, a4, a5, a6, a7, viewOrZero(a8)]);
   };
   gl.texSubImage2D = function (a0, a1, a2, a3, a4, a5, a6, a7, a8) {
     if (arguments.length === 7 && hasDomData(a6)) {
+      if (!validateUpload(a6.width, a6.height, 1, a4, a5, a6.data)) return 0;
       return domUpload(function () {
         return call('texSubImage2D', [a0, a1, a2, a3, a6.width, a6.height, a4, a5, flipDomRows(a6)]);
       });
     }
+    if (!validateUpload(a4, a5, 1, a6, a7, viewOrZero(a8))) return 0;
     return call('texSubImage2D', [a0, a1, a2, a3, a4, a5, a6, a7, viewOrZero(a8)]);
   };
   gl.texImage3D = function (a0, a1, a2, a3, a4, a5, a6, a7, a8, a9) {
     if (arguments.length === 10 && hasDomData(a9)) {
+      if (!validateUpload(a9.width, a9.height, a9.depth || 1, a7, a8, a9.data)) return 0;
       return call('texImage3D', [a0, a1, a2, a9.width, a9.height, a9.depth || 1, 0, a7, a8, a9.data]);
     }
+    if (!validateUpload(a3, a4, a5, a7, a8, viewOrZero(a9))) return 0;
     return call('texImage3D', [a0, a1, a2, a3, a4, a5, a6, a7, a8, viewOrZero(a9)]);
   };
   gl.texSubImage3D = function (a0, a1, a2, a3, a4, a5, a6, a7, a8, a9, a10) {
     if (arguments.length === 11 && hasDomData(a10)) {
+      if (!validateUpload(a10.width, a10.height, a10.depth || 1, a7, a8, a10.data)) return 0;
       return call('texSubImage3D', [a0, a1, a2, a3, a4, a10.width, a10.height, a10.depth || 1, a7, a8, a10.data]);
     }
+    if (!validateUpload(a5, a6, a7, a8, a9, viewOrZero(a10))) return 0;
     return call('texSubImage3D', [a0, a1, a2, a3, a4, a5, a6, a7, a8, a9, viewOrZero(a10)]);
   };
 

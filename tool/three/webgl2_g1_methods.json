@@ -678,7 +678,7 @@
       "cat": "texture",
       "args": "uiuiiiiub",
       "ret": "void",
-      "c": "g_TexImage2D(a0, a1, a2, a3, a4, a5, a6, a7, a8);",
+      "c": "if (a8 && (int64_t)a3 * (int64_t)a4 * (int64_t)g1_pix_bytes(a6, a7) > (int64_t)a8_len) return G1_E_MALFORMED; // undersized upload: never let ANGLE read past the request buffer (SEC-G1)\ng_TexImage2D(a0, a1, a2, a3, a4, a5, a6, a7, a8);",
       "doc": "ArrayBufferView overload: (target, level, internalformat, width, height, border, format, type, pixels|null)."
     },
     {
@@ -687,7 +687,7 @@
       "cat": "texture",
       "args": "uiiiiiuub",
       "ret": "void",
-      "c": "g_TexSubImage2D(a0, a1, a2, a3, a4, a5, a6, a7, a8);",
+      "c": "if (a8 && (int64_t)a4 * (int64_t)a5 * (int64_t)g1_pix_bytes(a6, a7) > (int64_t)a8_len) return G1_E_MALFORMED; // undersized upload: never let ANGLE read past the request buffer (SEC-G1)\ng_TexSubImage2D(a0, a1, a2, a3, a4, a5, a6, a7, a8);",
       "doc": "(target, level, xoffset, yoffset, width, height, format, type, pixels|null)."
     },
     {
@@ -696,7 +696,7 @@
       "cat": "texture",
       "args": "uiuiiiiuub",
       "ret": "void",
-      "c": "g_TexImage3D(a0, a1, a2, a3, a4, a5, a6, a7, a8, a9);"
+      "c": "if (a9 && (int64_t)a3 * (int64_t)a4 * (int64_t)a5 * (int64_t)g1_pix_bytes(a7, a8) > (int64_t)a9_len) return G1_E_MALFORMED; // undersized upload: never let ANGLE read past the request buffer (SEC-G1)\ng_TexImage3D(a0, a1, a2, a3, a4, a5, a6, a7, a8, a9);"
     },
     {
       "name": "texSubImage3D",
@@ -704,7 +704,7 @@
       "cat": "texture",
       "args": "uiiiiiiiuub",
       "ret": "void",
-      "c": "g_TexSubImage3D(a0, a1, a2, a3, a4, a5, a6, a7, a8, a9, a10);"
+      "c": "if (a10 && (int64_t)a4 * (int64_t)a5 * (int64_t)a6 * (int64_t)g1_pix_bytes(a8, a9) > (int64_t)a10_len) return G1_E_MALFORMED; // undersized upload: never let ANGLE read past the request buffer (SEC-G1)\ng_TexSubImage3D(a0, a1, a2, a3, a4, a5, a6, a7, a8, a9, a10);"
     },
     {
       "name": "copyTexImage2D",

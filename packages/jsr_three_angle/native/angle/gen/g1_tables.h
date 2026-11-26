@@ -1417,6 +1417,7 @@ static int64_t g1_dispatch_op(uint32_t opcode, g1_cur *c) {
     const uint32_t a8_len = g1_rd_u32(c);
     const void *const a8 = g1_rd_blob(c, a8_len);
     if (c->err) return G1_E_MALFORMED;
+    if (a8 && (int64_t)a3 * (int64_t)a4 * (int64_t)g1_pix_bytes(a6, a7) > (int64_t)a8_len) return G1_E_MALFORMED; // undersized upload: never let ANGLE read past the request buffer (SEC-G1)
     g_TexImage2D(a0, a1, a2, a3, a4, a5, a6, a7, a8);
     (void)sc;
     (void)sc_cap;
@@ -1439,6 +1440,7 @@ static int64_t g1_dispatch_op(uint32_t opcode, g1_cur *c) {
     const uint32_t a8_len = g1_rd_u32(c);
     const void *const a8 = g1_rd_blob(c, a8_len);
     if (c->err) return G1_E_MALFORMED;
+    if (a8 && (int64_t)a4 * (int64_t)a5 * (int64_t)g1_pix_bytes(a6, a7) > (int64_t)a8_len) return G1_E_MALFORMED; // undersized upload: never let ANGLE read past the request buffer (SEC-G1)
     g_TexSubImage2D(a0, a1, a2, a3, a4, a5, a6, a7, a8);
     (void)sc;
     (void)sc_cap;
@@ -1462,6 +1464,7 @@ static int64_t g1_dispatch_op(uint32_t opcode, g1_cur *c) {
     const uint32_t a9_len = g1_rd_u32(c);
     const void *const a9 = g1_rd_blob(c, a9_len);
     if (c->err) return G1_E_MALFORMED;
+    if (a9 && (int64_t)a3 * (int64_t)a4 * (int64_t)a5 * (int64_t)g1_pix_bytes(a7, a8) > (int64_t)a9_len) return G1_E_MALFORMED; // undersized upload: never let ANGLE read past the request buffer (SEC-G1)
     g_TexImage3D(a0, a1, a2, a3, a4, a5, a6, a7, a8, a9);
     (void)sc;
     (void)sc_cap;
@@ -1486,6 +1489,7 @@ static int64_t g1_dispatch_op(uint32_t opcode, g1_cur *c) {
     const uint32_t a10_len = g1_rd_u32(c);
     const void *const a10 = g1_rd_blob(c, a10_len);
     if (c->err) return G1_E_MALFORMED;
+    if (a10 && (int64_t)a4 * (int64_t)a5 * (int64_t)a6 * (int64_t)g1_pix_bytes(a8, a9) > (int64_t)a10_len) return G1_E_MALFORMED; // undersized upload: never let ANGLE read past the request buffer (SEC-G1)
     g_TexSubImage3D(a0, a1, a2, a3, a4, a5, a6, a7, a8, a9, a10);
     (void)sc;
     (void)sc_cap;
