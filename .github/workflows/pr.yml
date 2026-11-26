@@ -515,7 +515,10 @@ jobs:
           {
             echo "## ANGLE iOS (F3b) — angle-ios job summary"
             echo '```'
-            cat ios-size-report.txt
+            # Tolerant of an earlier failed step: GitHub runs this step
+            # under `bash -e`, so an unguarded cat would abort the summary.
+            cat ios-size-report.txt 2>/dev/null \
+              || echo '(SIZE-IOS-1 report unavailable — the report step failed)'
             echo '```'
           } >> "$GITHUB_STEP_SUMMARY"
           UDID=$(xcrun simctl list devices available \

@@ -49,6 +49,18 @@ SOURCE=$(python3 -c "import json,sys; print(json.load(open(sys.argv[1]))['source
 echo "ANGLE pin: $REVISION ($PLATFORM)"
 echo "GN args:   $PLATFORM_JSON"
 
+# F3b iOS: chromium's //build/config/apple/mobile_config.gni requires
+# target_environment for target_os=ios (run 45743144553 failed the assert
+# 'target_environment must be in ["simulator", "device", "catalyst"]').
+# The pin records the upstream-equivalent compilation args; the DEVICE
+# environment is injected here at gn-gen time. A simulator environment is
+# never built: the size evidence (SIZE-IOS-1) is the device slice, and the
+# simulator build of the example runs the stock Flutter toolchain.
+if [[ "$PLATFORM" == ios-* ]]; then
+  PLATFORM_JSON="$PLATFORM_JSON target_environment=\"device\""
+  echo "GN args:   $PLATFORM_JSON  (target_environment injected for ios)"
+fi
+
 if [[ "$CLEAN" == 1 ]]; then
   rm -rf "$BUILD_DIR"
   echo "removed $BUILD_DIR"
