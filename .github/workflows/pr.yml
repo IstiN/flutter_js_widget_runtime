@@ -323,6 +323,9 @@ jobs:
             packages/jsr_three_angle/native/angle/out/macos-arm64/libGLESv2.dylib
             packages/jsr_three_angle/native/angle/out/macos-arm64/libangle_1b.dylib
             packages/jsr_three_angle/native/angle/out/macos-arm64/SHA256SUMS
+          # job re-runs (proof observations) must not die on the existing
+          # artifact name
+          overwrite: true
 
       - name: jsr_three_angle host tests (real ANGLE)
         env:
@@ -332,6 +335,50 @@ jobs:
 
       - name: 1B selection and policy tests
         run: flutter test test/angle1b --no-pub
+
+      # Crash evidence, only when the test step failed: flutter_tester has
+      # segfaulted at test-finalization on this runner class (the Apple
+      # Paravirtual device). The final measured cause (crash report
+      # flutter_tester-2026-11-26-164427.ips, run 45860805060) was an
+      # undersized texImage2D blob handed to ANGLE through a1b_gl_dispatch —
+      # fixed at the facade (WebGL2 size validation) and in the shim
+      # dispatch (G1_E_MALFORMED). This step captures any future crash
+      # reports (.ips/.crash) plus the flutter_tester unified-log lines as
+      # the artifact macos-crash-reports. Costs nothing when green.
+      - name: Collect flutter_tester crash evidence (diagnostic)
+        if: failure()
+        run: |
+          set -uo pipefail
+          CORES=$(sysctl -n hw.ncpu)
+          echo "cores: $CORES"
+          echo "flutter test concurrency in use: default (one isolate per core) = $CORES, unless --concurrency is set"
+          CRASH_DIR="$HOME/Library/Logs/DiagnosticReports"
+          OUT=/tmp/macos-crash-reports
+          mkdir -p "$OUT"
+          echo "--- crash reports in $CRASH_DIR ---"
+          if [ -d "$CRASH_DIR" ] && [ -n "$(ls -A "$CRASH_DIR" 2>/dev/null)" ]; then
+            ls -la "$CRASH_DIR"
+            find "$CRASH_DIR" \( -name '*.ips' -o -name '*.crash' \) -maxdepth 1 -print -exec cp {} "$OUT/" \;
+          else
+            echo "NO crash reports present in $CRASH_DIR"
+          fi
+          echo "--- unified log: flutter_tester (last 300 lines) ---"
+          log show --last 20m --style compact --predicate 'process == "flutter_tester" OR eventMessage CONTAINS "flutter_tester"' > "$OUT/flutter_tester-unifiedlog.txt" 2>&1 || true
+          tail -300 "$OUT/flutter_tester-unifiedlog.txt" > "$OUT/flutter_tester-unifiedlog-last300.txt" || true
+          wc -l "$OUT/flutter_tester-unifiedlog-last300.txt" || true
+          echo "--- collected files ---"
+          ls -la "$OUT"
+
+      - name: Upload flutter_tester crash evidence (diagnostic)
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: macos-crash-reports
+          path: /tmp/macos-crash-reports
+          if-no-files-found: ignore
+          # job re-runs (proof observations) must not die on the existing
+          # artifact name
+          overwrite: true
 
       - name: 1B batch bench (PERF-1 PERF-2)
         env:

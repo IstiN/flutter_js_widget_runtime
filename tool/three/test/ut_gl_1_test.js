@@ -82,6 +82,18 @@ const ARG_DEFAULTS = {
   b: new Uint8Array([1, 2, 3, 4]), // real blob body (exact wire walk)
 };
 
+// The tex upload methods must reach the wire WELL-FORMED: the facade now
+// rejects uploads shorter than width*height*depth*pixBytes (the CI
+// quality-macos SIGSEGV fix), and the type-defaulted args (width=height=1,
+// format=type=1) would be rejected. RGBA/UNSIGNED_BYTE with 1x1[x1] dims
+// needs exactly 4 bytes — the blob default.
+const UPLOAD_DEFAULTS = {
+  texImage2D: { 3: 1, 4: 1, 6: 0x1908, 7: 0x1401 },
+  texSubImage2D: { 4: 1, 5: 1, 6: 0x1908, 7: 0x1401 },
+  texImage3D: { 3: 1, 4: 1, 5: 1, 7: 0x1908, 8: 0x1401 },
+  texSubImage3D: { 4: 1, 5: 1, 6: 1, 8: 0x1908, 9: 0x1401 },
+};
+
 const tests = [];
 const test = (name, fn) => tests.push([name, fn]);
 
@@ -94,7 +106,9 @@ test('every one of the 224 methods is callable and produces a well-formed dispat
   const locationOps = new Set([66, 67, 68]); // getUniformLocation/getAttribLocation/getFragDataLocation
   for (const m of METHODS) {
     const before = wire.dispatches.length;
-    const args = [...m.args].map(ch => ARG_DEFAULTS[ch]);
+    let args = [...m.args].map(ch => ARG_DEFAULTS[ch]);
+    const up = UPLOAD_DEFAULTS[m.name];
+    if (up) args = args.map((v, i) => (Object.prototype.hasOwnProperty.call(up, i) ? up[i] : v));
     assert.equal(typeof gl[m.name], 'function', `facade exposes ${m.name}`);
     if ('stub' in m) {
       // The three facade-handled stubs never dispatch and never throw.
@@ -360,6 +374,57 @@ test('readPixels validates the typed array against format/type — real WebGL '
   gl.readPixels(0, 0, 8, 8, gl.RGBA, gl.UNSIGNED_BYTE, new Uint8Array(8 * 8 * 4));
   assert.equal(wire.dispatches.length, d + 1, 'one dispatch for the well-formed RGBA8 read');
   assert.equal(gl.getError(), 0, 'no error for the RGBA8 pair');
+});
+
+test('texImage*/texSubImage* reject uploads shorter than width*height*depth '
+    + '*pixBytes — real WebGL raises INVALID_OPERATION; before this check '
+    + 'the shim handed ANGLE the undersized blob and ANGLE memmoved the '
+    + 'dims-implied byte count out of the request buffer (measured CI '
+    + 'quality-macos SIGSEGV in rx::UploadTextureContents, run 45860805060)',
+    async () => {
+  const { api, wire } = loadFacade();
+  const gl = api.createFacade({}, {});
+  await drain();
+  let d = wire.dispatches.length;
+  // 64x64 RGBA/UNSIGNED_BYTE needs 16384 bytes; 4 bytes must not dispatch.
+  gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, 64, 64, 0, gl.RGBA, gl.UNSIGNED_BYTE,
+    new Uint8Array(4));
+  await drain();
+  assert.equal(wire.dispatches.length, d, 'no dispatch for the short texImage2D blob');
+  assert.equal(gl.getError(), 0x0502, 'INVALID_OPERATION recorded for the short upload');
+  d = wire.dispatches.length;
+  assert.equal(gl.getError(), 0, 'the error is consumed by the next getError');
+  d = wire.dispatches.length;
+  // texSubImage2D: same rule over (width, height).
+  gl.texSubImage2D(gl.TEXTURE_2D, 0, 0, 0, 16, 16, gl.RGBA, gl.UNSIGNED_BYTE,
+    new Uint8Array(16 * 16 * 4 - 1));
+  await drain();
+  assert.equal(wire.dispatches.length, d, 'no dispatch for the short texSubImage2D blob');
+  assert.equal(gl.getError(), 0x0502, 'INVALID_OPERATION recorded for the short sub upload');
+  d = wire.dispatches.length;
+  assert.equal(gl.getError(), 0);
+  d = wire.dispatches.length;
+  // 3D uploads count depth too.
+  gl.texImage3D(gl.TEXTURE_3D, 0, gl.RGBA, 4, 4, 4, 0, gl.RGBA, gl.UNSIGNED_BYTE,
+    new Uint8Array(4 * 4 * 2 * 4));
+  await drain();
+  assert.equal(wire.dispatches.length, d, 'no dispatch for the short texImage3D blob');
+  assert.equal(gl.getError(), 0x0502, 'INVALID_OPERATION recorded for the short 3D upload');
+  d = wire.dispatches.length;
+  assert.equal(gl.getError(), 0);
+  d = wire.dispatches.length;
+  // Well-formed uploads still dispatch, one per call: 2x2 RGBA8 = 16 bytes.
+  gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, 2, 2, 0, gl.RGBA, gl.UNSIGNED_BYTE,
+    new Uint8Array(16));
+  await drain();
+  assert.equal(wire.dispatches.length, d + 1, 'one dispatch for the well-formed upload');
+  assert.equal(gl.getError(), 0, 'no error for the well-formed upload');
+  d = wire.dispatches.length;
+  // Null data dispatches (undefined contents, nothing to read).
+  gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, 64, 64, 0, gl.RGBA, gl.UNSIGNED_BYTE, null);
+  await drain();
+  assert.equal(wire.dispatches.length, d + 1, 'null data still dispatches');
+  assert.equal(gl.getError(), 0, 'no error for the null-data upload');
 });
 
 for (const [name, fn] of tests) {

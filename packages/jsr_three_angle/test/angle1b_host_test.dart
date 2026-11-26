@@ -101,8 +101,11 @@ void main() {
       expect(png, isNotNull);
       final codec = await ui.instantiateImageCodec(png!);
       final frame = await codec.getNextFrame();
-      expect(frame.image.width, 96,
-          reason: 'the recreated surface has the new size');
+      expect(
+        frame.image.width,
+        96,
+        reason: 'the recreated surface has the new size',
+      );
       expect(frame.image.height, 64);
       final rgba = (await frame.image.toByteData(
         format: ui.ImageByteFormat.rawRgba,
@@ -132,6 +135,49 @@ void main() {
     backend.dispatch1B('eng-a', _g1(34, [name])); // deleteBuffer
     expect(backend.dispatch1B('eng-a', _g1(35, [name])), 0); // isBuffer
     expect(backend.dispatch1B('eng-a', _g1(1)), 0); // getError == NO_ERROR
+    expect(surface.isDisposed, isFalse);
+  }, skip: probeReason);
+
+  test('SEC-G1: an undersized texImage2D blob is rejected G1_E_MALFORMED and '
+      'never reaches ANGLE (CI quality-macos SIGSEGV, run 45860805060: a '
+      '64x64 RGBA upload with a 4-byte blob made ANGLE memmove 16 KiB out of '
+      'the request buffer; the dispatch must refuse it instead)', () async {
+    final surface = backend.attach('eng-secg1', 's1', <String, dynamic>{
+      'width': 32,
+      'height': 32,
+    });
+    addTearDown(() => backend.disposeEngine('eng-secg1'));
+    Uint8List texImage2D(int w, int h, int blobLen) {
+      final b = BytesBuilder();
+      void u32(int v) {
+        final d = ByteData(4)..setUint32(0, v, Endian.little);
+        b.add(d.buffer.asUint8List());
+      }
+
+      u32(83); // G1_OP_texImage2D
+      u32(0xDE1); // target TEXTURE_2D
+      u32(0); // level
+      u32(0x1908); // internalformat RGBA
+      u32(w); // width
+      u32(h); // height
+      u32(0); // border
+      u32(0x1908); // format RGBA
+      u32(0x1401); // type UNSIGNED_BYTE
+      u32(blobLen); // blob length in bytes
+      b.add(Uint8List(blobLen));
+      return b.takeBytes();
+    }
+
+    final malformed = backend.dispatch1B('eng-secg1', texImage2D(64, 64, 4));
+    expect(malformed, -0x7ffffffe, reason: 'G1_E_MALFORMED, not a crash');
+    // The context stays alive and clean afterwards.
+    expect(backend.dispatch1B('eng-secg1', _g1(1)), 0); // getError
+    // A well-formed upload of the same shape still dispatches: the guard
+    // must not reject legal uploads (blob == width*height*4 bytes).
+    final tex = backend.dispatch1B('eng-secg1', _g1(78)); // createTexture
+    backend.dispatch1B('eng-secg1', _g1(81, [0xDE1, tex])); // bindTexture
+    expect(backend.dispatch1B('eng-secg1', texImage2D(2, 2, 16)), 0);
+    expect(backend.dispatch1B('eng-secg1', _g1(1)), 0);
     expect(surface.isDisposed, isFalse);
   }, skip: probeReason);
 
