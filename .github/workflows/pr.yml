@@ -334,11 +334,14 @@ jobs:
         run: bash tool/three/corpus_1b.sh
 
   angle-size:
-    # Issue #7 AC10 size report for every platform built so far. F2d covers
-    # macos-arm64 (stripped size, architectures, SHA256 from the
-    # quality-macos artifact); the Android/iOS reports and the installed /
-    # compressed budget gates land with the F3 platform hosts.
-    needs: quality-macos
+    # Issue #7 AC10 consolidated size report for every platform built. Each
+    # platform section comes from its platform job's artifact: the macOS
+    # dylibs are measured here from the quality-macos artifact (recorded,
+    # not gated — the plan budgets SIZE-ANDROID-1 and SIZE-IOS-1 only); the
+    # Android and iOS sections are the CI-measured artifacts of the
+    # angle-android-apk and angle-ios jobs, whose SIZE gates already ran
+    # there. The numbers are printed as they are.
+    needs: [quality-macos, angle-android-apk, angle-ios]
     runs-on: macos-15
     steps:
       - name: Checkout
@@ -350,26 +353,36 @@ jobs:
           name: angle-macos-arm64
           path: angle-artifact
 
-      - name: Size report (macos-arm64)
+      - name: Download platform size-report artifacts
+        uses: actions/download-artifact@v4
+        with:
+          pattern: angle-*-size*
+          path: size-artifacts
+          merge-multiple: false
+
+      - name: Consolidated size report
         run: |
           set -euo pipefail
-          cd angle-artifact
-          echo "== ANGLE macos-arm64 size report =="
-          total_raw=0; total_stripped=0
-          for f in libEGL.dylib libGLESv2.dylib libangle_1b.dylib; do
-            test -f "$f"
-            cp "$f" /tmp/jsr-strip.dylib
-            before=$(stat -f %z "$f"); total_raw=$((total_raw+before))
-            strip -x /tmp/jsr-strip.dylib
-            after=$(stat -f %z /tmp/jsr-strip.dylib); total_stripped=$((total_stripped+after))
-            archs=$(lipo -info "$f" | sed -e 's/Architectures in the fat file: //' -e 's/Architectures in this file: //')
-            sha=$(shasum -a 256 "$f" | cut -d' ' -f1)
-            printf '%-18s raw=%8d stripped=%8d arch=%-10s sha256=%s\n' "$f" "$before" "$after" "$archs" "$sha"
-          done
-          echo "TOTAL(macos-arm64) raw=$total_raw stripped=$total_stripped"
-          # artifact integrity: the hashes recorded by the build job
-          shasum -a 256 -c SHA256SUMS
-          echo "== ANGLE macos-arm64 size report: OK =="
+          ANDROID_REPORT="size-artifacts/angle-android-size/angle-android-size.txt"
+          IOS_REPORT="$(find size-artifacts -name ios-size-report.txt | head -1)"
+          test -s "$ANDROID_REPORT" || { echo "::error::missing the angle-android-size artifact"; exit 1; }
+          test -s "$IOS_REPORT" || { echo "::error::missing ios-size-report.txt (angle-ios-size-and-simulator-attempt artifact)"; exit 1; }
+          echo "# AC10 consolidated ANGLE size report (every platform built)"
+          echo
+          echo "## macos-arm64 — measured here from the quality-macos artifact; recorded, not gated"
+          ( cd angle-artifact && shasum -a 256 -c SHA256SUMS )
+          bash tool/angle_size_macho.sh angle-artifact macos-arm64 --record | tee macos-size-report.txt
+          echo
+          echo "## SIZE-ANDROID-1 — angle-android-apk artifact (measured and gated by angle-android-apk)"
+          cat "$ANDROID_REPORT"
+          echo
+          echo "## SIZE-IOS-1 — angle-ios artifact (measured and gated by angle-ios)"
+          cat "$IOS_REPORT"
+          echo
+          echo "## Budget verdicts (budgets: installed <= 10 MiB, gzip <= 5 MiB per ABI; macOS recorded, not gated)"
+          grep 'TOTAL (stripped/gzip)' "$ANDROID_REPORT"
+          grep '^TOTAL(' "$IOS_REPORT"
+          grep '^TOTAL(' macos-size-report.txt
 
   # ==========================================================================
   # F3a Android (issue #7, AC3 + AC10): the pinned ANGLE Vulkan builds for
@@ -510,6 +523,12 @@ jobs:
           path: |
             example/build/app/outputs/flutter-apk/app-debug.apk
             angle-android-size.txt
+
+      - name: Upload the size report artifact (small, for the angle-size job)
+        uses: actions/upload-artifact@v4
+        with:
+          name: angle-android-size
+          path: angle-android-size.txt
 
       - name: Emulator attempt (API 30 x86_64, TCG — bounded, recorded)
         run: |
@@ -670,75 +689,7 @@ jobs:
       - name: SIZE-IOS-1 size report (ios-arm64)
         run: |
           set -euo pipefail
-          python3 - packages/jsr_three_angle/native/angle/out/ios-arm64 <<'PY' | tee ios-size-report.txt
-          import gzip, os, re, subprocess, sys
-          out = sys.argv[1]
-          mib = 1024 * 1024
-          total_stripped = 0
-          total_gzip = 0
-          failures = []
-          print('== ANGLE ios-arm64 size report (SIZE-IOS-1) ==')
-          for name in ('libEGL.dylib', 'libGLESv2.dylib', 'libangle_1b.dylib'):
-              path = os.path.join(out, name)
-              if not os.path.isfile(path):
-                  print(f'::error::missing staged library {name}')
-                  sys.exit(1)
-              raw = os.path.getsize(path)
-              stripped_path = f'/tmp/jsr-ios-{name}'
-              with open(path, 'rb') as src, open(stripped_path, 'wb') as dst:
-                  dst.write(src.read())
-              subprocess.run(['strip', '-x', stripped_path], check=True)
-              stripped = os.path.getsize(stripped_path)
-              gz = len(gzip.compress(open(stripped_path, 'rb').read(), 9))
-              total_stripped += stripped
-              total_gzip += gz
-              lipo = subprocess.run(['lipo', '-info', path], capture_output=True, text=True)
-              arch_clean = (lipo.stdout.strip() or lipo.stderr.strip()).split(': ')[-1]
-              otool = subprocess.run(['otool', '-l', path], capture_output=True, text=True).stdout
-              segs = re.findall(
-                  r'cmd LC_SEGMENT_64\s+cmdsize \d+\s+segname (\S+)'
-                  r'\s+vmaddr (0x[0-9a-f]+)\s+vmsize (0x[0-9a-f]+)'
-                  r'\s+fileoff (\d+)\s+filesize (\d+)', otool)
-              misaligned = []
-              for s, va, vs, fo, fs in segs:
-                  # 16 KiB rule for arm64: vmaddr and fileoff must be 16 KiB
-                  # multiples; vmsize must be page-rounded except the trailing
-                  # __LINKEDIT (its raw unpadded vmsize is the Mach-O norm —
-                  # Apple's own dylibs carry it).
-                  if (int(va, 16) % 16384 or int(fo) % 16384
-                          or (s != '__LINKEDIT' and int(vs, 16) % 16384)):
-                      misaligned.append(s)
-              if misaligned:
-                  failures.append(f'{name}: 16 KiB misaligned segments {misaligned}')
-              probe = arch_clean.lower()
-              if 'x86_64' in probe or 'armv7' in probe or 'simulator' in probe:
-                  failures.append(f'{name}: simulator/foreign slice ({arch_clean})')
-              if '__DWARF' in otool:
-                  failures.append(f'{name}: debug (DWARF) slice present')
-              if b'SwiftShader' in open(path, 'rb').read():
-                  failures.append(f'{name}: SwiftShader present')
-              print(f'{name:<18} raw={raw:>9} stripped={stripped:>9} '
-                    f'gzip={gz:>8} arch={arch_clean} '
-                    f'16KiBAligned={"no" if misaligned else "yes"}')
-          installed_ok = total_stripped <= 10 * mib
-          gzip_ok = total_gzip <= 5 * mib
-          print(f'TOTAL(ios-arm64) installed(stripped)={total_stripped} '
-                f'({total_stripped / mib:.2f} MiB, budget 10.00 MiB -> '
-                f'{"OK" if installed_ok else "EXCEEDED"})')
-          print(f'TOTAL(ios-arm64) gzip={total_gzip} '
-                f'({total_gzip / mib:.2f} MiB, budget 5.00 MiB -> '
-                f'{"OK" if gzip_ok else "EXCEEDED"})')
-          for f in failures:
-              print(f'::error::{f}')
-          if failures:
-              sys.exit(1)
-          # Size budget: issue #7 allows exceeding the budget with an explicit
-          # documented size review before merge (docs/angle_1b.md, iOS host
-          # section); the report records the measured values verbatim.
-          print('SIZE-IOS-1 structural checks: OK (arm64 device slice only, '
-                '16 KiB aligned, no simulator/debug/SwiftShader slices)')
-          print('== ANGLE ios-arm64 size report: done ==')
-          PY
+          bash tool/angle_size_macho.sh packages/jsr_three_angle/native/angle/out/ios-arm64 ios-arm64 | tee ios-size-report.txt
 
       - name: Build the example for the simulator (plugin + app compile check)
         run: |

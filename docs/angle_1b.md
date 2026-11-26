@@ -657,7 +657,7 @@ excluded.
 
 | Platform / ABI | Installed (stripped) | gzip | Budget 10 / 5 MiB | Verdict |
 |---|---|---|---|---|
-| macos-arm64 | 11.63 MiB | 4.28 MiB | — | recorded, not gated (run 45737838411) |
+| macos-arm64 | 11.10 MiB (11634336 B) | 4.28 MiB | — | recorded, not gated (run 45737838411) |
 | android-arm64 | 5.99 MiB | 2.36 MiB | within | SIZE-ANDROID-1 PASS (16 KiB shim) |
 | android-armv7 | 3.77 MiB | 2.01 MiB | within | SIZE-ANDROID-1 PASS |
 | android-x86_64 | 6.21 MiB | 2.47 MiB | within | SIZE-ANDROID-1 PASS |
@@ -665,9 +665,11 @@ excluded.
 
 macOS stays above the 10 MiB installed budget: the plan's size ids are
 `SIZE-ANDROID-1` and `SIZE-IOS-1`, so the macOS number is reported, not
-gated. Reducing the ANGLE payload (symbol-visibility trimming, `angle_`
-feature pruning) is packaging work that may follow the merge; it is not a
-gate change.
+gated. Every number in this table is binary MiB (bytes / 1048576); earlier
+F2-era notes quoting the macOS row as "11.63 MiB" used decimal megabytes
+for the same 11634336 bytes. Reducing the ANGLE payload (symbol-visibility
+trimming, `angle_` feature pruning) is packaging work that may follow the
+merge; it is not a gate change.
 
 ### Recorded device-suite outcomes (CI, honest record)
 
