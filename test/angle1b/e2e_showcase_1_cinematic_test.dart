@@ -4,6 +4,7 @@ import 'package:flutter_test/flutter_test.dart';
 
 import '../../tool/three/bench_1b.dart' show Shim;
 import '../support/three_1b_engine.dart';
+import '../support/three_1b_real_wire.dart';
 
 // E2E-SHOWCASE-1 (issue #8, F4a, ADR-0004 decisions 2+3): the showcase
 // renders from the CORE copy. Two legs:
@@ -22,6 +23,11 @@ void main() {
   // scheduler reads WidgetsBinding.instance, so the test binding must exist
   // even though this file only uses plain `test`s.
   TestWidgetsFlutterBinding.ensureInitialized();
+  // Deterministic end-of-process teardown (three_1b_real_wire.dart): a live
+  // ANGLE display at exit segfaults the CI Paravirtual GPU even when every
+  // test passed.
+  final onebWires = <Real1BWireHost>[];
+  tearDownAll(() => disposeReal1BWires(onebWires));
   final bundle = File('assets/three/jsr_three_web.js').readAsStringSync();
   final showcaseWidget = File(
     'example/widgets/three-cinematic-showcase/widget.js',
@@ -43,7 +49,7 @@ void main() {
         width: 320,
         height: 198,
       );
-      addTearDown(wire.dispose);
+      onebWires.add(wire);
       expect(reported?.isAngle1b, isTrue);
       expect(wire.bootstrapEnsured, isTrue);
       expect(

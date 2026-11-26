@@ -17,6 +17,12 @@ void main() {
   final realBundle = File('assets/three/jsr_three_web.js').readAsStringSync();
   // ignore: omit_local_variable_types
   final String? missing = Shim.resolveProblem();
+  // Deterministic end-of-process teardown (three_1b_real_wire.dart): a live
+  // ANGLE display at exit segfaults the CI Paravirtual GPU even when every
+  // test passed. wire1 below is disposed inside its test (the E2E-LIFE-1
+  // behavior) and must NOT be registered.
+  final onebWires = <Real1BWireHost>[];
+  tearDownAll(() => disposeReal1BWires(onebWires));
 
   final lifecycleWidget = '''
 var results = { cycles: 0, errors: [], lastCalls: 0 };
@@ -40,7 +46,7 @@ jsr.exportState(results);
       'one engine and one surface', () async {
     final (wire, reported, state, logs) =
         await run1bRealEngine(lifecycleWidget, realBundle);
-    addTearDown(wire.dispose);
+    onebWires.add(wire);
     expect(reported?.isAngle1b, isTrue);
     expect(state?['cycles'], 100,
         reason: 'every cycle created, rendered and disposed cleanly');
@@ -72,7 +78,7 @@ ${onebRenderCubeJs('0x0000ff')}
 '''),
       realBundle,
     );
-    addTearDown(wire.dispose);
+    onebWires.add(wire);
     expect(reported?.isAngle1b, isTrue);
     expect(state?['hasExt'], isTrue);
     expect(state?['lost'], isTrue);
@@ -126,7 +132,7 @@ ${onebRenderCubeJs('0x0000ff')}
       renderWidget.replaceFirst('engine: 1', 'engine: 2'),
       realBundle,
     );
-    addTearDown(wire2.dispose);
+    onebWires.add(wire2);
     expect(reported2?.isAngle1b, isTrue);
     expect(state2?['engine'], 2);
     expect(state2?['rendered'], isTrue);

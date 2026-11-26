@@ -18,6 +18,7 @@ import '../support/f4c1_widget_helper.dart';
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
   final missing = Shim.resolveProblem();
+  tearDownAll(disposeF4c1Wires);
 
   Future<Map<String, dynamic>> run1b() => runF4c1On1B(missing);
 

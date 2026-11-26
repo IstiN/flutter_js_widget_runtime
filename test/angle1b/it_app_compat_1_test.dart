@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:flutter_test/flutter_test.dart';
 
 import '../support/three_1b_engine.dart';
+import '../support/three_1b_real_wire.dart';
 import '../support/three_quickjs_example_harness.dart';
 import '../../tool/three/bench_1b.dart' show Shim;
 
@@ -20,6 +21,11 @@ import '../../tool/three/bench_1b.dart' show Shim;
 void main() {
   final realBundle = File('assets/three/jsr_three_web.js').readAsStringSync();
   final missing = Shim.resolveProblem();
+  // Deterministic end-of-process teardown (three_1b_real_wire.dart): a live
+  // ANGLE display at exit segfaults the CI Paravirtual GPU even when every
+  // test passed.
+  final onebWires = <Real1BWireHost>[];
+  tearDownAll(() => disposeReal1BWires(onebWires));
 
   /// The application source, byte-identical across the 1A and 1B legs: the
   /// canonical `jsr.three.createCanvas` canvas, one lit-geometry-free scene
@@ -83,7 +89,7 @@ void main() {
       'and the application renders over ANGLE', () async {
     final (wire, reported, state, logs) =
         await run1bRealEngine(appWidget, realBundle);
-    addTearDown(wire.dispose);
+    onebWires.add(wire);
     expect(reported?.isAngle1b, isTrue);
     expect(wire.bootstrapEnsured, isTrue);
     expect(state?['firstLine'], isTrue,
@@ -126,7 +132,7 @@ jsr.exportState(results);
 
     // (b) blocked: the policy message, before any renderer allocation, with
     // the REAL bundle behind the policy.
-    final (_, reportedB, stateB, logsB) = await run1bRealEngine(
+    final (wireB, reportedB, stateB, logsB) = await run1bRealEngine(
       onebProbeWidget('''
 $onebShaderPolicyProbeJs
 try {
@@ -138,6 +144,7 @@ try {
 '''),
       realBundle,
     );
+    onebWires.add(wireB);
     expect(reportedB?.isAngle1b, isTrue);
     const policy =
         'three.unsupported: custom shaders are disabled by host policy';
@@ -169,7 +176,7 @@ try {
 '''),
       realBundle,
     );
-    addTearDown(wire.dispose);
+    onebWires.add(wire);
     expect(reported?.isAngle1b, isTrue);
     expect(state?['compileOk'], isFalse);
     expect(state?['hasLog'], isTrue,
