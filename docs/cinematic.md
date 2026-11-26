@@ -30,6 +30,10 @@ final `bytes compared: no …` line (`quality` on ubuntu runs these pin
 checks). `bundle_manifest.json` records the builder in
 `build.builderHost`; the macOS CI job asserts it, so a bundle regenerated
 on another host class fails CI instead of silently losing the byte gate.
+The official-example prepare (`tool/three_example/prepare.mjs`, output
+`example/widgets/<id>/prepare_manifest.json`) carries the same gate: its
+`build.builderHost` decides where its byte comparison runs, and the
+macOS CI job verifies it byte-for-byte as well.
 
 ## Surface members
 
