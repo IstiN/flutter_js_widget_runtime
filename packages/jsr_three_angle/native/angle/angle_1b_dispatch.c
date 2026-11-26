@@ -60,15 +60,23 @@ static const char *g1_rd_str(g1_cur *c, uint32_t len) {
   return g1_strbuf;
 }
 
-// Blob: when the remaining wire is shorter than the declared length the
-// command used the size-only convention (a bare number instead of a typed
-// array) and the decoder hands GL a NULL pointer (bufferData size-only,
-// texImage2D null-data overloads). A zero-length blob at the very end of
-// the buffer is likewise NULL (JS null and an empty array are equivalent
-// for uploads).
-static const void *g1_rd_blob(g1_cur *c, uint32_t len) {
+// Blob arg ('b'): the length field carries its meaning in bit 31.
+//   bit 31 set  = size-only convention (a bare number or null on the JS
+//                 side; bufferData size-only / texImage2D null-data): the
+//                 low 31 bits are the size, NO bytes follow, GL gets NULL.
+//   bit 31 clear = real data: exactly `len` bytes follow and the cursor
+//                 advances over them; a shorter remainder is a MALFORMED
+//                 frame (never silently re-read as a size-only upload —
+//                 the old heuristic mis-fed GL a pointer into the next
+//                 command when the blob sat mid-batch).
+// A zero-length real blob hands GL the cursor position (a zero-byte copy
+// never dereferences it); bufferData masks bit 31 before using the field
+// as the allocation size.
+static const void *g1_rd_blob(g1_cur *c, uint32_t len_field) {
+  if (len_field & 0x80000000u) return NULL;
+  uint32_t len = len_field;
   ptrdiff_t remaining = c->end - c->p;
-  if (remaining < (ptrdiff_t)len || (len == 0 && remaining == 0)) return NULL;
+  if (remaining < (ptrdiff_t)len) { c->err = 1; return NULL; }
   const uint8_t *p = c->p;
   c->p += len;
   return p;

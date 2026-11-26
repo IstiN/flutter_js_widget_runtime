@@ -41,9 +41,10 @@ static void a1bp_str(const char *s) {
 }
 
 // Typed-array-or-size 'b' arg: (ptr,bytes) uploads bytes; (NULL,n) is the
-// size-only convention (writes the length alone, decoder sees NULL).
+// size-only convention — the length field with bit 31 set, no bytes on the
+// wire (decoder sees NULL; see g1_rd_blob in angle_1b_dispatch.c).
 static void a1bp_blob(const void *p, uint32_t n) {
-  a1bp_u32(n);
+  a1bp_u32(p ? n : (0x80000000u | n));
   if (p) {
     memcpy(a1b_pack_buf + a1b_pack_len, p, n);
     a1b_pack_len += (int)n;

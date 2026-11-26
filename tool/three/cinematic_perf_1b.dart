@@ -322,17 +322,16 @@ Future<Map<String, dynamic>> run1bCinematicCell(
       File(corpus.kFacadePath).readAsStringSync(),
       'webgl2_facade.js',
     );
-    // Transport mode (measured defect, F4f): the BATCHED wire (F2b facade
-    // batching) corrupts large inline texImage2D blobs — 4/8 bus errors
-    // (BUS_ADRALN in ANGLE TextureMtl::setPerSliceSubImage) uploading a
-    // 256 KiB DataTexture at 720p, reproducible only with batch+sized-blob
-    // traffic (bench_1b = batched without blobs and the corpus = per-command
-    // never hit it). The corpus transport — per-command dispatch, the same
-    // __jsr1b_gl bytes lane — is the blob-validated mode and the default
-    // here; the timing method is unchanged. JSR_PERF_BATCHED=1 keeps the
-    // batch sink for re-measuring after the wire fix (owned by the native
-    // leg fix lane, feat/9-f4i-host-proof).
-    if (Platform.environment['JSR_PERF_BATCHED'] != '1') {
+    // Transport mode: the BATCHED wire (F2b facade batching) is the engine's
+    // default lane and the matrix default — the F4f transport defect (null
+    // and size-only uploads mid-batch handed GL garbage pointers) is FIXED
+    // at the protocol layer: the size-only convention now rides the length
+    // field's bit 31 (no bytes on the wire), so the decoder can never feed
+    // GL a pointer into the next command. Regression: F4F-BATCHED-BLOB-1..3
+    // (test/angle1b/f4f_batched_blob_test.dart). JSR_PERF_BATCHED=0 stays
+    // only as the diagnostic switch for the per-command transport
+    // (`G1.setSink(null)` — the corpus transport, same __jsr1b_gl lane).
+    if (Platform.environment['JSR_PERF_BATCHED'] == '0') {
       session.evalJs(
         'if (typeof G1 !== "undefined" && G1.setSink) G1.setSink(null);',
         'clear-batch-sink.js',

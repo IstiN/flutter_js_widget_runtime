@@ -743,24 +743,68 @@ record, `assets/three/jsr_three_web.js`, byte-identical on both legs).
   MEDIAN over the windows (never a best-of-N pick). The web leg times
   `pipeline.renderFrame` with `performance.now` in the page (thread CPU is
   not observable there). No timing number gates anything in F4f.
-- Transport mode: the matrix runs the corpus transport (per-command
-  dispatch) because the BATCHED wire corrupts large inline texImage2D blobs
-  (below); `JSR_PERF_BATCHED=1` restores batching for re-measuring after
-  the wire fix.
+- Transport mode: the matrix default is the BATCHED wire (F2b facade
+  batching) — the engine's default lane. `JSR_PERF_BATCHED=0` is a
+  diagnostic switch that selects the per-command transport
+  (`G1.setSink(null)`, the corpus dispatch) for wire comparisons; it is
+  never the measured default. The transport defect of the first matrix
+  record is FIXED (below).
 - `npm --prefix tool/three test` and the ANGLE host tests are unaffected
   (no bundle, facade or core-module change in F4f).
 
-### Measured transport defect (owned by the native leg fix lane)
+### Measured transport defect — record and fix (F4f)
 
-Uploading a 256 KiB DataTexture through the BATCHED wire (F2b facade
-batching) crashes the process with a BUS error (`BUS_ADRALN` inside ANGLE
+DEFECT (first matrix record): the BATCHED wire (F2b facade batching)
+crashed the process with a BUS error (`BUS_ADRALN` inside ANGLE
 `TextureMtl::setPerSliceSubImage` -> `memmove`) at a garbage address,
 reproducibly flaky: 4 of 8 runs at 1280x720 with the perf scene, 0 of 8
-runs in the corpus transport (per-command dispatch), 0 in bench_1b (batched
-but without inline blobs) and 0 in the corpus (blobs but per-command). The
-trigger is the combination of a large inline blob and batching; the corpus
-transport is the blob-validated mode and the F4f default. The F4f matrix
-therefore measures the scene on the corpus transport and reports the defect
-here; the wire fix belongs to the native leg fix lane
-(`feat/9-f4i-host-proof`). REG-UPLOADS itself is transport-independent:
-both modes show the same 0-per-frame counters.
+runs in the corpus transport (per-command dispatch), 0 in bench_1b
+(batched but without inline blobs) and 0 in the corpus (blobs but
+per-command).
+
+ROOT CAUSE (one layer: the G1 wire's blob convention, shared by the JS
+packer and the C decoder): the size-only / null-data convention was
+encoded as a bare length field (`u32 len`, no bytes on the wire) and the
+decoder inferred "no data" from `remaining < len` or
+`len == 0 && remaining == 0`. Inside a batched dispatch a null-data
+`texImage2D` FOLLOWED by other commands left `remaining > 0`, so the
+decoder handed GL a pointer INTO THE NEXT COMMAND'S BYTES; ANGLE Metal
+copied `width*height*bytes-per-pixel` from that pointer and walked off the
+208-byte dispatch block into an unmapped page (the crash), or uploaded
+silently wrong bytes. A size-only `bufferData(len)` additionally advanced
+the decode cursor over bytes that were never written, desyncing every
+later command in the batch. Per-command dispatch always ended the buffer
+at the blob, so the heuristic happened to hold there — which is why only
+the batched lane failed. Byte-level proof: the batched and per-command
+command streams of the same scene were IDENTICAL (11645 commands, 0
+diffs), so the encoder was never at fault; a traced dispatch showed the
+crashing `texImage2D(TEXTURE_2D, 0, RGBA16F, 1280, 720, 0, RGBA,
+HALF_FLOAT, <non-null garbage>)` mid-batch.
+
+SIZE BISECT (the boundary sweep of the regression test, on the pre-fix
+wire): real inline blobs were carried byte-exactly at every size
+(64 KiB-1, 64 KiB, 64 KiB+1, 256 KiB, 1 MiB, 4 MiB, 16 MiB; 8 runs each
+up to 1 MiB, 3 at 4 MiB, 2 at 16 MiB — 0 failures, bytes read back
+through an FBO and compared). The defect never touched real blob DATA:
+the failing layouts were the null-data texImage2D (F4F-BATCHED-BLOB-1:
+SIGBUS on every attempt — the shell died inside run 1 of 8 with exit -10)
+and the size-only bufferData (F4F-BATCHED-BLOB-3: the batch answered a
+garbage rc, -1065353216, and the clear following it never ran). The perf
+scene's 256 KiB DataTexture upload itself decoded fine — the crash came
+from the null-data 1280x720 RGBA16F render-target allocation commands in
+the same batched frames.
+
+FIX (wire protocol, one branch per side): the length field carries the
+convention in bit 31 — set = size-only / null-data (GL gets NULL, the
+cursor does not move), clear = real data that must be present in full
+(a shorter remainder is now a MALFORMED frame instead of a silently
+reinterpreted upload). Changed: the generator's blob writer
+(`tool/three/build_1b_bindings.py` -> both `g1_packer.js` copies),
+`g1_rd_blob` (`packages/jsr_three_angle/native/angle/angle_1b_dispatch.c`),
+the C reference packer (`angle_1b_pack.h`) and the two glue rows that use
+the length field as a size (`bufferData`, `getBufferSubData` in
+`tool/three/webgl2_g1_methods.json` -> `gen/g1_tables.h`). Regression
+tests: `test/angle1b/f4f_batched_blob_test.dart` (F4F-BATCHED-BLOB-1: the
+crash layout, 8 runs; F4F-BATCHED-BLOB-2: inline blob sweep 64 KiB-1 ..
+16 MiB, 8 runs each, byte-exact readback; F4F-BATCHED-BLOB-3: the buffer
+cursor desync, pixel-checked).
