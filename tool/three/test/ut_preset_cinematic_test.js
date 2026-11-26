@@ -82,7 +82,7 @@ const json = value => JSON.parse(JSON.stringify(value));
   // draft: fxaa only. production and deterministic-export: the full set,
   // with the export profile carrying its fixed-seed note.
   assert.deepEqual(json(cine.presets.draft.settings().effects), {
-    bloom: false, dof: false, fxaa: true, smaa: false, colorGrade: false, film: false, vignette: false, motion: false
+    bloom: false, dof: false, fxaa: true, smaa: false, colorGrade: false, film: false, vignette: false, motion: false, fringe: false, afterimage: false
   });
   assert.equal(cine.presets.draft.settings().samples, 1);
   for (const full of ['production', 'deterministic-export']) {
