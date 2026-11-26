@@ -77,17 +77,19 @@ PY
   fi
 
   # 3. Android dependencies (the NDK ships from ANGLE's DEPS only when the
-  #    solution declares target_os; DevSetupAndroid.md steps).
+  #    solution declares target_os; DevSetupAndroid.md steps). Top-level
+  #    `target_os` is appended when absent (fresh `fetch angle` writes no
+  #    such line) or extended when present.
   GC="$(dirname "$BUILD_DIR")/.gclient"
   python3 - "$GC" <<'PY'
-import re, sys
+import sys
 p = sys.argv[1]
 s = open(p).read()
 if "'android'" not in s:
-    s2 = re.sub(r"target_os = \[\]", "target_os = ['android']", s, count=1)
-    if s2 == s:
-        sys.exit("could not add target_os to .gclient (pattern not found)")
-    open(p, "w").write(s2)
+    if not s.endswith("\n"):
+        s += "\n"
+    s += "target_os = ['android']\n"
+    open(p, "w").write(s)
     print("added target_os = ['android'] to .gclient")
 PY
   (cd "$BUILD_DIR" && gclient sync --no-history)
