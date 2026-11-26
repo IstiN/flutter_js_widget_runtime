@@ -349,6 +349,42 @@ ANGLE Metal on macOS), so the tier comparison is same-GPU by construction:
 A measured FAIL that is not the shadowmap phase offset is a gate failure, on
 any GPU.
 
+### Full-sweep triage (303 prepared examples, F2d)
+
+The M4 report table was never committed; the sweep below regenerates the
+triage from the CURRENT tree (shards over all 303 prepared examples,
+2026-11-26, with every corpus harness fix of this segment applied):
+
+**PASS 224 (100 exact + 124 tolerance) — 79 classified documented limits.**
+Every FAIL/SKIP is triaged below as a documented limit with its reason; the
+starter corpus (above) is the CI-gated subset.
+
+Fixed since the M4 report (now passing):
+
+- `three-buffergeometry-instancing` — **PASS_IDENTICAL** (the M4 4a suspect:
+  fixed by the M2/M3 decoder lands).
+- `three-buffergeometry-lines` — **PASS_IDENTICAL** (the M4 4b suspect).
+- `three-loader-gltf`, `three-animation-multiple` (99.9974 %),
+  `three-animation-skinning-blending` (99.9805 %) — crashed the reference tab
+  before the blob:-registry / settle-gate harness fixes of this segment.
+
+Documented limits (79 examples, grouped by class):
+
+| Class | Count | Reason (applies to every id in the class) |
+|---|---|---|
+| Prepare converted `.hdr` textures to JPEG | 10 | The prepare pipeline materialized HDR environment maps as `.jpg`-suffixed JPEG; three's HDRLoader parse then rejects the bytes ("no header found"). Asset-lane work belongs to the prepare pipeline, not the corpus harness. |
+| Corpus asset lane: remote/prepare-missed assets | 13 | The scene fetches assets outside the pinned three.js tree (Khronos Sponza, cdn.needle.tools, cdn.jsdelivr rhino3dm) or the prepare missed cube-face/LUT/SMAA textures (`SwedishRoyalCastle`, `Bridge2`, `pisaHDR`, `transition1.png`). Seeding is per-scene work in the asset cache. |
+| Texture-container parse on converted bytes | 5 | `three-loader-texture-dds`, `-ktx2`, `-pvrtc`, `-vrml`, `three-postprocessing-3dlut`: the loaders validate magic numbers/versions against bytes the prepare pipeline stored in converted or placeholder form. |
+| Unpublished/absent npm addon packages | 5 | `three-batch-lod-bvh` (@three.ez/simplify-geometry bundle error), `three-modifier-subdivision` (three-subdivide), `three-postprocessing-godrays` (`goodrays` is not published to npm), `three-renderer-pathtracer` (three-gpu-pathtracer), `three-morphtargets-webcam` (top-level await + webcam). Corpus bundling can only resolve published packages. |
+| Device-dependent input | 1 | `three-materials-video-webcam`: the harness provides no camera device (`MediaDevices` absent by design — no device evidence is claimed). |
+| Engine/API depth of the QuickJS harness | 7 | `three-loader-ifc` (wasm), `three-loader-3dtiles` (DOMException), `three-materials-texture-html` (URLSearchParams), `three-loader-fbx` / `three-performance` / `three-loader-gltf-progressive-lod` (DOM stub depth), `three-clipculldistance` / `three-simple-gi` (tick-time errors under investigation in the harness, not the GL path). |
+| Multi-canvas / OffscreenCanvas scenes | 2 | `three-multiple-elements`, `three-worker-offscreencanvas`: the 1B harness owns ONE ANGLE surface, so scenes that fan out into several canvases cannot be captured faithfully (blank or partial capture) — a harness boundary, not a renderer defect. |
+| On-demand scenes that never draw under the pinned harness | 10 | `three-gpgpu-water`, `three-lightprobe`, `three-materials-cubemap-mipmaps`, `three-materials-cubemap-render-to-mipmaps`, `three-mesh-batch`, `three-pmrem-cubemap`, `three-test-memory2`, `three-texture2darray-compressed`, `three-texture2darray-layerupdate`, `three-tsl-clearcoat`: the web leg never issues a draw without real user interaction / device pixel paths; the draw-activity gate fails them loudly. |
+| Pixel divergence beyond the tolerance band | 22 | `three-camera-logarithmicdepthbuffer`, `three-geometries`, `three-geometry-nurbs`, `three-lights-physical`, `three-loader-gltf-instancing`, `three-loader-texture-ktx/-tga/-tiff`, `three-materials-bumpmap`, `three-materials-texture-anisotropy/-filters/-manualmipmap/-rotation`, `three-modifier-simplifier`, `three-postprocessing-advanced/-masking/-taa`, `three-reversed-depth-buffer`, `three-shaders-ocean`, `three-shadowmap` (phase offset, starter table), `three-test-wide-gamut`, `three-volume-perlin`: engine-depth render differences (log-depth encoding, temporal accumulation, wide-gamut color, texture-filtering LSB beyond the d<=2/99 % band, NURBS float paths). Each is a named engine-depth gap for later corpus lanes — never a silent pass. |
+
+The classes are intentionally narrow: everything not listed compares within
+the documented per-GPU tolerance (above) or bit-identically.
+
 ### E2E-WEB direct-web proof (AC15)
 
 Every corpus web leg runs the SAME scene bundle in a bare Playwright-driven
