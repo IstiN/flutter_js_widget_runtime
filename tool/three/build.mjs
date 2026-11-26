@@ -4,6 +4,22 @@ import { readFile, readdir, writeFile, mkdir, stat } from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { execFileSync } from 'node:child_process';
+import { createRequire } from 'node:module';
+
+// The two pinned IIFE bundles are built AND verified with esbuild-wasm: one
+// binary for every platform, so a clean rebuild is byte-identical on any
+// host. The native darwin/linux esbuild binaries mangle minified identifier
+// names differently (~1.2 KB divergence at the first identifier of the F4a
+// graph), which broke the rebuild-equals-committed check on linux. The
+// native package stays for the platform-independent outputs and the tools
+// that need the speed (golden ESM, corpus drivers, per-fixture bundling).
+const esbuildWasm = createRequire(import.meta.url)('esbuild-wasm');
+let wasmReady;
+function wasmBuild(options) {
+  wasmReady ??= esbuildWasm.initialize({ worker: false });
+  return wasmReady.then(() => esbuildWasm.build(options));
+}
+const wasmBuildMs = {};
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.resolve(HERE, '../..');
@@ -75,7 +91,8 @@ function resolver(native) {
 }
 
 async function makeBundle(name, native) {
-  const result = await build({
+  const started = performance.now();
+  const result = await wasmBuild({
     absWorkingDir: ROOT,
     entryPoints: [path.join(HERE, `src/${name}_entry.js`)],
     outfile: path.join(OUT, native ? 'jsr_three_native.js' : 'jsr_three_web.js'),
@@ -93,6 +110,7 @@ async function makeBundle(name, native) {
     define: { '__THREE_DEVTOOLS__': 'undefined' }
   });
   if (result.outputFiles.length !== 1) throw new Error(`Unexpected esbuild outputs for ${name}`);
+  wasmBuildMs[name] = Math.round(performance.now() - started);
   return Buffer.from(result.outputFiles[0].contents);
 }
 
@@ -170,7 +188,7 @@ const manifest = {
     notice: 'assets/three/THREE_LICENSE'
   },
   build: {
-    tool: 'esbuild', esbuildVersion: '0.25.5', format: 'iife', global: 'THREE', target: 'es2020', minify: true,
+    tool: 'esbuild-wasm', esbuildVersion: '0.25.5', format: 'iife', global: 'THREE', target: 'es2020', minify: true,
     command: `node tool/three/build.mjs --source ${SOURCE}`,
     verifyCommand: `node tool/three/build.mjs --source ${SOURCE} --verify`,
     sourceEnvironment: 'THREE_SRC may replace --source /tmp/jsr-three-r186',
@@ -221,10 +239,10 @@ if (verify) {
   }
   if (sha(await readFile(path.join(OUT, 'THREE_LICENSE'))) !== sha(license)) throw new Error('THREE_LICENSE differs from upstream');
   if (JSON.stringify(oldManifest) !== JSON.stringify(manifest)) throw new Error('bundle_manifest.json differs from the clean pinned rebuild inputs/metadata');
-  console.log(JSON.stringify({ verified: true, sourceCommit: PIN.commit, outputs: manifestOutputs }, null, 2));
+  console.log(JSON.stringify({ verified: true, sourceCommit: PIN.commit, buildMs: wasmBuildMs, outputs: manifestOutputs }, null, 2));
 } else {
   await mkdir(OUT, { recursive: true });
   await writeFile(path.join(OUT, 'THREE_LICENSE'), license);
   await writeFile(path.join(OUT, 'bundle_manifest.json'), manifestBytes);
-  console.log(JSON.stringify({ sourceCommit: PIN.commit, sourceTreeSha256: tree.hash, build: manifest.build.command, outputs: manifestOutputs }, null, 2));
+  console.log(JSON.stringify({ sourceCommit: PIN.commit, sourceTreeSha256: tree.hash, buildMs: wasmBuildMs, build: manifest.build.command, outputs: manifestOutputs }, null, 2));
 }
