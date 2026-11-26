@@ -251,6 +251,16 @@ function createFacade(canvas, attrs) {
         return w;
       },
       name: function (w) { return (w == null) ? 0 : (w.__g1name >>> 0); },
+      // Dropping a deleted object's identity: a deleted GL name can be
+      // REUSED by the next create, and handing back the stale wrapper makes
+      // wrapper-comparing trackers (three.js WebGLState.bindFramebuffer)
+      // skip the real bind — the recreated object then never gets bound
+      // (framebuffer attaches land on the default framebuffer, GL_INVALID_
+      // OPERATION, incomplete FBO forever). Real WebGL returns a fresh
+      // object for every create.
+      forget: function (w) {
+        if (w != null) cache.delete(w.__g1name >>> 0);
+      },
       ctor: W
     };
   }
@@ -325,6 +335,20 @@ function createFacade(canvas, attrs) {
     };
   });
   for (var k in generic) gl[k] = generic[k];
+  // Deleted GL objects lose their wrapper identity (see wclass.forget):
+  // the delete goes to the wire AND the cache entry drops, so a name the
+  // driver reuses wraps FRESH — trackers that compare wrapper objects then
+  // emit the real bind for the recreated object.
+  ['deleteBuffer:WebGLBuffer', 'deleteFramebuffer:WebGLFramebuffer', 'deleteProgram:WebGLProgram',
+   'deleteQuery:WebGLQuery', 'deleteRenderbuffer:WebGLRenderbuffer', 'deleteSampler:WebGLSampler',
+   'deleteShader:WebGLShader', 'deleteTexture:WebGLTexture', 'deleteTransformFeedback:WebGLTransformFeedback',
+   'deleteVertexArray:WebGLVertexArrayObject'].forEach(function (pair) {
+    var m = pair.split(':')[0], cls = pair.split(':')[1];
+    gl[m] = function (v) {
+      if (v && v.__g1name !== undefined) classes[cls].forget(v);
+      return call(m, [u(v)]);
+    };
+  });
   gl.fenceSync = function (condition, flags) {
     return classes.WebGLSync.wrap(call('fenceSync', [condition, flags]) >>> 0);
   };
@@ -488,6 +512,25 @@ function createFacade(canvas, attrs) {
     for (var i = 0; i < n; i++) dst[i] = b[i];
   }
   gl.readPixels = function (x, y, w, h, format, type, pixels) {
+    // The G1 scratch is a fixed 256 KB buffer (G1_SCRATCH_CAP,
+    // angle_1b_dispatch.c): one readPixels bigger than the cap returns
+    // zero bytes silently (g1_read_pixels early-returns, no GL error).
+    // Split into 64 KB row strips — each dispatch fits the cap, rows stay
+    // row-tight so the strips concatenate byte-linearly.
+    var rowBytes = (pixels && pixels.buffer && h > 0) ? Math.floor(pixels.byteLength / h) : 0;
+    if (rowBytes > 0 && rowBytes * h > 65536) {
+      var rowsPerStrip = Math.max(1, Math.floor(65536 / rowBytes));
+      var tmp = new Uint8Array(rowBytes * rowsPerStrip);
+      for (var row = 0; row < h; row += rowsPerStrip) {
+        var rows = Math.min(rowsPerStrip, h - row);
+        var view = rows === rowsPerStrip ? tmp : new Uint8Array(rowBytes * rows);
+        call('readPixels', [x, y + row, w, rows, format, type]);
+        copyScratchInto(view);
+        new Uint8Array(pixels.buffer, pixels.byteOffset + row * rowBytes, rowBytes * rows)
+          .set(view.subarray(0, rowBytes * rows));
+      }
+      return;
+    }
     call('readPixels', [x, y, w, h, format, type]);
     copyScratchInto(pixels);
   };

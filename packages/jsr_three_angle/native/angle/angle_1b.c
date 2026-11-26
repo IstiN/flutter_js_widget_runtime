@@ -444,6 +444,37 @@ int a1b_read_pixels(int64_t surface, uint8_t *dst_rgba, int *width, int *height)
   return 0;
 }
 
+// CPU readback of the presented surface: locks the surface's IOSurface
+// read-only and copies it out as tightly packed RGBA8 (BGRA->RGBA). No GL
+// context is involved — the EGL context is current on the engine's worker
+// thread, so a host-side capture (the cinematic capture barrier) must not
+// call glReadPixels; it reads the presented IOSurface instead. The bytes
+// are complete because a1b_swap_buffers finishes the GL work before the
+// surface is handed on.
+int a1b_read_surface_cpu(int64_t surface, uint8_t *dst_rgba, int *width, int *height) {
+  a1b_surface_t *s = a1b_find(surface);
+  if (!s || !dst_rgba || !s->io) return a1b_fail("bad args");
+  size_t bpr = IOSurfaceGetBytesPerRow(s->io);
+  const uint8_t *src = IOSurfaceGetBaseAddress(s->io);
+  if (!src) return a1b_fail("no iosurface base");
+  IOReturn rc = IOSurfaceLock(s->io, kIOSurfaceLockReadOnly, NULL);
+  if (rc != 0) return a1b_fail("IOSurfaceLock failed");
+  for (int y = 0; y < s->height; y++) {
+    const uint8_t *row = src + (size_t)y * bpr;
+    uint8_t *dst = dst_rgba + (size_t)y * s->width * 4;
+    for (int x = 0; x < s->width; x++) {
+      dst[x * 4 + 0] = row[x * 4 + 2]; // BGRA -> RGBA
+      dst[x * 4 + 1] = row[x * 4 + 1];
+      dst[x * 4 + 2] = row[x * 4 + 0];
+      dst[x * 4 + 3] = row[x * 4 + 3];
+    }
+  }
+  IOSurfaceUnlock(s->io, kIOSurfaceLockReadOnly, NULL);
+  if (width) *width = s->width;
+  if (height) *height = s->height;
+  return 0;
+}
+
 // ---- teardown --------------------------------------------------------------------
 void a1b_destroy_surface(int64_t surface) {
   a1b_surface_t *s = a1b_find(surface);

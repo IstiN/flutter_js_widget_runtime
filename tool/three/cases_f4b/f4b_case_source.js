@@ -110,38 +110,13 @@
     return Math.round(v * 255);
   }
 
-  // frameHash: re-renders the SAME scene state into the composer's offscreen
-  // buffers (renderToScreen=false) and reads the output target back. The
-  // presented surface is NOT readable on the web lane (the present lane
-  // transfers — and thereby clears — the backing canvas) and it is opaque on
-  // 1B, so the composer output target is THE comparable image on both legs.
-  function composerOutputBytes(kit) {
-    var composer = kit.pipeline.composer;
-    var last = composer.passes[composer.passes.length - 1];
-    var prev = composer.renderToScreen;
-    composer.renderToScreen = false;
-    composer.render(0);
-    composer.renderToScreen = prev;
-    var target = last.needsSwap ? composer.readBuffer : composer.writeBuffer;
-    var raw = new Uint16Array(W * H * 4);
-    kit.renderer.readRenderTargetPixels(target, 0, 0, W, H, raw);
-    var rgba = new Uint8Array(W * H * 4);
-    for (var i = 0; i < raw.length; i++) rgba[i] = clampByte(halfToFloat(raw[i]));
-    return rgba;
-  }
-
-  function frameHash(kit, frame) {
-    kit.pipeline.renderFrame(cs(frame, 1));
-    return fnv1a(composerOutputBytes(kit));
-  }
-
-  function countOpaqueAlpha(rgba) {
-    var opaque = 0;
-    var center = [rgba[(90 * W + 160) * 4], rgba[(90 * W + 160) * 4 + 1],
-      rgba[(90 * W + 160) * 4 + 2], rgba[(90 * W + 160) * 4 + 3]];
-    for (var i = 3; i < rgba.length; i += 4) if (rgba[i] === 255) opaque++;
-    return { opaque: opaque, center: center };
-  }
+  // composerOutputBytes: re-renders the SAME scene state into the composer's
+  // offscreen buffers (renderToScreen=false) and reads the output target
+  // back. The presented surface is NOT readable on the web lane (the present
+  // lane transfers — and thereby clears — the backing canvas) and it is
+  // opaque on 1B, so the composer output target is THE comparable image on
+  // both legs. The read covers the CURRENT buffer size (setSize changes it —
+  // a fixed-size read out of range reads garbage/zero on real GL).
 
   // skipRender: read the buffers WITHOUT re-rendering (right after
   // renderFrame the output sits in composer.readBuffer).
@@ -155,11 +130,17 @@
       composer.renderToScreen = prev;
     }
     var target = last.needsSwap ? composer.readBuffer : composer.writeBuffer;
-    var raw = new Uint16Array(W * H * 4);
-    kit.renderer.readRenderTargetPixels(target, 0, 0, W, H, raw);
-    var rgba = new Uint8Array(W * H * 4);
+    var tw = target.width, th = target.height;
+    var raw = new Uint16Array(tw * th * 4);
+    kit.renderer.readRenderTargetPixels(target, 0, 0, tw, th, raw);
+    var rgba = new Uint8Array(tw * th * 4);
     for (var i = 0; i < raw.length; i++) rgba[i] = clampByte(halfToFloat(raw[i]));
     return rgba;
+  }
+
+  function frameHash(kit, frame) {
+    kit.pipeline.renderFrame(cs(frame, 1));
+    return fnv1a(composerOutputBytes(kit));
   }
 
   // Expected PREMULTIPLIED composite: the stock additive bloom accumulates
@@ -257,7 +238,7 @@
     var result = {
       width: W, height: H, fps: FPS, shutter: SHUTTER,
       seq: [], rep5: [], frozen7: [], delay6: [],
-      direct12: null, rev0: null, capture9: null, diverge3: null,
+      direct12: null, rev0: null, present9: null, capture9: null, diverge3: null,
       resizeSmall: null, resizeBack: null,
       alpha: {}, opaque: {},
       checks: []
@@ -310,12 +291,18 @@
     check('hostDelayNeutral', delaysMatch, result.delay6.join(','));
 
     // ── Capture after the final pass ─────────────────────────────────────
-    // Renders frame 9, then asks the barrier capture for frame 9. Native:
-    // the Dart capture host reads the presented surface; the test compares
-    // the surface hash with seq[9]. Web: no jsr.capture exists in the bare
-    // reference page, so the named rejection is the expected record.
+    // Renders frame 9 (renderFrame presents it), then reads the presented
+    // default framebuffer back in JS as RGBA8 — `present9` is the comparable
+    // image for the barrier capture: the native Dart capture host reads the
+    // SAME presented surface (IOSurface CPU read). Web: no jsr.capture
+    // exists in the bare reference page, so the named rejection is the
+    // expected record.
     try {
       frameHash(delayKit, 9);
+      var presentPx = new Uint8Array(W * H * 4);
+      var glc = delayKit.renderer.getContext();
+      glc.readPixels(0, 0, W, H, glc.RGBA, glc.UNSIGNED_BYTE, presentPx);
+      result.present9 = fnv1a(presentPx);
       var cap = await io.captureFrame(cs(9, 1), delayKit.pipeline);
       result.capture9 = {
         ok: cap && cap.ok === true,
@@ -344,14 +331,7 @@
     var LIGHT = [235, 235, 230];
     var alphaKit = makePipeline(THREE, cine, 'f4b-alpha', { alpha: true });
     alphaKit.pipeline.renderFrame(cs(4, 1));
-    // DEBUG: read the composer output right after renderFrame, then again
-    // after the manual offscreen re-render.
-    var firstRead = composerOutputBytes(alphaKit, true);
     var aRgba = composerOutputBytes(alphaKit);
-    result.alphaDebugFirst = countOpaqueAlpha(firstRead);
-    if (typeof globalThis.__f4bBufferCounts === 'function') {
-      result.alphaDebugBuffers = globalThis.__f4bBufferCounts(alphaKit);
-    }
     var nZero = 0, nPartial = 0, nOpaque = 0, alphaSum = 0, cornerAlpha = 0, cornerN = 0;
     for (var p = 3; p < aRgba.length; p += 4) {
       var a = aRgba[p];
@@ -381,11 +361,6 @@
       cornerMeanAlpha: Math.round(cornerAlpha / cornerN / 255 * 1000) / 1000,
       sampleCenter: [aRgba[(90 * W + 160) * 4], aRgba[(90 * W + 160) * 4 + 1],
         aRgba[(90 * W + 160) * 4 + 2], aRgba[(90 * W + 160) * 4 + 3]],
-      debugSphere: (function () {
-        var s = alphaKit.scene.children[0];
-        return { x: Math.round(s.position.x * 1000) / 1000, visible: s.visible,
-          passes: alphaKit.pipeline.passes ? Object.keys(alphaKit.pipeline.passes) : null };
-      })(),
       clearAlpha: alphaKit.pipeline.getConfig().clearAlpha,
       darkHash: compositeHash(aRgba, DARK),
       lightHash: compositeHash(aRgba, LIGHT)

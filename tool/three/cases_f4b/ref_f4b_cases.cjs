@@ -42,20 +42,6 @@ globalThis.__f4bRun = async function () {
     }
   });
 };
-globalThis.__f4bBufferCounts = function (kit) {
-  function hf(h){const s=(h&0x8000)>>15,e=(h&0x7C00)>>10,f=h&0x03FF;if(e===0)return(s?-1:1)*Math.pow(2,-14)*(f/1024);if(e===0x1F)return f?NaN:(s?-Infinity:Infinity);return(s?-1:1)*Math.pow(2,e-15)*(1+f/1024);}
-  const composer = kit.pipeline.composer;
-  const renderer = kit.renderer;
-  function count(t) {
-    const raw = new Uint16Array(320*180*4);
-    renderer.readRenderTargetPixels(t, 0, 0, 320, 180, raw);
-    let o = 0, mx = -9;
-    for (let i = 3; i < raw.length; i += 4) { const v = hf(raw[i]); if (v >= 1) o++; if (v > mx) mx = v; }
-    return { opaque: o, mx: Math.round(mx*100)/100 };
-  }
-  return { rb: count(composer.readBuffer), wb: count(composer.writeBuffer),
-    size: [composer.readBuffer.width, composer.readBuffer.height] };
-};
 globalThis.__f4bProbe = function () {
   return {
     nativeContext: typeof (globalThis.THREE && globalThis.THREE.WebGLRenderer) === 'function',

@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
@@ -72,30 +73,38 @@ void main() {
     () async {
       if (missing != null) return;
       final r = await (run ??= driver());
-      expect(r.exitCode, 0, reason: 'corpus driver gate failed');
+      expect(
+        r.exitCode,
+        0,
+        reason:
+            'corpus driver gate failed\n--- stdout ---\n${r.stdout}\n'
+            '--- stderr ---\n${r.stderr}',
+      );
       final out = '/tmp/a1b_corpus/three-postprocessing-unreal-bloom';
-      final web = File('$out/web.png');
+      final web = File('$out/web.rgba');
       expect(
         web.existsSync(),
         isTrue,
-        reason: 'the web reference image exists',
+        reason: 'the web reference readback exists',
       );
       expect(
         web.lengthSync(),
-        greaterThan(1000),
-        reason: 'the web reference image is non-empty',
+        greaterThanOrEqualTo(320 * 240 * 4),
+        reason: 'the web readback is a full frame',
       );
-      final status = out;
-      final direct = File('$status/status_web.json').readAsStringSync();
+      final status =
+          jsonDecode(File('$out/status_web.json').readAsStringSync())
+              as Map<String, dynamic>;
+      final direct = status['direct'] as Map<String, dynamic>;
       expect(
-        direct,
-        contains('"barePage": true'),
-        reason: 'bare page (no Dart runtime): $direct',
+        direct['barePage'],
+        isTrue,
+        reason: 'bare page (no Dart runtime): $status',
       );
       expect(
-        direct,
-        contains('"no1bLane": true'),
-        reason: 'no ANGLE 1B lane on the web leg: $direct',
+        direct['no1bLane'],
+        isTrue,
+        reason: 'no ANGLE 1B lane on the web leg: $status',
       );
     },
     skip: missing,

@@ -39,6 +39,11 @@ int a1b_swap_buffers(int64_t surface);
 // Converts BGRA->RGBA in C when the driver reports BGRA order.
 int a1b_read_pixels(int64_t surface, uint8_t *dst_rgba, int *width, int *height);
 
+// CPU readback of the presented IOSurface as tightly packed RGBA8 (no GL
+// context involved; safe from any thread). Same dst/width/height contract
+// as a1b_read_pixels.
+int a1b_read_surface_cpu(int64_t surface, uint8_t *dst_rgba, int *width, int *height);
+
 // Deterministic demo renderer for the smoke test: clears dark blue and
 // draws a gradient triangle that covers most of the surface. M2: every GL
 // call goes through the G1 dispatch path (single code path, see

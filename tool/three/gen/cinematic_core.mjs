@@ -2920,6 +2920,15 @@ function createPipeline(options) {
   if (!renderer || !scene || !camera) throw new Error("cinematic.invalid: renderer, scene and camera are required");
   const caps = options.capabilities || probeCapabilities(renderer);
   const lane = caps.lane || "web";
+  if (lane !== "native" && (caps.halfFloatTargets !== true || caps.mrt !== true)) {
+    const missing = [];
+    if (caps.halfFloatTargets !== true) missing.push("float/half-float render targets (EXT_color_buffer_float)");
+    if (caps.mrt !== true) missing.push("multiple render targets (MRT)");
+    throw new CinematicPipelineError(
+      "cinematic.unsupported",
+      "cinematic.unsupported: the cinematic composer lane requires " + missing.join(" and ") + " \u2014 the capability probe reports them missing; select the reduced native lane instead (no effect-less render)"
+    );
+  }
   const unsupported = [];
   const passes = {};
   const lutTextures = [];
@@ -3258,6 +3267,12 @@ function createPipeline(options) {
       const width = dom && dom.width ? dom.width : renderer.getSize(new Vector2()).x || 0;
       const height = dom && dom.height ? dom.height : renderer.getSize(new Vector2()).y || 0;
       if (clock !== void 0 && clock !== null) {
+        if (unsupported.length > 0) {
+          return Promise.reject(new CinematicPipelineError(
+            "cinematic.notCapturable",
+            "cinematic.notCapturable: requested effects unsupported on the " + lane + " lane: " + unsupported.map((u) => u.effect + " (" + u.reason + ")").join("; ")
+          ));
+        }
         const host = globalThis.jsr;
         if (!host || typeof host.capture !== "function") {
           return Promise.reject(new CinematicPipelineError(

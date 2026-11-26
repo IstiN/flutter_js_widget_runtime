@@ -167,6 +167,29 @@ class Shim {
           ffi.Pointer<ffi.Int32>,
         )
       >('a1b_read_pixels');
+  // CPU IOSurface readback (a1b_read_surface_cpu): no GL context involved,
+  // safe from the main isolate while the engine worker owns the context.
+  late final int Function(
+    int,
+    ffi.Pointer<ffi.Uint8>,
+    ffi.Pointer<ffi.Int32>,
+    ffi.Pointer<ffi.Int32>,
+  )
+  readSurfaceCpu = lib
+      .lookupFunction<
+        ffi.Int32 Function(
+          ffi.Int64,
+          ffi.Pointer<ffi.Uint8>,
+          ffi.Pointer<ffi.Int32>,
+          ffi.Pointer<ffi.Int32>,
+        ),
+        int Function(
+          int,
+          ffi.Pointer<ffi.Uint8>,
+          ffi.Pointer<ffi.Int32>,
+          ffi.Pointer<ffi.Int32>,
+        )
+      >('a1b_read_surface_cpu');
   late final void Function(int) destroySurface = lib
       .lookupFunction<ffi.Void Function(ffi.Int64), void Function(int)>(
         'a1b_destroy_surface',
@@ -229,8 +252,10 @@ class _Session {
     });
     if (!ok) throw StateError('the QuickJS bridge lacks the bytes lane');
     rt.registerHostFunction('__jsr1b_gl_rc', (_) => '$lastRc');
-    rt.registerHostFunction('__jsr1b_result_host',
-        (_) => jsonEncode(base64Encode(readScratch())));
+    rt.registerHostFunction(
+      '__jsr1b_result_host',
+      (_) => jsonEncode(base64Encode(readScratch())),
+    );
   }
 
   final Shim shim;
@@ -392,17 +417,18 @@ globalThis.__benchOk = (function () {
 /// [run1bBench] for the rationale).
 class BenchReport {
   BenchReport(
-      this.frames,
-      this.drawsPerFrame,
-      this.flushesPerFrame,
-      this.p50Ms,
-      this.p95Ms,
-      this.p99Ms,
-      this.cpuP50Ms,
-      this.cpuP95Ms,
-      this.cpuP99Ms,
-      this.refMs,
-      this.budgetMs);
+    this.frames,
+    this.drawsPerFrame,
+    this.flushesPerFrame,
+    this.p50Ms,
+    this.p95Ms,
+    this.p99Ms,
+    this.cpuP50Ms,
+    this.cpuP95Ms,
+    this.cpuP99Ms,
+    this.refMs,
+    this.budgetMs,
+  );
   final int frames;
   final int drawsPerFrame;
   final int flushesPerFrame;
@@ -506,7 +532,8 @@ Future<BenchReport> run1bBench({
   if (shim == null && ownShim.init() != 0) {
     throw StateError('a1b_init failed (set JSR_ANGLE_DIR for the dylib dir)');
   }
-  final ownSurface = surface ??
+  final ownSurface =
+      surface ??
       (() {
         final slot = calloc<ffi.Uint32>();
         try {
@@ -521,8 +548,14 @@ Future<BenchReport> run1bBench({
   final watch = Stopwatch();
   try {
     session.evalJs(preludeJs, 'prelude.js');
-    session.evalJs(File('tool/three/gen/g1_packer.js').readAsStringSync(), 'g1_packer.js');
-    session.evalJs(File('tool/three/src/webgl2_facade.js').readAsStringSync(), 'webgl2_facade.js');
+    session.evalJs(
+      File('tool/three/gen/g1_packer.js').readAsStringSync(),
+      'g1_packer.js',
+    );
+    session.evalJs(
+      File('tool/three/src/webgl2_facade.js').readAsStringSync(),
+      'webgl2_facade.js',
+    );
     final ok = session.evalJs(setupJs, 'setup.js');
     if (ok != 'true') throw StateError('bench setup failed: $ok');
     session.evalJs('__benchFrame(1);'); // warm-up frame + flush plumbing
@@ -605,8 +638,13 @@ Future<BenchReport> run1bBench({
 
 /// Result of the raw GL fixture ([run1bRawGlFixture]).
 class RawGlResult {
-  RawGlResult(this.match, this.facadeHash, this.directHash, this.center,
-      this.corner);
+  RawGlResult(
+    this.match,
+    this.facadeHash,
+    this.directHash,
+    this.center,
+    this.corner,
+  );
   final bool match;
   final int facadeHash;
   final int directHash;
@@ -643,8 +681,14 @@ Future<RawGlResult> run1bRawGlFixture({Shim? shim, int? surface}) async {
     }
     session.record = true;
     session.evalJs(preludeJs, 'prelude.js');
-    session.evalJs(File('tool/three/gen/g1_packer.js').readAsStringSync(), 'g1_packer.js');
-    session.evalJs(File('tool/three/src/webgl2_facade.js').readAsStringSync(), 'webgl2_facade.js');
+    session.evalJs(
+      File('tool/three/gen/g1_packer.js').readAsStringSync(),
+      'g1_packer.js',
+    );
+    session.evalJs(
+      File('tool/three/src/webgl2_facade.js').readAsStringSync(),
+      'webgl2_facade.js',
+    );
     final ok = session.evalJs(setupJs, 'setup.js');
     if (ok != 'true') throw StateError('fixture setup failed: $ok');
     final rendered =
@@ -669,7 +713,8 @@ Future<RawGlResult> run1bRawGlFixture({Shim? shim, int? surface}) async {
     }
     // glReadPixels is synchronous; finishing (not swapping) keeps the default
     // framebuffer readable without presenting the IOSurface.
-    final finishCmd = Uint8List(4)..buffer.asByteData().setUint32(0, 3, Endian.little);
+    final finishCmd = Uint8List(4)
+      ..buffer.asByteData().setUint32(0, 3, Endian.little);
     {
       final buf = calloc<ffi.Uint8>(finishCmd.length);
       try {
@@ -683,8 +728,12 @@ Future<RawGlResult> run1bRawGlFixture({Shim? shim, int? surface}) async {
     final directHash = _readPixelsHash(ownShim, directSurface);
     final center = (rendered['center'] as List).cast<int>();
     final corner = (rendered['corner'] as List).cast<int>();
-    final match = facadeHash == directHash &&
-        center[0] <= 8 && center[1] >= 248 && corner[0] >= 248 && corner[1] <= 8;
+    final match =
+        facadeHash == directHash &&
+        center[0] <= 8 &&
+        center[1] >= 248 &&
+        corner[0] >= 248 &&
+        corner[1] <= 8;
     return RawGlResult(match, facadeHash, directHash, center, corner);
   } finally {
     session.close();

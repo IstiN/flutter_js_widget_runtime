@@ -445,6 +445,23 @@ export function createPipeline(options) {
   const caps = options.capabilities || probeCapabilities(renderer);
   const lane = caps.lane || 'web';
 
+  // F4b (issue #8, UT-PIPELINE-VALIDATE / E2E-TARGET-2..3): the 1B/web lane
+  // runs the stock composer with HalfFloatType ping-pong buffers on the GL2
+  // render path. When the capability probe reports the float-target or MRT
+  // fact missing, a build here allocates unrenderable targets and silently
+  // renders black — exactly the effect-less image issue #8 bans (invariant
+  // 6: unsupported capabilities produce a named error before capture/export).
+  // Fail NAMED at creation; the reduced lane is the native R1 composer
+  // (UnsignedByteType), which is a separate explicit selection.
+  if (lane !== 'native' && (caps.halfFloatTargets !== true || caps.mrt !== true)) {
+    const missing = [];
+    if (caps.halfFloatTargets !== true) missing.push('float/half-float render targets (EXT_color_buffer_float)');
+    if (caps.mrt !== true) missing.push('multiple render targets (MRT)');
+    throw new CinematicPipelineError('cinematic.unsupported',
+      'cinematic.unsupported: the cinematic composer lane requires ' + missing.join(' and ') +
+      ' — the capability probe reports them missing; select the reduced native lane instead (no effect-less render)');
+  }
+
   const unsupported = [];
   const passes = {};   // effect name -> Pass instance (only for supported effects)
   const lutTextures = [];
@@ -833,6 +850,15 @@ export function createPipeline(options) {
       const height = dom && dom.height ? dom.height : (renderer.getSize(new Vector2()).y || 0);
 
       if (clock !== undefined && clock !== null) {
+        // F4b (issue #8, E2E-TARGET-4): requested-but-unsupported effects
+        // must fail the barrier capture NAMED — the host must never receive
+        // the effect-less frame (issue #8 invariant 6 / E5: the exact
+        // missing feature is reported before capture).
+        if (unsupported.length > 0) {
+          return Promise.reject(new CinematicPipelineError('cinematic.notCapturable',
+            'cinematic.notCapturable: requested effects unsupported on the ' + lane + ' lane: ' +
+            unsupported.map(u => u.effect + ' (' + u.reason + ')').join('; ')));
+        }
         const host = globalThis.jsr;
         if (!host || typeof host.capture !== 'function') {
           return Promise.reject(new CinematicPipelineError('cinematic.notCapturable',

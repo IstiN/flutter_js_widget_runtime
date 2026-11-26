@@ -44,12 +44,14 @@ void main() {
       ..facadeBootstrapOverride = real1bFacadeBootstrap();
     wires.add(wire);
     final host = makeCaptureHost(wire);
-    final (w, sel, state, logs) = await run1bRealEngine(
+    final (_, sel, state, logs) = await run1bRealEngine(
       '$caseSource\n$_glue',
       bundle,
       width: 320,
       height: 180,
+      cinematicCaptureHost: host,
       exportTimeout: const Duration(seconds: 30),
+      wire: wire,
     );
     expect(sel?.isAngle1b, isTrue, reason: 'the battery runs on native 1B');
     expect(
@@ -118,7 +120,7 @@ void main() {
 
   test(
     'E2E-SEEK-4: the barrier capture returns the frame after the final '
-    'pass — the presented-surface hash equals the frame-9 readback hash',
+    'pass — the presented-surface hash equals the frame-9 present hash',
     () async {
       final s = await state();
       if (missing != null) return;
@@ -140,12 +142,15 @@ void main() {
       expect(rec.engineId, isNotEmpty, reason: 'the capture carries __IID');
       expect(
         rec.surfaceHash,
-        seq[9],
+        s['present9'],
         reason:
-            'surface=${rec.surfaceHash} vs frame 9=${seq[9]} — the '
+            'surface=${rec.surfaceHash} vs present9=${s['present9']} — the '
             'capture must show the final pass of frame 9, not a stale '
-            'frame',
+            'frame (the composer readback path differs in encoding, so '
+            'the comparison target is the in-JS RGBA8 read of the '
+            'presented frame, not seq[9])',
       );
+      expect(seq[9], isNot('0x00000000'));
     },
     skip: missing,
     timeout: const Timeout(Duration(minutes: 5)),
@@ -218,7 +223,10 @@ class _SurfaceCapture {
 
 /// The cinematic capture barrier host of the native leg: reads the REAL
 /// presented ANGLE surface at capture time (after the final pass) and
-/// records its FNV hash for the E2E-SEEK-4 comparison.
+/// records its FNV hash for the E2E-SEEK-4 comparison. The read is the CPU
+/// IOSurface readback (`a1b_read_surface_cpu`): the EGL context is current
+/// on the engine's worker isolate, so the host must not call glReadPixels
+/// from the main isolate (INVALID_OPERATION).
 class _SurfaceCaptureHost extends JsCinematicCaptureHost {
   _SurfaceCaptureHost(this.wire, this.records);
   final Real1BWireHost wire;
@@ -233,8 +241,8 @@ class _SurfaceCaptureHost extends JsCinematicCaptureHost {
     final hOut = calloc<ffi.Int32>();
     final px = calloc<ffi.Uint8>(wire.width * wire.height * 4);
     try {
-      if (wire.shim.readPixels(wire.surface, px, wOut, hOut) != 0) {
-        throw StateError('a1b_read_pixels failed');
+      if (wire.shim.readSurfaceCpu(wire.surface, px, wOut, hOut) != 0) {
+        throw StateError('a1b_read_surface_cpu failed');
       }
       final hash = _hashHex(fnv1a(px.asTypedList(wOut.value * hOut.value * 4)));
       records.add(

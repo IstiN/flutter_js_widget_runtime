@@ -110,17 +110,25 @@ run1bRealEngine(
   int height = 64,
   JsCinematicCaptureHost? cinematicCaptureHost,
   Duration exportTimeout = Duration.zero,
+
+  /// Caller-provided wire (F4b battery legs): capture hosts read the
+  /// presented surface of THIS wire, so it must be the engine's wire.
+  /// Defaults to a fresh wire created here.
+  Real1BWireHost? wire,
 }) async {
-  final wire = Real1BWireHost(width: width, height: height)
-    ..facadeBootstrapOverride = real1bFacadeBootstrap();
+  final wire0 =
+      wire ??
+      (Real1BWireHost(width: width, height: height)
+        ..facadeBootstrapOverride = real1bFacadeBootstrap());
   final logs = <Map<String, dynamic>>[];
   final (w, sel, state) = await run1bWidgetEngine(
     widget,
     threeSource: threeSource,
     realFacade: true,
-    host: wire,
+    host: wire0,
     consoleLogs: logs,
     cinematicCaptureHost: cinematicCaptureHost,
+    exportTimeout: exportTimeout,
   );
   return (w as Real1BWireHost, sel, state, logs);
 }

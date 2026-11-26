@@ -1,4 +1,4 @@
-// ../../../../../../../var/folders/ly/ptzy0c955y9bl0fr_qsj0cgr0000gn/T/cine-build-PrLdKp/three_global_shim.js
+// ../../../../../../../var/folders/ly/ptzy0c955y9bl0fr_qsj0cgr0000gn/T/cine-build-kXXouR/three_global_shim.js
 var T = globalThis.THREE;
 if (T === void 0 || T === null) {
   throw new Error("three.unsupported: evaluate the JSR jsr_three_native.js/jsr_three_web.js bundle before this widget so globalThis.THREE is installed");
@@ -25,7 +25,7 @@ var { Uint8BufferAttribute, Uint8ClampedBufferAttribute, Uniform, UniformsGroup,
 var { WebGLCubeRenderTarget, WebGLRenderTarget, WebGLRenderer, WebGLUtils, WebGPUCoordinateSystem, WebGPURenderer, WebXRController, WireframeGeometry, WrapAroundEnding, ZeroCurvatureEnding, ZeroFactor, ZeroSlopeEnding, ZeroStencilOp, _resumeAudio, createBoundedCSGEvaluator, createCanvasElement, error, get, getCapabilities, getConsoleFunction, getNativeCSGDiagnostics, getNativeRaycastDiagnostics, log, setConsoleFunction } = T;
 var { warn, warnOnce } = T;
 
-// ../../../../../../../var/folders/ly/ptzy0c955y9bl0fr_qsj0cgr0000gn/T/cine-build-PrLdKp/scene.js
+// ../../../../../../../var/folders/ly/ptzy0c955y9bl0fr_qsj0cgr0000gn/T/cine-build-kXXouR/scene.js
 var TWO_PI = Math.PI * 2;
 function mul(a, b) {
   return a * b;

@@ -83,8 +83,9 @@ void main() {
           case 'createRenderbuffer':
             rbCreates++;
           case 'renderbufferStorage':
-            // (target, internalformat, width, height)
-            if (c.u(1) == 0x81F5 /* DEPTH_COMPONENT16 */ ) depthStorage = true;
+            // (target, internalformat, width, height); r186 WebGL2 defaults
+            // to DEPTH_COMPONENT24 (0x81A6), legacy 16 is 0x81A5
+            if (c.u(1) == 0x81A6 || c.u(1) == 0x81A5) depthStorage = true;
           case 'bindFramebuffer':
             // (target, framebuffer); FRAMEBUFFER = 0x8D40
             if (c.u(0) == 0x8D40) {
@@ -138,7 +139,11 @@ void main() {
       // ignore: avoid_print
       print('F4B_TARGET_CHAIN ' + (state!['chainOrder'] as List).join(' '));
       print('F4B_TARGET_MEANS ' + (state['means'] as List).join(' '));
-      print('F4B_PLAIN_CHAIN ' + ((state['plainChain'] as List?)?.join(' ') ?? state['plainError'].toString()));
+      print(
+        'F4B_PLAIN_CHAIN ' +
+            ((state['plainChain'] as List?)?.join(' ') ??
+                state['plainError'].toString()),
+      );
       final frame7 = state['frame7'] as String;
       final resized = state['resized'] as String;
       final back = state['back'] as String;
@@ -354,8 +359,11 @@ String readSurfaceHash(Real1BWireHost wire) {
   final hOut = calloc<ffi.Int32>();
   final px = calloc<ffi.Uint8>(wire.width * wire.height * 4);
   try {
-    if (wire.shim.readPixels(wire.surface, px, wOut, hOut) != 0) {
-      throw StateError('a1b_read_pixels failed');
+    // CPU IOSurface readback: the EGL context is current on the engine's
+    // worker isolate, glReadPixels from the main isolate is
+    // INVALID_OPERATION.
+    if (wire.shim.readSurfaceCpu(wire.surface, px, wOut, hOut) != 0) {
+      throw StateError('a1b_read_surface_cpu failed');
     }
     final hash = fnv1a(px.asTypedList(wOut.value * hOut.value * 4));
     return '0x${(hash & 0xFFFFFFFF).toRadixString(16).padLeft(8, '0')}';
@@ -439,25 +447,31 @@ List<_G1Command> decodeAllStreams(
     if (m == null) throw StateError('unknown opcode $op in recorded stream');
     final cmd = _G1Command(m);
     final start = off - 4;
+    // Raw G1 framing: 'u'/'i'/'f' args are fixed 4-byte words; 's'/'b' are
+    // [u32 len][bytes].
     for (var i = 0; i < m.args.length; i++) {
-      final len = _u32(b, off);
-      off += 4;
       final ch = m.args[i];
       if (ch == 'u') {
         cmd.ints.add(_u32(b, off));
+        off += 4;
       } else if (ch == 'i') {
         cmd.ints.add(ByteData.sublistView(b).getInt32(off, Endian.little));
+        off += 4;
       } else if (ch == 'f') {
         cmd.ints.add(
           ByteData.sublistView(b).getFloat32(off, Endian.little).round(),
         );
-      } else if (ch == 's') {
-        cmd.strings.add(
-          utf8.decode(b.sublist(off, off + len), allowMalformed: true),
-        );
+        off += 4;
+      } else {
+        final len = _u32(b, off);
+        off += 4;
+        if (ch == 's') {
+          cmd.strings.add(
+            utf8.decode(b.sublist(off, off + len), allowMalformed: true),
+          );
+        }
+        off += len;
       }
-      // 'b' blobs are skipped (texel data)
-      off += len;
     }
     out.add(cmd);
     return off - start;
@@ -478,7 +492,9 @@ List<_G1Command> decodeAllStreams(
   return out;
 }
 
-/// The target widget: one bloom frame, then the resize round trip.
+/// The target widget: the plain-composer control first, then the bloom
+/// frame chain — the surface ends on the LAST bloom present so the
+/// surface-vs-readback comparison targets the bloom frame.
 const String _targetWidget = '''
 var results = {};
 try {
@@ -502,6 +518,33 @@ try {
     new THREE.MeshBasicMaterial({ color: 0x30343c }));
   dim.position.set(0, -2.2, -2);
   scene.add(dim);
+  // plain-composer control first: RenderPass + OutputPass only, same
+  // resize chain (the bloom pipeline below renders LAST — the presented
+  // surface must end on a bloom frame for the surface comparison)
+  try {
+    var canvas2 = jsr.three.createCanvas('f4b-plain');
+    canvas2.width = 320; canvas2.height = 180;
+    var r2 = new THREE.WebGLRenderer({ canvas: canvas2, antialias: false });
+    r2.setSize(320, 180, false);
+    r2.setPixelRatio(1);
+    var scene2 = new THREE.Scene();
+    var cam2 = new THREE.PerspectiveCamera(60, 320 / 180, 0.1, 100);
+    cam2.position.set(0, 0, 8);
+    scene2.add(new THREE.Mesh(new THREE.SphereGeometry(1, 32, 32), new THREE.MeshBasicMaterial({ color: new THREE.Color(3.0, 2.2, 1.2) })));
+    var composer2 = jsr.three.cinematic.createPipeline({ renderer: r2, scene: scene2, camera: cam2,
+      effects: { bloom: false, dof: false, fxaa: false, smaa: false, colorGrade: false, film: false, vignette: false, motion: false } });
+    function hash2() {
+      composer2.renderFrame(jsr.three.cinematic.clockState(7, 24, 0.5, 1, 0));
+      var gl2 = r2.getContext();
+      var p2 = new Uint8Array(320 * 180 * 4);
+      gl2.readPixels(0, 0, 320, 180, gl2.RGBA, gl2.UNSIGNED_BYTE, p2);
+      var h2 = 0x811c9dc5;
+      for (var w2 = 0; w2 < p2.length; w2++) { h2 ^= p2[w2]; h2 = Math.imul(h2, 0x01000193) >>> 0; }
+      return '0x' + (h2 >>> 0).toString(16).padStart(8, '0');
+    }
+    var a1 = hash2(); composer2.setSize(200, 124); var a2 = hash2(); composer2.setSize(320, 180);
+    results.plainChain = [a1, a2, hash2(), hash2()];
+  } catch (e2) { results.plainError = String((e2 && e2.message) || e2); }
   var pipeline = cin.createPipeline({
     renderer: renderer, scene: scene, camera: camera,
     effects: { bloom: true, dof: false, fxaa: false, smaa: false,
@@ -535,31 +578,6 @@ try {
   results.back2 = renderHash();
   results.chainOrder = [results.frame7, results.frame7b, results.frame7c, results.noop, results.resized, results.back, results.back2];
   results.means = means;
-  // plain-composer control: RenderPass + OutputPass only, same resize chain
-  try {
-    var canvas2 = jsr.three.createCanvas('f4b-plain');
-    canvas2.width = 320; canvas2.height = 180;
-    var r2 = new THREE.WebGLRenderer({ canvas: canvas2, antialias: false });
-    r2.setSize(320, 180, false);
-    r2.setPixelRatio(1);
-    var scene2 = new THREE.Scene();
-    var cam2 = new THREE.PerspectiveCamera(60, 320 / 180, 0.1, 100);
-    cam2.position.set(0, 0, 8);
-    scene2.add(new THREE.Mesh(new THREE.SphereGeometry(1, 32, 32), new THREE.MeshBasicMaterial({ color: new THREE.Color(3.0, 2.2, 1.2) })));
-    var composer2 = jsr.three.cinematic.createPipeline({ renderer: r2, scene: scene2, camera: cam2,
-      effects: { bloom: false, dof: false, fxaa: false, smaa: false, colorGrade: false, film: false, vignette: false, motion: false } });
-    function hash2() {
-      composer2.renderFrame(jsr.three.cinematic.clockState(7, 24, 0.5, 1, 0));
-      var gl2 = r2.getContext();
-      var p2 = new Uint8Array(320 * 180 * 4);
-      gl2.readPixels(0, 0, 320, 180, gl2.RGBA, gl2.UNSIGNED_BYTE, p2);
-      var h2 = 0x811c9dc5;
-      for (var w2 = 0; w2 < p2.length; w2++) { h2 ^= p2[w2]; h2 = Math.imul(h2, 0x01000193) >>> 0; }
-      return '0x' + (h2 >>> 0).toString(16).padStart(8, '0');
-    }
-    var a1 = hash2(); composer2.setSize(200, 124); var a2 = hash2(); composer2.setSize(320, 180);
-    results.plainChain = [a1, a2, hash2(), hash2()];
-  } catch (e2) { results.plainError = String((e2 && e2.message) || e2); }
   jsr.exportState(results);
 } catch (e) {
   results.error = String((e && e.message) || e);
