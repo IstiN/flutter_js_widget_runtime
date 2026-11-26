@@ -948,4 +948,61 @@ RGBA/HALF_FLOAT = 8 B/px); the cap is handled facade-side by the strips.
   `JSR_WEBGL_REF_CHANNEL=chromium`).
 - Single id: `bash tool/three/cases_f4c2.sh <id>`; machine rows:
   `/tmp/a1b_corpus/<id>/report_entry.json`.
-- Suite proof: `flutter test test/angle1b/f4c2_finish_passes_test.dart`.
+## F4d — environment and premium features on 1B (issue #8 segment F4d, 2026-11-26)
+
+Driver: `bash tool/three/cases_f4d.sh` (CI step appended at the end of the
+`quality-macos` job). Each feature runs the stock r186 example at the pin,
+unchanged, through the two corpus legs: 1B = original `WebGLRenderer` over the
+WebGL2 facade + ANGLE Metal (`run_1b_corpus.dart`), web = bare Chrome real
+WebGL2 direct (`ref_1b_corpus.cjs`); tiers come from `diff_1b.cjs` against the
+per-GPU tolerance table above. Deterministic TAA/SSAA + presets run through
+the battery scene `tool/three/cases_f4d/f4d_battery/official_module.js`
+(15 named checks, gated on BOTH legs).
+
+Feature-to-example-to-tier table (measured 2026-11-26, Apple M4 Pro,
+MacOSX 15.6.1 arm64, Chrome 143.0.6945.0 / ANGLE Metal 9c6a64c9, both 320x240):
+
+| Feature | Stock example (r186 pin) | Module(s) | 1B tier | web tier |
+|---|---|---|---|---|
+| PMREM HDR | `webgl_materials_envmaps_hdr.html` | `HDRLoader`, PMREMGenerator | PASS_IDENTICAL (hash `ad212355`) | PASS_IDENTICAL |
+| PMREM EXR | `webgl_materials_envmaps_exr.html` | `EXRLoader`, PMREMGenerator | PASS_IDENTICAL (`ac155766`) | PASS_IDENTICAL |
+| CubeCamera (dynamic cube) | `webgl_materials_cubemap_dynamic.html` | `CubeCamera`, `WebGLCubeRenderTarget`, `HDRLoader` | 1B renders correctly (hash `f908b0d1`); web leg black — harness limitation, see triage below | FAIL(diff), documented-limit |
+| Physical transmission | `webgl_materials_physical_transmission.html` | `MeshPhysicalMaterial` transmission | PASS_IDENTICAL (`110e7dc5`) | PASS_IDENTICAL |
+| Physical transmission alpha | `webgl_materials_physical_transmission_alpha.html` | `MeshPhysicalMaterial` + alpha | PASS_TOLERANCE 99.9948 % (4/76800 px, maxΔ 5) | PASS_TOLERANCE |
+| Mirror | `webgl_mirror.html` | `Reflector` | PASS_TOLERANCE (0/76800 px differ, maxΔ 1) | PASS_TOLERANCE |
+| Cubemap refraction | `webgl_materials_cubemap_refraction.html` | `MeshPhongMaterial` + cube envMap | PASS_IDENTICAL (`eb2816e5`) | PASS_IDENTICAL |
+| TAA | `webgl_postprocessing_taa.html` | `TAARenderPass` | battery: direct seek = sequential, reset = fresh (15/15) | battery 15/15 on web leg too |
+| SSAA | `webgl_postprocessing_ssaa.html` | `SSAARenderPass` | PASS_IDENTICAL (`5f58f0bb`); repeats identical | PASS_IDENTICAL |
+
+TAA/SSAA determinism (battery scene, hash equality within each leg):
+direct seek (re-render of the declared 0..7 window + target frame) equals the
+sequential run at f20 and f24; a history reset reproduces a fresh accumulation
+of the same window and provably clears (frozen accumulation differs); clearing
+history and capturing once is NOT equivalent (regression guard E1). SSAA:
+repeated fresh runs identical for the same clock; the clock changes the image.
+
+Presets: `draft`, `production`, `deterministic-export` each report through
+`settings()` exactly the documented table (battery check
+`presets-report-table`; pinned also by `test/angle1b/f4d_presets_report_test.dart`
+against the committed native bundle, no GPU needed) and the rendered frame
+follows the settings (`preset-*-applies`, `preset-*-renders`).
+
+Corpus-harness fixes this segment added (both legs, no gate weakening):
+`data:` URL images (SMAAPass's embedded area/search textures) now decode
+natively in the corpus DOM stubs instead of missing; container assets
+(`.hdr`/`.exr`) are repaired from the pinned three.js source over the
+prepare manifest registry, so setPath-joined loads
+(`HDRCubeTextureLoader` face URLs) reach both legs as real HDR/EXR.
+
+Triage — `three-materials-cubemap-dynamic` web leg (documented limit):
+the scene renders only from its animation loop (no on-demand render), and in
+the web corpus harness every bundled scene uses its own esbuild-inlined THREE
+copy — `__corpusHookThree` patches `globalThis.THREE.WebGLRenderer.prototype`,
+which the scene-local class never sees, so the loop registers through the
+shimmed `requestAnimationFrame` chain but the tick-driven frames issue no GL
+draws (`draws` stays 147 across ticks; `tickdiag {"loop":false,"raf":true}`).
+Scenes with an eval-time render (envmaps_hdr, exr, transmission, refraction,
+taa, ssaa) are unaffected; this scene stays black on web only. The 1B leg is
+the lane this segment gates and renders the feature correctly (non-black,
+`f908b0d1`). Not an ANGLE/facade defect; evidence:
+`/tmp/a1b_corpus/three-materials-cubemap-dynamic/status_web.json` (CI: the

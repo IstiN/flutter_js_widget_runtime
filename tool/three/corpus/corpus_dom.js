@@ -661,24 +661,15 @@
           });
           return;
         }
-        if (String(url).slice(0, 5) === 'data:') {
-          // SMAAPass embeds its area/search textures as base64 data: URLs —
-          // decode the payload bytes directly (no asset lookup exists).
-          Promise.resolve().then(function () {
-            return g.__decodeImage(g.__b64toBytes(String(url).slice(String(url).indexOf(',') + 1)), null, false);
-          }).then(function (decoded) {
-            img.width = decoded.width; img.height = decoded.height;
-            img.data = decoded.data; img.naturalWidth = decoded.width; img.naturalHeight = decoded.height;
-            img.complete = true;
-            img.dispatchEvent({ type: 'load', target: img });
-          }).catch(function () {
-            img.dispatchEvent({ type: 'error', target: img });
-          });
-          return;
-        }
-        var path = g.__resolveAssetPath(url);
+        var dataM = /^data:[^;,]+;base64,(.*)$/.exec(String(url));
         Promise.resolve().then(function () {
-          return g.__decodeImage(path, null, false);
+          if (dataM) {
+            // data: URL (e.g. SMAAPass's embedded area/search textures):
+            // decode the embedded bytes directly — a real browser decodes
+            // these natively; the flattened-asset lane is not involved.
+            return g.__decodeImage(g.__b64toBytes(dataM[1]), 'image/png', false);
+          }
+          return g.__decodeImage(g.__resolveAssetPath(url), null, false);
         }).then(function (decoded) {
           img.width = decoded.width; img.height = decoded.height;
           img.data = decoded.data; img.naturalWidth = decoded.width; img.naturalHeight = decoded.height;

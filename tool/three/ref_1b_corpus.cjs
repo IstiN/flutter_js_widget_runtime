@@ -120,6 +120,49 @@ if (fs.existsSync(manifestPath)) {
 }
 const assetFiles = fs.readdirSync(kWidgetDir).filter((f) => fs.statSync(path.join(kWidgetDir, f)).isFile());
 
+// F4d container-magic repair (identical contract to the Dart side): an .hdr
+// must start with the Radiance `#?` id string, an .exr with `v/1\x01`. When
+// the covered file lacks the magic, extract the pinned-source bytes into the
+// shared cache as `<flat>.src` and remap the asset registry to it.
+const hasContainerMagic = (url, b) => {
+  if (url.endsWith('.hdr')) return b.length > 2 && b[0] === 0x23 && b[1] === 0x3f;
+  if (url.endsWith('.exr')) return b.length > 3 && b[0] === 0x76 && b[1] === 0x2f && b[2] === 0x31 && b[3] === 0x01;
+  return true;
+};
+function repairContainerAsset(url) {
+  if (url.endsWith('/')) return;
+  const flat = flatName(url);
+  const base = url.split('/').pop();
+  const out = assetMap[url];
+  let cand = null;
+  for (const f of [
+    ...(out && out !== flat && out !== base ? [path.join(kWidgetDir, out)] : []),
+    path.join(kWidgetDir, flat),
+    path.join(kWidgetDir, base),
+  ]) {
+    if (fs.existsSync(f)) {
+      cand = f;
+      break;
+    }
+  }
+  if (!cand) return;
+  const fd = fs.openSync(cand, 'r');
+  const head = Buffer.alloc(4);
+  let got = 0;
+  try {
+    got = fs.readSync(fd, head, 0, 4, 0);
+  } finally {
+    fs.closeSync(fd);
+  }
+  if (hasContainerMagic(url, head.subarray(0, got))) return;
+  const bytes = extractFromPinnedSource(threeSrcRoot(), `examples/${url}`);
+  if (bytes == null) return;
+  fs.mkdirSync(ASSET_CACHE_DIR, { recursive: true });
+  fs.writeFileSync(path.join(ASSET_CACHE_DIR, `${flat}.src`), bytes);
+  assetMap[url] = `${flat}.src`;
+  assetMap[`${flat}.src`] = `${flat}.src`;
+}
+
 // Reference-source fallback: scan the scene bundle for asset literals the
 // widget dir lacks; extract once from the pinned three.js source into the
 // shared cache (the web asset read falls back to it, like the Dart side).
@@ -139,6 +182,12 @@ const assetFiles = fs.readdirSync(kWidgetDir).filter((f) => fs.statSync(path.joi
     const base = url.split('/').pop();
     const covered = Object.prototype.hasOwnProperty.call(assetMap, url) || assetFiles.includes(flat) || assetFiles.includes(base);
     if (covered) {
+      // F4d repair pass: prepare materializes .hdr/.exr in R1-decoded form
+      // (asset_discovery hdrRgba lane) under the original name; the WebGL2
+      // corpus leg needs the TRUE pinned bytes for HDRLoader/EXRLoader. When
+      // the covered file lacks the container magic, serve the pinned bytes
+      // from the shared cache under a distinct `<flat>.src` name.
+      if (url.endsWith('.hdr') || url.endsWith('.exr')) repairContainerAsset(url);
       // Repair pass: the widget pipeline sometimes re-exports a text model as
       // glTF binary while keeping its original extension (e.g. stormtroper.dae
       // holding GLB bytes) — ColladaLoader then chokes on binary garbage.
@@ -171,6 +220,22 @@ const assetFiles = fs.readdirSync(kWidgetDir).filter((f) => fs.statSync(path.joi
     }
     if (!(url in assetMap)) assetMap[url] = flat;
     if (!(flat in assetMap)) assetMap[flat] = flat;
+  }
+})();
+
+// F4d container repair over the MANIFEST registry: setPath-joined loads
+// (HDRCubeTextureLoader face URLs and friends) never appear as scene
+// literals, so the prepare's own url list is the authoritative set.
+(function repairManifestContainers() {
+  const manifestPath0 = path.join(kWidgetDir, 'prepare_manifest.json');
+  if (!fs.existsSync(manifestPath0)) return;
+  let m;
+  try { m = JSON.parse(fs.readFileSync(manifestPath0, 'utf8')); } catch { return; }
+  const srcRoot = threeSrcRoot();
+  for (const a of m.assetDiscovery || []) {
+    if (!a || !a.url) continue;
+    if (!a.url.endsWith('.hdr') && !a.url.endsWith('.exr')) continue;
+    repairContainerAsset(a.url);
   }
 })();
 
@@ -388,6 +453,11 @@ console.error('PROGRESS post-tick');
     if (!info) throw new Error('no readback info published');
     const tick = JSON.parse(tickResult);
     if (tick.errors && tick.errors.length) info.jsErrors = tick.errors;
+    // The scene's published __corpusExtra payload (self-verifying batteries);
+    // rides the status untouched, never affects the tier logic.
+    info.extra = await page.evaluate(
+      () => JSON.stringify(globalThis.__corpusExtra === undefined ? null : globalThis.__corpusExtra),
+    );
     info.jsErrors = (info.jsErrors || []).concat('tickdiag ' + JSON.stringify(tick.loop) + ' preTickDrawCalls=' + tick.drawCalls);
     if (!info.ok) {
       console.log('CORPUS_WEB_STATUS ' + JSON.stringify({ id: kId, ok: false, error: info.error, jsErrors: info.jsErrors }));
@@ -413,7 +483,7 @@ console.error('PROGRESS readback-done');
     fs.writeFileSync(path.join(kOut, 'web.rgba'), pixels);
     const hash = fnv1a(pixels);
     console.log('CORPUS_WEB_RUN id=' + kId + ' hash=' + hex32(hash) + ' (' + hash + ') file=' + path.join(kOut, 'web.rgba'));
-    console.log('CORPUS_WEB_STATUS ' + JSON.stringify({ id: kId, ok: true, ticked: tick.ticked, w: info.w, h: info.h, jsErrors: info.jsErrors, revision: info.revision, direct: info.direct }));
+    console.log('CORPUS_WEB_STATUS ' + JSON.stringify({ id: kId, ok: true, ticked: tick.ticked, w: info.w, h: info.h, jsErrors: info.jsErrors, revision: info.revision, direct: info.direct, extra: JSON.parse(info.extra || 'null') }));
   } finally {
 console.error('PROGRESS pre-close');
     await browser.close();

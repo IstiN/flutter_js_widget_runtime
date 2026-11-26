@@ -55,17 +55,54 @@ String argValue(List<String> args, String name, {String? dflt}) {
 // ---- ANGLE 1B shim FFI bindings (identical to run_1b_render.dart) ----------
 class Shim {
   final DynamicLibrary lib = DynamicLibrary.open(kShimPath);
-  late final int Function() init = lib.lookupFunction<Int32 Function(), int Function()>('a1b_init');
-  late final int Function(int, int, Pointer<Uint32>) createSurface = lib.lookupFunction<Int64 Function(Int32, Int32, Pointer<Uint32>), int Function(int, int, Pointer<Uint32>)>('a1b_create_surface');
-  late final int Function(int, int, int, Pointer<Uint32>) createSurfaceEx = lib.lookupFunction<Int64 Function(Int32, Int32, Int32, Pointer<Uint32>), int Function(int, int, int, Pointer<Uint32>)>('a1b_create_surface_ex');
-  late final int Function(int, int, int, int, int, Pointer<Uint32>) createSurfaceEx2 = lib.lookupFunction<Int64 Function(Int32, Int32, Int32, Int32, Int32, Pointer<Uint32>), int Function(int, int, int, int, int, Pointer<Uint32>)>('a1b_create_surface_ex2');
-  late final int Function(int) makeCurrent = lib.lookupFunction<Int32 Function(Int64), int Function(int)>('a1b_make_current');
-  late final int Function(int) swapBuffers = lib.lookupFunction<Int32 Function(Int64), int Function(int)>('a1b_swap_buffers');
-  late final int Function(int, Pointer<Uint8>, Pointer<Int32>, Pointer<Int32>) readPixels = lib.lookupFunction<Int32 Function(Int64, Pointer<Uint8>, Pointer<Int32>, Pointer<Int32>), int Function(int, Pointer<Uint8>, Pointer<Int32>, Pointer<Int32>)>('a1b_read_pixels');
-  late final void Function(int) destroySurface = lib.lookupFunction<Void Function(Int64), void Function(int)>('a1b_destroy_surface');
-  late final void Function() shutdown = lib.lookupFunction<Void Function(), void Function()>('a1b_shutdown');
-  late final int Function(Pointer<Uint8>, int) dispatch = lib.lookupFunction<Int64 Function(Pointer<Uint8>, Int32), int Function(Pointer<Uint8>, int)>('a1b_gl_dispatch');
-  late final int Function(Pointer<Uint8>, int) result = lib.lookupFunction<Int32 Function(Pointer<Uint8>, Int32), int Function(Pointer<Uint8>, int)>('a1b_gl_result');
+  late final int Function() init = lib
+      .lookupFunction<Int32 Function(), int Function()>('a1b_init');
+  late final int Function(int, int, Pointer<Uint32>) createSurface = lib
+      .lookupFunction<
+        Int64 Function(Int32, Int32, Pointer<Uint32>),
+        int Function(int, int, Pointer<Uint32>)
+      >('a1b_create_surface');
+  late final int Function(int, int, int, Pointer<Uint32>) createSurfaceEx = lib
+      .lookupFunction<
+        Int64 Function(Int32, Int32, Int32, Pointer<Uint32>),
+        int Function(int, int, int, Pointer<Uint32>)
+      >('a1b_create_surface_ex');
+  late final int Function(int, int, int, int, int, Pointer<Uint32>)
+  createSurfaceEx2 = lib
+      .lookupFunction<
+        Int64 Function(Int32, Int32, Int32, Int32, Int32, Pointer<Uint32>),
+        int Function(int, int, int, int, int, Pointer<Uint32>)
+      >('a1b_create_surface_ex2');
+  late final int Function(int) makeCurrent = lib
+      .lookupFunction<Int32 Function(Int64), int Function(int)>(
+        'a1b_make_current',
+      );
+  late final int Function(int) swapBuffers = lib
+      .lookupFunction<Int32 Function(Int64), int Function(int)>(
+        'a1b_swap_buffers',
+      );
+  late final int Function(int, Pointer<Uint8>, Pointer<Int32>, Pointer<Int32>)
+  readPixels = lib
+      .lookupFunction<
+        Int32 Function(Int64, Pointer<Uint8>, Pointer<Int32>, Pointer<Int32>),
+        int Function(int, Pointer<Uint8>, Pointer<Int32>, Pointer<Int32>)
+      >('a1b_read_pixels');
+  late final void Function(int) destroySurface = lib
+      .lookupFunction<Void Function(Int64), void Function(int)>(
+        'a1b_destroy_surface',
+      );
+  late final void Function() shutdown = lib
+      .lookupFunction<Void Function(), void Function()>('a1b_shutdown');
+  late final int Function(Pointer<Uint8>, int) dispatch = lib
+      .lookupFunction<
+        Int64 Function(Pointer<Uint8>, Int32),
+        int Function(Pointer<Uint8>, int)
+      >('a1b_gl_dispatch');
+  late final int Function(Pointer<Uint8>, int) result = lib
+      .lookupFunction<
+        Int32 Function(Pointer<Uint8>, Int32),
+        int Function(Pointer<Uint8>, int)
+      >('a1b_gl_result');
 }
 
 int fnv1a(List<int> bytes) {
@@ -79,40 +116,78 @@ String hex32(int v) => '0x${v.toRadixString(16).padLeft(8, '0')}';
 Map<int, String> loadOpcodeTable() {
   final decoded = jsonDecode(File(kTablePath).readAsStringSync());
   final methods = decoded is Map ? (decoded['methods'] ?? decoded) : decoded;
-  return {if (methods is List) for (final m in methods) if (m is Map && m['opcode'] != null && m['name'] != null) m['opcode'] as int: m['name'] as String};
+  return {
+    if (methods is List)
+      for (final m in methods)
+        if (m is Map && m['opcode'] != null && m['name'] != null)
+          m['opcode'] as int: m['name'] as String,
+  };
 }
 
 // ---- ESM transform (verbatim logic from M2b/M3) ----------------------------
 List<String> _braceList(String line, String open, String close) {
   final a = line.indexOf(open) + open.length, b = line.lastIndexOf(close);
-  if (a <= 0 || b < a) throw StateError('ESM list parse failed: ${line.substring(0, 60)}');
-  return line.substring(a, b).split(',').map((s) => s.trim()).where((s) => s.isNotEmpty).toList();
+  if (a <= 0 || b < a)
+    throw StateError('ESM list parse failed: ${line.substring(0, 60)}');
+  return line
+      .substring(a, b)
+      .split(',')
+      .map((s) => s.trim())
+      .where((s) => s.isNotEmpty)
+      .toList();
 }
 
-String _dropImportExports(String src) => src.split('\n').where((l) => !l.trimLeft().startsWith('import ') && !l.trimLeft().startsWith('export {')).join('\n');
+String _dropImportExports(String src) => src
+    .split('\n')
+    .where(
+      (l) =>
+          !l.trimLeft().startsWith('import ') &&
+          !l.trimLeft().startsWith('export {'),
+    )
+    .join('\n');
 
 String wrapThreeCore(String core) {
-  final exportLine = core.split('\n').firstWhere((l) => l.trimLeft().startsWith('export {'), orElse: () => throw StateError('three.core.js: no export line'));
+  final exportLine = core
+      .split('\n')
+      .firstWhere(
+        (l) => l.trimLeft().startsWith('export {'),
+        orElse: () => throw StateError('three.core.js: no export line'),
+      );
   final exports = _braceList(exportLine, 'export {', '};');
   return '(function () {\n${_dropImportExports(core)}\nglobalThis.__threeCore = { ${exports.join(', ')} };\n})();';
 }
 
 String wrapThreeModule(String module) {
   final lines = module.split('\n');
-  final importLine = lines.firstWhere((l) => l.trimLeft().startsWith('import {'), orElse: () => throw StateError('jsr_three_web.js: no import line'));
+  final importLine = lines.firstWhere(
+    (l) => l.trimLeft().startsWith('import {'),
+    orElse: () => throw StateError('jsr_three_web.js: no import line'),
+  );
   final importNames = _braceList(importLine, 'import {', '} from');
-  final exportLines = lines.where((l) => l.trimLeft().startsWith('export {')).toList();
+  final exportLines = lines
+      .where((l) => l.trimLeft().startsWith('export {'))
+      .toList();
   final reExportLines = exportLines.where((l) => l.contains('} from')).toList();
-  if (reExportLines.length != 1 || exportLines.length != 2) throw StateError('jsr_three_web.js: expected 1 re-export + 1 export, got ${exportLines.length}');
+  if (reExportLines.length != 1 || exportLines.length != 2)
+    throw StateError(
+      'jsr_three_web.js: expected 1 re-export + 1 export, got ${exportLines.length}',
+    );
   final reExportNames = _braceList(reExportLines.first, 'export {', '} from');
   final exportNames = _braceList(exportLines.last, 'export {', '};');
-  final coreBridge = reExportNames.map((n) => '$n: __threeCore["$n"]').join(', ');
+  final coreBridge = reExportNames
+      .map((n) => '$n: __threeCore["$n"]')
+      .join(', ');
   return '(function () {\nconst { ${importNames.join(', ')} } = globalThis.__threeCore;\n${_dropImportExports(module)}\n'
       'globalThis.THREE = Object.assign({ $coreBridge }, { ${exportNames.join(', ')} });\n})();';
 }
 
 // ---- Dart-side host bridges (prelude eval'd before corpus_dom.js) ----------
-String dartPrelude(String assetMapJson, String assetFilesJson, String htmlIdTextJson) => '''
+String dartPrelude(
+  String assetMapJson,
+  String assetFilesJson,
+  String htmlIdTextJson,
+) =>
+    '''
 (function () {
   var g = globalThis;
   // --- M3 bytes-lane bridges (same contract as run_1b_render.dart) ---
@@ -193,7 +268,9 @@ int _crc32(Uint8List bytes) {
   for (final b in bytes) c = _crcTable[(c ^ b) & 0xff] ^ (c >> 8);
   return (c ^ 0xffffffff) & 0xffffffff;
 }
-void _be32(BytesBuilder bb, int v) => bb.add([(v >> 24) & 255, (v >> 16) & 255, (v >> 8) & 255, v & 255]);
+
+void _be32(BytesBuilder bb, int v) =>
+    bb.add([(v >> 24) & 255, (v >> 16) & 255, (v >> 8) & 255, v & 255]);
 Uint8List encodePng(Uint8List rgba, int w, int h) {
   void chunk(BytesBuilder out, String type, Uint8List data) {
     _be32(out, data.length);
@@ -203,6 +280,7 @@ Uint8List encodePng(Uint8List rgba, int w, int h) {
     out.add(td);
     _be32(out, _crc32(td));
   }
+
   final raw = BytesBuilder();
   for (var y = 0; y < h; y++) {
     raw.addByte(0); // filter: none
@@ -214,8 +292,14 @@ Uint8List encodePng(Uint8List rgba, int w, int h) {
   final out = BytesBuilder()
     ..add([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]);
   final ihdrBytes = ihdr.toBytes();
-  ihdrBytes[0] = (w >> 24) & 255; ihdrBytes[1] = (w >> 16) & 255; ihdrBytes[2] = (w >> 8) & 255; ihdrBytes[3] = w & 255;
-  ihdrBytes[4] = (h >> 24) & 255; ihdrBytes[5] = (h >> 16) & 255; ihdrBytes[6] = (h >> 8) & 255; ihdrBytes[7] = h & 255;
+  ihdrBytes[0] = (w >> 24) & 255;
+  ihdrBytes[1] = (w >> 16) & 255;
+  ihdrBytes[2] = (w >> 8) & 255;
+  ihdrBytes[3] = w & 255;
+  ihdrBytes[4] = (h >> 24) & 255;
+  ihdrBytes[5] = (h >> 16) & 255;
+  ihdrBytes[6] = (h >> 8) & 255;
+  ihdrBytes[7] = h & 255;
   chunk(out, 'IHDR', ihdrBytes);
   chunk(out, 'IDAT', Uint8List.fromList(ZLibEncoder().convert(raw.toBytes())));
   chunk(out, 'IEND', Uint8List(0));
@@ -231,7 +315,9 @@ Uint8List readScratch(Shim shim) {
   try {
     final actual = shim.result(buf, n);
     if (actual <= 0) return Uint8List(0);
-    return Uint8List.fromList(buf.asTypedList(actual > n ? n : actual).toList());
+    return Uint8List.fromList(
+      buf.asTypedList(actual > n ? n : actual).toList(),
+    );
   } finally {
     calloc.free(buf);
   }
@@ -275,11 +361,21 @@ String? decodeImageJson(String widgetDir, Uint8List bytes, String typeHint) {
     }
     rgba = out;
   }
-  return jsonEncode({'ok': true, 'width': w, 'height': h, 'b64': base64Encode(rgba)});
+  return jsonEncode({
+    'ok': true,
+    'width': w,
+    'height': h,
+    'b64': base64Encode(rgba),
+  });
 }
 
 class RunOutcome {
-  RunOutcome({required this.ok, required this.hash, required this.pixels, required this.status});
+  RunOutcome({
+    required this.ok,
+    required this.hash,
+    required this.pixels,
+    required this.status,
+  });
   final bool ok;
   final int hash;
   final Uint8List pixels;
@@ -298,20 +394,34 @@ class SurfaceBox {
 
   int ensureCurrent() {
     if (surface == null) {
-      final s = shim.createSurfaceEx2(kW, kH, requestedSamples, requestedDepth, requestedStencil, ios);
+      final s = shim.createSurfaceEx2(
+        kW,
+        kH,
+        requestedSamples,
+        requestedDepth,
+        requestedStencil,
+        ios,
+      );
       if (s < 1) throw StateError('a1b_create_surface_ex2 failed');
       if (shim.makeCurrent(s) != 0) throw StateError('a1b_make_current failed');
       surface = s;
       current = true;
     } else if (!current) {
-      if (shim.makeCurrent(surface!) != 0) throw StateError('a1b_make_current failed');
+      if (shim.makeCurrent(surface!) != 0)
+        throw StateError('a1b_make_current failed');
       current = true;
     }
     return surface!;
   }
 }
 
-RunOutcome runOnce(Shim shim, SurfaceBox surfaceBox, Map<int, String> opNames, List<(String, String)> sources, {String? widgetDirParam}) {
+RunOutcome runOnce(
+  Shim shim,
+  SurfaceBox surfaceBox,
+  Map<int, String> opNames,
+  List<(String, String)> sources, {
+  String? widgetDirParam,
+}) {
   final rt = QuickjsRuntime();
   var calls = 0;
   var lastRc = 0;
@@ -322,7 +432,8 @@ RunOutcome runOnce(Shim shim, SurfaceBox surfaceBox, Map<int, String> opNames, L
   try {
     rt.registerHostFunction('__jsr1b_set_samples_host', (raw) {
       // The bridge marshals a single string arg as a bare JSON string.
-      surfaceBox.requestedSamples = int.tryParse('$raw'.replaceAll('"', '').trim()) ?? 4;
+      surfaceBox.requestedSamples =
+          int.tryParse('$raw'.replaceAll('"', '').trim()) ?? 4;
       return 'null';
     });
     // Phase 7: per-context depth/stencil parity — the facade reports the
@@ -331,17 +442,23 @@ RunOutcome runOnce(Shim shim, SurfaceBox surfaceBox, Map<int, String> opNames, L
     // first GL dispatch, so the EGL surface can be built with a matching
     // depth/stencil config.
     rt.registerHostFunction('__jsr1b_set_depth_host', (raw) {
-      surfaceBox.requestedDepth = '$raw'.replaceAll('"', '').trim() == '1' ? 24 : 0;
+      surfaceBox.requestedDepth = '$raw'.replaceAll('"', '').trim() == '1'
+          ? 24
+          : 0;
       return 'null';
     });
     rt.registerHostFunction('__jsr1b_set_stencil_host', (raw) {
-      surfaceBox.requestedStencil = '$raw'.replaceAll('"', '').trim() == '1' ? 8 : 0;
+      surfaceBox.requestedStencil = '$raw'.replaceAll('"', '').trim() == '1'
+          ? 8
+          : 0;
       return 'null';
     });
     final bytesOk = rt.registerHostBytesFn('__jsr1b_gl_bytes', (name, data) {
       calls++;
       surfaceBox.ensureCurrent();
-      final op = data.length >= 4 ? ByteData.sublistView(data).getUint32(0, Endian.little) : -1;
+      final op = data.length >= 4
+          ? ByteData.sublistView(data).getUint32(0, Endian.little)
+          : -1;
       final buf = calloc<Uint8>(data.length);
       try {
         buf.asTypedList(data.length).setAll(0, data);
@@ -349,7 +466,8 @@ RunOutcome runOnce(Shim shim, SurfaceBox surfaceBox, Map<int, String> opNames, L
       } finally {
         calloc.free(buf);
       }
-      if (lastRc < 0 && !kLegitNegativeRcs.contains(op)) stubHits.add('${opNames[op] ?? 'op_$op'} (opcode $op) rc=$lastRc');
+      if (lastRc < 0 && !kLegitNegativeRcs.contains(op))
+        stubHits.add('${opNames[op] ?? 'op_$op'} (opcode $op) rc=$lastRc');
     });
     if (!bytesOk) throw StateError('quickjs bridge lacks bytes lane');
     rt.registerHostFunction('__jsr1b_gl_rc', (_) => '$lastRc');
@@ -359,6 +477,7 @@ RunOutcome runOnce(Shim shim, SurfaceBox surfaceBox, Map<int, String> opNames, L
       final d = jsonDecode(argsJson);
       return (d is List ? d[i] : d) as String;
     }
+
     rt.registerHostFunction('__jsr1b_console_host', (argsJson) {
       final a = jsonDecode(hostArgAt(argsJson, 0)) as List;
       final line = '[js.${a[0]}] ${a[1]}';
@@ -366,7 +485,10 @@ RunOutcome runOnce(Shim shim, SurfaceBox surfaceBox, Map<int, String> opNames, L
       stderr.writeln(line);
       return null;
     });
-    rt.registerHostFunction('__jsr1b_result_host', (_) => jsonEncode(base64Encode(readScratch(shim))));
+    rt.registerHostFunction(
+      '__jsr1b_result_host',
+      (_) => jsonEncode(base64Encode(readScratch(shim))),
+    );
     rt.registerHostFunction('__jsr1b_asset_host', (argsJson) {
       final path = hostArgAt(argsJson, 0);
       final r = assetReadBase64(widgetDir!, path);
@@ -381,7 +503,10 @@ RunOutcome runOnce(Shim shim, SurfaceBox surfaceBox, Map<int, String> opNames, L
         final alias = _aliasAssetPath(rel);
         if (alias != null) f = File(alias);
       }
-      if (!f.existsSync()) { errors.add('decode miss: $rel'); return null; }
+      if (!f.existsSync()) {
+        errors.add('decode miss: $rel');
+        return null;
+      }
       return decodeImageJson(widgetDir!, f.readAsBytesSync(), '');
     });
     rt.registerHostFunction('__jsr1b_decode_image_b64_host', (argsJson) {
@@ -393,7 +518,8 @@ RunOutcome runOnce(Shim shim, SurfaceBox surfaceBox, Map<int, String> opNames, L
     final err = <String?>[];
     String? evalOrThrow(String code, String filename) {
       final r = rt.eval(code, filename: filename, errMsg: err);
-      if (err.isNotEmpty && err.first != null) throw StateError('eval $filename failed: ${err.first}');
+      if (err.isNotEmpty && err.first != null)
+        throw StateError('eval $filename failed: ${err.first}');
       err.clear();
       return r;
     }
@@ -406,23 +532,52 @@ RunOutcome runOnce(Shim shim, SurfaceBox surfaceBox, Map<int, String> opNames, L
     status['scene'] = scene;
     if (scene['ok'] != true) {
       status['errors'] = errors;
-      return RunOutcome(ok: false, hash: 0, pixels: Uint8List(0), status: status);
+      return RunOutcome(
+        ok: false,
+        hash: 0,
+        pixels: Uint8List(0),
+        status: status,
+      );
     }
     final ticks = (scene['ticks'] as num?)?.toInt() ?? 3;
     // Drain async asset loads, drive the pinned frames, drain again.
     rt.drainMicrotasks();
-    final tickJson = evalOrThrow('({ ticked: globalThis.__corpusTick($ticks), errors: globalThis.__corpusErrors })', 'corpus_tick.js');
+    final tickJson = evalOrThrow(
+      '({ ticked: globalThis.__corpusTick($ticks), errors: globalThis.__corpusErrors })',
+      'corpus_tick.js',
+    );
     rt.drainMicrotasks();
     // Async load failures (loader onError -> console.error) can land after
     // the tick snapshot; re-read the corpus error log before judging.
-    final lateErrorsJson = evalOrThrow('JSON.stringify(globalThis.__corpusErrors)', 'corpus_late_errors.js');
+    final lateErrorsJson = evalOrThrow(
+      'JSON.stringify(globalThis.__corpusErrors)',
+      'corpus_late_errors.js',
+    );
+    // A scene may publish an extra JSON payload (e.g. a self-verifying
+    // battery's named checks) through the __corpusExtra global; it rides the
+    // status file untouched and never affects the tier logic.
+    final extraJson = evalOrThrow(
+      'JSON.stringify(globalThis.__corpusExtra === undefined ? null : globalThis.__corpusExtra)',
+      'corpus_extra.js',
+    );
+    // rt.eval returns JSON-encoded strings, so a published payload arrives
+    // double-encoded; unwrap once.
+    dynamic decodedExtra = jsonDecode(extraJson ?? 'null');
+    if (decodedExtra is String) decodedExtra = jsonDecode(decodedExtra);
+    status['extra'] = decodedExtra;
     final tick = jsonDecode(tickJson ?? '{}') as Map<String, dynamic>;
     Object? lateDecoded = jsonDecode(lateErrorsJson ?? '[]');
     if (lateDecoded is String) lateDecoded = jsonDecode(lateDecoded);
-    final lateErrors = <String>[for (final e in (lateDecoded as List?) ?? []) '$e'];
+    final lateErrors = <String>[
+      for (final e in (lateDecoded as List?) ?? []) '$e',
+    ];
     final seenErr = <String>{};
     final corpusErrors = <String>[
-      for (final e in <String>[...(tick['errors'] as List? ?? []).map((e) => '$e'), ...lateErrors, ...errors])
+      for (final e in <String>[
+        ...(tick['errors'] as List? ?? []).map((e) => '$e'),
+        ...lateErrors,
+        ...errors,
+      ])
         if (seenErr.add(e)) e,
     ];
     status['ticked'] = tick['ticked'];
@@ -432,11 +587,21 @@ RunOutcome runOnce(Shim shim, SurfaceBox surfaceBox, Map<int, String> opNames, L
     final stubThrows = 0;
     if (missing.isNotEmpty || stubThrows > 0) {
       status['strictFailure'] = 'missing=$missing stubThrows=$stubThrows';
-      return RunOutcome(ok: false, hash: 0, pixels: Uint8List(0), status: status);
+      return RunOutcome(
+        ok: false,
+        hash: 0,
+        pixels: Uint8List(0),
+        status: status,
+      );
     }
     if (stubHits.isNotEmpty) {
       status['strictFailure'] = 'C-decoder stub hits: ${stubHits.join('; ')}';
-      return RunOutcome(ok: false, hash: 0, pixels: Uint8List(0), status: status);
+      return RunOutcome(
+        ok: false,
+        hash: 0,
+        pixels: Uint8List(0),
+        status: status,
+      );
     }
     if (calls == 0) {
       // Not a hard failure: some official examples legitimately issue no GL
@@ -446,7 +611,12 @@ RunOutcome runOnce(Shim shim, SurfaceBox surfaceBox, Map<int, String> opNames, L
       status['zeroDraws'] = true;
     }
     if (corpusErrors.isNotEmpty) {
-      return RunOutcome(ok: false, hash: 0, pixels: Uint8List(0), status: status);
+      return RunOutcome(
+        ok: false,
+        hash: 0,
+        pixels: Uint8List(0),
+        status: status,
+      );
     }
     status['dispatchCalls'] = calls;
     status['ok'] = true;
@@ -454,21 +624,34 @@ RunOutcome runOnce(Shim shim, SurfaceBox surfaceBox, Map<int, String> opNames, L
     rt.close();
   }
   final surface = surfaceBox.ensureCurrent();
-  if (shim.swapBuffers(surface) != 0) throw StateError('a1b_swap_buffers failed');
+  if (shim.swapBuffers(surface) != 0)
+    throw StateError('a1b_swap_buffers failed');
   final wOut = calloc<Int32>(), hOut = calloc<Int32>();
   final px = calloc<Uint8>(kW * kH * 4);
   late final Uint8List pixels;
   try {
-    if (shim.readPixels(surface, px, wOut, hOut) != 0) throw StateError('a1b_read_pixels failed');
-    if (wOut.value != kW || hOut.value != kH) throw StateError('readback size ${wOut.value}x${hOut.value} != ${kW}x$kH');
+    if (shim.readPixels(surface, px, wOut, hOut) != 0)
+      throw StateError('a1b_read_pixels failed');
+    if (wOut.value != kW || hOut.value != kH)
+      throw StateError(
+        'readback size ${wOut.value}x${hOut.value} != ${kW}x$kH',
+      );
     pixels = Uint8List.fromList(px.asTypedList(kW * kH * 4).toList());
   } finally {
-    calloc.free(wOut); calloc.free(hOut); calloc.free(px);
+    calloc.free(wOut);
+    calloc.free(hOut);
+    calloc.free(px);
   }
-  return RunOutcome(ok: true, hash: fnv1a(pixels), pixels: pixels, status: status);
+  return RunOutcome(
+    ok: true,
+    hash: fnv1a(pixels),
+    pixels: pixels,
+    status: status,
+  );
 }
 
-String _flatAssetName(String url) => url.replaceAll(RegExp(r'[^A-Za-z0-9._-]+'), '__');
+String _flatAssetName(String url) =>
+    url.replaceAll(RegExp(r'[^A-Za-z0-9._-]+'), '__');
 
 final RegExp _assetLiteralRe = RegExp(
   r'''['"`]((?:\./)?(?:textures|models|sounds|fonts|environments|json|luts|screenshots)/[^'"`\\]+?)['"`]''',
@@ -476,7 +659,11 @@ final RegExp _assetLiteralRe = RegExp(
 
 String? _threeSrcRoot() {
   final env = Platform.environment['THREE_SRC'];
-  for (final c in <String>[if (env != null && env.isNotEmpty) env, '/tmp/jsr-three-r186', '/Users/Uladzimir_Klyshevich/git/references/three.js']) {
+  for (final c in <String>[
+    if (env != null && env.isNotEmpty) env,
+    '/tmp/jsr-three-r186',
+    '/Users/Uladzimir_Klyshevich/git/references/three.js',
+  ]) {
     if (Directory(c).existsSync()) return c;
   }
   return null;
@@ -485,7 +672,12 @@ String? _threeSrcRoot() {
 Uint8List? _extractFromPinnedSource(String? srcRoot, String relInExamples) {
   if (srcRoot == null) return null;
   if (Directory('$srcRoot/.git').existsSync()) {
-    final r = Process.runSync('git', ['-C', srcRoot, 'show', '$kPinCommit:$relInExamples'], stdoutEncoding: null);
+    final r = Process.runSync('git', [
+      '-C',
+      srcRoot,
+      'show',
+      '$kPinCommit:$relInExamples',
+    ], stdoutEncoding: null);
     if (r.exitCode == 0 && r.stdout is Uint8List) return r.stdout as Uint8List;
     return null;
   }
@@ -499,24 +691,102 @@ Uint8List? _extractFromPinnedSource(String? srcRoot, String relInExamples) {
 // file:__corpus__libs__draco__... — serve them from the pinned npm jsm
 // libs (same files prepare vendors for the widgets).
 const String kDracoFlatPrefix = 'file:__corpus__libs__draco__';
+
+/// Container-magic check for the loader-parsed binary texture formats: an
+/// `.hdr` must start with the Radiance `#?` id string, an `.exr` with the
+/// OpenEXR `v/1\x01` magic.
+bool _hasContainerMagic(String url, List<int> b) {
+  if (url.endsWith('.hdr')) return b.length > 2 && b[0] == 0x23 && b[1] == 0x3f;
+  if (url.endsWith('.exr')) {
+    return b.length > 3 &&
+        b[0] == 0x76 &&
+        b[1] == 0x2f &&
+        b[2] == 0x31 &&
+        b[3] == 0x01;
+  }
+  return true;
+}
+
+/// F4d repair pass: the example prepare materializes `.hdr`/`.exr` assets in
+/// R1-decoded form (the asset_discovery hdrRgba lane) under the original
+/// name, but the 1B/WebGL2 corpus legs need the TRUE pinned bytes for
+/// HDRLoader/EXRLoader. When the covered file lacks the container magic,
+/// serve the pinned-source bytes from the shared cache under a distinct
+/// `<flat>.src` name (never rewriting the widget file).
+void _repairContainerAsset(
+  String url,
+  String flat,
+  String base,
+  Map<String, String> assetMap,
+  String widgetDir,
+  Directory cache,
+  String? srcRoot,
+) {
+  if (!url.endsWith('.hdr') && !url.endsWith('.exr')) return;
+  if (url.endsWith('/')) return;
+  final out = assetMap[url];
+  File? cand;
+  for (final f in [
+    if (out != null && out != flat && out != base) File('$widgetDir/$out'),
+    File('$widgetDir/$flat'),
+    File('$widgetDir/$base'),
+  ]) {
+    if (f.existsSync()) {
+      cand = f;
+      break;
+    }
+  }
+  if (cand == null) return;
+  final raf = cand.openSync(mode: FileMode.read);
+  List<int> head;
+  try {
+    head = raf.readSync(4);
+  } finally {
+    raf.closeSync();
+  }
+  if (_hasContainerMagic(url, head)) return;
+  final bytes = _extractFromPinnedSource(srcRoot, 'examples/$url');
+  if (bytes == null) return;
+  cache.createSync(recursive: true);
+  final target = File('${cache.path}/$flat.src');
+  target.writeAsBytesSync(bytes);
+  assetMap[url] = '$flat.src';
+  assetMap['$flat.src'] = '$flat.src';
+}
+
 String? _aliasAssetPath(String path) {
   if (path.startsWith(kDracoFlatPrefix)) {
     final rest = path.substring(kDracoFlatPrefix.length).replaceAll('__', '/');
-    final f = File('/tmp/three_pkg/node_modules/three/examples/jsm/libs/draco/$rest');
+    final f = File(
+      '/tmp/three_pkg/node_modules/three/examples/jsm/libs/draco/$rest',
+    );
     if (f.existsSync()) return f.path;
   }
   return null;
 }
 
-void _seedAssetFallback(String scenePath, Map<String, String> assetMap, List<String> assetFiles, String widgetDir) {
+void _seedAssetFallback(
+  String scenePath,
+  Map<String, String> assetMap,
+  List<String> assetFiles,
+  String widgetDir,
+) {
   final f = File(scenePath);
   if (!f.existsSync()) return;
   final src = f.readAsStringSync();
   final urls = <String>{};
   for (final m in _assetLiteralRe.allMatches(src)) {
     var url = m.group(1)!;
-    url = url.replaceFirst(RegExp(r'^\./'), '').split('#').first.split('?').first;
-    if (!RegExp(r'^(?:textures|models|sounds|fonts|environments|json|luts|screenshots)/').hasMatch(url)) continue;
+    url = url
+        .replaceFirst(RegExp(r'^\./'), '')
+        .split('#')
+        .first
+        .split('?')
+        .first;
+    if (!RegExp(
+      r'^(?:textures|models|sounds|fonts|environments|json|luts|screenshots)/',
+    ).hasMatch(url))
+      continue;
     urls.add(url);
   }
   if (urls.isEmpty) return;
@@ -525,8 +795,20 @@ void _seedAssetFallback(String scenePath, Map<String, String> assetMap, List<Str
   for (final url in urls) {
     final flat = _flatAssetName(url);
     final base = url.split('/').last;
-    final covered = assetMap.containsKey(url) || assetFiles.contains(flat) || assetFiles.contains(base);
+    final covered =
+        assetMap.containsKey(url) ||
+        assetFiles.contains(flat) ||
+        assetFiles.contains(base);
     if (covered) {
+      _repairContainerAsset(
+        url,
+        flat,
+        base,
+        assetMap,
+        widgetDir,
+        cache,
+        srcRoot,
+      );
       // Repair pass: the widget pipeline sometimes re-exports a text model as
       // glTF binary while keeping its original extension (e.g. stormtroper.dae
       // holding GLB bytes) — ColladaLoader then chokes on binary garbage.
@@ -534,14 +816,19 @@ void _seedAssetFallback(String scenePath, Map<String, String> assetMap, List<Str
       if (url.endsWith('.dae') || url.endsWith('.xml')) {
         final out = assetMap[url];
         for (final cand in [
-          if (out != null && out != flat && out != base) File('$widgetDir/$out'),
+          if (out != null && out != flat && out != base)
+            File('$widgetDir/$out'),
           File('$widgetDir/$flat'),
           File('$widgetDir/$base'),
           File('${cache.path}/$flat'),
         ]) {
           if (!cand.existsSync()) continue;
           final head = cand.readAsBytesSync();
-          if (head.length > 4 && head[0] == 0x67 && head[1] == 0x6c && head[2] == 0x54 && head[3] == 0x46) {
+          if (head.length > 4 &&
+              head[0] == 0x67 &&
+              head[1] == 0x6c &&
+              head[2] == 0x54 &&
+              head[3] == 0x46) {
             final bytes = _extractFromPinnedSource(srcRoot, 'examples/$url');
             if (bytes != null) cand.writeAsBytesSync(bytes);
           }
@@ -566,17 +853,27 @@ void main(List<String> args) {
   final scenePath = argValue(args, 'scene');
   final widgetDir = argValue(args, 'widget-dir');
   final outDir = argValue(args, 'out');
-  if (!File(kShimPath).existsSync()) { stderr.writeln('libangle_1b.dylib not found; run `bash packages/jsr_three_angle/native/angle/build.sh`'); exit(2); }
+  if (!File(kShimPath).existsSync()) {
+    stderr.writeln(
+      'libangle_1b.dylib not found; run `bash packages/jsr_three_angle/native/angle/build.sh`',
+    );
+    exit(2);
+  }
   Directory(outDir).createSync(recursive: true);
 
   // Asset registry: prepare_manifest assetDiscovery (url -> flattened output)
   // + every file present in the widget dir.
   final assetMap = <String, String>{};
+  final discovery = <Map<String, dynamic>>[];
   final manifestFile = File('$widgetDir/prepare_manifest.json');
   if (manifestFile.existsSync()) {
-    final m = jsonDecode(manifestFile.readAsStringSync()) as Map<String, dynamic>;
+    final m =
+        jsonDecode(manifestFile.readAsStringSync()) as Map<String, dynamic>;
     for (final a in (m['assetDiscovery'] as List?) ?? []) {
-      if (a is Map && a['url'] != null && a['output'] != null) assetMap[a['url'] as String] = a['output'] as String;
+      if (a is Map && a['url'] != null && a['output'] != null) {
+        assetMap[a['url'] as String] = a['output'] as String;
+        discovery.add(Map<String, dynamic>.from(a));
+      }
     }
     // Renamed outputs: prepare may materialize 'textures/foo/bar.jpg' as a
     // short name ('panorama.jpg'); inputs pins the source url sha, outputs
@@ -600,12 +897,30 @@ void main(List<String> args) {
       }
     }
   }
-  final assetFiles = <String>[for (final e in Directory(widgetDir).listSync()) if (e is File) e.uri.pathSegments.last];
+  final assetFiles = <String>[
+    for (final e in Directory(widgetDir).listSync())
+      if (e is File) e.uri.pathSegments.last,
+  ];
 
   // Reference-source fallback: scan the scene bundle for asset literals the
   // widget dir lacks and extract them once from the pinned three.js source
   // into the shared cache (read by the host fns when widget-dir reads miss).
   _seedAssetFallback(scenePath, assetMap, assetFiles, widgetDir);
+  // F4d container repair over the MANIFEST registry: setPath-joined loads
+  // (HDRCubeTextureLoader face URLs and friends) never appear as scene
+  // literals, so the prepare's own url list is the authoritative set.
+  for (final a in discovery) {
+    final url = a['url'] as String;
+    _repairContainerAsset(
+      url,
+      _flatAssetName(url),
+      url.split('/').last,
+      assetMap,
+      widgetDir,
+      Directory(kAssetCacheDir),
+      _threeSrcRoot(),
+    );
+  }
 
   // <script id="..."> blocks from original.html (shader examples read their
   // GLSL through document.getElementById(id).textContent upstream).
@@ -615,7 +930,9 @@ void main(List<String> args) {
     final html = htmlFile.readAsStringSync();
     final re = RegExp(r'<script[^>]*?id="([^"]+)"[^>]*?>([\s\S]*?)</script>');
     for (final m in re.allMatches(html)) {
-      htmlIdText[m.group(1)!] = m.group(2)!.replaceFirst(RegExp(r'\n\s*$'), '\n');
+      htmlIdText[m.group(1)!] = m
+          .group(2)!
+          .replaceFirst(RegExp(r'\n\s*$'), '\n');
     }
   }
 
@@ -637,21 +954,43 @@ void main(List<String> args) {
     final surfaceBox = SurfaceBox(shim, iosurfaceId);
     try {
       final sources = <(String, String)>[
-        (dartPrelude(jsonEncode(assetMap), jsonEncode(assetFiles), jsonEncode(htmlIdText)), 'dart_prelude.js'),
+        (
+          dartPrelude(
+            jsonEncode(assetMap),
+            jsonEncode(assetFiles),
+            jsonEncode(htmlIdText),
+          ),
+          'dart_prelude.js',
+        ),
         (File(kCorpusXmlDomPath).readAsStringSync(), 'corpus_xmldom.js'),
         (File(kCorpusDomPath).readAsStringSync(), 'corpus_dom.js'),
         (wrapThreeCore(File(kCorePath).readAsStringSync()), 'three.core.js'),
-        (wrapThreeModule(File(kModulePath).readAsStringSync()), 'jsr_three_web.js'),
+        (
+          wrapThreeModule(File(kModulePath).readAsStringSync()),
+          'jsr_three_web.js',
+        ),
         (File(kPackerPath).readAsStringSync(), 'g1_packer.js'),
         (File(kFacadePath).readAsStringSync(), 'webgl2_facade.js'),
         // F2b batching is transport-only; this harness asserts the LOCKED
         // per-command dispatch behavior (stub rcs per command), so it clears
         // the facade's batch sink (see run_1b_render.dart).
-        ('if (typeof G1 !== "undefined" && G1.setSink) G1.setSink(null);', 'clear-batch-sink.js'),
+        (
+          'if (typeof G1 !== "undefined" && G1.setSink) G1.setSink(null);',
+          'clear-batch-sink.js',
+        ),
         (File(scenePath).readAsStringSync(), 'scene.js'),
       ];
       // runOnce closure needs widgetDir for the host fns.
-      final outcome = _runWithDir(shim, surfaceBox, opNames, sources, widgetDir, id, run, outDir);
+      final outcome = _runWithDir(
+        shim,
+        surfaceBox,
+        opNames,
+        sources,
+        widgetDir,
+        id,
+        run,
+        outDir,
+      );
       hashes.add(outcome.hash);
       if (!outcome.ok) ok = false;
     } finally {
@@ -667,18 +1006,41 @@ void main(List<String> args) {
 }
 
 // Runs one render with widgetDir threaded into the asset host fns.
-RunOutcome _runWithDir(Shim shim, SurfaceBox surfaceBox, Map<int, String> opNames, List<(String, String)> sources, String widgetDir, String id, int run, String outDir) {
-  return runOnce(shim, surfaceBox, opNames, sources, widgetDirParam: widgetDir).also((o) {
+RunOutcome _runWithDir(
+  Shim shim,
+  SurfaceBox surfaceBox,
+  Map<int, String> opNames,
+  List<(String, String)> sources,
+  String widgetDir,
+  String id,
+  int run,
+  String outDir,
+) {
+  return runOnce(
+    shim,
+    surfaceBox,
+    opNames,
+    sources,
+    widgetDirParam: widgetDir,
+  ).also((o) {
     if (o.ok) {
       final rgbaPath = '$outDir/1b_run$run.rgba';
       File(rgbaPath).writeAsBytesSync(o.pixels);
-      if (run == 1) File('$outDir/1b.png').writeAsBytesSync(encodePng(o.pixels, kW, kH));
-      stdout.writeln('CORPUS_1B_RUN id=$id run=$run hash=${hex32(o.hash)} (${o.hash}) file=$rgbaPath');
+      if (run == 1)
+        File('$outDir/1b.png').writeAsBytesSync(encodePng(o.pixels, kW, kH));
+      stdout.writeln(
+        'CORPUS_1B_RUN id=$id run=$run hash=${hex32(o.hash)} (${o.hash}) file=$rgbaPath',
+      );
     }
-    stdout.writeln('CORPUS_1B_STATUS ${jsonEncode({'id': id, 'run': run, 'ok': o.status['ok'] ?? false, 'ticked': o.status['ticked'], 'scene': o.status['scene'], 'errors': o.status['errors'], 'strictFailure': o.status['strictFailure'], 'dispatchCalls': o.status['dispatchCalls']})}');
+    stdout.writeln(
+      'CORPUS_1B_STATUS ${jsonEncode({'id': id, 'run': run, 'ok': o.status['ok'] ?? false, 'ticked': o.status['ticked'], 'scene': o.status['scene'], 'errors': o.status['errors'], 'strictFailure': o.status['strictFailure'], 'dispatchCalls': o.status['dispatchCalls'], 'extra': o.status['extra']})}',
+    );
   });
 }
 
 extension _Also<T> on T {
-  T also(void Function(T) f) { f(this); return this; }
+  T also(void Function(T) f) {
+    f(this);
+    return this;
+  }
 }
