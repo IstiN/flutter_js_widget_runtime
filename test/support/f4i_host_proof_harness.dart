@@ -1,12 +1,12 @@
 import 'dart:ffi' as ffi;
 import 'dart:io';
-import 'dart:typed_data';
 
 import 'package:ffi/ffi.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:js_widget_runtime/js_widget_runtime.dart';
-import 'package:js_widget_runtime/src/runtime/js_cinematic_capture_host.dart';
+import 'package:js_widget_runtime/src/runtime/js_widget_engine_quickjs.dart';
 
 import 'three_1b_engine.dart';
 import 'three_1b_real_wire.dart';
@@ -74,13 +74,19 @@ class F4iCaptureHost extends JsCinematicCaptureHost {
     Map<String, dynamic> clock,
   ) async {
     final frame = (clock['frame'] as num).toInt();
+    // The barrier crosses while the JS task that rendered the frame is still
+    // on the stack: the 1B facade batches void commands and presents them at
+    // the end-of-task boundary (its documented flush contract). Yield one
+    // event-loop turn FIRST so the in-flight frame reaches the surface —
+    // reading earlier captures frame N-1 (verified one-behind by frame-hash
+    // mapping during the F4i diagnosis). The QuickJS job drain of the
+    // pending resolve runs the batch flush before this timer resumes.
+    await Future<void>.delayed(Duration.zero);
     final shim = _wire.shim;
     // The corpus read flow: make the wire's surface current, present it,
-    // then read the straight RGBA back. (Open issue on this leg: once the
-    // engine's GL state is live the read fails with GL_INVALID_OPERATION —
-    // bare-wire probes with the same flow succeed. A failure maps to the
-    // named capture error so the run completes honestly instead of
-    // producing an effect-less image.)
+    // then read the straight RGBA back. The shim's surface read targets the
+    // default framebuffer itself (and restores the engine's leftover
+    // framebuffer bindings), so this works with the engine's GL state live.
     if (shim.makeCurrent(_wire.surface) != 0) {
       throw StateError('a1b_make_current failed at frame $frame');
     }
@@ -120,6 +126,12 @@ class F4iCaptureHost extends JsCinematicCaptureHost {
 /// [noCapture] switching the capture barrier host off (REG-HOST-CAPTURE).
 /// Returns (exported state, capture host — null in the no-capture run,
 /// engine log).
+///
+/// The proof program settles across Dart microtasks — every captureFrame
+/// await resolves from the Dart capture barrier host, one event-loop turn
+/// per frame — so this runner waits for the terminal exportState instead of
+/// snapshotting at the first pump gap (the run1bWidgetEngine shape, which
+/// fits widgets that settle within one QuickJS drain).
 Future<(Map<String, dynamic>, F4iCaptureHost?, List<Map<String, dynamic>>)>
 runF4iOn1B(
   String stagedAfterimage, {
@@ -128,21 +140,42 @@ runF4iOn1B(
 }) async {
   final wire = Real1BWireHost(width: 96, height: 64)
     ..facadeBootstrapOverride = real1bFacadeBootstrap();
+  addTearDown(wire.dispose);
   final captureHost = noCapture ? null : F4iCaptureHost(wire, dir);
   final logs = <Map<String, dynamic>>[];
-  final (engineWire, reported, state) = await run1bWidgetEngine(
-    f4iWidget(stagedAfterimage, noCapture: noCapture),
-    threeSource: File('assets/three/jsr_three_web.js').readAsStringSync(),
-    realFacade: true,
-    host: wire,
-    consoleLogs: logs,
-    cinematicCaptureHost: captureHost,
-    // This proof host allows the stock shader-based passes (the same program
-    // runs unrestricted on the web leg; the stock AfterimagePass/BokehPass
-    // are ShaderMaterials, and the default host policy denies custom GLSL).
-    allowCustomShaders: true,
+  debugDefaultTargetPlatformOverride = TargetPlatform.macOS;
+  JsThreeBackendSelection? reported;
+  final engine = JsWidgetEngine(
+    config: JsRuntimeConfig(
+      onRender: (_) {},
+      onSetTitle: (_) {},
+      onStorageUpdate: (_) {},
+      backendFactory: (cfg) => QuickjsWidgetEngineBackend(config: cfg),
+      threeEnabled: true,
+      threeSource: File('assets/three/jsr_three_web.js').readAsStringSync(),
+      threeBackend: JsThreeBackend.angle1b,
+      threeHost: wire,
+      allowCustomShaders: true,
+      onThreeBackendSelected: (s) => reported = s,
+      cinematicCaptureHost: captureHost,
+    ),
   );
-  addTearDown((engineWire as Real1BWireHost).dispose);
+  Map<String, dynamic>? state;
+  try {
+    await engine.run(f4iWidget(stagedAfterimage, noCapture: noCapture));
+    // Bounded settle: the chain is microtask-driven and always progresses
+    // while this isolate awaits; a hung chain fails through the deadline
+    // with the log attached.
+    final deadline = DateTime.now().add(const Duration(minutes: 3));
+    while (engine.exportedState == null && DateTime.now().isBefore(deadline)) {
+      await Future<void>.delayed(const Duration(milliseconds: 10));
+    }
+    logs.addAll(engine.flushLogs());
+    state = engine.exportedState;
+  } finally {
+    debugDefaultTargetPlatformOverride = null;
+    await engine.dispose();
+  }
   expect(reported?.isAngle1b, isTrue, reason: 'the 1B lane is required');
   expect(widgetErrorLogs(logs), isEmpty, reason: 'no engine-level errors');
   if (state == null) {

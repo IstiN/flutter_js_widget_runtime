@@ -719,16 +719,20 @@ dependency (grep of `tool/three/src` and `lib/` for YoClip names: none).
   `__jsr_capture` channel with `{ engineId, clock, barrier: 'final-pass' }`;
   the host writes `frame_0000.png …` files.
 
-### Checkpoints (web leg, Chromium, hashes from cases_f4i.sh)
+### Checkpoints (hashes from cases_f4i.sh / f4i_host_proof_test.dart)
 
 | Checkpoint | Frame | Effects | Preview = screenshot = PNG |
 |---|---|---|---|
-| bloom | 12 | bloom, FXAA | yes — 0xab85dd29 |
-| DOF | 20 | bloom, DOF, FXAA | yes — 0xa5a5f0e7 |
-| temporal | 24 | bloom, DOF, afterimage, motion blur | yes — 0x40657ad2 |
+| bloom | 8 | bloom, DOF, afterimage | yes — 0xab85dd29 |
+| DOF | 16 | bloom, DOF, afterimage | yes — 0xa5a5f0e7 |
+| temporal | 24 | bloom, DOF, afterimage (direct seek through the declared history window) | yes — 0x40657ad2 |
 
-All three are hash-equal at every checkpoint (25 PNG files, fnv1a of the
-RGBA decode). Run: `JSR_WEBGL_REF_CHANNEL=chromium bash tool/three/cases_f4i.sh`
+All three are hash-equal at every checkpoint on both legs (25 PNG files,
+fnv1a of the RGBA decode; the checkpoint frames are opaque by stock behavior
+— the r186 BokehShader forces alpha 1 — while the bloom-only composite
+pipeline at frame 12 carries the overlay's transparency and passes the
+two-background blend probes on both legs). Run:
+`JSR_WEBGL_REF_CHANNEL=chromium bash tool/three/cases_f4i.sh`
 (web leg; CI: job `conformance`, step `F4i downstream host proof (web leg)`).
 Native 1B leg: `flutter test test/angle1b/f4i_host_proof_test.dart` (CI: job
 `quality-macos` via the existing `flutter test test/angle1b` step; locally
@@ -745,12 +749,29 @@ effect-less image is ever produced.
 
 ### Native leg status at the F4i head
 
-`E2E-HOST-YOCLIP-NOCAP` passes on macOS native 1B. `E2E-HOST-YOCLIP-1/-2`
-are open: the Dart capture host's raw surface read of the presented ANGLE
-surface fails with `GL_INVALID_OPERATION` once the engine's GL state is live
-(bare-wire probes with the same read flow succeed before any engine work).
-The failure maps to the named `cinematic.notCapturable` error and the run
-completes honestly (no effect-less image, zero files). The remaining fix is
-a capture host that reads the frame through a path the engine itself drives
-(or a host-owned surface). The web leg is unaffected; the debugging trail is
-in `handoff-flutter-f4i.md`.
+All three native tests pass on macOS native 1B — `E2E-HOST-YOCLIP-1/-2` and
+`E2E-HOST-YOCLIP-NOCAP` / `REG-HOST-CAPTURE-1` — with the same checkpoint
+hashes as the web leg (table above; 25 PNG files written and decoded).
+
+Two fixes landed for this leg (one core, one harness):
+
+1. **Core (shim, `packages/jsr_three_angle/native/angle`)**: `a1b_read_pixels`
+   and the pbuffer fallback copy in `a1b_swap_buffers` target the default
+   framebuffer explicitly and then restore the engine's leftover READ/DRAW
+   framebuffer bindings. FB 0 IS the presented surface and the readback
+   models the browser compositor, which reads the presented surface
+   regardless of the application's framebuffer binding; after a composer
+   frame the engine can legitimately leave a render-target FBO bound with
+   `GL_READ_BUFFER=GL_COLOR_ATTACHMENT0`, and reading "whatever is bound"
+   failed with `GL_INVALID_OPERATION` (an UNSIGNED_BYTE read of a half-float
+   attachment). Regression: the "F4i shim readback regression" test in
+   `test/angle1b/f4i_host_proof_test.dart` (fails with `rc = -1` when the
+   shim fix is reverted).
+2. **Harness**: the capture barrier yields one event-loop turn before the
+   surface read — the barrier crosses while the rendering JS task is still
+   on the stack and the 1B facade presents the frame at the end-of-task
+   batch flush, so reading earlier captured frame N-1 (verified by a
+   frame-hash mapping against the web leg). `runF4iOn1B` also waits for the
+   proof program's terminal `exportState`: the program settles across one
+   microtask turn per `captureFrame` await, while the shared
+   `run1bWidgetEngine` snapshots the state at the first pump gap.

@@ -1,10 +1,13 @@
+import 'dart:ffi' as ffi;
 import 'dart:io';
 
+import 'package:ffi/ffi.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import '../../tool/three/bench_1b.dart' show Shim;
 import '../support/f4i_host_proof_harness.dart';
 import '../support/f4i_png_codec.dart';
+import '../support/three_1b_real_wire.dart';
 
 // E2E-HOST-YOCLIP-* / REG-HOST-CAPTURE (issue #8, segment F4i, AC15): the
 // downstream frame-driven host proof on the native 1B lane. The proof
@@ -36,6 +39,67 @@ void main() {
   test('F4i png codec round trip (encode ∘ decode is the identity)', () {
     f4iPngSelfCheck();
   });
+
+  test(
+    'F4i shim readback regression: the host surface read targets the default '
+    'framebuffer while a composer framebuffer stays bound, and restores it',
+    () {
+      final wire = Real1BWireHost(width: 8, height: 8);
+      addTearDown(wire.dispose);
+      final shim = wire.shim;
+      expect(shim.makeCurrent(wire.surface), 0);
+
+      // The shape a finished EffectComposer frame can leave: a non-zero
+      // framebuffer bound as the current framebuffer. Without the shim fix
+      // (a1b_read_pixels read "whatever is bound") the host surface read
+      // failed with GL_INVALID_OPERATION — the blocker of
+      // E2E-HOST-YOCLIP-1/-2.
+      final fbo = dispatchBytes(shim, g1Command(132)); // createFramebuffer
+      expect(fbo, greaterThan(0));
+      final rbo = dispatchBytes(shim, g1Command(139)); // createRenderbuffer
+      expect(rbo, greaterThan(0));
+      expect(
+        // renderbufferStorage(RENDERBUFFER, RGBA8, 8, 8)
+        dispatchBytes(shim, g1Command(143, [0x8D41, 0x8058, 8, 8])),
+        0,
+      );
+      expect(dispatchBytes(shim, g1Command(135, [0x8D40, fbo])), 0);
+      expect(
+        // framebufferRenderbuffer(FRAMEBUFFER, COLOR_ATTACHMENT0, RENDERBUFFER, rbo)
+        dispatchBytes(shim, g1Command(138, [0x8D40, 0x8CE0, 0x8D41, rbo])),
+        0,
+      );
+      expect(dispatchBytes(shim, g1Command(135, [0x8D40, fbo])), 0);
+
+      final px = calloc<ffi.Uint8>(8 * 8 * 4);
+      final wOut = calloc<ffi.Int32>();
+      final hOut = calloc<ffi.Int32>();
+      try {
+        expect(shim.readPixels(wire.surface, px, wOut, hOut), 0);
+        expect(wOut.value, 8);
+        expect(hOut.value, 8);
+        // The host read must leave the engine's binding authoritative:
+        // three.js caches framebuffer bindings client-side, and a silently
+        // changed context binding corrupts the next render that skips the
+        // GL call on a cache match.
+        expect(
+          // getParameter(READ_FRAMEBUFFER_BINDING)
+          dispatchBytes(shim, g1Command(31, const [0x8CAA])),
+          fbo,
+        );
+        expect(
+          // getParameter(DRAW_FRAMEBUFFER_BINDING)
+          dispatchBytes(shim, g1Command(31, const [0x8CA6])),
+          fbo,
+        );
+      } finally {
+        calloc.free(px);
+        calloc.free(wOut);
+        calloc.free(hOut);
+      }
+    },
+    skip: missing,
+  );
 
   test(
     'E2E-HOST-YOCLIP-1: preview, arbitrary-frame screenshot and PNG-sequence '
