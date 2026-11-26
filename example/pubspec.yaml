@@ -27,8 +27,12 @@ dev_dependencies:
   # F3b iOS (issue #7 AC3): the angle-ios CI job runs the e2e_ios device
   # suite on the simulator from this app package (it hosts the angle_1b
   # plugin); the canonical files live in ../test/angle1b/e2e_ios_*.
+  # Dev-only: the suite imports the 1B backend API; the main example app
+  # never does (ADR-0003 decision 1).
   integration_test:
     sdk: flutter
+  jsr_three_angle:
+    path: ../packages/jsr_three_angle
 
 flutter:
   uses-material-design: true

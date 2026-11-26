@@ -407,7 +407,10 @@ jobs:
           test -f "$OUT/libEGL.dylib"
 
       - name: Save pinned ANGLE build (ios-arm64)
-        if: steps.angle-cache.outputs.cache-hit != 'true'
+        # The staged libEGL/libGLESv2 exist before the shim step; a shim
+        # failure must not throw the ANGLE build away (the next run's shim
+        # step rebuilds just the missing dylib).
+        if: always()
         uses: actions/cache/save@v4
         continue-on-error: true
         with:

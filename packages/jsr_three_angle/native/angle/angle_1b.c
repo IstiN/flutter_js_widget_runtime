@@ -13,7 +13,13 @@
 #include <string.h>
 
 #include <CoreFoundation/CoreFoundation.h>
+// F3b iOS: the iPhoneOS SDK ships the IOSurface framework bundle without
+// public headers, so the framework-style include cannot resolve there;
+// build_ios.sh locates the real header in the SDK and force-includes it
+// with A1B_NO_IOSURFACE_INCLUDE set.
+#if !defined(A1B_NO_IOSURFACE_INCLUDE)
 #include <IOSurface/IOSurface.h>
+#endif
 
 // ---- EGL/GLES3 declarations + dynlib entry-point tables --------------------
 #include "angle_1b_gl.h"
