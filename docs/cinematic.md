@@ -21,12 +21,15 @@ source and the same esbuild 0.25.5 — the identifier assignment follows the
 host class (darwin-arm64 vs linux-x64 differ; native and wasm esbuild
 binaries agree within a host; Node version, GOMAXPROCS and path length have
 no effect). On such hosts `--verify` still checks every pin (source commit,
-source tree hash, adapter input hashes, golden ESM, license), prints the
-rebuilt hashes informationally and exits 0 with a final
-`bytes compared: no …` line (`quality` on ubuntu runs these pin checks).
-`bundle_manifest.json` records the builder in `build.builderHost`; the
-macOS CI job asserts it, so a bundle regenerated on another host class
-fails CI instead of silently losing the byte gate.
+source tree hash, adapter input hashes, license), reports the rebuilt
+bundle hashes informationally, and reports the golden ESM informationally
+too (the unminified golden ESM is likewise host-rendered; its inlined
+source-tree path comments are normalized to `three-source/`, but the
+remaining bytes are only proven on the builder host) and exits 0 with a
+final `bytes compared: no …` line (`quality` on ubuntu runs these pin
+checks). `bundle_manifest.json` records the builder in
+`build.builderHost`; the macOS CI job asserts it, so a bundle regenerated
+on another host class fails CI instead of silently losing the byte gate.
 
 ## Surface members
 

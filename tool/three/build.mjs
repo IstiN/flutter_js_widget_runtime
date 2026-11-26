@@ -226,12 +226,20 @@ const manifestSummary = Object.fromEntries(Object.entries(manifestOutputs).map((
 if (verify) {
   const oldManifest = JSON.parse(await readFile(path.join(OUT, 'bundle_manifest.json'), 'utf8'));
   const onBuilderHost = HOST.platform === manifest.build.builderHost.platform && HOST.arch === manifest.build.builderHost.arch;
-  // Pin checks that hold on EVERY host class: the golden ESM (unminified,
-  // platform-independent) and the upstream license.
-  const committedGolden = await readFile(path.join(HERE, 'gen/cinematic_core.mjs'));
-  if (sha(committedGolden) !== goldenEsmRecord.sha256 || committedGolden.length !== goldenEsmRecord.bytes) {
-    throw new Error('tool/three/gen/cinematic_core.mjs differs from a clean pinned rebuild');
-  }
+  const firstDivergence = (committed, rebuilt) => {
+    // WHERE the committed artifact diverges from a clean rebuild: the first
+    // differing byte with context from both sides.
+    const n = Math.min(committed.length, rebuilt.length);
+    for (let i = 0; i < n; i++) {
+      if (committed[i] !== rebuilt[i]) {
+        return `first divergence at offset ${i}` +
+          `\n    committed: ...${JSON.stringify(committed.slice(Math.max(0, i - 60), i + 60).toString('latin1'))}...` +
+          `\n    rebuilt:   ...${JSON.stringify(rebuilt.slice(Math.max(0, i - 60), i + 60).toString('latin1'))}...`;
+      }
+    }
+    return `identical up to the shorter output (lengths ${committed.length} vs ${rebuilt.length})`;
+  };
+  // The upstream license is a pure pin (host-independent bytes).
   if (sha(await readFile(path.join(OUT, 'THREE_LICENSE'))) !== sha(license)) throw new Error('THREE_LICENSE differs from upstream');
   let comparedLine;
   if (onBuilderHost) {
@@ -239,28 +247,18 @@ if (verify) {
     for (const [name, expected] of Object.entries(manifestOutputs)) {
       const actual = await readFile(path.join(OUT, name));
       if (sha(actual) !== expected.sha256 || actual.length !== expected.bytes) {
-        // Diagnose WHERE the committed artifact diverges from a clean rebuild:
-        // sizes, hashes and the first divergence region (context from both).
-        let region = '';
-        const rebuilt = expected.buffer;
-        const n = Math.min(actual.length, rebuilt.length);
-        for (let i = 0; i < n; i++) {
-          if (actual[i] !== rebuilt[i]) {
-            region = `; first divergence at offset ${i}` +
-              `\n    committed: ...${JSON.stringify(actual.slice(Math.max(0, i - 60), i + 60).toString('latin1'))}...` +
-              `\n    rebuilt:   ...${JSON.stringify(rebuilt.slice(Math.max(0, i - 60), i + 60).toString('latin1'))}...`;
-            break;
-          }
-        }
-        if (!region) region = `; identical up to the shorter output (lengths ${actual.length} vs ${rebuilt.length})`;
         mismatches.push(
           `${name}: committed bytes=${actual.length} sha256=${sha(actual)}` +
-          ` | rebuilt bytes=${expected.bytes} sha256=${expected.sha256}${region}`);
+          ` | rebuilt bytes=${expected.bytes} sha256=${expected.sha256}; ${firstDivergence(actual, expected.buffer)}`);
         continue;
       }
       if (!oldManifest.outputs[name] || oldManifest.outputs[name].sha256 !== expected.sha256) throw new Error(`${name} manifest hash is stale`);
     }
     if (mismatches.length > 0) throw new Error(`differs from a clean pinned rebuild:\n  ${mismatches.join('\n  ')}`);
+    const committedGolden = await readFile(path.join(HERE, 'gen/cinematic_core.mjs'));
+    if (sha(committedGolden) !== goldenEsmRecord.sha256 || committedGolden.length !== goldenEsmRecord.bytes) {
+      throw new Error(`tool/three/gen/cinematic_core.mjs differs from a clean pinned rebuild: ${firstDivergence(committedGolden, goldenEsm)}`);
+    }
     if (!oldManifest.build || !oldManifest.build.goldenEsm || oldManifest.build.goldenEsm.sha256 !== goldenEsmRecord.sha256) {
       throw new Error('goldenEsm manifest hash is stale');
     }
@@ -268,14 +266,19 @@ if (verify) {
     console.log(JSON.stringify({ verified: true, sourceCommit: PIN.commit, buildMs: bundleBuildMs, outputs: manifestSummary }, null, 2));
     comparedLine = `bytes compared: yes (host ${HOST.platform}-${HOST.arch} = builder host)`;
   } else {
-    // Off the builder host the bundle bytes legitimately differ (see HOST
-    // above). Still enforce every pin: source commit/tree hash via
+    // Off the builder host the bundle bytes and the golden ESM bytes
+    // legitimately differ (see HOST above): esbuild 0.25.5 renders them
+    // per host class. Still enforce every pin: source commit/tree hash via
     // verifySource, adapter input hashes via the manifest comparison with
-    // the two host-legitimate differences (outputs, builderHost) excluded.
-    const pinsOf = m => JSON.stringify({ ...m, outputs: undefined, build: { ...m.build, builderHost: undefined } });
+    // the host-legitimate differences (outputs, builderHost, goldenEsm
+    // bytes) excluded. The rebuilt golden is reported, not compared.
+    const pinsOf = m => JSON.stringify({ ...m, outputs: undefined, build: { ...m.build, builderHost: undefined, goldenEsm: undefined } });
     if (pinsOf(oldManifest) !== pinsOf(manifest)) throw new Error('bundle_manifest.json pin inputs differ from the clean pinned rebuild');
     const rebuiltShas = Object.fromEntries(Object.entries(manifestOutputs).map(([name, record]) => [name, record.sha256]));
+    const committedGolden = await readFile(path.join(HERE, 'gen/cinematic_core.mjs'));
+    const goldenByteEqual = sha(committedGolden) === goldenEsmRecord.sha256 && committedGolden.length === goldenEsmRecord.bytes;
     console.log(`bytes compared: no (host ${HOST.platform}-${HOST.arch} is not the builder host): identifier minification of esbuild ${manifest.build.esbuildVersion} follows the host class; rebuilt sha256 (informational): ${JSON.stringify(rebuiltShas)}`);
+    console.log(`golden ESM (informational): ${goldenByteEqual ? 'byte-equal' : `differs from a clean pinned rebuild; rebuilt bytes=${goldenEsm.length} sha256=${goldenEsmRecord.sha256}; ${firstDivergence(committedGolden, goldenEsm)}`}`);
     comparedLine = `bytes compared: no (host ${HOST.platform}-${HOST.arch} is not the builder host)`;
   }
   console.log(comparedLine);
