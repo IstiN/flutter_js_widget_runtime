@@ -173,10 +173,13 @@ PYEOF
 )
   ENV_GATE=$(python3 - "$CORPUS_ROOT/report.json" <<'PYEOF'
 import json, sys
+# three-materials-cubemap-dynamic: documented-limit — web-corpus harness
+# limitation (no eval-time render in this scene; docs/angle_1b.md F4d
+# triage). The 1B leg renders the feature correctly.
 accepted = {
   'three-materials-envmaps-hdr': 'exact',
   'three-materials-envmaps-exr': 'exact',
-  'three-materials-cubemap-dynamic': 'documented-limit', // web-corpus harness limitation: no eval-time render in this scene (see docs/angle_1b.md F4d triage); 1B leg PASS
+  'three-materials-cubemap-dynamic': 'documented-limit',
   'three-materials-physical-transmission': 'exact',
   'three-materials-physical-transmission-alpha': 'tolerance',
   'three-mirror': 'tolerance',
