@@ -82,17 +82,19 @@ Future<String> runF4c1Compare() async {
 }
 
 /// Decodes the widget's exported base64 dumps and writes them as raw RGBA
-/// files for the corpus tier diff (diff_1b.cjs).
-void writeOnebDumps(Map<String, dynamic> state, List<String> checkpoints) {
+/// files for the corpus tier diff (diff_1b.cjs). Every exported checkpoint is
+/// written: the tier compare pairs each web dump with its 1B dump, so a
+/// partial write marks the other tests' checkpoints MISSING on a clean
+/// runner (the subset call sites leaned on stale /tmp/f4c1 state).
+void writeOnebDumps(Map<String, dynamic> state) {
   Directory(kF4c1Dir).createSync(recursive: true);
   final dumps = state['dumps'] as Map<String, dynamic>;
-  for (final cp in checkpoints) {
-    final dump = dumps[cp];
+  dumps.forEach((cp, dump) {
     if (dump is! String) {
       throw StateError('the 1B leg exported no dump for $cp');
     }
     File('$kF4c1Dir/oneb_$cp.rgba').writeAsBytesSync(base64Decode(dump));
-  }
+  });
 }
 
 Map<String, dynamic> f4c1Tiers() {

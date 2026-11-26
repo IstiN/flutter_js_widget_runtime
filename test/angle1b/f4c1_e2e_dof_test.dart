@@ -86,7 +86,7 @@ void main() {
     'within the corpus tier logic',
     () async {
       final state = await run1b();
-      writeOnebDumps(state, ['dof_near', 'fr_on']);
+      writeOnebDumps(state);
       final webOut = await runF4c1WebAndCompare();
       expect(webOut, contains('F4C1_WEB_OK'));
       final cmpOut = await runF4c1Compare();
