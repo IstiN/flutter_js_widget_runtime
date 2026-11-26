@@ -34,7 +34,6 @@ void main() {
   final missing = Shim.resolveProblem();
 
   final captures = <_SurfaceCapture>[];
-  final wires = <Real1BWireHost>[];
 
   _SurfaceCaptureHost makeCaptureHost(Real1BWireHost wire) =>
       _SurfaceCaptureHost(wire, captures);
@@ -42,7 +41,6 @@ void main() {
   Future<Map<String, dynamic>?> run() async {
     final wire = Real1BWireHost(width: 320, height: 180)
       ..facadeBootstrapOverride = real1bFacadeBootstrap();
-    wires.add(wire);
     final host = makeCaptureHost(wire);
     final (_, sel, state, logs) = await run1bRealEngine(
       '$caseSource\n$f4bBatteryGlue',
@@ -62,7 +60,7 @@ void main() {
       missing != null ? Future.value(null) : (memo ??= run());
 
   tearDownAll(() async {
-    disposeReal1BWires(wires);
+    disposeRegisteredReal1BWires();
   });
 
   test(

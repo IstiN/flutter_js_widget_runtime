@@ -29,11 +29,7 @@ void main() {
   final missing = Shim.resolveProblem();
 
   // ── native 1B battery (memoized for the whole file) ────────────────────
-  final wires = <Real1BWireHost>[];
   Future<Map<String, dynamic>?> runNative() async {
-    final wire = Real1BWireHost(width: 320, height: 180)
-      ..facadeBootstrapOverride = real1bFacadeBootstrap();
-    wires.add(wire);
     final (w, sel, state, logs) = await run1bRealEngine(
       '$caseSource\n$f4bBatteryGlue',
       bundle,
@@ -50,7 +46,7 @@ void main() {
       missing != null ? Future.value(null) : (nativeMemo ??= runNative());
 
   tearDownAll(() async {
-    disposeReal1BWires(wires);
+    disposeRegisteredReal1BWires();
   });
 
   // ── web leg (memoized for the whole file) ──────────────────────────────

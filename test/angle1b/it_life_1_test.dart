@@ -19,12 +19,14 @@ void main() {
   final String? missing = Shim.resolveProblem();
   // Deterministic end-of-process teardown (three_1b_real_wire.dart): a live
   // ANGLE display at exit segfaults the CI Paravirtual GPU even when every
-  // test passed. wire1 below is disposed inside its test (the E2E-LIFE-1
-  // behavior) and must NOT be registered.
-  final onebWires = <Real1BWireHost>[];
-  tearDownAll(() => disposeReal1BWires(onebWires));
+  // test passed. run1bRealEngine live-registers every wire; this one call
+  // drains the file's registry and shuts the display down. wire1 below is
+  // disposed inside its test (the E2E-LIFE-1 behavior) and leaves the
+  // registry at that moment — never double-destroyed.
+  tearDownAll(disposeRegisteredReal1BWires);
 
-  final lifecycleWidget = '''
+  final lifecycleWidget =
+      '''
 var results = { cycles: 0, errors: [], lastCalls: 0 };
 try {
   for (var i = 0; i < 100; i++) {
@@ -42,21 +44,34 @@ ${onebRenderCubeJs('0x00ff00')}
 jsr.exportState(results);
 ''';
 
-  test('IT-LIFE-1: 100 renderer create/render/dispose cycles complete on '
-      'one engine and one surface', () async {
-    final (wire, reported, state, logs) =
-        await run1bRealEngine(lifecycleWidget, realBundle);
-    onebWires.add(wire);
-    expect(reported?.isAngle1b, isTrue);
-    expect(state?['cycles'], 100,
-        reason: 'every cycle created, rendered and disposed cleanly');
-    expect(state?['errors'], isEmpty);
-    expect(state?['lastCalls'], 1,
-        reason: 'the 100th cycle still submits its draw call (no stale '
-            'context, no resource exhaustion)');
-    expect(widgetErrorLogs(logs), isEmpty);
-    expect(wire.dispatches1B.length, greaterThan(100));
-  }, skip: missing, timeout: const Timeout(Duration(minutes: 5)));
+  test(
+    'IT-LIFE-1: 100 renderer create/render/dispose cycles complete on '
+    'one engine and one surface',
+    () async {
+      final (wire, reported, state, logs) = await run1bRealEngine(
+        lifecycleWidget,
+        realBundle,
+      );
+      expect(reported?.isAngle1b, isTrue);
+      expect(
+        state?['cycles'],
+        100,
+        reason: 'every cycle created, rendered and disposed cleanly',
+      );
+      expect(state?['errors'], isEmpty);
+      expect(
+        state?['lastCalls'],
+        1,
+        reason:
+            'the 100th cycle still submits its draw call (no stale '
+            'context, no resource exhaustion)',
+      );
+      expect(widgetErrorLogs(logs), isEmpty);
+      expect(wire.dispatches1B.length, greaterThan(100));
+    },
+    skip: missing,
+    timeout: const Timeout(Duration(minutes: 5)),
+  );
 
   test('E2E-CONTEXT-1: context loss and restore through WEBGL_lose_context, '
       'then a clean draw', () async {
@@ -78,13 +93,15 @@ ${onebRenderCubeJs('0x0000ff')}
 '''),
       realBundle,
     );
-    onebWires.add(wire);
     expect(reported?.isAngle1b, isTrue);
     expect(state?['hasExt'], isTrue);
     expect(state?['lost'], isTrue);
     expect(state?['restored'], isTrue);
-    expect(state?['rendered'], isTrue,
-        reason: 'the draw after restore goes through cleanly');
+    expect(
+      state?['rendered'],
+      isTrue,
+      reason: 'the draw after restore goes through cleanly',
+    );
     expect(state?['glError'], 0);
     expect(state?['error'], isNull);
   }, skip: missing);
@@ -96,7 +113,10 @@ ${onebRenderCubeJs('0x0000ff')}
     final renderWidget =
         'jsr.three.createCanvas("d");'
         'jsr.exportState({ engine: 1, rendered: true });';
-    final (wire1, _, state1, _) = await run1bRealEngine(renderWidget, realBundle);
+    final (wire1, _, state1, _) = await run1bRealEngine(
+      renderWidget,
+      realBundle,
+    );
     expect(state1?['rendered'], isTrue);
     wire1.dispose();
 
@@ -113,14 +133,23 @@ ${onebRenderCubeJs('0x0000ff')}
       expect(shim.makeCurrent(s1), 0);
       shim.destroySurface(s1);
       s1 = 0;
-      expect(shim.makeCurrent(s1), isNot(0),
-          reason: 'a destroyed surface never becomes current again');
-      expect(dispatchBytes(shim, g1Command(1)), g1NoCurrentSurface,
-          reason: 'no-current-surface sentinel, not a stale frame');
+      expect(
+        shim.makeCurrent(s1),
+        isNot(0),
+        reason: 'a destroyed surface never becomes current again',
+      );
+      expect(
+        dispatchBytes(shim, g1Command(1)),
+        g1NoCurrentSurface,
+        reason: 'no-current-surface sentinel, not a stale frame',
+      );
       s2 = shim.createSurface(32, 32, idOut);
       expect(shim.makeCurrent(s2), 0);
-      expect(dispatchBytes(shim, g1Command(1)), 0,
-          reason: 'the fresh surface is clean (no cross-surface reuse)');
+      expect(
+        dispatchBytes(shim, g1Command(1)),
+        0,
+        reason: 'the fresh surface is clean (no cross-surface reuse)',
+      );
     } finally {
       if (s2 > 0) shim.destroySurface(s2);
       calloc.free(idOut);
@@ -132,7 +161,6 @@ ${onebRenderCubeJs('0x0000ff')}
       renderWidget.replaceFirst('engine: 1', 'engine: 2'),
       realBundle,
     );
-    onebWires.add(wire2);
     expect(reported2?.isAngle1b, isTrue);
     expect(state2?['engine'], 2);
     expect(state2?['rendered'], isTrue);

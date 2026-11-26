@@ -25,9 +25,9 @@ void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
   // Deterministic end-of-process teardown (three_1b_real_wire.dart): a live
   // ANGLE display at exit segfaults the CI Paravirtual GPU even when every
-  // test passed.
-  final onebWires = <Real1BWireHost>[];
-  tearDownAll(() => disposeReal1BWires(onebWires));
+  // test passed. run1bRealEngine live-registers every wire; this one call
+  // drains the file's registry and shuts the display down.
+  tearDownAll(disposeRegisteredReal1BWires);
   final bundle = File('assets/three/jsr_three_web.js').readAsStringSync();
   final showcaseWidget = File(
     'example/widgets/three-cinematic-showcase/widget.js',
@@ -49,7 +49,6 @@ void main() {
         width: 320,
         height: 198,
       );
-      onebWires.add(wire);
       expect(reported?.isAngle1b, isTrue);
       expect(wire.bootstrapEnsured, isTrue);
       expect(

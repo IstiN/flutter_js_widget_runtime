@@ -23,15 +23,14 @@ void main() {
   final missing = Shim.resolveProblem();
   // Deterministic end-of-process teardown (three_1b_real_wire.dart): a live
   // ANGLE display at exit segfaults the CI Paravirtual GPU even when every
-  // test passed.
-  final onebWires = <Real1BWireHost>[];
-  tearDownAll(() => disposeReal1BWires(onebWires));
+  // test passed. run1bRealEngine live-registers every wire; this one call
+  // drains the file's registry and shuts the display down.
+  tearDownAll(disposeRegisteredReal1BWires);
 
   /// The application source, byte-identical across the 1A and 1B legs: the
   /// canonical `jsr.three.createCanvas` canvas, one lit-geometry-free scene
   /// and one render.
-  final appWidget = onebProbeWidget(
-    r'''
+  final appWidget = onebProbeWidget(r'''
   var canvas = jsr.three.createCanvas('main');
   var scene = new THREE.Scene();
   var camera = new THREE.PerspectiveCamera(50, 1, 0.1, 100);
@@ -47,9 +46,7 @@ void main() {
   results.rendered = true;
   results.children = scene.children.length;
   results.calls = renderer.info.render.calls;
-''',
-    init: 'var results = { firstLine: true };',
-  );
+''', init: 'var results = { firstLine: true };');
 
   test('F2c regression: a composite failure is never effect-free — the '
       'named error lands in the __jsr_log lane', () async {
@@ -87,18 +84,28 @@ void main() {
 
   test('IT-APP-COMPAT-1 (1B leg): the real bundle boots through the engine '
       'and the application renders over ANGLE', () async {
-    final (wire, reported, state, logs) =
-        await run1bRealEngine(appWidget, realBundle);
-    onebWires.add(wire);
+    final (wire, reported, state, logs) = await run1bRealEngine(
+      appWidget,
+      realBundle,
+    );
     expect(reported?.isAngle1b, isTrue);
     expect(wire.bootstrapEnsured, isTrue);
-    expect(state?['firstLine'], isTrue,
-        reason: 'the widget must execute at all (F2c silent-failure fix)');
-    expect(state?['rendered'], isTrue,
-        reason: 'Scene + Mesh + WebGLRenderer render over the real wire');
+    expect(
+      state?['firstLine'],
+      isTrue,
+      reason: 'the widget must execute at all (F2c silent-failure fix)',
+    );
+    expect(
+      state?['rendered'],
+      isTrue,
+      reason: 'Scene + Mesh + WebGLRenderer render over the real wire',
+    );
     expect(state?['error'], isNull);
-    expect(widgetErrorLogs(logs), isEmpty,
-        reason: 'no composite error may reach the __jsr_log lane');
+    expect(
+      widgetErrorLogs(logs),
+      isEmpty,
+      reason: 'no composite error may reach the __jsr_log lane',
+    );
     expect(wire.dispatches1B, isNotEmpty);
   }, skip: missing);
 
@@ -144,22 +151,23 @@ try {
 '''),
       realBundle,
     );
-    onebWires.add(wireB);
     expect(reportedB?.isAngle1b, isTrue);
     const policy =
         'three.unsupported: custom shaders are disabled by host policy';
     expect(stateB?['shaderMaterial'], policy);
     expect(stateB?['rawShaderMaterial'], policy);
     expect(stateB?['onBeforeCompile'], policy);
-    expect(stateB?['scene'], 0,
-        reason: 'non-shader THREE API stays intact behind the policy');
+    expect(
+      stateB?['scene'],
+      0,
+      reason: 'non-shader THREE API stays intact behind the policy',
+    );
     expect(widgetErrorLogs(logsB), isEmpty);
   }, skip: missing);
 
   test('E2E-SHADER-1: an invalid shader takes the original error path '
       'without a host crash', () async {
-    final (wire, reported, state, logs) =
-        await run1bRealEngine(
+    final (wire, reported, state, logs) = await run1bRealEngine(
       onebProbeWidget(r'''
   var canvas = jsr.three.createCanvas('e2e');
   var renderer = new THREE.WebGLRenderer({ canvas: canvas, antialias: false });
@@ -176,11 +184,13 @@ try {
 '''),
       realBundle,
     );
-    onebWires.add(wire);
     expect(reported?.isAngle1b, isTrue);
     expect(state?['compileOk'], isFalse);
-    expect(state?['hasLog'], isTrue,
-        reason: 'the original GLSL error path surfaces the info log');
+    expect(
+      state?['hasLog'],
+      isTrue,
+      reason: 'the original GLSL error path surfaces the info log',
+    );
     expect(state?['error'], isNull);
     expect(widgetErrorLogs(logs), isEmpty);
   }, skip: missing);

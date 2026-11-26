@@ -13,19 +13,12 @@ import 'three_1b_real_wire.dart';
 // stack, and persists the exported pixel dumps for the tier compare.
 const kF4c1Dir = '/tmp/f4c1';
 
-/// Every real 1B wire the helper created in this process. `disposeF4c1Wires`
-/// (the file's tearDownAll) drains it — the deterministic teardown of
-/// `three_1b_real_wire.dart` (surfaces + full `a1b_shutdown`), because a
+/// The deterministic end-of-process teardown for the F4c1 test files: the
+/// shared live-wire registry (`three_1b_real_wire.dart`) drains through it —
+/// `run1bRealEngine` registers every wire this helper's tests create, and a
 /// live display at process exit segfaults the CI Paravirtual GPU even when
 /// every test passed (the F4b crash, re-armed by the F4-merge union).
-final _f4c1Wires = <Real1BWireHost>[];
-
-/// The deterministic end-of-process teardown for the F4c1 test files.
-void disposeF4c1Wires() {
-  final wires = List<Real1BWireHost>.from(_f4c1Wires);
-  _f4c1Wires.clear();
-  disposeReal1BWires(wires);
-}
+void disposeF4c1Wires() => disposeRegisteredReal1BWires();
 
 /// Runs the checkpoint widget on the real 1B engine stack (ANGLE wire) and
 /// returns the exported state. Shared by the three F4c1 Dart test files —
@@ -38,7 +31,8 @@ Future<Map<String, dynamic>> runF4c1On1B(String? missing) async {
     width: 96,
     height: 64,
   );
-  _f4c1Wires.add(wire);
+  // wire is live-registered by run1bRealEngine; the file's tearDownAll
+  // (disposeF4c1Wires) drains it — no per-test dispose here.
   expect(
     missing,
     isNull,

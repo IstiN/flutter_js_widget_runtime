@@ -121,6 +121,11 @@ run1bRealEngine(
       wire ??
       (Real1BWireHost(width: width, height: height)
         ..facadeBootstrapOverride = real1bFacadeBootstrap());
+  // Every real wire the shared runner hands out is live-registered so the
+  // file's single tearDownAll (disposeRegisteredReal1BWires) drains exactly
+  // what is still alive — the F4-merge CI lesson (live display at process
+  // exit segfaults the CI Paravirtual GPU).
+  registerReal1BWire(wire0);
   final logs = <Map<String, dynamic>>[];
   final (w, sel, state) = await run1bWidgetEngine(
     widget,

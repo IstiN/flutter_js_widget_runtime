@@ -101,9 +101,13 @@ class Real1BWireHost extends Fake1BWireHost {
       base64Encode(readGlScratch(shim.lib));
 
   /// Destroys this host's surface. The display stays (idempotent init lets
-  /// later hosts re-use it); a full `a1b_shutdown` belongs to tearDownAll.
+  /// later hosts re-use it); a full `a1b_shutdown` belongs to tearDownAll
+  /// (`disposeRegisteredReal1BWires`). The wire leaves the live registry
+  /// here, so mid-test disposes (it_life_1's E2E-LIFE-1) can never be
+  /// double-destroyed by a file teardown.
   void dispose() {
     shim.destroySurface(surface);
+    liveReal1BWires.remove(this);
   }
 }
 
@@ -122,4 +126,32 @@ void disposeReal1BWires(Iterable<Real1BWireHost> wires) {
     shimForShutdown ??= w.shim;
   }
   shimForShutdown?.shutdown();
+}
+
+/// The file-scoped registry of LIVE real 1B wires (flutter runs every test
+/// file in its own isolate, so this top-level set holds exactly one file's
+/// wires). The shared 1B runner registers every wire it creates or accepts
+/// (F4-merge CI lesson: each test file must end with a deterministic
+/// teardown — a live display at process exit segfaults the CI Paravirtual
+/// GPU even when every test passed). A wire leaves the registry when it is
+/// disposed (including mid-test disposes such as it_life_1's E2E-LIFE-1),
+/// so a teardown can never double-destroy a surface.
+final Set<Real1BWireHost> liveReal1BWires = <Real1BWireHost>{};
+
+/// Registers a live real 1B wire. Called by `run1bRealEngine` for every
+/// wire it hands out; direct `Real1BWireHost` constructions outside the
+/// runner register themselves the same way.
+void registerReal1BWire(Real1BWireHost wire) => liveReal1BWires.add(wire);
+
+/// THE deterministic teardown every real-wire test file calls once in
+/// `tearDownAll`: drains the live registry (surfaces destroyed), runs the
+/// full `a1b_shutdown`, and prints the before/after live counts so a file
+/// that ends with anything still live is visible in the log.
+void disposeRegisteredReal1BWires() {
+  final wires = liveReal1BWires.toList();
+  // ignore: avoid_print
+  print('oneb teardown: ${wires.length} live wire(s) at file end');
+  disposeReal1BWires(wires);
+  // ignore: avoid_print
+  print('oneb teardown: ${liveReal1BWires.length} live wire(s) remain');
 }

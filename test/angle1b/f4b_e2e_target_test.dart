@@ -34,11 +34,7 @@ void main() {
   final missing = Shim.resolveProblem();
 
   // ── IT-TARGET-1 / E2E-TARGET-1 over the real ANGLE wire (memoized) ─────
-  final wires = <Real1BWireHost>[];
   Future<(Real1BWireHost, Map<String, dynamic>?)> runTarget() async {
-    final wire = Real1BWireHost(width: 320, height: 180)
-      ..facadeBootstrapOverride = real1bFacadeBootstrap();
-    wires.add(wire);
     final (w, sel, state, logs) = await run1bRealEngine(
       _targetWidget,
       bundle,
@@ -58,7 +54,7 @@ void main() {
       : (targetMemo ??= runTarget());
 
   tearDownAll(() async {
-    disposeReal1BWires(wires);
+    disposeRegisteredReal1BWires();
   });
 
   test(
