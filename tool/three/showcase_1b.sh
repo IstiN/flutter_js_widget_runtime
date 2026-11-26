@@ -45,8 +45,17 @@ else
 fi
 
 # Materialize the LEGACY showcase sources from the pinned base commit.
+# CI checkouts are shallow/single-branch (actions/checkout default): the base
+# commit's tree is not present until fetched. GitHub serves any commit
+# reachable from a ref, so a --depth=1 fetch of the SHA is enough.
 echo "[showcase] staging legacy showcase sources from git ($BASE_COMMIT)"
 mkdir -p "$STAGE/legacy-src" "$STAGE/legacy"
+if ! git cat-file -e "$BASE_COMMIT:$SRC/pipeline.js" 2>/dev/null; then
+  echo "[showcase] base commit objects missing (shallow checkout); fetching $BASE_COMMIT"
+  git fetch --depth=1 origin "$BASE_COMMIT" 2>/dev/null \
+    || git fetch --depth=1 fork "$BASE_COMMIT" 2>/dev/null \
+    || { echo "[showcase] FAIL: cannot fetch the base commit"; exit 1; }
+fi
 for f in pipeline.js scene.js cinematic_entry.js three_global_shim.js addons_bundle.js; do
   git show "$BASE_COMMIT:$SRC/$f" > "$STAGE/legacy-src/$f" 2>/dev/null || {
     echo "[showcase] FAIL: base commit does not contain $SRC/$f"

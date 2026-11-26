@@ -186,11 +186,20 @@ const manifest = {
 const manifestBytes = Buffer.from(`${JSON.stringify(manifest, null, 2)}\n`);
 if (verify) {
   const oldManifest = JSON.parse(await readFile(path.join(OUT, 'bundle_manifest.json'), 'utf8'));
+  const mismatches = [];
   for (const [name, expected] of Object.entries(manifestOutputs)) {
     const actual = await readFile(path.join(OUT, name));
-    if (sha(actual) !== expected.sha256 || actual.length !== expected.bytes) throw new Error(`${name} differs from a clean pinned rebuild`);
+    if (sha(actual) !== expected.sha256 || actual.length !== expected.bytes) {
+      // Diagnose WHERE the committed artifact diverges from a clean rebuild:
+      // committed vs rebuilt bytes and hashes per output (collect ALL, one throw).
+      mismatches.push(
+        `${name}: committed bytes=${actual.length} sha256=${sha(actual)}` +
+        ` | rebuilt bytes=${expected.bytes} sha256=${expected.sha256}`);
+      continue;
+    }
     if (!oldManifest.outputs[name] || oldManifest.outputs[name].sha256 !== expected.sha256) throw new Error(`${name} manifest hash is stale`);
   }
+  if (mismatches.length > 0) throw new Error(`differs from a clean pinned rebuild:\n  ${mismatches.join('\n  ')}`);
   const committedGolden = await readFile(path.join(HERE, 'gen/cinematic_core.mjs'));
   if (sha(committedGolden) !== goldenEsmRecord.sha256 || committedGolden.length !== goldenEsmRecord.bytes) {
     throw new Error('tool/three/gen/cinematic_core.mjs differs from a clean pinned rebuild');
