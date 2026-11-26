@@ -14,8 +14,11 @@ import UIKit
     GeneratedPluginRegistrant.register(with: engineBridge.pluginRegistry)
     // F3b iOS (issue #7 AC3): the ANGLE 1B texture bridge, registered the
     // way the macOS Runner registers it (example/macos/Runner/
-    // MainFlutterWindow.swift).
-    Angle1bTexturePlugin.register(
-      with: engineBridge.pluginRegistry.registrar(forPlugin: "Angle1bTexturePlugin"))
+    // MainFlutterWindow.swift). registrar(forPlugin:) is failable in the
+    // current embedding (CI run 45762273743).
+    if let registrar = engineBridge.pluginRegistry
+      .registrar(forPlugin: "Angle1bTexturePlugin") {
+      Angle1bTexturePlugin.register(with: registrar)
+    }
   }
 }

@@ -19,7 +19,7 @@ import CoreVideo
 // The C API is public, documented and ABI-stable on iOS since iOS 11;
 // declare the one lookup call directly. IOSurfaceRef arrives as a raw
 // pointer and is handed to CVPixelBufferCreateWithIOSurface, which retains
-// it; the lookup's +1 is released with CFRelease right after.
+// it; the lookup's +1 is released with Unmanaged.release right after.
 @_silgen_name("IOSurfaceLookup")
 private func angle1bIOSurfaceLookup(_ cSid: UInt32) -> UnsafeMutableRawPointer?
 
@@ -41,8 +41,8 @@ public final class Angle1bTexturePlugin: NSObject {
     // The instance is self-retaining (channel -> handler -> self), matching
     // the flutter_angle registration pattern.
     _ = Angle1bTexturePlugin(
-      registry: registrar.textures,
-      messenger: registrar.messenger)
+      registry: registrar.textures(),
+      messenger: registrar.messenger())
   }
 
   init(registry: FlutterTextureRegistry, messenger: FlutterBinaryMessenger) {
@@ -97,7 +97,11 @@ public final class Angle1bTexturePlugin: NSObject {
       ] as CFDictionary,
       &unmanagedBuffer)
     // The pixel buffer retains the surface; drop the lookup's +1.
-    CFRelease(unsafeBitCast(ioSurface, to: CFTypeRef.self))
+    // (CFRelease is unavailable in Swift — Unmanaged.release is the
+    // balancing release for a +1 returned from C.)
+    Unmanaged.passUnretained(
+      unsafeBitCast(ioSurface, to: CFTypeRef.self)
+    ).release()
     guard status == kCVReturnSuccess, let buffer = unmanagedBuffer?.takeRetainedValue() else {
       result(FlutterError(code: "PIXELBUFFER", message: "CVPixelBufferCreateWithIOSurface failed: \(status)", details: nil))
       return
