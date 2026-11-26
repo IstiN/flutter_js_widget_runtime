@@ -16,12 +16,13 @@ import 'three_1b_real_wire.dart';
 // gate).
 String real1bFacadeBootstrap() => Angle1bBootstrap.compose(
   packer: File('tool/three/gen/g1_packer.js').readAsStringSync(),
-  facade: File('packages/jsr_three_angle/facade/webgl2_facade.js')
-      .readAsStringSync(),
+  facade: File(
+    'packages/jsr_three_angle/facade/webgl2_facade.js',
+  ).readAsStringSync(),
 );
 
 Future<(Fake1BWireHost, JsThreeBackendSelection?, Map<String, dynamic>?)>
-    run1bWidgetEngine(
+run1bWidgetEngine(
   String widget, {
   JsThreeBackend backend = JsThreeBackend.angle1b,
   String threeSource = 'var THREE = {};',
@@ -34,13 +35,19 @@ Future<(Fake1BWireHost, JsThreeBackendSelection?, Map<String, dynamic>?)>
   /// F2c silent-failure fix mirrors composite errors into (`[E] Widget
   /// error: …`).
   List<Map<String, dynamic>>? consoleLogs,
+
+  /// Optional cinematic capture barrier host (issue #8 F4a IT-HELPER-*):
+  /// wired straight into the engine config.
+  JsCinematicCaptureHost? cinematicCaptureHost,
 }) async {
   debugDefaultTargetPlatformOverride = TargetPlatform.macOS;
-  final w = host ??
+  final w =
+      host ??
       (Fake1BWireHost()
         ..probeReason = probeReason
-        ..facadeBootstrapOverride =
-            realFacade ? real1bFacadeBootstrap() : null);
+        ..facadeBootstrapOverride = realFacade
+            ? real1bFacadeBootstrap()
+            : null);
   JsThreeBackendSelection? reported;
   final engine = JsWidgetEngine(
     config: JsRuntimeConfig(
@@ -54,6 +61,7 @@ Future<(Fake1BWireHost, JsThreeBackendSelection?, Map<String, dynamic>?)>
       threeHost: w,
       allowCustomShaders: allowCustomShaders,
       onThreeBackendSelected: (s) => reported = s,
+      cinematicCaptureHost: cinematicCaptureHost,
     ),
   );
   try {
@@ -69,17 +77,26 @@ Future<(Fake1BWireHost, JsThreeBackendSelection?, Map<String, dynamic>?)>
 /// Real-1B engine run for the angle1b E2E tests: real ANGLE wire with the
 /// real composed facade, console-log plumbing, no fake leftovers. Returns
 /// (wire, selection, exported state, engine log). `wire.dispose` belongs to
-/// the caller (`addTearDown`).
+/// the caller (`addTearDown`). [width]/[height] size the IOSurface the wire
+/// presents into — widgets whose canvas is larger than the surface crash
+/// the process (SIGBUS), so continuous-RAF widgets must pass their canvas
+/// size (E2E-SHOWCASE-1 pairs this with a `jsr.viewport` prelude).
 Future<
-    (
-      Real1BWireHost,
-      JsThreeBackendSelection?,
-      Map<String, dynamic>?,
-      List<Map<String, dynamic>>,
-    )>
-    run1bRealEngine(String widget, String threeSource) async {
-  final wire =
-      Real1BWireHost()..facadeBootstrapOverride = real1bFacadeBootstrap();
+  (
+    Real1BWireHost,
+    JsThreeBackendSelection?,
+    Map<String, dynamic>?,
+    List<Map<String, dynamic>>,
+  )
+>
+run1bRealEngine(
+  String widget,
+  String threeSource, {
+  int width = 64,
+  int height = 64,
+}) async {
+  final wire = Real1BWireHost(width: width, height: height)
+    ..facadeBootstrapOverride = real1bFacadeBootstrap();
   final logs = <Map<String, dynamic>>[];
   final (w, sel, state) = await run1bWidgetEngine(
     widget,
@@ -126,7 +143,8 @@ try {
 /// JS: a minimal cube render through an existing `renderer` — the shared
 /// one-render payload of the 1B lifecycle widgets (one definition, no
 /// clone). [colorHex] is a JS hex literal (`0x00ff00`).
-String onebRenderCubeJs(String colorHex) => '''
+String onebRenderCubeJs(String colorHex) =>
+    '''
   var scene = new THREE.Scene();
   var camera = new THREE.PerspectiveCamera(50, 1, 0.1, 100);
   camera.position.z = 3;

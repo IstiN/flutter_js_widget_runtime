@@ -54,6 +54,7 @@ class WebWorkerJsWidgetEngineBackend implements JsWidgetEngineBackend {
       onHostCallBinary: config.onHostCallBinary,
       onAudioSynthesis: config.onAudioSynthesis,
       captureHandler: config.captureHandler,
+      cinematicCaptureHost: config.cinematicCaptureHost,
       intervalTickHandler: (id) => _postToWorker('__jsr_interval_tick', id),
       rafTickHandler: (id, elapsedMs) =>
           _postToWorker('__jsr_raf_tick', {'id': id, 'elapsed': elapsedMs}),

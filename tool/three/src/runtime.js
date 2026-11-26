@@ -1,5 +1,6 @@
 import { assetFailure, unsupported } from './errors.js';
 import { installNativeAudio } from './native_audio.js';
+import { cinematicSurface } from './cinematic.js';
 
 const ROOT = typeof globalThis !== 'undefined' ? globalThis : {};
 
@@ -1270,6 +1271,10 @@ export function installThreeRuntime(web) {
   activeRuntime = new ThreeCompatibilityRuntime(jsr, !!web, previous);
   if (!web) installNativeAudio(activeRuntime);
   jsr.three = activeRuntime.install(previous);
+  // jsr.three.cinematic — the deterministic cinematic pipeline surface
+  // (issue #8, ADR-0004 decision 2). Present exactly when the host loaded
+  // the three bundle, i.e. when JsRuntimeConfig.threeEnabled is true.
+  jsr.three.cinematic = cinematicSurface;
   if (typeof jsr.render === 'function' && !jsr.render.__jsrThreeRenderWrapper) {
     const originalRender = jsr.render;
     const wrapped = function(tree, ...args) {

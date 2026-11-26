@@ -14,9 +14,10 @@
 //   w=480 h=320      canvas size
 //   alpha=1          transparent clear
 //   bundle=./jsr_three_web.js   three ESM bundle URL
-//   addons=/tmp/jsr-three-r186/examples/jsm/  unused by this build (addons
-//                  are pre-bundled into ./cinematic_bundle.mjs); accepted for
-//                  forward compatibility
+//   addons=/tmp/jsr-three-r186/examples/jsm/  unused by this build (the
+//                  pinned addons are inlined into ./cinematic_core.mjs — the
+//                  build of the CORE module tool/three/src/cinematic.js, F4a);
+//                  accepted for forward compatibility
 //
 // Result: FNV-1a 32-bit hash over the RGBA bytes + stats go to
 // document.title AND <pre id=out>. Render ms logged to console.
@@ -58,10 +59,17 @@ function fnv1a(bytes) {
 async function main() {
   canvas.width = w;
   canvas.height = h;
+  // Real upstream r186 (ESM build + core split, hash-verified against unpkg
+  // three@0.186.0). The page installs it as globalThis.THREE BEFORE importing
+  // the bundled modules: both the core cinematic ESM and the showcase scene
+  // alias 'three' to the global shim, so everything shares object identity
+  // with this one upstream copy.
   const THREE = await import(bundleUrl);
   globalThis.THREE = THREE;
-  const bundle = await import('./cinematic_bundle.mjs');
-  const { createShowcaseScene, updateShowcaseScene, createCinematicPipeline, clockState } = bundle;
+  const cine = await import('./cinematic_core.mjs');
+  const sceneMod = await import('./showcase_scene.mjs');
+  const { createShowcaseScene, updateShowcaseScene } = sceneMod;
+  const { createPipeline, clockState } = cine;
 
   const renderer = new THREE.WebGLRenderer({ canvas: canvas, antialias: false, alpha: alpha });
   renderer.setSize(w, h, false);
@@ -70,7 +78,7 @@ async function main() {
   // createShowcaseScene returns the Scene itself; its animated camera lives
   // at scene.userData.camera (exactly what src/widget.js passes to the
   // pipeline, so both lanes orbit identically).
-  const scene = createShowcaseScene({ THREE: THREE, seed: 1, alpha: alpha });
+  const scene = createShowcaseScene({ THREE: THREE, seed: 1, alpha: alpha, seededRandom: cine.cinematicRandom });
   const camera = scene.userData.camera;
   camera.aspect = w / h;
   camera.updateProjectionMatrix();
@@ -83,8 +91,8 @@ async function main() {
   }
   if (effects.motion && samples < 2) effects.motion = false;
 
-  const capabilities = bundle.probeCapabilities(renderer);
-  const pipeline = createCinematicPipeline({
+  const capabilities = cine.probeCapabilities(renderer);
+  const pipeline = createPipeline({
     renderer: renderer,
     scene: scene,
     camera: camera,

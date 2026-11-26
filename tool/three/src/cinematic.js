@@ -1,4 +1,11 @@
-// Deterministic cinematic pipeline (js_widget_runtime issue #8).
+// jsr.three.cinematic — the deterministic cinematic pipeline in the core
+// bundles (issue #8, ADR-0004 decisions 2-4, segment F4a).
+//
+// Moved verbatim from
+// example/widgets/three-cinematic-showcase/src/pipeline.js (F4a): ONE
+// implementation, every consumer on it. The showcase widget keeps no private
+// copy — it reads the `jsr.three.cinematic` surface below (installed when the
+// host loads the three bundle, i.e. when `JsRuntimeConfig.threeEnabled`).
 //
 // Lane facts this module encodes (native R1 v6-v8 vs web WebGL2):
 //   both lanes : RenderPass, UnrealBloomPass, BokehPass, FXAA, OutputPass
@@ -25,24 +32,21 @@ import {
   Vector2,
   WebGLRenderTarget
 } from 'three';
-// Pinned r186 postprocessing addon set, pre-concatenated into ONE module by
-// build.mjs (src/addons_bundle.js, generated from the byte-identical pinned
-// sources under src/addons/). Single-module imports keep the bundler's file
-// reads minimal and deterministic.
-import {
-  EffectComposer,
-  RenderPass,
-  ShaderPass,
-  OutputPass,
-  UnrealBloomPass,
-  BokehPass,
-  LUTPass,
-  FilmPass,
-  SMAAPass,
-  FullScreenQuad,
-  FXAAShader,
-  VignetteShader
-} from './addons_bundle.js';
+// Pinned r186 postprocessing addons, imported from the pinned upstream tree
+// (the resolver in build.mjs serves them; byte-identity with the pin is
+// verified by `node tool/three/build.mjs --verify`).
+import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
+import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
+import { ShaderPass } from 'three/addons/postprocessing/ShaderPass.js';
+import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
+import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
+import { BokehPass } from 'three/addons/postprocessing/BokehPass.js';
+import { LUTPass } from 'three/addons/postprocessing/LUTPass.js';
+import { FilmPass } from 'three/addons/postprocessing/FilmPass.js';
+import { SMAAPass } from 'three/addons/postprocessing/SMAAPass.js';
+import { FullScreenQuad } from 'three/addons/postprocessing/Pass.js';
+import { FXAAShader } from 'three/addons/shaders/FXAAShader.js';
+import { VignetteShader } from 'three/addons/shaders/VignetteShader.js';
 
 // ── Deterministic RNG ──────────────────────────────────────────────────────
 
@@ -109,11 +113,67 @@ export function clockState(frame, fps, shutter, samples, epoch) {
   return { frame: f, fps: rate, shutter: sh, samples: n, subframes: subframes, epoch: ep };
 }
 
+// CinematicFrameClock — the named clock object (ADR-0004 decision 3).
+// createFrameClock({fps, shutter, samples, epoch}) -> {state(frame)}; the
+// pure clockState stays the one implementation behind it.
+export function createFrameClock(options = {}) {
+  const fps = options.fps === undefined ? 24 : options.fps;
+  const shutter = options.shutter === undefined ? 0.5 : options.shutter;
+  const samples = options.samples === undefined ? 1 : options.samples;
+  const epoch = options.epoch === undefined ? 0 : options.epoch;
+  const clock = {
+    fps: fps,
+    shutter: shutter,
+    samples: samples,
+    epoch: epoch,
+    // state(frame) — the pure clockState for one frame under this clock.
+    state(frame) {
+      return clockState(frame, clock.fps, clock.shutter, clock.samples, clock.epoch);
+    }
+  };
+  return clock;
+}
+
 // ── Capability probe ───────────────────────────────────────────────────────
 
+// CinematicCapabilitySet — the type of the probeCapabilities() result
+// (ADR-0004 decision 3). Own enumerable properties stay JSON-schema-clean
+// (the lane is a NON-enumerable property, exactly like the pre-F4a plain
+// object); supports(effect) maps a helper/effect name to its probe bit.
+export class CinematicCapabilitySet {
+  constructor(caps, lane) {
+    for (const key of Object.keys(caps)) this[key] = caps[key];
+    Object.defineProperty(this, 'lane', { value: lane, enumerable: false });
+  }
+
+  // supports('bloom' | 'dof' | 'depthOfField' | 'fxaa' | 'smaa' |
+  //          'colorGrade' | 'film' | 'vignette' | 'motion' | 'multisample' |
+  //          'pmrem' | 'cubeCamera') -> boolean. Unknown names are false.
+  supports(effect) {
+    const bit = CinematicCapabilitySet.EFFECT_BITS[effect];
+    if (bit === undefined) return false;
+    if (bit === null) return true; // fxaa: a basic ShaderPass, no probe bit
+    return this[bit] === true;
+  }
+}
+
+CinematicCapabilitySet.EFFECT_BITS = {
+  bloom: 'bloom',
+  dof: 'bokeh',
+  depthOfField: 'bokeh',
+  fxaa: null,
+  smaa: 'smaa',
+  colorGrade: 'lut',
+  film: 'film',
+  vignette: 'vignette',
+  motion: 'motionBlurAccum',
+  multisample: 'motionBlurAccum',
+  pmrem: 'pmrem',
+  cubeCamera: 'cubeCamera'
+};
+
 // probeCapabilities(renderer) — conservative detection. Anything uncertain
-// reports false. The lane is attached as a NON-enumerable `lane` property so
-// JSON snapshots of the capability object stay schema-clean.
+// reports false.
 export function probeCapabilities(renderer) {
   const caps = {
     halfFloatTargets: false,
@@ -176,8 +236,7 @@ export function probeCapabilities(renderer) {
     caps.cubeCamera = !!isGL2;
   }
 
-  Object.defineProperty(caps, 'lane', { value: lane, enumerable: false });
-  return caps;
+  return new CinematicCapabilitySet(caps, lane);
 }
 
 // ── Generated LUTs (identity / teal-orange) ────────────────────────────────
@@ -225,7 +284,7 @@ export function buildLutTexture(kind) {
   return texture;
 }
 
-// ── Presets ────────────────────────────────────────────────────────────────
+// ── Presets and the named profile type ─────────────────────────────────────
 
 const PRESETS = {
   draft: {
@@ -245,15 +304,139 @@ const PRESETS = {
 
 const EFFECT_NAMES = ['bloom', 'dof', 'fxaa', 'smaa', 'colorGrade', 'film', 'vignette', 'motion'];
 
+// ThreeCinematicProfile — the named preset object (ADR-0004 decision 3).
+// Each instance reports the settings it selected through settings(); a deep
+// copy every time, so callers cannot mutate the shared preset.
+export class ThreeCinematicProfile {
+  constructor(name, options) {
+    this.name = name;
+    this.options = options;
+  }
+
+  // The settings this profile selects: {fps, shutter, samples, epoch,
+  // effects, note?}. Deep copy — never a live reference.
+  settings() {
+    return deepCopy(this.options);
+  }
+}
+
+const PROFILES = {};
+for (const name of Object.keys(PRESETS)) PROFILES[name] = new ThreeCinematicProfile(name, PRESETS[name]);
+
 export const DEFAULT_PRESETS = PRESETS;
 export const PRESET_NAMES = Object.keys(PRESETS);
+// `presets` on the jsr.three.cinematic surface: the named profile objects.
+export const presets = PROFILES;
 
 function deepCopy(value) { return JSON.parse(JSON.stringify(value)); }
 
+// ── Effect helper descriptors (issue #8 P5) ────────────────────────────────
+
+// The five helpers build plain descriptors: {effect, options}. They feed
+// createPipeline({effectSpecs: [...]}) up front, and the same names exist as
+// pipeline methods that apply the descriptor to a live pipeline
+// (pipeline.bloom({threshold, strength, radius}) ...).
+
+function spec(effect, options) {
+  return { effect: effect, options: options && typeof options === 'object' ? Object.assign({}, options) : {} };
+}
+
+export function bloom(options = {}) {
+  return spec('bloom', {
+    threshold: options.threshold,
+    strength: options.strength,
+    radius: options.radius
+  });
+}
+
+export function depthOfField(options = {}) {
+  return spec('dof', {
+    focus: options.focus,
+    aperture: options.aperture,
+    maxBlur: options.maxBlur
+  });
+}
+
+export function colorGrade(options = {}) {
+  return spec('colorGrade', {
+    lut: options.lut === undefined ? 'identity' : options.lut,
+    intensity: options.intensity
+  });
+}
+
+export function motionBlur(options = {}) {
+  return spec('motion', {
+    shutter: options.shutter,
+    samples: options.samples
+  });
+}
+
+export function antialias(options = {}) {
+  const mode = options.mode === undefined ? 'fxaa' : options.mode;
+  if (mode !== 'fxaa' && mode !== 'smaa') {
+    throw new CinematicPipelineError('cinematic.invalid', 'antialias mode must be "fxaa" or "smaa"');
+  }
+  return spec('antialias', { mode: mode });
+}
+
+// applyEffectSpec(descriptor) lives INSIDE createPipeline (below): it needs
+// the lazy pass construction and the named-unsupported record of the live
+// pipeline. The surface-level factories above only build the descriptors.
+
+// ── CinematicHistory (ADR-0004 decision 3) ─────────────────────────────────
+
+// CinematicHistory — the bounded, explicit temporal state behind
+// resetHistory. Temporal passes DECLARE their history window (frames);
+// reconstruct(clock) then returns the ordered frame list a direct seek must
+// re-render to rebuild that declared window (F4c wires the passes onto it).
+export class CinematicHistory {
+  constructor(epoch) {
+    this.epoch = (epoch === undefined ? 0 : epoch) >>> 0;
+    this.windows = []; // declared windows: [{pass, frames}, ...]
+  }
+
+  // New deterministic epoch: resets the epoch, keeps the declarations.
+  reset(epoch) {
+    this.epoch = (epoch === undefined ? 0 : epoch) >>> 0;
+    return this.epoch;
+  }
+
+  // declare({pass, frames}) — a temporal pass declares its bounded window.
+  declare(window) {
+    if (!window || !(window.frames >= 1)) {
+      throw new CinematicPipelineError('cinematic.invalid', 'CinematicHistory.declare requires {pass, frames >= 1}');
+    }
+    const existing = this.windows.find(w => w.pass === window.pass);
+    if (existing) existing.frames = Math.floor(window.frames);
+    else this.windows.push({ pass: String(window.pass), frames: Math.floor(window.frames) });
+    return Math.floor(window.frames);
+  }
+
+  // The widest declared window (0 when none declared).
+  depth() {
+    let max = 0;
+    for (const w of this.windows) if (w.frames > max) max = w.frames;
+    return max;
+  }
+
+  // reconstruct(clock) -> {epoch, frames} — the ordered frame indices a
+  // direct seek to clock.frame must re-render (bounded by the widest
+  // declared window; empty when no temporal pass declared one).
+  reconstruct(clock) {
+    const frame = Math.max(0, Math.floor(Number(clock && clock.frame) || 0));
+    const depth = this.depth();
+    const frames = [];
+    for (let f = Math.max(0, frame - depth + 1); f <= frame; f++) frames.push(f);
+    return { epoch: this.epoch, frames: frames };
+  }
+}
+
 // ── Pipeline factory ───────────────────────────────────────────────────────
 
-// createCinematicPipeline({ renderer, scene, camera, capabilities?, effects? })
-export function createCinematicPipeline(options) {
+// createPipeline({ renderer, scene, camera, capabilities?, effects?,
+//                  effectSpecs?, alpha? }) — CinematicPipeline (the formal
+// name of the returned object; marker isCinematicPipeline).
+export function createPipeline(options) {
   const renderer = options.renderer;
   const scene = options.scene;
   const camera = options.camera;
@@ -317,37 +500,56 @@ export function createCinematicPipeline(options) {
   composer.addPass(renderPass);
 
   const eff = state.effects;
-  if (eff.bloom && caps.bloom) {
-    passes.bloom = new UnrealBloomPass(new Vector2(size.x, size.y), 0.55, 0.4, 0.85);
-    composer.addPass(passes.bloom);
-  }
-  if (eff.dof && caps.bokeh) {
-    passes.dof = new BokehPass(scene, camera, { focus: 8.0, aperture: 0.00018, maxblur: 0.012 });
-    composer.addPass(passes.dof);
-  }
-  if (eff.smaa && caps.smaa) {
-    passes.smaa = new SMAAPass();
-    composer.addPass(passes.smaa);
-  }
-  if (eff.fxaa) {
-    passes.fxaa = new ShaderPass(FXAAShader);
-    composer.addPass(passes.fxaa);
-  }
-  if (eff.colorGrade && caps.lut) {
-    const lut = buildLutTexture(eff.colorGrade === 'teal-orange' ? 'teal-orange' : 'identity');
-    lutTextures.push(lut);
-    passes.colorGrade = new LUTPass({ lut: lut, intensity: 1.0 });
-    composer.addPass(passes.colorGrade);
-  }
-  if (eff.film && lane === 'web' && caps.film) {
-    passes.film = new FilmPass(0.35, false);
-    composer.addPass(passes.film);
-  }
-  if (eff.vignette && lane === 'web' && caps.vignette) {
-    passes.vignette = new ShaderPass(VignetteShader);
-    passes.vignette.uniforms.offsets.value.set(0.95, 0.55);
-    passes.vignette.uniforms.darkness.value = 1.15;
-    composer.addPass(passes.vignette);
+  // Fixed chain order (RenderPass FIRST — added above; OutputPass LAST —
+  // added below). PASS_ORDER drives both the assembly and lazy construction
+  // (ensurePass), so a pass added after creation lands at the same place it
+  // would have occupied at assembly time.
+  const PASS_ORDER = ['bloom', 'dof', 'smaa', 'fxaa', 'colorGrade', 'film', 'vignette'];
+  const passName = pass => {
+    for (const n of Object.keys(passes)) if (passes[n] === pass) return n;
+    return null;
+  };
+  const PASS_GATES = {
+    bloom: { test: () => caps.bloom, reason: 'capability probe: UnrealBloomPass unavailable' },
+    dof: { test: () => caps.bokeh, reason: 'capability probe: BokehPass unavailable' },
+    smaa: { test: () => caps.smaa, reason: 'capability probe: SMAA unavailable' },
+    fxaa: { test: () => true, reason: 'FXAA pass unavailable' },
+    colorGrade: { test: () => caps.lut, reason: 'capability probe: LUT color grading unavailable' },
+    film: { test: () => lane === 'web' && caps.film, reason: 'native R1: FilmPass GLSL is outside the bounded native shader profiles (web-only v1)' },
+    vignette: { test: () => lane === 'web' && caps.vignette, reason: 'native R1: custom vignette GLSL is outside the bounded native shader profiles (web-only v1)' }
+  };
+  // constructPass(name) — the ONE construction site (assembly + ensurePass
+  // share it; identical parameters keep the legacy behavior bit-identical).
+  const constructPass = name => {
+    switch (name) {
+      case 'bloom': return new UnrealBloomPass(new Vector2(size.x, size.y), 0.55, 0.4, 0.85);
+      case 'dof': return new BokehPass(scene, camera, { focus: 8.0, aperture: 0.00018, maxblur: 0.012 });
+      case 'smaa': return new SMAAPass();
+      case 'fxaa': return new ShaderPass(FXAAShader);
+      case 'colorGrade': {
+        const lut = buildLutTexture(eff.colorGrade === 'teal-orange' ? 'teal-orange' : 'identity');
+        lutTextures.push(lut);
+        return new LUTPass({ lut: lut, intensity: 1.0 });
+      }
+      case 'film': return new FilmPass(0.35, false);
+      case 'vignette': {
+        const pass = new ShaderPass(VignetteShader);
+        // r186 VignetteShader uniforms: scalar `offset` (not `offsets`) —
+        // the pre-F4a showcase copy read `.offsets.value.set(...)`, a latent
+        // crash on every vignette request (the effect could never apply).
+        pass.uniforms.offset.value = 0.95;
+        pass.uniforms.darkness.value = 1.15;
+        return pass;
+      }
+      default: return null;
+    }
+  };
+  for (const name of PASS_ORDER) {
+    if (eff[name] && PASS_GATES[name].test()) {
+      const pass = constructPass(name);
+      composer.addPass(pass);
+      passes[name] = pass;
+    }
   }
   const outputPass = new OutputPass();
   composer.addPass(outputPass);
@@ -438,6 +640,82 @@ export function createCinematicPipeline(options) {
       return !!pass;
     },
 
+    // ensurePass(name) — construct a pass AFTER pipeline creation (the
+    // issue #8 P5 usage: pipeline.bloom({...}) on a pipeline built without
+    // effects). One construction path with the assembly block below: same
+    // parameters, and the fixed chain order is kept via insertPass before
+    // the first later pass (OutputPass always stays last). Returns false
+    // when the capability gate keeps the pass off the lane.
+    ensurePass(name) {
+      if (passes[name]) { passes[name].enabled = true; return true; }
+      const gate = PASS_GATES[name];
+      if (!gate) return false; // 'motion' etc. are clock settings, not passes
+      if (!gate.test()) {
+        // Requested but gated: NAMED, never silent (same reasons as the
+        // assembly-time resolveEffects records).
+        unsupportedPush(name, gate.reason);
+        return false;
+      }
+      const pass = constructPass(name);
+      if (!pass) return false;
+      let index = composer.passes.indexOf(outputPass);
+      for (let i = 0; i < composer.passes.length; i++) {
+        const n = passName(composer.passes[i]);
+        if (n && PASS_ORDER.indexOf(n) > PASS_ORDER.indexOf(name)) { index = i; break; }
+      }
+      composer.insertPass(pass, index);
+      passes[name] = pass;
+      if (name === 'fxaa') updateFxaaResolution(size.x || 480, size.y || 320);
+      return true;
+    },
+
+    // applyEffectSpec(descriptor) — the live application used by the five
+    // helper methods and pipeline.applyEffect. Returns true when a pass is
+    // (or became) active; a gated effect is NAMED, never silent.
+    applyEffectSpec(descriptor) {
+      const effect = descriptor.effect;
+      const options = descriptor.options || {};
+      const gate = name => pipeline.ensurePass(name); // gated effects are NAMED inside ensurePass
+      if (effect === 'bloom') {
+        pipeline.setEffect('bloom', true);
+        if (!gate('bloom')) return false;
+        const pass = pipeline.passes.bloom;
+        if (options.threshold !== undefined && options.threshold !== null) pass.threshold = Number(options.threshold);
+        if (options.strength !== undefined && options.strength !== null) pass.strength = Number(options.strength);
+        if (options.radius !== undefined && options.radius !== null) pass.radius = Number(options.radius);
+        return true;
+      }
+      if (effect === 'dof' || effect === 'depthOfField') {
+        pipeline.setEffect('dof', true);
+        if (!gate('dof')) return false;
+        const pass = pipeline.passes.dof;
+        const uniforms = pass.uniforms || (pass.material && pass.material.uniforms);
+        if (uniforms) {
+          if (options.focus !== undefined && options.focus !== null && uniforms.focus) uniforms.focus.value = Number(options.focus);
+          if (options.aperture !== undefined && options.aperture !== null && uniforms.aperture) uniforms.aperture.value = Number(options.aperture);
+          if (options.maxBlur !== undefined && options.maxBlur !== null && uniforms.maxblur) uniforms.maxblur.value = Number(options.maxBlur);
+        }
+        return true;
+      }
+      if (effect === 'colorGrade') {
+        pipeline.setEffect('colorGrade', options.lut === undefined ? true : options.lut);
+        return gate('colorGrade');
+      }
+      if (effect === 'motion') {
+        pipeline.setQuality({ shutter: options.shutter, samples: options.samples });
+        return true;
+      }
+      if (effect === 'antialias') {
+        const mode = options.mode === 'smaa' ? 'smaa' : 'fxaa';
+        const other = mode === 'smaa' ? 'fxaa' : 'smaa';
+        pipeline.setEffect(mode, true);
+        pipeline.setEffect(other, false);
+        if (mode === 'smaa') return gate('smaa');
+        return gate('fxaa');
+      }
+      return false;
+    },
+
     // renderFrame(clock) — explicit clock state only (see clockState). The
     // pipeline never touches a wall clock; the RAF loop converts elapsed
     // milliseconds to a frame index before calling this.
@@ -488,12 +766,16 @@ export function createCinematicPipeline(options) {
     updateScene: null,
 
     // resetHistory(epoch) — new deterministic epoch: reseeds the scene's
-    // static layout RNG and clears accumulation history.
+    // static layout RNG and resets the CinematicHistory clock.
     resetHistory(epoch) {
-      state.epoch = (epoch === undefined ? 0 : epoch) >>> 0;
+      state.epoch = pipeline.history.reset(epoch);
       if (scene.userData && typeof scene.userData.reseed === 'function') scene.userData.reseed(state.epoch);
       return state.epoch;
     },
+
+    // CinematicHistory — the named temporal-state component behind
+    // resetHistory (ADR-0004 decision 3).
+    history: new CinematicHistory(0),
 
     presets: Object.keys(PRESETS),
 
@@ -510,34 +792,87 @@ export function createCinematicPipeline(options) {
       state.samples = preset.samples;
       for (const key of Object.keys(preset.effects)) {
         pipeline.setEffect(key, preset.effects[key]);
+        // A preset may enable an effect the pipeline was created without
+        // (P5 usage: createPipeline({renderer, scene, camera}) then
+        // setPreset) — construct it through the same gated path.
+        if (preset.effects[key] && !passes[key]) pipeline.ensurePass(key);
       }
       pipeline.setQuality({ samples: preset.samples });
       pipeline.resetHistory(preset.epoch);
       return pipeline.getConfig();
     },
 
-    // capturePath() — 'three' (jsr.three surface capture), 'widget' (jsr
-    // widget-tree capture) or null. Exposed so assertCapturable can list it.
+    // capturePath() — 'barrier' (the host cinematic capture contract),
+    // 'three' (jsr.three surface capture), 'widget' (jsr widget-tree
+    // capture) or null. Exposed so assertCapturable can list it.
     capturePath() {
       const host = globalThis.jsr;
+      if (host && typeof host.capture === 'function') return 'barrier';
       if (host && host.three && typeof host.three.capture === 'function') return 'three';
-      if (host && typeof host.capture === 'function') return 'widget';
       return null;
     },
 
-    // captureFrame() -> Promise<{ dataUrl | bytes | path, width, height }>
-    // Never fakes a capture: rejects with the NAMED error
+    // captureFrame(clock) -> Promise<{ dataUrl | bytes | path, width, height }>.
+    //
+    // WITH a clock (deterministic export, ADR-0004 decision 4): the capture
+    // barrier is a HOST contract. The request crosses the existing
+    // `__jsr_capture` channel with options {engineId, clock, barrier:
+    // 'final-pass'}; the Dart host (JsRuntimeConfig.cinematicCaptureHost)
+    // completes only after the final composer pass of the frame-driven
+    // render — never from a wall-clock frame. A host without the capability
+    // resolves the named error `cinematic.notCapturable`; captureFrame
+    // rejects with the same named error. Never an effect-free capture.
+    //
+    // WITHOUT a clock (interactive widget screenshot): the legacy paths
+    // (jsr.capture tree rasterization / jsr.three.capture / canvas
+    // readback). Never fakes a capture: rejects with the NAMED error
     // 'cinematic.captureUnavailable' when no capture path exists.
-    captureFrame() {
+    captureFrame(clock) {
       const dom = renderer.domElement;
       const width = dom && dom.width ? dom.width : (renderer.getSize(new Vector2()).x || 0);
       const height = dom && dom.height ? dom.height : (renderer.getSize(new Vector2()).y || 0);
+
+      if (clock !== undefined && clock !== null) {
+        const host = globalThis.jsr;
+        if (!host || typeof host.capture !== 'function') {
+          return Promise.reject(new CinematicPipelineError('cinematic.notCapturable',
+            'cinematic.notCapturable: no host capture channel (jsr.capture) — the final-pass capture barrier needs JsRuntimeConfig.cinematicCaptureHost'));
+        }
+        const clockRecord = {
+          frame: clock.frame,
+          fps: clock.fps,
+          shutter: clock.shutter,
+          samples: clock.samples,
+          epoch: clock.epoch
+        };
+        return Promise.resolve(host.capture({
+          engineId: typeof globalThis.__IID === 'string' ? globalThis.__IID : '',
+          clock: clockRecord,
+          barrier: 'final-pass'
+        })).then(result => {
+          if (result && result.__error) {
+            throw new CinematicPipelineError('cinematic.notCapturable',
+              'cinematic.notCapturable: host capture barrier failed: ' + result.__error);
+          }
+          return {
+            path: result && result.path,
+            bytes: result && result.bytes,
+            dataUrl: result && result.dataUrl,
+            width: (result && result.width) || width,
+            height: (result && result.height) || height
+          };
+        }, error => {
+          throw new CinematicPipelineError('cinematic.notCapturable',
+            'cinematic.notCapturable: host capture barrier failed: ' + (error && error.message ? error.message : error));
+        });
+      }
+
       const path = pipeline.capturePath();
-      if (path === 'widget') {
+      if (path === 'barrier' || path === 'widget') {
         return globalThis.jsr.capture({ name: 'cinematic-' + pipeline._captureSeq++ }).then(result => {
           if (result && result.__error) {
-            const error = new Error('cinematic.captureUnavailable: jsr.capture failed: ' + result.__error);
-            error.name = 'cinematic.captureUnavailable';
+            const error = new CinematicPipelineError('cinematic.captureUnavailable',
+              'cinematic.captureUnavailable: jsr.capture failed: ' + result.__error);
             throw error;
           }
           return {
@@ -560,9 +895,8 @@ export function createCinematicPipeline(options) {
       if (dom && typeof dom.toDataURL === 'function') {
         return Promise.resolve({ dataUrl: dom.toDataURL('image/png'), width: width, height: height });
       }
-      const error = new Error('cinematic.captureUnavailable: no PNG capture path on this lane (jsr.three.capture, jsr.capture and canvas readback are all unavailable)');
-      error.name = 'cinematic.captureUnavailable';
-      return Promise.reject(error);
+      throw new CinematicPipelineError('cinematic.captureUnavailable',
+        'cinematic.captureUnavailable: no PNG capture path on this lane (jsr.capture, jsr.three.capture and canvas readback are all unavailable)');
     },
     _captureSeq: 0,
 
@@ -575,14 +909,29 @@ export function createCinematicPipeline(options) {
           unsupported.map(u => u.effect + ' (' + u.reason + ')').join('; '));
       }
       if (!pipeline.capturePath() && !(renderer.domElement && (typeof renderer.domElement.convertToBlob === 'function' || typeof renderer.domElement.toDataURL === 'function'))) {
-        problems.push('no PNG capture path (jsr.three.capture / jsr.capture / canvas toDataURL)');
+        problems.push('no PNG capture path (jsr.capture / jsr.three.capture / canvas toDataURL)');
       }
       if (problems.length > 0) {
-        const error = new Error(problems.join(' | '));
-        error.name = 'cinematic.notCapturable';
-        throw error;
+        throw new CinematicPipelineError('cinematic.notCapturable', problems.join(' | '));
       }
       return true;
+    },
+
+    // The five effect helpers, live on the pipeline (issue #8 P5 usage:
+    // pipeline.bloom({threshold, strength, radius})). Each applies the
+    // descriptor of the surface-level factory of the same name.
+    bloom(options) { return pipeline.applyEffectSpec(bloom(options)); },
+    depthOfField(options) { return pipeline.applyEffectSpec(depthOfField(options)); },
+    colorGrade(options) { return pipeline.applyEffectSpec(colorGrade(options)); },
+    motionBlur(options) { return pipeline.applyEffectSpec(motionBlur(options)); },
+    antialias(options) { return pipeline.applyEffectSpec(antialias(options)); },
+    // applyEffect(spec) — apply a descriptor produced by the surface-level
+    // factory of the same name (pipeline.applyEffect(cine.bloom({...}))).
+    applyEffect(descriptor) {
+      if (!descriptor || typeof descriptor.effect !== 'string') {
+        throw new CinematicPipelineError('cinematic.invalid', 'applyEffect requires an effect descriptor {effect, options}');
+      }
+      return pipeline.applyEffectSpec(descriptor);
     },
 
     setSize(width, height) {
@@ -616,5 +965,41 @@ export function createCinematicPipeline(options) {
     }
   };
 
+  // CinematicPipeline — the formal name of the pipeline object
+  // (ADR-0004 decision 3). Non-enumerable marker, so config snapshots and
+  // exportState stay schema-clean.
+  Object.defineProperty(pipeline, 'isCinematicPipeline', { value: true, enumerable: false });
+
   return pipeline;
 }
+
+// ADR-0004 continuity alias: the factory was named createCinematicPipeline in
+// the showcase-private module (pre-F4a consumers / docs).
+export const createCinematicPipeline = createPipeline;
+
+// ── The jsr.three.cinematic surface (ADR-0004 decision 2) ──────────────────
+
+// Installed on `jsr.three` by ThreeCompatibilityRuntime.install() whenever
+// the three bundle is evaluated — i.e. exactly when the host runs with
+// JsRuntimeConfig.threeEnabled.
+export const cinematicSurface = Object.freeze({
+  createPipeline: createPipeline,
+  clockState: clockState,
+  probeCapabilities: probeCapabilities,
+  presets: presets,
+  bloom: bloom,
+  depthOfField: depthOfField,
+  colorGrade: colorGrade,
+  motionBlur: motionBlur,
+  antialias: antialias,
+  // Named components (decision 3).
+  CinematicCapabilitySet: CinematicCapabilitySet,
+  CinematicFrameClock: createFrameClock,
+  createFrameClock: createFrameClock,
+  CinematicHistory: CinematicHistory,
+  ThreeCinematicProfile: ThreeCinematicProfile,
+  // Support API the showcase scene factory consumes.
+  cinematicRandom: cinematicRandom,
+  buildLutTexture: buildLutTexture,
+  CinematicPipelineError: CinematicPipelineError
+});
