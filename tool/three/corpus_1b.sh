@@ -218,8 +218,11 @@ PYEOF
     print_row "$ID" "$TIER" "$H1" "$H2" "$PCT" "$NOTE $GATED_NOTE"
     python3 - "$ID" "$TIER" "$H1" "$OUT/status_1b.json" "$NOTE" "$GATED_TIER" > "$OUT/report_entry.json" <<'PYEOF'
 import json, sys
+def ld(p):
+    try: return json.load(open(p))
+    except Exception: return None  # a row must always land; the tier/hash verdict is the gate input
 print(json.dumps({'id': sys.argv[1], 'tier': sys.argv[2], 'hash1b': '0x' + sys.argv[3] if sys.argv[3] else None,
-                  'status1b': json.load(open(sys.argv[4])), 'note': sys.argv[5],
+                  'status1b': ld(sys.argv[4]), 'note': sys.argv[5],
                   'acceptedTier': sys.argv[6] or None}))
 PYEOF
     append_report "$OUT/report_entry.json"
@@ -267,8 +270,11 @@ PYEOF
     print_row "$ID" "$TIER" "$H1" "$H2" "$PCT" "$NOTE $GATED_NOTE"
     python3 - "$ID" "$TIER" "$H1" "$OUT/status_1b.json" "$OUT/status_web.json" "$NOTE" "$GATED_TIER" > "$OUT/report_entry.json" <<'PYEOF'
 import json, sys
+def ld(p):
+    try: return json.load(open(p))
+    except Exception: return None  # a row must always land; the tier/hash verdict is the gate input
 print(json.dumps({'id': sys.argv[1], 'tier': sys.argv[2], 'hash1b': '0x' + sys.argv[3] if sys.argv[3] else None,
-                  'status1b': json.load(open(sys.argv[4])), 'statusWeb': json.load(open(sys.argv[5])), 'note': sys.argv[6],
+                  'status1b': ld(sys.argv[4]), 'statusWeb': ld(sys.argv[5]), 'note': sys.argv[6],
                   'acceptedTier': sys.argv[7] or None}))
 PYEOF
     append_report "$OUT/report_entry.json"
@@ -284,8 +290,11 @@ PYEOF
     print_row "$ID" "$TIER" "$H1" "$H2" "$PCT" "$NOTE"
     python3 - "$ID" "$TIER" "$H1" "$OUT/status_1b.json" "$OUT/status_web.json" "$NOTE" "$GATED_TIER" > "$OUT/report_entry.json" <<'PYEOF'
 import json, sys
+def ld(p):
+    try: return json.load(open(p))
+    except Exception: return None  # a row must always land; the tier/hash verdict is the gate input
 print(json.dumps({'id': sys.argv[1], 'tier': sys.argv[2], 'hash1b': '0x' + sys.argv[3] if sys.argv[3] else None,
-                  'status1b': json.load(open(sys.argv[4])), 'statusWeb': json.load(open(sys.argv[5])), 'note': sys.argv[6],
+                  'status1b': ld(sys.argv[4]), 'statusWeb': ld(sys.argv[5]), 'note': sys.argv[6],
                   'acceptedTier': sys.argv[7] or None}))
 PYEOF
     append_report "$OUT/report_entry.json"
@@ -313,10 +322,13 @@ PYEOF
   print_row "$ID" "$TIER" "$H1" "$HW" "$PCT" "$NOTE $GATED_NOTE"
   python3 - "$ID" "$TIER" "$H1" "$H2" "$HW" "$PCT" "$DIFF_LINE" "$OUT/status_1b.json" "$OUT/status_web.json" "$GATED_TIER" > "$OUT/report_entry.json" <<'PYEOF'
 import json, sys
+def ld(p):
+    try: return json.load(open(p))
+    except Exception: return None  # a row must always land; the tier/hash verdict is the gate input
 print(json.dumps({'id': sys.argv[1], 'tier': sys.argv[2],
                   'hash1b': '0x' + sys.argv[3], 'hash1bRun2': '0x' + sys.argv[4], 'hashWeb': '0x' + sys.argv[5],
                   'matchingPct': sys.argv[6], 'diff': sys.argv[7],
-                  'status1b': json.load(open(sys.argv[8])), 'statusWeb': json.load(open(sys.argv[9])),
+                  'status1b': ld(sys.argv[8]), 'statusWeb': ld(sys.argv[9]),
                   'acceptedTier': sys.argv[10] or None}))
 PYEOF
   append_report "$OUT/report_entry.json"

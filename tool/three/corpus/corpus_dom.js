@@ -54,6 +54,11 @@
   // ---- corpus state -------------------------------------------------------
   var __loop = null, __raf = null;
   var __errors = [];
+  // Per-entry cap: a repeated loader failure (e.g. HDR per-frame retries)
+  // carries a full eval stack per entry; 200 entries x unbounded stacks once
+  // produced an 18 MB single-line status that corrupted in shell transport
+  // on CI and cost a corpus report row. 2 KB per entry keeps the verdict loud.
+  var __pushErr = function (s) { s = String(s); __errors.push(s.length > 2048 ? s.slice(0, 2048) + '\n[corpus: entry truncated at 2048 chars]' : s); };
   var __warnings = [];
   g.__corpusErrors = __errors;
   g.__corpusWarnings = __warnings;
@@ -72,7 +77,7 @@
       __now = i * 16.6667;
       __runDueTimers();
       var fn = __loop || __raf;
-      try { fn(); } catch (e) { __errors.push('tick ' + i + ': ' + String(e && e.stack ? e.stack : e)); return false; }
+      try { fn(); } catch (e) { __pushErr('tick ' + i + ': ' + String(e && e.stack ? e.stack : e)); return false; }
     }
     return true;
   };
@@ -93,7 +98,7 @@
         if (__errors.length === 200) __errors.push('[corpus: error log truncated at 200 entries]');
         msg += (stk ? '\n' + stk : '');
       } else {
-        __errors.push('console.error: ' + msg + (stk ? '\n' + stk : ''));
+        __pushErr('console.error: ' + msg + (stk ? '\n' + stk : ''));
       }
       msg += (stk ? '\n' + stk : '');
     }
@@ -496,7 +501,7 @@
       var bytes = blob && blob.__bytes ? blob.__bytes : blob;
       g.__decodeImage(bytes, (blob && blob.type) || 'image/png', opts.imageOrientation === 'flipY')
         .then(function (img) { resolve(new g.ImageBitmap(img)); })
-        .catch(function (e) { __errors.push(String(e && e.stack ? e.stack : e)); reject(e); });
+        .catch(function (e) { __pushErr(String(e && e.stack ? e.stack : e)); reject(e); });
     }));
   };
 
@@ -955,7 +960,7 @@
       } else {
         t.cleared = true;
       }
-      try { t.fn(); } catch (e) { __errors.push('timer: ' + String(e && e.stack ? e.stack : e)); }
+      try { t.fn(); } catch (e) { __pushErr('timer: ' + String(e && e.stack ? e.stack : e)); }
     }
   }
   g.setTimeout = function (fn, ms) {
