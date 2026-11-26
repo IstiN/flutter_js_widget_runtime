@@ -629,8 +629,13 @@ export class JsrThreeCanvas {
 
   _setPhysicalSize(width, height) {
     if (!Number.isFinite(width) || !Number.isFinite(height) || width < 0 || height < 0) throw new Error('three.invalid: canvas dimensions must be non-negative finite numbers');
-    this._width = Math.floor(width);
-    this._height = Math.floor(height);
+    // The same 16384 GL cap the constructor applies to the boot buffer (see
+    // the pixelRatio clamp above) — the setters enforce it too, so a hostile
+    // or oversized width can never materialise a backing buffer beyond the
+    // GL maximum (SIGBUS territory on a smaller 1B surface). Documented
+    // clamp; fractional values floor.
+    this._width = Math.min(Math.floor(width), 16384);
+    this._height = Math.min(Math.floor(height), 16384);
     this._cssWidth = this._width / this._pixelRatio;
     this._cssHeight = this._height / this._pixelRatio;
     if (this._backing) {

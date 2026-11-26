@@ -67,7 +67,7 @@ const drain = () => new Promise(resolve => setImmediate(resolve));
 // evaluation, i.e. exactly when the host runs with threeEnabled).
 {
   const expected = ['CinematicCapabilitySet', 'CinematicFrameClock', 'CinematicHistory',
-    'CinematicPipelineError', 'ThreeCinematicProfile', 'antialias', 'bloom', 'buildLutTexture',
+    'CinematicPipelineError', 'TAARenderPass', 'ThreeCinematicProfile', 'antialias', 'bloom', 'buildLutTexture',
     'cinematicRandom', 'clockState', 'colorGrade', 'createFrameClock', 'createPipeline',
     'depthOfField', 'motionBlur', 'presets', 'probeCapabilities'];
   assert.deepEqual(Object.keys(cine).sort(), expected, 'jsr.three.cinematic surface members');

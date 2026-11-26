@@ -513,12 +513,12 @@
   },
   "inputs": {
     "assets/three/jsr_three_native.js": {
-      "bytes": 1013484,
-      "sha256": "bf9c7f1e7a0205e658a28003fdab6fb88e551c0a36855b14463ddb0308490497"
+      "bytes": 1019534,
+      "sha256": "ba2f95cd63ba144cc1379032f88d1a1bc77ae3b654d64bc0a531f6e2c5a3e7c6"
     },
     "assets/three/jsr_three_web.js": {
-      "bytes": 974755,
-      "sha256": "f3bba2625c95491ca8cc61c2fc6dc554a8d87af1dc5d3d81b068e32ffd5092fd"
+      "bytes": 980816,
+      "sha256": "f90366effa6ce6380c24e88f6ccc2f7aa4a381ca5d93d7503528a50da37d2782"
     },
     "source/LICENSE": {
       "bytes": 1081,

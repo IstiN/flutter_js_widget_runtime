@@ -28,7 +28,7 @@
     "sourceEnvironment": "THREE_SRC may replace --source /tmp/jsr-three-r186",
     "inputSha256": {
       "sourceTree": "46f76c91c965a0ac416a8e89f104af288ad177d2ad344204851f0febc502c995",
-      "tool/three/src/cinematic.js": "a8566894a7373ee39568c2e7908ebfc401e62e02994113bee7a77d3b70e56401",
+      "tool/three/src/cinematic.js": "5eea178c12ae6013ebf8907e481882a3f899909da59cab803ba914f657cef76e",
       "tool/three/src/errors.js": "a816e842488f759d202f284ff64e1f237c6d4474cdfcdcf1cf707e4a5506c887",
       "tool/three/src/native_audio.js": "6c4cb5e303a6a76af503df646a99114a2c740cd49ea03f5035f1233258e860ba",
       "tool/three/src/native_canvas2d.js": "c8a7cda446ee4cc47c81fd87fa829cd94e67faa5c53de12e3be8cf7a95ba810c",
@@ -39,7 +39,7 @@
       "tool/three/src/native_renderer.js": "603604004a23f47155bf260fa4edcc830ec177a5b0b27123dcd474b1fa324d66",
       "tool/three/src/native_three_shim.js": "3f29d9215d19ec495af2e3aab9ac785429a471e4867fe3fbd4784f38515ea096",
       "tool/three/src/r1.js": "ccac07cd409c192f135a5e22ac99f60761807df8891b76236f164a44d19fd291",
-      "tool/three/src/runtime.js": "e2740448e83af16014789860fed4c822969d7ebe81ffcddab06e90c052345f24",
+      "tool/three/src/runtime.js": "1f64f4cce7a9950e656c7eddc976c956daa2d2c1c7e0482b2f31b1b8683069cd",
       "tool/three/src/web_entry.js": "538a1625cffb9539d70055b173c98320799457a9c5e7b5a4c0577c22841cd3ad",
       "tool/three/src/web_renderer.js": "2b808b22123fce8e49b9ed8d76f75872199efb527b477e202f295ed6a244819c",
       "tool/three/src/webgl2_facade.js": "899fd9f9b194d662afc4ab8ba48c589fc9602117408f29dcdd35282990d1bfbd",
@@ -51,18 +51,18 @@
     },
     "goldenEsm": {
       "path": "tool/three/gen/cinematic_core.mjs",
-      "bytes": 170218,
-      "sha256": "2ec2f0a185014f3e2274ed54e0562c835ba2439cf271beb55564891831d45438"
+      "bytes": 183915,
+      "sha256": "c422dc1c9961fc4711bbf6c1be7a1759604d5762c330bb2559f8818970ef1c6a"
     }
   },
   "outputs": {
     "jsr_three_native.js": {
-      "bytes": 1013484,
-      "sha256": "bf9c7f1e7a0205e658a28003fdab6fb88e551c0a36855b14463ddb0308490497"
+      "bytes": 1019534,
+      "sha256": "ba2f95cd63ba144cc1379032f88d1a1bc77ae3b654d64bc0a531f6e2c5a3e7c6"
     },
     "jsr_three_web.js": {
-      "bytes": 974755,
-      "sha256": "f3bba2625c95491ca8cc61c2fc6dc554a8d87af1dc5d3d81b068e32ffd5092fd"
+      "bytes": 980816,
+      "sha256": "f90366effa6ce6380c24e88f6ccc2f7aa4a381ca5d93d7503528a50da37d2782"
     }
   }
 }

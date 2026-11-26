@@ -2198,6 +2198,410 @@ var SMAAPass = class extends Pass {
   }
 };
 
+// three-source/examples/jsm/postprocessing/SSAARenderPass.js
+var SSAARenderPass = class extends Pass {
+  /**
+   * Constructs a new SSAA render pass.
+   *
+   * @param {Scene} scene - The scene to render.
+   * @param {Camera} camera - The camera.
+   * @param {?(number|Color|string)} [clearColor=0x000000] - The clear color of the render pass.
+   * @param {?number} [clearAlpha=0] - The clear alpha of the render pass.
+   */
+  constructor(scene, camera, clearColor = 0, clearAlpha = 0) {
+    super();
+    this.scene = scene;
+    this.camera = camera;
+    this.sampleLevel = 4;
+    this.unbiased = true;
+    this.stencilBuffer = false;
+    this.clearColor = clearColor;
+    this.clearAlpha = clearAlpha;
+    this._sampleRenderTarget = null;
+    this._oldClearColor = new Color();
+    this._copyUniforms = UniformsUtils.clone(CopyShader.uniforms);
+    this._copyMaterial = new ShaderMaterial({
+      uniforms: this._copyUniforms,
+      vertexShader: CopyShader.vertexShader,
+      fragmentShader: CopyShader.fragmentShader,
+      transparent: true,
+      depthTest: false,
+      depthWrite: false,
+      premultipliedAlpha: true,
+      blending: AdditiveBlending
+    });
+    this._fsQuad = new FullScreenQuad(this._copyMaterial);
+  }
+  /**
+   * Frees the GPU-related resources allocated by this instance. Call this
+   * method whenever the pass is no longer used in your app.
+   */
+  dispose() {
+    if (this._sampleRenderTarget) {
+      this._sampleRenderTarget.dispose();
+      this._sampleRenderTarget = null;
+    }
+    this._copyMaterial.dispose();
+    this._fsQuad.dispose();
+  }
+  /**
+   * Sets the size of the pass.
+   *
+   * @param {number} width - The width to set.
+   * @param {number} height - The height to set.
+   */
+  setSize(width, height) {
+    if (this._sampleRenderTarget) this._sampleRenderTarget.setSize(width, height);
+  }
+  /**
+   * Performs the SSAA render pass.
+   *
+   * @param {WebGLRenderer} renderer - The renderer.
+   * @param {WebGLRenderTarget} writeBuffer - The write buffer. This buffer is intended as the rendering
+   * destination for the pass.
+   * @param {WebGLRenderTarget} readBuffer - The read buffer. The pass can access the result from the
+   * previous pass from this buffer.
+   * @param {number} deltaTime - The delta time in seconds.
+   * @param {boolean} maskActive - Whether masking is active or not.
+   */
+  render(renderer, writeBuffer, readBuffer) {
+    if (!this._sampleRenderTarget) {
+      this._sampleRenderTarget = new WebGLRenderTarget(readBuffer.width, readBuffer.height, { type: HalfFloatType, stencilBuffer: this.stencilBuffer });
+      this._sampleRenderTarget.texture.name = "SSAARenderPass.sample";
+    }
+    const jitterOffsets = _JitterVectors[Math.max(0, Math.min(this.sampleLevel, 5))];
+    const autoClear = renderer.autoClear;
+    renderer.autoClear = false;
+    renderer.getClearColor(this._oldClearColor);
+    const oldClearAlpha = renderer.getClearAlpha();
+    const baseSampleWeight = 1 / jitterOffsets.length;
+    const roundingRange = 1 / 32;
+    this._copyUniforms["tDiffuse"].value = this._sampleRenderTarget.texture;
+    const viewOffset = {
+      fullWidth: readBuffer.width,
+      fullHeight: readBuffer.height,
+      offsetX: 0,
+      offsetY: 0,
+      width: readBuffer.width,
+      height: readBuffer.height
+    };
+    const originalViewOffset = Object.assign({}, this.camera.view);
+    if (originalViewOffset.enabled) Object.assign(viewOffset, originalViewOffset);
+    for (let i = 0; i < jitterOffsets.length; i++) {
+      const jitterOffset = jitterOffsets[i];
+      if (this.camera.setViewOffset) {
+        this.camera.setViewOffset(
+          viewOffset.fullWidth,
+          viewOffset.fullHeight,
+          viewOffset.offsetX + jitterOffset[0] * 0.0625,
+          viewOffset.offsetY + jitterOffset[1] * 0.0625,
+          // 0.0625 = 1 / 16
+          viewOffset.width,
+          viewOffset.height
+        );
+      }
+      let sampleWeight = baseSampleWeight;
+      if (this.unbiased) {
+        const uniformCenteredDistribution = -0.5 + (i + 0.5) / jitterOffsets.length;
+        sampleWeight += roundingRange * uniformCenteredDistribution;
+      }
+      this._copyUniforms["opacity"].value = sampleWeight;
+      renderer.setClearColor(this.clearColor, this.clearAlpha);
+      renderer.setRenderTarget(this._sampleRenderTarget);
+      renderer.clear();
+      renderer.render(this.scene, this.camera);
+      renderer.setRenderTarget(this.renderToScreen ? null : writeBuffer);
+      if (i === 0) {
+        renderer.setClearColor(0, 0);
+        renderer.clear();
+      }
+      this._fsQuad.render(renderer);
+    }
+    if (this.camera.setViewOffset && originalViewOffset.enabled) {
+      this.camera.setViewOffset(
+        originalViewOffset.fullWidth,
+        originalViewOffset.fullHeight,
+        originalViewOffset.offsetX,
+        originalViewOffset.offsetY,
+        originalViewOffset.width,
+        originalViewOffset.height
+      );
+    } else if (this.camera.clearViewOffset) {
+      this.camera.clearViewOffset();
+    }
+    renderer.autoClear = autoClear;
+    renderer.setClearColor(this._oldClearColor, oldClearAlpha);
+  }
+};
+var _JitterVectors = [
+  [
+    [0, 0]
+  ],
+  [
+    [4, 4],
+    [-4, -4]
+  ],
+  [
+    [-2, -6],
+    [6, -2],
+    [-6, 2],
+    [2, 6]
+  ],
+  [
+    [1, -3],
+    [-1, 3],
+    [5, 1],
+    [-3, -5],
+    [-5, 5],
+    [-7, -1],
+    [3, 7],
+    [7, -7]
+  ],
+  [
+    [1, 1],
+    [-1, -3],
+    [-3, 2],
+    [4, -1],
+    [-5, -2],
+    [2, 5],
+    [5, 3],
+    [3, -5],
+    [-2, 6],
+    [0, -7],
+    [-4, -6],
+    [-6, 4],
+    [-8, 0],
+    [7, -4],
+    [6, 7],
+    [-7, -8]
+  ],
+  [
+    [-4, -7],
+    [-7, -5],
+    [-3, -5],
+    [-5, -4],
+    [-1, -4],
+    [-2, -2],
+    [-6, -1],
+    [-4, 0],
+    [-7, 1],
+    [-1, 2],
+    [-6, 3],
+    [-3, 3],
+    [-7, 6],
+    [-3, 6],
+    [-5, 7],
+    [-1, 7],
+    [5, -7],
+    [1, -6],
+    [6, -5],
+    [4, -4],
+    [2, -3],
+    [7, -2],
+    [1, -1],
+    [4, -1],
+    [2, 1],
+    [6, 2],
+    [0, 4],
+    [4, 4],
+    [2, 5],
+    [7, 5],
+    [5, 6],
+    [3, 7]
+  ]
+];
+
+// three-source/examples/jsm/postprocessing/TAARenderPass.js
+var TAARenderPass = class extends SSAARenderPass {
+  /**
+   * Constructs a new TAA render pass.
+   *
+   * @param {Scene} scene - The scene to render.
+   * @param {Camera} camera - The camera.
+   * @param {?(number|Color|string)} [clearColor=0x000000] - The clear color of the render pass.
+   * @param {?number} [clearAlpha=0] - The clear alpha of the render pass.
+   */
+  constructor(scene, camera, clearColor, clearAlpha) {
+    super(scene, camera, clearColor, clearAlpha);
+    this.sampleLevel = 0;
+    this.accumulate = false;
+    this.accumulateIndex = -1;
+    this._sampleRenderTarget = null;
+    this._holdRenderTarget = null;
+  }
+  /**
+   * Performs the TAA render pass.
+   *
+   * @param {WebGLRenderer} renderer - The renderer.
+   * @param {WebGLRenderTarget} writeBuffer - The write buffer. This buffer is intended as the rendering
+   * destination for the pass.
+   * @param {WebGLRenderTarget} readBuffer - The read buffer. The pass can access the result from the
+   * previous pass from this buffer.
+   * @param {number} deltaTime - The delta time in seconds.
+   * @param {boolean} maskActive - Whether masking is active or not.
+   */
+  render(renderer, writeBuffer, readBuffer, deltaTime) {
+    if (this.accumulate === false) {
+      super.render(renderer, writeBuffer, readBuffer, deltaTime);
+      this.accumulateIndex = -1;
+      return;
+    }
+    const jitterOffsets = _JitterVectors2[5];
+    if (this._sampleRenderTarget === null) {
+      this._sampleRenderTarget = new WebGLRenderTarget(readBuffer.width, readBuffer.height, { type: HalfFloatType });
+      this._sampleRenderTarget.texture.name = "TAARenderPass.sample";
+    }
+    if (this._holdRenderTarget === null) {
+      this._holdRenderTarget = new WebGLRenderTarget(readBuffer.width, readBuffer.height, { type: HalfFloatType, depthBuffer: false });
+      this._holdRenderTarget.texture.name = "TAARenderPass.hold";
+    }
+    if (this.accumulateIndex === -1) {
+      super.render(renderer, this._holdRenderTarget, readBuffer, deltaTime);
+      this.accumulateIndex = 0;
+    }
+    const autoClear = renderer.autoClear;
+    renderer.autoClear = false;
+    renderer.getClearColor(this._oldClearColor);
+    const oldClearAlpha = renderer.getClearAlpha();
+    const sampleWeight = 1 / jitterOffsets.length;
+    if (this.accumulateIndex >= 0 && this.accumulateIndex < jitterOffsets.length) {
+      this._copyUniforms["opacity"].value = sampleWeight;
+      this._copyUniforms["tDiffuse"].value = writeBuffer.texture;
+      const numSamplesPerFrame = Math.pow(2, this.sampleLevel);
+      for (let i = 0; i < numSamplesPerFrame; i++) {
+        const j = this.accumulateIndex;
+        const jitterOffset = jitterOffsets[j];
+        if (this.camera.setViewOffset) {
+          this.camera.setViewOffset(
+            readBuffer.width,
+            readBuffer.height,
+            jitterOffset[0] * 0.0625,
+            jitterOffset[1] * 0.0625,
+            // 0.0625 = 1 / 16
+            readBuffer.width,
+            readBuffer.height
+          );
+        }
+        renderer.setRenderTarget(writeBuffer);
+        renderer.setClearColor(this.clearColor, this.clearAlpha);
+        renderer.clear();
+        renderer.render(this.scene, this.camera);
+        renderer.setRenderTarget(this._sampleRenderTarget);
+        if (this.accumulateIndex === 0) {
+          renderer.setClearColor(0, 0);
+          renderer.clear();
+        }
+        this._fsQuad.render(renderer);
+        this.accumulateIndex++;
+        if (this.accumulateIndex >= jitterOffsets.length) break;
+      }
+      if (this.camera.clearViewOffset) this.camera.clearViewOffset();
+    }
+    renderer.setClearColor(this.clearColor, this.clearAlpha);
+    const accumulationWeight = this.accumulateIndex * sampleWeight;
+    if (accumulationWeight > 0) {
+      this._copyUniforms["opacity"].value = 1;
+      this._copyUniforms["tDiffuse"].value = this._sampleRenderTarget.texture;
+      renderer.setRenderTarget(writeBuffer);
+      renderer.clear();
+      this._fsQuad.render(renderer);
+    }
+    if (accumulationWeight < 1) {
+      this._copyUniforms["opacity"].value = 1 - accumulationWeight;
+      this._copyUniforms["tDiffuse"].value = this._holdRenderTarget.texture;
+      renderer.setRenderTarget(writeBuffer);
+      this._fsQuad.render(renderer);
+    }
+    renderer.autoClear = autoClear;
+    renderer.setClearColor(this._oldClearColor, oldClearAlpha);
+  }
+  /**
+   * Frees the GPU-related resources allocated by this instance. Call this
+   * method whenever the pass is no longer used in your app.
+   */
+  dispose() {
+    super.dispose();
+    if (this._holdRenderTarget) this._holdRenderTarget.dispose();
+  }
+};
+var _JitterVectors2 = [
+  [
+    [0, 0]
+  ],
+  [
+    [4, 4],
+    [-4, -4]
+  ],
+  [
+    [-2, -6],
+    [6, -2],
+    [-6, 2],
+    [2, 6]
+  ],
+  [
+    [1, -3],
+    [-1, 3],
+    [5, 1],
+    [-3, -5],
+    [-5, 5],
+    [-7, -1],
+    [3, 7],
+    [7, -7]
+  ],
+  [
+    [1, 1],
+    [-1, -3],
+    [-3, 2],
+    [4, -1],
+    [-5, -2],
+    [2, 5],
+    [5, 3],
+    [3, -5],
+    [-2, 6],
+    [0, -7],
+    [-4, -6],
+    [-6, 4],
+    [-8, 0],
+    [7, -4],
+    [6, 7],
+    [-7, -8]
+  ],
+  [
+    [-4, -7],
+    [-7, -5],
+    [-3, -5],
+    [-5, -4],
+    [-1, -4],
+    [-2, -2],
+    [-6, -1],
+    [-4, 0],
+    [-7, 1],
+    [-1, 2],
+    [-6, 3],
+    [-3, 3],
+    [-7, 6],
+    [-3, 6],
+    [-5, 7],
+    [-1, 7],
+    [5, -7],
+    [1, -6],
+    [6, -5],
+    [4, -4],
+    [2, -3],
+    [7, -2],
+    [1, -1],
+    [4, -1],
+    [2, 1],
+    [6, 2],
+    [0, 4],
+    [4, 4],
+    [2, 5],
+    [7, 5],
+    [5, 6],
+    [3, 7]
+  ]
+];
+
 // three-source/examples/jsm/postprocessing/Pass.js
 var Pass2 = class {
   /**
@@ -2761,6 +3165,8 @@ function probeCapabilities(renderer) {
 function clamp01(v) {
   return v < 0 ? 0 : v > 1 ? 1 : v;
 }
+var MAX_TARGET_PIXELS = 4096 * 4096;
+var HISTORY_MAX_FRAMES = 600;
 function buildLutTexture(kind) {
   const N = 8;
   const data = new Uint8Array(N * N * N * 4);
@@ -2887,9 +3293,15 @@ var CinematicHistory = class {
     return this.epoch;
   }
   // declare({pass, frames}) — a temporal pass declares its bounded window.
+  // Hostile frames hit the checked history quota with a NAMED error
+  // (non-finite / < 1 / beyond HISTORY_MAX_FRAMES); fractional values floor
+  // (documented clamp), so reconstruct() is always bounded (E9).
   declare(window) {
-    if (!window || !(window.frames >= 1)) {
-      throw new CinematicPipelineError("cinematic.invalid", "CinematicHistory.declare requires {pass, frames >= 1}");
+    if (!window || !(window.frames >= 1) || !Number.isFinite(window.frames)) {
+      throw new CinematicPipelineError("cinematic.invalid", "cinematic.invalid: CinematicHistory.declare requires {pass, finite frames >= 1}");
+    }
+    if (Math.floor(window.frames) > HISTORY_MAX_FRAMES) {
+      throw new CinematicPipelineError("cinematic.invalid", "cinematic.invalid: history window exceeds the JSR quota of " + HISTORY_MAX_FRAMES + " frames (got " + window.frames + ")");
     }
     const existing = this.windows.find((w) => w.pass === window.pass);
     if (existing) existing.frames = Math.floor(window.frames);
@@ -2904,9 +3316,12 @@ var CinematicHistory = class {
   }
   // reconstruct(clock) -> {epoch, frames} — the ordered frame indices a
   // direct seek to clock.frame must re-render (bounded by the widest
-  // declared window; empty when no temporal pass declared one).
+  // declared window; empty when no temporal pass declared one). Non-finite
+  // frames (Infinity survives the `|| 0` NaN guard) clamp to frame 0 —
+  // a raw Infinity frame index made the bounded loop spin forever.
   reconstruct(clock) {
-    const frame = Math.max(0, Math.floor(Number(clock && clock.frame) || 0));
+    const raw = Math.floor(Number(clock && clock.frame) || 0);
+    const frame = Number.isFinite(raw) ? Math.max(0, raw) : 0;
     const depth = this.depth();
     const frames = [];
     for (let f = Math.max(0, frame - depth + 1); f <= frame; f++) frames.push(f);
@@ -3033,6 +3448,20 @@ function createPipeline(options) {
       const pr = renderer.getPixelRatio ? renderer.getPixelRatio() : 1;
       fxaa.material.uniforms.resolution.value.set(1 / (width * pr), 1 / (height * pr));
     }
+  }
+  function resolveSize(width, height, what) {
+    const w = Number(width);
+    const h = Number(height);
+    if (!Number.isFinite(w) || !Number.isFinite(h) || w < 0 || h < 0) {
+      throw new CinematicPipelineError("cinematic.invalid", "cinematic.invalid: " + what + " dimensions must be finite non-negative numbers (got " + width + " x " + height + ")");
+    }
+    const maxTex = renderer.capabilities && renderer.capabilities.maxTextureSize || 16384;
+    const cw = Math.min(Math.max(1, Math.floor(w)), maxTex);
+    const ch = Math.min(Math.max(1, Math.floor(h)), maxTex);
+    if (cw * ch > MAX_TARGET_PIXELS) {
+      throw new CinematicPipelineError("cinematic.invalid", "cinematic.invalid: " + what + " exceeds the JSR target budget of " + MAX_TARGET_PIXELS + " pixels (got " + cw + " x " + ch + ")");
+    }
+    return { width: cw, height: ch };
   }
   updateFxaaResolution(size.x || 480, size.y || 320);
   const pipeline = {
@@ -3377,13 +3806,14 @@ function createPipeline(options) {
       return pipeline.applyEffectSpec(descriptor);
     },
     setSize(width, height) {
-      composer.setSize(width, height);
-      updateFxaaResolution(width, height);
+      const s = resolveSize(width, height, "pipeline");
+      composer.setSize(s.width, s.height);
+      updateFxaaResolution(s.width, s.height);
       if (camera && camera.isPerspectiveCamera) {
-        camera.aspect = width / Math.max(1, height);
+        camera.aspect = s.width / s.height;
         camera.updateProjectionMatrix();
       }
-      if (accum.target) accum.target.setSize(Math.max(1, Math.floor(width * (renderer.getPixelRatio ? renderer.getPixelRatio() : 1))), Math.max(1, Math.floor(height * (renderer.getPixelRatio ? renderer.getPixelRatio() : 1))));
+      if (accum.target) accum.target.setSize(Math.max(1, Math.floor(s.width * (renderer.getPixelRatio ? renderer.getPixelRatio() : 1))), Math.max(1, Math.floor(s.height * (renderer.getPixelRatio ? renderer.getPixelRatio() : 1))));
     },
     dispose() {
       try {
@@ -3394,6 +3824,13 @@ function createPipeline(options) {
         try {
           if (passes[name] && typeof passes[name].dispose === "function") passes[name].dispose();
         } catch (e) {
+        }
+        const extra = name === "bloom" && passes[name] && passes[name].materialHighPassFilter;
+        if (extra && typeof extra.dispose === "function") {
+          try {
+            extra.dispose();
+          } catch (e) {
+          }
         }
       }
       try {
@@ -3439,6 +3876,9 @@ var cinematicSurface = Object.freeze({
   createFrameClock,
   CinematicHistory,
   ThreeCinematicProfile,
+  // The stock r186 temporal pass of the pin (F4e lifecycle / history rows
+  // compose it into a pipeline next to bloom + OutputPass).
+  TAARenderPass,
   // Support API the showcase scene factory consumes.
   cinematicRandom,
   buildLutTexture,

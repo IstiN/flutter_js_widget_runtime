@@ -39,6 +39,14 @@ run1bWidgetEngine(
   /// Optional cinematic capture barrier host (issue #8 F4a IT-HELPER-*):
   /// wired straight into the engine config.
   JsCinematicCaptureHost? cinematicCaptureHost,
+
+  /// F4e/F4g (issue #8): optional host handlers the security tests drive —
+  /// a stable `jsr.instanceId`, the secrets-write channel and the asset
+  /// loader. Null keeps the engine defaults.
+  String? instanceId,
+  Future<void> Function(String id, String key, dynamic value)?
+  secretsSetHandler,
+  Future<void> Function(String id, String path)? loadAssetHandler,
 }) async {
   debugDefaultTargetPlatformOverride = TargetPlatform.macOS;
   final w =
@@ -54,6 +62,7 @@ run1bWidgetEngine(
       onRender: (_) {},
       onSetTitle: (_) {},
       onStorageUpdate: (_) {},
+      instanceId: instanceId,
       backendFactory: (cfg) => QuickjsWidgetEngineBackend(config: cfg),
       threeEnabled: true,
       threeSource: threeSource,
@@ -62,6 +71,8 @@ run1bWidgetEngine(
       allowCustomShaders: allowCustomShaders,
       onThreeBackendSelected: (s) => reported = s,
       cinematicCaptureHost: cinematicCaptureHost,
+      secretsSetHandler: secretsSetHandler,
+      loadAssetHandler: loadAssetHandler,
     ),
   );
   try {
@@ -94,6 +105,7 @@ run1bRealEngine(
   String threeSource, {
   int width = 64,
   int height = 64,
+  JsCinematicCaptureHost? cinematicCaptureHost,
 }) async {
   final wire = Real1BWireHost(width: width, height: height)
     ..facadeBootstrapOverride = real1bFacadeBootstrap();
@@ -104,6 +116,7 @@ run1bRealEngine(
     realFacade: true,
     host: wire,
     consoleLogs: logs,
+    cinematicCaptureHost: cinematicCaptureHost,
   );
   return (w as Real1BWireHost, sel, state, logs);
 }
