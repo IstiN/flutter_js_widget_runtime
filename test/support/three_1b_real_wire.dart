@@ -62,6 +62,9 @@ class Real1BWireHost extends Fake1BWireHost {
     if (rc != 0) {
       throw StateError('a1b_init failed: $rc');
     }
+    // This file's isolate now owns the initialized process-global display;
+    // the file's tearDownAll releases it (see [real1BDisplayShim]).
+    real1BDisplayShim = shim;
     final idOut = calloc<ffi.Uint32>();
     try {
       surface = shim.createSurface(width, height, idOut);
@@ -111,6 +114,21 @@ class Real1BWireHost extends Fake1BWireHost {
   }
 }
 
+/// The file-scoped reference to the Shim that initialized the ANGLE
+/// display in THIS isolate (flutter runs every test file in its own
+/// isolate; `a1b_init` is process-global and idempotent). Null when this
+/// file never constructed a [Real1BWireHost].
+///
+/// The registry drain alone is NOT enough: a file whose every wire was
+/// disposed mid-test (addTearDown, e.g. f4eg_life's 100-cycle lifecycle
+/// file) ends with an EMPTY live registry while the initialized display
+/// is still alive — and the process-exit teardown of a live display
+/// segfaults the CI Paravirtual GPU (the stage-1 crash record names
+/// "a real 1B wire, surface or display still alive"). The file's
+/// tearDownAll therefore runs the full `a1b_shutdown` whenever this
+/// reference is set, empty registry or not — exactly once (nulled after).
+Shim? real1BDisplayShim;
+
 /// The deterministic end-of-process teardown for the real 1B wires: destroy
 /// every surface, then the full `a1b_shutdown` (release the current EGL
 /// context, destroy the context, terminate the display, dlclose the GL
@@ -118,14 +136,14 @@ class Real1BWireHost extends Fake1BWireHost {
 /// on process-exit teardown of the live display segfaults the test process
 /// on the CI Paravirtual GPU (all tests green, crash at finalization),
 /// which is why every f4b tearDownAll calls this instead of a bare dispose
-/// loop.
+/// loop. Destroys SURFACES only; the display shutdown belongs to
+/// [disposeRegisteredReal1BWires] (exactly once per file, via
+/// [real1BDisplayShim]).
 void disposeReal1BWires(Iterable<Real1BWireHost> wires) {
-  Shim? shimForShutdown;
   for (final w in wires) {
+    real1BDisplayShim ??= w.shim;
     w.dispose();
-    shimForShutdown ??= w.shim;
   }
-  shimForShutdown?.shutdown();
 }
 
 /// The file-scoped registry of LIVE real 1B wires (flutter runs every test
@@ -145,13 +163,20 @@ void registerReal1BWire(Real1BWireHost wire) => liveReal1BWires.add(wire);
 
 /// THE deterministic teardown every real-wire test file calls once in
 /// `tearDownAll`: drains the live registry (surfaces destroyed), runs the
-/// full `a1b_shutdown`, and prints the before/after live counts so a file
-/// that ends with anything still live is visible in the log.
+/// full `a1b_shutdown` WHENEVER this file ever initialized the display —
+/// empty live registry included — and prints the before/after live counts
+/// so a file that ends with anything still live is visible in the log.
 void disposeRegisteredReal1BWires() {
   final wires = liveReal1BWires.toList();
   // ignore: avoid_print
   print('oneb teardown: ${wires.length} live wire(s) at file end');
   disposeReal1BWires(wires);
+  // The display shutdown is NOT part of the per-wire dispose (the display
+  // is process-global and idempotent-init): a file whose wires were all
+  // disposed mid-test still leaves it initialized, and the process-exit
+  // teardown of a live display segfaults the CI Paravirtual GPU.
+  real1BDisplayShim?.shutdown();
+  real1BDisplayShim = null;
   // ignore: avoid_print
   print('oneb teardown: ${liveReal1BWires.length} live wire(s) remain');
 }
