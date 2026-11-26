@@ -432,7 +432,11 @@ jobs:
           flutter-version: 3.47.1
 
       - name: Accept Android SDK licenses
-        run: yes | sdkmanager --licenses >/dev/null 2>&1 || true
+        run: |
+          # GH runners do not put sdkmanager on PATH; resolve it from the
+          # standard cmdline-tools layout.
+          SDKM="$(command -v sdkmanager || echo "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager")"
+          yes | "$SDKM" --licenses >/dev/null 2>&1 || true
 
       - name: Download the ANGLE Android artifacts
         uses: actions/download-artifact@v4
@@ -469,10 +473,14 @@ jobs:
           # after pub get; the script is CWD-independent).
           bash ../tool/patch_quickjs_android.sh
           # The native-assets hook compiles quickjs C code for Android and
-          # needs an NDK: use the preinstalled 27.2.12479018 when present,
-          # install it when not (deterministic either way).
+          # needs an NDK: use the pinned 27.2.12479018, installing it when
+          # absent (sdkmanager is not on PATH on GH runners — resolve it
+          # from the standard cmdline-tools layout).
           export ANDROID_NDK_HOME="$ANDROID_HOME/ndk/27.2.12479018"
-          [ -d "$ANDROID_NDK_HOME" ] || sdkmanager "ndk;27.2.12479018" >/dev/null
+          if [ ! -d "$ANDROID_NDK_HOME" ]; then
+            SDKM="$(command -v sdkmanager || echo "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager")"
+            "$SDKM" "ndk;27.2.12479018" >/dev/null
+          fi
           flutter build apk --debug
 
       - name: SIZE-ANDROID-1 report
@@ -496,8 +504,12 @@ jobs:
             echo "recorded $(date -u +%Y-%m-%dT%H:%M:%SZ); bounded boot (20 min) + bounded suite (20 min)"
           } | tee "$OUT/summary.txt"
 
-          sdkmanager "system-images;android-30;default;x86_64" "platform-tools" >/dev/null
-          avdmanager create avd -n f3a -k "system-images;android-30;default;x86_64" -d pixel_5 --force >/dev/null
+          # GH runners do not put sdkmanager/avdmanager on PATH — same
+          # cmdline-tools layout as the build step above.
+          SDKM="$(command -v sdkmanager || echo "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager")"
+          AVDM="$(command -v avdmanager || echo "$ANDROID_HOME/cmdline-tools/latest/bin/avdmanager")"
+          "$SDKM" "system-images;android-30;default;x86_64" "platform-tools" >/dev/null
+          "$AVDM" create avd -n f3a -k "system-images;android-30;default;x86_64" -d pixel_5 --force >/dev/null
 
           # GH runner images preinstall the SDK but do not reliably put the
           # emulator and adb on PATH.
