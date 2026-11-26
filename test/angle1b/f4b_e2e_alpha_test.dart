@@ -50,9 +50,7 @@ void main() {
       missing != null ? Future.value(null) : (nativeMemo ??= runNative());
 
   tearDownAll(() async {
-    for (final w in wires) {
-      w.dispose();
-    }
+    disposeReal1BWires(wires);
   });
 
   // ── web leg (memoized for the whole file) ──────────────────────────────

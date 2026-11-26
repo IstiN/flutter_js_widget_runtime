@@ -62,9 +62,7 @@ void main() {
       missing != null ? Future.value(null) : (memo ??= run());
 
   tearDownAll(() async {
-    for (final w in wires) {
-      w.dispose();
-    }
+    disposeReal1BWires(wires);
   });
 
   test(

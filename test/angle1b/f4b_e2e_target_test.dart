@@ -58,9 +58,7 @@ void main() {
       : (targetMemo ??= runTarget());
 
   tearDownAll(() async {
-    for (final w in wires) {
-      w.dispose();
-    }
+    disposeReal1BWires(wires);
   });
 
   test(
