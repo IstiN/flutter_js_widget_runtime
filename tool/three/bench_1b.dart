@@ -34,7 +34,7 @@ import 'package:ffi/ffi.dart';
 import 'package:quickjs_runtime/quickjs_runtime.dart';
 
 const kW = 64, kH = 64;
-const kFrames = 60;
+const kFrames = 300;
 const kDrawsPerFrame = 500;
 const kP95BudgetMs = 4.0;
 
@@ -373,7 +373,11 @@ BenchReport _medianWindow(List<BenchReport> windows) {
 /// noise — F2b measured 5.6 ms p95 with 10 warm-up frames, F2c 4.079 ms even
 /// with 100 — and a best-of-windows pick would bias the number downward, so
 /// the median carries the honest steady-state figure. Every window is
-/// printed (`BENCH_WINDOW <i> ...`).
+/// printed (`BENCH_WINDOW <i> ...`). Windows are 300 frames (F2d): a GC or
+/// OS pause every ~50 frames lands above the 5 % rank in a 60-frame window
+/// (p95 4.4 ms with p50 unchanged at 1.45 ms on run 45725867939) but stays
+/// under it at this length, so p95 measures real dispatch work on noisy
+/// runners. p50 1.45 ms is unchanged vs the 60-frame windows.
 Future<BenchReport> run1bBench({
   int frames = kFrames,
   int draws = kDrawsPerFrame,
