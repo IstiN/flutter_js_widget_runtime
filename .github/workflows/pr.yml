@@ -535,12 +535,16 @@ jobs:
             if [ "${BOOT_OK:-0}" != "1" ]; then
               RESULT="GPU suite not attempted: simulator boot exceeded the 15-minute bound"
             else
-              if command -v timeout >/dev/null 2>&1; then BOUND=timeout; else BOUND=gtimeout; fi
               cd example
               set +e
-              "$BOUND" 900 flutter test ../test/angle1b/e2e_ios_scene_test.dart -d "$UDID" \
-                > ../simulator-attempt.log 2>&1
-              TEST_RC=$?
+              # No coreutils on the runner (exit 127 in run 45748149398):
+              # bound the suite with a watchdog kill, never a retry.
+              flutter test ../test/angle1b/e2e_ios_scene_test.dart -d "$UDID" \
+                > ../simulator-attempt.log 2>&1 &
+              TEST_PID=$!
+              ( sleep 900; kill "$TEST_PID" 2>/dev/null ) & TEST_WATCHDOG=$!
+              wait "$TEST_PID"; TEST_RC=$?
+              kill "$TEST_WATCHDOG" 2>/dev/null || true
               set -e
               cd ..
               if grep -q 'ANGLE_1B_UNAVAILABLE:' simulator-attempt.log; then

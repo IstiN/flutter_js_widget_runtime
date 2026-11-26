@@ -57,7 +57,11 @@ echo "GN args:   $PLATFORM_JSON"
 # never built: the size evidence (SIZE-IOS-1) is the device slice, and the
 # simulator build of the example runs the stock Flutter toolchain.
 if [[ "$PLATFORM" == ios-* ]]; then
-  PLATFORM_JSON="$PLATFORM_JSON target_environment=\"device\""
+  # ios_enable_code_signing=false: the CI runner has no signing identity
+  # (run 45748149398: find_signing_identity.py found 0 identities). The
+  # frameworks stay unsigned here; the example embed phase ad-hoc signs
+  # them at app-build time, which is all local loading needs.
+  PLATFORM_JSON="$PLATFORM_JSON target_environment=\"device\" ios_enable_code_signing=false"
   echo "GN args:   $PLATFORM_JSON  (target_environment injected for ios)"
 fi
 
