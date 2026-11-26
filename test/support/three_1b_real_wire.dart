@@ -109,8 +109,30 @@ class Real1BWireHost extends Fake1BWireHost {
   /// here, so mid-test disposes (it_life_1's E2E-LIFE-1) can never be
   /// double-destroyed by a file teardown.
   void dispose() {
+    drainSurface();
     shim.destroySurface(surface);
     liveReal1BWires.remove(this);
+  }
+
+  /// Synchronous CPU readback of the surface — the one round trip that
+  /// drains render AND presentation on the CI Paravirtual Metal device
+  /// (glFinish waits the command stream only; the 100 unsynchronized
+  /// bloom/TAA compositions of f4eg_life were the one file every teardown
+  /// round still lost). Best-effort: a readback failure must never fail a
+  /// teardown.
+  void drainSurface() {
+    final px = calloc<ffi.Uint8>(width * height * 4);
+    final wOut = calloc<ffi.Int32>();
+    final hOut = calloc<ffi.Int32>();
+    try {
+      shim.readPixels(surface, px, wOut, hOut);
+    } catch (_) {
+      // teardown drain: best-effort by contract
+    } finally {
+      calloc.free(px);
+      calloc.free(wOut);
+      calloc.free(hOut);
+    }
   }
 }
 
