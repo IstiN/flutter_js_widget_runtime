@@ -1,18 +1,20 @@
 {
-  "source": "three r186 pinned (three.core.js ∪ three.module.js exports)",
-  "generatedAt": "2026-11-05",
+  "source": "three r186 pinned (three.core.js ∪ three.module.js exports; + the measured 1B cinematic addon set, kind \"addon\")",
+  "generatedAt": "2026-11-26",
   "totals": {
     "engineExports": 454,
+    "addonsOneB": 19,
     "r1Ok": 163,
     "r1Bounded": 15,
-    "r1No": 60,
+    "r1No": 57,
+    "oneBOk": 22,
     "upstreamCpu": 41,
     "constants": 170,
     "nativeAbsent": 5,
     "unclassified": 0,
-    "webLane": 17,
+    "webLane": 14,
     "renderHonored": 178,
-    "renderRelevantClassified": 238,
+    "renderRelevantClassified": 235,
     "quickjsUsable": 389,
     "renderHonoredPct": 39.2,
     "quickjsUsablePct": 85.7,
@@ -411,10 +413,18 @@
     },
     {
       "symbol": "CubeCamera",
-      "lane": "web-only",
-      "status": "no",
-      "webLane": true,
-      "flutterAnalog": "web-lane: renders into a cube render target"
+      "lane": "1b",
+      "status": "ok",
+      "flutterAnalog": "1B: upstream cube-camera passes over the facade + ANGLE (cubemap-dynamic renders, 0xf908b0d1)",
+      "evidence": {
+        "ids": [
+          "E2E-ENV",
+          "three-materials-cubemap-dynamic"
+        ],
+        "tests": [
+          "tool/three/cases_f4d.sh"
+        ]
+      }
     },
     {
       "symbol": "CubeDepthTexture",
@@ -867,7 +877,19 @@
       "symbol": "HalfFloatType",
       "lane": "r1",
       "status": "ok",
-      "flutterAnalog": "R1 protocol opcode → ThreeDrawPlanner → flutter_gpu"
+      "flutterAnalog": "R1 protocol opcode → ThreeDrawPlanner → flutter_gpu",
+      "evidence": {
+        "ids": [
+          "E2E-TARGET-1",
+          "UT-GL-READBACK-1",
+          "E2E-BLOOM-1"
+        ],
+        "tests": [
+          "test/angle1b/f4b_e2e_target_test.dart",
+          "tool/three/test/ut_gl_1_test.js",
+          "test/angle1b/f4b_e2e_bloom_test.dart"
+        ]
+      }
     },
     {
       "symbol": "HemisphereLight",
@@ -1609,10 +1631,19 @@
     },
     {
       "symbol": "PMREMGenerator",
-      "lane": "web-only",
-      "status": "no",
-      "webLane": true,
-      "flutterAnalog": "web-lane: prefiltered env passes — upstream renderer on the web build"
+      "lane": "1b",
+      "status": "ok",
+      "flutterAnalog": "1B: upstream PMREM passes over the WebGL2 facade + ANGLE (envmaps_hdr/exr exact)",
+      "evidence": {
+        "ids": [
+          "E2E-ENV",
+          "three-materials-envmaps-hdr",
+          "three-materials-envmaps-exr"
+        ],
+        "tests": [
+          "tool/three/cases_f4d.sh"
+        ]
+      }
     },
     {
       "symbol": "Path",
@@ -2597,17 +2628,36 @@
     },
     {
       "symbol": "WebGLCubeRenderTarget",
-      "lane": "web-only",
-      "status": "no",
-      "webLane": true,
-      "flutterAnalog": "web-lane: render targets — upstream renderer on the web build"
+      "lane": "1b",
+      "status": "ok",
+      "flutterAnalog": "1B: upstream cube render targets over the facade + ANGLE",
+      "evidence": {
+        "ids": [
+          "E2E-ENV",
+          "three-materials-cubemap-dynamic"
+        ],
+        "tests": [
+          "tool/three/cases_f4d.sh"
+        ]
+      }
     },
     {
       "symbol": "WebGLRenderTarget",
       "lane": "web-only",
       "status": "no",
       "webLane": true,
-      "flutterAnalog": "web-lane: render targets — upstream renderer on the web build"
+      "flutterAnalog": "web-lane: render targets — upstream renderer on the web build",
+      "evidence": {
+        "ids": [
+          "E2E-TARGET-1",
+          "IT-TARGET-1",
+          "cases-f4c2-msaa"
+        ],
+        "tests": [
+          "test/angle1b/f4b_e2e_target_test.dart",
+          "tool/three/cases_f4c2.sh"
+        ]
+      }
     },
     {
       "symbol": "WebGLRenderer",
@@ -2759,6 +2809,349 @@
       "lane": "r1",
       "status": "ok",
       "flutterAnalog": "upstream JS utility runs in QuickJS"
+    },
+    {
+      "symbol": "AfterimagePass",
+      "kind": "addon",
+      "lane": "1b",
+      "status": "ok",
+      "module": "examples/jsm/postprocessing/AfterimagePass.js",
+      "flutterAnalog": "1B: upstream addon runs over the WebGL2 facade + ANGLE",
+      "evidence": {
+        "ids": [
+          "IT-HISTORY-1",
+          "ai_seq24"
+        ],
+        "tests": [
+          "test/angle1b/f4c1_it_history_test.dart"
+        ]
+      }
+    },
+    {
+      "symbol": "BokehPass",
+      "kind": "addon",
+      "lane": "1b",
+      "status": "ok",
+      "module": "examples/jsm/postprocessing/BokehPass.js",
+      "flutterAnalog": "1B: upstream addon runs over the WebGL2 facade + ANGLE",
+      "evidence": {
+        "ids": [
+          "E2E-DOF-1",
+          "dof_near"
+        ],
+        "tests": [
+          "test/angle1b/f4c1_e2e_dof_test.dart"
+        ]
+      }
+    },
+    {
+      "symbol": "CinematicMotionBlurPass",
+      "kind": "addon",
+      "lane": "1b",
+      "status": "ok",
+      "module": "tool/three/src/cinematic_motion_blur.js",
+      "note": "JSR-owned (ADR-0005); GPU accumulation bit-exact vs the linear JS reference",
+      "flutterAnalog": "JSR-owned (ADR-0005); GPU accumulation bit-exact vs the linear JS reference",
+      "evidence": {
+        "ids": [
+          "E2E-MOTION-1",
+          "E2E-MOTION-2"
+        ],
+        "tests": [
+          "test/angle1b/f4c1_e2e_motion_test.dart"
+        ]
+      }
+    },
+    {
+      "symbol": "EXRLoader",
+      "kind": "addon",
+      "lane": "1b",
+      "status": "ok",
+      "module": "examples/jsm/loaders/EXRLoader.js",
+      "flutterAnalog": "1B: upstream addon runs over the WebGL2 facade + ANGLE",
+      "evidence": {
+        "ids": [
+          "E2E-ENV",
+          "three-materials-envmaps-exr"
+        ],
+        "tests": [
+          "tool/three/cases_f4d.sh"
+        ]
+      }
+    },
+    {
+      "symbol": "EffectComposer",
+      "kind": "addon",
+      "lane": "1b",
+      "status": "ok",
+      "module": "examples/jsm/postprocessing/EffectComposer.js",
+      "flutterAnalog": "1B: upstream addon runs over the WebGL2 facade + ANGLE",
+      "evidence": {
+        "ids": [
+          "E2E-BLOOM-1",
+          "E2E-BLOOM-2",
+          "REG-VISUAL-BLOOM"
+        ],
+        "tests": [
+          "test/angle1b/f4b_e2e_bloom_test.dart"
+        ]
+      }
+    },
+    {
+      "symbol": "FilmPass",
+      "kind": "addon",
+      "lane": "1b",
+      "status": "ok",
+      "module": "examples/jsm/postprocessing/FilmPass.js",
+      "flutterAnalog": "1B: upstream addon runs over the WebGL2 facade + ANGLE",
+      "evidence": {
+        "ids": [
+          "cases-f4c2-film",
+          "E2E-FINISH"
+        ],
+        "tests": [
+          "tool/three/cases_f4c2.sh",
+          "test/angle1b/f4c2_finish_passes_test.dart"
+        ]
+      }
+    },
+    {
+      "symbol": "GTAOPass",
+      "kind": "addon",
+      "lane": "1b",
+      "status": "ok",
+      "module": "examples/jsm/postprocessing/GTAOPass.js",
+      "flutterAnalog": "1B: upstream addon runs over the WebGL2 facade + ANGLE",
+      "evidence": {
+        "ids": [
+          "E2E-FINISH",
+          "three-postprocessing-gtao"
+        ],
+        "tests": [
+          "tool/three/cases_f4c2.sh"
+        ]
+      }
+    },
+    {
+      "symbol": "HDRLoader",
+      "kind": "addon",
+      "lane": "1b",
+      "status": "ok",
+      "module": "examples/jsm/loaders/HDRLoader.js",
+      "flutterAnalog": "1B: upstream addon runs over the WebGL2 facade + ANGLE",
+      "evidence": {
+        "ids": [
+          "E2E-ENV",
+          "three-materials-envmaps-hdr"
+        ],
+        "tests": [
+          "tool/three/cases_f4d.sh"
+        ]
+      }
+    },
+    {
+      "symbol": "LUTPass",
+      "kind": "addon",
+      "lane": "1b",
+      "status": "ok",
+      "module": "examples/jsm/postprocessing/LUTPass.js",
+      "note": "LUTCubeLoader/LUTImageLoader stay unpromoted: the stock 3dlut example is the documented prepare-container limit; no green test parses real LUT bytes on the 1B lane",
+      "flutterAnalog": "LUTCubeLoader/LUTImageLoader stay unpromoted: the stock 3dlut example is the documented prepare-container limit; no green test parses real LUT bytes on the 1B lane",
+      "evidence": {
+        "ids": [
+          "cases-f4c2-lut",
+          "E2E-FINISH"
+        ],
+        "tests": [
+          "tool/three/cases_f4c2.sh",
+          "test/angle1b/f4c2_finish_passes_test.dart"
+        ]
+      }
+    },
+    {
+      "symbol": "OutputPass",
+      "kind": "addon",
+      "lane": "1b",
+      "status": "ok",
+      "module": "examples/jsm/postprocessing/OutputPass.js",
+      "flutterAnalog": "1B: upstream addon runs over the WebGL2 facade + ANGLE",
+      "evidence": {
+        "ids": [
+          "E2E-BLOOM-1",
+          "UT-PIPELINE-1"
+        ],
+        "tests": [
+          "test/angle1b/f4b_e2e_bloom_test.dart",
+          "tool/three/test/f4b_ut_pipeline_test.js"
+        ]
+      }
+    },
+    {
+      "symbol": "RenderPass",
+      "kind": "addon",
+      "lane": "1b",
+      "status": "ok",
+      "module": "examples/jsm/postprocessing/RenderPass.js",
+      "flutterAnalog": "1B: upstream addon runs over the WebGL2 facade + ANGLE",
+      "evidence": {
+        "ids": [
+          "E2E-BLOOM-1",
+          "UT-PIPELINE-1"
+        ],
+        "tests": [
+          "test/angle1b/f4b_e2e_bloom_test.dart",
+          "tool/three/test/f4b_ut_pipeline_test.js"
+        ]
+      }
+    },
+    {
+      "symbol": "SMAAPass",
+      "kind": "addon",
+      "lane": "1b",
+      "status": "ok",
+      "module": "examples/jsm/postprocessing/SMAAPass.js",
+      "flutterAnalog": "1B: upstream addon runs over the WebGL2 facade + ANGLE",
+      "evidence": {
+        "ids": [
+          "cases-f4c2-lines",
+          "E2E-FINISH"
+        ],
+        "tests": [
+          "tool/three/cases_f4c2.sh",
+          "test/angle1b/f4c2_finish_passes_test.dart"
+        ]
+      }
+    },
+    {
+      "symbol": "SSAARenderPass",
+      "kind": "addon",
+      "lane": "1b",
+      "status": "ok",
+      "module": "examples/jsm/postprocessing/SSAARenderPass.js",
+      "flutterAnalog": "1B: upstream addon runs over the WebGL2 facade + ANGLE",
+      "evidence": {
+        "ids": [
+          "E2E-AA",
+          "three-postprocessing-ssaa"
+        ],
+        "tests": [
+          "tool/three/cases_f4d.sh"
+        ]
+      }
+    },
+    {
+      "symbol": "SSAOPass",
+      "kind": "addon",
+      "lane": "1b",
+      "status": "ok",
+      "module": "examples/jsm/postprocessing/SSAOPass.js",
+      "flutterAnalog": "1B: upstream addon runs over the WebGL2 facade + ANGLE",
+      "evidence": {
+        "ids": [
+          "E2E-FINISH",
+          "three-postprocessing-ssao"
+        ],
+        "tests": [
+          "tool/three/cases_f4c2.sh"
+        ]
+      }
+    },
+    {
+      "symbol": "ShaderPass",
+      "kind": "addon",
+      "lane": "1b",
+      "status": "ok",
+      "module": "examples/jsm/postprocessing/ShaderPass.js",
+      "flutterAnalog": "1B: upstream addon runs over the WebGL2 facade + ANGLE",
+      "evidence": {
+        "ids": [
+          "E2E-BLOOM-1",
+          "cases-f4c2-vignette"
+        ],
+        "tests": [
+          "test/angle1b/f4b_e2e_bloom_test.dart",
+          "tool/three/cases_f4c2.sh"
+        ]
+      }
+    },
+    {
+      "symbol": "TAARenderPass",
+      "kind": "addon",
+      "lane": "1b",
+      "status": "ok",
+      "module": "examples/jsm/postprocessing/TAARenderPass.js",
+      "note": "deterministic seek/reset proven by the f4d battery; the stock example diff is the documented TAA jitter limit",
+      "flutterAnalog": "deterministic seek/reset proven by the f4d battery; the stock example diff is the documented TAA jitter limit",
+      "evidence": {
+        "ids": [
+          "E2E-AA",
+          "REG-TEMPORAL",
+          "IT-LIFE-CINE-1"
+        ],
+        "tests": [
+          "tool/three/cases_f4d.sh",
+          "test/angle1b/f4d_aa_battery_test.dart",
+          "test/angle1b/f4eg_life_test.dart"
+        ]
+      }
+    },
+    {
+      "symbol": "UnrealBloomPass",
+      "kind": "addon",
+      "lane": "1b",
+      "status": "ok",
+      "module": "examples/jsm/postprocessing/UnrealBloomPass.js",
+      "flutterAnalog": "1B: upstream addon runs over the WebGL2 facade + ANGLE",
+      "evidence": {
+        "ids": [
+          "E2E-BLOOM-1",
+          "E2E-BLOOM-2",
+          "three-postprocessing-unreal-bloom"
+        ],
+        "tests": [
+          "test/angle1b/f4b_e2e_bloom_test.dart"
+        ]
+      }
+    },
+    {
+      "symbol": "VignetteShader",
+      "kind": "addon",
+      "lane": "1b",
+      "status": "ok",
+      "module": "examples/jsm/shaders/VignetteShader.js",
+      "note": "vignette ships as VignetteShader via ShaderPass (no VignettePass class exists at the pin)",
+      "flutterAnalog": "vignette ships as VignetteShader via ShaderPass (no VignettePass class exists at the pin)",
+      "evidence": {
+        "ids": [
+          "cases-f4c2-vignette",
+          "E2E-FINISH"
+        ],
+        "tests": [
+          "tool/three/cases_f4c2.sh",
+          "test/angle1b/f4c2_finish_passes_test.dart"
+        ]
+      }
+    },
+    {
+      "symbol": "jsr.three.cinematic",
+      "kind": "addon",
+      "lane": "1b",
+      "status": "ok",
+      "module": "tool/three/src/cinematic.js",
+      "note": "JSR-owned surface (ADR-0004 decisions 2-4); built into jsr_three_native.js and jsr_three_web.js",
+      "flutterAnalog": "JSR-owned surface (ADR-0004 decisions 2-4); built into jsr_three_native.js and jsr_three_web.js",
+      "evidence": {
+        "ids": [
+          "UT-HELPER-1",
+          "IT-HELPER-1",
+          "E2E-SHOWCASE-1"
+        ],
+        "tests": [
+          "tool/three/test/ut_helper_cinematic_test.js",
+          "test/angle1b/it_helper_cinematic_test.dart",
+          "test/angle1b/e2e_showcase_1_cinematic_test.dart"
+        ]
+      }
     }
   ]
 }

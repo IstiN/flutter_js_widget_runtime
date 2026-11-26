@@ -1328,3 +1328,96 @@ tests: `test/angle1b/f4f_batched_blob_test.dart` (F4F-BATCHED-BLOB-1: the
 crash layout, 8 runs; F4F-BATCHED-BLOB-2: inline blob sweep 64 KiB-1 ..
 16 MiB, 8 runs each, byte-exact readback; F4F-BATCHED-BLOB-3: the buffer
 cursor desync, pixel-checked).
+
+## F4h — matrices and documentation (issue #8 AC13, side branch `feat/9-f4h-matrices-docs`, 2026-11-26)
+
+Ids `DOC-1` (prerequisites and reduced fallbacks) and `REG-MATRIX` (a clean
+checkout reproduces the showcase; matrix promotion only with green evidence).
+The generators own the two committed matrices: the classification lives in
+`tool/three/api_matrix.mjs` / `tool/three/engine_coverage.mjs`, and
+`tool/three/test/engine_coverage_test.mjs` (appended to the `test` chain of
+`tool/three/package.json`) fails when a total drifts from the rows, when a
+native-1B claim has no `evidence` object, when the evidence names a missing
+test file or an id the file does not contain, or when a promoted addon
+symbol's module is missing from the pinned three tree. Generated JSON files
+are regenerated, never hand-edited.
+
+### What was promoted (measured on native 1B, green tests on this head)
+
+`api_matrix.json`: 17 example rows carry `oneB` + `tier` + `measured` +
+`evidence` — 13 `supported` (unreal_bloom `8444f8b9` exact, fxaa
+`0x6ddd0a67` exact, unreal_bloom_selective `0x28749596` exact, ssao
+`0x954ee760` exact, gtao `0x2f9c49e6` exact, afterimage exact via the f4c1
+compare (`ai_seq24` bit-exact), envmaps_hdr `ad212355` exact, envmaps_exr
+`ac155766` exact, physical_transmission `110e7dc5` exact,
+physical_transmission_alpha tolerance (99.9948 %, maxDelta 5), mirror
+tolerance (maxDelta 1), cubemap_refraction `eb2816e5` exact, ssaa
+`5f58f0bb` exact) and 4 `documented-limit` (smaa stock example
+98.6667 %/maxDelta 32 with the pass exact via `cases-f4c2-lines`; 3dlut
+stock example with the pass exact via `cases-f4c2-lut`; cubemap-dynamic —
+1B renders correctly `f908b0d1`, the web leg stays black by corpus-harness
+triage; taa — corpus diff 95.7526 %/maxDelta 23 with the determinism
+battery 15/15 on both legs). Every promotion's blockers are proven on 1B
+(`ONE_B_OK`; the generator refuses otherwise). The static R1 `verdict`
+column is unchanged — `oneB` is the measured 1B lane.
+
+`engine_coverage.json`: 3 engine exports move from web-only to the `1b`
+lane with evidence (`PMREMGenerator`, `CubeCamera`,
+`WebGLCubeRenderTarget` — F4d battery), 2 r1 rows gain evidence-only
+annotations (`HalfFloatType`, `WebGLRenderTarget` — F4b composer targets +
+`cases-f4c2-msaa`), and 19 `kind:"addon"` rows join for the cinematic
+pipeline symbols proven on native 1B: EffectComposer, RenderPass,
+ShaderPass, UnrealBloomPass, BokehPass, AfterimagePass, OutputPass,
+SMAAPass, FilmPass, VignetteShader, LUTPass, SSAOPass, GTAOPass,
+TAARenderPass, SSAARenderPass, HDRLoader, EXRLoader, the JSR-owned
+`CinematicMotionBlurPass` and the `jsr.three.cinematic` surface. Totals
+after regeneration: engineExports 454 (unchanged), r1Ok 163, r1No 57,
+webLane 14, oneBOk 22, addonsOneB 19; the headline percentages stay
+39.2 %/85.7 % over the unchanged engine population.
+
+### What stays unpromoted, and why
+
+- `RGBELoader` — exists at the pin, but the measured F4d leg used
+  `HDRLoader`; no green test drives RGBELoader on the 1B lane.
+- `LUTCubeLoader` / `LUTImageLoader` / `LUT3dlLoader` — the stock 3dlut
+  example is the documented prepare-container limit; no green test parses
+  real LUT bytes through the 1B lane (the LUTPass itself is exact via
+  `cases-f4c2-lut`).
+- `DRACOLoader`/`RoomEnvironment`/`ShaderMaterial`/`MeshPhysicalMaterial`
+  etc. are proven only AS BLOCKERS OF MEASURED EXAMPLES (`ONE_B_OK` in the
+  generator); they carry no standalone addon rows — the stock examples that
+  exercise them are the evidence.
+- Every stock example the corpus drivers did not measure keeps its current
+  status; F4i (`E2E-HOST-YOCLIP-*`) and F4f (performance matrix) rows stay
+  for the final merge lane, which can promote them when those segments land
+  (host-proof capture rows via `f4i` tests; PERF-CINEMATIC-* rows via
+  `tool/three/cinematic_perf.mjs`).
+- `VignettePass` does not exist at the pin — vignette ships as
+  `VignetteShader` via `ShaderPass`, both promoted.
+
+### Commands and results
+
+```bash
+node api_matrix.mjs --write && node engine_coverage.mjs --write   # regenerate (never hand-edit)
+npm --prefix tool/three test                                      # includes the new evidence gate (8/8)
+JSR_WEBGL_REF_CHANNEL=chromium bash tool/three/showcase_1b.sh     # 4/4 hash-equal
+bash tool/three/showcase_clean_checkout.sh                        # REG-MATRIX
+```
+
+REG-MATRIX: `tool/three/showcase_checkpoints.json` is the committed
+reference (the four core checkpoint hashes measured at this head: draft
+`0xe34fc597`, finish-direct/seek `0x9125a1e8`, export `0xa3c2834c`).
+`tool/three/showcase_clean_checkout.sh` exports HEAD into a fresh /tmp
+directory (`git archive HEAD | tar -x`), runs the pinned-source bundle
+build, the showcase build, byte-compares the rebuilt
+`example/web/cinematic_core.mjs` with the committed one, runs
+`showcase_1b.sh` in the export (legacy bundle materialized from the pinned
+base commit in the invoking checkout, handed over via
+`JSR_SHOWCASE_LEGACY_BUNDLE`) and compares every checkpoint hash with the
+committed reference; prints `SHOWCASE_CLEAN_SUMMARY checkpoints=4 match=<n>`
+and exits non-zero on any difference. CI: one new step appended at the end
+of the `quality-macos` job ("F4h clean-checkout showcase reproduction").
+
+DOC-1: the prerequisites and reduced-fallback table lives in
+`docs/cinematic.md` ("Prerequisites and reduced fallbacks"); this section is
+the pointer from `docs/angle_1b.md`.

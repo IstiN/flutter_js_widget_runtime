@@ -355,6 +355,9 @@ jobs:
           JSR_ANGLE_1B_LIB: ${{ github.workspace }}/packages/jsr_three_angle/native/angle/out/macos-arm64/libangle_1b.dylib
         run: node tool/three/cinematic_perf.mjs --ci
 
+      - name: F4h clean-checkout showcase reproduction (REG-MATRIX)
+        run: bash tool/three/showcase_clean_checkout.sh
+
   angle-size:
     # Issue #7 AC10 consolidated size report for every platform built. Each
     # platform section comes from its platform job's artifact: the macOS
