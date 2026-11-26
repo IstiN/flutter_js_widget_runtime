@@ -12,9 +12,22 @@ dependencies:
   flutter:
     sdk: flutter
 
-  flutter_inappwebview: ^6.1.5
+  # F3a Android (issue #7): the 6.1.5 line cannot build on Android any more —
+  # flutter_inappwebview_android 1.1.3 calls
+  # getDefaultProguardFile('proguard-android.txt'), removed by the AGP version
+  # the Flutter 3.47 template ships, so every Android configuration fails.
+  # 6.2.0-beta.3 carries the proguard-android-optimize fix (the example is the
+  # only consumer with an Android platform; the root package stays on
+  # ^6.1.5). ponytail: bump to ^6.2.0 when stable ships, same constraint.
+  flutter_inappwebview: ^6.2.0-beta.1
   js_widget_runtime:
     path: ../
+
+  # F3a Android (issue #7): the opt-in ANGLE 1B backend package — the
+  # device suite (test/angle1b/e2e_android_*_test.dart, run from this app
+  # against the Android platform dir) drives the backend through it.
+  jsr_three_angle:
+    path: ../packages/jsr_three_angle
 
   # Web preview runner (lib/preview.dart): fetch + document.title.
   video_player: ^2.14.0
@@ -24,6 +37,10 @@ dev_dependencies:
   flutter_test:
     sdk: flutter
   flutter_lints: ^6.0.0
+  # F3a Android (issue #7): the device suite runs the angle1b e2e tests on
+  # an emulator or a physical device through the integration_test binding.
+  integration_test:
+    sdk: flutter
 
 flutter:
   uses-material-design: true

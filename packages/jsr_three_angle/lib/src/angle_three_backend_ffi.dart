@@ -118,6 +118,21 @@ final class _Angle1bFfi {
   void destroySurface(int surface) => _destroySurface(surface);
   void setFinishFlag(bool on) => _setFinishFlag(on ? 1 : 0);
 
+  // --- F3a Android: native-window handshake (decision 4, angle_1b.md) -----
+  // The angle_1b plugin hands the ANativeWindow pointer over the method
+  // channel; Dart binds it to the shim before creating window surfaces.
+  // Resolved lazily because the symbol exists only in the Android shim
+  // (angle_1b_android.c) — the macOS/iOS shims never resolve it.
+  void Function(int)? _setNativeWindowFn;
+
+  void setNativeWindow(int window) {
+    _setNativeWindowFn ??= _lib
+        .lookupFunction<ffi.Void Function(ffi.IntPtr), void Function(int)>(
+          'a1b_set_native_window',
+        );
+    _setNativeWindowFn!(window);
+  }
+
   String eglInfo(int what) {
     final p = _eglInfo(what);
     if (p == ffi.nullptr) return '';

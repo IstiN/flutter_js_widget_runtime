@@ -460,3 +460,109 @@ the CI pool. A real draw-path regression raises the measured p95 while the
 no-draw reference stays put, so the ratio — and with it the gate — still
 fails. The gate never re-measures because a number came out above the
 budget.
+
+## Android host (F3a, 2026-11-26)
+
+The Android half of F3 (issue #7, AC3 + the Android part of AC9/AC10) lands
+the 1B backend on Android: ANGLE Vulkan libraries from the pin, the
+`libangle_1b.so` shim (angle_1b_android.c), a Kotlin texture plugin in the
+example app, the `e2e_android_*` device suite, the `angle-android` CI jobs
+and the SIZE-ANDROID-1 report.
+
+### Presentation path (decision 4)
+
+```text
+three.js r186 (QuickJS) -> WebGL2 facade -> G1 bytes -> a1b_gl_dispatch
+  -> angle_1b_android.c (EGL window surface) -> ANGLE (Vulkan)
+  -> ANativeWindow (the plugin's SurfaceTextureProducer Surface)
+  -> Flutter Texture (textureId) -> Impeller composites; capture = glReadPixels
+```
+
+Handshake order differs from macOS: the ANGLE window surface needs the
+ANativeWindow pointer before it exists, so the plugin creates the producer
+surface FIRST and returns `{textureId, nativeWindow}`; Dart binds it with
+`a1b_set_native_window(ptr)` and then calls `a1b_create_surface(w, h, out)`.
+The shim owns the window reference (acquired in the JNI bridge via
+`ANativeWindow_fromSurface`, released on destroy/shutdown). No GL
+texture-name sharing, no platform view.
+
+### Plugin contract (`angle_1b` channel, Kotlin mirror of the macOS plugin)
+
+| Method | Args | Result |
+|---|---|---|
+| `apiLevel` | — | `int` SDK_INT (probe (d) input, ADR-0003) |
+| `createSurface` | `[width, height]` | `{textureId: int64, nativeWindow: int64}` |
+| `destroySurface` | `[textureId]` | nil (releases the producer; the shim already released its window ref) |
+| `frameAvailable` | `[textureId]` | nil (`scheduleFrame()` after every shim swap) |
+
+Files: `example/android/app/src/main/kotlin/dev/fa1/angle1b/Angle1bTexturePlugin.kt`
+(plugin + `Angle1bJni` bridge), registered in `MainActivity.configureFlutterEngine`.
+Dart side: the `F3a Android` blocks in
+`packages/jsr_three_angle/lib/src/angle_three_backend.dart` /
+`angle_three_backend_ffi.dart`.
+
+### ANGLE library naming
+
+The Android GN args of `tool/three/pins/angle_pin.json` carry
+`angle_libs_suffix="_angle"`: the staged libraries are `libEGL_angle.so` /
+`libGLESv2_angle.so`. The suffix is baked into ANGLE's
+`ANGLE_GLESV2_LIBRARY_NAME` dispatch lookup, so `libEGL_angle.so` finds
+`libGLESv2_angle.so` in its own module directory — and the unique sonames
+avoid the bionic soname dedup that would otherwise return the `/system`
+libEGL.so every Android process already has loaded. The shim dlopens the
+renamed files next to itself (dladdr), then falls back to bare sonames.
+GN-args amendment note: the F2 pin record did not yet contain
+`angle_libs_suffix`; it was verified by the F3a Android build and added to
+the three `android-*` entries of the pin (the macOS/iOS entries are
+untouched).
+
+### Build (reproducible, pinned)
+
+`tool/build_angle.sh --platform android-{arm64,armv7,x86_64} --out
+packages/jsr_three_angle/native/angle/out/<id>` — the `F3a Android` block
+runs the full pipeline: depot_tools bootstrap, pinned checkout,
+`target_os = ['android']` + `gclient sync` (the NDK ships from ANGLE's
+DEPS), gn gen with the pin args verbatim, ninja, NDK shim build
+(`angle_1b_android.c` + shared dispatch + demo, `-landroid -llog`), SHA256
+of every output. Android ANGLE builds require Linux (DevSetupAndroid.md);
+CI is the executor.
+
+### Device suite (exact commands)
+
+```bash
+bash tool/build_angle.sh --platform android-arm64 --out packages/jsr_three_angle/native/angle/out/android-arm64
+bash tool/stage_angle_android.sh                      # stage jniLibs for the ABIs that exist
+cd example && flutter pub get
+flutter test ../test/angle1b/e2e_android_1b_test.dart -d <device>
+```
+
+Tests (all skipped on non-Android hosts): `E2E-ANDROID-PLUGIN` (probe (d)),
+`E2E-ANDROID-PROBE` (ANGLE identity), `E2E-ANDROID-RENDER` (two-tone
+reference image into the plugin texture), `E2E-ANDROID-READBACK`,
+`E2E-ANDROID-RESIZE`, `E2E-ANDROID-DPR`, `E2E-ANDROID-NOWEBVIEW`
+(REG-NOWEBVIEW-1). A GPU-less host (CI emulator) records the probe failure
+as the skip reason — the suite never fakes success.
+
+### CI
+
+`pr.yml` jobs `angle-android` (matrix per ABI, `actions/cache` keyed by the
+pin hash + ABI, artifact per ABI) and `angle-android-apk` (artifact
+integrity check, `tool/stage_angle_android.sh`, `flutter build apk --debug`,
+`tool/angle_size_android.sh --verify` = SIZE-ANDROID-1, then ONE bounded
+emulator attempt: API 30 x86_64, `-accel off` (no KVM on GitHub runners →
+TCG), 20-minute boot bound, 20-minute suite bound, result or the recorded
+GPU-unavailable reason into the step summary + artifact
+`angle-android-emulator`). A bounded, recorded emulator attempt keeps the
+job green; the emulator result is host evidence, never a device claim
+(plan section 9).
+
+### SIZE-ANDROID-1
+
+`tool/angle_size_android.sh` prints, per ABI and library: raw/stripped
+size, gzip size, ELF machine (arch), minimum load-segment alignment, no
+debug sections (no debug slice), no Mach-O (no simulator slice), no
+SwiftShader strings (`angle_enable_swiftshader=false` in the pin), and the
+budgets — <= 10 MiB installed (sum of stripped libraries) and <= 5 MiB gzip
+per ABI. arm64-v8a requires 16 KiB load-segment alignment (Android 15 page
+size), armv7/x86_64 >= 4 KiB. A violation fails the job; nothing is
+re-measured or excluded.

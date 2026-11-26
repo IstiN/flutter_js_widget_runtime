@@ -106,7 +106,11 @@ final class AngleThreeBackend implements JsThreeHost, JsThree1BWire {
     if (lib == null) return _a1bNoCurrentSurface;
     final surface = _surfaceForEngine(engineId);
     if (surface == null) return _a1bNoCurrentSurface;
-    lib.makeCurrent(surface.angleSurfaceId!);
+    // Android (F3a): the window handshake is async — a surface whose
+    // allocation is still in flight has no ANGLE id yet.
+    final id = surface.angleSurfaceId;
+    if (id == null) return _a1bNoCurrentSurface;
+    lib.makeCurrent(id);
     return lib.dispatch(command);
   }
 
@@ -116,7 +120,9 @@ final class AngleThreeBackend implements JsThreeHost, JsThree1BWire {
     if (lib == null) return '';
     final surface = _surfaceForEngine(engineId);
     if (surface == null) return '';
-    lib.makeCurrent(surface.angleSurfaceId!);
+    final id = surface.angleSurfaceId; // Android: allocation may be pending
+    if (id == null) return '';
+    lib.makeCurrent(id);
     return base64Encode(lib.resultScratch());
   }
 
@@ -126,7 +132,9 @@ final class AngleThreeBackend implements JsThreeHost, JsThree1BWire {
     if (lib == null) return;
     final surface = _surfaceForEngine(boundEngineId);
     if (surface == null) return;
-    lib.makeCurrent(surface.angleSurfaceId!);
+    final id = surface.angleSurfaceId; // Android: allocation may be pending
+    if (id == null) return;
+    lib.makeCurrent(id);
     // One G1 command per batch in F2a: `a1b_gl_dispatch` decodes one
     // opcode-prefixed command per call. The multi-command flush format is
     // delivered with facade batching (PERF-1 / IT-TRANSPORT-1, F2b).
@@ -262,6 +270,9 @@ final class AngleThreeBackend implements JsThreeHost, JsThree1BWire {
       if (Platform.environment['JSR_ANGLE_1B_LIB'] != null)
         Platform.environment['JSR_ANGLE_1B_LIB']!,
     ];
+    // --- F3a Android: the shim ships inside the APK's native library
+    // directory; the bare soname resolves there for DynamicLibrary.open.
+    if (Platform.isAndroid) candidates.add('libangle_1b.so');
     final packageRoot = Directory(
       '${Directory.current.path}/packages/jsr_three_angle',
     );
@@ -341,6 +352,34 @@ final class AngleThreeBackend implements JsThreeHost, JsThree1BWire {
     }
   }
 
+  // --- F3a Android: presentation registration (decision 4, angle_1b.md) ----
+  // createSurface(width, height) -> {textureId, nativeWindow}: the plugin
+  // owns the SurfaceTextureProducer surface; nativeWindow is the
+  // ANativeWindow pointer the shim binds its EGL window surface to (no GL
+  // texture-name sharing). Null when the plugin is absent or errors — the
+  // surface allocation turns that into the named angle1b.surface failure.
+  Future<({int textureId, int nativeWindow})?> registerAndroidSurface({
+    required int width,
+    required int height,
+  }) async {
+    try {
+      final result = await _kAngle1bChannel.invokeMethod<dynamic>(
+        'createSurface',
+        <dynamic>[width, height],
+      );
+      final textureId = result is Map ? result['textureId'] : null;
+      final nativeWindow = result is Map ? result['nativeWindow'] : null;
+      if (textureId is int && nativeWindow is int && nativeWindow != 0) {
+        return (textureId: textureId, nativeWindow: nativeWindow);
+      }
+      return null;
+    } on MissingPluginException {
+      return null;
+    } on PlatformException {
+      return null;
+    }
+  }
+
   Future<void> announceFrame(int textureId) async {
     try {
       await _kAngle1bChannel.invokeMethod<void>('frameAvailable', <dynamic>[
@@ -398,6 +437,16 @@ final class _Angle1bSurface extends JsThreeSurface {
       1,
       16384,
     );
+    // --- F3a Android: the platform texture must exist BEFORE the EGL
+    // surface (decision 4 of docs/angle_1b.md): the plugin creates the
+    // SurfaceTextureProducer surface, hands the ANativeWindow pointer over
+    // the channel, and only then can the shim bind the EGL window surface.
+    // The handshake is async; dispatch/submit treat the pending surface as
+    // no-current-surface until it lands.
+    if (Platform.isAndroid) {
+      _allocateAndroid(lib, pixelWidth, pixelHeight);
+      return;
+    }
     final iosurface = lib.allocateSurfaceIdSlot();
     final id = lib.createSurface(pixelWidth, pixelHeight, iosurface);
     if (id <= 0) {
@@ -412,6 +461,43 @@ final class _Angle1bSurface extends JsThreeSurface {
     _iosurfaceFastPath = lib.iosurfaceExtension(id) == 1;
     lib.freeAllocation(iosurface);
     _registerTexture(pixelWidth, pixelHeight);
+  }
+
+  /// F3a Android allocation: plugin createSurface -> {textureId,
+  /// nativeWindow} first, then setNativeWindow + a1b_create_surface (EGL
+  /// window surface on the ANGLE Vulkan platform display). Any failure
+  /// tears the plugin side down and throws the named angle1b.surface error.
+  Future<void> _allocateAndroid(
+    _Angle1bFfi lib,
+    int pixelWidth,
+    int pixelHeight,
+  ) async {
+    final registration = await _backend.registerAndroidSurface(
+      width: pixelWidth,
+      height: pixelHeight,
+    );
+    if (registration == null) {
+      throw const JsThreeUnsupportedException(
+        'angle1b.surface',
+        'the angle_1b plugin did not answer createSurface '
+            '(register Angle1bTexturePlugin in the Android host)',
+      );
+    }
+    lib.setNativeWindow(registration.nativeWindow);
+    final iosurface = lib.allocateSurfaceIdSlot();
+    final id = lib.createSurface(pixelWidth, pixelHeight, iosurface);
+    lib.freeAllocation(iosurface);
+    if (id <= 0) {
+      await _backend.unregisterTexture(registration.textureId);
+      throw JsThreeUnsupportedException(
+        'angle1b.surface',
+        'a1b_create_surface($pixelWidth, $pixelHeight) failed ($id)',
+      );
+    }
+    _angleSurfaceId = id;
+    _textureId = registration.textureId;
+    _iosurfaceFastPath = true; // window-surface presentation path
+    notifyListeners();
   }
 
   Future<void> _registerTexture(int pixelWidth, int pixelHeight) async {

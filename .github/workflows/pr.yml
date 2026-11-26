@@ -353,3 +353,183 @@ jobs:
           # artifact integrity: the hashes recorded by the build job
           shasum -a 256 -c SHA256SUMS
           echo "== ANGLE macos-arm64 size report: OK =="
+
+  # ==========================================================================
+  # F3a Android (issue #7, AC3 + AC10): the pinned ANGLE Vulkan builds for
+  # the three Android ABIs (matrix, cached by pin hash + ABI), the example
+  # debug APK with 1B staged, the SIZE-ANDROID-1 report, and one bounded,
+  # recorded emulator attempt of the device suite (REG-NOWEBVIEW-1 evidence
+  # or the recorded reason why the GPU backend is unavailable there).
+  # ==========================================================================
+  angle-android:
+    strategy:
+      fail-fast: false
+      matrix:
+        abi: [android-arm64, android-armv7, android-x86_64]
+    runs-on: ubuntu-latest
+    timeout-minutes: 150
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Restore pinned ANGLE build (${{ matrix.abi }})
+        id: angle-cache
+        uses: actions/cache/restore@v4
+        with:
+          path: packages/jsr_three_angle/native/angle/out/${{ matrix.abi }}
+          key: angle-${{ matrix.abi }}-${{ hashFiles('tool/three/pins/angle_pin.json') }}
+
+      - name: Build pinned ANGLE (${{ matrix.abi }}) + the libangle_1b.so shim
+        if: steps.angle-cache.outputs.cache-hit != 'true'
+        run: bash tool/build_angle.sh --platform ${{ matrix.abi }} --out packages/jsr_three_angle/native/angle/out/${{ matrix.abi }}
+
+      # Saved immediately after the build (not in a job-end post step), same
+      # rationale as the quality-macos job: a later failure must not throw
+      # the ANGLE build away. continue-on-error guards the save race.
+      - name: Save pinned ANGLE build
+        if: steps.angle-cache.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v4
+        continue-on-error: true
+        with:
+          path: packages/jsr_three_angle/native/angle/out/${{ matrix.abi }}
+          key: angle-${{ matrix.abi }}-${{ hashFiles('tool/three/pins/angle_pin.json') }}
+
+      - name: Upload ANGLE ${{ matrix.abi }} artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: angle-${{ matrix.abi }}
+          path: |
+            packages/jsr_three_angle/native/angle/out/${{ matrix.abi }}/libEGL_angle.so
+            packages/jsr_three_angle/native/angle/out/${{ matrix.abi }}/libGLESv2_angle.so
+            packages/jsr_three_angle/native/angle/out/${{ matrix.abi }}/libangle_1b.so
+            packages/jsr_three_angle/native/angle/out/${{ matrix.abi }}/SHA256SUMS
+
+  angle-android-apk:
+    needs: angle-android
+    runs-on: ubuntu-latest
+    timeout-minutes: 150
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Java 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          flutter-version: 3.47.1
+
+      - name: Accept Android SDK licenses
+        run: yes | sdkmanager --licenses >/dev/null 2>&1 || true
+
+      - name: Download the ANGLE Android artifacts
+        uses: actions/download-artifact@v4
+        with:
+          pattern: angle-android-*
+          path: angle-artifacts
+          merge-multiple: false
+
+      - name: Layout the artifacts under the out dirs
+        run: |
+          set -euo pipefail
+          for abi in android-arm64 android-armv7 android-x86_64; do
+            mkdir -p "packages/jsr_three_angle/native/angle/out/$abi"
+            cp -a "angle-artifacts/angle-$abi/." "packages/jsr_three_angle/native/angle/out/$abi/"
+          done
+          ls -la packages/jsr_three_angle/native/angle/out/*
+
+      - name: Verify artifact integrity and stage the example jniLibs
+        run: |
+          set -euo pipefail
+          for abi in android-arm64 android-armv7 android-x86_64; do
+            (cd "packages/jsr_three_angle/native/angle/out/$abi" && shasum -a 256 -c SHA256SUMS)
+          done
+          bash tool/stage_angle_android.sh
+
+      - name: Build the example debug APK with 1B
+        run: |
+          cd example
+          flutter pub get
+          # quickjs_runtime's hook still links -lpthread on Android (bionic
+          # has no libpthread) — patch the resolved pub-cache copy (see the
+          # script; dropped when the fix ships upstream).
+          bash tool/patch_quickjs_android.sh
+          flutter build apk --debug
+
+      - name: SIZE-ANDROID-1 report
+        run: bash tool/angle_size_android.sh --verify | tee angle-android-size.txt
+
+      - name: Upload APK and size report
+        uses: actions/upload-artifact@v4
+        with:
+          name: angle-android-apk
+          path: |
+            example/build/app/outputs/flutter-apk/app-debug.apk
+            angle-android-size.txt
+
+      - name: Emulator attempt (API 30 x86_64, TCG — bounded, recorded)
+        run: |
+          set -uo pipefail
+          OUT=e2e-android
+          mkdir -p "$OUT"
+          {
+            echo "## angle-android emulator attempt (API 30 x86_64, no KVM: TCG)"
+            echo "recorded $(date -u +%Y-%m-%dT%H:%M:%SZ); bounded boot (20 min) + bounded suite (20 min)"
+          } | tee "$OUT/summary.txt"
+
+          sdkmanager "system-images;android-30;default;x86_64" "platform-tools" >/dev/null
+          avdmanager create avd -n f3a -k "system-images;android-30;default;x86_64" -d pixel_5 --force >/dev/null
+
+          timeout 1200 bash -c '
+            emulator -avd f3a -no-window -no-audio -gpu swiftshader_indirect \
+              -no-boot-anim -no-snapshot -accel off &
+            adb wait-for-device
+            for i in $(seq 1 240); do
+              [ "$(adb shell getprop sys.boot_completed 2>/dev/null | tr -d "\r")" = "1" ] && exit 0
+              sleep 5
+            done
+            exit 124
+          ' > "$OUT/boot.txt" 2>&1
+          boot_rc=$?
+          pkill -f 'avd f3a' 2>/dev/null || true
+
+          if [ "$boot_rc" -ne 0 ]; then
+            echo "RESULT: EMULATOR BOOT FAILED within the 20-minute TCG bound (rc=$boot_rc)" | tee -a "$OUT/summary.txt"
+            tail -10 "$OUT/boot.txt" | tee -a "$OUT/summary.txt" || true
+            exit 0
+          fi
+          echo "RESULT: emulator booted" | tee -a "$OUT/summary.txt"
+
+          cd example
+          timeout 1200 flutter test ../test/angle1b/e2e_android_1b_test.dart \
+            -d emulator-5554 > ../e2e-android-log.txt 2>&1
+          suite_rc=$?
+          cd ..
+
+          {
+            echo "suite exit code: $suite_rc"
+            echo '```'
+            grep -E "E2E-ANDROID|ANGLE 1B probe failed|requires API" e2e-android-log.txt || true
+            tail -20 e2e-android-log.txt
+            echo '```'
+          } | tee -a "$OUT/summary.txt"
+          cp e2e-android-log.txt "$OUT/test-log.txt"
+
+          if [ "$suite_rc" -ne 0 ]; then
+            echo "::warning::the device suite failed on the emulator — recorded above; the ANGLE GPU backend may be unavailable under TCG (the plan records the reason, it does not gate)"
+          fi
+          exit 0
+
+      - name: Upload emulator attempt
+        uses: actions/upload-artifact@v4
+        with:
+          name: angle-android-emulator
+          path: |
+            e2e-android/summary.txt
+            e2e-android/boot.txt
+            e2e-android/test-log.txt
