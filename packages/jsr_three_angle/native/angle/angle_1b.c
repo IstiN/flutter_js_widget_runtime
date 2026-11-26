@@ -13,7 +13,8 @@
 #include <string.h>
 
 #include <CoreFoundation/CoreFoundation.h>
-#include <IOSurface/IOSurface.h>
+// F3b iOS: iOS-SDK-aware IOSurface include (see angle_1b_iosurface.h).
+#include "angle_1b_iosurface.h"
 
 // ---- EGL/GLES3 declarations + dynlib entry-point tables --------------------
 #include "angle_1b_gl.h"

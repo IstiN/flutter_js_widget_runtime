@@ -18,7 +18,8 @@
 // Android build (angle_1b_android.c) declares its window type below.
 #if defined(__APPLE__)
 #include <CoreFoundation/CoreFoundation.h>
-#include <IOSurface/IOSurface.h>
+// F3b iOS: iOS-SDK-aware IOSurface include (see angle_1b_iosurface.h).
+#include "angle_1b_iosurface.h"
 #endif
 
 typedef void *EGLDisplay; typedef void *EGLConfig; typedef void *EGLSurface;

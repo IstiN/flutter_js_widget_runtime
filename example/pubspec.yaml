@@ -33,12 +33,23 @@ dependencies:
   video_player: ^2.14.0
   web: ^1.1.1
 
+dependency_overrides:
+  # F3b iOS: video_player_avfoundation >=2.12.1 forwards `isolation:`
+  # arguments (Swift `#isolation`), which the macos-15 runner's Xcode
+  # 16.4 toolchain cannot compile ("Extraneous argument label 'isolation:'
+  # in call", CI run 45760230003). 2.12.0 is the newest release without
+  # it and satisfies video_player's ^2.11.0 constraint.
+  video_player_avfoundation: 2.12.0
+
 dev_dependencies:
   flutter_test:
     sdk: flutter
   flutter_lints: ^6.0.0
   # F3a Android (issue #7): the device suite runs the angle1b e2e tests on
   # an emulator or a physical device through the integration_test binding.
+  # F3b iOS (issue #7 AC3): the angle-ios CI job runs the e2e_ios device
+  # suite on the simulator from this app package (it hosts the angle_1b
+  # plugin); the canonical files live in ../test/angle1b/e2e_ios_*.
   integration_test:
     sdk: flutter
 

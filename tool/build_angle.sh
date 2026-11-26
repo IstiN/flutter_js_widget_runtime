@@ -195,6 +195,22 @@ SOURCE=$(python3 -c "import json,sys; print(json.load(open(sys.argv[1]))['source
 echo "ANGLE pin: $REVISION ($PLATFORM)"
 echo "GN args:   $PLATFORM_JSON"
 
+# F3b iOS: chromium's //build/config/apple/mobile_config.gni requires
+# target_environment for target_os=ios (run 45743144553 failed the assert
+# 'target_environment must be in ["simulator", "device", "catalyst"]').
+# The pin records the upstream-equivalent compilation args; the DEVICE
+# environment is injected here at gn-gen time. A simulator environment is
+# never built: the size evidence (SIZE-IOS-1) is the device slice, and the
+# simulator build of the example runs the stock Flutter toolchain.
+if [[ "$PLATFORM" == ios-* ]]; then
+  # ios_enable_code_signing=false: the CI runner has no signing identity
+  # (run 45748149398: find_signing_identity.py found 0 identities). The
+  # frameworks stay unsigned here; the example embed phase ad-hoc signs
+  # them at app-build time, which is all local loading needs.
+  PLATFORM_JSON="$PLATFORM_JSON target_environment=\"device\" ios_enable_code_signing=false"
+  echo "GN args:   $PLATFORM_JSON  (target_environment injected for ios)"
+fi
+
 if [[ "$CLEAN" == 1 ]]; then
   rm -rf "$BUILD_DIR"
   echo "removed $BUILD_DIR"
@@ -239,8 +255,30 @@ mkdir -p "$OUT_DIR"
 EXT="dylib"
 if [[ "$PLATFORM" == android-* ]]; then EXT="so"; fi
 for lib in libEGL libGLESv2; do
-  cp "$BUILD_DIR/$OUT_CONFIG/$lib.$EXT" "$OUT_DIR/"
+  # F3b iOS: staged by the ios-* block below (framework bundles on disk).
+  if [[ "$PLATFORM" != ios-* ]]; then
+    cp "$BUILD_DIR/$OUT_CONFIG/$lib.$EXT" "$OUT_DIR/"
+  fi
 done
+if [[ "$PLATFORM" == ios-* ]]; then
+  # F3b iOS (issue #7 AC3 / SIZE-IOS-1): GN's ios_framework_bundle emits
+  # $lib.framework/$lib for target_os=ios. Stage the Mach-O binaries as
+  # flat dylibs (re-id + ad-hoc re-sign) so the example embed step copies
+  # one file per library and ANGLE's libEGL resolves libGLESv2 via its own
+  # module directory — the macOS host layout.
+  for lib in libEGL libGLESv2; do
+    if [[ -f "$BUILD_DIR/$OUT_CONFIG/$lib.framework/$lib" ]]; then
+      cp "$BUILD_DIR/$OUT_CONFIG/$lib.framework/$lib" "$OUT_DIR/$lib.dylib"
+      install_name_tool -id "@rpath/$lib.dylib" "$OUT_DIR/$lib.dylib"
+      codesign -s - --force --timestamp=none "$OUT_DIR/$lib.dylib"
+    elif [[ -f "$BUILD_DIR/$OUT_CONFIG/$lib.dylib" ]]; then
+      cp "$BUILD_DIR/$OUT_CONFIG/$lib.dylib" "$OUT_DIR/"
+    else
+      echo "build_angle.sh: neither $lib.framework/$lib nor $lib.dylib found in $BUILD_DIR/$OUT_CONFIG" >&2
+      exit 1
+    fi
+  done
+fi
 if [[ "$PLATFORM" == android-* ]]; then
   # Android ships one merged ELF; keep the standard ANGLE names.
   echo "staged: $(ls "$OUT_DIR")"
