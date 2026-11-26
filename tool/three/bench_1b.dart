@@ -38,6 +38,40 @@ const kFrames = 300;
 const kDrawsPerFrame = 500;
 const kP95BudgetMs = 4.0;
 
+// THREAD CPU time: clock_gettime_nsec_np(CLOCK_THREAD_CPUTIME_ID) — the
+// nanoseconds the calling thread actually ran (excludes preemption by the
+// scheduler / noisy neighbors; includes JS eval, FFI, native ANGLE submit
+// and GC work on this thread). Constant = 16 per the Darwin SDK header
+// usr/include/_time.h; the boot sanity probe below re-verifies it at
+// runtime on every host (a wrong/unsupported clock id returns 0), so a
+// differing constant on a runner SDK fails loudly instead of producing
+// garbage percentiles.
+const int kClockThreadCputimeId = 16;
+final int Function(int) _threadCpuNs = ffi.DynamicLibrary.process()
+    .lookupFunction<ffi.Uint64 Function(ffi.Int32), int Function(int)>(
+      'clock_gettime_nsec_np',
+    );
+
+/// Sanity probe for the thread clock: two reads must strictly increase and
+/// a busy loop's CPU delta must stay within its wall delta (a single
+/// thread can never run ahead of the wall clock).
+void checkThreadClock() {
+  final wall = Stopwatch()..start();
+  final c0 = _threadCpuNs(kClockThreadCputimeId);
+  var sink = 0.0;
+  for (var i = 0; i < 300000; i++) {
+    sink += i * 0.5;
+  }
+  final c1 = _threadCpuNs(kClockThreadCputimeId);
+  final wallNs = wall.elapsedMicroseconds * 1000;
+  if (sink.isNaN || c0 == 0 || c1 <= c0 || c1 - c0 > wallNs) {
+    throw StateError(
+      'CLOCK_THREAD_CPUTIME_ID sanity failed (c0=$c0 c1=$c1 wall=$wallNs) '
+      '— thread CPU clock unusable on this host',
+    );
+  }
+}
+
 class Shim {
   Shim() {
     lib = ffi.DynamicLibrary.open(_resolveLib());
@@ -400,6 +434,7 @@ Future<BenchReport> run1bBench({
   Shim? shim,
   int? surface,
 }) async {
+  checkThreadClock();
   final ownShim = shim ?? Shim();
   if (shim == null && ownShim.init() != 0) {
     throw StateError('a1b_init failed (set JSR_ANGLE_DIR for the dylib dir)');
@@ -430,22 +465,28 @@ Future<BenchReport> run1bBench({
       session.evalJs('__benchFrame($draws);');
     }
     final windowReports = <BenchReport>[];
+    final windowCpuP95s = <double>[];
     for (var w = 0; w < windows; w++) {
       final samples = <double>[];
+      final cpuSamples = <double>[];
       var maxFlushes = 0;
       for (var f = 0; f < frames; f++) {
         session.dispatchCount = 0;
+        final cpu0 = _threadCpuNs(kClockThreadCputimeId);
         watch
           ..reset()
           ..start();
         session.evalJs('__benchFrame($draws);', 'frame.js');
         watch.stop();
+        final cpu1 = _threadCpuNs(kClockThreadCputimeId);
         samples.add(watch.elapsedMicroseconds / 1000.0);
+        cpuSamples.add((cpu1 - cpu0) / 1000000.0);
         if (session.dispatchCount > maxFlushes) {
           maxFlushes = session.dispatchCount;
         }
       }
       samples.sort();
+      cpuSamples.sort();
       final report = BenchReport(
         frames,
         draws,
@@ -454,10 +495,20 @@ Future<BenchReport> run1bBench({
         _percentile(samples, 0.95),
         _percentile(samples, 0.99),
       );
+      final cpuP50 = _percentile(cpuSamples, 0.50),
+          cpuP95 = _percentile(cpuSamples, 0.95),
+          cpuP99 = _percentile(cpuSamples, 0.99);
       // ignore: avoid_print
-      print('BENCH_WINDOW $w $report');
+      print('BENCH_WINDOW $w $report cpu p50=${cpuP50.toStringAsFixed(3)} '
+          'p95=${cpuP95.toStringAsFixed(3)} p99=${cpuP99.toStringAsFixed(3)}');
       windowReports.add(report);
+      windowCpuP95s.add(cpuP95);
     }
+    windowCpuP95s.sort();
+    // ignore: avoid_print
+    print('BENCH_P95_CPU_MS '
+        '${windowCpuP95s[windowCpuP95s.length ~/ 2].toStringAsFixed(3)} '
+        '(median window thread-CPU p95)');
     return _medianWindow(windowReports);
   } finally {
     session.close();
@@ -591,6 +642,10 @@ Future<void> main() async {
   // that is a real regression and the gate still fails. Within one process
   // the median-of-windows stays the estimator (windows share noise state).
   const kAttempts = 3, kRetryCooldown = Duration(seconds: 10);
+  stdout.writeln(
+    'CLOCK_THREAD_CPUTIME_ID $kClockThreadCputimeId '
+    '(clock_gettime_nsec_np; boot sanity probe runs with every bench)',
+  );
   final rawGl = await run1bRawGlFixture();
   BenchReport? report;
   for (var attempt = 1; attempt <= kAttempts; attempt++) {
