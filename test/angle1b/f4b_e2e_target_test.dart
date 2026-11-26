@@ -174,27 +174,15 @@ void main() {
   // ── E2E-TARGET-2..4 run everywhere (fake wire, no ANGLE needed) ────────
   test('E2E-TARGET-2: a missing float render target fails pipeline creation '
       'with the exact named feature (probe-forced, fake wire)', () async {
-    const widget = '''
-var results = {};
-try {
-  var cin = jsr.three.cinematic;
-  var renderer = {
-    getSize: function (v) { return v.set(320, 180); },
-    getPixelRatio: function () { return 1; },
-    setClearAlpha: function () {},
-    capabilities: {}
-  };
-  cin.createPipeline({
-    renderer: renderer, scene: new THREE.Scene(), camera: new THREE.PerspectiveCamera(),
-    effects: { bloom: true, dof: false, fxaa: false, smaa: false, colorGrade: false, film: false, vignette: false, motion: false }
-  });
-  results.created = true;
-} catch (e) {
-  results.errorName = e.name || null;
-  results.errorMessage = String((e && e.message) || e);
-}
-jsr.exportState(results);
-''';
+    final widget = onebNamedErrorWidget('''
+var cin = jsr.three.cinematic;
+$f4bRendererStub
+cin.createPipeline({
+  renderer: renderer, scene: new THREE.Scene(), camera: new THREE.PerspectiveCamera(),
+  $f4bPipelineEffects
+});
+results.created = true;
+''');
     final counting = _CountingCaptureHost();
     final (w, _, state) = await run1bWidgetEngine(
       widget,
@@ -229,33 +217,21 @@ jsr.exportState(results);
 
   test('E2E-TARGET-3: a missing MRT capability fails pipeline creation with '
       'the exact named feature (probe-forced, fake wire)', () async {
-    const widget = '''
-var results = {};
-try {
-  var cin = jsr.three.cinematic;
-  var caps = new cin.CinematicCapabilitySet({
-    halfFloatTargets: true, mrt: false, mipTargets: false, smaa: false,
-    lut: false, bokeh: false, bloom: false, film: false, vignette: false,
-    motionBlurAccum: false, pmrem: false, cubeCamera: false
-  }, 'web');
-  var renderer = {
-    getSize: function (v) { return v.set(320, 180); },
-    getPixelRatio: function () { return 1; },
-    setClearAlpha: function () {},
-    capabilities: {}
-  };
-  cin.createPipeline({
-    renderer: renderer, scene: new THREE.Scene(), camera: new THREE.PerspectiveCamera(),
-    capabilities: caps,
-    effects: { bloom: true, dof: false, fxaa: false, smaa: false, colorGrade: false, film: false, vignette: false, motion: false }
-  });
-  results.created = true;
-} catch (e) {
-  results.errorName = e.name || null;
-  results.errorMessage = String((e && e.message) || e);
-}
-jsr.exportState(results);
-''';
+    final widget = onebNamedErrorWidget('''
+var cin = jsr.three.cinematic;
+var caps = new cin.CinematicCapabilitySet({
+  halfFloatTargets: true, mrt: false, mipTargets: false, smaa: false,
+  lut: false, bokeh: false, bloom: false, film: false, vignette: false,
+  motionBlurAccum: false, pmrem: false, cubeCamera: false
+}, 'web');
+$f4bRendererStub
+cin.createPipeline({
+  renderer: renderer, scene: new THREE.Scene(), camera: new THREE.PerspectiveCamera(),
+  capabilities: caps,
+  $f4bPipelineEffects
+});
+results.created = true;
+''');
     final (w, _, state) = await run1bWidgetEngine(
       widget,
       threeSource: bundle,

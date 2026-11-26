@@ -45,7 +45,7 @@ void main() {
     wires.add(wire);
     final host = makeCaptureHost(wire);
     final (_, sel, state, logs) = await run1bRealEngine(
-      '$caseSource\n$_glue',
+      '$caseSource\n$f4bBatteryGlue',
       bundle,
       width: 320,
       height: 180,
@@ -53,13 +53,7 @@ void main() {
       exportTimeout: const Duration(seconds: 30),
       wire: wire,
     );
-    expect(sel?.isAngle1b, isTrue, reason: 'the battery runs on native 1B');
-    expect(
-      widgetErrorLogs(logs),
-      isEmpty,
-      reason: 'no composite error may reach the __jsr_log lane',
-    );
-    expect(state?['fatal'], isNull, reason: '${state?['fatal']}');
+    f4bExpectBatteryLeg(sel, logs, state);
     return state;
   }
 
@@ -79,7 +73,7 @@ void main() {
     () async {
       final s = await state();
       if (missing != null) return;
-      _expectChecksAll(s, ['directSeekEqualsSequential']);
+      f4bExpectChecksAll(s, ['directSeekEqualsSequential']);
       final seq = (s!['seq'] as List).cast<String>();
       expect(s['direct12'], seq[12]);
     },
@@ -93,7 +87,7 @@ void main() {
     () async {
       final s = await state();
       if (missing != null) return;
-      _expectChecksAll(s, ['reversedSeekMatches', 'repeatedSeekMatches']);
+      f4bExpectChecksAll(s, ['reversedSeekMatches', 'repeatedSeekMatches']);
       final seq = (s!['seq'] as List).cast<String>();
       expect(s['rev0'], seq[0]);
       final rep = (s['rep5'] as List).cast<String>();
@@ -109,7 +103,7 @@ void main() {
     () async {
       final s = await state();
       if (missing != null) return;
-      _expectChecksAll(s, ['frozenClockIdentical']);
+      f4bExpectChecksAll(s, ['frozenClockIdentical']);
       final seq = (s!['seq'] as List).cast<String>();
       final frozen = (s['frozen7'] as List).cast<String>();
       expect(frozen.toSet().single, seq[7]);
@@ -162,7 +156,7 @@ void main() {
     () async {
       final s = await state();
       if (missing != null) return;
-      _expectChecksAll(s, ['hostDelayNeutral']);
+      f4bExpectChecksAll(s, ['hostDelayNeutral']);
       final seq = (s!['seq'] as List).cast<String>();
       final delayed = (s['delay6'] as List).cast<String>();
       for (var k = 0; k <= 6; k++) {
@@ -179,7 +173,7 @@ void main() {
     () async {
       final s = await state();
       if (missing != null) return;
-      _expectChecksAll(s, [
+      f4bExpectChecksAll(s, [
         'directSeekEqualsSequential',
         'reversedSeekMatches',
         'repeatedSeekMatches',
@@ -194,19 +188,6 @@ void main() {
     skip: missing,
     timeout: const Timeout(Duration(minutes: 5)),
   );
-}
-
-void _expectChecksAll(Map<String, dynamic>? s, List<String> names) {
-  expect(s, isNotNull);
-  final checks = (s!['checks'] as List).cast<Map<String, dynamic>>();
-  for (final name in names) {
-    final c = checks.firstWhere(
-      (c) => c['name'] == name,
-      orElse: () => <String, dynamic>{},
-    );
-    expect(c, isNotEmpty, reason: 'check $name present in the battery report');
-    expect(c['ok'], isTrue, reason: '$name: ${c['detail']}');
-  }
 }
 
 /// The FNV-1a int as the same '0x%08x' string the widget-side battery
@@ -256,24 +237,3 @@ class _SurfaceCaptureHost extends JsCinematicCaptureHost {
     }
   }
 }
-
-/// The native glue around the shared battery: leg-provided sleep (real
-/// timers, the delay lane of IT-CLOCK-2) and the barrier capture through
-/// pipeline.captureFrame(clock) -> __jsr_capture -> the Dart host above.
-const String _glue = '''
-var __f4b = null;
-try {
-  __f4b = globalThis.__f4bBattery(globalThis.THREE, jsr.three.cinematic, {
-    sleep: function (ms) { return new Promise(function (res) { setTimeout(res, ms); }); },
-    captureFrame: function (clock, pipeline) {
-      return pipeline.captureFrame(clock).then(
-        function (res) { return { ok: true, frame: clock.frame, path: (res && res.path) || null }; },
-        function (e) { return { ok: false, error: (e && e.name) || String(e) }; });
-    }
-  });
-} catch (e) {
-  jsr.exportState({ fatal: String((e && e.message) || e) });
-}
-Promise.resolve(__f4b).then(function (r) { jsr.exportState(r || { fatal: 'battery returned nothing' }); },
-  function (e) { jsr.exportState({ fatal: String((e && e.message) || e) }); });
-''';

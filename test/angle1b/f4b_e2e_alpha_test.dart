@@ -2,7 +2,6 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:js_widget_runtime/js_widget_runtime.dart';
 
 import '../../tool/three/bench_1b.dart' show Shim;
 import '../support/three_1b_engine.dart';
@@ -36,19 +35,13 @@ void main() {
       ..facadeBootstrapOverride = real1bFacadeBootstrap();
     wires.add(wire);
     final (w, sel, state, logs) = await run1bRealEngine(
-      '$caseSource\n$_glue',
+      '$caseSource\n$f4bBatteryGlue',
       bundle,
       width: 320,
       height: 180,
       exportTimeout: const Duration(seconds: 30),
     );
-    expect(sel?.isAngle1b, isTrue, reason: 'the battery runs on native 1B');
-    expect(
-      widgetErrorLogs(logs),
-      isEmpty,
-      reason: 'no composite error may reach the __jsr_log lane',
-    );
-    expect(state?['fatal'], isNull, reason: '${state?['fatal']}');
+    f4bExpectBatteryLeg(sel, logs, state);
     return state;
   }
 
@@ -146,21 +139,12 @@ void main() {
 }
 
 void _assertAlphaContract(Map<String, dynamic> s, String leg) {
-  final checks = (s['checks'] as List).cast<Map<String, dynamic>>();
-  const names = [
+  f4bExpectChecksAll(s, const [
     'alphaMeaningful',
     'compositesDifferWhereTransparent',
     'glCompositeMatchesExpectation',
     'opaqueSceneStaysOpaque',
-  ];
-  for (final name in names) {
-    final c = checks.firstWhere(
-      (c) => c['name'] == name,
-      orElse: () => <String, dynamic>{},
-    );
-    expect(c, isNotEmpty, reason: '$leg: check $name present');
-    expect(c['ok'], isTrue, reason: '$leg: $name: ${c['detail']}');
-  }
+  ], leg: leg);
   final alpha = s['alpha'] as Map<String, dynamic>;
   expect(
     (alpha['partialPixels'] as num).toInt(),
@@ -201,23 +185,3 @@ void _assertAlphaContract(Map<String, dynamic> s, String leg) {
     reason: '$leg: an opaque scene is background-independent',
   );
 }
-
-/// The native glue around the shared battery (same contract as the web
-/// driver; the legs differ only in io.sleep and the capture hook).
-const String _glue = '''
-var __f4b = null;
-try {
-  __f4b = globalThis.__f4bBattery(globalThis.THREE, jsr.three.cinematic, {
-    sleep: function (ms) { return new Promise(function (res) { setTimeout(res, ms); }); },
-    captureFrame: function (clock, pipeline) {
-      return pipeline.captureFrame(clock).then(
-        function (res) { return { ok: true, frame: clock.frame, path: (res && res.path) || null }; },
-        function (e) { return { ok: false, error: (e && e.name) || String(e) }; });
-    }
-  });
-} catch (e) {
-  jsr.exportState({ fatal: String((e && e.message) || e) });
-}
-Promise.resolve(__f4b).then(function (r) { jsr.exportState(r || { fatal: 'battery returned nothing' }); },
-  function (e) { jsr.exportState({ fatal: String((e && e.message) || e) }); });
-''';
