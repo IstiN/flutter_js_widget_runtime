@@ -18,7 +18,7 @@ export JSR_WEBGL_REF_CHANNEL="${JSR_WEBGL_REF_CHANNEL:-chrome}"
 export JSR_F4C1_DIR="${JSR_F4C1_DIR:-/tmp/f4c1}"
 
 if [ "$MODE" = "compare" ]; then
-  node tool/three/cases_f4c1/ref_f4c1_web.cjs compare --dir "$JSR_F4C1_DIR"
+  node tool/three/cases_f4c1/ref_f4c1_web.cjs compare --dir "$JSR_F4C1_DIR" "${@:2}"
   exit $?
 fi
 

@@ -147,7 +147,12 @@ async function web() {
 function compare() {
   const rows = [];
   let identical = 0, tolerance = 0, fail = 0, missing = 0;
-  for (const cp of TIER_CHECKPOINTS) {
+  // --only cp1,cp2 scopes the measurement to the caller's checkpoints (each
+  // Dart test file owns a subset; unowned pairs would count as MISSING on a
+  // clean output directory). No option = all checkpoints.
+  const only = opt('only', '').split(',').filter(Boolean);
+  const cps = only.length > 0 ? only : TIER_CHECKPOINTS;
+  for (const cp of cps) {
     const oneb = path.join(kDir, 'oneb_' + cp + '.rgba');
     const web = path.join(kDir, 'web_' + cp + '.rgba');
     if (!fs.existsSync(oneb) || !fs.existsSync(web)) {

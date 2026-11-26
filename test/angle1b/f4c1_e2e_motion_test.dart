@@ -133,10 +133,10 @@ void main() {
     'the 1B pixels within the corpus tier logic',
     () async {
       final state = await run1b();
-      writeOnebDumps(state);
+      writeOnebDumps(state, ['m_sh05']);
       final webOut = await runF4c1WebAndCompare();
       expect(webOut, contains('F4C1_WEB_OK'));
-      final cmpOut = await runF4c1Compare();
+      final cmpOut = await runF4c1Compare(['m_sh05']);
       final summary = RegExp(
         r'F4C1_SUMMARY total=(\d+) identical=(\d+) tolerance=(\d+) fail=(\d+) missing=(\d+)',
       ).firstMatch(cmpOut);

@@ -85,10 +85,10 @@ void main() {
     'WebGL2 reference within the corpus tier logic',
     () async {
       final state = await run1b();
-      writeOnebDumps(state);
+      writeOnebDumps(state, ['ai_seq24']);
       final webOut = await runF4c1WebAndCompare();
       expect(webOut, contains('F4C1_WEB_OK'));
-      final cmpOut = await runF4c1Compare();
+      final cmpOut = await runF4c1Compare(['ai_seq24']);
       expect(
         cmpOut,
         isNot(contains('fail=0') == false),

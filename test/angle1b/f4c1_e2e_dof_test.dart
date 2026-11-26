@@ -86,10 +86,10 @@ void main() {
     'within the corpus tier logic',
     () async {
       final state = await run1b();
-      writeOnebDumps(state);
+      writeOnebDumps(state, ['dof_near', 'fr_on']);
       final webOut = await runF4c1WebAndCompare();
       expect(webOut, contains('F4C1_WEB_OK'));
-      final cmpOut = await runF4c1Compare();
+      final cmpOut = await runF4c1Compare(['dof_near', 'fr_on']);
       final summary = RegExp(
         r'F4C1_SUMMARY total=(\d+) identical=(\d+) tolerance=(\d+) fail=(\d+) missing=(\d+)',
       ).firstMatch(cmpOut);
