@@ -72,14 +72,20 @@ OUT=$(cd "$CLEAN" && JSR_SHOWCASE_LEGACY_BUNDLE="$STAGE/legacy/cinematic_bundle.
   bash tool/three/showcase_1b.sh 2>&1) || { echo "$OUT"; echo '[clean] FAIL: showcase_1b.sh failed in the export'; exit 1; }
 echo "$OUT"
 
-MATCH=$(python3 - "$CLEAN/tool/three/showcase_checkpoints.json" <<PYEOF
+OUTF="$CLEAN/showcase.out"
+printf '%s\n' "$OUT" > "$OUTF"
+MATCH=$(python3 - "$CLEAN/tool/three/showcase_checkpoints.json" "$OUTF" <<PYEOF
 import json, re, sys
 ref = json.load(open(sys.argv[1]))['checkpoints']
 seen = {}
-for line in sys.stdin.read().splitlines():
+for line in open(sys.argv[2]).read().splitlines():
     m = re.match(r'SHOWCASE_CHECKPOINT (\S+) legacy=\S+ core=(\S+) match=\S+', line)
     if m:
         seen[m.group(1)] = m.group(2)
+missing = [cid for cid in ref if cid not in seen]
+if missing:
+    print('unparsed checkpoints: ' + ', '.join(missing))
+    raise SystemExit(2)
 match = sum(1 for cid, h in ref.items() if seen.get(cid) == h)
 print(match)
 PYEOF
