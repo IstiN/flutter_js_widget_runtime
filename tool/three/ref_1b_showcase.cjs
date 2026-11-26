@@ -134,6 +134,10 @@ async function runCheckpoint(variant, cp) {
   const gl = renderer.getContext();
   const px = new Uint8Array(${W} * ${H} * 4);
   gl.readPixels(0, 0, ${W}, ${H}, gl.RGBA, gl.UNSIGNED_BYTE, px);
+  let uniform = true; // every pixel identical = nothing rendered (black-composer class)
+  for (let i = 4; i < px.length; i += 4) {
+    if (px[i] !== px[0] || px[i + 1] !== px[1] || px[i + 2] !== px[2] || px[i + 3] !== px[3]) { uniform = false; break; }
+  }
   let hash = 0x811c9dc5;
   for (let i = 0; i < px.length; i++) {
     hash ^= px[i];
@@ -143,7 +147,7 @@ async function runCheckpoint(variant, cp) {
   renderer.dispose();
   const lose = gl.getExtension('WEBGL_lose_context');
   if (lose) lose.loseContext();
-  return { hash: '0x' + (hash >>> 0).toString(16).padStart(8, '0'), unsupported: pipeline.unsupported };
+  return { hash: '0x' + (hash >>> 0).toString(16).padStart(8, '0'), uniform: uniform, unsupported: pipeline.unsupported };
 }
 globalThis.__runCheckpoint = runCheckpoint;
 globalThis.__VARIANTS = {
@@ -219,6 +223,7 @@ globalThis.__VARIANTS = {
     }));
 
     let match = 0;
+    let uniformFail = false;
     for (const cp of CHECKPOINTS) {
       const result = await page.evaluate(async ({ cp }) => {
         const legacy = await globalThis.__runCheckpoint(globalThis.__VARIANTS.legacy, cp);
@@ -226,6 +231,13 @@ globalThis.__VARIANTS = {
         return { legacy: legacy, core: core };
       }, { cp });
       const ok = result.legacy.hash === result.core.hash;
+      const uniformLeg = result.legacy.uniform || result.core.uniform;
+      if (uniformLeg) {
+        uniformFail = true;
+        console.log('SHOWCASE_UNIFORM_FRAME ' + cp.id +
+          ' legacy=' + result.legacy.hash + ' core=' + result.core.hash +
+          ' — checkpoint frame is uniform (every pixel identical): nothing rendered; failing the leg');
+      }
       if (ok) match++;
       console.log(
         'SHOWCASE_CHECKPOINT ' + cp.id +
@@ -239,7 +251,7 @@ globalThis.__VARIANTS = {
       }
     }
     console.log('SHOWCASE_SUMMARY checkpoints=' + CHECKPOINTS.length + ' match=' + match);
-    if (match !== CHECKPOINTS.length) process.exit(1);
+    if (match !== CHECKPOINTS.length || uniformFail) process.exit(1);
     process.exit(0);
   } finally {
     await browser.close();

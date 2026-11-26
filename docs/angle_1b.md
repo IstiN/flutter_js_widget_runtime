@@ -1459,7 +1459,11 @@ invoking checkout and the clean-export leg (legacy bundle materialized
 from the pinned base commit in the invoking checkout, handed over via
 `JSR_SHOWCASE_LEGACY_BUNDLE`) — and requires bit-exact checkpoint equality
 between the two legs; each leg additionally holds legacy == core
-(`showcase_1b.sh` exits 1 otherwise). Prints
+(`showcase_1b.sh` exits 1 otherwise). Since the F4 final merge the
+reference leg's readback snippet (`tool/three/ref_1b_showcase.cjs`) also
+fails the leg when any checkpoint frame is uniform (every pixel identical
+— the black-composer class), so two bit-equal uniform frames cannot pass
+the gate. Prints
 `SHOWCASE_CLEAN_SUMMARY checkpoints=4 match=<n>` and exits non-zero on any
 difference. CI: one new step appended at the end
 of the `quality-macos` job ("F4h clean-checkout showcase reproduction").
