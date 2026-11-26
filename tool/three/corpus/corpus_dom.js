@@ -593,7 +593,11 @@
           // web branch must not flood __corpusErrors with per-frame
           // "Couldn't load texture" retries).
           var reg = __blobRegistry[url];
+          // data: URLs (e.g. SMAAPass's embedded area/search textures) carry
+          // their own bytes — decode natively, like a real browser.
+          var dataM = /^data:[^;,]+;base64,(.*)$/.exec(String(currentSrc));
           var bytesPromise = reg ? Promise.resolve(reg.__bytes)
+            : dataM ? Promise.resolve(g.__b64toBytes(dataM[1]))
             : Promise.resolve(g.__assetReadRaw(g.__resolveAssetPath(currentSrc))).then(function (raw) {
                 if (raw == null) throw new Error('asset not found: ' + url);
                 return typeof raw === 'string' ? g.__b64toBytes(raw) : raw;
@@ -638,9 +642,15 @@
           });
           return;
         }
-        var path = g.__resolveAssetPath(url);
+        var dataM = /^data:[^;,]+;base64,(.*)$/.exec(String(url));
         Promise.resolve().then(function () {
-          return g.__decodeImage(path, null, false);
+          if (dataM) {
+            // data: URL (e.g. SMAAPass's embedded area/search textures):
+            // decode the embedded bytes directly — a real browser decodes
+            // these natively; the flattened-asset lane is not involved.
+            return g.__decodeImage(g.__b64toBytes(dataM[1]), 'image/png', false);
+          }
+          return g.__decodeImage(g.__resolveAssetPath(url), null, false);
         }).then(function (decoded) {
           img.width = decoded.width; img.height = decoded.height;
           img.data = decoded.data; img.naturalWidth = decoded.width; img.naturalHeight = decoded.height;
