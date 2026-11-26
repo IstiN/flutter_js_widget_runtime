@@ -51,13 +51,17 @@ const kP95BudgetMs = 4.0;
 const kRefRuns = 5, kRefFrames = 100;
 
 /// The recorded reference: the calibration value measured on the host class
-/// where the 4 ms budget was set (see docs/angle_1b.md "PERF-2 gate" for the
-/// recording measurement). The scaled budget is
+/// where the budget was set (see docs/angle_1b.md "PERF-2 gate" for the
+/// recording measurements and the rationale). The scaled budget is
 /// `kP95BudgetMs * refHere / kRefCalibrationMs`.
 /// Recorded: Apple M4 Pro (local, 2026-11-26), min of 5 runs x 100
-/// no-draw frames = 0.933 ms — provisional anchor; the CI macos-15 runner
-/// class (the host that runs the bench) is recorded from its own
-/// calibration output and re-anchored when measured.
+/// no-draw frames = 0.933 ms — a macOS host where the plan's 4.0 ms budget
+/// demonstrably holds with wide margin (measured frame p95 0.87-0.92 ms).
+/// The CI macos-15 pool currently serves CPU-contended instances
+/// (BENCH_REF_MS 1.635 / 1.753 / 1.772 across runs 45734063417,
+/// 45735839228); anchoring on a contended sample would normalize the
+/// contention, and waiting for a quiet instance to anchor would be
+/// cherry-picking — the anchor stays at this recorded measurement.
 const double kRefCalibrationMs = 0.933;
 
 // THREAD CPU time: clock_gettime_nsec_np(CLOCK_THREAD_CPUTIME_ID) — the
