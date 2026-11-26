@@ -12,9 +12,13 @@
 # Usage: bash packages/jsr_three_angle/native/angle/build_ios.sh [<out-dir>]
 #   default out-dir: out/ios-arm64 (the CI-staged location)
 set -euo pipefail
+# Resolve OUT against the caller's cwd BEFORE cd-ing into the script dir:
+# the CI job passes a workspace-relative path (run 45757020075 built into
+# a nested duplicate path when OUT stayed relative past the cd).
+OUT="${1:-out/ios-arm64}"
+case "$OUT" in /*) ;; *) OUT="$PWD/$OUT" ;; esac
 cd "$(dirname "$0")"
 
-OUT="${1:-out/ios-arm64}"
 SDK=$(xcrun -sdk iphoneos --show-sdk-path)
 [[ -d "$SDK" ]] || { echo "build_ios.sh: iphoneos SDK not found" >&2; exit 1; }
 # The iPhoneOS SDK carries no public IOSurface header (verified Xcode 16.4 /
