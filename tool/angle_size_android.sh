@@ -49,7 +49,8 @@ for platform in android-arm64 android-armv7 android-x86_64; do
   read expected_machine expected_page <<< "$(machine_for "$platform")"
 
   if [[ "$VERIFY" == 1 ]]; then
-    (cd "$dir" && shasum -a 256 -c SHA256SUMS >/dev/null) \
+    (cd "$dir" &&
+      { shasum -a 256 -c SHA256SUMS >/dev/null 2>&1 || sha256sum -c SHA256SUMS >/dev/null; }) \
       || { echo "$platform: SHA256SUMS mismatch (REG-SUPPLY-1)"; fail=1; }
   fi
 
