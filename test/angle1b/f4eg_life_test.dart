@@ -29,8 +29,7 @@ void main() {
     'Shader',
   ];
 
-  final lifecycleWidget =
-      '''
+  final lifecycleWidget = '''
 var results = { cycles: 0, errors: [], deltas: {}, contextClean: true, lastCalls: 0 };
 var KINDS = ['Texture', 'Framebuffer', 'Renderbuffer', 'Program', 'Buffer', 'Shader'];
 function liveDelta(stats) {
@@ -59,10 +58,14 @@ try {
   var sizes = [32, 40, 48, 56, 64];
   var lose = gl.getExtension('WEBGL_lose_context');
   for (var i = 0; i < 100; i++) {
-    // create: the scene content is per-cycle (the shared cube template of
-    // the engine helper renders it once), so pipeline.dispose owns and
+    // create: the scene content is per-cycle, so pipeline.dispose owns and
     // releases every geometry, material and program the cycle created
-${onebRenderCubeJs('0x00ff00')}
+    var scene = new THREE.Scene();
+    var camera = new THREE.PerspectiveCamera(50, 1, 0.1, 100);
+    camera.position.z = 3;
+    scene.add(new THREE.Mesh(
+      new THREE.BoxGeometry(1, 1, 1),
+      new THREE.MeshBasicMaterial({ color: 0x00ff00 })));
     var pipeline = cin.createPipeline({
       renderer: renderer, scene: scene, camera: camera, effects: { bloom: true }
     });

@@ -27,7 +27,12 @@ try {
   var canvas = jsr.three.createCanvas('ctxcine');
   var renderer = new THREE.WebGLRenderer({ canvas: canvas, antialias: false });
   renderer.setSize(64, 64, false);
-${onebRenderCubeJs('0x00ff00')}
+  var scene = new THREE.Scene();
+  var camera = new THREE.PerspectiveCamera(50, 1, 0.1, 100);
+  camera.position.z = 3;
+  scene.add(new THREE.Mesh(
+    new THREE.BoxGeometry(1, 1, 1),
+    new THREE.MeshBasicMaterial({ color: 0x00ff00 })));
   var pipeline = cin.createPipeline({
     renderer: renderer, scene: scene, camera: camera, effects: { bloom: true }
   });
