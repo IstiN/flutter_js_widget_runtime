@@ -2,7 +2,6 @@ import 'package:flutter_test/flutter_test.dart';
 
 import '../../tool/three/bench_1b.dart' show Shim;
 import '../support/f4c1_widget_helper.dart';
-import '../support/three_1b_engine.dart';
 
 // E2E-MOTION-* (issue #8, segment F4c1, ADR-0004 decision 5, ADR-0005): the
 // JSR-owned CinematicMotionBlurPass on native 1B (real ANGLE wire) and on
@@ -22,21 +21,8 @@ import '../support/three_1b_engine.dart';
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
   final missing = Shim.resolveProblem();
-  final bundle = f4c1Bundle();
-  final widget = f4c1Widget();
 
-  Future<Map<String, dynamic>> run1b() async {
-    final (wire, reported, state, logs) = await run1bRealEngine(
-      widget,
-      bundle,
-      width: 96,
-      height: 64,
-    );
-    addTearDown(wire.dispose);
-    expect(reported?.isAngle1b, isTrue, reason: 'the 1B lane is required');
-    expect(widgetErrorLogs(logs), isEmpty, reason: 'no engine-level errors');
-    return f4c1State(state);
-  }
+  Future<Map<String, dynamic>> run1b() => runF4c1On1B(missing);
 
   test(
     'E2E-MOTION-1: the CinematicMotionBlurPass runs on native 1B '

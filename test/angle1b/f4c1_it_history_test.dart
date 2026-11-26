@@ -2,7 +2,6 @@ import 'package:flutter_test/flutter_test.dart';
 
 import '../../tool/three/bench_1b.dart' show Shim;
 import '../support/f4c1_widget_helper.dart';
-import '../support/three_1b_engine.dart';
 
 // IT-HISTORY-* (issue #8, segment F4c1): the stock AfterimagePass on 1B with
 // CinematicHistory reset + bounded reconstruction. The widget program runs
@@ -22,21 +21,8 @@ import '../support/three_1b_engine.dart';
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
   final missing = Shim.resolveProblem();
-  final bundle = f4c1Bundle();
-  final widget = f4c1Widget();
 
-  Future<Map<String, dynamic>> run1b() async {
-    final (wire, reported, state, logs) = await run1bRealEngine(
-      widget,
-      bundle,
-      width: 96,
-      height: 64,
-    );
-    addTearDown(wire.dispose);
-    expect(reported?.isAngle1b, isTrue);
-    expect(widgetErrorLogs(logs), isEmpty);
-    return f4c1State(state);
-  }
+  Future<Map<String, dynamic>> run1b() => runF4c1On1B(missing);
 
   test(
     'IT-HISTORY-1: resetHistory + direct seek reconstructs the declared '

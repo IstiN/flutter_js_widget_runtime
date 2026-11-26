@@ -1,12 +1,38 @@
 import 'dart:convert';
 import 'dart:io';
 
+import 'package:flutter_test/flutter_test.dart';
+
+import 'three_1b_engine.dart';
+
 // Shared F4c1 harness (issue #8, segment F4c1): assembles the checkpoint
 // widget for the engine/1B legs from the SAME sources the web leg runs —
 // tool/three/cases_f4c1/scene_f4c1.js + widget_f4c1.js (one implementation of
 // the checkpoint program on both lanes) — runs it through the real engine
 // stack, and persists the exported pixel dumps for the tier compare.
 const kF4c1Dir = '/tmp/f4c1';
+
+/// Runs the checkpoint widget on the real 1B engine stack (ANGLE wire) and
+/// returns the exported state. Shared by the three F4c1 Dart test files —
+/// one implementation, no per-file copies. [missing] is the caller's
+/// `Shim.resolveProblem()` skip reason; the caller declares `skip:` itself.
+Future<Map<String, dynamic>> runF4c1On1B(String? missing) async {
+  final (wire, reported, state, logs) = await run1bRealEngine(
+    f4c1Widget(),
+    f4c1Bundle(),
+    width: 96,
+    height: 64,
+  );
+  addTearDown(wire.dispose);
+  expect(
+    missing,
+    isNull,
+    reason: 'the caller must skip when 1B is unavailable',
+  );
+  expect(reported?.isAngle1b, isTrue, reason: 'the 1B lane is required');
+  expect(widgetErrorLogs(logs), isEmpty, reason: 'no engine-level errors');
+  return f4c1State(state);
+}
 
 String f4c1Bundle() => File('assets/three/jsr_three_web.js').readAsStringSync();
 
