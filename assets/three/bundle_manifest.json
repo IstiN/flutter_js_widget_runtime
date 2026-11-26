@@ -13,12 +13,16 @@
     "notice": "assets/three/THREE_LICENSE"
   },
   "build": {
-    "tool": "esbuild-wasm",
+    "tool": "esbuild",
     "esbuildVersion": "0.25.5",
     "format": "iife",
     "global": "THREE",
     "target": "es2020",
     "minify": true,
+    "builderHost": {
+      "platform": "darwin",
+      "arch": "arm64"
+    },
     "command": "node tool/three/build.mjs --source /tmp/jsr-three-r186",
     "verifyCommand": "node tool/three/build.mjs --source /tmp/jsr-three-r186 --verify",
     "sourceEnvironment": "THREE_SRC may replace --source /tmp/jsr-three-r186",
@@ -39,9 +43,9 @@
       "tool/three/src/web_entry.js": "538a1625cffb9539d70055b173c98320799457a9c5e7b5a4c0577c22841cd3ad",
       "tool/three/src/web_renderer.js": "2b808b22123fce8e49b9ed8d76f75872199efb527b477e202f295ed6a244819c",
       "tool/three/src/webgl2_facade.js": "899fd9f9b194d662afc4ab8ba48c589fc9602117408f29dcdd35282990d1bfbd",
-      "tool/three/build.mjs": "5ff9eb3f0d65ccec09dddffe9343d7485253d78be52cd0d4df551a608885572a",
-      "tool/three/package.json": "b5f85dc2ccc22fa485d10a3de11c1c2735e235d3408700401ba486921a5122c1",
-      "tool/three/package-lock.json": "ee43ebabc921ed90a22223abd04b264f40201c1ecfe49a3be3fd70d9fc77def2",
+      "tool/three/build.mjs": "2568cf67b5edd72f80e3465e0e005707cae48b39fce36b6c0da72a8fce30c2c9",
+      "tool/three/package.json": "930b051df9b8c506454009108aa6f0055855b1c59cd481f3f592ad9530ce37cb",
+      "tool/three/package-lock.json": "f0507fde83eefa84d2a088e6ecc3b2cd1e65f49c9df7bd6d0783d0f1b352cff3",
       "tool/three/source-pin.json": "29492424209a17a723b3b0c8e9c83995697a4c466840d1b33ba6f6ff2b7542a4",
       "upstreamLicense": "8b378ebe60e2fe500158cb0ac71cb5e8b7d92953c2abcc63a0eb90499653b5bc"
     },
