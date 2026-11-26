@@ -561,8 +561,11 @@ job green; the emulator result is host evidence, never a device claim
 `tool/angle_size_android.sh` prints, per ABI and library: raw/stripped
 size, gzip size, ELF machine (arch), minimum load-segment alignment, no
 debug sections (no debug slice), no Mach-O (no simulator slice), no
-SwiftShader strings (`angle_enable_swiftshader=false` in the pin), and the
-budgets — <= 10 MiB installed (sum of stripped libraries) and <= 5 MiB gzip
-per ABI. arm64-v8a requires 16 KiB load-segment alignment (Android 15 page
-size), armv7/x86_64 >= 4 KiB. A violation fails the job; nothing is
-re-measured or excluded.
+SwiftShader backend markers (the pin sets `angle_enable_swiftshader=false`;
+the check fails on `vk_swiftshader*` ICD/loader names — the ANGLE device-type
+and extension literals are always compiled in and are not a backend), and
+the budgets — <= 10 MiB installed (sum of stripped libraries) and <= 5 MiB
+gzip per ABI. arm64-v8a requires 16 KiB load-segment alignment (Android 15
+page size; the shim is linked with `-Wl,-z,max-page-size=16384`), armv7/
+x86_64 >= 4 KiB. A violation fails the job; nothing is re-measured or
+excluded.

@@ -76,9 +76,15 @@ for platform in android-arm64 android-armv7 android-x86_64; do
     debug_sections=$("$READELF" -S "$f" | grep -c '\.debug' || true)
     ((debug_sections == 0)) || elf_ok=0
 
-    # SwiftShader slice: the pin builds angle_enable_swiftshader=false and
-    # the SwiftShader compiler would carry its name strings.
-    swift=$({ strings "$f" || true; } | grep -ci swiftshader || true)
+    # SwiftShader slice: the pin builds angle_enable_swiftshader=false, so
+    # the SwiftShader rasterizer and its ICD loader must be absent. A
+    # SwiftShader-enabled ANGLE build loads the ICD through vk_swiftshader*
+    # names/paths — those markers fail this check. The bare literals
+    # ("SwiftShader Device", the EGL_ANGLE_platform_angle_device_type_
+    # swiftshader extension name) are ANGLE identification strings that are
+    # always compiled in and are NOT a SwiftShader backend.
+    swift=$({ strings "$f" || true; } |
+      grep -icE 'vk_swiftshader|swiftshader(_icd|\.json|\.so|/)' || true)
 
     # minimum load-segment alignment over all LOAD segments.
     align_dec=$(python3 -c '
@@ -91,7 +97,7 @@ print(min(vals) if vals else 0)
 
     verdict=ok
     ((elf_ok == 1)) || { verdict="ELF/arch/debug FAIL"; fail=1; }
-    ((swift == 0)) || { verdict="SwiftShader strings FAIL"; fail=1; }
+    ((swift == 0)) || { verdict="SwiftShader backend FAIL"; fail=1; }
     ((align_dec >= min_align)) || { verdict="alignment FAIL"; fail=1; }
 
     printf '%-14s %-20s %10d %10d %8d %8s %s\n' \

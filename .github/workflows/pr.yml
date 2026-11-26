@@ -383,6 +383,13 @@ jobs:
         if: steps.angle-cache.outputs.cache-hit != 'true'
         run: bash tool/build_angle.sh --platform ${{ matrix.abi }} --out packages/jsr_three_angle/native/angle/out/${{ matrix.abi }}
 
+      # Always rebuild the shim from the committed sources — also on a cache
+      # hit — so the staged artifact follows tool/build_angle.sh (link flags,
+      # NDK) and never a stale cached shim. The cache below therefore stores
+      # the fresh shim too.
+      - name: Rebuild the libangle_1b.so shim (also on cache hits)
+        run: bash tool/build_angle.sh --platform ${{ matrix.abi }} --shim-only --out packages/jsr_three_angle/native/angle/out/${{ matrix.abi }}
+
       # Saved immediately after the build (not in a job-end post step), same
       # rationale as the quality-macos job: a later failure must not throw
       # the ANGLE build away. continue-on-error guards the save race.
@@ -461,6 +468,11 @@ jobs:
           # has no libpthread) — patch the RESOLVED pub-cache copy (must run
           # after pub get; the script is CWD-independent).
           bash ../tool/patch_quickjs_android.sh
+          # The native-assets hook compiles quickjs C code for Android and
+          # needs an NDK: use the preinstalled 27.2.12479018 when present,
+          # install it when not (deterministic either way).
+          export ANDROID_NDK_HOME="$ANDROID_HOME/ndk/27.2.12479018"
+          [ -d "$ANDROID_NDK_HOME" ] || sdkmanager "ndk;27.2.12479018" >/dev/null
           flutter build apk --debug
 
       - name: SIZE-ANDROID-1 report

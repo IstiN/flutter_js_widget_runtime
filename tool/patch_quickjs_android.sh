@@ -7,11 +7,14 @@
 # quickjs_runtime releases the fix). Idempotent: a patched hook is left
 # untouched, so the version in the message stays truthful.
 #
-# Usage: bash tool/patch_quickjs_android.sh   (before flutter build apk)
+# Usage: bash tool/patch_quickjs_android.sh   (after flutter pub get,
+#   before flutter build apk)
 set -euo pipefail
-PUB_CACHE="${PUB_CACHE:-$HOME/.pub-cache/hosted/pub.dev}"
-Q=$(find "$PUB_CACHE" -maxdepth 1 -type d -name 'quickjs_runtime-*' 2>/dev/null | sort -V | tail -1)
-[[ -n "$Q" ]] || { echo "no quickjs_runtime in $PUB_CACHE" >&2; exit 1; }
+# PUB_CACHE is the cache ROOT (the flutter tool's convention; hosted
+# packages live under <root>/hosted/<host>/). Default root: ~/.pub-cache.
+CACHE_ROOT="${PUB_CACHE:-$HOME/.pub-cache}"
+Q=$(find "$CACHE_ROOT/hosted" -maxdepth 2 -type d -name 'quickjs_runtime-*' 2>/dev/null | sort -V | tail -1)
+[[ -n "$Q" ]] || { echo "no quickjs_runtime in $CACHE_ROOT/hosted" >&2; exit 1; }
 
 python3 - "$Q/hook/build.dart" <<'PY'
 import sys
