@@ -447,18 +447,21 @@ jobs:
         run: |
           set -euo pipefail
           for abi in android-arm64 android-armv7 android-x86_64; do
-            (cd "packages/jsr_three_angle/native/angle/out/$abi" && shasum -a 256 -c SHA256SUMS)
+            # shasum-formatted lines; sha256sum -c verifies the same format.
+            (cd "packages/jsr_three_angle/native/angle/out/$abi" &&
+              shasum -a 256 -c SHA256SUMS 2>/dev/null || sha256sum -c SHA256SUMS)
           done
           bash tool/stage_angle_android.sh
 
       - name: Build the example debug APK with 1B
         run: |
-          cd example
-          flutter pub get
           # quickjs_runtime's hook still links -lpthread on Android (bionic
           # has no libpthread) — patch the resolved pub-cache copy (see the
-          # script; dropped when the fix ships upstream).
+          # script; dropped when the fix ships upstream). CWD-independent,
+          # but run it before cd example so the path stays repo-root.
           bash tool/patch_quickjs_android.sh
+          cd example
+          flutter pub get
           flutter build apk --debug
 
       - name: SIZE-ANDROID-1 report
@@ -485,12 +488,20 @@ jobs:
           sdkmanager "system-images;android-30;default;x86_64" "platform-tools" >/dev/null
           avdmanager create avd -n f3a -k "system-images;android-30;default;x86_64" -d pixel_5 --force >/dev/null
 
+          # GH runner images preinstall the SDK but do not reliably put the
+          # emulator and adb on PATH.
+          EMU="$ANDROID_HOME/emulator/emulator"
+          [ -x "$EMU" ] || EMU="$(command -v emulator || true)"
+          ADB="$ANDROID_HOME/platform-tools/adb"
+          [ -x "$ADB" ] || ADB="$(command -v adb || true)"
+          export EMU ADB
+
           timeout 1200 bash -c '
-            emulator -avd f3a -no-window -no-audio -gpu swiftshader_indirect \
+            "$EMU" -avd f3a -no-window -no-audio -gpu swiftshader_indirect \
               -no-boot-anim -no-snapshot -accel off &
-            adb wait-for-device
+            "$ADB" wait-for-device
             for i in $(seq 1 240); do
-              [ "$(adb shell getprop sys.boot_completed 2>/dev/null | tr -d "\r")" = "1" ] && exit 0
+              [ "$("$ADB" shell getprop sys.boot_completed 2>/dev/null | tr -d "\r")" = "1" ] && exit 0
               sleep 5
             done
             exit 124
