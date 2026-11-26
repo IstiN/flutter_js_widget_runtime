@@ -51,11 +51,7 @@ Future<String> runF4c1WebAndCompare() async {
   final web = await Process.run(
     'bash',
     ['tool/three/cases_f4c1.sh', 'web'],
-    environment: {
-      ...Platform.environment,
-      // Playwright's bundled Chromium: the repo has no Google Chrome.app.
-      'JSR_WEBGL_REF_CHANNEL': 'chromium',
-    },
+    environment: Platform.environment,
     runInShell: false,
   ).timeout(const Duration(minutes: 6));
   if (web.exitCode != 0) {
