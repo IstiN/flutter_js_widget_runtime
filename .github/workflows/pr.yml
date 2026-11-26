@@ -519,6 +519,7 @@ jobs:
           [ -x "$ADB" ] || ADB="$(command -v adb || true)"
           export EMU ADB
 
+          boot_rc=0
           timeout 1200 bash -c '
             "$EMU" -avd f3a -no-window -no-audio -gpu swiftshader_indirect \
               -no-boot-anim -no-snapshot -accel off &
@@ -528,8 +529,7 @@ jobs:
               sleep 5
             done
             exit 124
-          ' > "$OUT/boot.txt" 2>&1
-          boot_rc=$?
+          ' > "$OUT/boot.txt" 2>&1 || boot_rc=$?
           pkill -f 'avd f3a' 2>/dev/null || true
 
           if [ "$boot_rc" -ne 0 ]; then
@@ -540,9 +540,9 @@ jobs:
           echo "RESULT: emulator booted" | tee -a "$OUT/summary.txt"
 
           cd example
+          suite_rc=0
           timeout 1200 flutter test ../test/angle1b/e2e_android_1b_test.dart \
-            -d emulator-5554 > ../e2e-android-log.txt 2>&1
-          suite_rc=$?
+            -d emulator-5554 > ../e2e-android-log.txt 2>&1 || suite_rc=$?
           cd ..
 
           {
