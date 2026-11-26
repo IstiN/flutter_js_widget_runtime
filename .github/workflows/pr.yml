@@ -504,12 +504,21 @@ jobs:
             echo "recorded $(date -u +%Y-%m-%dT%H:%M:%SZ); bounded boot (20 min) + bounded suite (20 min)"
           } | tee "$OUT/summary.txt"
 
+          # Pin the AVD home for BOTH avdmanager and the emulator: on GH
+          # runners they default to different locations and the emulator
+          # then cannot find the freshly created AVD ("Unknown AVD name").
+          export ANDROID_AVD_HOME="$HOME/.android/avd"
+          mkdir -p "$ANDROID_AVD_HOME"
+
           # GH runners do not put sdkmanager/avdmanager on PATH — same
           # cmdline-tools layout as the build step above.
           SDKM="$(command -v sdkmanager || echo "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager")"
           AVDM="$(command -v avdmanager || echo "$ANDROID_HOME/cmdline-tools/latest/bin/avdmanager")"
           "$SDKM" "system-images;android-30;default;x86_64" "platform-tools" >/dev/null
           "$AVDM" create avd -n f3a -k "system-images;android-30;default;x86_64" -d pixel_5 --force >/dev/null
+          # Loud failure at creation — never spend the boot bound on a
+          # missing AVD.
+          [ -f "$ANDROID_AVD_HOME/f3a.ini" ]
 
           # GH runner images preinstall the SDK but do not reliably put the
           # emulator and adb on PATH.
