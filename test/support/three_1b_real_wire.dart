@@ -106,3 +106,20 @@ class Real1BWireHost extends Fake1BWireHost {
     shim.destroySurface(surface);
   }
 }
+
+/// The deterministic end-of-process teardown for the real 1B wires: destroy
+/// every surface, then the full `a1b_shutdown` (release the current EGL
+/// context, destroy the context, terminate the display, dlclose the GL
+/// libraries) — the teardown this file's constructor comment names. Relying
+/// on process-exit teardown of the live display segfaults the test process
+/// on the CI Paravirtual GPU (all tests green, crash at finalization),
+/// which is why every f4b tearDownAll calls this instead of a bare dispose
+/// loop.
+void disposeReal1BWires(Iterable<Real1BWireHost> wires) {
+  Shim? shimForShutdown;
+  for (final w in wires) {
+    w.dispose();
+    shimForShutdown ??= w.shim;
+  }
+  shimForShutdown?.shutdown();
+}

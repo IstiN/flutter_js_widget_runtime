@@ -246,6 +246,65 @@ test('creator identity: the same GL name wraps to the same JS object', () => {
   assert.equal(String(a), '[object WebGLBuffer]');
 });
 
+test('a deleted GL object loses its wrapper identity (a reused name wraps '
+    + 'fresh)', () => {
+  const { api, wire } = loadFacade();
+  const gl = api.createFacade({}, {});
+  wire.rc = 7;
+  const fb1 = gl.createFramebuffer();
+  gl.deleteFramebuffer(fb1);
+  // The mock allocator answers every create with the same name (name
+  // reuse, as ANGLE does after a delete): the wrapper must be FRESH — a
+  // stale wrapper makes wrapper-comparing trackers skip the real bind of
+  // the recreated object.
+  const fb2 = gl.createFramebuffer();
+  assert.equal(fb2.__g1name, fb1.__g1name, 'the mock reuses the name');
+  assert.notEqual(fb2, fb1, 'the recreated object wraps fresh');
+});
+
+test('readPixels splits reads bigger than the G1 scratch cap into row strips '
+    + 'and assembles them (UT-GL-READBACK-1)', async () => {
+  const { api, wire, g1 } = loadFacade();
+  const gl = api.createFacade({}, {});
+  await drain(); // MSAA init out of the way
+  const baseline = wire.dispatches.length;
+  const origRead = g1.readPixels;
+  // Mock the C scratch: every strip's rows are stamped with their absolute
+  // GL row index (y + r) — proves the strips reassemble in order.
+  g1.readPixels = function (x, y, w, h, fmt, type) {
+    const rc = origRead.call(g1, x, y, w, h, fmt, type);
+    const rowBytes = w * 8; // RGBA HALF_FLOAT
+    const buf = Buffer.alloc(rowBytes * h);
+    for (let r = 0; r < h; r++) {
+      buf.fill((y + r) & 0xff, r * rowBytes, (r + 1) * rowBytes);
+    }
+    wire.scratchB64 = buf.toString('base64');
+    return rc;
+  };
+  const W = 320, H = 180;
+  const dst = new Uint16Array(W * H * 4); // what three.js readRenderTargetPixels passes
+  gl.readPixels(0, 0, W, H, gl.RGBA, gl.HALF_FLOAT, dst);
+  // rowBytes = 320*8 = 2560 -> strips of 25 rows (65536/2560), 8 dispatches
+  const rowBytes = W * 8;
+  const rowsPerStrip = Math.floor(65536 / rowBytes);
+  const strips = Math.ceil(H / rowsPerStrip);
+  assert.equal(wire.dispatches.length, baseline + strips,
+    `one dispatch per ${rowsPerStrip}-row strip (${strips} strips)`);
+  const bytes = new Uint8Array(dst.buffer);
+  for (let y = 0; y < H; y++) {
+    const row = bytes.subarray(y * rowBytes, (y + 1) * rowBytes);
+    let wrong = 0;
+    for (let i = 0; i < row.length; i++) if (row[i] !== (y & 0xff)) wrong++;
+    assert.equal(wrong, 0, `strip rows reassemble in order (row ${y})`);
+  }
+  // a read under the cap stays ONE dispatch (no strip overhead)
+  const before = wire.dispatches.length;
+  const small = new Uint16Array(16 * 16 * 4);
+  gl.readPixels(0, 0, 16, 16, gl.RGBA, gl.HALF_FLOAT, small);
+  assert.equal(wire.dispatches.length, before + 1, 'a small read is a single dispatch');
+  g1.readPixels = origRead;
+});
+
 test('the facade still works when the sink is cleared (locked per-command behavior)', async () => {
   const { api, wire, G1 } = loadFacade();
   const gl = api.createFacade({}, {});
