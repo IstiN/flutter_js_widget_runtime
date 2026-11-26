@@ -913,6 +913,35 @@ pipeline; the LUTPass itself is gated `exact` via `cases-f4c2-lut`
 (stock `LUTPass.js` + in-scene `Data3DTexture`, the `sampler3D` path
 bit-identical).
 
+### readRenderTargetPixels on a half-float target — gap resolved (F4-merge)
+
+The diagnostic p9 of this lane (a `readRenderTargetPixels` on a
+HalfFloatType render target returning all zeros on the 1B leg while the
+same call works in Chrome) is explained by two layered causes, both fixed
+on the merged head:
+
+1. The all-zeros observations: `g1_read_pixels` early-returns silently
+   when the read exceeds `G1_SCRATCH_CAP` (256 KB) — a 320x240 RGBA16F
+   read is 600 KB — and the facade copied the empty scratch. Fixed by the
+   F4b facade strip split (reads > 64 KB are read in row strips, each
+   within the cap); the F4b composer readbacks prove the well-formed
+   half-float read works end to end.
+2. The silent behavior for a MISMATCHED typed array (`Uint8Array` passed
+   for RGBA/HALF_FLOAT): real WebGL raises `INVALID_OPERATION`; the facade
+   instead copied scratch bytes into the view (or zeros). Fixed in the
+   facade (both copies, `tool/three/src/webgl2_facade.js` ==
+   `packages/jsr_three_angle/facade/webgl2_facade.js`): the typed-array
+   class must match format/type (WebGL2 readPixels table, mirrors
+   `g1_pix_bytes`) and the view must be large enough for the read
+   rectangle; otherwise the facade records `INVALID_OPERATION` locally
+   (returned FIFO by `getError`), dispatches nothing, and leaves the view
+   untouched. Regression test: `tool/three/test/ut_gl_1_test.js`
+   ("readPixels validates the typed array against format/type").
+
+No deeper limit of the native read path remains: `g1_read_pixels` fills
+the scratch for every format/type pair it is given (`g1_pix_bytes` covers
+RGBA/HALF_FLOAT = 8 B/px); the cap is handled facade-side by the strips.
+
 ### Commands
 
 - Full sweep: `bash tool/three/cases_f4c2.sh` (CI `quality-macos`; locally

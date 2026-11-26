@@ -426,7 +426,17 @@ function createFacade(canvas, attrs) {
   };
 
   // --- special cases ---
-  gl.getError = function () { return call('getError', []) | 0; };
+  // Facade-side validation records GL errors locally (readPixels, issue #8
+  // F4-merge: real WebGL raises INVALID_OPERATION for a readPixels typed
+  // array that does not match format/type; the 1B stream has no opcode for
+  // that check). getError returns locally recorded errors FIFO first, then
+  // the real context errors — the same single queue real GL keeps.
+  var localErrors = [];
+  function recordLocalError(code) { if (localErrors.length < 16) localErrors.push(code | 0); }
+  gl.getError = function () {
+    if (localErrors.length > 0) return localErrors.shift();
+    return call('getError', []) | 0;
+  };
 
   var STR_PNAME = {}; [C.VENDOR, C.RENDERER, C.VERSION, C.SHADING_LANGUAGE_VERSION, C.UNMASKED_VENDOR_WEBGL, C.UNMASKED_RENDERER_WEBGL]
     .forEach(function (p) { STR_PNAME[p] = 1; });
@@ -511,7 +521,44 @@ function createFacade(canvas, attrs) {
     var dst = new Uint8Array(view.buffer, view.byteOffset, n);
     for (var i = 0; i < n; i++) dst[i] = b[i];
   }
+  // readPixels typed-array validation (WebGL2 spec §4.3.2, "readPixels"):
+  // the ArrayBufferView class must match format/type, and the view must be
+  // large enough for the read rectangle. Real WebGL raises
+  // INVALID_OPERATION; before this check the facade silently copied scratch
+  // bytes (or zeros) into the mismatched view (F4c2 p9 gap, issue #8
+  // F4-merge). Mirrors g1_pix_bytes in angle_1b_dispatch.c.
+  var READ_VIEW_CLASS = {
+    0x1400: 'Int8Array', 0x1401: 'Uint8Array',
+    0x1402: 'Int16Array', 0x1403: 'Uint16Array',
+    0x8033: 'Uint16Array', 0x8034: 'Uint16Array', 0x8363: 'Uint16Array', 0x8368: 'Uint16Array',
+    0x1404: 'Int32Array', 0x1405: 'Uint32Array',
+    0x8C3B: 'Uint32Array', 0x8C3E: 'Uint32Array', 0x8DAD: 'Uint32Array',
+    0x1406: 'Float32Array', 0x140B: 'Uint16Array'
+  };
+  function readPixBytes(fmt, type) {
+    var comp = (fmt === 0x1906 || fmt === 0x1909 || fmt === 0x1903 || fmt === 0x8D94) ? 1
+      : (fmt === 0x190A || fmt === 0x8227 || fmt === 0x8228) ? 2
+      : (fmt === 0x1907) ? 3 : 4;
+    var size = (type === 0x1400 || type === 0x1401) ? 1
+      : (type === 0x1402 || type === 0x1403 || type === 0x140B || type === 0x8033 || type === 0x8034 ||
+         type === 0x8363 || type === 0x8368 || type === 0x8D61) ? 2
+      : (type === 0x8DAD) ? 8 : 4;
+    if (fmt === 0x84F9) size = (type === 0x8DAD) ? 8 : 4; // DEPTH_STENCIL
+    return comp * size;
+  }
   gl.readPixels = function (x, y, w, h, format, type, pixels) {
+    if (pixels && pixels.buffer) {
+      var want = READ_VIEW_CLASS[type];
+      if (want && (!pixels.constructor || pixels.constructor.name !== want)) {
+        recordLocalError(C.INVALID_OPERATION);
+        return;
+      }
+      var need = readPixBytes(format, type) * w * h;
+      if (need > 0 && pixels.byteLength < need) {
+        recordLocalError(C.INVALID_OPERATION);
+        return;
+      }
+    }
     // The G1 scratch is a fixed 256 KB buffer (G1_SCRATCH_CAP,
     // angle_1b_dispatch.c): one readPixels bigger than the cap returns
     // zero bytes silently (g1_read_pixels early-returns, no GL error).

@@ -317,6 +317,51 @@ test('the facade still works when the sink is cleared (locked per-command behavi
   assert.equal(u32(wire.dispatches.at(-2), 0), 183, 'raw drawArrays opcode on the wire');
 });
 
+test('readPixels validates the typed array against format/type — real WebGL '
+    + 'raises INVALID_OPERATION, the facade must not silently copy zeros '
+    + '(F4c2 p9 gap, F4-merge)', async () => {
+  const { api, wire } = loadFacade();
+  const gl = api.createFacade({}, {});
+  await drain(); // MSAA init out of the way
+  // HALF_FLOAT read into a Uint8Array: rejected locally — no dispatch, no
+  // scratch copy, the pixels view stays untouched, and getError reports
+  // GL_INVALID_OPERATION exactly once.
+  const bad = new Uint8Array(16 * 16 * 4);
+  bad.fill(7);
+  let d = wire.dispatches.length;
+  gl.readPixels(0, 0, 16, 16, gl.RGBA, gl.HALF_FLOAT, bad);
+  assert.equal(wire.dispatches.length, d, 'no dispatch for a mismatched typed array');
+  assert.equal(gl.getError(), 0x0502, 'INVALID_OPERATION recorded for HALF_FLOAT + Uint8Array');
+  d = wire.dispatches.length;
+  assert.equal(gl.getError(), 0, 'the error flag is consumed by the next getError');
+  d = wire.dispatches.length;
+  for (const v of bad) assert.equal(v, 7, 'the mismatched view is not touched');
+  // RGBA/UNSIGNED_BYTE into a Uint16Array: the same rejection.
+  gl.readPixels(0, 0, 4, 4, gl.RGBA, gl.UNSIGNED_BYTE, new Uint16Array(4 * 4 * 2));
+  assert.equal(wire.dispatches.length, d, 'no dispatch for the flipped class');
+  assert.equal(gl.getError(), 0x0502, 'INVALID_OPERATION recorded for UNSIGNED_BYTE + Uint16Array');
+  d = wire.dispatches.length;
+  assert.equal(gl.getError(), 0);
+  d = wire.dispatches.length;
+  // A view smaller than the read rectangle: INVALID_OPERATION too (spec:
+  // data outside the view bounds).
+  gl.readPixels(0, 0, 8, 8, gl.RGBA, gl.UNSIGNED_BYTE, new Uint8Array(8 * 8 * 4 - 1));
+  assert.equal(wire.dispatches.length, d, 'no dispatch for the short view');
+  assert.equal(gl.getError(), 0x0502, 'INVALID_OPERATION recorded for the short view');
+  d = wire.dispatches.length;
+  assert.equal(gl.getError(), 0);
+  d = wire.dispatches.length;
+  // The matching pairs still go through: HALF_FLOAT + Uint16Array dispatches
+  // exactly once and records no error; RGBA8 + Uint8Array likewise.
+  gl.readPixels(0, 0, 16, 16, gl.RGBA, gl.HALF_FLOAT, new Uint16Array(16 * 16 * 4));
+  assert.equal(wire.dispatches.length, d + 1, 'one dispatch for the well-formed half-float read');
+  assert.equal(gl.getError(), 0, 'no error for the matching pair');
+  d = wire.dispatches.length;
+  gl.readPixels(0, 0, 8, 8, gl.RGBA, gl.UNSIGNED_BYTE, new Uint8Array(8 * 8 * 4));
+  assert.equal(wire.dispatches.length, d + 1, 'one dispatch for the well-formed RGBA8 read');
+  assert.equal(gl.getError(), 0, 'no error for the RGBA8 pair');
+});
+
 for (const [name, fn] of tests) {
   await fn();
   console.log(`ok - ${name}`);
