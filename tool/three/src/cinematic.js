@@ -44,6 +44,7 @@ import { BokehPass } from 'three/addons/postprocessing/BokehPass.js';
 import { LUTPass } from 'three/addons/postprocessing/LUTPass.js';
 import { FilmPass } from 'three/addons/postprocessing/FilmPass.js';
 import { SMAAPass } from 'three/addons/postprocessing/SMAAPass.js';
+import { TAARenderPass } from 'three/addons/postprocessing/TAARenderPass.js';
 import { FullScreenQuad } from 'three/addons/postprocessing/Pass.js';
 import { FXAAShader } from 'three/addons/shaders/FXAAShader.js';
 import { VignetteShader } from 'three/addons/shaders/VignetteShader.js';
@@ -254,6 +255,18 @@ export function probeCapabilities(renderer) {
 
 function clamp01(v) { return v < 0 ? 0 : (v > 1 ? 1 : v); }
 
+// Checked quotas (issue #8 F4e/F4g, E9): hostile dimension descriptors and
+// unbounded temporal histories must hit these limits with a NAMED error —
+// never poison a target, hang a reconstruct loop or crash the context.
+//
+// - MAX_TARGET_PIXELS: a pipeline target budget of 4096x4096 (the 4K perf
+//   matrix of F4f fits; anything beyond is refused before allocation).
+// - HISTORY_MAX_FRAMES: a declared history window is bounded at 600 frames
+//   (25 s at the 24 fps reference clock), so reconstruct() can never build
+//   an unbounded frame list.
+const MAX_TARGET_PIXELS = 4096 * 4096;
+const HISTORY_MAX_FRAMES = 600;
+
 // buildLutTexture(kind) — deterministic procedural 8^3 RGBA LUT as a
 // Data3DTexture. `identity` maps every channel straight through; `teal-orange`
 // is a fixed split-tone curve (teal in the shadows, warm orange highlights).
@@ -435,9 +448,15 @@ export class CinematicHistory {
   }
 
   // declare({pass, frames}) — a temporal pass declares its bounded window.
+  // Hostile frames hit the checked history quota with a NAMED error
+  // (non-finite / < 1 / beyond HISTORY_MAX_FRAMES); fractional values floor
+  // (documented clamp), so reconstruct() is always bounded (E9).
   declare(window) {
-    if (!window || !(window.frames >= 1)) {
-      throw new CinematicPipelineError('cinematic.invalid', 'CinematicHistory.declare requires {pass, frames >= 1}');
+    if (!window || !(window.frames >= 1) || !Number.isFinite(window.frames)) {
+      throw new CinematicPipelineError('cinematic.invalid', 'cinematic.invalid: CinematicHistory.declare requires {pass, finite frames >= 1}');
+    }
+    if (Math.floor(window.frames) > HISTORY_MAX_FRAMES) {
+      throw new CinematicPipelineError('cinematic.invalid', 'cinematic.invalid: history window exceeds the JSR quota of ' + HISTORY_MAX_FRAMES + ' frames (got ' + window.frames + ')');
     }
     const existing = this.windows.find(w => w.pass === window.pass);
     if (existing) existing.frames = Math.floor(window.frames);
@@ -454,9 +473,12 @@ export class CinematicHistory {
 
   // reconstruct(clock) -> {epoch, frames} — the ordered frame indices a
   // direct seek to clock.frame must re-render (bounded by the widest
-  // declared window; empty when no temporal pass declared one).
+  // declared window; empty when no temporal pass declared one). Non-finite
+  // frames (Infinity survives the `|| 0` NaN guard) clamp to frame 0 —
+  // a raw Infinity frame index made the bounded loop spin forever.
   reconstruct(clock) {
-    const frame = Math.max(0, Math.floor(Number(clock && clock.frame) || 0));
+    const raw = Math.floor(Number(clock && clock.frame) || 0);
+    const frame = Number.isFinite(raw) ? Math.max(0, raw) : 0;
     const depth = this.depth();
     const frames = [];
     for (let f = Math.max(0, frame - depth + 1); f <= frame; f++) frames.push(f);
@@ -667,6 +689,29 @@ export function createPipeline(options) {
     if (fringe && fringe.uniforms && fringe.uniforms.resolution) {
       fringe.uniforms.resolution.value.set(width * pr || 1, height * pr || 1);
     }
+  }
+
+  // resolveSize(width, height, what) — the hostile-dimension policy of
+  // pipeline.setSize (issue #8 F4g, SEC-CINEMATIC / E9): non-finite or
+  // negative values are the NAMED error (they would poison every composer
+  // and accumulation target downstream); fractional values floor and 0
+  // clamps to the 1-pixel minimum (documented clamp); values beyond the GL
+  // max texture size or the MAX_TARGET_PIXELS budget hit the checked quota
+  // with the NAMED error BEFORE any target is resized (E4: a rejected
+  // resize leaves the previous coherent size on every target).
+  function resolveSize(width, height, what) {
+    const w = Number(width);
+    const h = Number(height);
+    if (!Number.isFinite(w) || !Number.isFinite(h) || w < 0 || h < 0) {
+      throw new CinematicPipelineError('cinematic.invalid', 'cinematic.invalid: ' + what + ' dimensions must be finite non-negative numbers (got ' + width + ' x ' + height + ')');
+    }
+    const maxTex = (renderer.capabilities && renderer.capabilities.maxTextureSize) || 16384;
+    const cw = Math.min(Math.max(1, Math.floor(w)), maxTex);
+    const ch = Math.min(Math.max(1, Math.floor(h)), maxTex);
+    if (cw * ch > MAX_TARGET_PIXELS) {
+      throw new CinematicPipelineError('cinematic.invalid', 'cinematic.invalid: ' + what + ' exceeds the JSR target budget of ' + MAX_TARGET_PIXELS + ' pixels (got ' + cw + ' x ' + ch + ')');
+    }
+    return { width: cw, height: ch };
   }
 
   updateFxaaResolution(size.x || 480, size.y || 320);
@@ -1150,19 +1195,29 @@ export function createPipeline(options) {
     },
 
     setSize(width, height) {
-      composer.setSize(width, height);
-      updateFxaaResolution(width, height);
+      const s = resolveSize(width, height, 'pipeline');
+      composer.setSize(s.width, s.height);
+      updateFxaaResolution(s.width, s.height);
       if (camera && camera.isPerspectiveCamera) {
-        camera.aspect = width / Math.max(1, height);
+        camera.aspect = s.width / s.height;
         camera.updateProjectionMatrix();
       }
-      if (accum.target) accum.target.setSize(Math.max(1, Math.floor(width * (renderer.getPixelRatio ? renderer.getPixelRatio() : 1))), Math.max(1, Math.floor(height * (renderer.getPixelRatio ? renderer.getPixelRatio() : 1))));
+      if (accum.target) accum.target.setSize(Math.max(1, Math.floor(s.width * (renderer.getPixelRatio ? renderer.getPixelRatio() : 1))), Math.max(1, Math.floor(s.height * (renderer.getPixelRatio ? renderer.getPixelRatio() : 1))));
     },
 
     dispose() {
       try { composer.dispose(); } catch (e) { /* best effort */ }
       for (const name of Object.keys(passes)) {
         try { if (passes[name] && typeof passes[name].dispose === 'function') passes[name].dispose(); } catch (e) { /* best effort */ }
+        // Upstream r186 UnrealBloomPass.dispose misses its own
+        // materialHighPassFilter — the material's program stays cached and
+        // leaks one GL program per pipeline cycle (found by IT-LIFE-CINE-1 /
+        // REG-RESOURCE-BOUNDS on the 1B lane). Dispose it here, at the one
+        // place the pass lifetime is owned.
+        const extra = name === 'bloom' && passes[name] && passes[name].materialHighPassFilter;
+        if (extra && typeof extra.dispose === 'function') {
+          try { extra.dispose(); } catch (e) { /* best effort */ }
+        }
       }
       try { outputPass.dispose(); } catch (e) { /* best effort */ }
       for (const texture of lutTextures) { try { texture.dispose(); } catch (e) { /* best effort */ } }
@@ -1224,6 +1279,9 @@ export const cinematicSurface = Object.freeze({
   ThreeCinematicProfile: ThreeCinematicProfile,
   // F4c1: the JSR-owned shutter motion blur pass (decision 5, ADR-0005).
   CinematicMotionBlurPass: CinematicMotionBlurPass,
+  // The stock r186 temporal pass of the pin (F4e lifecycle / history rows
+  // compose it into a pipeline next to bloom + OutputPass).
+  TAARenderPass: TAARenderPass,
   // Support API the showcase scene factory consumes.
   cinematicRandom: cinematicRandom,
   buildLutTexture: buildLutTexture,

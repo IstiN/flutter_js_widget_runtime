@@ -46,6 +46,14 @@ run1bWidgetEngine(
   /// awaits (host delays), which complete after run()'s single pending-job
   /// drain. Zero (default) keeps the one-shot behavior of the older tests.
   Duration exportTimeout = Duration.zero,
+
+  /// F4e/F4g (issue #8): optional host handlers the security tests drive —
+  /// a stable `jsr.instanceId`, the secrets-write channel and the asset
+  /// loader. Null keeps the engine defaults.
+  String? instanceId,
+  Future<void> Function(String id, String key, dynamic value)?
+  secretsSetHandler,
+  Future<void> Function(String id, String path)? loadAssetHandler,
 }) async {
   debugDefaultTargetPlatformOverride = TargetPlatform.macOS;
   final w =
@@ -61,6 +69,7 @@ run1bWidgetEngine(
       onRender: (_) {},
       onSetTitle: (_) {},
       onStorageUpdate: (_) {},
+      instanceId: instanceId,
       backendFactory: (cfg) => QuickjsWidgetEngineBackend(config: cfg),
       threeEnabled: true,
       threeSource: threeSource,
@@ -69,6 +78,8 @@ run1bWidgetEngine(
       allowCustomShaders: allowCustomShaders,
       onThreeBackendSelected: (s) => reported = s,
       cinematicCaptureHost: cinematicCaptureHost,
+      secretsSetHandler: secretsSetHandler,
+      loadAssetHandler: loadAssetHandler,
     ),
   );
   try {

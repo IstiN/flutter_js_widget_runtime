@@ -1006,3 +1006,122 @@ taa, ssaa) are unaffected; this scene stays black on web only. The 1B leg is
 the lane this segment gates and renders the feature correctly (non-black,
 `f908b0d1`). Not an ANGLE/facade defect; evidence:
 `/tmp/a1b_corpus/three-materials-cubemap-dynamic/status_web.json` (CI: the
+## F4e lifecycle and F4g security of the cinematic pipeline (branch feat/9-f4eg-lifecycle-security)
+
+Segment rows F4e (lifecycle, ids `IT-LIFE-CINE-*`, `E2E-CONTEXT-CINE-*`,
+`REG-RESOURCE-BOUNDS`) and F4g (security and honest degradation, ids
+`SEC-CINEMATIC-*`, `FUZZ-TARGET-*`, `E2E-FALLBACK-*`) of issue #8, on the
+F4a helper API. Local vehicle: real QuickJS engine + committed bundle +
+real ANGLE wire (lifecycle/context rows) and the recording wire (security
+rows). CI: the existing `flutter test test/angle1b` steps of `quality`
+(ubuntu: security + fuzz) and `quality-macos` (macOS: all rows incl. the
+ANGLE-backed lifecycle/context). No workflow change.
+
+### Lifecycle (F4e)
+
+- `test/angle1b/f4eg_life_test.dart` — `IT-LIFE-CINE-1`: ONE 1B surface and
+  renderer carry 100 cycles of pipeline create, render, resize (rotating
+  32..64 through renderer+pipeline), history reset (new epoch + stock TAA
+  accumulation restart), context loss and restore through
+  `WEBGL_lose_context`, destroy; the pipeline holds bloom + the stock
+  `TAARenderPass` (accumulate, sampleLevel 0, inserted before OutputPass)
+  + OutputPass. The GL baseline is snapshotted after a warmup render
+  (facade init resources and first-frame allocations are IN the baseline);
+  after cycle 100 the facade `__stats` call accounting (createX minus
+  deleteX per kind) reads ZERO delta for textures, framebuffers,
+  renderbuffers, programs, buffers and shaders:
+  `{Texture: 0, Framebuffer: 0, Renderbuffer: 0, Program: 0, Buffer: 0,
+  Shader: 0}`. Per-cycle scene content (scene/camera/mesh) is cycle-owned,
+  so `pipeline.dispose()` releases every geometry/material/program it
+  created. Same test body asserts `REG-RESOURCE-BOUNDS`.
+- `test/angle1b/f4eg_context_test.dart` — `E2E-CONTEXT-CINE-1` (edge E6):
+  context loss while the temporal pipeline holds accumulation history;
+  after the restore the history is reset (epoch 77 + TAA restart), frames
+  dispatch and render again (batch dispatch counter grows, renderer.info
+  frame count advances), the same wire surface serves every dispatch (no
+  stale surface), and the final-pass capture barrier resolves again with
+  the reset epoch.
+
+### Security and honest degradation (F4g)
+
+All on the real committed bundle over the recording wire; named errors or
+documented clamps only.
+
+- `SEC-CINEMATIC-1` (`f4eg_security_test.dart`): with the host policy
+  default (`allowCustomShaders: false`), `new THREE.ShaderMaterial`,
+  `new THREE.RawShaderMaterial`, `onBeforeCompile` assignment and a custom
+  pass whose material construction feeds `composer.insertPass` all fail
+  with `three.unsupported: custom shaders are disabled by host policy`
+  BEFORE the renderer records any call; the composer chain is unchanged
+  and the stock internal bloom pass stays applied. `SEC-CINEMATIC-1b`:
+  `allowCustomShaders: true` permits the same constructions through the
+  same pipeline path.
+- `SEC-CINEMATIC-2` (edges E4/E9): hostile canvas dimensions — NaN,
+  Infinity and negative are the named `three.invalid: canvas dimensions
+  must be non-negative finite numbers`; fractional floors, 0 clamps to 0,
+  999999 clamps to the 16384 GL max (documented). Hostile pipeline
+  dimensions — NaN/negative/Infinity are the named `cinematic.invalid:`
+  error; fractional floors (64.9x48.2 -> 64x48), zero clamps to the
+  1-pixel minimum, beyond the renderer `maxTextureSize` clamps
+  (99999x100 -> 16384x100); the pipeline still renders after the barrage.
+- `SEC-CINEMATIC-3`: the oversized-target quota (4097x4097 >
+  MAX_TARGET_PIXELS 4096x4096) is refused with the named error BEFORE any
+  target is resized (the previous coherent size stays on
+  `composer.renderTarget1`); a declared history window of 601/Infinity/NaN
+  frames is refused named; 600 frames (the JSR history quota) reconstructs
+  exactly 600 frames — bounded, no hang.
+- `E2E-FALLBACK-1/2` (edge E5): a renderer without GL2 evidence probes
+  `supports() === false` for smaa/colorGrade/film/vignette/multisample
+  while bloom/fxaa/dof stay true; `setPreset('production')` runs the
+  reduced pass set (`bloom, dof, fxaa`) and names every missing effect in
+  `pipeline.unsupported`; `assertCapturable()` throws the named
+  `cinematic.notCapturable` BEFORE capture; the capture still returns
+  after the final pass with the reduced set.
+- `SEC-CINEMATIC-4`: the runtime secret crosses the real secrets channel
+  to the host, the token-tagged asset URL rides an effect descriptor, and
+  the capture barrier metadata (`{engineId, frame, fps, shutter, samples,
+  epoch}`) plus the capture result carry neither value.
+- `FUZZ-TARGET-1..3` (`f4eg_fuzz_test.dart`): deterministic mulberry32
+  fuzzing with printed seeds (0x5eed0001 history: 120 hostile windows +
+  clocks — named or clamped, reconstruct never exceeds 600 frames;
+  0x5eed0002 LUT/assets: 10 hostile LUT kinds clamp to a complete 8^3
+  identity table, 6 malformed .cube/.3dl/HDR/EXR/PNG-shaped byte blobs
+  reject through the named error path of the real loadAsset ->
+  decodeImage lane with no resolved bogus image and no hang; 0x5eed0003
+  API: 200 hostile setSize/clockState/ensurePass/setPreset/applyEffect
+  calls — every rejection is `cinematic.invalid`, and a valid frame still
+  renders afterwards). HDR/EXR full decode is not part of this bundle (it
+  lands with the F4d env lane); the fuzz drives the byte-handling surface
+  that exists here.
+
+### Core changes this segment forced (for the merge lane)
+
+1. `tool/three/src/cinematic.js` (beyond import/export lines):
+   - `pipeline.setSize` validates hostile dimensions through
+     `resolveSize` (named `cinematic.invalid` for non-finite/negative,
+     floor/0->1/maxTextureSize clamps, checked MAX_TARGET_PIXELS budget
+     of 4096x4096) — a rejected resize leaves the previous coherent size.
+   - `CinematicHistory.declare` rejects non-finite and >600-frame windows
+     (named) — `reconstruct` is provably bounded (was: Infinity frames
+     hung reconstruct; huge windows built unbounded arrays).
+   - `pipeline.dispose` additionally disposes
+     `UnrealBloomPass.materialHighPassFilter` — upstream r186
+     `UnrealBloomPass.dispose` misses it, leaking one GL program per
+     pipeline cycle (found by IT-LIFE-CINE-1 on the 1B lane).
+2. `tool/three/src/runtime.js`: `_setPhysicalSize` enforces the 16384 GL
+   cap the constructor already applied to the boot buffer (the previous
+   comment claimed the setters enforce it — they did not; canvas.width =
+   999999 materialised a GL-max-exceeding backing buffer).
+
+### Commands
+
+- Lifecycle/context (macOS host with staged dylibs):
+  `flutter test test/angle1b/f4eg_life_test.dart test/angle1b/f4eg_context_test.dart`
+- Security/fuzz (any host): `flutter test test/angle1b/f4eg_security_test.dart
+  test/angle1b/f4eg_fuzz_test.dart`
+- After touching `tool/three/src`: `node tool/three/build.mjs --source
+  /tmp/jsr-three-r186 && node tool/three/build.mjs --verify`, then
+  `node example/widgets/three-cinematic-showcase/build.mjs` and
+  `tool/three/showcase_1b.sh` (4/4 checkpoints hash-equal: draft-frame12
+  0xe34fc597, finish-direct/seek-frame20 0x3cc7f7db, export-frame9
+  0x88479d2f — unchanged from F4a).
