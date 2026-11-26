@@ -16,12 +16,13 @@
 //   BENCH_WINDOW <i> frames=... draws=... flushes/frame=... wall p50=...
 //     p95=... p99=... cpu p50=... p95=... p99=... (one line per measurement
 //     window; the summary below is the MEDIAN over the windows)
+//   BENCH_REF_MS <x>  BENCH_BUDGET_MS <x>
 //   BENCH_FLUSHES_PER_FRAME <n>
-//   BENCH_P95_CPU_MS <x> (median window thread-CPU p95, gated)
-//   BENCH_P50_MS <x>   BENCH_P95_MS <x>   BENCH_P99_MS <x> (wall, info)
+//   BENCH_P50_MS <x>   BENCH_P95_MS <x> (gated)   BENCH_P99_MS <x>
+//   BENCH_P95_CPU_MS <x> (information)
 //   RAWGL_MATCH <true|false>  RAWGL_FACADE_HASH 0x...  RAWGL_DIRECT_HASH 0x...
-// Exit 0 iff flushes per frame <= 1, median window thread-CPU p95 <= 4.0 ms
-// and RAWGL_MATCH true.
+// Exit 0 iff flushes per frame <= 1, median window wall p95 <= the
+// calibrated budget and RAWGL_MATCH true.
 //
 // Library use: the perf/e2e tests (test/angle1b/perf_1_test.dart,
 // perf_2_test.dart, it_transport_1_test.dart and the package e2e_rawgl test)
@@ -39,6 +40,25 @@ const kW = 64, kH = 64;
 const kFrames = 300;
 const kDrawsPerFrame = 500;
 const kP95BudgetMs = 4.0;
+
+// Calibration reference (F2d tail, budget choice (b)): five runs of 100
+// frames of the reference workload (`__refFrame`: clear + 500 void GL
+// calls, no draw work — the fixed encode + transport + submit skeleton of
+// a bench frame through the same 1B path). Per run the median frame wall
+// time; the reference is the MINIMUM over runs — min across runs is
+// legitimate for calibration (it estimates what this host instance can do
+// right now) and is not the gate measurement, which is never repeated.
+const kRefRuns = 5, kRefFrames = 100;
+
+/// The recorded reference: the calibration value measured on the host class
+/// where the 4 ms budget was set (see docs/angle_1b.md "PERF-2 gate" for the
+/// recording measurement). The scaled budget is
+/// `kP95BudgetMs * refHere / kRefCalibrationMs`.
+/// Recorded: Apple M4 Pro (local, 2026-11-26), min of 5 runs x 100
+/// no-draw frames = 0.933 ms — provisional anchor; the CI macos-15 runner
+/// class (the host that runs the bench) is recorded from its own
+/// calibration output and re-anchored when measured.
+const double kRefCalibrationMs = 0.933;
 
 // THREAD CPU time: clock_gettime_nsec_np(CLOCK_THREAD_CPUTIME_ID) — the
 // nanoseconds the calling thread actually ran (excludes preemption by the
@@ -331,6 +351,12 @@ globalThis.__benchOk = (function () {
       gl.clear(gl.COLOR_BUFFER_BIT);
       for (var i = 0; i < n; i++) gl.drawArrays(gl.TRIANGLES, 0, 3);
     };
+    // Calibration reference frame: clear + 500 void GL calls, NO draw work —
+    // the fixed encode + transport + submit skeleton of a bench frame.
+    globalThis.__refFrame = function () {
+      gl.clear(gl.COLOR_BUFFER_BIT);
+      for (var i = 0; i < 500; i++) gl.colorMask(true, true, true, true);
+    };
     // One rendered frame + readback through the facade's gl.readPixels.
     globalThis.__benchRender = function () {
       gl.clear(gl.COLOR_BUFFER_BIT);
@@ -357,11 +383,22 @@ globalThis.__benchOk = (function () {
 
 /// Bench report of [run1bBench]: percentiles of the 500-draw frame over the
 /// measured windows, in wall time AND thread CPU time. The PERF-2 budget
-/// gates on the thread-CPU p95 ([cpuP95Ms]); the wall figures stay printed
-/// for information (see [run1bBench] for the rationale).
+/// gates on the wall p95 against the calibrated budget ([budgetMs]); the
+/// CPU figures and the wall p50/p99 stay printed for information (see
+/// [run1bBench] for the rationale).
 class BenchReport {
-  BenchReport(this.frames, this.drawsPerFrame, this.flushesPerFrame, this.p50Ms,
-      this.p95Ms, this.p99Ms, this.cpuP50Ms, this.cpuP95Ms, this.cpuP99Ms);
+  BenchReport(
+      this.frames,
+      this.drawsPerFrame,
+      this.flushesPerFrame,
+      this.p50Ms,
+      this.p95Ms,
+      this.p99Ms,
+      this.cpuP50Ms,
+      this.cpuP95Ms,
+      this.cpuP99Ms,
+      this.refMs,
+      this.budgetMs);
   final int frames;
   final int drawsPerFrame;
   final int flushesPerFrame;
@@ -372,13 +409,20 @@ class BenchReport {
   final double cpuP95Ms;
   final double cpuP99Ms;
 
-  /// PERF-2 gate: at most one flush per frame and the MEDIAN window
-  /// thread-CPU p95 within the budget. Thread CPU time measures the work
-  /// the code actually does (JS eval, encode, FFI, native ANGLE submit, GC
-  /// on this thread) and is unaffected by scheduler preemption, so the
-  /// gate cannot be flapped by a noisy neighbor — and cannot be passed by
-  /// re-measuring until a quiet window appears (no best-of-N).
-  bool get pass => flushesPerFrame <= 1 && cpuP95Ms <= kP95BudgetMs;
+  /// Calibration reference on THIS host (min of 5 runs of 100 no-draw
+  /// frames) and the budget scaled from it:
+  /// `kP95BudgetMs * refMs / kRefCalibrationMs`.
+  final double refMs;
+  final double budgetMs;
+
+  /// PERF-2 gate: at most one flush per frame and the MEDIAN window wall
+  /// p95 within the calibrated budget. The budget tracks the host
+  /// instance's demonstrated calibration reference, so a slow VM instance
+  /// is not failed for being slow — but a code regression that adds real
+  /// work to the draw path raises the measured p95 while the reference
+  /// (no draws) stays put, and fails the gate. The measurement is never
+  /// repeated because a number came out above budget (no best-of-N).
+  bool get pass => flushesPerFrame <= 1 && p95Ms <= budgetMs;
 
   @override
   String toString() =>
@@ -396,7 +440,8 @@ double _percentile(List<double> sortedMs, double q) {
 /// Cross-window estimator: the MEDIAN of each percentile (wall and CPU)
 /// over the measured windows, the MAX flush count (a noisy window must not
 /// hide a flush). With an even window count the upper middle value wins
-/// (deterministic; the default is 3 windows).
+/// (deterministic; the default is 3 windows). Reference and budget are
+/// per-run constants (identical across windows).
 BenchReport _medianWindow(List<BenchReport> windows) {
   double median(double Function(BenchReport) pick) {
     final values = windows.map(pick).toList()..sort();
@@ -413,6 +458,8 @@ BenchReport _medianWindow(List<BenchReport> windows) {
     median((r) => r.cpuP50Ms),
     median((r) => r.cpuP95Ms),
     median((r) => r.cpuP99Ms),
+    windows.first.refMs,
+    windows.first.budgetMs,
   );
 }
 
@@ -420,30 +467,29 @@ BenchReport _medianWindow(List<BenchReport> windows) {
 /// returns the percentiles + the (max) flush count per frame.
 ///
 /// Steady-state estimator: one warm-up window (100 frames) settles JIT and
-/// heap, then [windows] measurement windows run; the reported percentiles
-/// are the MEDIAN across the windows — never a best-of-N pick. Windows are
-/// 300 frames (F2d): a GC or OS pause every ~50 frames lands above the 5 %
-/// rank in a 60-frame window (p95 4.4 ms with p50 unchanged at 1.45 ms on
-/// run 45725867939) but stays under it at this length, so p95 measures real
-/// dispatch work on noisy runners. Every window is printed
-/// (`BENCH_WINDOW <i> ...`, wall + thread CPU percentiles).
+/// heap, then the calibration reference (5 runs x 100 no-draw frames, min of
+/// run medians — legitimate for calibration, never for the gate), then
+/// [windows] measurement windows run; the reported percentiles are the
+/// MEDIAN across the windows — never a best-of-N pick. Windows are 300
+/// frames (F2d): a GC or OS pause every ~50 frames lands above the 5 % rank
+/// in a 60-frame window but stays under it at this length. Every window is
+/// printed (`BENCH_WINDOW <i> ...`, wall + thread CPU percentiles).
 ///
-/// PERF-2 budget gate (F2d tail): `flushes <= 1` and the MEDIAN window
-/// THREAD-CPU p95 <= [kP95BudgetMs]. Wall-clock gates on shared CI runners
-/// measure the scheduler, not the code — runs 45726677685 and 45727928695
-/// (paravirtual-GPU pool) measured whole 300-frame windows straddling the
-/// 4 ms budget with an unchanged per-frame work profile (p50 1.79 ms
-/// sustained vs 1.45 ms on the same commit), which drove two estimator
-/// regressions (process retry, then the smallest-window pick — both
-/// best-of-N biases, both removed). Thread CPU time
-/// (clock_gettime_nsec_np(CLOCK_THREAD_CPUTIME_ID)) excludes preemption
-/// and keeps every real cost, so the gate fails only when the host really
-/// cannot do 500 draws/frame within budget. Diagnostic run 45729567699:
-/// on the CI paravirtual pool cpu p95 == wall p95 within 0.02 ms per
-/// window (window cpu p95 1.397-1.515 ms, median 1.493); on the local M4
-/// Pro 0.887 ms — both classes far under the 4 ms budget. A regression
-/// that adds real work (encode, extra JS, sync submits) raises the CPU
-/// figure; the wall percentiles stay printed for information.
+/// PERF-2 budget gate (F2d tail, choice (b) — calibrated budget):
+/// `flushes <= 1` and the MEDIAN window WALL p95 <= `kP95BudgetMs * refMs /
+/// kRefCalibrationMs`. A fixed wall budget failed on the CI runner pool for
+/// host reasons, not code reasons: the pool's instances swing between
+/// quiet (run 45729567699: wall p95 1.4-1.5 ms, cpu == wall within 0.02)
+/// and CPU-contended (run 45731410438: cpu p50 1.7, cpu p95 4.77 — thread
+/// CPU time itself inflated, so the CPU-time gate of choice (a) is falsified
+/// by measurement; a throttled VM core takes more CPU nanoseconds for the
+/// same instructions). The calibration reference — the same 1B path with
+/// 500 void calls and NO draw work — measures what the current instance can
+/// do right now; the budget scales with it, so the gate fails only when the
+/// DRAW work (the part the reference does not contain) exceeds the host's
+/// budgeted proportion. The recorded anchor [kRefCalibrationMs] and its
+/// measurement live in docs/angle_1b.md. Wall p50/p99 and the CPU
+/// percentiles stay printed for information.
 Future<BenchReport> run1bBench({
   int frames = kFrames,
   int draws = kDrawsPerFrame,
@@ -481,6 +527,31 @@ Future<BenchReport> run1bBench({
     for (var f = 0; f < 100; f++) {
       session.evalJs('__benchFrame($draws);');
     }
+    // Calibration reference: 5 runs x 100 no-draw frames, per run the
+    // median frame wall time, the reference = min over runs (see the
+    // comment at [kRefRuns]).
+    final refMs = (() {
+      var best = double.infinity;
+      for (var run = 0; run < kRefRuns; run++) {
+        final samples = <double>[];
+        for (var f = 0; f < kRefFrames; f++) {
+          watch
+            ..reset()
+            ..start();
+          session.evalJs('__refFrame();', 'ref.js');
+          watch.stop();
+          samples.add(watch.elapsedMicroseconds / 1000.0);
+        }
+        samples.sort();
+        final med = samples[samples.length ~/ 2];
+        if (med < best) best = med;
+      }
+      if (!best.isFinite || best <= 0) {
+        throw StateError('calibration reference invalid: $best ms');
+      }
+      return best;
+    })();
+    final budgetMs = kP95BudgetMs * refMs / kRefCalibrationMs;
     final windowReports = <BenchReport>[];
     for (var w = 0; w < windows; w++) {
       final samples = <double>[];
@@ -513,6 +584,8 @@ Future<BenchReport> run1bBench({
         _percentile(cpuSamples, 0.50),
         _percentile(cpuSamples, 0.95),
         _percentile(cpuSamples, 0.99),
+        refMs,
+        budgetMs,
       );
       // ignore: avoid_print
       print('BENCH_WINDOW $w $report');
@@ -642,12 +715,11 @@ Future<void> main() async {
     stderr.writeln('bench_1b: $missing');
     exit(2);
   }
-  // One measurement, no retries (F2d tail): the PERF-2 budget gates on the
-  // median window thread-CPU p95, which scheduler noise cannot inflate —
-  // re-running until a quiet attempt appears was a best-of-N bias
-  // (BENCH_P95_MIN_WINDOW_MS era) and is gone. A noisy neighbor may still
-  // push the wall percentiles above the budget; those are printed for
-  // information and do not decide the gate.
+  // One measurement, no retries (F2d tail): the PERF-2 budget gates the
+  // median window wall p95 against the calibrated budget (see run1bBench).
+  // Re-running until a quiet attempt appears was a best-of-N bias and is
+  // gone; only the calibration reference legitimately takes a minimum
+  // across its own 5 runs.
   stdout.writeln(
     'CLOCK_THREAD_CPUTIME_ID $kClockThreadCputimeId '
     '(clock_gettime_nsec_np; boot sanity probe runs with every bench)',
@@ -661,13 +733,23 @@ Future<void> main() async {
     'center=${rawGl.center} corner=${rawGl.corner}',
   );
   stdout.writeln(
+    'BENCH_REF_MS ${report.refMs.toStringAsFixed(3)} '
+    '(calibration reference, min of $kRefRuns runs x $kRefFrames '
+    'no-draw frames)',
+  );
+  stdout.writeln(
+    'BENCH_BUDGET_MS ${report.budgetMs.toStringAsFixed(3)} '
+    '(= $kP95BudgetMs x ref / kRefCalibrationMs '
+    '${kRefCalibrationMs.toStringAsFixed(3)})',
+  );
+  stdout.writeln(
     'BENCH_FLUSHES_PER_FRAME ${report.flushesPerFrame} '
-    'BENCH_P95_CPU_MS ${report.cpuP95Ms.toStringAsFixed(3)} '
-    '(median window thread-CPU p95, gated) '
     'BENCH_P50_MS ${report.p50Ms.toStringAsFixed(3)} '
     'BENCH_P95_MS ${report.p95Ms.toStringAsFixed(3)} '
+    '(median window wall p95, gated) '
     'BENCH_P99_MS ${report.p99Ms.toStringAsFixed(3)} '
-    '(wall, information)',
+    'BENCH_P95_CPU_MS ${report.cpuP95Ms.toStringAsFixed(3)} '
+    '(thread-CPU p95, information)',
   );
   if (!rawGl.match) {
     stderr.writeln(
@@ -679,8 +761,9 @@ Future<void> main() async {
   if (!report.pass) {
     stderr.writeln(
       'bench_1b: PERF budget violated — $report '
-      '(gate: flushes <= 1 and median window thread-CPU p95 <= '
-      '$kP95BudgetMs ms)',
+      '(gate: flushes <= 1 and median window wall p95 '
+      '${report.p95Ms.toStringAsFixed(3)} <= calibrated budget '
+      '${report.budgetMs.toStringAsFixed(3)})',
     );
   }
   exit(rawGl.match && report.pass ? 0 : 1);

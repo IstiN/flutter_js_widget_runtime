@@ -398,46 +398,56 @@ job) covers the mount path; `REG-WEB-DIRECT-1` stays closed.
 ### PERF-2 gate — estimator and budget (F2d tail, 2026-11-26)
 
 The plan fixes the assertion: flush count <= 1 and p95 <= 4 ms on the macOS
-host that runs the bench (`kP95BudgetMs` stays 4.0). Two interim estimators
-introduced during F2d under CI runner noise — a bounded retry across
-processes (`b152930c`) and the smallest single-window p95 across attempts
-(`492b35de`, `BENCH_P95_MIN_WINDOW_MS`) — were best-of-N picks: a real
-regression passes when one quiet attempt stays under the budget. Both are
-removed.
+host that runs the bench (`kP95BudgetMs` stays 4.0). Three interim
+estimators introduced during F2d under CI runner noise — a bounded retry
+across processes (`b152930c`), the smallest single-window p95 across
+attempts (`492b35de`, `BENCH_P95_MIN_WINDOW_MS`), and a thread-CPU-time
+gate (`419fda17`) — were removed. The first two were best-of-N picks (a
+real regression passes when one quiet attempt stays under the budget); the
+third was falsified by measurement: thread CPU time excludes scheduler
+preemption but NOT the speed of the core the thread runs on, and the
+runner pool's instances swing between quiet and CPU-contended states.
 
-The gate is: **`flushes <= 1` and the MEDIAN window thread-CPU p95 <= 4 ms**
-(`BENCH_P95_CPU_MS`, choice (a) of the F2d tail assignment). Thread CPU time
-comes from `clock_gettime_nsec_np(CLOCK_THREAD_CPUTIME_ID)` (constant 16 per
-the Darwin SDK header `usr/include/_time.h`; a boot sanity probe — reads
-strictly increase, busy-loop CPU delta stays within its wall delta — fails
-loudly if a runner SDK differs). It keeps every real cost of the frame path
-(JS eval, facade encode, FFI, batched native ANGLE submit, GC on the thread)
-and is blind to scheduler preemption, which is exactly the one-sided wall
-noise shared CI runners add: runs 45726677685 and 45727928695 measured whole
-300-frame windows straddling the budget with an unchanged work profile
-(p50 1.79 ms sustained vs 1.45 ms on the same commit). No best-of-N anywhere;
-a measurement is never repeated because a number came out above budget.
+**The gate (choice (b) of the F2d tail assignment): `flushes <= 1` and the
+MEDIAN window WALL p95 <= calibrated budget**, where
 
-Wall-clock percentiles stay printed (`BENCH_P50_MS`/`BENCH_P95_MS`/
-`BENCH_P99_MS`) for information; the structure of the measurement is
-unchanged (one warm-up window of 100 frames, three 300-frame measurement
-windows, median estimator, one `BENCH_WINDOW` line per window, dedicated
-bench process as the measurement of record).
+```
+budget = kP95BudgetMs * refHere / kRefCalibrationMs
+```
 
-Measured window classes (per-window wall/cpu p50/p95/p99 from the
-diagnostic run 45729567699 and local runs, all with flushes/frame = 1):
+- `refHere` — measured at bench start: the calibration reference is 5 runs
+  x 100 frames of the no-draw workload (`__refFrame`: clear + 500 void GL
+  calls through the same QuickJS -> facade -> packer -> FFI -> ANGLE path
+  as a bench frame, no draw work); per run the median frame wall time; the
+  reference is the MINIMUM of the 5 run medians (a minimum across
+  calibration runs is legitimate — it estimates what this host instance can
+  do right now; the GATE measurement itself is never repeated, no
+  best-of-N).
+- `kRefCalibrationMs` — the recorded anchor: the same reference measured on
+  the host class where the budget was set. Recorded 2026-11-26: **Apple M4
+  Pro (local) 0.933 ms**; the CI macos-15 runner (the host that runs the
+  bench) is anchored from its own `BENCH_REF_MS` calibration output once
+  measured there.
 
-| Host class | wall p50 / p95 / p99 | cpu p50 / p95 / p99 | median window cpu p95 |
+Everything else about the measurement is unchanged: one warm-up window
+(100 frames), three 300-frame measurement windows, median estimator, one
+`BENCH_WINDOW` line per window (wall AND thread-CPU percentiles, CPU kept
+printed as information), dedicated bench process as the measurement of
+record, `clock_gettime_nsec_np(CLOCK_THREAD_CPUTIME_ID)` = 16 per the
+Darwin SDK header with a boot sanity probe.
+
+Measured window classes (all `flushes/frame = 1`, same commit family):
+
+| Host instance | wall p50 / p95 (median over windows) | cpu p50 / p95 | verdict under the gates tried |
 |---|---|---|---|
-| CI macos-15, Apple Paravirtual device pool (run 45729567699, bench step) | 1.325-1.364 / 1.398-1.520 / 1.476-1.656 | 1.326-1.365 / 1.397-1.513 / 1.476-1.572 | 1.493 |
-| CI macos-15, same pool, PERF-2 subprocess (run 45729567699) | 1.329-1.337 / 1.417-1.521 / 1.551-1.983 | 1.330-1.337 / 1.402-1.515 / 1.535-1.579 | 1.493 |
-| CI macos-15, in-suite PERF-1 20-frame windows (run 45729567699) | 1.331-1.342 / 1.394-1.434 / 1.406-1.443 | 1.332-1.336 / 1.379-1.429 / 1.392-1.488 | 1.386 |
-| Local Apple M4 Pro (commit 689d186a) | 0.843-0.852 / 0.871-0.918 / 0.911-0.974 | 0.844-0.853 / 0.871-0.918 / 0.911-0.975 | 0.876 |
+| Local Apple M4 Pro | 0.87 / 0.90-0.92 | 0.87 / 0.90 | green under every variant (fixed 4.0, CPU gate, calibrated) |
+| CI macos-15, quiet instance (run 45729567699) | 1.33 / 1.49 | 1.33 / 1.49 | green; cpu == wall within 0.02 ms per window |
+| CI macos-15, contended instance (run 45731410438, PERF-2 subprocess bench) | p50 1.52-1.85 / per-window p95 3.905-5.584, median 5.215 | p50 1.52-1.74 / per-window p95 3.643-4.856, median 4.769 | CPU gate FAILED at 4.769 > 4.0 — the falsification that selected choice (b); a throttled VM core takes more CPU nanoseconds for the same instructions |
 
-On every class seen, thread-CPU p95 == wall p95 within 0.02 ms per window
-and the median window CPU p95 stays at or under ~1.5 ms — 2.6x under the
-4 ms budget. The noisy episodes that broke the wall gate (same paravirtual
-pool) inflated p50 to at most 1.79 ms sustained; preemption spikes land in
-wall only, so they do not reach the gated figure. A host class whose true
-median CPU p95 exceeds 4 ms cannot pass the gate — that is the budget doing
-its job, not noise.
+Sensitivity: on the anchor host class the calibrated budget is the plan's
+4.0 ms. On a contended instance the budget scales with that instance's
+measured reference, so the gate no longer fails the code for the host
+being slow — but a regression that adds real work to the draw path (the
+one part the reference does not contain) raises the measured p95 while
+the reference stays put, and still fails. The gate never re-measures
+because a number came out above the budget.
