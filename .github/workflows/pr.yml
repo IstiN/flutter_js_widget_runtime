@@ -455,13 +455,12 @@ jobs:
 
       - name: Build the example debug APK with 1B
         run: |
-          # quickjs_runtime's hook still links -lpthread on Android (bionic
-          # has no libpthread) — patch the resolved pub-cache copy (see the
-          # script; dropped when the fix ships upstream). CWD-independent,
-          # but run it before cd example so the path stays repo-root.
-          bash tool/patch_quickjs_android.sh
           cd example
           flutter pub get
+          # quickjs_runtime's hook still links -lpthread on Android (bionic
+          # has no libpthread) — patch the RESOLVED pub-cache copy (must run
+          # after pub get; the script is CWD-independent).
+          bash ../tool/patch_quickjs_android.sh
           flutter build apk --debug
 
       - name: SIZE-ANDROID-1 report
