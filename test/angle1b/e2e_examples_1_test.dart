@@ -52,6 +52,13 @@ void main() {
       expect(groups[7], 0, reason: 'E2E_WEB_DIRECT probe clean');
       expect(groups[1] + groups[2], 2, reason: 'both fixtures accepted tiers');
     },
+    // The driver spawns npm/esbuild + dart + Chrome per fixture; on a
+    // contended CI instance that takes well over flutter_test's default
+    // 30 s per test (measured: TimeoutException after 30 s on run
+    // 45734063417 while the subprocess itself was inside its own 6-minute
+    // budget). The tier gate itself is unaffected — the assertions below
+    // stay strict.
+    timeout: const Timeout(Duration(minutes: 6)),
     skip: dylib ? null : 'requires the ANGLE 1B dylib (JSR_REQUIRE_ANGLE hosts)',
   );
 }
