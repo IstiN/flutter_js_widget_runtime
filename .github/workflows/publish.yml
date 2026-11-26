@@ -117,22 +117,40 @@ jobs:
       # widgets embed the THREE bundles) and would push the archive far past
       # pub.dev's 100 MB cap. packages/ is the optional jsr_three_angle
       # distribution (ADR-0002): applications that select 1B add it as its
-      # own dependency; it must not ship inside js_widget_runtime. Stage a
+      # own dependency; it must not ship inside js_widget_runtime. The 1B-only
+      # test files that import it are excluded as well (their complete
+      # reverse-import closure under test/). Stage a
       # publish dir from the tracked tree (git archive = same file set
       # `dart publish` selects, minus .gitignored build output) with
       # example/ and packages/ removed.
-      - name: Stage package without example/
+      - name: Stage package without example/, packages/ and 1B tests
         run: |
           set -euo pipefail
           STAGING="${RUNNER_TEMP}/jsr-publish-package"
           rm -rf "$STAGING" && mkdir -p "$STAGING"
-          git archive HEAD -- ':!example' ':!packages' | tar -x -C "$STAGING"
+          git archive HEAD -- ':!example' ':!packages' ':!test/angle1b' \
+            ':!test/support/three_1b_engine.dart' ':!test/support/three_1b_real_wire.dart' \
+            ':!test/support/f4c1_widget_helper.dart' ':!test/support/f4eg_cinematic.dart' \
+            ':!test/support/f4i_host_proof_harness.dart' | tar -x -C "$STAGING"
           test ! -e "$STAGING/example"
           test ! -e "$STAGING/packages"
+          test ! -e "$STAGING/test/angle1b"
           # Symlinks into example/ now dangle (e.g. test/assets/three_minecraft_widget.js)
           # and `dart pub publish` refuses to resolve them; drop any that no longer point
           # at a file inside the staging tree.
           find "$STAGING" -type l ! -exec test -e {} \; -delete
+          # The dev-only jsr_three_angle path dependency points into packages/,
+          # which ADR-0002 never ships inside js_widget_runtime: the staged
+          # tree has no packages/, so the dependency must leave the staged
+          # pubspec.yaml (and its pubspec.lock entry) or `dart pub publish`
+          # fails to resolve the staged package. The 1B-only test files are
+          # archived out above for the same reason — they are the complete
+          # reverse-import closure of jsr_three_angle/ffi under test/, so no
+          # remaining file references them.
+          sed -i '/^  # Dev-only: lets `flutter test packages\/jsr_three_angle\/test`/,/^    path: packages\/jsr_three_angle$/d' "$STAGING/pubspec.yaml"
+          sed -i '/^  jsr_three_angle:$/,/^    version: /d' "$STAGING/pubspec.lock"
+          ! grep -q jsr_three_angle "$STAGING/pubspec.yaml"
+          ! grep -q jsr_three_angle "$STAGING/pubspec.lock"
           echo "STAGING_DIR=$STAGING" >> "$GITHUB_ENV"
 
       - name: Publish to pub.dev
