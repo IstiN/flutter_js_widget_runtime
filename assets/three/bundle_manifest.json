@@ -43,7 +43,7 @@
       "tool/three/src/web_entry.js": "538a1625cffb9539d70055b173c98320799457a9c5e7b5a4c0577c22841cd3ad",
       "tool/three/src/web_renderer.js": "2b808b22123fce8e49b9ed8d76f75872199efb527b477e202f295ed6a244819c",
       "tool/three/src/webgl2_facade.js": "899fd9f9b194d662afc4ab8ba48c589fc9602117408f29dcdd35282990d1bfbd",
-      "tool/three/build.mjs": "307a91f56a7b9efbb0ed71dd25b7d3f34b3b4ae81b86d8fbfedf396a4d11a509",
+      "tool/three/build.mjs": "d4ed0370c9a1cb43a0c134559061969893a15939a18d24683b295b0fa1b3cce7",
       "tool/three/package.json": "930b051df9b8c506454009108aa6f0055855b1c59cd481f3f592ad9530ce37cb",
       "tool/three/package-lock.json": "f0507fde83eefa84d2a088e6ecc3b2cd1e65f49c9df7bd6d0783d0f1b352cff3",
       "tool/three/source-pin.json": "29492424209a17a723b3b0c8e9c83995697a4c466840d1b33ba6f6ff2b7542a4",

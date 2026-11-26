@@ -225,7 +225,10 @@ const manifestBytes = Buffer.from(`${JSON.stringify(manifest, null, 2)}\n`);
 const manifestSummary = Object.fromEntries(Object.entries(manifestOutputs).map(([name, record]) => [name, { bytes: record.bytes, sha256: record.sha256 }]));
 if (verify) {
   const oldManifest = JSON.parse(await readFile(path.join(OUT, 'bundle_manifest.json'), 'utf8'));
-  const onBuilderHost = HOST.platform === manifest.build.builderHost.platform && HOST.arch === manifest.build.builderHost.arch;
+  // The builder of record is the one the COMMITTED manifest names — never
+  // the freshly computed manifest (whose builderHost is this host).
+  const builderHost = oldManifest.build ? oldManifest.build.builderHost : undefined;
+  const onBuilderHost = !!builderHost && HOST.platform === builderHost.platform && HOST.arch === builderHost.arch;
   const firstDivergence = (committed, rebuilt) => {
     // WHERE the committed artifact diverges from a clean rebuild: the first
     // differing byte with context from both sides.
