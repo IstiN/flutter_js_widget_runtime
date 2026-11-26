@@ -480,6 +480,14 @@ int a1b_read_surface_cpu(int64_t surface, uint8_t *dst_rgba, int *width, int *he
 void a1b_destroy_surface(int64_t surface) {
   a1b_surface_t *s = a1b_find(surface);
   if (!s) return;
+  // F4-merge CI lesson (Paravirtual Metal device, shell segfaults at
+  // finalization): destroying a surface whose GPU work is still in flight
+  // faults the process at teardown. Drain THIS surface's context while it
+  // is still boundable — glFinish, then unbind, then the destructive steps.
+  if (s->ctx && g_display &&
+      g_MakeCurrent(g_display, s->egl_surface, s->egl_surface, s->ctx) == EGL_TRUE) {
+    g_Finish();
+  }
   g_MakeCurrent(g_display, EGL_NO_SURFACE, EGL_NO_SURFACE, EGL_NO_CONTEXT);
   g_current_valid = 0;
   if (s->ctx) g_DestroyContext(g_display, s->ctx);
@@ -492,13 +500,27 @@ void a1b_shutdown(void) {
   for (int i = 1; i <= A1B_MAX_SURFACES; i++)
     if (g_surfaces[i - 1].used) a1b_destroy_surface(i);
   if (!g_display) return;
+  // Drain the shared context too (same lesson): finish while still
+  // bindable, then destroy.
+  if (g_context &&
+      g_MakeCurrent(g_display, EGL_NO_SURFACE, EGL_NO_SURFACE, g_context) == EGL_TRUE) {
+    g_Finish();
+    g_MakeCurrent(g_display, EGL_NO_SURFACE, EGL_NO_SURFACE, EGL_NO_CONTEXT);
+  }
   g_MakeCurrent(g_display, EGL_NO_SURFACE, EGL_NO_SURFACE, EGL_NO_CONTEXT);
   g_current_valid = 0;
   if (g_context) g_DestroyContext(g_display, g_context);
   g_context = EGL_NO_CONTEXT;
   g_Terminate(g_display);
+  // eglTerminate may leave the paravirtual device's deferred work (Metal
+  // completion handlers inside the ANGLE libs) outstanding — wait for the
+  // client API to drain BEFORE the display handle dies.
+  g_WaitClient();
   g_display = EGL_NO_DISPLAY;
-  if (g_egl_lib) dlclose(g_egl_lib);
-  if (g_gles_lib) dlclose(g_gles_lib);
+  // NO dlclose here: work submitted through libEGL/libGLESv2 can still be
+  // completing when a1b_shutdown returns; unloading the libraries beneath
+  // outstanding completion handlers is the "exit after a completed
+  // shutdown still segfaults" shape the CI runs measured. The mapping is
+  // released by the OS at process exit, after every handler has run.
   g_egl_lib = g_gles_lib = NULL;
 }

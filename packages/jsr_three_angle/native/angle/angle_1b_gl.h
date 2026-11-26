@@ -114,6 +114,7 @@ extern a1b_surface_t g_surfaces[A1B_MAX_SURFACES];
   X(EGLBoolean, DestroySurface, eglDestroySurface, (EGLDisplay, EGLSurface)) \
   X(EGLBoolean, MakeCurrent, eglMakeCurrent, (EGLDisplay, EGLSurface, EGLSurface, EGLContext)) \
   X(EGLBoolean, SwapBuffers, eglSwapBuffers, (EGLDisplay, EGLSurface)) \
+  X(EGLBoolean, WaitClient, eglWaitClient, (void)) \
   X(EGLDisplay, GetPlatformDisplayEXT, eglGetPlatformDisplayEXT, (EGLenum, void *, const EGLint *)) \
   X(void *, GetProcAddress, eglGetProcAddress, (const char *))
 

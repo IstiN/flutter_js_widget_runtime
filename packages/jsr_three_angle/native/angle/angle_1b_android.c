@@ -386,6 +386,13 @@ int a1b_read_pixels(int64_t surface, uint8_t *dst_rgba, int *width, int *height)
 void a1b_destroy_surface(int64_t surface) {
   a1b_surface_t *s = a1b_find(surface);
   if (!s) return;
+  // Same drain-before-destroy lesson as angle_1b.c (Paravirtual Metal CI
+  // finalization segfaults): finish the surface's own in-flight work while
+  // its context is still bindable.
+  if (s->ctx && g_display &&
+      g_MakeCurrent(g_display, s->egl_surface, s->egl_surface, s->ctx) == EGL_TRUE) {
+    g_Finish();
+  }
   g_MakeCurrent(g_display, EGL_NO_SURFACE, EGL_NO_SURFACE, EGL_NO_CONTEXT);
   g_current_valid = 0;
   if (s->ctx) g_DestroyContext(g_display, s->ctx);
@@ -401,14 +408,21 @@ void a1b_shutdown(void) {
     g_window = NULL;
   }
   if (!g_display) return;
+  if (g_context &&
+      g_MakeCurrent(g_display, EGL_NO_SURFACE, EGL_NO_SURFACE, g_context) == EGL_TRUE) {
+    g_Finish();
+    g_MakeCurrent(g_display, EGL_NO_SURFACE, EGL_NO_SURFACE, EGL_NO_CONTEXT);
+  }
   g_MakeCurrent(g_display, EGL_NO_SURFACE, EGL_NO_SURFACE, EGL_NO_CONTEXT);
   g_current_valid = 0;
   if (g_context) g_DestroyContext(g_display, g_context);
   g_context = EGL_NO_CONTEXT;
   g_Terminate(g_display);
+  // See angle_1b.c: drain the client API after terminate; never dlclose
+  // beneath possibly-outstanding completion handlers — the OS unloads at
+  // process exit.
+  g_WaitClient();
   g_display = EGL_NO_DISPLAY;
-  if (g_egl_lib) dlclose(g_egl_lib);
-  if (g_gles_lib) dlclose(g_gles_lib);
   g_egl_lib = g_gles_lib = NULL;
 }
 
