@@ -76,6 +76,13 @@ void a1b_gl_stats(int64_t *calls, int64_t *bytes);
 // set 0 to let frame pacing replace it in later milestones.
 void a1b_set_finish_flag(int on);
 
+#if defined(__ANDROID__)
+// F3a Android: hand the plugin's ANativeWindow (from the JNI bridge in
+// angle_1b_android.c) to the shim; subsequent a1b_create_surface calls
+// bind EGL window surfaces to it. The shim owns the reference.
+void a1b_set_native_window(uintptr_t window);
+#endif
+
 #ifdef __cplusplus
 }
 #endif

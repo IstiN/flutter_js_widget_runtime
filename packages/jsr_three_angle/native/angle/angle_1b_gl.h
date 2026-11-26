@@ -14,8 +14,12 @@
 #include <stddef.h>
 #include <stdint.h>
 
+// F3a Android: the IOSurface/CoreVideo headers only exist on Darwin; the
+// Android build (angle_1b_android.c) declares its window type below.
+#if defined(__APPLE__)
 #include <CoreFoundation/CoreFoundation.h>
 #include <IOSurface/IOSurface.h>
+#endif
 
 typedef void *EGLDisplay; typedef void *EGLConfig; typedef void *EGLSurface;
 typedef void *EGLContext; typedef void *EGLClientBuffer;
@@ -69,7 +73,12 @@ typedef struct {
   EGLSurface egl_surface;
   EGLContext ctx; // per-surface context (phase 7: depth/stencil configs are
                   // not eglMakeCurrent-compatible with the legacy context)
+#if defined(__ANDROID__)
+  struct ANativeWindow *window; // unused: the shim keeps the plugin window
+                                // in a single global (F3a Android)
+#else
   IOSurfaceRef io;
+#endif
   int width, height;
   int fallback; // 1 = pbuffer + CPU readback, 0 = direct IOSurface path
 } a1b_surface_t;
@@ -99,6 +108,8 @@ extern a1b_surface_t g_surfaces[A1B_MAX_SURFACES];
   X(EGLBoolean, DestroyContext, eglDestroyContext, (EGLDisplay, EGLContext)) \
   X(EGLSurface, CreatePbufferSurface, eglCreatePbufferSurface, (EGLDisplay, EGLConfig, const EGLint *)) \
   X(EGLSurface, CreatePbufferFromClientBuffer, eglCreatePbufferFromClientBuffer, (EGLDisplay, EGLenum, EGLClientBuffer, EGLConfig, const EGLint *)) \
+  /* F3a Android: window-surface presentation path (angle_1b_android.c only). */ \
+  X(EGLSurface, CreateWindowSurface, eglCreateWindowSurface, (EGLDisplay, EGLConfig, void *, const EGLint *)) \
   X(EGLBoolean, DestroySurface, eglDestroySurface, (EGLDisplay, EGLSurface)) \
   X(EGLBoolean, MakeCurrent, eglMakeCurrent, (EGLDisplay, EGLSurface, EGLSurface, EGLContext)) \
   X(EGLBoolean, SwapBuffers, eglSwapBuffers, (EGLDisplay, EGLSurface)) \
