@@ -36,6 +36,19 @@ void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
   final missing = Shim.resolveProblem();
 
+  tearDownAll(() {
+    // Nothing may outlive the tests: each engine closed in its run's
+    // finally, each wire + surface in its test teardown — then the full
+    // shim shutdown terminates the EGL display and frees the shared
+    // context, so the shell exits without a live ANGLE state (the
+    // flutter_tester segfaults at finalization otherwise — f4eg record,
+    // CI run 45812790468).
+    // ignore: avoid_print
+    print('F4I-TEARDOWN liveWires=${f4iLiveWires.length}');
+    expect(f4iLiveWires, isEmpty, reason: 'every F4i wire must be disposed');
+    if (missing == null) Shim().shutdown();
+  });
+
   test('F4i png codec round trip (encode ∘ decode is the identity)', () {
     f4iPngSelfCheck();
   });
@@ -124,6 +137,17 @@ void main() {
       );
 
       const checkpoints = <String, int>{'bloom': 8, 'dof': 16, 'temporal': 24};
+      // CI-visible proof the PNG comparison is real: the Dart capture host
+      // decodes the written file and the expects below assert hash equality
+      // (the program's in-page flag stays null on this leg; the decode path
+      // and the 96x64 surface size are the same on the runner as locally).
+      checkpoints.forEach((id, frame) {
+        // ignore: avoid_print
+        print(
+          'F4I_NATIVE_CHECKPOINT $id-$frame '
+          'png=${captureHost!.pngHashByFrame[frame]} prev=${hashes['prev_$id']}',
+        );
+      });
       checkpoints.forEach((id, frame) {
         final prev = hashes['prev_$id'] as String;
         final shot = hashes['shot_$id'] as String;

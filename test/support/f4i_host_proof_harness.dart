@@ -21,6 +21,12 @@ import 'f4i_png_codec.dart';
 
 const String kF4iDir = '/tmp/f4i/oneb';
 
+/// Live F4i wires: the file's tearDownAll proves nothing outlives the tests
+/// before the full shim shutdown (the flutter_tester shell segfaults at
+/// exit while the ANGLE display stays live — the f4eg record; CI run
+/// 45812790468).
+final List<Real1BWireHost> f4iLiveWires = <Real1BWireHost>[];
+
 /// Stages the stock r186 AfterimagePass (stage_afterimage.mjs: pinned
 /// checkout of record, or the pin commit over the network) and returns the
 /// plain-script bundle text for the engine prelude.
@@ -140,7 +146,14 @@ runF4iOn1B(
 }) async {
   final wire = Real1BWireHost(width: 96, height: 64)
     ..facadeBootstrapOverride = real1bFacadeBootstrap();
-  addTearDown(wire.dispose);
+  // Deterministic teardown order: the engine disposes in this function's
+  // finally (QuickJS runtime closed), the wire + surface here (test end),
+  // and the file's tearDownAll finishes with the full a1b_shutdown.
+  f4iLiveWires.add(wire);
+  addTearDown(() {
+    wire.dispose();
+    f4iLiveWires.remove(wire);
+  });
   final captureHost = noCapture ? null : F4iCaptureHost(wire, dir);
   final logs = <Map<String, dynamic>>[];
   debugDefaultTargetPlatformOverride = TargetPlatform.macOS;
