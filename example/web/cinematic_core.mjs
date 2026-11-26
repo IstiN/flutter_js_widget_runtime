@@ -4140,6 +4140,8 @@ function createPipeline(options) {
           samples: clock.samples,
           epoch: clock.epoch
         };
+        const glCtx = renderer.getContext && renderer.getContext();
+        if (glCtx && typeof glCtx.flush === "function") glCtx.flush();
         return Promise.resolve(host.capture({
           engineId: typeof globalThis.__IID === "string" ? globalThis.__IID : "",
           clock: clockRecord,

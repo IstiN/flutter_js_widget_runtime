@@ -1106,6 +1106,17 @@ export function createPipeline(options) {
           samples: clock.samples,
           epoch: clock.epoch
         };
+        // Capture-barrier flush (F4 merge stage 2b): the 1B facade batches
+        // void commands and dispatches them at the end-of-task flush, while
+        // the __jsr_capture crossing is fire-and-forget at the bridge — a
+        // host reading the surface inside the crossing would otherwise see
+        // frame N-1 (the F4i diagnosis). The wire's documented flush
+        // trigger 2 (gl.flush / gl.finish) drains the batch synchronously
+        // here, before the barrier crosses. Web lane: the plain GL flush.
+        // R1 lane: its bounded context has no flush and R1 crosses per
+        // command (no batch), so the guard skips.
+        const glCtx = renderer.getContext && renderer.getContext();
+        if (glCtx && typeof glCtx.flush === 'function') glCtx.flush();
         return Promise.resolve(host.capture({
           engineId: typeof globalThis.__IID === 'string' ? globalThis.__IID : '',
           clock: clockRecord,

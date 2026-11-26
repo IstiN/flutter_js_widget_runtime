@@ -58,6 +58,13 @@ other widget or host can use it.
    after the final pass of the frame-driven render, never from a wall-clock
    frame. A missing capability is a named error
    (`cinematic.notCapturable`), never an effect-free capture.
+   Note (2026-11-26, F4 merge stage 2b): the host is guaranteed to be called
+   AFTER the frame of that clock is flushed — `captureFrame` drains the
+   facade batch synchronously (wire flush trigger, `gl.flush`) before the
+   barrier crosses, so the host read sees frame N without any harness-side
+   yield (`UT-PIPELINE-CAPTURE-FLUSH`; the F4i proof runs without it). Host
+   read path of record on 1B: `a1b_read_pixels` with the surface made
+   current and presented (the 1B context is current on the main thread).
 5. **`CinematicMotionBlurPass` — JSR-owned shutter blur; first candidate
    selected** (F4 decision 5). Criteria it must meet: deterministic under
    `clockState` (direct seek equals sequential), works on native 1B and

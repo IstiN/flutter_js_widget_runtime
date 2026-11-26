@@ -201,9 +201,11 @@ class _SurfaceCapture {
 /// The cinematic capture barrier host of the native leg: reads the REAL
 /// presented ANGLE surface at capture time (after the final pass) and
 /// records its FNV hash for the E2E-SEEK-4 comparison. The read is the CPU
-/// IOSurface readback (`a1b_read_surface_cpu`): the EGL context is current
-/// on the engine's worker isolate, so the host must not call glReadPixels
-/// from the main isolate (INVALID_OPERATION).
+/// IOSurface readback (`a1b_read_surface_cpu`) — the no-GL, thread-agnostic
+/// copy (this harness predates the F4-merge stage-2b read-path record; the
+/// host capture path of record is `a1b_read_pixels` with the surface made
+/// current and presented first, as F4i's harness does — the 1B context is
+/// current on the main thread, not a worker isolate).
 class _SurfaceCaptureHost extends JsCinematicCaptureHost {
   _SurfaceCaptureHost(this.wire, this.records);
   final Real1BWireHost wire;

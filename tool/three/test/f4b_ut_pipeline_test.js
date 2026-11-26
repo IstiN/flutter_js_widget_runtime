@@ -226,6 +226,50 @@ test('UT-PIPELINE-5: the native R1 lane still builds its UnsignedByte composer',
   assert.equal(pipeline.unsupported.length, 0);
 });
 
+// UT-PIPELINE-CAPTURE-FLUSH — the capture-barrier flush guarantee (F4 merge
+// stage 2b): captureFrame(clock) drains the renderer's GL context (the wire
+// flush trigger) BEFORE the barrier host is asked, because the __jsr_capture
+// crossing is fire-and-forget at the bridge and the host's surface read runs
+// inside it. The synchronous drain property of the wire flush itself is
+// pinned by batch_test.js (trigger 2); the F4i native proof pins the
+// end-to-end behavior without the harness yield.
+test('UT-PIPELINE-CAPTURE-FLUSH: captureFrame flushes the GL context before the barrier host is asked', async () => {
+  const order = [];
+  const ctx = vm.createContext({
+    console,
+    setTimeout, clearTimeout,
+    TextEncoder, TextDecoder,
+    sendMessage() {},
+    performance,
+    Image: class Image {},
+    jsr: {
+      capture: () => { order.push('capture'); return Promise.resolve({ path: '/tmp/fake-capture.png', width: 320, height: 180 }); }
+    }
+  });
+  vm.runInContext(result.outputFiles[0].text, ctx, { filename: 'web-f4b-pipeline-test.js' });
+  const loaded = vm.runInContext('({ cine: jsr.three.cinematic, THREE: THREE })', ctx);
+  const flushRenderer = () => ({
+    isJsrThreeRenderer: true,
+    capabilities: { backend: 'flutterGpu', r1: true },
+    getSize: (v) => v.set(480, 320),
+    getPixelRatio: () => 1,
+    setClearAlpha: () => {},
+    getContext: () => ({ flush: () => order.push('flush') })
+  });
+  const pipeline = loaded.cine.createPipeline({
+    renderer: flushRenderer(), scene: new loaded.THREE.Scene(), camera: new loaded.THREE.PerspectiveCamera()
+  });
+  await pipeline.captureFrame(loaded.cine.clockState(2, 24, 0.5, 1, 0));
+  assert.deepEqual(order, ['flush', 'capture'],
+    'the context flush must happen before the barrier host is invoked');
+  // and the barrier payload is unchanged
+  const gated = loaded.cine.createPipeline({
+    renderer: { ...flushRenderer(), getContext: () => ({ flush: () => {} }) },
+    scene: new loaded.THREE.Scene(), camera: new loaded.THREE.PerspectiveCamera()
+  });
+  await gated.captureFrame(loaded.cine.clockState(3, 24, 0.5, 1, 0));
+});
+
 let failed = 0;
 for (const [name, fn] of tests) {
   try {

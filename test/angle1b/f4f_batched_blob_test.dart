@@ -37,37 +37,26 @@ void main() {
   // Real-wire crash-class hygiene (macOS runner): the ANGLE display must not
   // outlive the test file — the flutter_tester shell segfaults at
   // finalization when a wire, surface or display is still alive. Every wire
-  // registers here; tearDownAll disposes leftovers in order, shuts the shim
-  // down and prints the live count.
-  // ignore: omit_local_variable_types
-  final Set<Real1BWireHost> liveWires = <Real1BWireHost>{};
-  // A handle for the tearDownAll shutdown; null when the dylib is absent
-  // (every test skips and there is nothing to shut down).
-  // ignore: omit_local_variable_types
-  final Shim? teardownShim = missing == null ? Shim() : null;
+  // registers in the canonical liveReal1BWires registry (test/support/
+  // three_1b_real_wire.dart); tearDownAll = disposeRegisteredReal1BWires()
+  // disposes leftovers in order, shuts the display down and prints the live
+  // counts.
   // ignore: omit_local_variable_types
   int created = 0;
 
   void track(Real1BWireHost wire) {
     created++;
-    liveWires.add(wire);
-    addTearDown(() {
-      liveWires.remove(wire);
-      wire.dispose();
-    });
+    registerReal1BWire(wire);
+    addTearDown(wire.dispose);
   }
 
   tearDownAll(() {
     // Order: wires (engine closed by its own teardown), then surfaces, then
-    // the shim display. Print the live count for the CI crash-class record.
+    // the display; the canonical teardown prints the before/after live
+    // counts for the CI crash-class record.
+    disposeRegisteredReal1BWires();
     // ignore: avoid_print
-    print(
-      'F4F-BATCHED-BLOB teardown: wires created=$created, still live '
-      '(surface not destroyed)=${liveWires.length}',
-    );
-    teardownShim?.shutdown();
-    // ignore: avoid_print
-    print('F4F-BATCHED-BLOB teardown: shim shutdown done (display destroyed)');
+    print('F4F-BATCHED-BLOB teardown: wires created=$created');
   });
 
   test('F4F-BATCHED-BLOB-1: a null-data texImage2D mid-batch never hands GL '

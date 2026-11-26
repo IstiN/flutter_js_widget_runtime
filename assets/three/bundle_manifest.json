@@ -28,7 +28,7 @@
     "sourceEnvironment": "THREE_SRC may replace --source /tmp/jsr-three-r186",
     "inputSha256": {
       "sourceTree": "46f76c91c965a0ac416a8e89f104af288ad177d2ad344204851f0febc502c995",
-      "tool/three/src/cinematic.js": "b28c8549bf9f928a3580189a841dd48cd106d8f6605fb2440f7ca5ac15a1c55e",
+      "tool/three/src/cinematic.js": "dd0ef4b1e642f152a46a48bc21e63a48fa8fd34c2624d58ff5f3f2a73c542ba8",
       "tool/three/src/cinematic_motion_blur.js": "7c91babe09b5349da6ede141ec2c0a92cf087208d398b90b7af9171a526cf372",
       "tool/three/src/errors.js": "a816e842488f759d202f284ff64e1f237c6d4474cdfcdcf1cf707e4a5506c887",
       "tool/three/src/native_audio.js": "6c4cb5e303a6a76af503df646a99114a2c740cd49ea03f5035f1233258e860ba",
@@ -52,18 +52,18 @@
     },
     "goldenEsm": {
       "path": "tool/three/gen/cinematic_core.mjs",
-      "bytes": 202868,
-      "sha256": "95c410a367f82d628000d3b5a685d2d1b4cd032eac3560612cb5066f6a07700b"
+      "bytes": 203007,
+      "sha256": "4e21525c6f7c74974a7379e2b1677b7d841c9ddf8ea6967ce9360ac3544e9462"
     }
   },
   "outputs": {
     "jsr_three_native.js": {
-      "bytes": 1029252,
-      "sha256": "350f5268708b4f9c14fb08059301afb5961fc896a388d86e358c86336326a3b0"
+      "bytes": 1029324,
+      "sha256": "aed3f04bd7e38cc67347c002a8c9c99781472675f5b05c569b56f3259cddcca4"
     },
     "jsr_three_web.js": {
-      "bytes": 990554,
-      "sha256": "299567319fb6e045a855d57ebc0350583023e9cdc370edaeb5f4860da72e31f6"
+      "bytes": 990622,
+      "sha256": "f041bbd69ac4a54505d76f599853f4e29a924c2d57c24ba58982023943465c26"
     }
   }
 }

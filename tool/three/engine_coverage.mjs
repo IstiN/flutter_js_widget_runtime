@@ -362,10 +362,10 @@ const ONE_B_ADDONS = {
   },
   'jsr.three.cinematic': {
     module: 'tool/three/src/cinematic.js',
-    note: 'JSR-owned surface (ADR-0004 decisions 2-4); built into jsr_three_native.js and jsr_three_web.js',
+    note: 'JSR-owned surface (ADR-0004 decisions 2-4); built into jsr_three_native.js and jsr_three_web.js; F4 merge stage 2b promoted the F4i downstream host proof (final-pass capture barrier + host read path) and the F4f performance matrix (batched transport default) onto this row',
     evidence: {
-      ids: ['UT-HELPER-1', 'IT-HELPER-1', 'E2E-SHOWCASE-1'],
-      tests: ['tool/three/test/ut_helper_cinematic_test.js', 'test/angle1b/it_helper_cinematic_test.dart', 'test/angle1b/e2e_showcase_1_cinematic_test.dart'],
+      ids: ['UT-HELPER-1', 'IT-HELPER-1', 'E2E-SHOWCASE-1', 'E2E-HOST-YOCLIP-*', 'REG-HOST-CAPTURE-1', 'UT-PIPELINE-CAPTURE-FLUSH', 'PERF-CINEMATIC-*', 'REG-UPLOADS'],
+      tests: ['tool/three/test/ut_helper_cinematic_test.js', 'test/angle1b/it_helper_cinematic_test.dart', 'test/angle1b/e2e_showcase_1_cinematic_test.dart', 'test/angle1b/f4i_host_proof_test.dart', 'tool/three/cases_f4i.sh', 'tool/three/test/f4b_ut_pipeline_test.js', 'tool/three/cinematic_perf.mjs', 'docs/cinematic_perf.md'],
     },
   },
 };

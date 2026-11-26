@@ -418,7 +418,9 @@ List<_G1Command> decodeAllStreams(
     final cmd = _G1Command(m);
     final start = off - 4;
     // Raw G1 framing: 'u'/'i'/'f' args are fixed 4-byte words; 's'/'b' are
-    // [u32 len][bytes].
+    // [u32 len][bytes]. The F4f wire fix (length bit 31) applies to blobs:
+    // set = size-only / null-data — GL receives NULL and NO bytes follow;
+    // clear = real data that is present in full.
     for (var i = 0; i < m.args.length; i++) {
       final ch = m.args[i];
       if (ch == 'u') {
@@ -433,9 +435,11 @@ List<_G1Command> decodeAllStreams(
         );
         off += 4;
       } else {
-        final len = _u32(b, off);
+        final lenField = _u32(b, off);
         off += 4;
-        if (ch == 's') {
+        final sizeOnly = (lenField & 0x80000000) != 0;
+        final len = sizeOnly ? 0 : lenField;
+        if (ch == 's' && !sizeOnly) {
           cmd.strings.add(
             utf8.decode(b.sublist(off, off + len), allowMalformed: true),
           );

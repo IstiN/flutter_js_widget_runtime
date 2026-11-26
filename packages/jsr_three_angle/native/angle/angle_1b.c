@@ -441,6 +441,13 @@ int a1b_swap_buffers(int64_t surface) {
 }
 
 // ---- readback ------------------------------------------------------------------
+// a1b_read_pixels is THE host capture path (the cinematic capture barrier,
+// ADR-0004 decision 4): the 1B EGL context is current on the main thread —
+// the same thread the QuickJS engine and the capture host run on (1B is
+// never selected on the isolate backend) — so the host makes the surface
+// current, presents it (a1b_swap_buffers), then reads here. The CPU IOSurface
+// copy below is the no-GL diagnostic path of bench_1b.dart and the f4b tests,
+// not the host path.
 int a1b_read_pixels(int64_t surface, uint8_t *dst_rgba, int *width, int *height) {
   a1b_surface_t *s = a1b_find(surface);
   if (!s || !dst_rgba) return a1b_fail("bad args");
@@ -480,11 +487,15 @@ int a1b_read_pixels(int64_t surface, uint8_t *dst_rgba, int *width, int *height)
 
 // CPU readback of the presented surface: locks the surface's IOSurface
 // read-only and copies it out as tightly packed RGBA8 (BGRA->RGBA). No GL
-// context is involved — the EGL context is current on the engine's worker
-// thread, so a host-side capture (the cinematic capture barrier) must not
-// call glReadPixels; it reads the presented IOSurface instead. The bytes
-// are complete because a1b_swap_buffers finishes the GL work before the
-// surface is handed on.
+// context is involved — thread-agnostic by construction (bench_1b.dart and
+// the f4b seek/target tests use it). This is NOT the host capture path: on
+// the 1B path the EGL context is current on the MAIN thread (the QuickJS
+// engine that drives the G1 wire runs on the owning isolate — 1B is never
+// selected on the isolate backend, `sync channel required`), the same
+// thread a cinematic capture host runs on, and the host path of record is
+// a1b_read_pixels with the surface made current and presented first
+// (makeCurrent + swapBuffers, then read). The bytes are complete because
+// a1b_swap_buffers finishes the GL work before the surface is handed on.
 int a1b_read_surface_cpu(int64_t surface, uint8_t *dst_rgba, int *width, int *height) {
   a1b_surface_t *s = a1b_find(surface);
   if (!s || !dst_rgba || !s->io) return a1b_fail("bad args");

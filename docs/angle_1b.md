@@ -1192,7 +1192,8 @@ All three native tests pass on macOS native 1B — `E2E-HOST-YOCLIP-1/-2` and
 `E2E-HOST-YOCLIP-NOCAP` / `REG-HOST-CAPTURE-1` — with the same checkpoint
 hashes as the web leg (table above; 25 PNG files written and decoded).
 
-Two fixes landed for this leg (one core, one harness):
+Two fixes landed for this leg (one core, one harness — the harness half was
+promoted into the core at the F4 merge stage 2b):
 
 1. **Core (shim, `packages/jsr_three_angle/native/angle`)**: `a1b_read_pixels`
    and the pbuffer fallback copy in `a1b_swap_buffers` target the default
@@ -1206,14 +1207,44 @@ Two fixes landed for this leg (one core, one harness):
    attachment). Regression: the "F4i shim readback regression" test in
    `test/angle1b/f4i_host_proof_test.dart` (fails with `rc = -1` when the
    shim fix is reverted).
-2. **Harness**: the capture barrier yields one event-loop turn before the
-   surface read — the barrier crosses while the rendering JS task is still
-   on the stack and the 1B facade presents the frame at the end-of-task
-   batch flush, so reading earlier captured frame N-1 (verified by a
-   frame-hash mapping against the web leg). `runF4iOn1B` also waits for the
-   proof program's terminal `exportState`: the program settles across one
+2. **Capture-before-flush**: at the F4i head the capture barrier crossed
+   while the rendering JS task was still on the stack and the 1B facade
+   dispatched the frame at the end-of-task batch flush, so a host reading
+   inside the crossing captured frame N-1 (verified by a frame-hash mapping
+   against the web leg); the F4i harness papered over it with a one-turn
+   yield before the read. At the F4 merge stage 2b the guarantee moved into
+   the core: `captureFrame(clock)` drains the facade batch synchronously
+   (the wire's documented flush trigger 2, `gl.flush`) BEFORE the
+   `__jsr_capture` barrier crosses — the crossing is fire-and-forget at the
+   bridge, so the host's read runs inside it and sees frame N unconditionally
+   (web lane: the plain GL flush; R1 lane: per-command crossing, the guard
+   skips). The harness yield is removed; the F4i proof passes without it and
+   `UT-PIPELINE-CAPTURE-FLUSH` (tool/three/test/f4b_ut_pipeline_test.js)
+   pins the flush-before-host order. `runF4iOn1B` still waits for the proof
+   program's terminal `exportState`: the program settles across one
    microtask turn per `captureFrame` await, while the shared
    `run1bWidgetEngine` snapshots the state at the first pump gap.
+
+### Host read path (F4 merge stage 2b record)
+
+On the 1B path the EGL context is current on the MAIN thread: the QuickJS
+engine that drives the G1 wire runs on the owning isolate, and 1B is never
+selected on the isolate backend (`sync channel required`,
+`lib/src/runtime/three_backend_selection.dart`), so the engine thread and
+the capture-host thread are the same. The host path of record is therefore
+the GL read `a1b_read_pixels` — make the surface current, present it
+(`a1b_swap_buffers`), read (the shim binds FB 0 and restores the engine's
+bindings); the production `AngleThreeBackend.capture()` and the F4i
+harness both use exactly this flow, and the engine keeps rendering across
+the 25 captures of the proof (a host `makeCurrent` from a second thread
+would have stolen the context and broken the next dispatch — it did not).
+`a1b_read_surface_cpu` is the no-GL IOSurface copy: thread-agnostic by
+construction, used by `bench_1b.dart` and the f4b seek/target tests as a
+diagnostic read — not a host capture path (stated in its shim comment).
+The earlier "the EGL context is current on the engine's worker isolate"
+claim in those comments was a misdiagnosis of the FBO-binding failure that
+fix 1 above actually solved.
+
 ## Cinematic performance matrix (F4f, issue #8)
 
 The F4f matrix measures the cinematic pipeline (the public
@@ -1327,7 +1358,12 @@ the length field as a size (`bufferData`, `getBufferSubData` in
 tests: `test/angle1b/f4f_batched_blob_test.dart` (F4F-BATCHED-BLOB-1: the
 crash layout, 8 runs; F4F-BATCHED-BLOB-2: inline blob sweep 64 KiB-1 ..
 16 MiB, 8 runs each, byte-exact readback; F4F-BATCHED-BLOB-3: the buffer
-cursor desync, pixel-checked).
+cursor desync, pixel-checked). At the F4 merge stage 2b the union stream of
+`IT-TARGET-1` carries a size-only `bufferData` blob for the first time, and
+that test's local G1 stream decoder (F4b slice) still read the length field
+raw (`RangeError` at `0x80000000|len`); its blob branch now follows the
+same wire contract (bit 31 = size-only, no bytes follow) — a decoder fix,
+no assertion changed.
 
 ## F4h — matrices and documentation (issue #8 AC13, side branch `feat/9-f4h-matrices-docs`, 2026-11-26)
 
@@ -1388,10 +1424,11 @@ webLane 14, oneBOk 22, addonsOneB 19; the headline percentages stay
   generator); they carry no standalone addon rows — the stock examples that
   exercise them are the evidence.
 - Every stock example the corpus drivers did not measure keeps its current
-  status; F4i (`E2E-HOST-YOCLIP-*`) and F4f (performance matrix) rows stay
-  for the final merge lane, which can promote them when those segments land
-  (host-proof capture rows via `f4i` tests; PERF-CINEMATIC-* rows via
-  `tool/three/cinematic_perf.mjs`).
+  status; F4i (`E2E-HOST-YOCLIP-*`) and F4f (performance matrix) rows were
+  promoted at the F4 merge stage 2b onto the `jsr.three.cinematic` row of
+  `tool/three/engine_coverage.json` (evidence: `f4i_host_proof_test.dart`,
+  `cases_f4i.sh`, `UT-PIPELINE-CAPTURE-FLUSH`, `cinematic_perf.mjs`,
+  `docs/cinematic_perf.md`; gate `engine_coverage_test.mjs` green).
 - `VignettePass` does not exist at the pin — vignette ships as
   `VignetteShader` via `ShaderPass`, both promoted.
 

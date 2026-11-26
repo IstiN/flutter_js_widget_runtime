@@ -38,15 +38,13 @@ void main() {
 
   tearDownAll(() {
     // Nothing may outlive the tests: each engine closed in its run's
-    // finally, each wire + surface in its test teardown — then the full
-    // shim shutdown terminates the EGL display and frees the shared
-    // context, so the shell exits without a live ANGLE state (the
+    // finally, each wire + surface in its test teardown — then the canonical
+    // registry teardown disposes any leftover surface and runs the full
+    // a1b_shutdown (terminates the EGL display and frees the shared
+    // context), so the shell exits without a live ANGLE state (the
     // flutter_tester segfaults at finalization otherwise — f4eg record,
-    // CI run 45812790468).
-    // ignore: avoid_print
-    print('F4I-TEARDOWN liveWires=${f4iLiveWires.length}');
-    expect(f4iLiveWires, isEmpty, reason: 'every F4i wire must be disposed');
-    if (missing == null) Shim().shutdown();
+    // CI run 45812790468). Prints the before/after live counts.
+    disposeRegisteredReal1BWires();
   });
 
   test('F4i png codec round trip (encode ∘ decode is the identity)', () {
@@ -58,6 +56,7 @@ void main() {
     'framebuffer while a composer framebuffer stays bound, and restores it',
     () {
       final wire = Real1BWireHost(width: 8, height: 8);
+      registerReal1BWire(wire);
       addTearDown(wire.dispose);
       final shim = wire.shim;
       expect(shim.makeCurrent(wire.surface), 0);

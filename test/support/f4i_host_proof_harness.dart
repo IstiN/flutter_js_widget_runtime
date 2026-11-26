@@ -21,12 +21,6 @@ import 'f4i_png_codec.dart';
 
 const String kF4iDir = '/tmp/f4i/oneb';
 
-/// Live F4i wires: the file's tearDownAll proves nothing outlives the tests
-/// before the full shim shutdown (the flutter_tester shell segfaults at
-/// exit while the ANGLE display stays live — the f4eg record; CI run
-/// 45812790468).
-final List<Real1BWireHost> f4iLiveWires = <Real1BWireHost>[];
-
 /// Stages the stock r186 AfterimagePass (stage_afterimage.mjs: pinned
 /// checkout of record, or the pin commit over the network) and returns the
 /// plain-script bundle text for the engine prelude.
@@ -80,14 +74,12 @@ class F4iCaptureHost extends JsCinematicCaptureHost {
     Map<String, dynamic> clock,
   ) async {
     final frame = (clock['frame'] as num).toInt();
-    // The barrier crosses while the JS task that rendered the frame is still
-    // on the stack: the 1B facade batches void commands and presents them at
-    // the end-of-task boundary (its documented flush contract). Yield one
-    // event-loop turn FIRST so the in-flight frame reaches the surface —
-    // reading earlier captures frame N-1 (verified one-behind by frame-hash
-    // mapping during the F4i diagnosis). The QuickJS job drain of the
-    // pending resolve runs the batch flush before this timer resumes.
-    await Future<void>.delayed(Duration.zero);
+    // The frame of this clock is guaranteed on the surface before this call:
+    // captureFrame(clock) drains the facade batch synchronously (wire flush
+    // trigger 2) before the __jsr_capture barrier crosses (F4 merge stage
+    // 2b core guarantee), so the host reads frame N without yielding. The
+    // former one-turn yield here (F4i harness workaround) is gone; the F4i
+    // proof and UT-PIPELINE-CAPTURE-FLUSH pin the guarantee.
     final shim = _wire.shim;
     // The corpus read flow: make the wire's surface current, present it,
     // then read the straight RGBA back. The shim's surface read targets the
@@ -146,14 +138,12 @@ runF4iOn1B(
 }) async {
   final wire = Real1BWireHost(width: 96, height: 64)
     ..facadeBootstrapOverride = real1bFacadeBootstrap();
-  // Deterministic teardown order: the engine disposes in this function's
-  // finally (QuickJS runtime closed), the wire + surface here (test end),
-  // and the file's tearDownAll finishes with the full a1b_shutdown.
-  f4iLiveWires.add(wire);
-  addTearDown(() {
-    wire.dispose();
-    f4iLiveWires.remove(wire);
-  });
+  // Deterministic teardown order (F4 merge stage 2b): the engine disposes in
+  // this function's finally, the wire + surface in the test teardown (dispose
+  // unregisters it from liveReal1BWires), and the file's tearDownAll runs the
+  // canonical disposeRegisteredReal1BWires (leftover surfaces + a1b_shutdown).
+  registerReal1BWire(wire);
+  addTearDown(wire.dispose);
   final captureHost = noCapture ? null : F4iCaptureHost(wire, dir);
   final logs = <Map<String, dynamic>>[];
   debugDefaultTargetPlatformOverride = TargetPlatform.macOS;

@@ -99,6 +99,17 @@ class MyCaptureHost extends JsCinematicCaptureHost {
 }
 ```
 
+**Frame-presented guarantee (F4 merge stage 2b, 2026-11-26).** `captureFrame`
+drains the GL queue synchronously (the wire's flush trigger, `gl.flush`)
+BEFORE the `__jsr_capture` barrier crosses, so the host's surface read
+inside the crossing always sees the frame of the requested clock — on the
+1B lane the facade otherwise dispatches its batched void commands at the
+end-of-task flush, which would run after the crossing (frame N-1; the F4i
+diagnosis). Host read path of record: the 1B EGL context is current on the
+main thread, so the host makes the surface current, presents it and reads
+via `a1b_read_pixels` (see `docs/angle_1b.md`, "Host read path"); pinned by
+`UT-PIPELINE-CAPTURE-FLUSH` and the F4i proof without any harness yield.
+
 The host captures after the final pass of the frame-driven render — never
 from a wall-clock frame. A host without the capability (field unset) rejects
 the JS promise with the NAMED error **`cinematic.notCapturable`** — never an

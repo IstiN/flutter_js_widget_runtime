@@ -170,8 +170,10 @@ class Shim {
           ffi.Pointer<ffi.Int32>,
         )
       >('a1b_read_pixels');
-  // CPU IOSurface readback (a1b_read_surface_cpu): no GL context involved,
-  // safe from the main isolate while the engine worker owns the context.
+  // CPU IOSurface readback (a1b_read_surface_cpu): the no-GL, thread-agnostic
+  // copy — the bench diagnostic read, not the host capture path (the 1B
+  // context is current on the main thread; hosts read via a1b_read_pixels
+  // with the surface current and presented, see angle_1b.c).
   late final int Function(
     int,
     ffi.Pointer<ffi.Uint8>,
