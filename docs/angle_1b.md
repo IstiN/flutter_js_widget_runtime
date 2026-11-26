@@ -693,3 +693,64 @@ outputs are byte-reproducible on darwin-arm64 only (the builder of record,
 asserted by the `quality-macos` job); on other host classes the verifiers
 check the pins and report the rebuilt hashes informationally
 (`docs/cinematic.md`).
+
+## F4i — downstream host proof (issue #8, AC15)
+
+`tool/three/cinematic_host_proof/` is the in-repository stand-in for a video
+host: a short transparent-overlay scene (an overlay card over a dark and a
+light background band, alpha 0.0/0.7/0.25 across three strips) driven frame
+by frame through the public helper API only (`jsr.three.cinematic`:
+`createPipeline`, `createFrameClock`, `probeCapabilities`, `resetHistory`,
+`renderFrame`, `captureFrame`) plus the stock r186 `AfterimagePass` and the
+committed core `CinematicMotionBlurPass`. The core keeps no YoClip
+dependency (grep of `tool/three/src` and `lib/` for YoClip names: none).
+
+### The three capture paths
+
+- (a) **Preview image** — `pipeline.renderFrame(clock)` then an in-page RGBA
+  grab of the canvas (the host's preview path).
+- (b) **Arbitrary-frame screenshot** — after `pipeline.resetHistory(0)`, a
+  DIRECT seek `renderFrame(clock(N))` and one grab. At the temporal
+  checkpoint (frame 24) the temporal pass needs the history window; the
+  program proves the `CinematicHistory` path: declare the window with
+  `clockState`, `resetHistory(0)`, direct seek — and compares the result
+  with a sequential 25-frame run (hash equality, LEI state).
+- (c) **PNG-sequence export** — `captureFrame(clock)` per frame through the
+  `__jsr_capture` channel with `{ engineId, clock, barrier: 'final-pass' }`;
+  the host writes `frame_0000.png …` files.
+
+### Checkpoints (web leg, Chromium, hashes from cases_f4i.sh)
+
+| Checkpoint | Frame | Effects | Preview = screenshot = PNG |
+|---|---|---|---|
+| bloom | 12 | bloom, FXAA | yes — 0xab85dd29 |
+| DOF | 20 | bloom, DOF, FXAA | yes — 0xa5a5f0e7 |
+| temporal | 24 | bloom, DOF, afterimage, motion blur | yes — 0x40657ad2 |
+
+All three are hash-equal at every checkpoint (25 PNG files, fnv1a of the
+RGBA decode). Run: `JSR_WEBGL_REF_CHANNEL=chromium bash tool/three/cases_f4i.sh`
+(web leg; CI: job `conformance`, step `F4i downstream host proof (web leg)`).
+Native 1B leg: `flutter test test/angle1b/f4i_host_proof_test.dart` (CI: job
+`quality-macos` via the existing `flutter test test/angle1b` step; locally
+export `JSR_WEBGL_REF_CHANNEL=chromium` first, and build the QuickJS bridge).
+
+### Missing capability (REG-HOST-CAPTURE)
+
+Without the capture barrier (no `JsRuntimeConfig.cinematicCaptureHost`, no
+`jsr.capture` channel) the PNG-sequence export fails BEFORE any file is
+written with the named error `cinematic.notCapturable` and `files=0`. Web:
+`F4I_NOCAP_RESULT named=true ... captures=0 files=0`. Native:
+`E2E-HOST-YOCLIP-NOCAP` asserts the named error and zero files. No
+effect-less image is ever produced.
+
+### Native leg status at the F4i head
+
+`E2E-HOST-YOCLIP-NOCAP` passes on macOS native 1B. `E2E-HOST-YOCLIP-1/-2`
+are open: the Dart capture host's raw surface read of the presented ANGLE
+surface fails with `GL_INVALID_OPERATION` once the engine's GL state is live
+(bare-wire probes with the same read flow succeed before any engine work).
+The failure maps to the named `cinematic.notCapturable` error and the run
+completes honestly (no effect-less image, zero files). The remaining fix is
+a capture host that reads the frame through a path the engine itself drives
+(or a host-owned surface). The web leg is unaffected; the debugging trail is
+in `handoff-flutter-f4i.md`.

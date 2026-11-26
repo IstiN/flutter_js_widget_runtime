@@ -214,6 +214,17 @@ jobs:
             conformance-report.md
             badges/conformance.json
 
+      # F4i (issue #8, AC15): the downstream host proof, web leg — the
+      # committed core cinematic module + the staged stock r186
+      # AfterimagePass + the shared proof program in the runner's Chrome
+      # (channel chrome default; JSR_WEBGL_REF_CHANNEL stays unset here).
+      # Preview image, arbitrary-frame screenshot and PNG-sequence capture
+      # must be hash-equal at the bloom/DOF/temporal checkpoints, and the
+      # missing-capability export must fail with cinematic.notCapturable.
+      # The native 1B leg runs in quality-macos (test/angle1b/f4i_host_proof_test.dart).
+      - name: F4i downstream host proof (web leg)
+        run: bash tool/three/cases_f4i.sh
+
   quality-macos:
     # Issue #7 (F2): the pinned ANGLE 1B build on macOS + the real-ANGLE
     # host tests. The ANGLE dylibs are cached on the pin hash; the first
