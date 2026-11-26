@@ -298,8 +298,8 @@
       "cat": "buffer",
       "args": "ubu",
       "ret": "void",
-      "c": "g_BufferData(a0, (ptrdiff_t)a1_len, a1, a2);",
-      "doc": "Second arg is the blob: a typed array uploads its bytes; a bare number or null is the size-only convention (decoder sees NULL pointer)."
+      "c": "g_BufferData(a0, (ptrdiff_t)((a1_len) & 0x7fffffffu), a1, a2);",
+      "doc": "Second arg is the blob: a typed array uploads its bytes; a bare number or null encodes the size-only convention (len field with bit 31 set, no bytes on the wire; the decoder sees a NULL pointer)."
     },
     {
       "name": "bufferSubData",
@@ -356,7 +356,7 @@
       "cat": "buffer",
       "args": "uib",
       "ret": "scratch",
-      "c": "{ (void)a2; g1_get_buffer_subdata(a0, a1, a2_len); }",
+      "c": "{ (void)a2; g1_get_buffer_subdata(a0, a1, (uint32_t)((a2_len) & 0x7fffffffu)); }",
       "doc": "Scratch = raw bytes. Implemented via glMapBufferRange/glUnmapBuffer (this ANGLE build exports no glGetBufferSubData)."
     },
     {

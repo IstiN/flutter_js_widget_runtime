@@ -759,7 +759,7 @@ static int64_t g1_dispatch_op(uint32_t opcode, g1_cur *c) {
     const void *const a1 = g1_rd_blob(c, a1_len);
     const uint32_t a2 = g1_rd_u32(c);
     if (c->err) return G1_E_MALFORMED;
-    g_BufferData(a0, (ptrdiff_t)a1_len, a1, a2);
+    g_BufferData(a0, (ptrdiff_t)((a1_len) & 0x7fffffffu), a1, a2);
     (void)sc;
     (void)sc_cap;
     if (sc_len) g1_scratch_len = sc_len; // helper-based glue already published
@@ -868,7 +868,7 @@ static int64_t g1_dispatch_op(uint32_t opcode, g1_cur *c) {
     const uint32_t a2_len = g1_rd_u32(c);
     const void *const a2 = g1_rd_blob(c, a2_len);
     if (c->err) return G1_E_MALFORMED;
-    { (void)a2; g1_get_buffer_subdata(a0, a1, a2_len); }
+    { (void)a2; g1_get_buffer_subdata(a0, a1, (uint32_t)((a2_len) & 0x7fffffffu)); }
     (void)sc;
     (void)sc_cap;
     if (sc_len) g1_scratch_len = sc_len; // helper-based glue already published

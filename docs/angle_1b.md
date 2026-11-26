@@ -1214,3 +1214,117 @@ Two fixes landed for this leg (one core, one harness):
    proof program's terminal `exportState`: the program settles across one
    microtask turn per `captureFrame` await, while the shared
    `run1bWidgetEngine` snapshots the state at the first pump gap.
+## Cinematic performance matrix (F4f, issue #8)
+
+The F4f matrix measures the cinematic pipeline (the public
+`jsr.three.cinematic` helper API only — `createPipeline`, `setPreset`,
+`renderFrame`, `setSize`, `resetHistory`, `dispose`) on an animated scene
+with a static 256x256 DataTexture color map and a per-preset LUT, at
+1280x720, 1920x1080 and 3840x2160, for the named presets
+(`draft`, `production`, `deterministic-export`), on both legs: the native
+1B leg (QuickJS -> webgl2 facade -> pinned ANGLE Metal, corpus wire and
+boot) and the web leg (headless Chrome WebGL2 over the same bundle of
+record, `assets/three/jsr_three_web.js`, byte-identical on both legs).
+
+- Scene and drivers: `tool/three/perf/perf_scene.js` (one scene file, both
+  legs), `tool/three/cinematic_perf_1b.dart` (native driver, bench_1b wire
+  and timing method) and `tool/three/cinematic_perf.mjs` (orchestrator, web
+  leg, report writer).
+- Report: `docs/cinematic_perf.md` — regenerate with
+  `node tool/three/cinematic_perf.mjs` on the measurement host; the CI step
+  (`F4f cinematic perf matrix`, job `quality-macos`, `--ci` reduced form)
+  gates the structural counters only and prints its runner's timing as
+  information; CI numbers never enter the committed report.
+- Ids: `PERF-CINEMATIC-*` (the matrix: p50/p95 of frame wall time and
+  thread CPU time per preset and resolution, GL object counts, offscreen
+  target bytes, driver-process RSS; host numbers, reported not gated) and
+  `REG-UPLOADS` (gated: after a quiet warm-up — frames until
+  compiles/links/uploads deltas are zero for 10 consecutive frames, bounded
+  at 200 — over at least 120 measured frames, 0 shader compilations, 0
+  program links and 0 uploads of any texture per frame, unchanged LUT and
+  scene textures included; a direct seek, a resize (down and up) and a
+  `resetHistory` must not recompile or re-upload the unchanged assets —
+  a resize may legitimately re-upload re-allocated render targets, shown
+  separately in the report). The gated structural checks live in
+  `test/angle1b/f4f_uploads_test.dart` (real ANGLE, production preset at
+  720p, 120 frames); timing assertions exist nowhere in the Dart tests.
+- Counters: compiles/links and texture uploads are the facade `__stats.used`
+  deltas (`compileShader`, `linkProgram`, `texImage2D`, `texSubImage2D`,
+  `texImage3D`, `texSubImage3D`, `compressedTex*`), cross-checked against a
+  per-texture attribution wrapper around the context (`countersAgree` must
+  hold on the native leg). GL object counts are facade
+  `used.createX - used.deleteX`; offscreen target bytes come from the
+  pipeline-owned descriptors (composer read/write targets, every render
+  target reachable from the passes, and the subframe accumulation target,
+  `width x height x bytes-per-pixel` plus a depth attachment when enabled).
+- Timing method: one frame = one `rt.eval` on the bench wire, wall time by
+  `Stopwatch`, thread CPU by `CLOCK_THREAD_CPUTIME_ID` (the bench sanity
+  probe runs); percentiles are per window and the reported p50/p95 are the
+  MEDIAN over the windows (never a best-of-N pick). The web leg times
+  `pipeline.renderFrame` with `performance.now` in the page (thread CPU is
+  not observable there). No timing number gates anything in F4f.
+- Transport mode: the matrix default is the BATCHED wire (F2b facade
+  batching) — the engine's default lane. `JSR_PERF_BATCHED=0` is a
+  diagnostic switch that selects the per-command transport
+  (`G1.setSink(null)`, the corpus dispatch) for wire comparisons; it is
+  never the measured default. The transport defect of the first matrix
+  record is FIXED (below).
+- `npm --prefix tool/three test` and the ANGLE host tests are unaffected
+  (no bundle, facade or core-module change in F4f).
+
+### Measured transport defect — record and fix (F4f)
+
+DEFECT (first matrix record): the BATCHED wire (F2b facade batching)
+crashed the process with a BUS error (`BUS_ADRALN` inside ANGLE
+`TextureMtl::setPerSliceSubImage` -> `memmove`) at a garbage address,
+reproducibly flaky: 4 of 8 runs at 1280x720 with the perf scene, 0 of 8
+runs in the corpus transport (per-command dispatch), 0 in bench_1b
+(batched but without inline blobs) and 0 in the corpus (blobs but
+per-command).
+
+ROOT CAUSE (one layer: the G1 wire's blob convention, shared by the JS
+packer and the C decoder): the size-only / null-data convention was
+encoded as a bare length field (`u32 len`, no bytes on the wire) and the
+decoder inferred "no data" from `remaining < len` or
+`len == 0 && remaining == 0`. Inside a batched dispatch a null-data
+`texImage2D` FOLLOWED by other commands left `remaining > 0`, so the
+decoder handed GL a pointer INTO THE NEXT COMMAND'S BYTES; ANGLE Metal
+copied `width*height*bytes-per-pixel` from that pointer and walked off the
+208-byte dispatch block into an unmapped page (the crash), or uploaded
+silently wrong bytes. A size-only `bufferData(len)` additionally advanced
+the decode cursor over bytes that were never written, desyncing every
+later command in the batch. Per-command dispatch always ended the buffer
+at the blob, so the heuristic happened to hold there — which is why only
+the batched lane failed. Byte-level proof: the batched and per-command
+command streams of the same scene were IDENTICAL (11645 commands, 0
+diffs), so the encoder was never at fault; a traced dispatch showed the
+crashing `texImage2D(TEXTURE_2D, 0, RGBA16F, 1280, 720, 0, RGBA,
+HALF_FLOAT, <non-null garbage>)` mid-batch.
+
+SIZE BISECT (the boundary sweep of the regression test, on the pre-fix
+wire): real inline blobs were carried byte-exactly at every size
+(64 KiB-1, 64 KiB, 64 KiB+1, 256 KiB, 1 MiB, 4 MiB, 16 MiB; 8 runs each
+up to 1 MiB, 3 at 4 MiB, 2 at 16 MiB — 0 failures, bytes read back
+through an FBO and compared). The defect never touched real blob DATA:
+the failing layouts were the null-data texImage2D (F4F-BATCHED-BLOB-1:
+SIGBUS on every attempt — the shell died inside run 1 of 8 with exit -10)
+and the size-only bufferData (F4F-BATCHED-BLOB-3: the batch answered a
+garbage rc, -1065353216, and the clear following it never ran). The perf
+scene's 256 KiB DataTexture upload itself decoded fine — the crash came
+from the null-data 1280x720 RGBA16F render-target allocation commands in
+the same batched frames.
+
+FIX (wire protocol, one branch per side): the length field carries the
+convention in bit 31 — set = size-only / null-data (GL gets NULL, the
+cursor does not move), clear = real data that must be present in full
+(a shorter remainder is now a MALFORMED frame instead of a silently
+reinterpreted upload). Changed: the generator's blob writer
+(`tool/three/build_1b_bindings.py` -> both `g1_packer.js` copies),
+`g1_rd_blob` (`packages/jsr_three_angle/native/angle/angle_1b_dispatch.c`),
+the C reference packer (`angle_1b_pack.h`) and the two glue rows that use
+the length field as a size (`bufferData`, `getBufferSubData` in
+`tool/three/webgl2_g1_methods.json` -> `gen/g1_tables.h`). Regression
+tests: `test/angle1b/f4f_batched_blob_test.dart` (F4F-BATCHED-BLOB-1: the
+crash layout, 8 runs; F4F-BATCHED-BLOB-2: inline blob sweep 64 KiB-1 ..
+16 MiB, 8 runs each, byte-exact readback; F4F-BATCHED-BLOB-3: the buffer
+cursor desync, pixel-checked).

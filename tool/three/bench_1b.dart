@@ -73,7 +73,10 @@ const double kRefCalibrationMs = 0.933;
 // differing constant on a runner SDK fails loudly instead of producing
 // garbage percentiles.
 const int kClockThreadCputimeId = 16;
-final int Function(int) _threadCpuNs = ffi.DynamicLibrary.process()
+
+// Public (F4f cinematic perf matrix reuses the exact timing method): the
+// calling thread's CPU nanoseconds via the Darwin clock.
+final int Function(int) threadCpuNs = ffi.DynamicLibrary.process()
     .lookupFunction<ffi.Uint64 Function(ffi.Int32), int Function(int)>(
       'clock_gettime_nsec_np',
     );
@@ -83,12 +86,12 @@ final int Function(int) _threadCpuNs = ffi.DynamicLibrary.process()
 /// thread can never run ahead of the wall clock).
 void checkThreadClock() {
   final wall = Stopwatch()..start();
-  final c0 = _threadCpuNs(kClockThreadCputimeId);
+  final c0 = threadCpuNs(kClockThreadCputimeId);
   var sink = 0.0;
   for (var i = 0; i < 300000; i++) {
     sink += i * 0.5;
   }
-  final c1 = _threadCpuNs(kClockThreadCputimeId);
+  final c1 = threadCpuNs(kClockThreadCputimeId);
   final wallNs = wall.elapsedMicroseconds * 1000;
   if (sink.isNaN || c0 == 0 || c1 <= c0 || c1 - c0 > wallNs) {
     throw StateError(
@@ -461,7 +464,7 @@ class BenchReport {
       'cpu p50=$cpuP50Ms ms p95=$cpuP95Ms ms p99=$cpuP99Ms ms';
 }
 
-double _percentile(List<double> sortedMs, double q) {
+double percentile(List<double> sortedMs, double q) {
   if (sortedMs.isEmpty) return 0;
   final idx = (q * (sortedMs.length - 1)).round();
   return sortedMs[idx];
@@ -596,13 +599,13 @@ Future<BenchReport> run1bBench({
       var maxFlushes = 0;
       for (var f = 0; f < frames; f++) {
         session.dispatchCount = 0;
-        final cpu0 = _threadCpuNs(kClockThreadCputimeId);
+        final cpu0 = threadCpuNs(kClockThreadCputimeId);
         watch
           ..reset()
           ..start();
         session.evalJs('__benchFrame($draws);', 'frame.js');
         watch.stop();
-        final cpu1 = _threadCpuNs(kClockThreadCputimeId);
+        final cpu1 = threadCpuNs(kClockThreadCputimeId);
         samples.add(watch.elapsedMicroseconds / 1000.0);
         cpuSamples.add((cpu1 - cpu0) / 1000000.0);
         if (session.dispatchCount > maxFlushes) {
@@ -615,12 +618,12 @@ Future<BenchReport> run1bBench({
         frames,
         draws,
         maxFlushes,
-        _percentile(samples, 0.50),
-        _percentile(samples, 0.95),
-        _percentile(samples, 0.99),
-        _percentile(cpuSamples, 0.50),
-        _percentile(cpuSamples, 0.95),
-        _percentile(cpuSamples, 0.99),
+        percentile(samples, 0.50),
+        percentile(samples, 0.95),
+        percentile(samples, 0.99),
+        percentile(cpuSamples, 0.50),
+        percentile(cpuSamples, 0.95),
+        percentile(cpuSamples, 0.99),
         refMs,
         budgetMs,
       );
