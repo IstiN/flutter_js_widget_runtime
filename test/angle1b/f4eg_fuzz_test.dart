@@ -1,9 +1,6 @@
-import 'dart:io';
-
 import 'package:flutter_test/flutter_test.dart';
 
 import '../support/f4eg_cinematic.dart';
-import '../support/three_1b_engine.dart';
 
 // FUZZ-TARGET-* (issue #8, F4g hostile inputs, plan 4.4 row F4g; edge E9):
 // deterministic pseudo-random fuzzing (the engine's own mulberry32 PRNG,
@@ -16,8 +13,6 @@ import '../support/three_1b_engine.dart';
 // recording wire (the fake lane; no GPU truth claimed — this proves the
 // input policy, not pixels).
 void main() {
-  final bundle = File('assets/three/jsr_three_native.js').readAsStringSync();
-
   test('FUZZ-TARGET-1: seeded hostile history windows and clocks stay named '
       'and bounded', () async {
     const seed = 0x5eed0001;
@@ -50,19 +45,9 @@ try {
     if (rec.frames.length > results.maxRec) results.maxRec = rec.frames.length;
     if (rec.frames.length > 600) results.unnamed.push('reconstruct built ' + rec.frames.length + ' frames');
   }
-  jsr.exportState(results);
-} catch (e) {
-  results.unnamed.push('fatal: ' + String((e && e.message) || e));
-  jsr.exportState(results);
-}
+${f4egExportTailJs(catchBodyJs: "  results.unnamed.push('fatal: ' + String((e && e.message) || e));")}
 ''';
-    // ignore: avoid_print
-    print('f4eg fuzz seed (history): $seed');
-    final (_, reported, state) = await run1bWidgetEngine(
-      history,
-      threeSource: bundle,
-    );
-    expect(reported?.isAngle1b, isTrue);
+    final state = await runF4eg(history, seedLabel: 'history: $seed');
     expect(state?['seed'], seed);
     expect(
       (state?['named'] as num) + (state?['clamped'] as num),
@@ -136,18 +121,9 @@ try {
   }
   // safety export in case a load never errors (the guard below fails)
   setTimeout(function () { if (pending > 0) { results.pending = pending; jsr.exportState(results); } }, 2000);
-} catch (e) {
-  results.unnamed.push('fatal: ' + String((e && e.message) || e));
-  jsr.exportState(results);
-}
+${f4egExportTailJs(catchBodyJs: "  results.unnamed.push('fatal: ' + String((e && e.message) || e));")}
 ''';
-    // ignore: avoid_print
-    print('f4eg fuzz seed (lut/assets): $seed');
-    final (_, reported, state) = await run1bWidgetEngine(
-      lut,
-      threeSource: bundle,
-    );
-    expect(reported?.isAngle1b, isTrue);
+    final state = await runF4eg(lut, seedLabel: 'lut/assets: $seed');
     expect(state?['seed'], seed);
     expect(
       state?['lutOk'],
@@ -177,11 +153,7 @@ var results = { seed: $seed, named: 0, clamped: 0, unnamed: [], finalRenderCalls
 try {
   var cin = jsr.three.cinematic;
   var rng = cin.cinematicRandom($seed);
-  var renderer = f4egMockRenderer();
-  var pipeline = cin.createPipeline({
-    renderer: renderer, scene: new THREE.Scene(), camera: new THREE.PerspectiveCamera()
-  });
-  pipeline.setSize(48, 48);
+${f4egPipelineSetupJs()}
   var dim = [NaN, -1, 0, 0.5, 64, 4096, 4097, Infinity, 100000];
   var names = ['bloom', 'dof', 'smaa', 'fxaa', 'colorGrade', 'film', 'vignette', 'motion', 'nonsense', '', null];
   var presets = ['draft', 'production', 'deterministic-export', 'bogus', '', null];
@@ -207,19 +179,12 @@ try {
   pipeline.setSize(48, 48);
   pipeline.renderFrame(cin.clockState(1, 24, 0.5, 1, 0));
   results.finalRenderCalls = renderer.__calls.render || 0;
-  jsr.exportState(results);
-} catch (e) {
-  results.unnamed.push('fatal: ' + String((e && e.message) || e));
-  jsr.exportState(results);
-}
+${f4egExportTailJs(catchBodyJs: "  results.unnamed.push('fatal: ' + String((e && e.message) || e));")}
 ''';
-    // ignore: avoid_print
-    print('f4eg fuzz seed (api): $seed');
-    final (_, reported, state) = await run1bWidgetEngine(
+    final state = await runF4eg(
       '$f4egMockRendererJs\n$api',
-      threeSource: bundle,
+      seedLabel: 'api: $seed',
     );
-    expect(reported?.isAngle1b, isTrue);
     expect(state?['seed'], seed);
     expect(
       (state?['named'] as num) + (state?['clamped'] as num),

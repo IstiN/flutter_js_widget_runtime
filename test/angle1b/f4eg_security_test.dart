@@ -1,10 +1,8 @@
 import 'dart:convert';
-import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
 
 import '../support/f4eg_cinematic.dart';
-import '../support/three_1b_engine.dart';
 
 // SEC-CINEMATIC-* and E2E-FALLBACK-* (issue #8, F4g security and honest
 // degradation, plan 4.4 row F4g; edges E5, E7, E14's named-error rule).
@@ -27,14 +25,13 @@ import '../support/three_1b_engine.dart';
 // - SEC-CINEMATIC-4: the capture barrier metadata carries no runtime secret
 //   and no asset-URL token.
 void main() {
-  final bundle = File('assets/three/jsr_three_native.js').readAsStringSync();
-
   const policyMessage =
       'three.unsupported: custom shaders are disabled by host policy';
 
   test('SEC-CINEMATIC-1: denied shaders fail before the renderer allocates, '
       'through a live pipeline; the stock pass set is unaffected', () async {
-    final denied = '''
+    final denied =
+        '''
 var results = {};
 try {
   var cin = jsr.three.cinematic;
@@ -60,12 +57,7 @@ try {
   // construction throws the policy error before insertPass runs
   var chainBefore = pipeline.composer.passes.length;
   try {
-    var customMaterial = new THREE.ShaderMaterial({
-      uniforms: {},
-      vertexShader: 'void main() { gl_Position = vec4(0.0); }',
-      fragmentShader: 'void main() { gl_FragColor = vec4(1.0); }'
-    });
-    pipeline.composer.insertPass({ render: function () {}, setSize: function () {}, material: customMaterial }, 1);
+${f4egCustomPassProbeJs}
     results.customPass = 'inserted';
   } catch (e) { results.customPass = String(e.message); }
   results.chainBefore = chainBefore;
@@ -73,18 +65,12 @@ try {
   // the renderer the pipeline holds recorded zero work: every denial fired
   // at construction, before the renderer allocated anything
   results.rendererCalls = JSON.stringify(renderer.__calls);
-  jsr.exportState(results);
-} catch (e) {
-  results.error = String((e && e.message) || e);
-  jsr.exportState(results);
-}
+${f4egExportTailJs()}
 ''';
-    final (_, reported, state) = await run1bWidgetEngine(
+    final state = await runF4eg(
       '$f4egMockRendererJs\n$denied',
-      threeSource: bundle,
       allowCustomShaders: false,
     );
-    expect(reported?.isAngle1b, isTrue);
     expect(state?['error'], isNull, reason: '${state?['error']}');
     expect(
       state?['stockBloomPass'],
@@ -116,7 +102,8 @@ try {
 
   test('SEC-CINEMATIC-1b: allowCustomShaders: true permits the same '
       'constructions through the same pipeline path', () async {
-    final allowed = '''
+    final allowed =
+        '''
 var results = {};
 try {
   var cin = jsr.three.cinematic;
@@ -132,26 +119,15 @@ try {
   var m = new THREE.MeshBasicMaterial();
   m.onBeforeCompile = function () {};
   results.onBeforeCompile = 'set';
-  var customMaterial = new THREE.ShaderMaterial({
-    uniforms: {},
-    vertexShader: 'void main() { gl_Position = vec4(0.0); }',
-    fragmentShader: 'void main() { gl_FragColor = vec4(1.0); }'
-  });
-  pipeline.composer.insertPass({ render: function () {}, setSize: function () {}, material: customMaterial }, 1);
+${f4egCustomPassProbeJs}
   results.customPass = 'inserted';
   results.chainAfter = pipeline.composer.passes.length;
-  jsr.exportState(results);
-} catch (e) {
-  results.error = String((e && e.message) || e);
-  jsr.exportState(results);
-}
+${f4egExportTailJs()}
 ''';
-    final (_, reported, state) = await run1bWidgetEngine(
+    final state = await runF4eg(
       '$f4egMockRendererJs\n$allowed',
-      threeSource: bundle,
       allowCustomShaders: true,
     );
-    expect(reported?.isAngle1b, isTrue);
     expect(state?['error'], isNull, reason: '${state?['error']}');
     expect(state?['shaderMaterial'], 'constructed');
     expect(state?['rawShaderMaterial'], 'constructed');
@@ -166,7 +142,8 @@ try {
 
   test('SEC-CINEMATIC-2: hostile canvas and pipeline dimensions are named '
       'errors or documented clamps; the pipeline keeps rendering', () async {
-    final hostile = '''
+    final hostile =
+        '''
 var results = { canvas: {}, pipeline: {}, errors: [] };
 try {
   var cin = jsr.three.cinematic;
@@ -181,11 +158,7 @@ try {
   results.canvas.fraction = trySet('width', 32.9);
   results.canvas.zero = trySet('height', 0);
   results.canvas.oversize = trySet('width', 999999);
-  var renderer = f4egMockRenderer();
-  var pipeline = cin.createPipeline({
-    renderer: renderer, scene: new THREE.Scene(), camera: new THREE.PerspectiveCamera()
-  });
-  pipeline.setSize(48, 48);
+${f4egPipelineSetupJs()}
   function trySize(w, h) {
     try { pipeline.setSize(w, h); return 'ok:' + pipeline.composer.renderTarget1.width + 'x' + pipeline.composer.renderTarget1.height; }
     catch (e) { return String((e && e.message) || e); }
@@ -202,17 +175,9 @@ try {
   results.pipeline.restore = trySize(48, 48);
   pipeline.renderFrame(cin.clockState(1, 24, 0.5, 1, 0));
   results.renderedAfter = renderer.__calls.render || 0;
-  jsr.exportState(results);
-} catch (e) {
-  results.errors.push(String((e && e.message) || e));
-  jsr.exportState(results);
-}
+${f4egExportTailJs(catchBodyJs: '  results.errors.push(String((e && e.message) || e));')}
 ''';
-    final (_, reported, state) = await run1bWidgetEngine(
-      '$f4egMockRendererJs\n$hostile',
-      threeSource: bundle,
-    );
-    expect(reported?.isAngle1b, isTrue);
+    final state = await runF4eg('$f4egMockRendererJs\n$hostile');
     expect(state?['errors'], isEmpty, reason: '${state?['errors']}');
     // Canvas: named error for non-finite and negative, documented clamp for
     // fractional (floor), zero and beyond the GL max (16384 cap).
@@ -263,7 +228,8 @@ try {
 
   test('SEC-CINEMATIC-3: the oversized target quota refuses before any '
       'target resize; oversized history descriptors stay bounded', () async {
-    final quotas = '''
+    final quotas =
+        '''
 var results = { history: {} };
 try {
   var cin = jsr.three.cinematic;
@@ -291,17 +257,9 @@ try {
   catch (e) { results.history.nan = String((e && e.message) || e); }
   var rec = history.reconstruct({ frame: 100000 });
   results.history.recLen = rec.frames.length;
-  jsr.exportState(results);
-} catch (e) {
-  results.error = String((e && e.message) || e);
-  jsr.exportState(results);
-}
+${f4egExportTailJs()}
 ''';
-    final (_, reported, state) = await run1bWidgetEngine(
-      '$f4egMockRendererJs\n$quotas',
-      threeSource: bundle,
-    );
-    expect(reported?.isAngle1b, isTrue);
+    final state = await runF4eg('$f4egMockRendererJs\n$quotas');
     expect(state?['error'], isNull, reason: '${state?['error']}');
     expect(
       state?['targetQuota'],
@@ -329,7 +287,8 @@ try {
   test('E2E-FALLBACK-1: with GL2 capabilities forced absent the probe '
       'reports them absent, the preset runs a reduced set, and the missing '
       'features are named before capture', () async {
-    final fallback = '''
+    final fallback =
+        '''
 var results = {};
 try {
   var cin = jsr.three.cinematic;
@@ -358,17 +317,9 @@ try {
   try { pipeline.assertCapturable(); }
   catch (e) { capturable = (e && e.name ? e.name : String(e)) + ': ' + String((e && e.message) || e); }
   results.assertCapturable = capturable;
-  jsr.exportState(results);
-} catch (e) {
-  results.error = String((e && e.message) || e);
-  jsr.exportState(results);
-}
+${f4egExportTailJs()}
 ''';
-    final (_, reported, state) = await run1bWidgetEngine(
-      '$f4egWebMockRendererJs\n$fallback',
-      threeSource: bundle,
-    );
-    expect(reported?.isAngle1b, isTrue);
+    final state = await runF4eg('$f4egMockRendererJs\n$fallback');
     expect(state?['error'], isNull, reason: '${state?['error']}');
     final probe = state?['probe'] ?? {};
     expect(probe['smaa'], isFalse);
@@ -401,7 +352,8 @@ try {
 
   test('E2E-FALLBACK-2: the capture still returns after the final pass with '
       'the reduced set', () async {
-    final capture = '''
+    final capture =
+        '''
 var results = {};
 try {
   var cin = jsr.three.cinematic;
@@ -413,25 +365,14 @@ try {
   pipeline.setPreset('production');
   pipeline.renderFrame(cin.clockState(3, 24, 0.5, 1, 0));
   results.passes = Object.keys(pipeline.passes).sort();
-  pipeline.captureFrame(cin.clockState(3, 24, 0.5, 1, 0)).then(function (r) {
-    results.captured = { path: r.path || null, width: r.width || null };
-    jsr.exportState(results);
-  }, function (e) {
-    results.captureError = String((e && e.message) || e);
-    jsr.exportState(results);
-  });
-} catch (e) {
-  results.error = String((e && e.message) || e);
-  jsr.exportState(results);
-}
+${f4egCaptureExportJs(clockExpr: 'cin.clockState(3, 24, 0.5, 1, 0)', capturedExpr: '{ path: r.path || null, width: r.width || null }')}
+${f4egExportTailJs(preExport: false)}
 ''';
     final host = F4egRecordingCaptureHost();
-    final (_, reported, state) = await run1bWidgetEngine(
-      '$f4egWebMockRendererJs\n$capture',
-      threeSource: bundle,
+    final state = await runF4eg(
+      '$f4egMockRendererJs\n$capture',
       cinematicCaptureHost: host,
     );
-    expect(reported?.isAngle1b, isTrue);
     expect(state?['error'], isNull, reason: '${state?['error']}');
     expect(state?['captureError'], isNull, reason: '${state?['captureError']}');
     expect(
@@ -455,7 +396,8 @@ try {
       'asset-URL token', () async {
     const secret = 'sentinel-secret-42';
     const token = 'hush-token';
-    final capture = '''
+    final capture =
+        '''
 var results = {};
 try {
   var cin = jsr.three.cinematic;
@@ -470,31 +412,19 @@ try {
   });
   pipeline.applyEffect({ effect: 'colorGrade', options: { lut: lutUrl } });
   pipeline.renderFrame(cin.clockState(4, 24, 0.5, 1, 0));
-  pipeline.captureFrame(cin.clockState(4, 24, 0.5, 1, 0)).then(function (r) {
-    results.captured = JSON.stringify(r);
-    results.config = JSON.stringify(pipeline.getConfig());
-    jsr.exportState(results);
-  }, function (e) {
-    results.captureError = String((e && e.message) || e);
-    jsr.exportState(results);
-  });
-} catch (e) {
-  results.error = String((e && e.message) || e);
-  jsr.exportState(results);
-}
+${f4egCaptureExportJs(clockExpr: 'cin.clockState(4, 24, 0.5, 1, 0)', capturedExpr: 'JSON.stringify(r)', extraInThen: 'results.config = JSON.stringify(pipeline.getConfig());')}
+${f4egExportTailJs(preExport: false)}
 ''';
     final secretsSeen = <(String, dynamic)>[];
     final host = F4egRecordingCaptureHost();
-    final (_, reported, state) = await run1bWidgetEngine(
+    final state = await runF4eg(
       '$f4egMockRendererJs\n$capture',
-      threeSource: bundle,
       instanceId: 'f4eg-secret-engine',
       secretsSetHandler: (id, key, value) async {
         secretsSeen.add((key, value));
       },
       cinematicCaptureHost: host,
     );
-    expect(reported?.isAngle1b, isTrue);
     expect(state?['error'], isNull, reason: '${state?['error']}');
     expect(state?['captureError'], isNull, reason: '${state?['captureError']}');
     // The secret crossed the real channel to the host (the mechanism is

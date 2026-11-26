@@ -19,19 +19,15 @@ void main() {
   // ignore: omit_local_variable_types
   final String? missing = Shim.resolveProblem();
 
-  final widget = '''
+  final widget =
+      '''
 var results = { errors: [] };
 try {
   var cin = jsr.three.cinematic;
   var canvas = jsr.three.createCanvas('ctxcine');
   var renderer = new THREE.WebGLRenderer({ canvas: canvas, antialias: false });
   renderer.setSize(64, 64, false);
-  var scene = new THREE.Scene();
-  var camera = new THREE.PerspectiveCamera(50, 1, 0.1, 100);
-  camera.position.z = 3;
-  scene.add(new THREE.Mesh(
-    new THREE.BoxGeometry(1, 1, 1),
-    new THREE.MeshBasicMaterial({ color: 0x00ff00 })));
+${onebRenderCubeJs('0x00ff00')}
   var pipeline = cin.createPipeline({
     renderer: renderer, scene: scene, camera: camera, effects: { bloom: true }
   });
@@ -76,18 +72,7 @@ try {
   // capture works again (final-pass barrier host). The .then runs after the
   // microtask drain, so phase-2 batches have flushed by then — read the
   // dispatch counter there.
-  pipeline.captureFrame(cin.clockState(2, 24, 0.5, 1, 77)).then(function (r) {
-    results.phase2 = {
-      dispatches: gl.__stats.dispatchCalls - d2,
-      frames: renderer.info.render.frame,
-      accumulateIndex: results.phase2Acc
-    };
-    results.captured = { path: r.path || null, width: r.width || null };
-    jsr.exportState(results);
-  }, function (e) {
-    results.captureError = String((e && e.message) || e);
-    jsr.exportState(results);
-  });
+${f4egCaptureExportJs(clockExpr: 'cin.clockState(2, 24, 0.5, 1, 77)', capturedExpr: '{ path: r.path || null, width: r.width || null }', extraInThen: "results.phase2 = { dispatches: gl.__stats.dispatchCalls - d2, frames: renderer.info.render.frame, accumulateIndex: results.phase2Acc };")}
 } catch (e) {
   results.errors.push(String((e && e.message) || e));
   jsr.exportState(results);
