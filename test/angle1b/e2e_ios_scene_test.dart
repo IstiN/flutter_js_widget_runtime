@@ -21,6 +21,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:integration_test/integration_test.dart';
+import 'package:js_widget_runtime/js_widget_runtime.dart' show JsThreeSurface;
 import 'package:jsr_three_angle/jsr_three_angle.dart';
 
 // Subset of the shim ABI the suite drives directly (the deterministic demo
@@ -91,6 +92,67 @@ Future<Angle1bProbe> _probeOrFail() async {
   return probe;
 }
 
+/// Shared scaffold of the suite: a real display reports its scale, the
+/// native probe passes and a fresh 1B surface is attached with teardown.
+JsThreeSurface _attachFresh(
+  AngleThreeBackend backend,
+  WidgetTester tester,
+  String engineId,
+  double width,
+  double height,
+) {
+  final dpr = tester.view.devicePixelRatio;
+  expect(dpr, greaterThan(0), reason: 'a real display reports its scale');
+  final surface = backend.attach(engineId, 'main', <String, dynamic>{
+    'width': width,
+    'height': height,
+    'devicePixelRatio': dpr,
+  });
+  addTearDown(() => backend.disposeEngine(engineId));
+  return surface;
+}
+
+/// Renders the deterministic demo triangle through the G1 dispatch path
+/// (a1b_render_triangle routes every GL call through a1b_gl_dispatch),
+/// swaps and returns the ANGLE surface id for later readbacks.
+int _renderDemoTriangle(_Shim shim, JsThreeSurface surface) {
+  final angleSurface = surface.diagnostics['angleSurface']!.toInt();
+  expect(angleSurface, greaterThan(0));
+  expect(shim.makeCurrent(angleSurface), 0);
+  expect(shim.renderTriangle(angleSurface), 0);
+  expect(shim.swapBuffers(angleSurface), 0);
+  return angleSurface;
+}
+
+/// Presents the 1B surface through the real widget tree and asserts the
+/// plugin texture is mounted (REG-NOWEBVIEW-1 evidence).
+Future<void> _presentAndExpectTexture(
+  WidgetTester tester,
+  AngleThreeBackend backend,
+  JsThreeSurface surface,
+  double width,
+  double height,
+) async {
+  await tester.pumpWidget(
+    MaterialApp(
+      home: Scaffold(
+        body: Center(
+          child: SizedBox(
+            width: width,
+            height: height,
+            child: Builder(
+              builder: (context) =>
+                  backend.build(context, surface, const <String, dynamic>{}),
+            ),
+          ),
+        ),
+      ),
+    ),
+  );
+  await tester.pump();
+  expect(find.byType(Texture), findsOneWidget);
+}
+
 void main() {
   IntegrationTestWidgetsFlutterBinding.ensureInitialized();
 
@@ -103,24 +165,14 @@ void main() {
       final shim = _openShim();
       expect(shim, isNotNull, reason: 'libangle_1b not loadable after probe');
 
-      final dpr = tester.view.devicePixelRatio;
       final backend = createAngleThreeHost();
       expect(backend.probeNative(), isNull);
-      final surface = backend.attach('e2e-ios-scene', 'main', <String, dynamic>{
-        'width': 320,
-        'height': 240,
-        'devicePixelRatio': dpr,
-      });
-      addTearDown(() => backend.disposeEngine('e2e-ios-scene'));
+      final surface = _attachFresh(backend, tester, 'e2e-ios-scene', 320, 240);
+      final dpr = tester.view.devicePixelRatio;
 
-      // Render the deterministic demo triangle through the G1 dispatch path
-      // (a1b_render_triangle routes every GL call through a1b_gl_dispatch),
+      // Render the deterministic demo triangle through the G1 dispatch path,
       // swap, and announce the frame to the texture registry.
-      final angleSurface = surface.diagnostics['angleSurface']!.toInt();
-      expect(angleSurface, greaterThan(0));
-      expect(shim!.makeCurrent(angleSurface), 0);
-      expect(shim.renderTriangle(angleSurface), 0);
-      expect(shim.swapBuffers(angleSurface), 0);
+      final angleSurface = _renderDemoTriangle(shim!, surface);
       final textureId = surface.diagnostics['texture']!.toInt();
       expect(
         textureId,
@@ -133,27 +185,7 @@ void main() {
       await backend.announceFrame(textureId);
 
       // Present the texture through the real widget tree.
-      await tester.pumpWidget(
-        MaterialApp(
-          home: Scaffold(
-            body: Center(
-              child: SizedBox(
-                width: 320,
-                height: 240,
-                child: Builder(
-                  builder: (context) => backend.build(
-                    context,
-                    surface,
-                    const <String, dynamic>{},
-                  ),
-                ),
-              ),
-            ),
-          ),
-        ),
-      );
-      await tester.pump();
-      expect(find.byType(Texture), findsOneWidget);
+      await _presentAndExpectTexture(tester, backend, surface, 320, 240);
 
       // Readback through ANGLE (a1b_read_pixels): non-empty reference image.
       shim.makeCurrent(angleSurface);
@@ -203,16 +235,10 @@ void main() {
       final shim = _openShim();
       expect(shim, isNotNull);
 
-      final dpr = tester.view.devicePixelRatio;
-      expect(dpr, greaterThan(0), reason: 'a real display reports its scale');
       final backend = createAngleThreeHost();
       expect(backend.probeNative(), isNull);
-      final surface = backend.attach(
-        'e2e-ios-resize',
-        'main',
-        <String, dynamic>{'width': 320, 'height': 240, 'devicePixelRatio': dpr},
-      );
-      addTearDown(() => backend.disposeEngine('e2e-ios-resize'));
+      final surface = _attachFresh(backend, tester, 'e2e-ios-resize', 320, 240);
+      final dpr = tester.view.devicePixelRatio;
 
       final png1 = await surface.capture();
       expect(png1, isNotNull);
@@ -228,11 +254,7 @@ void main() {
       expect(image2.height, (120 * dpr * 2).round(), reason: 'resize + DPR');
 
       // The recreated surface still renders and reads back non-empty.
-      final angleSurface = surface.diagnostics['angleSurface']!.toInt();
-      expect(angleSurface, greaterThan(0));
-      expect(shim!.makeCurrent(angleSurface), 0);
-      expect(shim.renderTriangle(angleSurface), 0);
-      expect(shim.swapBuffers(angleSurface), 0);
+      final angleSurface = _renderDemoTriangle(shim!, surface);
       shim.makeCurrent(angleSurface);
       final png3 = await surface.capture();
       expect(png3, isNotNull);
@@ -249,36 +271,16 @@ void main() {
       await _probeOrFail();
       final backend = createAngleThreeHost();
       expect(backend.probeNative(), isNull);
-      final dpr = tester.view.devicePixelRatio;
-      final surface = backend.attach(
+      final surface = _attachFresh(
+        backend,
+        tester,
         'e2e-ios-nowebview',
-        'main',
-        <String, dynamic>{'width': 160, 'height': 120, 'devicePixelRatio': dpr},
+        160,
+        120,
       );
-      addTearDown(() => backend.disposeEngine('e2e-ios-nowebview'));
 
-      await tester.pumpWidget(
-        MaterialApp(
-          home: Scaffold(
-            body: Center(
-              child: SizedBox(
-                width: 160,
-                height: 120,
-                child: Builder(
-                  builder: (context) => backend.build(
-                    context,
-                    surface,
-                    const <String, dynamic>{},
-                  ),
-                ),
-              ),
-            ),
-          ),
-        ),
-      );
-      await tester.pump();
+      await _presentAndExpectTexture(tester, backend, surface, 160, 120);
 
-      expect(find.byType(Texture), findsOneWidget);
       final hierarchy = await const MethodChannel(
         'angle_1b',
       ).invokeMethod<List<dynamic>>('debugHierarchy');
