@@ -333,6 +333,11 @@ jobs:
       - name: Starter corpus (E2E-EXAMPLES REG-VISUAL-1 E2E-WEB)
         run: bash tool/three/corpus_1b.sh
 
+      - name: F4f cinematic perf matrix (reduced — structural gated, timing informational)
+        env:
+          JSR_ANGLE_1B_LIB: ${{ github.workspace }}/packages/jsr_three_angle/native/angle/out/macos-arm64/libangle_1b.dylib
+        run: node tool/three/cinematic_perf.mjs --ci
+
   angle-size:
     # Issue #7 AC10 consolidated size report for every platform built. Each
     # platform section comes from its platform job's artifact: the macOS

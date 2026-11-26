@@ -73,7 +73,10 @@ const double kRefCalibrationMs = 0.933;
 // differing constant on a runner SDK fails loudly instead of producing
 // garbage percentiles.
 const int kClockThreadCputimeId = 16;
-final int Function(int) _threadCpuNs = ffi.DynamicLibrary.process()
+
+// Public (F4f cinematic perf matrix reuses the exact timing method): the
+// calling thread's CPU nanoseconds via the Darwin clock.
+final int Function(int) threadCpuNs = ffi.DynamicLibrary.process()
     .lookupFunction<ffi.Uint64 Function(ffi.Int32), int Function(int)>(
       'clock_gettime_nsec_np',
     );
@@ -83,12 +86,12 @@ final int Function(int) _threadCpuNs = ffi.DynamicLibrary.process()
 /// thread can never run ahead of the wall clock).
 void checkThreadClock() {
   final wall = Stopwatch()..start();
-  final c0 = _threadCpuNs(kClockThreadCputimeId);
+  final c0 = threadCpuNs(kClockThreadCputimeId);
   var sink = 0.0;
   for (var i = 0; i < 300000; i++) {
     sink += i * 0.5;
   }
-  final c1 = _threadCpuNs(kClockThreadCputimeId);
+  final c1 = threadCpuNs(kClockThreadCputimeId);
   final wallNs = wall.elapsedMicroseconds * 1000;
   if (sink.isNaN || c0 == 0 || c1 <= c0 || c1 - c0 > wallNs) {
     throw StateError(
@@ -229,8 +232,10 @@ class _Session {
     });
     if (!ok) throw StateError('the QuickJS bridge lacks the bytes lane');
     rt.registerHostFunction('__jsr1b_gl_rc', (_) => '$lastRc');
-    rt.registerHostFunction('__jsr1b_result_host',
-        (_) => jsonEncode(base64Encode(readScratch())));
+    rt.registerHostFunction(
+      '__jsr1b_result_host',
+      (_) => jsonEncode(base64Encode(readScratch())),
+    );
   }
 
   final Shim shim;
@@ -392,17 +397,18 @@ globalThis.__benchOk = (function () {
 /// [run1bBench] for the rationale).
 class BenchReport {
   BenchReport(
-      this.frames,
-      this.drawsPerFrame,
-      this.flushesPerFrame,
-      this.p50Ms,
-      this.p95Ms,
-      this.p99Ms,
-      this.cpuP50Ms,
-      this.cpuP95Ms,
-      this.cpuP99Ms,
-      this.refMs,
-      this.budgetMs);
+    this.frames,
+    this.drawsPerFrame,
+    this.flushesPerFrame,
+    this.p50Ms,
+    this.p95Ms,
+    this.p99Ms,
+    this.cpuP50Ms,
+    this.cpuP95Ms,
+    this.cpuP99Ms,
+    this.refMs,
+    this.budgetMs,
+  );
   final int frames;
   final int drawsPerFrame;
   final int flushesPerFrame;
@@ -435,7 +441,7 @@ class BenchReport {
       'cpu p50=$cpuP50Ms ms p95=$cpuP95Ms ms p99=$cpuP99Ms ms';
 }
 
-double _percentile(List<double> sortedMs, double q) {
+double percentile(List<double> sortedMs, double q) {
   if (sortedMs.isEmpty) return 0;
   final idx = (q * (sortedMs.length - 1)).round();
   return sortedMs[idx];
@@ -506,7 +512,8 @@ Future<BenchReport> run1bBench({
   if (shim == null && ownShim.init() != 0) {
     throw StateError('a1b_init failed (set JSR_ANGLE_DIR for the dylib dir)');
   }
-  final ownSurface = surface ??
+  final ownSurface =
+      surface ??
       (() {
         final slot = calloc<ffi.Uint32>();
         try {
@@ -521,8 +528,14 @@ Future<BenchReport> run1bBench({
   final watch = Stopwatch();
   try {
     session.evalJs(preludeJs, 'prelude.js');
-    session.evalJs(File('tool/three/gen/g1_packer.js').readAsStringSync(), 'g1_packer.js');
-    session.evalJs(File('tool/three/src/webgl2_facade.js').readAsStringSync(), 'webgl2_facade.js');
+    session.evalJs(
+      File('tool/three/gen/g1_packer.js').readAsStringSync(),
+      'g1_packer.js',
+    );
+    session.evalJs(
+      File('tool/three/src/webgl2_facade.js').readAsStringSync(),
+      'webgl2_facade.js',
+    );
     final ok = session.evalJs(setupJs, 'setup.js');
     if (ok != 'true') throw StateError('bench setup failed: $ok');
     session.evalJs('__benchFrame(1);'); // warm-up frame + flush plumbing
@@ -563,13 +576,13 @@ Future<BenchReport> run1bBench({
       var maxFlushes = 0;
       for (var f = 0; f < frames; f++) {
         session.dispatchCount = 0;
-        final cpu0 = _threadCpuNs(kClockThreadCputimeId);
+        final cpu0 = threadCpuNs(kClockThreadCputimeId);
         watch
           ..reset()
           ..start();
         session.evalJs('__benchFrame($draws);', 'frame.js');
         watch.stop();
-        final cpu1 = _threadCpuNs(kClockThreadCputimeId);
+        final cpu1 = threadCpuNs(kClockThreadCputimeId);
         samples.add(watch.elapsedMicroseconds / 1000.0);
         cpuSamples.add((cpu1 - cpu0) / 1000000.0);
         if (session.dispatchCount > maxFlushes) {
@@ -582,12 +595,12 @@ Future<BenchReport> run1bBench({
         frames,
         draws,
         maxFlushes,
-        _percentile(samples, 0.50),
-        _percentile(samples, 0.95),
-        _percentile(samples, 0.99),
-        _percentile(cpuSamples, 0.50),
-        _percentile(cpuSamples, 0.95),
-        _percentile(cpuSamples, 0.99),
+        percentile(samples, 0.50),
+        percentile(samples, 0.95),
+        percentile(samples, 0.99),
+        percentile(cpuSamples, 0.50),
+        percentile(cpuSamples, 0.95),
+        percentile(cpuSamples, 0.99),
         refMs,
         budgetMs,
       );
@@ -605,8 +618,13 @@ Future<BenchReport> run1bBench({
 
 /// Result of the raw GL fixture ([run1bRawGlFixture]).
 class RawGlResult {
-  RawGlResult(this.match, this.facadeHash, this.directHash, this.center,
-      this.corner);
+  RawGlResult(
+    this.match,
+    this.facadeHash,
+    this.directHash,
+    this.center,
+    this.corner,
+  );
   final bool match;
   final int facadeHash;
   final int directHash;
@@ -643,8 +661,14 @@ Future<RawGlResult> run1bRawGlFixture({Shim? shim, int? surface}) async {
     }
     session.record = true;
     session.evalJs(preludeJs, 'prelude.js');
-    session.evalJs(File('tool/three/gen/g1_packer.js').readAsStringSync(), 'g1_packer.js');
-    session.evalJs(File('tool/three/src/webgl2_facade.js').readAsStringSync(), 'webgl2_facade.js');
+    session.evalJs(
+      File('tool/three/gen/g1_packer.js').readAsStringSync(),
+      'g1_packer.js',
+    );
+    session.evalJs(
+      File('tool/three/src/webgl2_facade.js').readAsStringSync(),
+      'webgl2_facade.js',
+    );
     final ok = session.evalJs(setupJs, 'setup.js');
     if (ok != 'true') throw StateError('fixture setup failed: $ok');
     final rendered =
@@ -669,7 +693,8 @@ Future<RawGlResult> run1bRawGlFixture({Shim? shim, int? surface}) async {
     }
     // glReadPixels is synchronous; finishing (not swapping) keeps the default
     // framebuffer readable without presenting the IOSurface.
-    final finishCmd = Uint8List(4)..buffer.asByteData().setUint32(0, 3, Endian.little);
+    final finishCmd = Uint8List(4)
+      ..buffer.asByteData().setUint32(0, 3, Endian.little);
     {
       final buf = calloc<ffi.Uint8>(finishCmd.length);
       try {
@@ -683,8 +708,12 @@ Future<RawGlResult> run1bRawGlFixture({Shim? shim, int? surface}) async {
     final directHash = _readPixelsHash(ownShim, directSurface);
     final center = (rendered['center'] as List).cast<int>();
     final corner = (rendered['corner'] as List).cast<int>();
-    final match = facadeHash == directHash &&
-        center[0] <= 8 && center[1] >= 248 && corner[0] >= 248 && corner[1] <= 8;
+    final match =
+        facadeHash == directHash &&
+        center[0] <= 8 &&
+        center[1] >= 248 &&
+        corner[0] >= 248 &&
+        corner[1] <= 8;
     return RawGlResult(match, facadeHash, directHash, center, corner);
   } finally {
     session.close();

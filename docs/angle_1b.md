@@ -693,3 +693,74 @@ outputs are byte-reproducible on darwin-arm64 only (the builder of record,
 asserted by the `quality-macos` job); on other host classes the verifiers
 check the pins and report the rebuilt hashes informationally
 (`docs/cinematic.md`).
+
+## Cinematic performance matrix (F4f, issue #8)
+
+The F4f matrix measures the cinematic pipeline (the public
+`jsr.three.cinematic` helper API only — `createPipeline`, `setPreset`,
+`renderFrame`, `setSize`, `resetHistory`, `dispose`) on an animated scene
+with a static 256x256 DataTexture color map and a per-preset LUT, at
+1280x720, 1920x1080 and 3840x2160, for the named presets
+(`draft`, `production`, `deterministic-export`), on both legs: the native
+1B leg (QuickJS -> webgl2 facade -> pinned ANGLE Metal, corpus wire and
+boot) and the web leg (headless Chrome WebGL2 over the same bundle of
+record, `assets/three/jsr_three_web.js`, byte-identical on both legs).
+
+- Scene and drivers: `tool/three/perf/perf_scene.js` (one scene file, both
+  legs), `tool/three/cinematic_perf_1b.dart` (native driver, bench_1b wire
+  and timing method) and `tool/three/cinematic_perf.mjs` (orchestrator, web
+  leg, report writer).
+- Report: `docs/cinematic_perf.md` — regenerate with
+  `node tool/three/cinematic_perf.mjs` on the measurement host; the CI step
+  (`F4f cinematic perf matrix`, job `quality-macos`, `--ci` reduced form)
+  gates the structural counters only and prints its runner's timing as
+  information; CI numbers never enter the committed report.
+- Ids: `PERF-CINEMATIC-*` (the matrix: p50/p95 of frame wall time and
+  thread CPU time per preset and resolution, GL object counts, offscreen
+  target bytes, driver-process RSS; host numbers, reported not gated) and
+  `REG-UPLOADS` (gated: after a quiet warm-up — frames until
+  compiles/links/uploads deltas are zero for 10 consecutive frames, bounded
+  at 200 — over at least 120 measured frames, 0 shader compilations, 0
+  program links and 0 uploads of any texture per frame, unchanged LUT and
+  scene textures included; a direct seek, a resize (down and up) and a
+  `resetHistory` must not recompile or re-upload the unchanged assets —
+  a resize may legitimately re-upload re-allocated render targets, shown
+  separately in the report). The gated structural checks live in
+  `test/angle1b/f4f_uploads_test.dart` (real ANGLE, production preset at
+  720p, 120 frames); timing assertions exist nowhere in the Dart tests.
+- Counters: compiles/links and texture uploads are the facade `__stats.used`
+  deltas (`compileShader`, `linkProgram`, `texImage2D`, `texSubImage2D`,
+  `texImage3D`, `texSubImage3D`, `compressedTex*`), cross-checked against a
+  per-texture attribution wrapper around the context (`countersAgree` must
+  hold on the native leg). GL object counts are facade
+  `used.createX - used.deleteX`; offscreen target bytes come from the
+  pipeline-owned descriptors (composer read/write targets, every render
+  target reachable from the passes, and the subframe accumulation target,
+  `width x height x bytes-per-pixel` plus a depth attachment when enabled).
+- Timing method: one frame = one `rt.eval` on the bench wire, wall time by
+  `Stopwatch`, thread CPU by `CLOCK_THREAD_CPUTIME_ID` (the bench sanity
+  probe runs); percentiles are per window and the reported p50/p95 are the
+  MEDIAN over the windows (never a best-of-N pick). The web leg times
+  `pipeline.renderFrame` with `performance.now` in the page (thread CPU is
+  not observable there). No timing number gates anything in F4f.
+- Transport mode: the matrix runs the corpus transport (per-command
+  dispatch) because the BATCHED wire corrupts large inline texImage2D blobs
+  (below); `JSR_PERF_BATCHED=1` restores batching for re-measuring after
+  the wire fix.
+- `npm --prefix tool/three test` and the ANGLE host tests are unaffected
+  (no bundle, facade or core-module change in F4f).
+
+### Measured transport defect (owned by the native leg fix lane)
+
+Uploading a 256 KiB DataTexture through the BATCHED wire (F2b facade
+batching) crashes the process with a BUS error (`BUS_ADRALN` inside ANGLE
+`TextureMtl::setPerSliceSubImage` -> `memmove`) at a garbage address,
+reproducibly flaky: 4 of 8 runs at 1280x720 with the perf scene, 0 of 8
+runs in the corpus transport (per-command dispatch), 0 in bench_1b (batched
+but without inline blobs) and 0 in the corpus (blobs but per-command). The
+trigger is the combination of a large inline blob and batching; the corpus
+transport is the blob-validated mode and the F4f default. The F4f matrix
+therefore measures the scene on the corpus transport and reports the defect
+here; the wire fix belongs to the native leg fix lane
+(`feat/9-f4i-host-proof`). REG-UPLOADS itself is transport-independent:
+both modes show the same 0-per-frame counters.
