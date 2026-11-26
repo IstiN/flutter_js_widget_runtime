@@ -386,6 +386,28 @@ static void a1b_drain_gl_errors(const char *where) {
     fprintf(stderr, "[angle_1b] %s: drained stale GL error 0x%x\n", where, err);
 }
 
+// ---- surface reads -------------------------------------------------------------
+// Surface reads (a1b_read_pixels and the pbuffer fallback copy in
+// a1b_swap_buffers) always target the default framebuffer: FB 0 IS the
+// presented surface, and the readback models the browser compositor, which
+// reads the presented surface regardless of the application's framebuffer
+// binding. After a composer frame the engine can legitimately leave a
+// render-target FBO bound with GL_READ_BUFFER=GL_COLOR_ATTACHMENT0 —
+// reading "whatever is bound" then fails GL_INVALID_OPERATION (an
+// UNSIGNED_BYTE read from a half-float attachment) or returns the wrong
+// image. The previous bindings are restored so the engine's client-side
+// state cache stays authoritative.
+static void a1b_surface_read_bind_default(int *saved_read, int *saved_draw) {
+  g_GetIntegerv(GL_READ_FRAMEBUFFER_BINDING, saved_read);
+  g_GetIntegerv(GL_DRAW_FRAMEBUFFER_BINDING, saved_draw);
+  if (*saved_read != 0 || *saved_draw != 0) g_BindFramebuffer(GL_FRAMEBUFFER, 0);
+}
+
+static void a1b_surface_read_restore(int saved_read, int saved_draw) {
+  if (saved_draw != 0) g_BindFramebuffer(GL_DRAW_FRAMEBUFFER, saved_draw);
+  if (saved_read != 0) g_BindFramebuffer(GL_READ_FRAMEBUFFER, saved_read);
+}
+
 int a1b_swap_buffers(int64_t surface) {
   a1b_surface_t *s = a1b_find(surface);
   if (!s) return a1b_fail("unknown surface");
@@ -403,8 +425,12 @@ int a1b_swap_buffers(int64_t surface) {
   uint8_t *tmp = malloc(n), *dst = NULL;
   if (!tmp) return a1b_fail("oom");
   a1b_drain_gl_errors("swapBuffers");
+  int saved_read = 0, saved_draw = 0;
+  a1b_surface_read_bind_default(&saved_read, &saved_draw);
   g_ReadPixels(0, 0, s->width, s->height, GL_BGRA_EXT, GL_UNSIGNED_BYTE, tmp);
-  if (g_GetError() != 0) { free(tmp); return a1b_egl_fail("glReadPixels"); }
+  unsigned err = g_GetError();
+  a1b_surface_read_restore(saved_read, saved_draw);
+  if (err != 0) { free(tmp); return a1b_egl_fail("glReadPixels"); }
   IOSurfaceLock(s->io, 0, NULL);
   dst = IOSurfaceGetBaseAddress(s->io);
   for (int y = 0; y < s->height; y++)
@@ -422,22 +448,29 @@ int a1b_read_pixels(int64_t surface, uint8_t *dst_rgba, int *width, int *height)
   size_t n = (size_t)s->width * s->height * 4;
   uint8_t *tmp = malloc(n);
   if (!tmp) return a1b_fail("oom");
+  int saved_read = 0, saved_draw = 0;
+  a1b_surface_read_bind_default(&saved_read, &saved_draw);
   g_ReadPixels(0, 0, s->width, s->height, GL_BGRA_EXT, GL_UNSIGNED_BYTE, tmp);
   unsigned err = g_GetError();
+  int bgra = 1;
   if (err != 0) { // retry as RGBA (then no conversion needed)
+    bgra = 0;
     g_ReadPixels(0, 0, s->width, s->height, GL_RGBA, GL_UNSIGNED_BYTE, tmp);
     err = g_GetError();
-    if (err != 0) {
-      fprintf(stderr, "[angle_1b] glReadPixels failed: GL error 0x%x (EGL 0x%x)\n", err, g_EGLGetError());
-      free(tmp); return a1b_egl_fail("glReadPixels");
-    }
-    memcpy(dst_rgba, tmp, n);
-  } else { // BGRA -> RGBA
+  }
+  a1b_surface_read_restore(saved_read, saved_draw);
+  if (err != 0) {
+    fprintf(stderr, "[angle_1b] glReadPixels failed: GL error 0x%x (EGL 0x%x)\n", err, g_EGLGetError());
+    free(tmp); return a1b_egl_fail("glReadPixels");
+  }
+  if (bgra) { // BGRA -> RGBA
     for (size_t i = 0; i < n; i += 4) {
       uint8_t b0 = tmp[i], b2 = tmp[i + 2];
       dst_rgba[i] = b2; dst_rgba[i + 1] = tmp[i + 1];
       dst_rgba[i + 2] = b0; dst_rgba[i + 3] = tmp[i + 3];
     }
+  } else { // RGBA as-is
+    memcpy(dst_rgba, tmp, n);
   }
   free(tmp);
   if (width) *width = s->width;

@@ -1133,3 +1133,84 @@ documented clamps only.
   0x9125a1e8, export-frame9 0xa3c2834c — the F4c1-recorded values
   reproduce from the union bundle bytes; this branch alone had measured
   0x3cc7f7db / 0x88479d2f on its pre-merge sources).
+## F4i — downstream host proof (issue #8, AC15)
+
+`tool/three/cinematic_host_proof/` is the in-repository stand-in for a video
+host: a short transparent-overlay scene (an overlay card over a dark and a
+light background band, alpha 0.0/0.7/0.25 across three strips) driven frame
+by frame through the public helper API only (`jsr.three.cinematic`:
+`createPipeline`, `createFrameClock`, `probeCapabilities`, `resetHistory`,
+`renderFrame`, `captureFrame`) plus the stock r186 `AfterimagePass` and the
+committed core `CinematicMotionBlurPass`. The core keeps no YoClip
+dependency (grep of `tool/three/src` and `lib/` for YoClip names: none).
+
+### The three capture paths
+
+- (a) **Preview image** — `pipeline.renderFrame(clock)` then an in-page RGBA
+  grab of the canvas (the host's preview path).
+- (b) **Arbitrary-frame screenshot** — after `pipeline.resetHistory(0)`, a
+  DIRECT seek `renderFrame(clock(N))` and one grab. At the temporal
+  checkpoint (frame 24) the temporal pass needs the history window; the
+  program proves the `CinematicHistory` path: declare the window with
+  `clockState`, `resetHistory(0)`, direct seek — and compares the result
+  with a sequential 25-frame run (hash equality, LEI state).
+- (c) **PNG-sequence export** — `captureFrame(clock)` per frame through the
+  `__jsr_capture` channel with `{ engineId, clock, barrier: 'final-pass' }`;
+  the host writes `frame_0000.png …` files.
+
+### Checkpoints (hashes from cases_f4i.sh / f4i_host_proof_test.dart)
+
+| Checkpoint | Frame | Effects | Preview = screenshot = PNG |
+|---|---|---|---|
+| bloom | 8 | bloom, DOF, afterimage | yes — 0xab85dd29 |
+| DOF | 16 | bloom, DOF, afterimage | yes — 0xa5a5f0e7 |
+| temporal | 24 | bloom, DOF, afterimage (direct seek through the declared history window) | yes — 0x40657ad2 |
+
+All three are hash-equal at every checkpoint on both legs (25 PNG files,
+fnv1a of the RGBA decode; the checkpoint frames are opaque by stock behavior
+— the r186 BokehShader forces alpha 1 — while the bloom-only composite
+pipeline at frame 12 carries the overlay's transparency and passes the
+two-background blend probes on both legs). Run:
+`JSR_WEBGL_REF_CHANNEL=chromium bash tool/three/cases_f4i.sh`
+(web leg; CI: job `conformance`, step `F4i downstream host proof (web leg)`).
+Native 1B leg: `flutter test test/angle1b/f4i_host_proof_test.dart` (CI: job
+`quality-macos` via the existing `flutter test test/angle1b` step; locally
+export `JSR_WEBGL_REF_CHANNEL=chromium` first, and build the QuickJS bridge).
+
+### Missing capability (REG-HOST-CAPTURE)
+
+Without the capture barrier (no `JsRuntimeConfig.cinematicCaptureHost`, no
+`jsr.capture` channel) the PNG-sequence export fails BEFORE any file is
+written with the named error `cinematic.notCapturable` and `files=0`. Web:
+`F4I_NOCAP_RESULT named=true ... captures=0 files=0`. Native:
+`E2E-HOST-YOCLIP-NOCAP` asserts the named error and zero files. No
+effect-less image is ever produced.
+
+### Native leg status at the F4i head
+
+All three native tests pass on macOS native 1B — `E2E-HOST-YOCLIP-1/-2` and
+`E2E-HOST-YOCLIP-NOCAP` / `REG-HOST-CAPTURE-1` — with the same checkpoint
+hashes as the web leg (table above; 25 PNG files written and decoded).
+
+Two fixes landed for this leg (one core, one harness):
+
+1. **Core (shim, `packages/jsr_three_angle/native/angle`)**: `a1b_read_pixels`
+   and the pbuffer fallback copy in `a1b_swap_buffers` target the default
+   framebuffer explicitly and then restore the engine's leftover READ/DRAW
+   framebuffer bindings. FB 0 IS the presented surface and the readback
+   models the browser compositor, which reads the presented surface
+   regardless of the application's framebuffer binding; after a composer
+   frame the engine can legitimately leave a render-target FBO bound with
+   `GL_READ_BUFFER=GL_COLOR_ATTACHMENT0`, and reading "whatever is bound"
+   failed with `GL_INVALID_OPERATION` (an UNSIGNED_BYTE read of a half-float
+   attachment). Regression: the "F4i shim readback regression" test in
+   `test/angle1b/f4i_host_proof_test.dart` (fails with `rc = -1` when the
+   shim fix is reverted).
+2. **Harness**: the capture barrier yields one event-loop turn before the
+   surface read — the barrier crosses while the rendering JS task is still
+   on the stack and the 1B facade presents the frame at the end-of-task
+   batch flush, so reading earlier captured frame N-1 (verified by a
+   frame-hash mapping against the web leg). `runF4iOn1B` also waits for the
+   proof program's terminal `exportState`: the program settles across one
+   microtask turn per `captureFrame` await, while the shared
+   `run1bWidgetEngine` snapshots the state at the first pump gap.
