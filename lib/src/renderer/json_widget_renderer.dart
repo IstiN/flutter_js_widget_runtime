@@ -34,6 +34,7 @@ import 'package:js_widget_runtime/src/renderer/nodes/js_voxel_node.dart';
 import 'package:js_widget_runtime/src/renderer/nodes/three/js_three_host.dart';
 import 'package:js_widget_runtime/src/renderer/nodes/three/js_three_node.dart';
 import 'package:js_widget_runtime/src/renderer/ui_view_field_registry.dart';
+import 'package:js_widget_runtime/src/renderer/ui_view_tree_normalizer.dart';
 
 part 'json_widget_decoration.dart';
 
@@ -263,7 +264,73 @@ class JsonWidgetRenderer with JsonWidgetDecoration {
 
   Widget build(Map<String, dynamic>? tree, [BuildContext? ctx]) {
     if (tree == null) return const SizedBox.shrink();
+    _nodeIds.clear();
+    _parentDataInstances.clear();
+    _nodeIdCounter = 0;
+    _indexNodeIds(tree);
     return _build(tree);
+  }
+
+  // ── Node identity + applied-node records (AUI conformance) ───────────────
+
+  /// Payload node → `n<i>` id, depth-first pre-order (root `n0`, every node
+  /// counted — layout-only nodes too). Identity-keyed: one entry per source
+  /// map of the current `jsr.render` payload. Rebuilt per `build()` call.
+  final Map<Object?, String> _nodeIds = Map.identity();
+
+  /// nodeId → the node map the renderer last applied (the record the AUI
+  /// dump joins with the live element tree). Refreshed on every uncached
+  /// build; entries of retired payloads are unreachable and simply age out.
+  final Map<String, Map<String, dynamic>> _appliedRecords = {};
+  int _nodeIdCounter = 0;
+
+  /// Built ParentDataWidget instance → nodeId (issue #14): these nodes
+  /// stay unkeyed in the tree; the dump joins them through identity.
+  final Map<Widget, String> _parentDataInstances = Map.identity();
+
+  /// `n<i>` = depth-first pre-order index in the raw render payload:
+  /// node first, then `child`, then `children`/`items` in order. Keyed by
+  /// the ORIGINAL payload map objects (`cast()` wrappers have fresh
+  /// identities and must never enter the map).
+  void _indexNodeIds(dynamic node) {
+    if (node is! Map) return;
+    _nodeIds[node] = 'n${_nodeIdCounter++}';
+    final child = node['child'];
+    if (child is Map) _indexNodeIds(child);
+    for (final listKey in const ['children', 'items']) {
+      final list = node[listKey];
+      if (list is List) {
+        for (final entry in list) {
+          _indexNodeIds(entry);
+        }
+      }
+    }
+  }
+
+  /// Stamps the built node with its `jsr:<nodeId>` key and records the
+  /// applied node. [ParentDataWidget]s (Expanded/Flexible/Spacer/Positioned)
+  /// must sit directly inside their Flex/Stack parent, so the key goes on
+  /// the widget INSIDE them (issue #14): their subtree keeps the parent
+  /// data path AND the dump finds the stamped element with its own nodeId.
+  Widget _stampNode(Object? identity, Widget built, String? nodeIdOverride) {
+    final id = nodeIdOverride ?? _nodeIds[identity];
+    if (id == null) return built;
+    final record = Map<String, dynamic>.from(identity as Map);
+    record
+      ..remove('child')
+      ..remove('children')
+      ..remove('items');
+    _appliedRecords[id] = record;
+    if (built is ParentDataWidget) {
+      // Issue #14, take two: a ParentDataWidget MUST stay unwrapped (its
+      // Flex/Stack parent-data path is load-bearing — wrapping its child
+      // drops the flex behavior and collapses scenes). The dump joins it
+      // through the built instance's identity instead of a key: no tree
+      // change, node still dumped with its own nodeId.
+      _parentDataInstances[built] = id;
+      return built;
+    }
+    return KeyedSubtree(key: ValueKey<String>('jsr:$id'), child: built);
   }
 
   // ── Dispatcher ────────────────────────────────────────────────────────────
@@ -278,7 +345,7 @@ class JsonWidgetRenderer with JsonWidgetDecoration {
   final Map<Map, Widget> _widgetCache = {};
   static const _widgetCacheLimit = 256;
 
-  Widget _build(dynamic node, {Object? cacheKey}) {
+  Widget _build(dynamic node, {Object? cacheKey, String? nodeId}) {
     if (node is! Map) return const SizedBox.shrink();
     final hooks = buildHooks;
     final raw = node.cast<String, dynamic>();
@@ -290,6 +357,7 @@ class JsonWidgetRenderer with JsonWidgetDecoration {
       if (cached != null) return cached;
     }
     var built = _buildNode(effective);
+    built = _stampNode(node, built, nodeId);
     if (_widgetCache.length >= _widgetCacheLimit) _widgetCache.clear();
     if (!merged) _widgetCache[key] = built;
     return built;
@@ -302,6 +370,7 @@ class JsonWidgetRenderer with JsonWidgetDecoration {
     final hooks = buildHooks;
     Object? cacheKey;
     var target = child;
+    var childId = child is Map ? _nodeIds[child] : null;
     if (hooks?.stampChild != null && child is Map) {
       final stamped = hooks!.stampChild!(
         child.cast<String, dynamic>(),
@@ -312,7 +381,7 @@ class JsonWidgetRenderer with JsonWidgetDecoration {
       target = stamped;
       cacheKey = child;
     }
-    return _build(target, cacheKey: cacheKey);
+    return _build(target, cacheKey: cacheKey, nodeId: childId);
   }
 
   /// Node-type → builder table. A flat map, not a switch: the renderer's
@@ -959,5 +1028,199 @@ class JsonWidgetRenderer with JsonWidgetDecoration {
       },
       child: built,
     );
+  }
+
+  // ── AUI dump (conformance PROTOCOL section 2) ────────────────────────────
+
+  /// Normalized AUI dump of the currently built node tree:
+  /// `{type, props, children, events, nodeId}` per node, `n<i>` ids from
+  /// the payload, type aliases resolved, `style` merged into `props` (node
+  /// keys win), `on*` string props in `events`, colors `#RRGGBB[AA]`, and
+  /// text-bearing props read live from the built widgets (`Text.data`,
+  /// `EditableText` controller text, `Tooltip` message). Starts at the
+  /// first stamped element below [rootContext].
+  Map<String, dynamic> dumpViewTree(BuildContext rootContext) {
+    final root = _findStampedElement(rootContext as Element);
+    if (root == null) return <String, dynamic>{};
+    return _dumpNode(root);
+  }
+
+  static bool _isStamped(Widget widget) =>
+      widget is KeyedSubtree &&
+      widget.key is ValueKey<String> &&
+      (widget.key as ValueKey<String>).value.startsWith('jsr:');
+
+  Element? _findStampedElement(Element element) {
+    if (_isStamped(element.widget)) return element;
+    Element? found;
+    element.visitChildElements((child) {
+      found ??= _findStampedElement(child);
+    });
+    return found;
+  }
+
+  Map<String, dynamic> _dumpNode(Element element, {String? forcedId}) {
+    final id =
+        forcedId ??
+        ((element.widget as KeyedSubtree).key! as ValueKey<String>).value
+            .substring(4);
+    final record = _appliedRecords[id] ?? const <String, dynamic>{};
+    final type = UiViewTreeNormalizer.resolveType('${record['type'] ?? ''}');
+    final props = _dumpProps(element, record);
+    if (type == 'scroll') _applyScrollState(element, props);
+    return <String, dynamic>{
+      'type': type,
+      'props': props,
+      'children': _dumpChildren(element),
+      'events': _dumpEvents(record),
+      'nodeId': id,
+    };
+  }
+
+  /// A3 (PROTOCOL amendment A3): a `scroll` dump carries its live scroll
+  /// state — `scrollOffset` (pixels), `scrollExtent` (maxScrollExtent +
+  /// viewportDimension), `viewportExtent` — in logical pixels, read from
+  /// the node's `ScrollPosition` through the element tree. Nothing the
+  /// widget builds changes (no controller attached); the numbers are
+  /// additive dump props, so the payload-derived expected tree has no
+  /// opinion about them while the comparator enforces their presence.
+  void _applyScrollState(Element element, Map<String, dynamic> props) {
+    ScrollPosition? position;
+    void walk(Element node) {
+      if (position != null) return;
+      if (!identical(node, element) && _isStamped(node.widget)) return;
+      if (node is StatefulElement && node.state is ScrollableState) {
+        position = (node.state as ScrollableState).position;
+        return;
+      }
+      node.visitChildElements(walk);
+    }
+
+    walk(element);
+    final p = position;
+    if (p == null) return;
+    if (!p.hasContentDimensions || !p.hasViewportDimension) return;
+    props['scrollOffset'] = p.pixels;
+    props['scrollExtent'] = p.maxScrollExtent + p.viewportDimension;
+    props['viewportExtent'] = p.viewportDimension;
+  }
+
+  /// The node's own props: style merged in (node keys win), reserved and
+  /// event keys removed, values normalized — then live text overrides.
+  Map<String, dynamic> _dumpProps(
+    Element element,
+    Map<String, dynamic> record,
+  ) {
+    final props = <String, dynamic>{};
+    final style = record['style'];
+    if (style is Map) {
+      style.forEach((key, value) => props['$key'] = _normalizeDumpValue(value));
+    }
+    record.forEach((key, value) {
+      if (_isReservedDumpKey(key)) return;
+      if (_isEventKey(key) && value is String) return;
+      props[key] = _normalizeDumpValue(value);
+    });
+    _applyLiveText(element, props);
+    return props;
+  }
+
+  static bool _isReservedDumpKey(String key) =>
+      key == 'type' ||
+      key == 'style' ||
+      key == 'child' ||
+      key == 'children' ||
+      key == 'items' ||
+      key == 'key' ||
+      key == '__iid' ||
+      key == 'iid';
+
+  static bool _isEventKey(String key) {
+    if (key.length < 3 || !key.startsWith('on')) return false;
+    final third = key[2];
+    return third == third.toUpperCase() && third != third.toLowerCase();
+  }
+
+  static Map<String, dynamic> _dumpEvents(Map<String, dynamic> record) {
+    final events = <String, dynamic>{};
+    record.forEach((key, value) {
+      if (_isEventKey(key) && value is String) events[key] = value;
+    });
+    UiViewTreeNormalizer.aliasDumpEventKeys('${record['type'] ?? ''}', events);
+    return events;
+  }
+
+  /// Children in tree order: the first stamped element of every branch,
+  /// descending through non-node wrappers (effect widgets, layout shims).
+  List<Map<String, dynamic>> _dumpChildren(Element element) {
+    final children = <Map<String, dynamic>>[];
+    void walk(Element node) {
+      node.visitChildElements((child) {
+        final id = _parentDataInstances[child.widget];
+        if (_isStamped(child.widget)) {
+          children.add(_dumpNode(child));
+        } else if (id != null) {
+          children.add(_dumpNode(child, forcedId: id));
+        } else {
+          walk(child);
+        }
+      });
+    }
+
+    walk(element);
+    return children;
+  }
+
+  /// Live text-bearing props: read from the node's own widgets, stopping at
+  /// child-node boundaries (a nested node's text belongs to that node).
+  void _applyLiveText(Element element, Map<String, dynamic> props) {
+    String? text;
+    String? editable;
+    String? tooltip;
+    void walk(Element node) {
+      if (text != null && editable != null && tooltip != null) return;
+      if (!identical(node, element) && _isStamped(node.widget)) return;
+      final widget = node.widget;
+      if (widget is Text && widget.data != null && text == null) {
+        text = widget.data;
+      }
+      if (widget is EditableText && editable == null) {
+        editable = widget.controller.text;
+      }
+      if (widget is Tooltip && tooltip == null) tooltip = widget.message;
+      node.visitChildElements(walk);
+    }
+
+    walk(element);
+    if (text != null) props['data'] = text;
+    if (editable != null) props['text'] = editable;
+    if (tooltip != null) props['message'] = tooltip;
+  }
+
+  /// Recursively normalizes dump values: hex color strings become
+  /// `#RRGGBB` / `#RRGGBBAA` (upper case, 3/4-digit forms expanded);
+  /// numbers and other JSON values pass through unchanged.
+  static dynamic _normalizeDumpValue(dynamic value) {
+    if (value is String) return _normalizeColorString(value);
+    if (value is Map) {
+      return {
+        for (final entry in value.entries)
+          '${entry.key}': _normalizeDumpValue(entry.value),
+      };
+    }
+    if (value is List) return value.map(_normalizeDumpValue).toList();
+    return value;
+  }
+
+  static final RegExp _hexColorPattern = RegExp(r'^#[0-9a-fA-F]{3,8}$');
+
+  static String _normalizeColorString(String value) {
+    if (!_hexColorPattern.hasMatch(value)) return value;
+    var hex = value.substring(1);
+    if (hex.length == 3 || hex.length == 4) {
+      hex = hex.split('').map((c) => '$c$c').join();
+    }
+    if (hex.length != 6 && hex.length != 8) return value;
+    return '#${hex.toUpperCase()}';
   }
 }

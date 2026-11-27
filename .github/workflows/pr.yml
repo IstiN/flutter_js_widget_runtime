@@ -41,7 +41,7 @@ jobs:
         with:
           node-version: 22
 
-      - name: Verify pinned THREE bundles and official example
+      - name: Verify pinned THREE pins (bytes informational off the builder host darwin-arm64)
         run: |
           set -euo pipefail
           THREE_COMMIT=$(python3 -c "import json; print(json.load(open('tool/three/source-pin.json'))['commit'])")
@@ -144,3 +144,714 @@ jobs:
 
       - name: Similarity gate
         run: crap4dart check --only similarity --config crap4dart.yaml
+
+  conformance:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          flutter-version: 3.47.1
+
+      - name: Install dependencies
+        run: flutter pub get
+
+      - name: Build QuickJS bridge
+        run: |
+          set -euo pipefail
+          QUICKJS_SRC=$(find "$HOME/.pub-cache/hosted/pub.dev" -maxdepth 1 -type d -name 'quickjs_runtime-*' | sort -V | tail -1)
+          test -n "$QUICKJS_SRC"
+          bash "$QUICKJS_SRC/tool/build_quickjs.sh"
+          mkdir -p native/quickjs
+          cp "$QUICKJS_SRC/native/quickjs/libquickjs_bridge.so" native/quickjs/
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Fetch conformance pins
+        run: |
+          set -euo pipefail
+          scripts/fetch-conformance.sh
+          test -f .conformance/js_widget_runtime/docs/conformance/PROTOCOL.md
+          test -f .conformance/js_widget_runtime/harness/harness.mjs
+
+      - name: Run conformance kit
+        run: dart run tool/conformance/run_conformance.dart --fixtures .conformance/js_widget_runtime/docs/conformance/fixtures --out build/conformance
+
+      # The pinned harness compare exits 0 even with zero result files
+      # (kit-side defect, fixed in wave D), so the count is checked here.
+      - name: Verify result count
+        run: |
+          set -euo pipefail
+          expected=$(find .conformance/js_widget_runtime/docs/conformance/fixtures -mindepth 1 -maxdepth 1 -type d -exec test -f {}/expected.json ';' -print | wc -l)
+          actual=$(find build/conformance -name '*.result.json' | wc -l)
+          echo "conformance: $actual result files for $expected fixtures"
+          if [ "$actual" -lt "$expected" ]; then
+            echo "::error::missing conformance results ($actual/$expected)"
+            exit 1
+          fi
+
+      - name: Compare against the contract
+        run: node .conformance/js_widget_runtime/harness/harness.mjs compare --fixtures .conformance/js_widget_runtime/docs/conformance/fixtures --results build/conformance --out-report conformance-report.md --out-badge badges/conformance.json
+
+      - name: Upload conformance results
+        uses: actions/upload-artifact@v4
+        with:
+          name: conformance-flutter
+          path: build/conformance/*.result.json
+
+      - name: Upload conformance report
+        uses: actions/upload-artifact@v4
+        with:
+          name: conformance-report
+          path: |
+            conformance-report.md
+            badges/conformance.json
+
+      # F4i (issue #8, AC15): the downstream host proof, web leg — the
+      # committed core cinematic module + the staged stock r186
+      # AfterimagePass + the shared proof program in the runner's Chrome
+      # (channel chrome default; JSR_WEBGL_REF_CHANNEL stays unset here).
+      # Preview image, arbitrary-frame screenshot and PNG-sequence capture
+      # must be hash-equal at the bloom/DOF/temporal checkpoints, and the
+      # missing-capability export must fail with cinematic.notCapturable.
+      # The native 1B leg runs in quality-macos (test/angle1b/f4i_host_proof_test.dart).
+      - name: F4i downstream host proof (web leg)
+        run: bash tool/three/cases_f4i.sh
+
+  quality-macos:
+    # Issue #7 (F2): the pinned ANGLE 1B build on macOS + the real-ANGLE
+    # host tests. The ANGLE dylibs are cached on the pin hash; the first
+    # build is long, later runs restore the cache.
+    runs-on: macos-15
+    timeout-minutes: 150
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          flutter-version: 3.47.1
+
+      - name: Install dependencies
+        run: flutter pub get
+
+      # The bundle of record is the darwin-arm64 build (assets/three/
+      # bundle_manifest.json build.builderHost; the minecraft example
+      # prepare carries the same gate in its own prepare_manifest.json).
+      # This is the only job whose host class can compare bytes: fail fast
+      # here, before the long ANGLE build.
+      - name: Verify pinned THREE bundles and minecraft prepare byte-for-byte (builder host darwin-arm64)
+        run: |
+          set -euo pipefail
+          python3 -c "import json; h=json.load(open('assets/three/bundle_manifest.json'))['build']['builderHost']; assert h == {'platform': 'darwin', 'arch': 'arm64'}, h"
+          THREE_COMMIT=$(python3 -c "import json; print(json.load(open('tool/three/source-pin.json'))['commit'])")
+          git clone --filter=blob:none --no-checkout https://github.com/mrdoob/three.js.git /tmp/jsr-three-r186
+          git -C /tmp/jsr-three-r186 checkout "$THREE_COMMIT"
+          npm ci --prefix tool/three
+          node tool/three/build.mjs --source /tmp/jsr-three-r186 --verify
+          dart run bin/jsr_three_example.dart prepare webgl_geometry_minecraft --source /tmp/jsr-three-r186 --offline --verify
+          node tool/three_example/test/prepare_test.mjs
+
+      - name: Build QuickJS bridge
+        run: |
+          set -euo pipefail
+          QUICKJS_SRC=$(find "$HOME/.pub-cache/hosted/pub.dev" -maxdepth 1 -type d -name 'quickjs_runtime-*' | sort -V | tail -1)
+          test -n "$QUICKJS_SRC"
+          bash "$QUICKJS_SRC/tool/build_quickjs.sh"
+          mkdir -p native/quickjs
+          cp "$QUICKJS_SRC/native/quickjs/libquickjs_bridge.so" native/quickjs/
+
+      - name: Metal toolchain
+        run: |
+          # macos-15 images ship Xcode 16 with the Metal toolchain embedded;
+          # the download only runs when the compiler is actually missing
+          # (same gate as tool/build_angle.sh).
+          if xcrun -f metal >/dev/null 2>&1; then
+            echo "Metal toolchain already present"
+          else
+            xcodebuild -downloadComponent metalToolchain
+          fi
+
+      - name: Restore pinned ANGLE build
+        id: angle-cache
+        uses: actions/cache/restore@v4
+        with:
+          path: packages/jsr_three_angle/native/angle/out/macos-arm64
+          key: angle-macos-arm64-${{ hashFiles('tool/three/pins/angle_pin.json') }}
+
+      - name: Build pinned ANGLE (macos-arm64)
+        if: steps.angle-cache.outputs.cache-hit != 'true'
+        run: bash tool/build_angle.sh --platform macos-arm64 --out packages/jsr_three_angle/native/angle/out/macos-arm64
+
+      # Save immediately after the build (not in a job-end post step):
+      # a failing test step must not throw the ~50-minute ANGLE build away.
+      # continue-on-error guards the race with a parallel run saving the
+      # same key.
+      - name: Save pinned ANGLE build
+        if: steps.angle-cache.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v4
+        continue-on-error: true
+        with:
+          path: packages/jsr_three_angle/native/angle/out/macos-arm64
+          key: angle-macos-arm64-${{ hashFiles('tool/three/pins/angle_pin.json') }}
+
+      - name: Build the 1B shim and stage it with the ANGLE dylibs
+        run: |
+          set -euo pipefail
+          OUT=packages/jsr_three_angle/native/angle/out/macos-arm64
+          bash packages/jsr_three_angle/native/angle/build.sh
+          cp packages/jsr_three_angle/native/angle/libangle_1b.dylib "$OUT/"
+          (cd "$OUT" && shasum -a 256 libEGL.dylib libGLESv2.dylib libangle_1b.dylib > SHA256SUMS)
+
+      # The dylibs are the deliverable of BUILD-ANGLE-1: upload them before
+      # the tests so a test failure still leaves the artifact for download.
+      - name: Upload ANGLE macos-arm64 artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: angle-macos-arm64
+          path: |
+            packages/jsr_three_angle/native/angle/out/macos-arm64/libEGL.dylib
+            packages/jsr_three_angle/native/angle/out/macos-arm64/libGLESv2.dylib
+            packages/jsr_three_angle/native/angle/out/macos-arm64/libangle_1b.dylib
+            packages/jsr_three_angle/native/angle/out/macos-arm64/SHA256SUMS
+          # job re-runs (proof observations) must not die on the existing
+          # artifact name
+          overwrite: true
+
+      - name: jsr_three_angle host tests (real ANGLE)
+        env:
+          JSR_ANGLE_1B_LIB: ${{ github.workspace }}/packages/jsr_three_angle/native/angle/out/macos-arm64/libangle_1b.dylib
+          JSR_REQUIRE_ANGLE: '1'
+        run: flutter test packages/jsr_three_angle/test --no-pub
+
+      - name: 1B selection and policy tests
+        run: flutter test test/angle1b --no-pub
+
+      # Crash evidence, only when the test step failed: flutter_tester has
+      # segfaulted at test-finalization on this runner class (the Apple
+      # Paravirtual device). The final measured cause (crash report
+      # flutter_tester-2026-11-26-164427.ips, run 45860805060) was an
+      # undersized texImage2D blob handed to ANGLE through a1b_gl_dispatch —
+      # fixed at the facade (WebGL2 size validation) and in the shim
+      # dispatch (G1_E_MALFORMED). This step captures any future crash
+      # reports (.ips/.crash) plus the flutter_tester unified-log lines as
+      # the artifact macos-crash-reports. Costs nothing when green.
+      - name: Collect flutter_tester crash evidence (diagnostic)
+        if: failure()
+        run: |
+          set -uo pipefail
+          CORES=$(sysctl -n hw.ncpu)
+          echo "cores: $CORES"
+          echo "flutter test concurrency in use: default (one isolate per core) = $CORES, unless --concurrency is set"
+          CRASH_DIR="$HOME/Library/Logs/DiagnosticReports"
+          OUT=/tmp/macos-crash-reports
+          mkdir -p "$OUT"
+          echo "--- crash reports in $CRASH_DIR ---"
+          if [ -d "$CRASH_DIR" ] && [ -n "$(ls -A "$CRASH_DIR" 2>/dev/null)" ]; then
+            ls -la "$CRASH_DIR"
+            find "$CRASH_DIR" \( -name '*.ips' -o -name '*.crash' \) -maxdepth 1 -print -exec cp {} "$OUT/" \;
+          else
+            echo "NO crash reports present in $CRASH_DIR"
+          fi
+          echo "--- unified log: flutter_tester (last 300 lines) ---"
+          log show --last 20m --style compact --predicate 'process == "flutter_tester" OR eventMessage CONTAINS "flutter_tester"' > "$OUT/flutter_tester-unifiedlog.txt" 2>&1 || true
+          tail -300 "$OUT/flutter_tester-unifiedlog.txt" > "$OUT/flutter_tester-unifiedlog-last300.txt" || true
+          wc -l "$OUT/flutter_tester-unifiedlog-last300.txt" || true
+          echo "--- collected files ---"
+          ls -la "$OUT"
+
+      - name: Upload flutter_tester crash evidence (diagnostic)
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: macos-crash-reports
+          path: /tmp/macos-crash-reports
+          if-no-files-found: ignore
+          # job re-runs (proof observations) must not die on the existing
+          # artifact name
+          overwrite: true
+
+      - name: 1B batch bench (PERF-1 PERF-2)
+        env:
+          JSR_ANGLE_1B_LIB: ${{ github.workspace }}/packages/jsr_three_angle/native/angle/out/macos-arm64/libangle_1b.dylib
+        run: dart run tool/three/bench_1b.dart
+
+      - name: M3 render gate (compare_1b_render.sh)
+        run: bash tool/three/compare_1b_render.sh
+
+      - name: Starter corpus (E2E-EXAMPLES REG-VISUAL-1 E2E-WEB)
+        run: bash tool/three/corpus_1b.sh
+
+      - name: Finish-pass corpus (E2E-FINISH REG-VISUAL-FINISH F4c2)
+        run: bash tool/three/cases_f4c2.sh
+
+      - name: F4d environment and premium battery (E2E-ENV E2E-TRANSMISSION REG-VISUAL-ENV E2E-AA REG-TEMPORAL)
+        run: bash tool/three/cases_f4d.sh
+
+      - name: F4f cinematic perf matrix (reduced — structural gated, timing informational)
+        env:
+          JSR_ANGLE_1B_LIB: ${{ github.workspace }}/packages/jsr_three_angle/native/angle/out/macos-arm64/libangle_1b.dylib
+        run: node tool/three/cinematic_perf.mjs --ci
+
+      - name: F4h clean-checkout showcase reproduction (REG-MATRIX)
+        run: bash tool/three/showcase_clean_checkout.sh
+
+  angle-size:
+    # Issue #7 AC10 consolidated size report for every platform built. Each
+    # platform section comes from its platform job's artifact: the macOS
+    # dylibs are measured here from the quality-macos artifact (recorded,
+    # not gated — the plan budgets SIZE-ANDROID-1 and SIZE-IOS-1 only); the
+    # Android and iOS sections are the CI-measured artifacts of the
+    # angle-android-apk and angle-ios jobs, whose SIZE gates already ran
+    # there. The numbers are printed as they are.
+    needs: [quality-macos, angle-android-apk, angle-ios]
+    runs-on: macos-15
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Download ANGLE macos-arm64 artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: angle-macos-arm64
+          path: angle-artifact
+
+      - name: Download platform size-report artifacts
+        uses: actions/download-artifact@v4
+        with:
+          pattern: angle-*-size*
+          path: size-artifacts
+          merge-multiple: false
+
+      - name: Consolidated size report
+        run: |
+          set -euo pipefail
+          ANDROID_REPORT="size-artifacts/angle-android-size/angle-android-size.txt"
+          IOS_REPORT="$(find size-artifacts -name ios-size-report.txt | head -1)"
+          test -s "$ANDROID_REPORT" || { echo "::error::missing the angle-android-size artifact"; exit 1; }
+          test -s "$IOS_REPORT" || { echo "::error::missing ios-size-report.txt (angle-ios-size-and-simulator-attempt artifact)"; exit 1; }
+          echo "# AC10 consolidated ANGLE size report (every platform built)"
+          echo
+          echo "## macos-arm64 — measured here from the quality-macos artifact; recorded, not gated"
+          ( cd angle-artifact && shasum -a 256 -c SHA256SUMS )
+          bash tool/angle_size_macho.sh angle-artifact macos-arm64 --record | tee macos-size-report.txt
+          echo
+          echo "## SIZE-ANDROID-1 — angle-android-apk artifact (measured and gated by angle-android-apk)"
+          cat "$ANDROID_REPORT"
+          echo
+          echo "## SIZE-IOS-1 — angle-ios artifact (measured and gated by angle-ios)"
+          cat "$IOS_REPORT"
+          echo
+          echo "## Budget verdicts (budgets: installed <= 10 MiB, gzip <= 5 MiB per ABI; macOS recorded, not gated)"
+          grep 'TOTAL (stripped/gzip)' "$ANDROID_REPORT"
+          grep '^TOTAL(' "$IOS_REPORT"
+          grep '^TOTAL(' macos-size-report.txt
+
+  # ==========================================================================
+  # F3a Android (issue #7, AC3 + AC10): the pinned ANGLE Vulkan builds for
+  # the three Android ABIs (matrix, cached by pin hash + ABI), the example
+  # debug APK with 1B staged, the SIZE-ANDROID-1 report, and one bounded,
+  # recorded emulator attempt of the device suite (REG-NOWEBVIEW-1 evidence
+  # or the recorded reason why the GPU backend is unavailable there).
+  # ==========================================================================
+  angle-android:
+    strategy:
+      fail-fast: false
+      matrix:
+        abi: [android-arm64, android-armv7, android-x86_64]
+    runs-on: ubuntu-latest
+    timeout-minutes: 150
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Restore pinned ANGLE build (${{ matrix.abi }})
+        id: angle-cache
+        uses: actions/cache/restore@v4
+        with:
+          path: packages/jsr_three_angle/native/angle/out/${{ matrix.abi }}
+          key: angle-${{ matrix.abi }}-${{ hashFiles('tool/three/pins/angle_pin.json') }}
+
+      - name: Build pinned ANGLE (${{ matrix.abi }}) + the libangle_1b.so shim
+        if: steps.angle-cache.outputs.cache-hit != 'true'
+        run: bash tool/build_angle.sh --platform ${{ matrix.abi }} --out packages/jsr_three_angle/native/angle/out/${{ matrix.abi }}
+
+      # Always rebuild the shim from the committed sources — also on a cache
+      # hit — so the staged artifact follows tool/build_angle.sh (link flags,
+      # NDK) and never a stale cached shim. The cache below therefore stores
+      # the fresh shim too.
+      - name: Rebuild the libangle_1b.so shim (also on cache hits)
+        run: bash tool/build_angle.sh --platform ${{ matrix.abi }} --shim-only --out packages/jsr_three_angle/native/angle/out/${{ matrix.abi }}
+
+      # Saved immediately after the build (not in a job-end post step), same
+      # rationale as the quality-macos job: a later failure must not throw
+      # the ANGLE build away. continue-on-error guards the save race.
+      - name: Save pinned ANGLE build
+        if: steps.angle-cache.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v4
+        continue-on-error: true
+        with:
+          path: packages/jsr_three_angle/native/angle/out/${{ matrix.abi }}
+          key: angle-${{ matrix.abi }}-${{ hashFiles('tool/three/pins/angle_pin.json') }}
+
+      - name: Upload ANGLE ${{ matrix.abi }} artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: angle-${{ matrix.abi }}
+          path: |
+            packages/jsr_three_angle/native/angle/out/${{ matrix.abi }}/libEGL_angle.so
+            packages/jsr_three_angle/native/angle/out/${{ matrix.abi }}/libGLESv2_angle.so
+            packages/jsr_three_angle/native/angle/out/${{ matrix.abi }}/libangle_1b.so
+            packages/jsr_three_angle/native/angle/out/${{ matrix.abi }}/SHA256SUMS
+
+  angle-android-apk:
+    needs: angle-android
+    runs-on: ubuntu-latest
+    timeout-minutes: 150
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Java 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          flutter-version: 3.47.1
+
+      - name: Accept Android SDK licenses
+        run: |
+          # GH runners do not put sdkmanager on PATH; resolve it from the
+          # standard cmdline-tools layout.
+          SDKM="$(command -v sdkmanager || echo "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager")"
+          yes | "$SDKM" --licenses >/dev/null 2>&1 || true
+
+      - name: Download the ANGLE Android artifacts
+        uses: actions/download-artifact@v4
+        with:
+          pattern: angle-android-*
+          path: angle-artifacts
+          merge-multiple: false
+
+      - name: Layout the artifacts under the out dirs
+        run: |
+          set -euo pipefail
+          for abi in android-arm64 android-armv7 android-x86_64; do
+            mkdir -p "packages/jsr_three_angle/native/angle/out/$abi"
+            cp -a "angle-artifacts/angle-$abi/." "packages/jsr_three_angle/native/angle/out/$abi/"
+          done
+          ls -la packages/jsr_three_angle/native/angle/out/*
+
+      - name: Verify artifact integrity and stage the example jniLibs
+        run: |
+          set -euo pipefail
+          for abi in android-arm64 android-armv7 android-x86_64; do
+            # shasum-formatted lines; sha256sum -c verifies the same format.
+            (cd "packages/jsr_three_angle/native/angle/out/$abi" &&
+              shasum -a 256 -c SHA256SUMS 2>/dev/null || sha256sum -c SHA256SUMS)
+          done
+          bash tool/stage_angle_android.sh
+
+      - name: Build the example debug APK with 1B
+        run: |
+          cd example
+          flutter pub get
+          # quickjs_runtime's hook still links -lpthread on Android (bionic
+          # has no libpthread) — patch the RESOLVED pub-cache copy (must run
+          # after pub get; the script is CWD-independent).
+          bash ../tool/patch_quickjs_android.sh
+          # The native-assets hook compiles quickjs C code for Android and
+          # needs an NDK: use the pinned 27.2.12479018, installing it when
+          # absent (sdkmanager is not on PATH on GH runners — resolve it
+          # from the standard cmdline-tools layout).
+          export ANDROID_NDK_HOME="$ANDROID_HOME/ndk/27.2.12479018"
+          if [ ! -d "$ANDROID_NDK_HOME" ]; then
+            SDKM="$(command -v sdkmanager || echo "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager")"
+            "$SDKM" "ndk;27.2.12479018" >/dev/null
+          fi
+          flutter build apk --debug
+
+      - name: SIZE-ANDROID-1 report
+        run: bash tool/angle_size_android.sh --verify | tee angle-android-size.txt
+
+      - name: Upload APK and size report
+        uses: actions/upload-artifact@v4
+        with:
+          name: angle-android-apk
+          path: |
+            example/build/app/outputs/flutter-apk/app-debug.apk
+            angle-android-size.txt
+
+      - name: Upload the size report artifact (small, for the angle-size job)
+        uses: actions/upload-artifact@v4
+        with:
+          name: angle-android-size
+          path: angle-android-size.txt
+
+      - name: Emulator attempt (API 30 x86_64, TCG — bounded, recorded)
+        run: |
+          set -uo pipefail
+          OUT=e2e-android
+          mkdir -p "$OUT"
+          {
+            echo "## angle-android emulator attempt (API 30 x86_64, no KVM: TCG)"
+            echo "recorded $(date -u +%Y-%m-%dT%H:%M:%SZ); bounded boot (20 min) + bounded suite (20 min)"
+          } | tee "$OUT/summary.txt"
+
+          # Pin the AVD home for BOTH avdmanager and the emulator: on GH
+          # runners they default to different locations and the emulator
+          # then cannot find the freshly created AVD ("Unknown AVD name").
+          export ANDROID_AVD_HOME="$HOME/.android/avd"
+          mkdir -p "$ANDROID_AVD_HOME"
+
+          # GH runners do not put sdkmanager/avdmanager on PATH — same
+          # cmdline-tools layout as the build step above.
+          SDKM="$(command -v sdkmanager || echo "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager")"
+          AVDM="$(command -v avdmanager || echo "$ANDROID_HOME/cmdline-tools/latest/bin/avdmanager")"
+          "$SDKM" "system-images;android-30;default;x86_64" "platform-tools" >/dev/null
+          "$AVDM" create avd -n f3a -k "system-images;android-30;default;x86_64" -d pixel_5 --force >/dev/null
+          # Loud failure at creation — never spend the boot bound on a
+          # missing AVD.
+          [ -f "$ANDROID_AVD_HOME/f3a.ini" ]
+
+          # GH runner images preinstall the SDK but do not reliably put the
+          # emulator and adb on PATH.
+          EMU="$ANDROID_HOME/emulator/emulator"
+          [ -x "$EMU" ] || EMU="$(command -v emulator || true)"
+          ADB="$ANDROID_HOME/platform-tools/adb"
+          [ -x "$ADB" ] || ADB="$(command -v adb || true)"
+          export EMU ADB
+
+          boot_rc=0
+          timeout 1200 bash -c '
+            "$EMU" -avd f3a -no-window -no-audio -gpu swiftshader_indirect \
+              -no-boot-anim -no-snapshot -accel off &
+            "$ADB" wait-for-device
+            for i in $(seq 1 240); do
+              [ "$("$ADB" shell getprop sys.boot_completed 2>/dev/null | tr -d "\r")" = "1" ] && exit 0
+              sleep 5
+            done
+            exit 124
+          ' > "$OUT/boot.txt" 2>&1 || boot_rc=$?
+          pkill -f 'avd f3a' 2>/dev/null || true
+
+          if [ "$boot_rc" -ne 0 ]; then
+            echo "RESULT: EMULATOR BOOT FAILED within the 20-minute TCG bound (rc=$boot_rc)" | tee -a "$OUT/summary.txt"
+            tail -10 "$OUT/boot.txt" | tee -a "$OUT/summary.txt" || true
+            exit 0
+          fi
+          echo "RESULT: emulator booted" | tee -a "$OUT/summary.txt"
+
+          cd example
+          suite_rc=0
+          timeout 1200 flutter test ../test/angle1b/e2e_android_1b_test.dart \
+            -d emulator-5554 > ../e2e-android-log.txt 2>&1 || suite_rc=$?
+          cd ..
+
+          {
+            echo "suite exit code: $suite_rc"
+            echo '```'
+            grep -E "E2E-ANDROID|ANGLE 1B probe failed|requires API" e2e-android-log.txt || true
+            tail -20 e2e-android-log.txt
+            echo '```'
+          } | tee -a "$OUT/summary.txt"
+          cp e2e-android-log.txt "$OUT/test-log.txt"
+
+          if [ "$suite_rc" -ne 0 ]; then
+            echo "::warning::the device suite failed on the emulator — recorded above; the ANGLE GPU backend may be unavailable under TCG (the plan records the reason, it does not gate)"
+          fi
+          exit 0
+
+      - name: Upload emulator attempt
+        uses: actions/upload-artifact@v4
+        with:
+          name: angle-android-emulator
+          path: |
+            e2e-android/summary.txt
+            e2e-android/boot.txt
+            e2e-android/test-log.txt
+
+  # ---------------------------------------------------------------------------
+  # F3b iOS (issue #7 AC3 + SIZE-IOS-1 + REG-NOWEBVIEW-1) — everything below
+  # belongs to the iOS lane; the Android lane owns angle-android, the shared
+  # jobs above are untouched.
+  # ---------------------------------------------------------------------------
+  angle-ios:
+    # The pinned ANGLE Metal build for ios-arm64, the iOS example app with
+    # the angle_1b texture plugin (SIZE-IOS-1), and a bounded, recorded
+    # simulator attempt of the e2e_ios device suite. ANGLE is cached on the
+    # pin hash (same policy as quality-macos).
+    runs-on: macos-15
+    timeout-minutes: 150
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          flutter-version: 3.47.1
+
+      - name: Metal toolchain
+        run: |
+          if xcrun -f metal >/dev/null 2>&1; then
+            echo "Metal toolchain already present"
+          else
+            xcodebuild -downloadComponent metalToolchain
+          fi
+
+      - name: Restore pinned ANGLE build (ios-arm64)
+        id: angle-cache
+        uses: actions/cache/restore@v4
+        with:
+          path: packages/jsr_three_angle/native/angle/out/ios-arm64
+          key: angle-ios-arm64-${{ hashFiles('tool/three/pins/angle_pin.json') }}
+
+      - name: Build pinned ANGLE (ios-arm64)
+        if: steps.angle-cache.outputs.cache-hit != 'true'
+        run: bash tool/build_angle.sh --platform ios-arm64 --out packages/jsr_three_angle/native/angle/out/ios-arm64
+
+      # Built from source in EVERY run (the ANGLE cache must never carry
+      # this dylib: a cached shim from older sources skips the compile and
+      # hides a broken shim — CI lesson of run 45837887081). It appends
+      # itself to the SHA256SUMS the ANGLE build wrote (REG-SUPPLY-1).
+      - name: Build the 1B shim for ios-arm64 and stage it
+        run: |
+          set -euo pipefail
+          OUT=packages/jsr_three_angle/native/angle/out/ios-arm64
+          rm -f "$OUT/libangle_1b.dylib"
+          bash packages/jsr_three_angle/native/angle/build_ios.sh "$OUT"
+          test -f "$OUT/libEGL.dylib"
+
+      - name: Save pinned ANGLE build (ios-arm64)
+        # The staged libEGL/libGLESv2 exist before the shim step; a shim
+        # failure must not throw the ANGLE build away (every run rebuilds
+        # the shim from source, so a stale dylib never survives in cache).
+        if: always()
+        uses: actions/cache/save@v4
+        continue-on-error: true
+        with:
+          path: packages/jsr_three_angle/native/angle/out/ios-arm64
+          key: angle-ios-arm64-${{ hashFiles('tool/three/pins/angle_pin.json') }}
+
+      - name: Upload ANGLE ios-arm64 artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: angle-ios-arm64
+          path: |
+            packages/jsr_three_angle/native/angle/out/ios-arm64/libEGL.dylib
+            packages/jsr_three_angle/native/angle/out/ios-arm64/libGLESv2.dylib
+            packages/jsr_three_angle/native/angle/out/ios-arm64/libangle_1b.dylib
+            packages/jsr_three_angle/native/angle/out/ios-arm64/SHA256SUMS
+
+      - name: SIZE-IOS-1 size report (ios-arm64)
+        run: |
+          set -euo pipefail
+          bash tool/angle_size_macho.sh packages/jsr_three_angle/native/angle/out/ios-arm64 ios-arm64 | tee ios-size-report.txt
+
+      - name: Build the example for the simulator (plugin + app compile check)
+        run: |
+          cd example
+          flutter pub get
+          flutter build ios --simulator --debug
+
+      - name: Build the example for the device (embed phase proof)
+        run: |
+          cd example
+          flutter build ios --release --no-codesign
+
+      - name: Simulator attempt of the e2e_ios device suite (bounded, recorded)
+        if: always()
+        run: |
+          set -uo pipefail
+          {
+            echo "## ANGLE iOS (F3b) — angle-ios job summary"
+            echo '```'
+            # Tolerant of an earlier failed step: GitHub runs this step
+            # under `bash -e`, so an unguarded cat would abort the summary.
+            cat ios-size-report.txt 2>/dev/null \
+              || echo '(SIZE-IOS-1 report unavailable — the report step failed)'
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+          UDID=$(xcrun simctl list devices available \
+            | grep -m1 'iPhone' | sed -E 's/.*\(([A-F0-9-]{36})\).*/\1/' || true)
+          if [ -z "${UDID:-}" ]; then
+            RESULT="GPU suite not attempted: no available iPhone simulator runtime on the runner"
+          else
+            echo "Booting simulator $UDID (15-minute boot bound)"
+            xcrun simctl boot "$UDID" 2>/dev/null || true
+            xcrun simctl bootstatus "$UDID" -b & BOOT_PID=$!
+            ( sleep 900; kill "$BOOT_PID" 2>/dev/null ) & WATCHDOG=$!
+            if wait "$BOOT_PID"; then BOOT_OK=1; else BOOT_OK=0; fi
+            kill "$WATCHDOG" 2>/dev/null || true
+            if [ "${BOOT_OK:-0}" != "1" ]; then
+              RESULT="GPU suite not attempted: simulator boot exceeded the 15-minute bound"
+            else
+              cd example
+              set +e
+              # No coreutils on the runner (exit 127 in run 45748149398):
+              # bound the suite with a watchdog kill, never a retry.
+              # flutter drive is the documented device integration flow
+              # (run 45764221986: `flutter test -d <simulator>` waited 15
+              # silent minutes on the app-side ext.flutter.integrationTest
+              # beacon and ended "0 tests passed" exit 1). drive streams the
+              # app's output, so the suite's ANGLE_1B_UNAVAILABLE marker and
+              # per-test lines land in the log; e2e_ios.dart is the wrapper
+              # around the canonical ../test/angle1b suite.
+              flutter drive \
+                --driver=test_driver/integration_test.dart \
+                --target=integration_test/e2e_ios.dart \
+                -d "$UDID" \
+                > ../simulator-attempt.log 2>&1 &
+              TEST_PID=$!
+              ( sleep 900; kill "$TEST_PID" 2>/dev/null ) & TEST_WATCHDOG=$!
+              wait "$TEST_PID"; TEST_RC=$?
+              kill "$TEST_WATCHDOG" 2>/dev/null || true
+              set -e
+              cd ..
+              if grep -q 'ANGLE_1B_UNAVAILABLE:' simulator-attempt.log; then
+                REASON=$(grep -m1 'ANGLE_1B_UNAVAILABLE:' simulator-attempt.log | cut -d' ' -f2-)
+                RESULT="GPU backend unavailable on the simulator (recorded): $REASON"
+              elif [ "$TEST_RC" -eq 0 ] && grep -q 'All tests passed' simulator-attempt.log; then
+                RESULT="e2e_ios device suite PASSED on the simulator"
+              else
+                RESULT="e2e_ios device suite FAILED on the simulator (exit $TEST_RC, see artifact angle-ios-size-and-simulator-attempt)"
+              fi
+            fi
+            xcrun simctl shutdown "$UDID" 2>/dev/null || true
+          fi
+          echo "SIMULATOR ATTEMPT: $RESULT" | tee -a simulator-attempt-summary.txt
+          {
+            echo "### Simulator attempt (bounded, recorded)"
+            echo "$RESULT"
+            echo
+            echo "The simulator build never embeds the device-slice ANGLE dylibs"
+            echo "(its own build output, separate directory, never shipped); a"
+            echo "recorded unavailability keeps the job green per plan §9."
+          } >> "$GITHUB_STEP_SUMMARY"
+          exit 0
+
+      - name: Upload size report and simulator attempt
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: angle-ios-size-and-simulator-attempt
+          path: |
+            ios-size-report.txt
+            simulator-attempt-summary.txt
+            simulator-attempt.log

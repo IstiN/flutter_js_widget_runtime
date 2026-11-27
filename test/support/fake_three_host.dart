@@ -53,6 +53,12 @@ class FakeThreeHost implements JsThreeHost {
   final assets = <String, JsThreeAsset>{};
   int attachCount = 0;
   int assetLoadCount = 0;
+  final batches1B = <String, Uint8List>{};
+
+  @override
+  void submit1B(String boundEngineId, Uint8List batch) {
+    batches1B[boundEngineId] = batch;
+  }
 
   static String key(String engineId, String surfaceId) =>
       '$engineId/$surfaceId';
@@ -126,4 +132,50 @@ class FakeThreeHost implements JsThreeHost {
       surfaces.remove(key)?.dispose();
     }
   }
+}
+
+/// JsThree1BWire fake over [FakeThreeHost] (selection/policy tests):
+/// counts probes, records the facade ensure, serves a trivial bootstrap.
+class Fake1BWireHost extends FakeThreeHost implements JsThree1BWire {
+  Fake1BWireHost({this.probeReason, this.androidApiLevel});
+
+  String? probeReason;
+
+  /// When set, served as [facadeBootstrapJs] instead of the stub — tests that
+  /// run the REAL generated facade (batching transport, shader e2e) inject the
+  /// composed bootstrap here.
+  String? facadeBootstrapOverride;
+
+  @override
+  final int? androidApiLevel;
+
+  int probeCalls = 0;
+  bool bootstrapEnsured = false;
+
+  /// Every dispatch of the synchronous G1 lane (payload = the batch bytes).
+  final List<Uint8List> dispatches1B = <Uint8List>[];
+
+  @override
+  String? probeNative() {
+    probeCalls++;
+    return probeReason;
+  }
+
+  @override
+  String get facadeBootstrapJs =>
+      facadeBootstrapOverride ?? '/* facade bootstrap stub */';
+
+  @override
+  Future<void> ensureFacadeBootstrap() async {
+    bootstrapEnsured = true;
+  }
+
+  @override
+  int dispatch1B(String engineId, Uint8List command) {
+    dispatches1B.add(Uint8List.fromList(command));
+    return 0;
+  }
+
+  @override
+  String result1BAsBase64(String engineId) => '';
 }

@@ -3,8 +3,10 @@
 // Every animated property is a PURE function of the pipeline clock state
 // (clockState / subframe time `t` in absolute seconds). No Date.now, no
 // Math.random, no requestAnimationFrame in this module. The one-time static
-// layout is seeded through cinematicRandom so different epochs produce
-// different — but fully deterministic — dioramas.
+// layout is seeded through the injected seededRandom factory
+// (`jsr.three.cinematic.cinematicRandom`, F4a: the pipeline implementation
+// moved to the core module — this scene keeps no pipeline import) so
+// different epochs produce different — but fully deterministic — dioramas.
 
 import {
   AmbientLight,
@@ -25,8 +27,6 @@ import {
   TorusGeometry,
   TorusKnotGeometry
 } from 'three';
-
-import { cinematicRandom } from './pipeline.js';
 
 const TWO_PI = Math.PI * 2;
 
@@ -130,14 +130,22 @@ function disposeGroup(root) {
   root.clear();
 }
 
-// createShowcaseScene({ width, height, seed }) -> Scene with userData:
+// createShowcaseScene({ width, height, seed, seededRandom }) -> Scene with
+// userData:
 //   camera   — PerspectiveCamera on a deterministic slow orbit
-//   random   — the seeded cinematicRandom stream (epoch-scoped)
+//   random   — the seeded stream (epoch-scoped)
 //   reseed(epoch) — rebuild the static layout for a new deterministic epoch
+// `seededRandom` is the core RNG factory (`jsr.three.cinematic.cinematicRandom`,
+// mulberry32) — required, so the scene shares ONE implementation with the
+// core module instead of carrying a copy.
 export function createShowcaseScene(options = {}) {
   const width = options.width || 480;
   const height = options.height || 320;
   const seed = options.seed === undefined ? 1 : options.seed;
+  const seededRandom = options.seededRandom;
+  if (typeof seededRandom !== 'function') {
+    throw new Error('cinematic.invalid: createShowcaseScene requires seededRandom (jsr.three.cinematic.cinematicRandom)');
+  }
 
   const scene = new Scene();
   // alpha lanes (PNG export with transparency) need no opaque background —
@@ -165,7 +173,7 @@ export function createShowcaseScene(options = {}) {
     epoch: 0,
     spinners: [],
     orbiters: [],
-    random: cinematicRandom(seed),
+    random: seededRandom(seed),
     reseed: null
   };
   scene.userData = userData;
@@ -176,7 +184,7 @@ export function createShowcaseScene(options = {}) {
     // Fixed mixing of the epoch into the seed: same epoch -> same layout,
     // different epoch -> a different but still deterministic diorama.
     const epochSeed = (mul(e, 2654435761) ^ (seed * 40503)) >>> 0;
-    const random = cinematicRandom(epochSeed || 1);
+    const random = seededRandom(epochSeed || 1);
     const layout = buildLayout(root, random, e);
     userData.epoch = e;
     userData.random = random;

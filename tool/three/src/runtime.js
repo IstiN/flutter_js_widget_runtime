@@ -1,5 +1,6 @@
 import { assetFailure, unsupported } from './errors.js';
 import { installNativeAudio } from './native_audio.js';
+import { cinematicSurface } from './cinematic.js';
 
 const ROOT = typeof globalThis !== 'undefined' ? globalThis : {};
 
@@ -628,8 +629,13 @@ export class JsrThreeCanvas {
 
   _setPhysicalSize(width, height) {
     if (!Number.isFinite(width) || !Number.isFinite(height) || width < 0 || height < 0) throw new Error('three.invalid: canvas dimensions must be non-negative finite numbers');
-    this._width = Math.floor(width);
-    this._height = Math.floor(height);
+    // The same 16384 GL cap the constructor applies to the boot buffer (see
+    // the pixelRatio clamp above) — the setters enforce it too, so a hostile
+    // or oversized width can never materialise a backing buffer beyond the
+    // GL maximum (SIGBUS territory on a smaller 1B surface). Documented
+    // clamp; fractional values floor.
+    this._width = Math.min(Math.floor(width), 16384);
+    this._height = Math.min(Math.floor(height), 16384);
     this._cssWidth = this._width / this._pixelRatio;
     this._cssHeight = this._height / this._pixelRatio;
     if (this._backing) {
@@ -1206,7 +1212,12 @@ export class ThreeCompatibilityRuntime {
     state.released = true;
     state.dirty = false;
     state.pending.clear();
-    if (notify) this._postStructured(this._frameMessage(canvas, 'jsr.three.release'));
+    // A host with an installed presentHook owns presentation directly (the
+    // engine-1B ANGLE surface): the Worker frame-release protocol does not
+    // exist there, and postMessage would throw on bare engines.
+    if (notify && !this.presentHook) {
+      this._postStructured(this._frameMessage(canvas, 'jsr.three.release'));
+    }
   }
 
   present(canvas, payload) {
@@ -1264,7 +1275,19 @@ export function installThreeRuntime(web) {
   if (activeRuntime && activeRuntime.web === !!web && previous._runtime === activeRuntime) return activeRuntime;
   activeRuntime = new ThreeCompatibilityRuntime(jsr, !!web, previous);
   if (!web) installNativeAudio(activeRuntime);
+  // F4c1 (root-cause fix the afterimage tests forced): stock postprocessing
+  // addons read the bare `window.innerWidth/innerHeight` at construction
+  // (AfterimagePass render-target sizing). The runtime document's defaultView
+  // carries the live engine values — expose it as `window` when the host has
+  // none. Never overwrite a real host window.
+  if (typeof ROOT.window === 'undefined' && activeRuntime.document && activeRuntime.document.defaultView) {
+    ROOT.window = activeRuntime.document.defaultView;
+  }
   jsr.three = activeRuntime.install(previous);
+  // jsr.three.cinematic — the deterministic cinematic pipeline surface
+  // (issue #8, ADR-0004 decision 2). Present exactly when the host loaded
+  // the three bundle, i.e. when JsRuntimeConfig.threeEnabled is true.
+  jsr.three.cinematic = cinematicSurface;
   if (typeof jsr.render === 'function' && !jsr.render.__jsrThreeRenderWrapper) {
     const originalRender = jsr.render;
     const wrapped = function(tree, ...args) {

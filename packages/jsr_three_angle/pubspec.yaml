@@ -1,0 +1,30 @@
+name: jsr_three_angle
+description: >-
+  ANGLE 1B THREE backend for js_widget_runtime: the pinned upstream
+  WebGLRenderer over a local ANGLE WebGL2 context facade. Opt-in
+  distribution (issue #7 / ADR-0002): applications that select 1B add this
+  package and pass `threeHost: createAngleThreeHost(...)`; applications
+  that do not never download, bundle, sign or initialize ANGLE.
+version: 0.1.0
+homepage: https://github.com/IstiN/flutter_js_widget_runtime
+publish_to: none
+
+environment:
+  sdk: '>=3.12.0 <4.0.0'
+  flutter: '>=3.47.0'
+
+dependencies:
+  ffi: ^2.2.0
+  flutter:
+    sdk: flutter
+  js_widget_runtime:
+    path: ../../
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+
+flutter:
+  assets:
+    - facade/g1_packer.js
+    - facade/webgl2_facade.js

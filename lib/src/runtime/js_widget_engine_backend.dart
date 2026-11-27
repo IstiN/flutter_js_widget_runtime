@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:typed_data';
 
+import 'package:js_widget_runtime/src/model/js_three_backend.dart';
 import 'package:js_widget_runtime/src/renderer/nodes/js_voxel_node.dart';
 
 /// Raw bytes for one pre-warmed widget asset, keyed by asset url in
@@ -32,6 +33,17 @@ abstract class JsWidgetEngineBackend {
   /// Binds the backend and its bridge to the wrapper-generated engine id.
   /// Custom backends without named THREE resources may keep this no-op.
   void setEngineInstanceId(String instanceId) {}
+
+  /// Probe (a) of the 1B selection ladder (ADR-0003): true only for
+  /// backends whose binary lane is synchronous (`__JSR_RAW_BINARY__` — the
+  /// QuickJS FFI backend). Async engines keep the default false and 1B is
+  /// never selected on them.
+  bool get hasSyncBinaryLane => false;
+
+  /// Notified by the engine wrapper before [run] with the outcome of the
+  /// 1B selection ladder, so the backend can register the 1B wire globals
+  /// when angle1b was selected. The default is a no-op.
+  void prepareThreeBackend(JsThreeBackendSelection selection) {}
 
   /// Initializes the backend (loads libraries, creates contexts, etc.).
   Future<void> init();

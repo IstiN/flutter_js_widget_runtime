@@ -3,8 +3,15 @@
 //
 // G1 byte writer + per-method packers. Wire format (locked ABI):
 //   [u32 opcode LE][args...]  u=u32 i=i32 f=f32 s=u32 len+UTF-8 b=u32 len+bytes
-// A 'b' arg given a number (or null) writes the length ONLY — the C decoder
-// sees a NULL pointer (bufferData size-only / texImage2D null-data overloads).
+// A 'b' arg given a number (or null) writes the size-only convention:
+// the length field with bit 31 set (0x80000000 | size) and NO bytes —
+// the C decoder hands GL a NULL pointer (bufferData size-only /
+// texImage2D null-data overloads). Real typed arrays (including EMPTY
+// ones) write the plain byte length followed by the bytes; without bit 31
+// the decoder requires exactly that many bytes, so a batched dispatch can
+// never mistake a trailing command for upload data (the old implicit
+// "remaining < len" heuristic desynced the cursor and fed GL garbage
+// pointers for null uploads mid-batch).
 // G1.call(opcode) invokes global __jsr1b_gl(bytes) synchronously, returns its
 // int64 result and resets the buffer.
 'use strict';
@@ -275,8 +282,8 @@ var G1 = (function () {
   }
   function blob(v) {
     var a, i;
-    if (v == null) { u32(0); return; }
-    if (typeof v === 'number') { u32(v); return; } // size-only / null-data convention
+    if (v == null) { u32(0x80000000); return; } // size-only convention: bit 31, no bytes
+    if (typeof v === 'number') { u32(0x80000000 | v); return; } // size-only / null-data convention
     if (Array.isArray(v)) { // plain GLenum[] (drawBuffers/invalidateFramebuffer):
       u32(v.length * 4);   // blob len in BYTES; decoder divides by 4
       _grow(v.length * 4);
@@ -291,14 +298,88 @@ var G1 = (function () {
     for (i = 0; i < a.byteLength; i++) _b[_l + i] = a[i];
     _l += a.byteLength;
   }
+  var _sink = null;
   function call(op) {
     var bytes = _b.subarray(0, _l);
-    var rc = root.__jsr1b_gl(bytes); // sync host call; the view is valid for the call only
+    // F2b batching: the WebGL2 facade installs a sink that queues void
+    // commands and flushes them as one batched dispatch; with no sink the
+    // locked M2 behavior applies (one __jsr1b_gl call per command).
+    var rc = _sink ? _sink(bytes, op) : root.__jsr1b_gl(bytes); // sync host call; the view is valid for the call only
     _l = 0;
     return rc;
   }
-  return { u32: u32, i32: i32, f32: f32, str: str, blob: blob, call: call };
+  return { u32: u32, i32: i32, f32: f32, str: str, blob: blob, call: call, setSink: function (fn) { _sink = fn; } };
 })();
+
+
+// G1_SYNC (F2b): opcodes whose result is consumed by the caller (JSON
+// ret != 'void'). A sink flushes the queue immediately when one of these is
+// packed, so its rc/scratch answers the whole batch (the batched command is
+// the LAST one).
+var G1_SYNC = {
+
+  1: 1,
+  8: 1,
+  31: 1,
+  32: 1,
+  33: 1,
+  35: 1,
+  40: 1,
+  41: 1,
+  44: 1,
+  45: 1,
+  49: 1,
+  50: 1,
+  51: 1,
+  52: 1,
+  53: 1,
+  54: 1,
+  56: 1,
+  62: 1,
+  63: 1,
+  64: 1,
+  65: 1,
+  66: 1,
+  67: 1,
+  68: 1,
+  69: 1,
+  70: 1,
+  71: 1,
+  72: 1,
+  73: 1,
+  75: 1,
+  78: 1,
+  80: 1,
+  92: 1,
+  100: 1,
+  101: 1,
+  102: 1,
+  104: 1,
+  108: 1,
+  109: 1,
+  111: 1,
+  130: 1,
+  131: 1,
+  132: 1,
+  134: 1,
+  139: 1,
+  141: 1,
+  145: 1,
+  146: 1,
+  147: 1,
+  197: 1,
+  200: 1,
+  201: 1,
+  204: 1,
+  205: 1,
+  206: 1,
+  208: 1,
+  211: 1,
+  212: 1,
+  213: 1,
+  215: 1,
+  224: 1
+};
 
 var g1 = {
 
@@ -1763,7 +1844,8 @@ var g1 = {
     throw new Error('webgl.makeXRCompatible: named unsupported (G1 stub)');
   },
   getSupportedExtensions: function () {
-    throw new Error('webgl.getSupportedExtensions: named unsupported (G1 stub)');
+    G1.u32(G1C.GET_SUPPORTED_EXTENSIONS);
+    return G1.call(G1C.GET_SUPPORTED_EXTENSIONS);
   },
 };
 

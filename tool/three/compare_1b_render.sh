@@ -17,6 +17,16 @@ set -u
 
 cd "$(dirname "$0")/../.."
 
+# Web reference harness: Playwright (channel chrome by default; override with
+# JSR_WEBGL_REF_CHANNEL). Installed once into /tmp/node_modules — the fixed
+# require path of ref_1b_scene.cjs.
+if [ ! -d /tmp/node_modules/playwright ]; then
+  echo '[compare] playwright not found; installing to /tmp/node_modules'
+  npm install playwright --prefix /tmp --no-audit --no-fund >/dev/null 2>&1 || {
+    echo '[compare] playwright install failed — the web leg will FAIL'
+  }
+fi
+
 echo '== [1/3] 1B harness: three r186 -> g1_packer -> webgl2_facade -> a1b_gl_dispatch (ANGLE Metal), two fresh surfaces =='
 OUT_1B=$(dart run tool/three/run_1b_render.dart 2>/dev/null) || {
   echo 'FAIL: 1B harness exited nonzero (see stderr above)'

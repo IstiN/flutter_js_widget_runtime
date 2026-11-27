@@ -6,6 +6,7 @@ import 'package:flutter/foundation.dart';
 import 'package:web/web.dart' as web;
 
 import 'package:js_widget_runtime/src/model/js_runtime_config.dart';
+import 'package:js_widget_runtime/src/model/js_three_backend.dart';
 import 'package:js_widget_runtime/src/runtime/js_widget_bootstrap.dart';
 import 'package:js_widget_runtime/src/runtime/js_widget_bridge.dart';
 import 'package:js_widget_runtime/src/renderer/nodes/js_voxel_node.dart';
@@ -53,6 +54,7 @@ class WebWorkerJsWidgetEngineBackend implements JsWidgetEngineBackend {
       onHostCallBinary: config.onHostCallBinary,
       onAudioSynthesis: config.onAudioSynthesis,
       captureHandler: config.captureHandler,
+      cinematicCaptureHost: config.cinematicCaptureHost,
       intervalTickHandler: (id) => _postToWorker('__jsr_interval_tick', id),
       rafTickHandler: (id, elapsedMs) =>
           _postToWorker('__jsr_raf_tick', {'id': id, 'elapsed': elapsedMs}),
@@ -66,6 +68,16 @@ class WebWorkerJsWidgetEngineBackend implements JsWidgetEngineBackend {
 
   JsRuntimeConfig _config;
   late final JsWidgetBridge _bridge;
+
+  /// 1B probe (a): the worker postMessage lane is asynchronous — 1B is
+  /// never selected on this backend (ADR-0003).
+  @override
+  bool get hasSyncBinaryLane => false;
+
+  @override
+  void prepareThreeBackend(JsThreeBackendSelection selection) {
+    // The ladder already selected r1 on this backend; nothing to prepare.
+  }
 
   @override
   void setEngineInstanceId(String instanceId) {

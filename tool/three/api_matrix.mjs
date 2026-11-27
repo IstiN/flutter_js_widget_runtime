@@ -502,6 +502,196 @@ const EXAMPLE_OVERRIDES = {
   webgl_materials_cubemap_refraction: { verdict: 'web-lane', note: 'cube faces arrive as OffscreenCanvas-decoded jpgs — assets stay unregistered on native (documented facade gap); runs on the web build' },
 };
 
+// ---------------------------------------------------------------------------
+// 1B promotion (issue #8 AC13, segment F4h). The `verdict` above stays the
+// static R1-facade scan; these tables carry the MEASURED native-1B lane
+// (original WebGLRenderer over the WebGL2 facade + ANGLE) into the rows.
+// A row is promoted only with green-test evidence on the 1B lane; the
+// snapshot test (test/api_matrix_test.mjs) and the evidence gate
+// (test/engine_coverage_test.mjs) fail on any row without it.
+// ---------------------------------------------------------------------------
+
+// API/addon labels proven on the 1B lane. A promoted example's every known
+// blocker must appear here — the generator refuses an otherwise promotion.
+// Class labels are bare names (THREE.X), addon labels carry the
+// `addon:<path>` prefix — both spellings are listed.
+const ONE_B_OK = new Set([
+  // composer + passes (F4b/F4c1/F4c2 corpus legs + the angle1b test battery)
+  'EffectComposer', 'RenderPass', 'OutputPass', 'ShaderPass',
+  'UnrealBloomPass', 'SMAAPass', 'FXAAPass', 'FilmPass', 'LUTPass',
+  'SSAOPass', 'GTAOPass', 'TAARenderPass', 'SSAARenderPass',
+  'AfterimagePass', 'BokehPass',
+  'addon:postprocessing/EffectComposer.js', 'addon:postprocessing/RenderPass.js',
+  'addon:postprocessing/OutputPass.js', 'addon:postprocessing/ShaderPass.js',
+  'addon:postprocessing/UnrealBloomPass.js', 'addon:postprocessing/SMAAPass.js',
+  'addon:postprocessing/FXAAPass.js', 'addon:postprocessing/FilmPass.js',
+  'addon:postprocessing/LUTPass.js', 'addon:postprocessing/SSAOPass.js',
+  'addon:postprocessing/GTAOPass.js', 'addon:postprocessing/TAARenderPass.js',
+  'addon:postprocessing/SSAARenderPass.js', 'addon:postprocessing/AfterimagePass.js',
+  'addon:postprocessing/BokehPass.js',
+  // engine classes proven on 1B by the F4d environment battery
+  'PMREMGenerator', 'CubeCamera', 'WebGLCubeRenderTarget',
+  'WebGLRenderTarget', 'CubeRefractionMapping',
+  // materials/scene classes the stock examples need on 1B
+  'ShaderMaterial', 'MeshPhysicalMaterial',
+  // addons the stock examples need on 1B
+  'RoomEnvironment', 'DRACOLoader', 'HDRCubeTextureLoader', 'HDRLoader',
+  'EXRLoader', 'Reflector',
+  'addon:environments/RoomEnvironment.js', 'addon:loaders/DRACOLoader.js',
+  'addon:loaders/HDRCubeTextureLoader.js', 'addon:loaders/HDRLoader.js',
+  'addon:loaders/EXRLoader.js', 'addon:objects/Reflector.js',
+]);
+
+// Measured corpus results per promoted example id (green tests on the 1B
+// lane; the corpus drivers gate the same rows in the quality-macos job).
+//   oneB     'supported' — the example measured inside its accepted tier on 1B
+//            'documented-limit' — the measured deviation is documented in
+//            docs/angle_1b.md and stays visible here
+//   evidence acceptance ids + the repo files that contain them (the evidence
+//            gate validates file existence and id membership).
+const ONE_B_EXAMPLES = {
+  webgl_postprocessing_unreal_bloom: {
+    oneB: 'supported', tier: 'exact',
+    measured: 'PASS_IDENTICAL 0x8444f8b9, 100.0000% px (320x240, M4 Pro)',
+    evidence: {
+      ids: ['E2E-BLOOM-1', 'E2E-BLOOM-2', 'REG-VISUAL-BLOOM', 'three-postprocessing-unreal-bloom'],
+      tests: ['test/angle1b/f4b_e2e_bloom_test.dart'],
+    },
+  },
+  webgl_postprocessing_fxaa: {
+    oneB: 'supported', tier: 'exact',
+    measured: 'PASS_IDENTICAL 0x6ddd0a67',
+    evidence: {
+      ids: ['E2E-FINISH', 'three-postprocessing-fxaa'],
+      tests: ['tool/three/cases_f4c2.sh', 'test/angle1b/f4c2_finish_passes_test.dart'],
+    },
+  },
+  webgl_postprocessing_unreal_bloom_selective: {
+    oneB: 'supported', tier: 'exact',
+    measured: 'PASS_IDENTICAL 0x28749596',
+    evidence: {
+      ids: ['E2E-FINISH', 'three-postprocessing-unreal-bloom-selective'],
+      tests: ['tool/three/cases_f4c2.sh'],
+    },
+  },
+  webgl_postprocessing_ssao: {
+    oneB: 'supported', tier: 'exact',
+    measured: 'PASS_IDENTICAL 0x954ee760',
+    evidence: {
+      ids: ['E2E-FINISH', 'three-postprocessing-ssao'],
+      tests: ['tool/three/cases_f4c2.sh'],
+    },
+  },
+  webgl_postprocessing_gtao: {
+    oneB: 'supported', tier: 'exact',
+    measured: 'PASS_IDENTICAL 0x2f9c49e6 (LittlestTokyo.glb)',
+    evidence: {
+      ids: ['E2E-FINISH', 'three-postprocessing-gtao'],
+      tests: ['tool/three/cases_f4c2.sh'],
+    },
+  },
+  webgl_postprocessing_afterimage: {
+    oneB: 'supported', tier: 'exact',
+    measured: 'PASS_IDENTICAL (f4c1 compare: ai_seq24 bit-exact 1B vs web; damp 0.5)',
+    note: 'Tier measured through the cases_f4c1 checkpoint program (stock AfterimagePass + CinematicHistory reconstruction), not the stock example scene itself.',
+    evidence: {
+      ids: ['IT-HISTORY-1', 'ai_seq24'],
+      tests: ['test/angle1b/f4c1_it_history_test.dart'],
+    },
+  },
+  webgl_materials_envmaps_hdr: {
+    oneB: 'supported', tier: 'exact',
+    measured: 'PASS_IDENTICAL 0xad212355',
+    evidence: {
+      ids: ['E2E-ENV', 'three-materials-envmaps-hdr'],
+      tests: ['tool/three/cases_f4d.sh'],
+    },
+  },
+  webgl_materials_envmaps_exr: {
+    oneB: 'supported', tier: 'exact',
+    measured: 'PASS_IDENTICAL 0xac155766',
+    evidence: {
+      ids: ['E2E-ENV', 'three-materials-envmaps-exr'],
+      tests: ['tool/three/cases_f4d.sh'],
+    },
+  },
+  webgl_materials_physical_transmission: {
+    oneB: 'supported', tier: 'exact',
+    measured: 'PASS_IDENTICAL 0x110e7dc5',
+    evidence: {
+      ids: ['E2E-TRANSMISSION', 'three-materials-physical-transmission'],
+      tests: ['tool/three/cases_f4d.sh'],
+    },
+  },
+  webgl_materials_physical_transmission_alpha: {
+    oneB: 'supported', tier: 'tolerance',
+    measured: 'PASS_TOLERANCE 99.9948% px (4/76800 differ, maxDelta 5)',
+    evidence: {
+      ids: ['E2E-TRANSMISSION', 'three-materials-physical-transmission-alpha'],
+      tests: ['tool/three/cases_f4d.sh'],
+    },
+  },
+  webgl_mirror: {
+    oneB: 'supported', tier: 'tolerance',
+    measured: 'PASS_TOLERANCE (0/76800 px differ, maxDelta 1)',
+    evidence: {
+      ids: ['E2E-ENV', 'three-mirror'],
+      tests: ['tool/three/cases_f4d.sh'],
+    },
+  },
+  webgl_materials_cubemap_refraction: {
+    oneB: 'supported', tier: 'exact',
+    measured: 'PASS_IDENTICAL 0xeb2816e5 (container assets repaired from the pinned source over the prepare manifest registry)',
+    evidence: {
+      ids: ['E2E-ENV', 'three-materials-cubemap-refraction'],
+      tests: ['tool/three/cases_f4d.sh'],
+    },
+  },
+  webgl_postprocessing_ssaa: {
+    oneB: 'supported', tier: 'exact',
+    measured: 'PASS_IDENTICAL 0x5f58f0bb; repeats identical',
+    evidence: {
+      ids: ['E2E-AA', 'three-postprocessing-ssaa'],
+      tests: ['tool/three/cases_f4d.sh'],
+    },
+  },
+  webgl_postprocessing_smaa: {
+    oneB: 'documented-limit',
+    measured: 'FAIL(diff) 98.6667% px (1024/76800 differ, maxDelta 32; band 99%)',
+    note: 'Texture-filtering LSB at the SMAA edge threshold (docs/angle_1b.md F4c2). The pass itself is exact: cases-f4c2-lines PASS_IDENTICAL 0xac9e1edc, pre-SMAA render 0x710a8f34 and area/search uploads 0x5dbe640b bit-exact.',
+    evidence: {
+      ids: ['E2E-FINISH', 'three-postprocessing-smaa', 'cases-f4c2-lines'],
+      tests: ['tool/three/cases_f4c2.sh'],
+    },
+  },
+  webgl_postprocessing_3dlut: {
+    oneB: 'documented-limit',
+    measured: 'FAIL(1b) — stock LUTCubeLoader rejects the prepared J3LT container bytes',
+    note: 'Prepare-pipeline asset lane (F2d triage class). The LUTPass itself is exact: cases-f4c2-lut PASS_IDENTICAL 0xf8405481 (in-scene Data3DTexture 8x8x8).',
+    evidence: {
+      ids: ['E2E-FINISH', 'three-postprocessing-3dlut', 'cases-f4c2-lut'],
+      tests: ['tool/three/cases_f4c2.sh'],
+    },
+  },
+  webgl_materials_cubemap_dynamic: {
+    oneB: 'documented-limit',
+    measured: '1B renders correctly (0xf908b0d1, non-black); web leg black — corpus-harness limitation (animation-loop-only scene, docs/angle_1b.md F4d triage)',
+    evidence: {
+      ids: ['E2E-ENV', 'three-materials-cubemap-dynamic'],
+      tests: ['tool/three/cases_f4d.sh'],
+    },
+  },
+  webgl_postprocessing_taa: {
+    oneB: 'documented-limit',
+    measured: 'FAIL(diff) 95.7526% px (3262/76800 differ, maxDelta 23) vs web; determinism battery 15/15 on both legs (direct seek = sequential, reset = fresh)',
+    note: 'Accumulated TAA jitter history diff; the temporal contract is the battery, and the corpus diff stays visible as a documented limit.',
+    evidence: {
+      ids: ['E2E-AA', 'REG-TEMPORAL', 'three-postprocessing-taa'],
+      tests: ['tool/three/cases_f4d.sh', 'test/angle1b/f4d_aa_battery_test.dart'],
+    },
+  },
+};
+
 function classify(uses) {  const entry = (u) =>
     u.name ? API[u.name] : (u.import ? ADDONS[u.import] : BARE_IMPORTS[u.bare]);
   // Missing = no map entry at all, or a deliberate 'unverified' entry
@@ -585,6 +775,26 @@ for (const file of files) {
     }),
     ...(override ? { override } : {}),
   });
+  // 1B promotion (F4h): attach the measured 1B result. The generator refuses
+  // a promotion whose known blockers are not all proven on 1B (ONE_B_OK).
+  const promo = ONE_B_EXAMPLES[id];
+  if (promo) {
+    const unproven = uses.filter((u) => {
+      const e = entry(u);
+      return e && e.status === 'no' && !ONE_B_OK.has(label(u));
+    });
+    if (unproven.length > 0) {
+      throw new Error(
+        `1B promotion of ${id} blocked: ${unproven.map(label).join(', ')} not in ONE_B_OK`
+      );
+    }
+    const row = rows[rows.length - 1];
+    row.oneB = promo.oneB;
+    row.tier = promo.tier;
+    row.measured = promo.measured;
+    if (promo.note) row.note = promo.note;
+    row.evidence = promo.evidence;
+  }
 }
 
 const matrix = {
@@ -597,6 +807,8 @@ const matrix = {
     webLane: rows.filter(r => r.verdict === 'web-lane').length,
     unknownApi: rows.filter(r => r.verdict === 'unknown-api').length,
     prepared: rows.filter(r => r.prepared).length,
+    oneBSupported: rows.filter(r => r.oneB === 'supported').length,
+    oneBDocumentedLimit: rows.filter(r => r.oneB === 'documented-limit').length,
   },
   rows,
 };

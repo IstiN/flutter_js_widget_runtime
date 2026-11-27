@@ -26,6 +26,11 @@ class FlutterGpuThreeHost implements JsThreeHost {
   }) : _canvas2dRasterizer = canvas2dRasterizer ?? rasterizeJsThreeCanvas2D,
        _copyCanvas2dResultBytes = canvas2dRasterizer != null;
 
+  @override
+  void submit1B(String boundEngineId, Uint8List batch) {
+    // The flutter_gpu host carries no ANGLE 1B lane: batches drop.
+  }
+
   static const int maxSurfaces = 64;
   static const int maxCanvas2dSurfaces = 256;
   static const int maxCanvas2dInFlight = 64;

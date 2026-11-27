@@ -6,6 +6,7 @@ export 'src/loader/widget_file_reader.dart'
     show WidgetFileReader, MemoryWidgetFileReader;
 export 'src/model/js_audio_synthesis.dart' show JsAudioSynthesis;
 export 'src/model/js_runtime_config.dart';
+export 'src/model/js_three_backend.dart';
 export 'src/model/widget_manifest.dart' show WidgetManifest;
 export 'src/renderer/json_widget_renderer.dart'
     show JsonWidgetRenderer, JsonWidgetBuildHooks, kAlignContentMinMainAxis;
@@ -53,8 +54,10 @@ export 'src/renderer/nodes/three/web_three_host_stub.dart'
     show createWebThreeHost;
 export 'src/renderer/nodes/three/js_three_host.dart'
     show
+        JsThree1BWire,
         JsThreeAsset,
         JsThreeAssetLoader,
+        JsThreeCanvas2DResult,
         JsThreeHost,
         JsThreeSurface,
         JsThreeUnsupportedException;
@@ -89,6 +92,7 @@ export 'src/renderer/ui_view_field_registry.dart' show UiViewFieldRegistry;
 export 'src/renderer/ui_view_tree_normalizer.dart' show UiViewTreeNormalizer;
 export 'src/runtime/js_widget_engine.dart' show JsWidgetEngine;
 export 'src/runtime/three_upstream_bundle.dart' show ThreeUpstreamBundle;
+export 'src/runtime/js_cinematic_capture_host.dart' show JsCinematicCaptureHost;
 export 'src/runtime/js_widget_engine_backend.dart' show JsWidgetEngineBackend;
 export 'src/runtime/js_widget_engine_quickjs_isolate_stub.dart'
     if (dart.library.io) 'src/runtime/js_widget_engine_quickjs_isolate_vm.dart'

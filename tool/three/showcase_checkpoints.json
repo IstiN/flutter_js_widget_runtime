@@ -1,0 +1,9 @@
+{
+  "note": "REG-MATRIX archival measured record (issue #8 AC13, F4h): the FNV-1a RGBA checkpoint hashes measured 2026-11-26 at the F4h base head (776b8582, darwin-arm64 M4 Pro, chromium channel, 320x180, fps 24, shutter 0.5, samples 1) with tool/three/showcase_1b.sh, legacy == core at every checkpoint. Pixel hashes are host+channel specific (a different Apple GPU renders bit-different finish/export hashes from identical pipeline bytes), so since the F4 merge stage 2b the gate in showcase_clean_checkout.sh compares the clean export against a same-host reference run of the invoking checkout — not against this file.",
+  "checkpoints": {
+    "draft-frame12": "0xe34fc597",
+    "finish-direct-frame20": "0x9125a1e8",
+    "finish-seek-frame20": "0x9125a1e8",
+    "export-frame9": "0xa3c2834c"
+  }
+}

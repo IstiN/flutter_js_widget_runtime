@@ -50,12 +50,12 @@ DynamicLibrary _openShim() {
   final candidates = <String>[];
   var dir = File(Platform.resolvedExecutable).parent;
   for (var i = 0; i < 16; i++) {
-    candidates.add('${dir.path}/native/angle/libangle_1b.dylib');
+    candidates.add('${dir.path}/packages/jsr_three_angle/native/angle/libangle_1b.dylib');
     dir = dir.parent;
   }
   candidates
-    ..add('${Directory.current.path}/native/angle/libangle_1b.dylib')
-    ..add('${Directory.current.path}/../native/angle/libangle_1b.dylib');
+    ..add('${Directory.current.path}/packages/jsr_three_angle/native/angle/libangle_1b.dylib')
+    ..add('${Directory.current.path}/../packages/jsr_three_angle/native/angle/libangle_1b.dylib');
   for (final path in candidates) {
     if (File(path).existsSync()) return DynamicLibrary.open(path);
   }

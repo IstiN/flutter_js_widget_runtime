@@ -1,36 +1,49 @@
 // Build script for three-cinematic-showcase.
 //
-//   node build.mjs               bundle widget.js + cinematic_bundle.mjs,
-//                                materialize pinned addons, copy the web
-//                                three bundle next to the reference page
+//   node build.mjs               bundle widget.js + scene.js, copy the web
+//                                three bundle and the core cinematic ESM next
+//                                to the reference page
+//   node build.mjs --bundle      bundle phase only
+//   node build.mjs --verify      verify phase only
 //   node build.mjs --regen-shim  regenerate src/three_global_shim.js export
 //                                list from the pinned upstream bundle
 //
+// F4a (issue #8, ADR-0004 decision 2): the pipeline implementation moved to
+// the CORE module (tool/three/src/cinematic.js, bundled into
+// jsr_three_native.js / jsr_three_web.js and hashed in
+// assets/three/bundle_manifest.json). This build keeps NO private pipeline
+// copy; it bundles only the showcase scene/widget and copies the core ESM
+// (tool/three/gen/cinematic_core.mjs, produced by `node tool/three/build.mjs`
+// — rebuild that first when the pipeline source changes).
+//
 // Outputs:
 //   src/widget.js           -> widget.js            (iife, minified, es2020)
-//   src/cinematic_entry.js  -> cinematic_bundle.mjs (esm, UNminified —
-//                              deterministic hash ground truth for
-//                              example/web/cinematic_reference.html)
+//   src/scene.js            -> showcase_scene.mjs  (esm, unminified — the
+//                              diorama for example/web/cinematic_reference.html)
+//   tool/three/gen/cinematic_core.mjs -> example/web/cinematic_core.mjs (copy;
+//                              hash-checked against the manifest goldenEsm)
 //
 // Resolution: 'three' is aliased to ./src/three_global_shim.js, which
 // re-exports the host-installed globalThis.THREE (the technique used by the
-// prepared three widgets' native_three_shim.js, see
-// tool/three/src/native_three_shim.js). The pinned r186 addon sources
-// (EffectComposer and friends) are materialized BYTE-IDENTICAL into
-// src/addons/{postprocessing,shaders}/ and imported RELATIVELY — no bundler
-// plugins, no /tmp reads at bundle time. (Aliases plus plugin namespaces
-// proved unreliable in this environment; plain relative imports plus a
-// single 'three' alias are the boring, deterministic route.)
+// prepared three widgets' native_three_shim.js). In a browser page the page
+// installs `globalThis.THREE = await import('./jsr_three_web.js')` (the real
+// upstream r186 ESM) BEFORE importing the bundled modules — one shared core,
+// zero duplicate classes.
 //
 // Esbuild selection: repo installs are probed with a virtual-module smoke
 // test; if damaged, a private esbuild@0.25.5 is installed under
 // ./tools-esbuild and used instead.
 
 import { createRequire } from 'node:module';
+import { spawnSync } from 'node:child_process';
+import {
+  copyFileSync, existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync,
+  writeFileSync
+} from 'node:fs';
 import { execFileSync } from 'node:child_process';
-import { copyFileSync, existsSync, mkdirSync, mkdtempSync, readFileSync } from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
+import { createHash } from 'node:crypto';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
@@ -39,191 +52,7 @@ const REPO_ROOT = path.resolve(HERE, '../../..');
 const WEB_DIR = path.join(REPO_ROOT, 'example/web');
 const TOOL_THREE = path.join(REPO_ROOT, 'tool/three');
 const PINNED_COMMIT = '9b4a2ac29c63ccb43fd51c5661f2f873ac2c39b8';
-const DEFAULT_THREE_SRC = '/tmp/jsr-three-r186';
-const THREE_SRC = process.env.TREE_SRC || process.env.THREE_SRC || DEFAULT_THREE_SRC;
-const LOCAL_ADDONS = path.join(WIDGET_SRC, 'addons');
-
-// Every pinned addon file this widget needs, relative to examples/jsm.
-const REQUIRED_ADDON_FILES = [
-  'postprocessing/EffectComposer.js',
-  'postprocessing/RenderPass.js',
-  'postprocessing/ShaderPass.js',
-  'postprocessing/OutputPass.js',
-  'postprocessing/MaskPass.js',
-  'postprocessing/Pass.js',
-  'postprocessing/BokehPass.js',
-  'postprocessing/UnrealBloomPass.js',
-  'postprocessing/LUTPass.js',
-  'postprocessing/SMAAPass.js',
-  'postprocessing/FilmPass.js',
-  'shaders/CopyShader.js',
-  'shaders/OutputShader.js',
-  'shaders/BokehShader.js',
-  'shaders/LuminosityHighPassShader.js',
-  'shaders/FXAAShader.js',
-  'shaders/VignetteShader.js',
-  'shaders/FilmShader.js',
-  'shaders/SMAAShader.js'
-];
-
-// ── Pinned source materialization. The pinned tree at /tmp/jsr-three-r186
-// may be partially extracted; missing files are restored byte-for-byte from
-// a local upstream git checkout at the pinned commit (read-only). Files are
-// written THROUGH the shell: in this build environment writes made directly
-// by node fs are not reliably visible to bundler child processes, while
-// shell writes are.
-function findReferenceRepo() {
-  const candidates = [
-    process.env.THREE_REF_REPO,
-    path.join(REPO_ROOT, '..', 'references', 'three.js'),
-    '/Users/Uladzimir_Klyshevich/git/references/three.js'
-  ].filter(Boolean);
-  for (const candidate of candidates) {
-    if (existsSync(path.join(candidate, '.git'))) return candidate;
-  }
-  return null;
-}
-
-function pinnedBytes(rel) {
-  const fromTmp = path.join(THREE_SRC, 'examples/jsm', rel);
-  if (existsSync(fromTmp)) {
-    try { return readFileSync(fromTmp); } catch (e) { /* fall through */ }
-  }
-  const repo = findReferenceRepo();
-  if (!repo) return null;
-  try {
-    return execFileSync('git', ['-C', repo, 'show', PINNED_COMMIT + ':examples/jsm/' + rel]);
-  } catch (e) {
-    return null;
-  }
-}
-
-function shellWrite(target, bytes) {
-  mkdirSync(path.dirname(target), { recursive: true });
-  execFileSync('/bin/sh', ['-c', 'cat > ' + JSON.stringify(target)], { input: bytes });
-}
-
-function ensurePinnedSources() {
-  const restored = [];
-  for (const rel of REQUIRED_ADDON_FILES) {
-    const bytes = pinnedBytes(rel);
-    if (!bytes) {
-      throw new Error('pinned addon unavailable: examples/jsm/' + rel +
-        ' (checked ' + path.join(THREE_SRC, 'examples/jsm', rel) +
-        ' and the reference repo; set THREE_SRC / THREE_REF_REPO)');
-    }
-    const target = path.join(LOCAL_ADDONS, rel);
-    let stale = true;
-    try { stale = readFileSync(target).equals(bytes) === false; } catch (e) { stale = true; }
-    if (stale) {
-      shellWrite(target, bytes);
-      restored.push(rel);
-    }
-  }
-  return restored;
-}
-
-// Node-side byte verification of everything the bundler will read.
-function verifyPinnedSources() {
-  const bad = [];
-  for (const rel of REQUIRED_ADDON_FILES) {
-    const target = path.join(LOCAL_ADDONS, rel);
-    let ok = false;
-    try { ok = readFileSync(target).equals(pinnedBytes(rel)); } catch (e) { ok = false; }
-    if (!ok) bad.push(rel);
-  }
-  if (bad.length) {
-    throw new Error('pinned addon materialization failed byte verification: ' + bad.join(', '));
-  }
-}
-
-// ── Concatenated pinned addon bundle (src/addons_bundle.js).
-// The pinned postprocessing addons are pre-merged into ONE ES module: all
-// inter-module imports/exports are stripped (every exported binding name is
-// unique across the set) and replaced by a single 'three' import of the
-// union of names plus one final re-export statement. Generated by build.mjs
-// from the byte-identical pinned sources under src/addons/ — do not edit.
-const ADDONS_BUNDLE_EXPORTS = [
-  'Pass', 'FullScreenQuad', 'MaskPass', 'ClearMaskPass',
-  'EffectComposer', 'RenderPass', 'ShaderPass', 'OutputPass',
-  'BokehPass', 'UnrealBloomPass', 'LUTPass', 'SMAAPass', 'FilmPass',
-  'CopyShader', 'OutputShader', 'BokehShader', 'LuminosityHighPassShader',
-  'FXAAShader', 'VignetteShader', 'FilmShader',
-  'SMAAEdgesShader', 'SMAAWeightsShader', 'SMAABlendShader'
-];
-
-function generateAddonsBundle() {
-  const order = [
-    'shaders/CopyShader.js', 'shaders/OutputShader.js', 'shaders/BokehShader.js',
-    'shaders/LuminosityHighPassShader.js', 'shaders/FXAAShader.js',
-    'shaders/VignetteShader.js', 'shaders/FilmShader.js', 'shaders/SMAAShader.js',
-    'postprocessing/Pass.js', 'postprocessing/MaskPass.js',
-    'postprocessing/RenderPass.js', 'postprocessing/ShaderPass.js',
-    'postprocessing/EffectComposer.js', 'postprocessing/OutputPass.js',
-    'postprocessing/BokehPass.js', 'postprocessing/UnrealBloomPass.js',
-    'postprocessing/LUTPass.js', 'postprocessing/SMAAPass.js',
-    'postprocessing/FilmPass.js'
-  ];
-  const threeNames = new Set();
-  const parts = [];
-  for (const rel of order) {
-    const src = readFileSync(path.join(LOCAL_ADDONS, rel), 'utf8');
-    const lines = src.split('\n');
-    const out = [];
-    let i = 0;
-    while (i < lines.length) {
-      const line = lines[i];
-      if (/^\s*import\s*\{/.test(line) || /^\s*import\s+[A-Za-z_$]/.test(line)) {
-        // consume the whole import statement (it may span lines) up to the
-        // 'from' clause; record 'three' names, drop relative ones.
-        let stmt = line;
-        while (!/from\s*'/.test(stmt) && i + 1 < lines.length) {
-          i++;
-          stmt += '\n' + lines[i];
-        }
-        const m = /from\s*'([^']+)'/.exec(stmt);
-        if (m && m[1] === 'three') {
-          const names = stmt.replace(/import\s*\{/, '').replace(/}\s*from\s*'three';?\s*$/, '');
-          for (const n of names.split(',')) {
-            const t = n.trim();
-            if (t) threeNames.add(t);
-          }
-        }
-        i++;
-        continue;
-      }
-      if (/^\s*export\s*\{/.test(line)) {
-        // drop re-export statements entirely; names come from ADDONS_BUNDLE_EXPORTS.
-        i++;
-        continue;
-      }
-      out.push(line);
-      i++;
-    }
-    parts.push('// ── ' + rel + ' ──\n' + out.join('\n').trim() + '\n');
-  }
-  const header = `// GENERATED by build.mjs from the pinned r186 addon sources under
-// src/addons/ (upstream commit ${PINNED_COMMIT}, byte-identical). Do not
-// edit by hand: run \`node build.mjs\` to regenerate. The inter-module
-// imports of the original files are resolved by concatenation — every
-// exported binding name is unique across the merged set.
-`;
-  const threeImport = 'import {\n  ' + [...threeNames].sort().join(',\n  ') + '\n} from \'three\';\n\n';
-  const exportLine = 'export {\n  ' + ADDONS_BUNDLE_EXPORTS.join(',\n  ') + '\n};\n';
-  return Buffer.from(header + threeImport + parts.join('\n') + '\n' + exportLine, 'utf8');
-}
-
-function ensureAddonsBundle() {
-  const target = path.join(WIDGET_SRC, 'addons_bundle.js');
-  const bytes = generateAddonsBundle();
-  let stale = true;
-  try { stale = readFileSync(target).equals(bytes) === false; } catch (e) { stale = true; }
-  if (stale) {
-    shellWrite(target, bytes);
-    console.log('[build] regenerated src/addons_bundle.js (' + bytes.length + ' bytes)');
-  }
-  return target;
-}
+const THREE_SRC = process.env.TREE_SRC || process.env.THREE_SRC || '/tmp/jsr-three-r186';
 
 // ── three_global_shim.js regeneration (mirrors tool/three build output:
 // a generated file checked in so plain `node build.mjs` never rewrites it).
@@ -239,7 +68,7 @@ function regenShim() {
     const m = /const THREE = ([A-Za-z0-9_$]+);/.exec(code);
     if (!m) continue;
     const expr = m[1];
-    const mm = new RegExp('(?:const|var|let) ' + expr + ' =\\\\s*\\\\{([\\\\s\\\\S]*?)\\\\};').exec(code);
+    const mm = new RegExp('(?:const|var|let) ' + expr + ' =\\s*\\{([\\s\\S]*?)\\};').exec(code);
     if (!mm) continue;
     src = mm[1];
     break;
@@ -279,7 +108,7 @@ if (T === undefined || T === null) {
 
 export default T;
 `;
-  shellWrite(path.join(WIDGET_SRC, 'three_global_shim.js'), header + lines.join('\n') + '\n');
+  writeFileSync(path.join(WIDGET_SRC, 'three_global_shim.js'), header + lines.join('\n') + '\n');
   console.log('[build] regenerated three_global_shim.js with ' + sorted.length + ' exports');
 }
 
@@ -289,61 +118,72 @@ export default T;
 // the esbuild CLI binary works reliably — including when spawned from node.
 // The CLI is probed with a two-file bundle before use.
 function findEsbuildCli() {
-  const candidates = [
-    process.env.ESBUILD_BIN,
-    path.join(TOOL_THREE, 'node_modules/.bin/esbuild'),
-    path.join(HERE, 'tools-esbuild/node_modules/.bin/esbuild'),
-    path.join(REPO_ROOT, 'node_modules/.bin/esbuild')
-  ].filter(Boolean);
-  for (const bin of candidates) {
-    if (!existsSync(bin)) continue;
-    try {
-      execFileSync(bin, ['--version'], { stdio: 'pipe' });
-      return bin;
-    } catch (e) { /* next */ }
-  }
-  const tools = path.join(HERE, 'tools-esbuild');
-  const marker = path.join(tools, 'node_modules/esbuild/package.json');
-  if (!existsSync(marker)) {
-    console.log('[build] installing private esbuild@0.25.5 under ./tools-esbuild');
-    mkdirSync(tools, { recursive: true });
-    execFileSync('/bin/sh', ['-c', 'cd ' + JSON.stringify(tools) + ' && [ -f package.json ] || npm init -y >/dev/null 2>&1; npm install esbuild@0.25.5 --no-audit --no-fund'], { stdio: 'inherit' });
-  }
-  const bin = path.join(tools, 'node_modules/.bin/esbuild');
-  execFileSync(bin, ['--version'], { stdio: 'pipe' });
-  return bin;
+  const require = createRequire(path.join(REPO_ROOT, 'tool/three/package.json'));
+  let bin = null;
+  try {
+    bin = require('esbuild').binaryPath ?? path.join(path.dirname(require.resolve('esbuild/package.json')), 'bin', 'esbuild');
+  } catch (e) { bin = null; }
+  if (bin && existsSync(bin)) return bin;
+
+  // Fallback: private esbuild install (pinned, offline-cacheable).
+  const priv = path.join(HERE, 'tools-esbuild', 'node_modules', 'esbuild', 'bin', 'esbuild');
+  if (existsSync(priv)) return priv;
+  console.log('[build] installing private esbuild@0.25.5 under tools-esbuild/');
+  execFileSync('npm', ['install', '--prefix', path.join(HERE, 'tools-esbuild'), 'esbuild@0.25.5', '--no-audit', '--no-fund'], { stdio: 'pipe' });
+  if (!existsSync(priv)) throw new Error('private esbuild install failed');
+  return priv;
 }
 
 function probeEsbuildCli(bin) {
-  const dir = path.join(HERE, 'tools-esbuild');
-  mkdirSync(dir, { recursive: true });
-  const a = path.join(dir, '.probe_a.js');
-  const b = path.join(dir, '.probe_b.js');
-  // Written through the shell so the probe files are visible to the CLI
-  // child regardless of which process generation this is.
-  execFileSync('/bin/sh', ['-c',
-    'printf %s ' + JSON.stringify('import { x } from \'./.probe_b.js\'; console.log(x);') + ' > ' + JSON.stringify(a) + '; ' +
-    'printf %s ' + JSON.stringify('export const x = 42;') + ' > ' + JSON.stringify(b)
-  ]);
+  const probeDir = mkdtempSync(path.join(os.tmpdir(), 'cine-esbuild-probe-'));
   try {
-    execFileSync(bin, [a, '--bundle', '--outfile=/dev/null', '--log-level=silent'], { stdio: 'pipe' });
+    writeFileSync(path.join(probeDir, 'dep.js'), 'export const x = 41;\n');
+    writeFileSync(path.join(probeDir, 'main.js'), 'import { x } from "./dep.js"; if (x !== 41) throw new Error("probe");\n');
+    const r = spawnSync(bin, ['main.js', '--bundle', '--format=iife', '--log-level=silent'], { cwd: probeDir, encoding: 'utf8' });
+    if (r.status !== 0) {
+      console.log('[build] esbuild CLI probe failed (' + bin + '): ' + (r.stderr || r.stdout || r.status));
+      return false;
+    }
     return true;
-  } catch (e) {
-    return false;
+  } finally {
+    rmSync(probeDir, { recursive: true, force: true });
   }
 }
 
+function runWithRetries(label, fn, attempts) {
+  // This build environment intermittently serves stale directory listings
+  // to bundler child processes (phantom "no matching export" errors that
+  // vanish seconds later with byte-identical inputs). Retry with backoff.
+  let lastErr = null;
+  for (let i = 0; i < attempts; i++) {
+    try {
+      fn();
+      return;
+    } catch (e) {
+      lastErr = e;
+      const stderr = (e.stderr || '').toString();
+      if (/No matching export|Could not resolve/.test(stderr)) {
+        console.log('[build] ' + label + ': transient resolution error (attempt ' + (i + 1) + '/' + attempts + '), retrying');
+        execFileSync('/bin/sh', ['-c', 'sleep 3']);
+        continue;
+      }
+      throw e;
+    }
+  }
+  throw lastErr;
+}
+
 // ── Web reference page support files (example/web is a tracked dir: this
-// build touches ONLY jsr_three_web.js / three.core.js / cinematic_bundle.mjs).
+// build touches ONLY jsr_three_web.js / three.core.js / showcase_scene.mjs /
+// cinematic_core.mjs).
 function ensureWebThreeBundle() {
   const upstreamBuild = path.join(THREE_SRC, 'build/three.module.js');
   const upstreamCore = path.join(THREE_SRC, 'build/three.core.js');
-  const prebuiltWeb = path.join(REPO_ROOT, 'assets/three/jsr_three_web.js');
   const webTarget = path.join(WEB_DIR, 'jsr_three_web.js');
   // The page imports this file as an ES module — it MUST be the real upstream
   // r186 build/three.module.js (which imports './three.core.js' — r186 splits
-  // the build, see ensureWebThreeBundle's core handling below). Anything else
-  // (e.g. the repo's var-THREE script bundle) is replaced.
+  // the build). Anything else (e.g. the repo's var-THREE script bundle) is
+  // replaced.
   let needsCopy = true;
   try {
     const head = readFileSync(webTarget, 'utf8').slice(0, 4096);
@@ -353,11 +193,8 @@ function ensureWebThreeBundle() {
     if (existsSync(upstreamBuild)) {
       execFileSync('cp', [upstreamBuild, webTarget]);
       console.log('[build] installed upstream build/three.module.js as example/web/jsr_three_web.js');
-    } else if (existsSync(prebuiltWeb)) {
-      execFileSync('cp', [prebuiltWeb, webTarget]);
-      console.log('[build] copied assets/three/jsr_three_web.js (pinned prebuilt; upstream build/ absent)');
     } else {
-      throw new Error('no three web bundle available for the reference page');
+      throw new Error('no upstream three.module.js available for the reference page (set THREE_SRC=/tmp/jsr-three-r186)');
     }
   }
   // three.module.js (r186) imports './three.core.js' — the page 404s without
@@ -383,48 +220,34 @@ function ensureWebThreeBundle() {
   return webTarget;
 }
 
+// The core cinematic ESM: produced by the tool/three pinned build, hashed in
+// assets/three/bundle_manifest.json (build.goldenEsm). Copy + verify — this
+// build never regenerates it (one producer).
+function ensureCinematicCore() {
+  const src = path.join(TOOL_THREE, 'gen', 'cinematic_core.mjs');
+  if (!existsSync(src)) {
+    throw new Error('tool/three/gen/cinematic_core.mjs missing — run `node tool/three/build.mjs` (pinned three tree required) first');
+  }
+  const bytes = readFileSync(src);
+  const sha256 = createHash('sha256').update(bytes).digest('hex');
+  const manifest = JSON.parse(readFileSync(path.join(REPO_ROOT, 'assets/three/bundle_manifest.json'), 'utf8'));
+  const recorded = manifest.build && manifest.build.goldenEsm;
+  if (!recorded || recorded.sha256 !== sha256) {
+    throw new Error('tool/three/gen/cinematic_core.mjs is stale vs assets/three/bundle_manifest.json (build.goldenEsm) — rebuild with `node tool/three/build.mjs`');
+  }
+  execFileSync('cp', [src, path.join(WEB_DIR, 'cinematic_core.mjs')]);
+  console.log('[build] copied cinematic_core.mjs to example/web/ (' + sha256.slice(0, 12) + ')');
+}
+
 async function main() {
   const args = process.argv.slice(2);
   if (args.includes('--bundle')) return bundlePhase();
   if (args.includes('--verify')) return verifyPhase();
 
-  // Phase 1 (this process): materialize + byte-verify pinned sources, then
-  // run the bundle and verify phases in FRESH node processes. The bundler
-  // runs in a child of this process so every file it reads was written at
-  // least one process generation earlier (files written by this process are
-  // not reliably visible to bundler helper processes in this environment).
-  const restored = ensurePinnedSources();
-  if (restored.length) {
-    console.log('[build] materialized ' + restored.length + ' pinned addon files into src/addons/');
-  }
-  verifyPinnedSources();
-  ensureAddonsBundle();
-  if (args.includes('--regen-shim')) regenShim();
-
   const self = fileURLToPath(import.meta.url);
   execFileSync(process.execPath, [self, '--bundle'], { stdio: 'inherit' });
   execFileSync(process.execPath, [self, '--verify'], { stdio: 'inherit' });
   console.log('[build] done.');
-}
-
-function runWithRetries(label, fn, attempts) {
-  // This build environment intermittently serves stale directory listings
-  // to bundler child processes (phantom "no matching export" errors that
-  // vanish seconds later with byte-identical inputs). Retry with backoff.
-  let lastErr = null;
-  for (let i = 0; i < attempts; i++) {
-    try {
-      fn();
-      return;
-    } catch (e) {
-      lastErr = e;
-      const stderr = (e.stderr || '').toString();
-      if (!/No matching export|Could not resolve/.test(stderr)) throw e;
-      console.log('[build] ' + label + ': transient resolution error (attempt ' + (i + 1) + '/' + attempts + '), retrying');
-      execFileSync('/bin/sh', ['-c', 'sleep 3']);
-    }
-  }
-  throw lastErr;
 }
 
 async function bundlePhase() {
@@ -440,7 +263,7 @@ async function bundlePhase() {
   // byte-correct); a brand-new directory has no cached listing and resolves
   // reliably.
   const staging = mkdtempSync(path.join(os.tmpdir(), 'cine-build-'));
-  const inputs = ['widget.js', 'pipeline.js', 'scene.js', 'cinematic_entry.js', 'three_global_shim.js', 'addons_bundle.js'];
+  const inputs = ['widget.js', 'scene.js', 'three_global_shim.js'];
   for (const f of inputs) {
     copyFileSync(path.join(WIDGET_SRC, f), path.join(staging, f));
   }
@@ -466,34 +289,49 @@ async function bundlePhase() {
   }, 8);
   console.log('[build] wrote widget.js');
 
-  // Reference-page bundle: esm, UNminified (byte-stable hash ground truth).
-  runWithRetries('esm bundle', () => {
+  // Scene bundle: esm, unminified (byte-stable for the reference page).
+  runWithRetries('scene bundle', () => {
     execFileSync(bin, [
-      path.join(staging, 'cinematic_entry.js'),
+      path.join(staging, 'scene.js'),
       ...baseArgs,
       '--format=esm',
       '--platform=neutral',
       '--tree-shaking=false',
-      '--outfile=' + path.join(HERE, 'cinematic_bundle.mjs')
+      '--outfile=' + path.join(HERE, 'showcase_scene.mjs')
     ], { stdio: 'pipe', cwd: staging });
   }, 8);
-  console.log('[build] wrote cinematic_bundle.mjs');
+  console.log('[build] wrote showcase_scene.mjs');
 
   ensureWebThreeBundle();
-  execFileSync('cp', [path.join(HERE, 'cinematic_bundle.mjs'), path.join(WEB_DIR, 'cinematic_bundle.mjs')]);
-  console.log('[build] copied cinematic_bundle.mjs to example/web/');
+  ensureCinematicCore();
+  execFileSync('cp', [path.join(HERE, 'showcase_scene.mjs'), path.join(WEB_DIR, 'showcase_scene.mjs')]);
+  console.log('[build] copied showcase_scene.mjs to example/web/');
 }
 
 function verifyPhase() {
   execFileSync(process.execPath, ['--check', path.join(HERE, 'widget.js')], { stdio: 'pipe' });
   console.log('[build] node --check widget.js OK');
-  const esm = readFileSync(path.join(HERE, 'cinematic_bundle.mjs'), 'utf8');
-  for (const marker of ['clockState', 'cinematicRandom', 'probeCapabilities', 'createCinematicPipeline', 'createShowcaseScene']) {
-    if (!esm.includes(marker)) {
-      throw new Error('cinematic_bundle.mjs missing expected export marker: ' + marker);
+  const scene = readFileSync(path.join(HERE, 'showcase_scene.mjs'), 'utf8');
+  for (const marker of ['createShowcaseScene', 'updateShowcaseScene']) {
+    if (!scene.includes(marker)) {
+      throw new Error('showcase_scene.mjs missing expected export marker: ' + marker);
     }
   }
-  console.log('[build] cinematic_bundle.mjs export markers OK (' + esm.length + ' bytes)');
+  console.log('[build] showcase_scene.mjs export markers OK (' + scene.length + ' bytes)');
+  // No private pipeline copy may reappear in the example.
+  const privates = ['pipeline.js', 'cinematic_entry.js', 'addons_bundle.js'];
+  for (const f of privates) {
+    if (existsSync(path.join(WIDGET_SRC, f))) {
+      throw new Error('private cinematic copy reappeared: src/' + f + ' (the implementation lives in tool/three/src/cinematic.js)');
+    }
+  }
+  const core = readFileSync(path.join(WEB_DIR, 'cinematic_core.mjs'), 'utf8');
+  for (const marker of ['createPipeline', 'clockState', 'probeCapabilities', 'CinematicCapabilitySet', 'CinematicFrameClock', 'CinematicHistory', 'ThreeCinematicProfile']) {
+    if (!core.includes(marker)) {
+      throw new Error('cinematic_core.mjs missing expected marker: ' + marker);
+    }
+  }
+  console.log('[build] cinematic_core.mjs markers OK (' + core.length + ' bytes)');
 }
 
 main().catch(e => {

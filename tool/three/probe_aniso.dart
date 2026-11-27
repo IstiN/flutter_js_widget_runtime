@@ -6,14 +6,36 @@ import 'package:ffi/ffi.dart';
 import 'package:quickjs_runtime/quickjs_runtime.dart';
 
 class Shim {
-  final DynamicLibrary lib = DynamicLibrary.open('native/angle/libangle_1b.dylib');
-  late final int Function() init = lib.lookupFunction<Int32 Function(), int Function()>('a1b_init');
-  late final int Function(int, int, Pointer<Uint32>) createSurface = lib.lookupFunction<Int64 Function(Int32, Int32, Pointer<Uint32>), int Function(int, int, Pointer<Uint32>)>('a1b_create_surface');
-  late final int Function(int) makeCurrent = lib.lookupFunction<Int32 Function(Int64), int Function(int)>('a1b_make_current');
-  late final int Function(Pointer<Uint8>, int) dispatch = lib.lookupFunction<Int64 Function(Pointer<Uint8>, Int32), int Function(Pointer<Uint8>, int)>('a1b_gl_dispatch');
-  late final int Function(Pointer<Uint8>, int) result = lib.lookupFunction<Int32 Function(Pointer<Uint8>, Int32), int Function(Pointer<Uint8>, int)>('a1b_gl_result');
-  late final void Function(int) destroySurface = lib.lookupFunction<Void Function(Int64), void Function(int)>('a1b_destroy_surface');
-  late final void Function() shutdown = lib.lookupFunction<Void Function(), void Function()>('a1b_shutdown');
+  final DynamicLibrary lib = DynamicLibrary.open(
+    'packages/jsr_three_angle/native/angle/libangle_1b.dylib',
+  );
+  late final int Function() init = lib
+      .lookupFunction<Int32 Function(), int Function()>('a1b_init');
+  late final int Function(int, int, Pointer<Uint32>) createSurface = lib
+      .lookupFunction<
+        Int64 Function(Int32, Int32, Pointer<Uint32>),
+        int Function(int, int, Pointer<Uint32>)
+      >('a1b_create_surface');
+  late final int Function(int) makeCurrent = lib
+      .lookupFunction<Int32 Function(Int64), int Function(int)>(
+        'a1b_make_current',
+      );
+  late final int Function(Pointer<Uint8>, int) dispatch = lib
+      .lookupFunction<
+        Int64 Function(Pointer<Uint8>, Int32),
+        int Function(Pointer<Uint8>, int)
+      >('a1b_gl_dispatch');
+  late final int Function(Pointer<Uint8>, int) result = lib
+      .lookupFunction<
+        Int32 Function(Pointer<Uint8>, Int32),
+        int Function(Pointer<Uint8>, int)
+      >('a1b_gl_result');
+  late final void Function(int) destroySurface = lib
+      .lookupFunction<Void Function(Int64), void Function(int)>(
+        'a1b_destroy_surface',
+      );
+  late final void Function() shutdown = lib
+      .lookupFunction<Void Function(), void Function()>('a1b_shutdown');
 }
 
 void main() {
@@ -37,7 +59,13 @@ void main() {
     final n = len > 262144 ? 262144 : len;
     final buf = calloc<Uint8>(n);
     final actual = shim.result(buf, n);
-    final out = actual <= 0 ? '' : base64Encode(Uint8List.fromList(buf.asTypedList(actual > n ? n : actual).toList()));
+    final out = actual <= 0
+        ? ''
+        : base64Encode(
+            Uint8List.fromList(
+              buf.asTypedList(actual > n ? n : actual).toList(),
+            ),
+          );
     calloc.free(buf);
     return jsonEncode(out);
   });
@@ -61,9 +89,18 @@ void main() {
   };
   ''';
   rt.eval(prelude, filename: 'prelude.js', errMsg: err);
-  rt.eval(File('tool/three/gen/g1_packer.js').readAsStringSync(), filename: 'packer.js', errMsg: err);
-  rt.eval(File('tool/three/src/webgl2_facade.js').readAsStringSync(), filename: 'facade.js', errMsg: err);
-  final r = rt.eval('''
+  rt.eval(
+    File('tool/three/gen/g1_packer.js').readAsStringSync(),
+    filename: 'packer.js',
+    errMsg: err,
+  );
+  rt.eval(
+    File('tool/three/src/webgl2_facade.js').readAsStringSync(),
+    filename: 'facade.js',
+    errMsg: err,
+  );
+  final r = rt.eval(
+    '''
   (function(){
     var g = globalThis;
     var cv = { width: 320, height: 240 };
@@ -93,7 +130,10 @@ void main() {
       errSam: '0x'+errSam.toString(16), samAniso: samAniso,
       lineWidthRange: line, sup: sup, err: gl.getError() });
   })()
-  ''', filename: 'probe.js', errMsg: err);
+  ''',
+    filename: 'probe.js',
+    errMsg: err,
+  );
   print('RESULT: $r');
   if (err.isNotEmpty) print('ERR: $err');
   rt.close();

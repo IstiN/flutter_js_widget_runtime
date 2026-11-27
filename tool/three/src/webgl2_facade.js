@@ -127,6 +127,67 @@ var METHODS = (
 'uniformMatrix2x3fv uniformMatrix2x4fv uniformMatrix3fv uniformMatrix3x2fv uniformMatrix3x4fv uniformMatrix4fv uniformMatrix4x2fv uniformMatrix4x3fv useProgram validateProgram vertexAttrib1f vertexAttrib1fv vertexAttrib2f vertexAttrib2fv vertexAttrib3f vertexAttrib3fv vertexAttrib4f vertexAttrib4fv vertexAttribDivisor vertexAttribI4i vertexAttribI4iv vertexAttribI4ui vertexAttribI4uiv vertexAttribIPointer vertexAttribPointer viewport waitSync')
 .split(' ');
 
+// --- command batching (F2b, PERF-1 / PERF-2 / IT-TRANSPORT-1) --------------
+// One batch state per RUNTIME (the module evaluates once per engine): the
+// packer's sink queues every void command here instead of dispatching it, and
+// the queue leaves as ONE batched G1 dispatch
+//   [u32 0][u32 count][command][command]...   (opcode 0 is unused — the real
+// opcodes are 1-based).
+// Flush triggers (the exact set the contract fixes):
+//   1. a data-returning call (G1_SYNC, generated from the JSON ret column) —
+//      the batched command is the LAST one, so its rc/scratch answers the
+//      whole batch;
+//   2. gl.finish() / gl.flush();
+//   3. the end of the JS task (microtask) — the frame boundary of the engine
+//      execution model: one renderer.render() per tick, so an ordinary frame
+//      without readback flushes at most once.
+var BATCH = {
+  buf: new Uint8Array(8 + 8192),
+  len: 8, // the 8-byte batch header is patched at flush time
+  count: 0,
+  scheduled: false,
+  lost: false, // real context state (WEBGL_lose_context / no-current-surface)
+  flushes: 0,
+  dispatches: 0
+};
+var NO_CURRENT_SURFACE = -0x7fffffff; // a1b_gl_dispatch sentinel (context gone)
+function batchFlush() {
+  if (BATCH.count === 0) return 0;
+  new DataView(BATCH.buf.buffer).setUint32(4, BATCH.count, true);
+  var rc = root.__jsr1b_gl(BATCH.buf.subarray(0, BATCH.len)) | 0;
+  BATCH.len = 8;
+  BATCH.count = 0;
+  BATCH.scheduled = false;
+  BATCH.flushes++;
+  BATCH.dispatches++;
+  if (rc === NO_CURRENT_SURFACE) BATCH.lost = true;
+  return rc;
+}
+function batchSchedule() {
+  if (BATCH.scheduled) return;
+  BATCH.scheduled = true;
+  Promise.resolve().then(function () { batchFlush(); });
+}
+if (typeof G1 !== 'undefined' && typeof G1.setSink === 'function') {
+  G1.setSink(function (bytes, op) {
+    if (BATCH.len + bytes.length > BATCH.buf.length) {
+      var cap = BATCH.buf.length * 2;
+      while (cap < BATCH.len + bytes.length) cap *= 2;
+      var nb = new Uint8Array(cap);
+      nb.set(BATCH.buf.subarray(0, BATCH.len));
+      BATCH.buf = nb;
+    }
+    BATCH.buf.set(bytes, BATCH.len);
+    BATCH.len += bytes.length;
+    BATCH.count++;
+    // finish/flush are void in the wire but flush the queue immediately
+    // (contract trigger 2); every other void command waits for its triggers.
+    if (G1_SYNC[op] || op === G1C.FINISH || op === G1C.FLUSH) return batchFlush();
+    batchSchedule();
+    return 0;
+  });
+}
+
 function decodeUtf8(bytes) {
   // Minimal UTF-8 decode (scratch payloads are ASCII in practice).
   var s = '';
@@ -190,6 +251,16 @@ function createFacade(canvas, attrs) {
         return w;
       },
       name: function (w) { return (w == null) ? 0 : (w.__g1name >>> 0); },
+      // Dropping a deleted object's identity: a deleted GL name can be
+      // REUSED by the next create, and handing back the stale wrapper makes
+      // wrapper-comparing trackers (three.js WebGLState.bindFramebuffer)
+      // skip the real bind — the recreated object then never gets bound
+      // (framebuffer attaches land on the default framebuffer, GL_INVALID_
+      // OPERATION, incomplete FBO forever). Real WebGL returns a fresh
+      // object for every create.
+      forget: function (w) {
+        if (w != null) cache.delete(w.__g1name >>> 0);
+      },
       ctor: W
     };
   }
@@ -224,6 +295,30 @@ function createFacade(canvas, attrs) {
   }
   function u(v) { return (v == null) ? 0 : (v.__g1name !== undefined ? v.__g1name : v); } // unwrap wrappers / null->0
   function viewOrZero(v) { return (v == null) ? 0 : v; } // typed arrays pass through to G1.blob; null data -> 0
+
+  // texImage*/texSubImage* upload-size validation (WebGL2 spec §6.11-ish
+  // texture-upload rule: data shorter than width*height*components*size is
+  // INVALID_OPERATION). Real WebGL rejects the upload in the browser; on
+  // the 1B stream the shim hands the undersized blob pointer straight to
+  // ANGLE, which memmoves the DIMS-implied byte count out of it and reads
+  // past the end of the request buffer — the measured CI quality-macos
+  // SIGSEGV (flutter_tester-2026-11-26-164427.ips: EXC_BAD_ACCESS in
+  // rx::UploadTextureContents <- GL_TexImage2D <- g1_dispatch_op; run
+  // 45860805060). Blocked uploads record INVALID_OPERATION locally and
+  // dispatch nothing, exactly like the readPixels validation below.
+  // Exactness: the wire coerces every truthy pixelStorei param to 1
+  // (pixelStorei below), so ANGLE's unpack alignment is 1 and the tight
+  // width*height*depth*pixBytes count IS the byte count ANGLE reads.
+  function validateUpload(w, h, d, fmt, type, data) {
+    if (!data || !data.buffer) return true; // null data: nothing to read
+    if (!(w > 0) || !(h > 0) || !(d > 0)) return true; // ANGLE rejects bad dims itself
+    var need = w * h * d * readPixBytes(fmt, type);
+    if (data.byteLength < need) {
+      recordLocalError(C.INVALID_OPERATION);
+      return false;
+    }
+    return true;
+  }
 
   var gl = {};
   gl.canvas = canvas;
@@ -264,6 +359,20 @@ function createFacade(canvas, attrs) {
     };
   });
   for (var k in generic) gl[k] = generic[k];
+  // Deleted GL objects lose their wrapper identity (see wclass.forget):
+  // the delete goes to the wire AND the cache entry drops, so a name the
+  // driver reuses wraps FRESH — trackers that compare wrapper objects then
+  // emit the real bind for the recreated object.
+  ['deleteBuffer:WebGLBuffer', 'deleteFramebuffer:WebGLFramebuffer', 'deleteProgram:WebGLProgram',
+   'deleteQuery:WebGLQuery', 'deleteRenderbuffer:WebGLRenderbuffer', 'deleteSampler:WebGLSampler',
+   'deleteShader:WebGLShader', 'deleteTexture:WebGLTexture', 'deleteTransformFeedback:WebGLTransformFeedback',
+   'deleteVertexArray:WebGLVertexArrayObject'].forEach(function (pair) {
+    var m = pair.split(':')[0], cls = pair.split(':')[1];
+    gl[m] = function (v) {
+      if (v && v.__g1name !== undefined) classes[cls].forget(v);
+      return call(m, [u(v)]);
+    };
+  });
   gl.fenceSync = function (condition, flags) {
     return classes.WebGLSync.wrap(call('fenceSync', [condition, flags]) >>> 0);
   };
@@ -313,35 +422,53 @@ function createFacade(canvas, attrs) {
   }
   gl.texImage2D = function (a0, a1, a2, a3, a4, a5, a6, a7, a8) {
     if (arguments.length === 6 && hasDomData(a5)) {
+      if (!validateUpload(a5.width, a5.height, 1, a3, a4, a5.data)) return 0;
       return domUpload(function () {
         return call('texImage2D', [a0, a1, a2, a5.width, a5.height, 0, a3, a4, flipDomRows(a5)]);
       });
     }
+    if (!validateUpload(a3, a4, 1, a6, a7, viewOrZero(a8))) return 0;
     return call('texImage2D', [a0, a1, a2, a3, a4, a5, a6, a7, viewOrZero(a8)]);
   };
   gl.texSubImage2D = function (a0, a1, a2, a3, a4, a5, a6, a7, a8) {
     if (arguments.length === 7 && hasDomData(a6)) {
+      if (!validateUpload(a6.width, a6.height, 1, a4, a5, a6.data)) return 0;
       return domUpload(function () {
         return call('texSubImage2D', [a0, a1, a2, a3, a6.width, a6.height, a4, a5, flipDomRows(a6)]);
       });
     }
+    if (!validateUpload(a4, a5, 1, a6, a7, viewOrZero(a8))) return 0;
     return call('texSubImage2D', [a0, a1, a2, a3, a4, a5, a6, a7, viewOrZero(a8)]);
   };
   gl.texImage3D = function (a0, a1, a2, a3, a4, a5, a6, a7, a8, a9) {
     if (arguments.length === 10 && hasDomData(a9)) {
+      if (!validateUpload(a9.width, a9.height, a9.depth || 1, a7, a8, a9.data)) return 0;
       return call('texImage3D', [a0, a1, a2, a9.width, a9.height, a9.depth || 1, 0, a7, a8, a9.data]);
     }
+    if (!validateUpload(a3, a4, a5, a7, a8, viewOrZero(a9))) return 0;
     return call('texImage3D', [a0, a1, a2, a3, a4, a5, a6, a7, a8, viewOrZero(a9)]);
   };
   gl.texSubImage3D = function (a0, a1, a2, a3, a4, a5, a6, a7, a8, a9, a10) {
     if (arguments.length === 11 && hasDomData(a10)) {
+      if (!validateUpload(a10.width, a10.height, a10.depth || 1, a7, a8, a10.data)) return 0;
       return call('texSubImage3D', [a0, a1, a2, a3, a4, a10.width, a10.height, a10.depth || 1, a7, a8, a10.data]);
     }
+    if (!validateUpload(a5, a6, a7, a8, a9, viewOrZero(a10))) return 0;
     return call('texSubImage3D', [a0, a1, a2, a3, a4, a5, a6, a7, a8, a9, viewOrZero(a10)]);
   };
 
   // --- special cases ---
-  gl.getError = function () { return call('getError', []) | 0; };
+  // Facade-side validation records GL errors locally (readPixels, issue #8
+  // F4-merge: real WebGL raises INVALID_OPERATION for a readPixels typed
+  // array that does not match format/type; the 1B stream has no opcode for
+  // that check). getError returns locally recorded errors FIFO first, then
+  // the real context errors — the same single queue real GL keeps.
+  var localErrors = [];
+  function recordLocalError(code) { if (localErrors.length < 16) localErrors.push(code | 0); }
+  gl.getError = function () {
+    if (localErrors.length > 0) return localErrors.shift();
+    return call('getError', []) | 0;
+  };
 
   var STR_PNAME = {}; [C.VENDOR, C.RENDERER, C.VERSION, C.SHADING_LANGUAGE_VERSION, C.UNMASKED_VENDOR_WEBGL, C.UNMASKED_RENDERER_WEBGL]
     .forEach(function (p) { STR_PNAME[p] = 1; });
@@ -426,7 +553,63 @@ function createFacade(canvas, attrs) {
     var dst = new Uint8Array(view.buffer, view.byteOffset, n);
     for (var i = 0; i < n; i++) dst[i] = b[i];
   }
+  // readPixels typed-array validation (WebGL2 spec §4.3.2, "readPixels"):
+  // the ArrayBufferView class must match format/type, and the view must be
+  // large enough for the read rectangle. Real WebGL raises
+  // INVALID_OPERATION; before this check the facade silently copied scratch
+  // bytes (or zeros) into the mismatched view (F4c2 p9 gap, issue #8
+  // F4-merge). Mirrors g1_pix_bytes in angle_1b_dispatch.c.
+  var READ_VIEW_CLASS = {
+    0x1400: 'Int8Array', 0x1401: 'Uint8Array',
+    0x1402: 'Int16Array', 0x1403: 'Uint16Array',
+    0x8033: 'Uint16Array', 0x8034: 'Uint16Array', 0x8363: 'Uint16Array', 0x8368: 'Uint16Array',
+    0x1404: 'Int32Array', 0x1405: 'Uint32Array',
+    0x8C3B: 'Uint32Array', 0x8C3E: 'Uint32Array', 0x8DAD: 'Uint32Array',
+    0x1406: 'Float32Array', 0x140B: 'Uint16Array'
+  };
+  function readPixBytes(fmt, type) {
+    var comp = (fmt === 0x1906 || fmt === 0x1909 || fmt === 0x1903 || fmt === 0x8D94) ? 1
+      : (fmt === 0x190A || fmt === 0x8227 || fmt === 0x8228) ? 2
+      : (fmt === 0x1907) ? 3 : 4;
+    var size = (type === 0x1400 || type === 0x1401) ? 1
+      : (type === 0x1402 || type === 0x1403 || type === 0x140B || type === 0x8033 || type === 0x8034 ||
+         type === 0x8363 || type === 0x8368 || type === 0x8D61) ? 2
+      : (type === 0x8DAD) ? 8 : 4;
+    if (fmt === 0x84F9) size = (type === 0x8DAD) ? 8 : 4; // DEPTH_STENCIL
+    return comp * size;
+  }
   gl.readPixels = function (x, y, w, h, format, type, pixels) {
+    if (pixels && pixels.buffer) {
+      var want = READ_VIEW_CLASS[type];
+      if (want && (!pixels.constructor || pixels.constructor.name !== want)) {
+        recordLocalError(C.INVALID_OPERATION);
+        return;
+      }
+      var need = readPixBytes(format, type) * w * h;
+      if (need > 0 && pixels.byteLength < need) {
+        recordLocalError(C.INVALID_OPERATION);
+        return;
+      }
+    }
+    // The G1 scratch is a fixed 256 KB buffer (G1_SCRATCH_CAP,
+    // angle_1b_dispatch.c): one readPixels bigger than the cap returns
+    // zero bytes silently (g1_read_pixels early-returns, no GL error).
+    // Split into 64 KB row strips — each dispatch fits the cap, rows stay
+    // row-tight so the strips concatenate byte-linearly.
+    var rowBytes = (pixels && pixels.buffer && h > 0) ? Math.floor(pixels.byteLength / h) : 0;
+    if (rowBytes > 0 && rowBytes * h > 65536) {
+      var rowsPerStrip = Math.max(1, Math.floor(65536 / rowBytes));
+      var tmp = new Uint8Array(rowBytes * rowsPerStrip);
+      for (var row = 0; row < h; row += rowsPerStrip) {
+        var rows = Math.min(rowsPerStrip, h - row);
+        var view = rows === rowsPerStrip ? tmp : new Uint8Array(rowBytes * rows);
+        call('readPixels', [x, y + row, w, rows, format, type]);
+        copyScratchInto(view);
+        new Uint8Array(pixels.buffer, pixels.byteOffset + row * rowBytes, rowBytes * rows)
+          .set(view.subarray(0, rowBytes * rows));
+      }
+      return;
+    }
     call('readPixels', [x, y, w, h, format, type]);
     copyScratchInto(pixels);
   };
@@ -442,8 +625,20 @@ function createFacade(canvas, attrs) {
     'WEBGL_debug_renderer_info': { UNMASKED_VENDOR_WEBGL: C.UNMASKED_VENDOR_WEBGL, UNMASKED_RENDERER_WEBGL: C.UNMASKED_RENDERER_WEBGL },
     'OES_element_index_uint': {} // WebGL2 has it natively; three still probes
   };
+  // WEBGL_lose_context: the facade-side emulation of the loss/restore
+  // lifecycle (the exact mechanism tests and the IT-LIFE row drive in Chrome
+  // too). Granted unconditionally: it is a WebGL-level extension, never in
+  // the GL string, and the facade owns the state it toggles.
+  EXTENSIONS['WEBGL_lose_context'] = {
+    loseContext: function () { BATCH.lost = true; },
+    restoreContext: function () { BATCH.lost = false; }
+  };
+  // Facade-granted extensions bypass the C availability bit (WEBGL_lose_context
+  // is a WebGL-level extension: never in the GL string, always offered).
+  var FACADE_GRANTED = { WEBGL_lose_context: 1 };
   gl.getExtension = function (name) {
     if (Object.prototype.hasOwnProperty.call(EXTENSIONS, name)) {
+      if (FACADE_GRANTED[name]) return EXTENSIONS[name];
       if (typeof g1.getExtension === 'function') {
         var rc = call('getExtension', [name]) | 0;
         return rc !== 0 ? EXTENSIONS[name] : null; // honest: C-side availability bit
@@ -452,7 +647,18 @@ function createFacade(canvas, attrs) {
     }
     return null; // never fake success
   };
-  gl.getSupportedExtensions = function () { return Object.keys(EXTENSIONS); };
+  // Real extension string (F2b): the C decoder splits the GL_EXTENSIONS
+  // string into GL_-stripped tokens in the scratch; the facade splits on the
+  // newlines and appends the facade-granted WEBGL_lose_context (real browsers
+  // list it too). Absence is honest both ways: names ANGLE does not advertise
+  // are absent from this list, and getExtension returns null for them (the
+  // availability bit of opcode 32 matches the same string).
+  gl.getSupportedExtensions = function () {
+    call('getSupportedExtensions', []);
+    var list = decodeUtf8(fetchScratch()).split('\n').filter(function (s) { return s; });
+    list.push('WEBGL_lose_context');
+    return list;
+  };
 
   // Non-GL-command IDL members.
   gl.getContextAttributes = function () {
@@ -460,7 +666,10 @@ function createFacade(canvas, attrs) {
     return { alpha: a.alpha, antialias: a.antialias, depth: a.depth, desynchronized: a.desynchronized, failIfMajorPerformanceCaveat: a.failIfMajorPerformanceCaveat,
       powerPreference: a.powerPreference, premultipliedAlpha: a.premultipliedAlpha, preserveDrawingBuffer: a.preserveDrawingBuffer, stencil: a.stencil, xrCompatible: a.xrCompatible };
   };
-  gl.isContextLost = function () { return false; };
+  // Real context state (F2b): the WEBGL_lose_context extension and the
+  // no-current-surface dispatch sentinel both flip BATCH.lost; the flag is
+  // runtime-wide because the 1B wire owns one ANGLE context per engine.
+  gl.isContextLost = function () { return BATCH.lost; };
   gl.makeXRCompatible = function () { return Promise.resolve(); };
 
   // drawingBuffer size mirrors the canvas (spec: matches canvas bitmap size).
@@ -478,7 +687,16 @@ function createFacade(canvas, attrs) {
     }
   }
 
-  gl.__stats = stats; // trace/diagnostics hook (not part of the IDL)
+  // Live snapshot: batching counters (flushes/dispatchCalls) update as the
+  // runtime renders, the per-facade used/missing maps as the facade runs.
+  Object.defineProperty(gl, '__stats', {
+    get: function () {
+      return {
+        used: stats.used, missing: stats.missing, stubThrows: stats.stubThrows,
+        flushes: BATCH.flushes, dispatchCalls: BATCH.dispatches
+      };
+    }
+  });
   return gl;
 }
 

@@ -13,18 +13,23 @@ import '../support/three_gpu_golden_harness.dart';
 import '../support/widget_logic_helper.dart';
 
 /// Real composer/addon integration goldens for the native R1 post lane.
-/// The addon source is the reviewed, unminified cinematic bundle up to (but
-/// not including) its scene, so these tests change neither the showcase nor
-/// its camera/content. All scenes are deterministic and asset-free.
+/// The addon source is the reviewed, unminified CORE cinematic module build
+/// (tool/three/gen/cinematic_core.mjs, F4a — the pipeline implementation
+/// lives in tool/three/src/cinematic.js), so these tests change neither the
+/// showcase nor its camera/content. All scenes are deterministic and
+/// asset-free.
 const _runGpuGolden = bool.fromEnvironment('JSR_THREE_GPU_GOLDEN');
-const _bundlePath =
-    'example/widgets/three-cinematic-showcase/cinematic_bundle.mjs';
+const _bundlePath = 'tool/three/gen/cinematic_core.mjs';
 String? _addonSource;
 
 Future<ThreeGpuGoldenRun> _bootComposer(WidgetTester tester, String id) async {
   _addonSource ??= await tester.runAsync(() async {
     final source = await File(_bundlePath).readAsString();
-    return source.split('// scene.js').first;
+    // Strip the trailing ESM export block — engine.run evaluates a script,
+    // not a module (the pre-F4a bundle cut at the '// scene.js' banner;
+    // the core build has no scene module, so the export statement is the
+    // marker now).
+    return source.split('\nexport {').first;
   });
   return bootBundledThreeGpuGolden(tester, id);
 }

@@ -1,0 +1,13 @@
+{
+  "revision": "9c6a64c9775b7c8ad1e9c624c2e1974f48f7dc87",
+  "date": "2026-11-08",
+  "source": "https://chromium.googlesource.com/angle/angle",
+  "license": "BSD-3-Clause",
+  "gn": {
+    "macos-arm64": "is_debug=false target_cpu=\"arm64\" is_component_build=false angle_enable_vulkan=false angle_enable_gl=false angle_enable_metal=true angle_enable_d3d11=false angle_enable_d3d9=false angle_enable_null=false angle_enable_swiftshader=false angle_enable_retrace=false",
+    "ios-arm64": "is_debug=false target_cpu=\"arm64\" is_component_build=false target_os=\"ios\" angle_enable_vulkan=false angle_enable_gl=false angle_enable_metal=true angle_enable_d3d11=false angle_enable_d3d9=false angle_enable_null=false angle_enable_swiftshader=false angle_enable_retrace=false",
+    "android-arm64": "is_debug=false target_cpu=\"arm64\" is_component_build=false target_os=\"android\" angle_enable_vulkan=true angle_enable_gl=false angle_enable_metal=false angle_enable_d3d11=false angle_enable_d3d9=false angle_enable_null=false angle_enable_swiftshader=false angle_enable_retrace=false angle_libs_suffix=\"_angle\"",
+    "android-armv7": "is_debug=false target_cpu=\"arm\" is_component_build=false target_os=\"android\" angle_enable_vulkan=true angle_enable_gl=false angle_enable_metal=false angle_enable_d3d11=false angle_enable_d3d9=false angle_enable_null=false angle_enable_swiftshader=false angle_enable_retrace=false angle_libs_suffix=\"_angle\"",
+    "android-x86_64": "is_debug=false target_cpu=\"x64\" is_component_build=false target_os=\"android\" angle_enable_vulkan=true angle_enable_gl=false angle_enable_metal=false angle_enable_d3d11=false angle_enable_d3d9=false angle_enable_null=false angle_enable_swiftshader=false angle_enable_retrace=false angle_libs_suffix=\"_angle\""
+  }
+}

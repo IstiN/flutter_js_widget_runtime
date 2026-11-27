@@ -14,6 +14,7 @@
 //
 // Usage: node tool/three/engine_coverage.mjs [--source /tmp/jsr-three-r186]
 //        [--markdown] [--write]
+import { existsSync } from 'node:fs';
 import { readFile, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 
@@ -174,7 +175,218 @@ const UTILITY_ONLY = new Map([
   ['TOUCH', { status: 'constant', note: 'input constant map; the lane reads host pointer events' }],
 ]);
 
-const rows = engineExports.map((name) => {
+// --- 2b. Native-1B promotions (issue #8 AC13, segment F4h) ------------------
+// The MEASURED native-1B lane: the original WebGLRenderer over the WebGL2
+// facade + ANGLE (the angle1b backend). A row is promoted or annotated only
+// with green-test evidence; test/engine_coverage_test.mjs validates every
+// evidence object (files exist, ids contained) and every promoted row carries
+// one. Engine exports move from web-only to the '1b' lane; the addon symbols
+// the cinematic pipeline is composed of join as kind:'addon' rows (they are
+// three/addons modules, not engine exports).
+
+// Engine exports proven on native 1B (lane promotion web-only -> 1b).
+const ONE_B_ENGINE = {
+  PMREMGenerator: {
+    analog: '1B: upstream PMREM passes over the WebGL2 facade + ANGLE (envmaps_hdr/exr exact)',
+    evidence: {
+      ids: ['E2E-ENV', 'three-materials-envmaps-hdr', 'three-materials-envmaps-exr'],
+      tests: ['tool/three/cases_f4d.sh'],
+    },
+  },
+  CubeCamera: {
+    analog: '1B: upstream cube-camera passes over the facade + ANGLE (cubemap-dynamic renders, 0xf908b0d1)',
+    evidence: {
+      ids: ['E2E-ENV', 'three-materials-cubemap-dynamic'],
+      tests: ['tool/three/cases_f4d.sh'],
+    },
+  },
+  WebGLCubeRenderTarget: {
+    analog: '1B: upstream cube render targets over the facade + ANGLE',
+    evidence: {
+      ids: ['E2E-ENV', 'three-materials-cubemap-dynamic'],
+      tests: ['tool/three/cases_f4d.sh'],
+    },
+  },
+};
+
+// Evidence-only attachments on rows that keep their lane (already ok on R1;
+// the 1B render-target capabilities are what F4b/F4c2 measured).
+const ONE_B_EVIDENCE = {
+  HalfFloatType: {
+    evidence: {
+      ids: ['E2E-TARGET-1', 'UT-GL-READBACK-1', 'E2E-BLOOM-1'],
+      tests: ['test/angle1b/f4b_e2e_target_test.dart', 'tool/three/test/ut_gl_1_test.js', 'test/angle1b/f4b_e2e_bloom_test.dart'],
+    },
+  },
+  WebGLRenderTarget: {
+    evidence: {
+      ids: ['E2E-TARGET-1', 'IT-TARGET-1', 'cases-f4c2-msaa'],
+      tests: ['test/angle1b/f4b_e2e_target_test.dart', 'tool/three/cases_f4c2.sh'],
+    },
+  },
+};
+
+// The cinematic-pipeline addon symbols (three/addons modules) proven on
+// native 1B, plus the two JSR-owned pieces. Module paths resolve against the
+// pinned three tree; paths starting with `tool/` resolve inside the repo.
+const ONE_B_ADDONS = {
+  EffectComposer: {
+    module: 'examples/jsm/postprocessing/EffectComposer.js',
+    evidence: {
+      ids: ['E2E-BLOOM-1', 'E2E-BLOOM-2', 'REG-VISUAL-BLOOM'],
+      tests: ['test/angle1b/f4b_e2e_bloom_test.dart'],
+    },
+  },
+  RenderPass: {
+    module: 'examples/jsm/postprocessing/RenderPass.js',
+    evidence: {
+      ids: ['E2E-BLOOM-1', 'UT-PIPELINE-1'],
+      tests: ['test/angle1b/f4b_e2e_bloom_test.dart', 'tool/three/test/f4b_ut_pipeline_test.js'],
+    },
+  },
+  ShaderPass: {
+    module: 'examples/jsm/postprocessing/ShaderPass.js',
+    evidence: {
+      ids: ['E2E-BLOOM-1', 'cases-f4c2-vignette'],
+      tests: ['test/angle1b/f4b_e2e_bloom_test.dart', 'tool/three/cases_f4c2.sh'],
+    },
+  },
+  UnrealBloomPass: {
+    module: 'examples/jsm/postprocessing/UnrealBloomPass.js',
+    evidence: {
+      ids: ['E2E-BLOOM-1', 'E2E-BLOOM-2', 'three-postprocessing-unreal-bloom'],
+      tests: ['test/angle1b/f4b_e2e_bloom_test.dart'],
+    },
+  },
+  BokehPass: {
+    module: 'examples/jsm/postprocessing/BokehPass.js',
+    evidence: {
+      ids: ['E2E-DOF-1', 'dof_near'],
+      tests: ['test/angle1b/f4c1_e2e_dof_test.dart'],
+    },
+  },
+  AfterimagePass: {
+    module: 'examples/jsm/postprocessing/AfterimagePass.js',
+    evidence: {
+      ids: ['IT-HISTORY-1', 'ai_seq24'],
+      tests: ['test/angle1b/f4c1_it_history_test.dart'],
+    },
+  },
+  OutputPass: {
+    module: 'examples/jsm/postprocessing/OutputPass.js',
+    evidence: {
+      ids: ['E2E-BLOOM-1', 'UT-PIPELINE-1'],
+      tests: ['test/angle1b/f4b_e2e_bloom_test.dart', 'tool/three/test/f4b_ut_pipeline_test.js'],
+    },
+  },
+  SMAAPass: {
+    module: 'examples/jsm/postprocessing/SMAAPass.js',
+    evidence: {
+      ids: ['cases-f4c2-lines', 'E2E-FINISH'],
+      tests: ['tool/three/cases_f4c2.sh', 'test/angle1b/f4c2_finish_passes_test.dart'],
+    },
+  },
+  FilmPass: {
+    module: 'examples/jsm/postprocessing/FilmPass.js',
+    evidence: {
+      ids: ['cases-f4c2-film', 'E2E-FINISH'],
+      tests: ['tool/three/cases_f4c2.sh', 'test/angle1b/f4c2_finish_passes_test.dart'],
+    },
+  },
+  VignetteShader: {
+    module: 'examples/jsm/shaders/VignetteShader.js',
+    note: 'vignette ships as VignetteShader via ShaderPass (no VignettePass class exists at the pin)',
+    evidence: {
+      ids: ['cases-f4c2-vignette', 'E2E-FINISH'],
+      tests: ['tool/three/cases_f4c2.sh', 'test/angle1b/f4c2_finish_passes_test.dart'],
+    },
+  },
+  LUTPass: {
+    module: 'examples/jsm/postprocessing/LUTPass.js',
+    note: 'LUTCubeLoader/LUTImageLoader stay unpromoted: the stock 3dlut example is the documented prepare-container limit; no green test parses real LUT bytes on the 1B lane',
+    evidence: {
+      ids: ['cases-f4c2-lut', 'E2E-FINISH'],
+      tests: ['tool/three/cases_f4c2.sh', 'test/angle1b/f4c2_finish_passes_test.dart'],
+    },
+  },
+  SSAOPass: {
+    module: 'examples/jsm/postprocessing/SSAOPass.js',
+    evidence: {
+      ids: ['E2E-FINISH', 'three-postprocessing-ssao'],
+      tests: ['tool/three/cases_f4c2.sh'],
+    },
+  },
+  GTAOPass: {
+    module: 'examples/jsm/postprocessing/GTAOPass.js',
+    evidence: {
+      ids: ['E2E-FINISH', 'three-postprocessing-gtao'],
+      tests: ['tool/three/cases_f4c2.sh'],
+    },
+  },
+  TAARenderPass: {
+    module: 'examples/jsm/postprocessing/TAARenderPass.js',
+    note: 'deterministic seek/reset proven by the f4d battery; the stock example diff is the documented TAA jitter limit',
+    evidence: {
+      ids: ['E2E-AA', 'REG-TEMPORAL', 'IT-LIFE-CINE-1'],
+      tests: ['tool/three/cases_f4d.sh', 'test/angle1b/f4d_aa_battery_test.dart', 'test/angle1b/f4eg_life_test.dart'],
+    },
+  },
+  SSAARenderPass: {
+    module: 'examples/jsm/postprocessing/SSAARenderPass.js',
+    evidence: {
+      ids: ['E2E-AA', 'three-postprocessing-ssaa'],
+      tests: ['tool/three/cases_f4d.sh'],
+    },
+  },
+  HDRLoader: {
+    module: 'examples/jsm/loaders/HDRLoader.js',
+    evidence: {
+      ids: ['E2E-ENV', 'three-materials-envmaps-hdr'],
+      tests: ['tool/three/cases_f4d.sh'],
+    },
+  },
+  EXRLoader: {
+    module: 'examples/jsm/loaders/EXRLoader.js',
+    evidence: {
+      ids: ['E2E-ENV', 'three-materials-envmaps-exr'],
+      tests: ['tool/three/cases_f4d.sh'],
+    },
+  },
+  CinematicMotionBlurPass: {
+    module: 'tool/three/src/cinematic_motion_blur.js',
+    note: 'JSR-owned (ADR-0005); GPU accumulation bit-exact vs the linear JS reference',
+    evidence: {
+      ids: ['E2E-MOTION-1', 'E2E-MOTION-2'],
+      tests: ['test/angle1b/f4c1_e2e_motion_test.dart'],
+    },
+  },
+  'jsr.three.cinematic': {
+    module: 'tool/three/src/cinematic.js',
+    note: 'JSR-owned surface (ADR-0004 decisions 2-4); built into jsr_three_native.js and jsr_three_web.js; F4 merge stage 2b promoted the F4i downstream host proof (final-pass capture barrier + host read path) and the F4f performance matrix (batched transport default) onto this row',
+    evidence: {
+      ids: ['UT-HELPER-1', 'IT-HELPER-1', 'E2E-SHOWCASE-1', 'E2E-HOST-YOCLIP-*', 'REG-HOST-CAPTURE-1', 'UT-PIPELINE-CAPTURE-FLUSH', 'PERF-CINEMATIC-*', 'REG-UPLOADS'],
+      tests: ['tool/three/test/ut_helper_cinematic_test.js', 'test/angle1b/it_helper_cinematic_test.dart', 'test/angle1b/e2e_showcase_1_cinematic_test.dart', 'test/angle1b/f4i_host_proof_test.dart', 'tool/three/cases_f4i.sh', 'tool/three/test/f4b_ut_pipeline_test.js', 'tool/three/cinematic_perf.mjs', 'docs/cinematic_perf.md'],
+    },
+  },
+};
+
+// A promoted engine export must exist in the engine-export union (a typo
+// must fail generation, not silently drop a row).
+for (const name of Object.keys(ONE_B_ENGINE)) {
+  if (!engineExports.includes(name)) {
+    throw new Error(`1B promotion of ${name}: not an engine export of the pinned tree`);
+  }
+}
+for (const [name, spec] of Object.entries(ONE_B_ADDONS)) {
+  const file = spec.module.startsWith('tool/')
+    ? path.join(ROOT, spec.module)
+    : path.join(SOURCE, spec.module);
+  if (!existsSync(file)) {
+    throw new Error(`1B promotion of ${name}: module missing at ${file}`);
+  }
+}
+
+const engineRows = engineExports.map((name) => {
   const mapped = UTILITY_ONLY.get(name) ?? apiMap[name] ?? EXPLICIT.get(name);
   if (mapped) {
     const lane =
@@ -182,7 +394,7 @@ const rows = engineExports.map((name) => {
       : mapped.status === 'upstream' ? 'upstream-cpu'
       : mapped.status === 'constant' ? 'constant'
       : 'r1';
-    return {
+    const row = {
       symbol: name,
       lane,
       status: mapped.status,
@@ -194,6 +406,20 @@ const rows = engineExports.map((name) => {
             ? 'R1 bounded subset (see api_matrix note)'
             : 'no native analog — 1B web renderer only'),
     };
+    // F4h: a measured 1B promotion moves the row out of web-only onto the
+    // '1b' lane (upstream renderer over the facade + ANGLE); the webLane
+    // marker only annotated deliberate 'no' rows and no longer applies.
+    const oneB = ONE_B_ENGINE[name];
+    if (oneB) {
+      row.lane = '1b';
+      row.status = 'ok';
+      delete row.webLane;
+      row.flutterAnalog = oneB.analog;
+      row.evidence = oneB.evidence;
+    } else if (ONE_B_EVIDENCE[name]) {
+      row.evidence = ONE_B_EVIDENCE[name].evidence;
+    }
+    return row;
   }
   if (NATIVE_ABSENT.has(name)) {
     return {
@@ -229,21 +455,42 @@ const rows = engineExports.map((name) => {
   };
 });
 
+// The proven cinematic addon symbols join as kind:'addon' rows (sorted,
+// deterministic order).
+const addonRows = Object.keys(ONE_B_ADDONS).sort().map((name) => ({
+  symbol: name,
+  kind: 'addon',
+  lane: '1b',
+  status: 'ok',
+  module: ONE_B_ADDONS[name].module,
+  ...(ONE_B_ADDONS[name].note ? { note: ONE_B_ADDONS[name].note } : {}),
+  flutterAnalog: ONE_B_ADDONS[name].note
+    ?? '1B: upstream addon runs over the WebGL2 facade + ANGLE',
+  evidence: ONE_B_ADDONS[name].evidence,
+}));
+
+const rows = [...engineRows, ...addonRows];
+
+const engineRowCount = engineRows.length;
 const tally = (fn) => rows.filter(fn).length;
+const engineTally = (fn) => engineRows.filter(fn).length;
 const totals = {
-  engineExports: rows.length,
-  r1Ok: tally((r) => r.status === 'ok'),
-  r1Bounded: tally((r) => r.status === 'bounded'),
-  r1No: tally((r) => r.status === 'no'),
-  upstreamCpu: tally((r) => r.status === 'upstream'),
-  constants: tally((r) => r.status === 'constant'),
-  nativeAbsent: tally((r) => r.status === 'no-native'),
-  unclassified: tally((r) => r.status === 'unclassified'),
+  engineExports: engineRowCount,
+  addonsOneB: addonRows.length,
+  r1Ok: engineTally((r) => r.lane === 'r1' && r.status === 'ok'),
+  r1Bounded: engineTally((r) => r.lane === 'r1' && r.status === 'bounded'),
+  r1No: engineTally((r) => r.lane === 'web-only' && r.status === 'no'),
+  oneBOk: tally((r) => r.lane === '1b'),
+  upstreamCpu: engineTally((r) => r.lane === 'upstream-cpu'),
+  constants: engineTally((r) => r.lane === 'constant'),
+  nativeAbsent: engineTally((r) => r.lane === 'native-absent'),
+  unclassified: engineTally((r) => r.lane === 'unclassified'),
 };
 // Deliberate web-lane entries: the 'no' bucket split by documented intent —
 // GLSL passes / offscreen render targets the native lane will not implement.
-totals.webLane = tally((r) => r.webLane);
-// Honest headline numbers:
+totals.webLane = engineTally((r) => r.webLane);
+// Honest headline numbers (engine rows only — the addon rows are measured
+// 1B evidence rows, not part of the engine-export population):
 //  - render-honored = R1 ok + bounded (of the render-relevant classified set)
 //  - quickjs-usable = everything that materializes and runs on native
 totals.renderHonored = totals.r1Ok + totals.r1Bounded;
@@ -251,12 +498,12 @@ totals.renderRelevantClassified =
   totals.renderHonored + totals.r1No;
 totals.quickjsUsable =
   totals.renderHonored + totals.upstreamCpu + totals.constants;
-totals.renderHonoredPct = +((totals.renderHonored / rows.length) * 100).toFixed(1);
-totals.quickjsUsablePct = +((totals.quickjsUsable / rows.length) * 100).toFixed(1);
+totals.renderHonoredPct = +((totals.renderHonored / engineRowCount) * 100).toFixed(1);
+totals.quickjsUsablePct = +((totals.quickjsUsable / engineRowCount) * 100).toFixed(1);
 totals.webLanePct = 100; // real upstream renderer on Worker OffscreenCanvas
 
 const matrix = {
-  source: 'three r186 pinned (three.core.js ∪ three.module.js exports)',
+  source: 'three r186 pinned (three.core.js ∪ three.module.js exports; + the measured 1B cinematic addon set, kind "addon")',
   generatedAt: new Date().toISOString().slice(0, 10),
   totals,
   rows,

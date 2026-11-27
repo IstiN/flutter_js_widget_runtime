@@ -54,6 +54,11 @@
   // ---- corpus state -------------------------------------------------------
   var __loop = null, __raf = null;
   var __errors = [];
+  // Per-entry cap: a repeated loader failure (e.g. HDR per-frame retries)
+  // carries a full eval stack per entry; 200 entries x unbounded stacks once
+  // produced an 18 MB single-line status that corrupted in shell transport
+  // on CI and cost a corpus report row. 2 KB per entry keeps the verdict loud.
+  var __pushErr = function (s) { s = String(s); __errors.push(s.length > 2048 ? s.slice(0, 2048) + '\n[corpus: entry truncated at 2048 chars]' : s); };
   var __warnings = [];
   g.__corpusErrors = __errors;
   g.__corpusWarnings = __warnings;
@@ -72,7 +77,7 @@
       __now = i * 16.6667;
       __runDueTimers();
       var fn = __loop || __raf;
-      try { fn(); } catch (e) { __errors.push('tick ' + i + ': ' + String(e && e.stack ? e.stack : e)); return false; }
+      try { fn(); } catch (e) { __pushErr('tick ' + i + ': ' + String(e && e.stack ? e.stack : e)); return false; }
     }
     return true;
   };
@@ -86,7 +91,15 @@
         if (args[ai] && args[ai].stack) { stk = String(args[ai].stack); break; }
       }
       if (!stk) { try { stk = String(new Error('corpus-trace').stack || ''); } catch (eStk) {} }
-      __errors.push('console.error: ' + msg + (stk ? '\n' + stk : ''));
+      // Cap: a scene in a per-frame failure loop (e.g. a rejected texture
+      // retry) must not grow this array into multi-GB JSON — the harnesses
+      // stringify it. First 200 entries + a marker keep the verdict loud.
+      if (__errors.length >= 200) {
+        if (__errors.length === 200) __errors.push('[corpus: error log truncated at 200 entries]');
+        msg += (stk ? '\n' + stk : '');
+      } else {
+        __pushErr('console.error: ' + msg + (stk ? '\n' + stk : ''));
+      }
       msg += (stk ? '\n' + stk : '');
     }
     if (g.__consoleBridge) { try { g.__consoleBridge(level, msg); } catch (e) {} }
@@ -358,13 +371,24 @@
     };
     __urlCtor.revokeObjectURL = function (u) { delete __blobRegistry[u]; };
     def('URL', __urlCtor);
-  } else if (!g.URL.createObjectURL) {
+  } else {
+    // Web: Chrome already has createObjectURL, but it rejects our Blob STUB.
+    // Shadow it: stub Blobs go through the registry (the canvas/img stubs
+    // and GLTFLoader resolve blob: URLs against it); native Blobs (window
+    // .__nativeBlob, captured by the driver) pass through to the native
+    // store untouched.
+    var __nativeCOU = g.URL.createObjectURL.bind(g.URL);
+    var __nativeROU = g.URL.revokeObjectURL.bind(g.URL);
     g.URL.createObjectURL = function (blob) {
+      if (g.__nativeBlob && blob instanceof g.__nativeBlob) return __nativeCOU(blob);
       var u = 'blob:corpus-' + (++__blobSeq);
       __blobRegistry[u] = blob;
       return u;
     };
-    g.URL.revokeObjectURL = function (u) { delete __blobRegistry[u]; };
+    g.URL.revokeObjectURL = function (u) {
+      if (__blobRegistry[u]) { delete __blobRegistry[u]; return; }
+      __nativeROU(u);
+    };
   }
 
   g.Blob = function (parts, opts) {
@@ -477,7 +501,7 @@
       var bytes = blob && blob.__bytes ? blob.__bytes : blob;
       g.__decodeImage(bytes, (blob && blob.type) || 'image/png', opts.imageOrientation === 'flipY')
         .then(function (img) { resolve(new g.ImageBitmap(img)); })
-        .catch(function (e) { __errors.push(String(e && e.stack ? e.stack : e)); reject(e); });
+        .catch(function (e) { __pushErr(String(e && e.stack ? e.stack : e)); reject(e); });
     }));
   };
 
@@ -502,7 +526,18 @@
       remove: function () {},
       addEventListener: function (t, fn) { (listeners[t] = listeners[t] || []).push(fn); },
       removeEventListener: function (t, fn) { var a = listeners[t]; if (a) { var i = a.indexOf(fn); if (i >= 0) a.splice(i, 1); } },
-      dispatchEvent: function (ev) { var a = listeners[ev.type] || []; for (var i = 0; i < a.length; i++) a[i].call(el, ev); return true; },
+      // Native event semantics: after addEventListener listeners, the
+      // on<type> property handler fires too. r186 SMAAPass assigns
+      // image.onload AFTER setting src (three.js #15162 note), so a stub
+      // that only runs registered listeners leaves its textures empty
+      // forever (SMAA renders as a passthrough on the 1B leg).
+      dispatchEvent: function (ev) {
+        var a = listeners[ev.type] || [];
+        for (var i = 0; i < a.length; i++) a[i].call(el, ev);
+        var fn = el['on' + ev.type];
+        if (typeof fn === 'function') fn.call(el, ev);
+        return true;
+      },
       // <canvas id=...> looked up via getElementById and generic divs used as
       // render targets (multiple-elements) both reach getContext through the
       // stub element, not makeCanvas.
@@ -569,15 +604,40 @@
         get: function () { return currentSrc; },
         set: function (url) {
           currentSrc = String(url);
-          var path = g.__resolveAssetPath(currentSrc);
-          Promise.resolve(g.__assetReadRaw(path)).then(function (raw) {
-            if (raw == null) {
-              real.dispatchEvent(new g.Event('error'));
-              return;
-            }
-            var bytes = typeof raw === 'string' ? g.__b64toBytes(raw) : raw;
+          // GLTFLoader materializes embedded textures as blob: URLs over our
+          // Blob stub — serve those bytes too (the 1B stub branch does; the
+          // web branch must not flood __corpusErrors with per-frame
+          // "Couldn't load texture" retries).
+          if (String(url).slice(0, 5) === 'data:') {
+            // SMAAPass embeds its area/search textures as base64 data:
+            // URLs — the native element decodes them directly; track the
+            // native decode for the settle gate like any other texture.
+            g.__corpusTrackAsync(new Promise(function (resolve) {
+              var done = function () { resolve(null); };
+              real.addEventListener('load', done, { once: true });
+              real.addEventListener('error', done, { once: true });
+            }));
+            srcDesc.set.call(real, url);
+            return;
+          }
+          var reg = __blobRegistry[url];
+          var bytesPromise = reg ? Promise.resolve(reg.__bytes)
+            : Promise.resolve(g.__assetReadRaw(g.__resolveAssetPath(currentSrc))).then(function (raw) {
+                if (raw == null) throw new Error('asset not found: ' + url);
+                return typeof raw === 'string' ? g.__b64toBytes(raw) : raw;
+              });
+          // Track the FULL load (asset read + native decode + the img
+          // load/error event) so the corpus settle gate waits for it exactly
+          // like the 1B side; otherwise the scene's onLoad renders land
+          // mid-tick here and animated scenes diverge in frame phase.
+          g.__corpusTrackAsync(bytesPromise.then(function (bytes) {
             srcDesc.set.call(real, 'data:' + __sniffMimeBytes(bytes) + ';base64,' + g.__bytesToB64(bytes));
-          }, function () { real.dispatchEvent(new g.Event('error')); });
+            return new Promise(function (resolve) {
+              var done = function () { resolve(null); };
+              real.addEventListener('load', done, { once: true });
+              real.addEventListener('error', done, { once: true });
+            });
+          }, function () { real.dispatchEvent(new g.Event('error')); }));
         }
       });
       return real;
@@ -606,9 +666,15 @@
           });
           return;
         }
-        var path = g.__resolveAssetPath(url);
+        var dataM = /^data:[^;,]+;base64,(.*)$/.exec(String(url));
         Promise.resolve().then(function () {
-          return g.__decodeImage(path, null, false);
+          if (dataM) {
+            // data: URL (e.g. SMAAPass's embedded area/search textures):
+            // decode the embedded bytes directly — a real browser decodes
+            // these natively; the flattened-asset lane is not involved.
+            return g.__decodeImage(g.__b64toBytes(dataM[1]), 'image/png', false);
+          }
+          return g.__decodeImage(g.__resolveAssetPath(url), null, false);
         }).then(function (decoded) {
           img.width = decoded.width; img.height = decoded.height;
           img.data = decoded.data; img.naturalWidth = decoded.width; img.naturalHeight = decoded.height;
@@ -894,7 +960,7 @@
       } else {
         t.cleared = true;
       }
-      try { t.fn(); } catch (e) { __errors.push('timer: ' + String(e && e.stack ? e.stack : e)); }
+      try { t.fn(); } catch (e) { __pushErr('timer: ' + String(e && e.stack ? e.stack : e)); }
     }
   }
   g.setTimeout = function (fn, ms) {

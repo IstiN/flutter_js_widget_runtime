@@ -1,0 +1,59 @@
+{
+  "three-postprocessing-smaa": {
+    "tier": "documented-limit",
+    "reason": "SMAA runs correctly through the facade (after two corpus img-stub fixes: data:-URL texture loads and on-load property dispatch) and is bit-identical on pure wireframe geometry (cases-f4c2-lines PASS_IDENTICAL, hashes 0xac9e1edc). On the stock example the brick texture leaves half-float scene-RT texel LSBs (texture-filtering) below the 8-bit output quantization; the SMAA edge threshold (0.1) flips 136 edge texels and the pass amplifies them into blend differences: 1024/76800 px differ, max channel delta 32, matching 98.6667% (band is 99%). Probes: pre-SMAA render bit-exact (0x710a8f34), area+search texture uploads bit-exact (0x5dbe640b), lines-only bit-exact (0xac9e1edc). Backend class: texture-filtering LSB beyond the d<=2/99% band (same class as three-postprocessing-advanced). Measured 2026-11-26, Apple M4 Pro, ANGLE Metal 9c6a64c9 vs Chrome/Chromium 133 real WebGL2, 320x240.",
+    "measured": "FAIL(diff)",
+    "note": "The pass itself is proven by cases-f4c2-lines (exact); the stock example keeps the texture-region limit visible."
+  },
+  "cases-f4c2-lines": {
+    "tier": "exact",
+    "measured": "PASS_IDENTICAL",
+    "note": "stock SMAAPass on wireframe geometry — bit-identical through facade, G1 transport and ANGLE"
+  },
+  "three-postprocessing-fxaa": {
+    "tier": "exact",
+    "measured": "PASS_IDENTICAL",
+    "note": "stock webgl_postprocessing_fxaa (FXAAPass + wireframe box) renders bit-identically"
+  },
+  "three-postprocessing-3dlut": {
+    "tier": "documented-limit",
+    "reason": "The prepare pipeline materializes the example's LUT files as prebuilt J3LT binary containers (luts__*.jsrlut, diagnostic prebuiltLutBin) for the R1 widget runtime; the stock LUTCubeLoader/LUTImageLoader validate magic/size against the container bytes and reject them (THREE.LUTCubeLoader: Missing LUT_3D_SIZE information). Asset-lane work belongs to the prepare pipeline (triage class 'Texture-container parse on converted bytes', F2d); the LUTPass itself is proven by cases-f4c2-lut (exact).",
+    "measured": "FAIL(1b)",
+    "note": "Existing F2d triage class, re-verified in the F4c2 sweep; stays visible here."
+  },
+  "cases-f4c2-lut": {
+    "tier": "exact",
+    "measured": "PASS_IDENTICAL",
+    "note": "stock LUTPass + in-scene Data3DTexture LUT (8x8x8, deterministic grading) — sampler3D path bit-identical (0xf8405481)"
+  },
+  "cases-f4c2-film": {
+    "tier": "exact",
+    "measured": "PASS_IDENTICAL",
+    "note": "stock FilmPass grain at fixed 1/24 s composer delta — noise path bit-identical (0xc8cffbc7)"
+  },
+  "cases-f4c2-vignette": {
+    "tier": "exact",
+    "measured": "PASS_IDENTICAL",
+    "note": "stock VignetteShader via ShaderPass (offset 0.95, darkness 1.2) — bit-identical (0x43c423d9)"
+  },
+  "cases-f4c2-msaa": {
+    "tier": "exact",
+    "measured": "PASS_IDENTICAL",
+    "note": "antialias:true default framebuffer (__jsr1b_set_samples MSAA EGL config) + samples:4 multisampled composer target resolved through the facade — bit-identical (0xa5b405a6)"
+  },
+  "three-postprocessing-unreal-bloom-selective": {
+    "tier": "exact",
+    "measured": "PASS_IDENTICAL",
+    "note": "stock selective bloom (layers.toggle + UnrealBloomPass + MRT composer chain) renders bit-identically (0x28749596)"
+  },
+  "three-postprocessing-ssao": {
+    "tier": "exact",
+    "measured": "PASS_IDENTICAL",
+    "note": "stock SSAOPass (depth/normal reconstruction + blur) renders bit-identically (0x954ee760)"
+  },
+  "three-postprocessing-gtao": {
+    "tier": "exact",
+    "measured": "PASS_IDENTICAL",
+    "note": "stock GTAOPass over the LittlestTokyo GLB renders bit-identically (0x2f9c49e6)"
+  }
+}

@@ -1,10 +1,12 @@
 import 'package:flutter/foundation.dart';
 
 import 'package:js_widget_runtime/src/model/js_audio_synthesis.dart';
+import 'package:js_widget_runtime/src/model/js_three_backend.dart';
 import 'package:js_widget_runtime/src/renderer/media/js_media_host.dart';
 import 'package:js_widget_runtime/src/renderer/nodes/js_3d_host.dart';
 import 'package:js_widget_runtime/src/renderer/nodes/three/js_three_host.dart';
 import 'package:js_widget_runtime/src/renderer/webview/js_web_view_host.dart';
+import 'package:js_widget_runtime/src/runtime/js_cinematic_capture_host.dart';
 import 'package:js_widget_runtime/src/runtime/js_widget_engine_backend.dart';
 
 /// Callback invoked to check whether a capability is allowed.
@@ -43,6 +45,7 @@ class JsRuntimeConfig {
     required this.onRender,
     required this.onSetTitle,
     required this.onStorageUpdate,
+    this.onMessageTrace,
     this.onLog,
     this.isPermissionAllowed,
     this.resolveCallback,
@@ -57,6 +60,7 @@ class JsRuntimeConfig {
     this.onHostCallBinary,
     this.onAudioSynthesis,
     this.captureHandler,
+    this.cinematicCaptureHost,
     this.intervalTickHandler,
     this.rafTickHandler,
     this.backend,
@@ -64,6 +68,9 @@ class JsRuntimeConfig {
     this.js3dHost,
     this.threeEnabled = false,
     this.threeSource,
+    this.threeBackend = JsThreeBackend.r1,
+    this.allowCustomShaders = false,
+    this.onThreeBackendSelected,
     this.threeHost,
     this.mediaHost,
     this.webViewHost,
@@ -102,6 +109,11 @@ class JsRuntimeConfig {
 
   /// Called when JS updates storage.
   final void Function(Map<String, dynamic> storage) onStorageUpdate;
+
+  /// Optional observation hook: every `__jsr_*` channel name dispatched by
+  /// the engine bridge, in arrival order (payload excluded). Conformance
+  /// runners record the trace with it.
+  final void Function(String channel)? onMessageTrace;
 
   /// Optional log sink for `console.log/warn/error`.
   final void Function(String message)? onLog;
@@ -180,6 +192,16 @@ class JsRuntimeConfig {
   final Future<Map<String, dynamic>> Function(Map<String, dynamic> opts)?
   captureHandler;
 
+  /// Cinematic capture barrier behind `pipeline.captureFrame(clock)` on the
+  /// core `jsr.three.cinematic` surface (issue #8, ADR-0004 decision 4).
+  /// The request crosses the existing `__jsr_capture` channel with options
+  /// `{engineId, clock, barrier: 'final-pass'}`; the host completes only
+  /// after the final composer pass of the frame-driven render — never from
+  /// a wall-clock frame. Null = the barrier capability is absent: the JS
+  /// promise rejects with the NAMED error `cinematic.notCapturable`
+  /// (never an effect-free capture).
+  final JsCinematicCaptureHost? cinematicCaptureHost;
+
   /// Dart-backed interval tick.
   final void Function(String id)? intervalTickHandler;
 
@@ -207,6 +229,25 @@ class JsRuntimeConfig {
   /// `assets/three/jsr_three_web.js` from the package bundle.
   final String? threeSource;
 
+  /// THREE render backend selection (issue #7 / ADR-0003): `r1` (default,
+  /// the bounded flutter_gpu renderer), `angle1b` (pinned upstream
+  /// WebGLRenderer over ANGLE), or `auto` (angle1b when every probe of the
+  /// selection ladder passes, else r1). Selecting angle1b never downloads,
+  /// loads or initializes ANGLE unless the optional `jsr_three_angle`
+  /// package is on the class path and its host is passed as [threeHost].
+  final JsThreeBackend threeBackend;
+
+  /// Host policy for custom shaders (ADR-0003 decision 3). When false
+  /// (default), `THREE.ShaderMaterial`, `THREE.RawShaderMaterial` and
+  /// `onBeforeCompile` throw `three.unsupported: custom shaders are
+  /// disabled by host policy` before the renderer is allocated.
+  final bool allowCustomShaders;
+
+  /// Selection outcome callback: always fired when a THREE runtime starts,
+  /// with the requested and selected backend and the fallback reason.
+  final void Function(JsThreeBackendSelection selection)?
+  onThreeBackendSelected;
+
   /// Independent upstream-THREE host used by `three` nodes and JSR3D-T1.
   /// This is deliberately not part of the existing [js3dHost] hierarchy.
   final JsThreeHost? threeHost;
@@ -230,6 +271,7 @@ class JsRuntimeConfig {
     void Function(Map<String, dynamic> tree)? onRender,
     void Function(String title)? onSetTitle,
     void Function(Map<String, dynamic> storage)? onStorageUpdate,
+    void Function(String channel)? onMessageTrace,
     void Function(String message)? onLog,
     JsPermissionChecker? isPermissionAllowed,
     void Function(String id, dynamic value)? resolveCallback,
@@ -254,6 +296,7 @@ class JsRuntimeConfig {
     void Function(JsAudioSynthesis synthesis)? onAudioSynthesis,
     Future<Map<String, dynamic>> Function(Map<String, dynamic> opts)?
     captureHandler,
+    JsCinematicCaptureHost? cinematicCaptureHost,
     void Function(String id)? intervalTickHandler,
     void Function(String id, int elapsedMs)? rafTickHandler,
     JsWidgetEngineBackend? backend,
@@ -261,6 +304,9 @@ class JsRuntimeConfig {
     Js3dHost? js3dHost,
     bool? threeEnabled,
     String? threeSource,
+    JsThreeBackend? threeBackend,
+    bool? allowCustomShaders,
+    void Function(JsThreeBackendSelection selection)? onThreeBackendSelected,
     JsThreeHost? threeHost,
     JsMediaHost? mediaHost,
     JsWebViewHost? webViewHost,
@@ -274,6 +320,7 @@ class JsRuntimeConfig {
     onRender: onRender ?? this.onRender,
     onSetTitle: onSetTitle ?? this.onSetTitle,
     onStorageUpdate: onStorageUpdate ?? this.onStorageUpdate,
+    onMessageTrace: onMessageTrace ?? this.onMessageTrace,
     onLog: onLog ?? this.onLog,
     isPermissionAllowed: isPermissionAllowed ?? this.isPermissionAllowed,
     resolveCallback: resolveCallback ?? this.resolveCallback,
@@ -288,6 +335,7 @@ class JsRuntimeConfig {
     onHostCallBinary: onHostCallBinary ?? this.onHostCallBinary,
     onAudioSynthesis: onAudioSynthesis ?? this.onAudioSynthesis,
     captureHandler: captureHandler ?? this.captureHandler,
+    cinematicCaptureHost: cinematicCaptureHost ?? this.cinematicCaptureHost,
     intervalTickHandler: intervalTickHandler ?? this.intervalTickHandler,
     rafTickHandler: rafTickHandler ?? this.rafTickHandler,
     backend: backend ?? this.backend,
@@ -295,6 +343,10 @@ class JsRuntimeConfig {
     js3dHost: js3dHost ?? this.js3dHost,
     threeEnabled: threeEnabled ?? this.threeEnabled,
     threeSource: threeSource ?? this.threeSource,
+    threeBackend: threeBackend ?? this.threeBackend,
+    allowCustomShaders: allowCustomShaders ?? this.allowCustomShaders,
+    onThreeBackendSelected:
+        onThreeBackendSelected ?? this.onThreeBackendSelected,
     threeHost: threeHost ?? this.threeHost,
     mediaHost: mediaHost ?? this.mediaHost,
     webViewHost: webViewHost ?? this.webViewHost,

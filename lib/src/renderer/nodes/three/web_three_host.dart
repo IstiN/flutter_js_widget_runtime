@@ -37,6 +37,11 @@ class WebThreeHost implements JsThreeHost {
   }) : _assetLoader = assetLoader,
        _diagnosticsEnabled = diagnosticsEnabled;
 
+  @override
+  void submit1B(String boundEngineId, Uint8List batch) {
+    // The web host renders through real WebGL2, not the ANGLE 1B lane.
+  }
+
   static const int maxPendingFrames = 2;
   static int _nextHostId = 0;
 

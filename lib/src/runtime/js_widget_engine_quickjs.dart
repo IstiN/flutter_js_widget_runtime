@@ -5,6 +5,8 @@ import 'package:flutter/foundation.dart';
 
 import 'package:js_widget_runtime/src/defaults/vm_default_handlers.dart';
 import 'package:js_widget_runtime/src/model/js_runtime_config.dart';
+import 'package:js_widget_runtime/src/model/js_three_backend.dart';
+import 'package:js_widget_runtime/src/renderer/nodes/three/js_three_host.dart';
 import 'package:js_widget_runtime/src/renderer/nodes/three/three_line_walk_native.dart';
 import 'package:js_widget_runtime/src/renderer/nodes/three/three_custom_attributes_native.dart';
 import 'package:js_widget_runtime/src/renderer/nodes/three/three_morph_native.dart';
@@ -43,6 +45,7 @@ class QuickjsWidgetEngineBackend
     _bridge = JsWidgetBridge(
       widgetId: config.widgetId,
       onRender: config.onRender,
+      onMessageTrace: config.onMessageTrace,
       onSetTitle: config.onSetTitle,
       onStorageUpdate: config.onStorageUpdate,
       onLog: (msg) => _handleLog(msg),
@@ -60,6 +63,7 @@ class QuickjsWidgetEngineBackend
       onHostCallBinary: config.onHostCallBinary,
       onAudioSynthesis: config.onAudioSynthesis,
       captureHandler: config.captureHandler,
+      cinematicCaptureHost: config.cinematicCaptureHost,
       intervalTickHandler: (id) {},
       rafTickHandler: (id, elapsedMs) {},
       js3dHost: config.js3dHost,
@@ -70,6 +74,15 @@ class QuickjsWidgetEngineBackend
 
   JsRuntimeConfig _config;
   late final JsWidgetBridge _bridge;
+  JsThreeBackendSelection? _threeSelection;
+
+  @override
+  bool get hasSyncBinaryLane => true;
+
+  @override
+  void prepareThreeBackend(JsThreeBackendSelection selection) {
+    _threeSelection = selection;
+  }
 
   @override
   void setEngineInstanceId(String instanceId) {
@@ -152,7 +165,10 @@ class QuickjsWidgetEngineBackend
         );
       }
 
-      final hostBootstrap = hostBootstrapJs ?? '';
+      // The run() parameter wins; otherwise the host-provided config value
+      // applies (issue #12: a config-only __JSR_MOCK_ORIGIN__ must reach the
+      // widget even when run() is called without the parameter).
+      final hostBootstrap = hostBootstrapJs ?? _config.hostBootstrapJs ?? '';
       final code =
           '''
 (function() {
@@ -160,7 +176,14 @@ class QuickjsWidgetEngineBackend
     $hostBootstrap
     $widgetJs
   } catch(e) {
-    jsr.showError('Widget error: ' + (e.message || String(e)));
+    var m = 'Widget error: ' + (e.message || String(e));
+    // A composite failure must never be effect-free: the named error also
+    // crosses the __jsr_log lane so hosts and tests without a visible
+    // surface (flutter test, headless runners) observe it. The F2c silent
+    // failure (policy TypeError before the widget) hid behind a
+    // showError-only catch.
+    if (typeof console !== 'undefined' && console.error) console.error(m);
+    jsr.showError(m);
   }
 })();
 ''';
@@ -324,6 +347,35 @@ class QuickjsWidgetEngineBackend
       });
       registerThreeCustomAttributesNative(rt.registerHostBytesFn);
     }
+    _register1BWire(rt);
+  }
+
+  /// Registers the synchronous G1 globals of the ANGLE 1B wire
+  /// (ADR-0003 decision 4) when the selection ladder picked angle1b:
+  /// - `__jsr1b_dispatch(bytes)`: zero-copy G1 command in; the int64
+  ///   dispatch result is parked on the isolate.
+  /// - `__jsr1b_rc()`: the parked dispatch result as a JSON number.
+  /// - `__jsr1b_result()`: the per-engine result scratch, base64.
+  /// The package's facade bootstrap wires `__jsr1b_gl(bytes)` as the
+  /// dispatch+rc pair the generated G1 packer calls.
+  void _register1BWire(QuickjsRuntime rt) {
+    if (!(_threeSelection?.isAngle1b ?? false)) return;
+    final JsThree1BWire? host = _config.threeHost is JsThree1BWire
+        ? _config.threeHost! as JsThree1BWire
+        : null;
+    if (host == null) return;
+    final engineId = _config.instanceId ?? _config.widgetId;
+    var parkedRc = 0;
+    if (rt.hasBytesFn) {
+      rt.registerHostBytesFn('__jsr1b_dispatch', (name, data) {
+        parkedRc = host.dispatch1B(engineId, data);
+      });
+    }
+    rt.registerHostFunction('__jsr1b_rc', (_) => parkedRc.toString());
+    rt.registerHostFunction(
+      '__jsr1b_result',
+      (_) => jsonEncode(host.result1BAsBase64(engineId)),
+    );
   }
 
   Future<void> _fetchHandler(

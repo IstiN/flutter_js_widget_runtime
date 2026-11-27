@@ -1,0 +1,61 @@
+{
+  "three-loader-gltf": {
+    "tier": "exact",
+    "measured": "PASS_IDENTICAL",
+    "note": "Khronos sample assets seeded through the flattened-name cache; DamagedHelmet renders bit-identically"
+  },
+  "three-animation-keyframes": {
+    "tier": "tolerance",
+    "measured": "PASS_TOLERANCE",
+    "note": "99.9896% matching, 8/76800 px, maxChannelDelta 4 — texture decode LSB (package:image vs Chrome native) in the LittlestTokyo texture region"
+  },
+  "three-animation-skinning-morph": {
+    "tier": "tolerance",
+    "measured": "PASS_TOLERANCE",
+    "note": "0 differing px, maxChannelDelta 1 — pure 8-bit rounding LSB on skinned shading"
+  },
+  "three-buffergeometry-instancing": {
+    "tier": "exact",
+    "measured": "PASS_IDENTICAL",
+    "note": "fixed since the M4 report: the g1_get_extension tokenized matcher landed; divisor/decode path verified bit-exact"
+  },
+  "three-shadowmap": {
+    "tier": "documented-limit",
+    "reason": "Animated-caster frame-phase offset between the harness legs: the five GLTF models settle their load callbacks at different interleavings on the pinned frame loop, so the captured frame shows the animals at deterministic but phase-shifted positions (hash pair stable across runs; both sides render the scene correctly). Static shadow scene three-shadowmap-pointlight compares at 99.94%. See docs/angle_1b.md corpus section (F2d).",
+    "measured": "FAIL(diff)",
+    "note": "88.9466% matching, differingBBox 0,44-308,185, maxChannelDelta 173"
+  },
+  "three-shader": {
+    "tier": "exact",
+    "measured": "PASS_IDENTICAL"
+  },
+  "three-shader-lava": {
+    "tier": "tolerance",
+    "measured": "PASS_TOLERANCE",
+    "note": "99.2148% matching, 603/76800 px, maxChannelDelta 7 — noise-texture decode + filtering LSB"
+  },
+  "three-multiple-rendertargets": {
+    "tier": "tolerance",
+    "measured": "PASS_TOLERANCE",
+    "note": "99.9961% matching, 3/76800 px, maxChannelDelta 3 — MRT resolve LSB"
+  },
+  "three-depth-texture": {
+    "tier": "exact",
+    "measured": "PASS_IDENTICAL"
+  },
+  "three-postprocessing-unreal-bloom": {
+    "tier": "exact",
+    "measured": "PASS_IDENTICAL",
+    "note": "the AC1/P0 named post-processing scene renders bit-identically through the facade, G1 transport and ANGLE"
+  },
+  "fixture-rawgl": {
+    "tier": "exact",
+    "measured": "PASS_IDENTICAL",
+    "note": "raw WebGL2 (gl_VertexID attribute-less triangle, no three.js) — AC2 raw-GL fixture"
+  },
+  "fixture-readback": {
+    "tier": "exact",
+    "measured": "PASS_IDENTICAL",
+    "note": "in-scene gl.readPixels round-trip drawn back into the frame — AC6 readback fixture"
+  }
+}

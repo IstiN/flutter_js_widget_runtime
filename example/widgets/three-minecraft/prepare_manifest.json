@@ -22,6 +22,10 @@
     "platform": "neutral",
     "target": "es2020",
     "minify": true,
+    "builderHost": {
+      "platform": "darwin",
+      "arch": "arm64"
+    },
     "offline": true,
     "remoteResolution": false,
     "exportDiscovery": "esbuild ESM/metafile over tool/three/src/native_entry.js",
@@ -509,12 +513,12 @@
   },
   "inputs": {
     "assets/three/jsr_three_native.js": {
-      "bytes": 898758,
-      "sha256": "9b620d8665578d9a662e8b47709e3978182bd9e22e3875a71e57878060a99216"
+      "bytes": 1029324,
+      "sha256": "aed3f04bd7e38cc67347c002a8c9c99781472675f5b05c569b56f3259cddcca4"
     },
     "assets/three/jsr_three_web.js": {
-      "bytes": 859983,
-      "sha256": "26fcc7fc9fd11b04931e69a4710835564af55d4de38398a22d89f8a5d248d71b"
+      "bytes": 990622,
+      "sha256": "f041bbd69ac4a54505d76f599853f4e29a924c2d57c24ba58982023943465c26"
     },
     "source/LICENSE": {
       "bytes": 1081,
@@ -569,8 +573,8 @@
       "sha256": "ea96c0a05d085289b62839060923353157e0d3f8da1abb27c089e4053e561a6b"
     },
     "tool/three_example/prepare.mjs": {
-      "bytes": 383437,
-      "sha256": "b08317b523c29db9a9a5771c46a0507ecd80ba07b0b54b01edb51ed163894c8b"
+      "bytes": 385128,
+      "sha256": "de77ef829784a25489628f0f1f8e7d1ea6579aecac8e18088a1d99ec8157e127"
     },
     "tool/three_example/stats_adapter.js": {
       "bytes": 2107,

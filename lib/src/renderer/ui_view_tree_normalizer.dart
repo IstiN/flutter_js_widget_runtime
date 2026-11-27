@@ -45,9 +45,8 @@ class UiViewTreeNormalizer {
     }
   }
 
-  static List<dynamic> _normalizeChildren(List children) => children
-      .map((child) => _normalizeChild(child))
-      .toList();
+  static List<dynamic> _normalizeChildren(List children) =>
+      children.map((child) => _normalizeChild(child)).toList();
 
   static dynamic _normalizeChild(dynamic child) {
     if (child is Map) {
@@ -73,8 +72,16 @@ class UiViewTreeNormalizer {
     if (type == 'dropdown' || type == 'select') _aliasDropdown(out);
   }
 
-  static const Set<String> _boxTypes = {'container', 'card', 'animatedContainer'};
-  static const Set<String> _buttonTypes = {'button', 'textButton', 'outlinedButton'};
+  static const Set<String> _boxTypes = {
+    'container',
+    'card',
+    'animatedContainer',
+  };
+  static const Set<String> _buttonTypes = {
+    'button',
+    'textButton',
+    'outlinedButton',
+  };
   static const Set<String> _inputTypes = {'textField', 'input', 'textArea'};
   static const Set<String> _imageTypes = {'image', 'networkImage', 'img'};
   static const Set<String> _valueTypes = {'switch', 'checkbox', 'slider'};
@@ -83,7 +90,9 @@ class UiViewTreeNormalizer {
     if (out['content'] != null && out['data'] == null) {
       out['data'] = out.remove('content');
     }
-    if (out['label'] != null && out['data'] == null && out['type'] == textNodeType) {
+    if (out['label'] != null &&
+        out['data'] == null &&
+        out['type'] == textNodeType) {
       out['data'] = out['label'];
     }
   }
@@ -94,7 +103,8 @@ class UiViewTreeNormalizer {
         'color': out.remove('backgroundColor'),
       };
     }
-    if (out['color'] != null && out['decoration'] == null &&
+    if (out['color'] != null &&
+        out['decoration'] == null &&
         type == 'container') {
       out['decoration'] = <String, dynamic>{'color': out.remove('color')};
     }
@@ -142,6 +152,22 @@ class UiViewTreeNormalizer {
     }
   }
 
+  /// Canonical event keys for the AUI dump (plan 1.3): the same
+  /// field-alias families that fold `onChanged` into `onChange` for props
+  /// fold it for the `events` map, so a dump never carries a key the
+  /// contract's normalizer would have renamed.
+  static void aliasDumpEventKeys(String type, Map<String, dynamic> events) {
+    if (!_inputTypes.contains(type) &&
+        !_valueTypes.contains(type) &&
+        type != 'dropdown' &&
+        type != 'select') {
+      return;
+    }
+    if (events['onChanged'] != null && events['onChange'] == null) {
+      events['onChange'] = events.remove('onChanged');
+    }
+  }
+
   static void _aliasDropdown(Map<String, dynamic> out) {
     out['type'] = 'dropdown';
     _aliasOnChanged(out);
@@ -151,6 +177,10 @@ class UiViewTreeNormalizer {
     final key = raw.trim();
     return _typeAliases[key] ?? _typeAliases[key.toLowerCase()] ?? key;
   }
+
+  /// Resolves one node type alias (public surface for dump/inspection tools
+  /// that report the canonical type of a payload node).
+  static String resolveType(String raw) => _aliasType(raw);
 
   static const Map<String, String> _typeAliases = <String, String>{
     'Text': 'text',
