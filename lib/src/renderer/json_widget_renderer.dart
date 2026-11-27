@@ -1065,13 +1065,44 @@ class JsonWidgetRenderer with JsonWidgetDecoration {
         ((element.widget as KeyedSubtree).key! as ValueKey<String>).value
             .substring(4);
     final record = _appliedRecords[id] ?? const <String, dynamic>{};
+    final type = UiViewTreeNormalizer.resolveType('${record['type'] ?? ''}');
+    final props = _dumpProps(element, record);
+    if (type == 'scroll') _applyScrollState(element, props);
     return <String, dynamic>{
-      'type': UiViewTreeNormalizer.resolveType('${record['type'] ?? ''}'),
-      'props': _dumpProps(element, record),
+      'type': type,
+      'props': props,
       'children': _dumpChildren(element),
       'events': _dumpEvents(record),
       'nodeId': id,
     };
+  }
+
+  /// A3 (PROTOCOL amendment A3): a `scroll` dump carries its live scroll
+  /// state — `scrollOffset` (pixels), `scrollExtent` (maxScrollExtent +
+  /// viewportDimension), `viewportExtent` — in logical pixels, read from
+  /// the node's `ScrollPosition` through the element tree. Nothing the
+  /// widget builds changes (no controller attached); the numbers are
+  /// additive dump props, so the payload-derived expected tree has no
+  /// opinion about them while the comparator enforces their presence.
+  void _applyScrollState(Element element, Map<String, dynamic> props) {
+    ScrollPosition? position;
+    void walk(Element node) {
+      if (position != null) return;
+      if (!identical(node, element) && _isStamped(node.widget)) return;
+      if (node is StatefulElement && node.state is ScrollableState) {
+        position = (node.state as ScrollableState).position;
+        return;
+      }
+      node.visitChildElements(walk);
+    }
+
+    walk(element);
+    final p = position;
+    if (p == null) return;
+    if (!p.hasContentDimensions || !p.hasViewportDimension) return;
+    props['scrollOffset'] = p.pixels;
+    props['scrollExtent'] = p.maxScrollExtent + p.viewportDimension;
+    props['viewportExtent'] = p.viewportDimension;
   }
 
   /// The node's own props: style merged in (node keys win), reserved and

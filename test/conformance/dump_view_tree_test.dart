@@ -28,9 +28,7 @@ void main() {
     return (renderer.dumpViewTree(captured!), renderer);
   }
 
-  testWidgets('style merges into props with node keys winning', (
-    tester,
-  ) async {
+  testWidgets('style merges into props with node keys winning', (tester) async {
     final (dump, _) = await pumpAndDump(tester, <String, dynamic>{
       'type': 'center',
       'child': {
@@ -66,13 +64,19 @@ void main() {
     final (dump, _) = await pumpAndDump(tester, <String, dynamic>{
       'type': 'column',
       'children': [
-        {'type': 'container', 'color': '#abc', 'child': {'type': 'text', 'data': 'boxed'}},
+        {
+          'type': 'container',
+          'color': '#abc',
+          'child': {'type': 'text', 'data': 'boxed'},
+        },
         {
           'type': 'text',
           'data': 'tinted',
           'style': {
             'color': '#94a3b8',
-            'shadows': [{'color': '#80f0f0f0'}],
+            'shadows': [
+              {'color': '#80f0f0f0'},
+            ],
           },
         },
       ],
@@ -104,11 +108,7 @@ void main() {
       'type': 'column',
       'children': [
         {'type': 'text', 'data': 'on screen', 'key': 'reconciler-hint'},
-        {
-          'type': 'textField',
-          'hint': 'name',
-          'value': 'prefilled',
-        },
+        {'type': 'textField', 'hint': 'name', 'value': 'prefilled'},
         {
           'type': 'tooltip',
           'message': 'helpful',
@@ -134,5 +134,55 @@ void main() {
     });
 
     expect(dump.toString(), isNot(contains('item-a')));
+  });
+
+  Map<String, dynamic> scrollFixture({required int items}) => <String, dynamic>{
+    'type': 'scroll',
+    'children': [
+      {
+        'type': 'column',
+        'children': [
+          for (var i = 0; i < items; i++)
+            {'type': 'container', 'height': 100, 'color': '#1e293b'},
+        ],
+      },
+    ],
+  };
+
+  testWidgets('a scroll node carries the three A3 scroll-state numbers', (
+    tester,
+  ) async {
+    final (dump, _) = await pumpAndDump(tester, <String, dynamic>{
+      'type': 'center',
+      'child': scrollFixture(items: 30),
+    });
+
+    final center = dump['props'] as Map<String, dynamic>;
+    expect(center.containsKey('scrollOffset'), isFalse);
+    final scroll = (dump['children'] as List)[0] as Map<String, dynamic>;
+    final props = scroll['props'] as Map<String, dynamic>;
+    // 800x600 test surface, 30 x 100 px items: viewport 600, max extent
+    // 2400 -> scrollExtent = maxScrollExtent + viewportDimension.
+    expect(props['scrollOffset'], 0);
+    expect(props['viewportExtent'], 600);
+    expect(props['scrollExtent'], 3000);
+    expect(
+      props['scrollOffset'],
+      greaterThanOrEqualTo(0),
+      reason: 'logical pixels, 0 or more',
+    );
+  });
+
+  testWidgets('a scroll node whose content fits still dumps its state', (
+    tester,
+  ) async {
+    final (dump, _) = await pumpAndDump(tester, scrollFixture(items: 3));
+
+    final props = dump['props'] as Map<String, dynamic>;
+    // Content (300) is smaller than the surface: the viewport shrink-wraps
+    // to it, maxScrollExtent is 0 — the numbers stay present and finite.
+    expect(props['scrollOffset'], 0);
+    expect(props['viewportExtent'], 300);
+    expect(props['scrollExtent'], 300);
   });
 }

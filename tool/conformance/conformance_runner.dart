@@ -568,12 +568,31 @@ Future<void> applyConformanceAction(
     final duration = Duration(
       milliseconds: swipe.length > 4 ? (swipe[4] as num).toInt() : 150,
     );
-    // `tester.drag` with the given duration (plan 1.4): the coordinate drag
-    // advances the test clock by [duration] so timers see the elapsed time.
+    // A real touch drag (PROTOCOL 3.3): sliced move samples over the
+    // given duration so the velocity tracker sees the finger move, then
+    // the finger lifts with that velocity and the ballistic fling carries
+    // the scrollable further (A3: a swipe over a scroll container must
+    // actually scroll it — `scroll_list` must end `scrolledToEnd == true`).
+    // A single `moveBy` carries one sample, no estimated velocity: the
+    // drag dies at its own delta and can never prove native scroll.
     // (timedDragFrom's synthesized event records do not reach the
     // Scrollable under this Flutter version — verified on 3.47.1.)
-    await tester.dragFrom(start, end - start);
+    final delta = end - start;
+    final gesture = await tester.startGesture(start);
+    const slices = 8;
+    final step = Duration(milliseconds: duration.inMilliseconds ~/ slices);
+    for (var i = 1; i <= slices; i++) {
+      final f = i / slices;
+      await gesture.moveTo(start + delta * (f * f), timeStamp: step * i);
+    }
+    await gesture.up(timeStamp: duration);
+    // Advance the test clock by the drag duration (plan 1.4), then let the
+    // fling settle — bounded, so a continuously animating fixture cannot
+    // wedge the runner.
     await tester.pump(duration);
+    for (var i = 0; i < 20 && tester.hasRunningAnimations; i++) {
+      await tester.pump(const Duration(milliseconds: 50));
+    }
     await tester.pump(const Duration(milliseconds: 50));
     return;
   }

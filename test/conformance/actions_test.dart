@@ -122,8 +122,10 @@ void main() {
     await applyConformanceAction(tester, RecordingBackend(), {
       'swipe': [49, 180, 49, 40, 150],
     });
-    await tester.pump();
     expect(position.pixels, greaterThan(0));
+    // A3: the swipe carries finger velocity — the fling goes past the
+    // touch delta itself (140 px) and settles at the scroll end.
+    expect(position.pixels, position.maxScrollExtent);
   });
 
   testWidgets('wait pumps the clock and back dispatches the host event', (
