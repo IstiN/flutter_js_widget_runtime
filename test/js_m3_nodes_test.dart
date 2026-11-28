@@ -279,5 +279,39 @@ void main() {
       expect(find.byType(Scaffold), findsWidgets);
       expect(find.byType(Drawer), findsNothing);
     });
+
+    testWidgets('popupMenu with string items dumps them as text children', (
+      tester,
+    ) async {
+      final renderer = scaffold.renderer;
+      BuildContext? captured;
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: Builder(
+              builder: (context) {
+                captured = context;
+                return renderer.build(<String, dynamic>{
+                  'type': 'column',
+                  'children': [
+                    {'type': 'popupMenu', 'items': ['Alpha', 'Beta']},
+                  ],
+                }, context);
+              },
+            ),
+          ),
+        ),
+      );
+      final dump = renderer.dumpViewTree(captured!);
+      final popup = (dump['children'] as List).single as Map;
+      // The button's own Tooltip default must not leak into the dump.
+      expect(popup['props'], isNot(contains('message')));
+      final children = popup['children'] as List;
+      expect(children, hasLength(2));
+      expect((children[0] as Map)['type'], 'text');
+      expect(((children[0] as Map)['props'] as Map)['data'], 'Alpha');
+      expect((children[1] as Map)['type'], 'text');
+      expect(((children[1] as Map)['props'] as Map)['data'], 'Beta');
+    });
   });
 }

@@ -284,6 +284,15 @@ class JsonWidgetRenderer with JsonWidgetDecoration {
   final Map<String, Map<String, dynamic>> _appliedRecords = {};
   int _nodeIdCounter = 0;
 
+  /// nodeId → the payload `items` list the renderer last applied. Menu
+  /// items (`popupMenu`, `dropdown`) are built lazily by their widgets and
+  /// never appear in the element tree; the dump joins them from here.
+  final Map<String, List<dynamic>> _appliedItems = {};
+
+  /// nodeId → ordered ids of that node's `items` entries, including the
+  /// string entries that carry no payload map (rule 7: every node counted).
+  final Map<String, List<String>> _itemEntryIds = {};
+
   /// Built ParentDataWidget instance → nodeId (issue #14): these nodes
   /// stay unkeyed in the tree; the dump joins them through identity.
   final Map<Widget, String> _parentDataInstances = Map.identity();
@@ -291,18 +300,33 @@ class JsonWidgetRenderer with JsonWidgetDecoration {
   /// `n<i>` = depth-first pre-order index in the raw render payload:
   /// node first, then `child`, then `children`/`items` in order. Keyed by
   /// the ORIGINAL payload map objects (`cast()` wrappers have fresh
-  /// identities and must never enter the map).
+  /// identities and must never enter the map). `items` entries without a
+  /// payload map (plain strings) still consume an id — the reference
+  /// normalization lifts them to `text` nodes (rule 7).
   void _indexNodeIds(dynamic node) {
     if (node is! Map) return;
-    _nodeIds[node] = 'n${_nodeIdCounter++}';
+    final id = 'n${_nodeIdCounter++}';
+    _nodeIds[node] = id;
     final child = node['child'];
     if (child is Map) _indexNodeIds(child);
     for (final listKey in const ['children', 'items']) {
       final list = node[listKey];
-      if (list is List) {
+      if (list is! List) continue;
+      if (listKey == 'items') {
+        final entryIds = <String>[];
         for (final entry in list) {
-          _indexNodeIds(entry);
+          if (entry is Map) {
+            _indexNodeIds(entry);
+            entryIds.add(_nodeIds[entry] ?? '');
+          } else {
+            entryIds.add('n${_nodeIdCounter++}');
+          }
         }
+        _itemEntryIds[id] = entryIds;
+        continue;
+      }
+      for (final entry in list) {
+        _indexNodeIds(entry);
       }
     }
   }
@@ -316,10 +340,11 @@ class JsonWidgetRenderer with JsonWidgetDecoration {
     final id = nodeIdOverride ?? _nodeIds[identity];
     if (id == null) return built;
     final record = Map<String, dynamic>.from(identity as Map);
+    final items = record.remove('items');
+    if (items is List) _appliedItems[id] = items;
     record
       ..remove('child')
-      ..remove('children')
-      ..remove('items');
+      ..remove('children');
     _appliedRecords[id] = record;
     if (built is ParentDataWidget) {
       // Issue #14, take two: a ParentDataWidget MUST stay unwrapped (its
@@ -1068,13 +1093,40 @@ class JsonWidgetRenderer with JsonWidgetDecoration {
     final type = UiViewTreeNormalizer.resolveType('${record['type'] ?? ''}');
     final props = _dumpProps(element, record);
     if (type == 'scroll') _applyScrollState(element, props);
+    var children = _dumpChildren(element);
+    if (children.isEmpty) children = _dumpItemChildren(id);
     return <String, dynamic>{
       'type': type,
       'props': props,
-      'children': _dumpChildren(element),
+      'children': children,
       'events': _dumpEvents(record),
       'nodeId': id,
     };
+  }
+
+  /// Menu items are built lazily by their widget (`itemBuilder` fires only
+  /// when the menu opens) and never appear in the element tree, so the
+  /// payload's documented `items` list is joined here: every string entry
+  /// dumps as a `text` node — the reference normalization lifts items to
+  /// children. Nodes with element-tree children (payload `children`) never
+  /// reach this path.
+  List<Map<String, dynamic>> _dumpItemChildren(String id) {
+    final items = _appliedItems[id];
+    final entryIds = _itemEntryIds[id];
+    if (items == null || entryIds == null) return const [];
+    final children = <Map<String, dynamic>>[];
+    for (var i = 0; i < items.length; i++) {
+      final entry = items[i];
+      if (entry is! String) continue;
+      children.add(<String, dynamic>{
+        'type': 'text',
+        'props': <String, dynamic>{'data': entry},
+        'children': const <Map<String, dynamic>>[],
+        'events': const <String, dynamic>{},
+        'nodeId': i < entryIds.length ? entryIds[i] : '',
+      });
+    }
+    return children;
   }
 
   /// A3 (PROTOCOL amendment A3): a `scroll` dump carries its live scroll
@@ -1194,7 +1246,12 @@ class JsonWidgetRenderer with JsonWidgetDecoration {
     walk(element);
     if (text != null) props['data'] = text;
     if (editable != null) props['text'] = editable;
-    if (tooltip != null) props['message'] = tooltip;
+    // Only report a live tooltip when the payload declares `message` —
+    // widgets wrap themselves in Tooltip chrome (a PopupMenuButton always
+    // adds a "Show menu" tooltip that the popupMenu node never declared).
+    if (tooltip != null && props.containsKey('message')) {
+      props['message'] = tooltip;
+    }
   }
 
   /// Recursively normalizes dump values: hex color strings become
