@@ -71,10 +71,22 @@ extension on JsonWidgetRenderer {
   Widget _carouselNode(Map<String, dynamic> m) {
     final children = _children(m);
     if (children.isEmpty) return const SizedBox.shrink();
-    return CarouselView(
+    final view = CarouselView(
       itemExtent: _double(m['itemExtent'], 200),
       shrinkExtent: _double(m['shrinkExtent'], 0),
       children: children,
+    );
+    // CarouselView takes its cross-axis (height) extent from the parent.
+    // An unbounded parent (e.g. a column child) collapses the viewport to
+    // zero height and NO item builds — the payload children would be
+    // dropped (flutter_js_widget_runtime#15). Bind to the Material 3
+    // default carousel height (220) instead; a bounded parent keeps its
+    // exact behavior.
+    return LayoutBuilder(
+      builder: (_, constraints) =>
+          constraints.maxHeight.isFinite
+              ? view
+              : SizedBox(height: 220, child: view),
     );
   }
 }

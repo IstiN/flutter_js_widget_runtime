@@ -253,6 +253,28 @@ void main() {
       expect(find.byType(CarouselView), findsNothing);
     });
 
+    testWidgets('carousel in an unbounded column renders its children', (
+      tester,
+    ) async {
+      await tester.pumpWidget(
+        buildTree({
+          'type': 'column',
+          'children': [
+            {
+              'type': 'carousel',
+              'itemExtent': 200,
+              'children': [
+                {'type': 'text', 'data': 'card one'},
+                {'type': 'text', 'data': 'card two'},
+              ],
+            },
+          ],
+        }),
+      );
+      expect(find.text('card one'), findsOneWidget);
+      expect(find.text('card two'), findsOneWidget);
+    });
+
     testWidgets('datePicker posts the picked date on OK', (tester) async {
       await pumpOverlay(tester, {
         'type': 'datePicker',
